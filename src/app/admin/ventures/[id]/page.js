@@ -33,9 +33,6 @@ import {
   RefreshCw,
   Trash2,
   Flag,
-  Columns,
-  BookOpen,
-  Star,
   X,
   Route,
 } from "lucide-react";
@@ -44,20 +41,20 @@ import { useI18n } from "@/lib/i18n";
 import VentureDashboard from "@/components/ventures/VentureDashboard";
 
 const STAGE_CONFIG = {
-  idea: { label: "Idea", color: "text-blue-400 bg-blue-500/10", order: 1 },
-  validation: { label: "Validation", color: "text-purple-400 bg-purple-500/10", order: 2 },
-  early_traction: { label: "Early Traction", color: "text-amber-400 bg-amber-500/10", order: 3 },
-  growth: { label: "Growth", color: "text-emerald-400 bg-emerald-500/10", order: 4 },
-  scaling: { label: "Scaling", color: "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10", order: 5 },
+  idea: { label: "vadmin.detail.stageIdea", color: "text-blue-400 bg-blue-500/10", order: 1 },
+  validation: { label: "vadmin.detail.stageValidation", color: "text-purple-400 bg-purple-500/10", order: 2 },
+  early_traction: { label: "vadmin.detail.stageEarlyTraction", color: "text-amber-400 bg-amber-500/10", order: 3 },
+  growth: { label: "vadmin.detail.stageGrowth", color: "text-emerald-400 bg-emerald-500/10", order: 4 },
+  scaling: { label: "vadmin.detail.stageScaling", color: "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10", order: 5 },
 };
 
 const WIZARD_STEPS = [
-  { step: 1, name: "Startup Identity", icon: Building2 },
-  { step: 2, name: "Business Information", icon: Briefcase },
-  { step: 3, name: "Founder Information", icon: User },
-  { step: 4, name: "Team Information", icon: Users },
-  { step: 5, name: "Supporting Documents", icon: FileText },
-  { step: 6, name: "Review & Submit", icon: CheckCircle2 },
+  { step: 1, name: "vadmin.detail.startupIdentity", icon: Building2 },
+  { step: 2, name: "vadmin.detail.businessInformation", icon: Briefcase },
+  { step: 3, name: "vadmin.detail.founderInformation", icon: User },
+  { step: 4, name: "vadmin.detail.teamInformation", icon: Users },
+  { step: 5, name: "vadmin.detail.supportingDocuments", icon: FileText },
+  { step: 6, name: "vadmin.detail.reviewAndSubmit", icon: CheckCircle2 },
 ];
 
 const ACTIVITY_ICONS = {
@@ -119,7 +116,7 @@ const ACTIVITY_COLORS = {
 export default function VentureDetailPage({ params }) {
   const router = useRouter();
   const { id } = React.use(params);
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [venture, setVenture] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -133,7 +130,7 @@ export default function VentureDetailPage({ params }) {
     const url = `/api/ventures/${id}`;
     const apply = (data) => {
       if (!data.success) {
-        setError(t(data.error || "Venture not found") || data.error || "Venture not found");
+        setError((data.error && t(data.error)) || t("vadmin.detail.ventureNotFound"));
         return;
       }
       setVenture(data.venture);
@@ -158,7 +155,7 @@ export default function VentureDetailPage({ params }) {
       if (data.success) cacheSet(url, data);
       apply(data);
     } catch (e) {
-      if (!painted) setError("Failed to load venture data");
+      if (!painted) setError(t("vadmin.detail.ventureLoadError"));
     } finally {
       setLoading(false);
     }
@@ -184,14 +181,14 @@ export default function VentureDetailPage({ params }) {
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
-            Venture Not Found
+            {t("vadmin.detail.ventureNotFound")}
           </h2>
-          <p className="text-slate-500 mb-6">{error || "The venture could not be loaded."}</p>
+          <p className="text-slate-500 mb-6">{error || t("vadmin.detail.ventureLoadError")}</p>
           <button
             onClick={() => router.push("/admin/ventures")}
             className="btn btn-primary"
           >
-            Back to Ventures
+            {t("vadmin.detail.backToVentures")}
           </button>
         </div>
       </>
@@ -201,15 +198,15 @@ export default function VentureDetailPage({ params }) {
   const stage = getStageConfig(venture.business_stage);
 
   const TABS = [
-    { id: "dashboard", label: "Dashboard", icon: Rocket },
-    { id: "journey", label: "Journey", icon: Route },
-    { id: "investment", label: "Investment Readiness", icon: TrendingUp },
-    { id: "timeline", label: "Timeline", icon: BarChart3 },
-    { id: "reports", label: "Reports", icon: TrendingUp },
-    { id: "verification", label: "Verification", icon: Shield },
-    { id: "activity", label: "Activity", icon: Activity },
-    { id: "profile", label: "Profile", icon: Building2 },
-    { id: "team", label: "Team", icon: Users },
+    { id: "dashboard", label: "vadmin.detail.dashboard", icon: Rocket },
+    { id: "journey", label: "vadmin.detail.journey", icon: Route },
+    { id: "investment", label: "vadmin.detail.investmentReadiness", icon: TrendingUp },
+    { id: "timeline", label: "vadmin.detail.timeline", icon: BarChart3 },
+    { id: "reports", label: "vadmin.detail.reports", icon: FileText },
+    { id: "verification", label: "vadmin.detail.verification", icon: Shield },
+    { id: "activity", label: "vadmin.detail.activity", icon: Activity },
+    { id: "profile", label: "vadmin.detail.profile", icon: Building2 },
+    { id: "team", label: "vadmin.detail.team", icon: Users },
   ];
 
   // Operational sections live on their own pages; the hub tab opens them.
@@ -221,17 +218,18 @@ export default function VentureDetailPage({ params }) {
     verification: `/admin/ventures/${id}/verification`,
   };
 
-  // Full sub-page catalog stays one click away (dashboard module shortcuts).
+  // Module shortcuts — every chip opens the module's real sub-page directly
+  // (uniform behavior; no inline teasers or fabricated preview stats).
   const HUB_MODULES = [
-    { id: "milestones", label: "Milestones" },
-    { id: "tasks", label: "Tasks" },
-    { id: "sessions", label: "Sessions" },
-    { id: "coaches", label: "Coaches" },
-    { id: "knowledge", label: "Knowledge" },
-    { id: "feedback", label: "Feedback" },
-    { id: "fundraising", label: "Fundraising", route: "/fundraising" },
-    { id: "investors", label: "Investors", route: "/investors" },
-    { id: "analytics", label: "Analytics", route: "/analytics" },
+    { id: "milestones", label: "vadmin.detail.milestones", route: "/milestones" },
+    { id: "tasks", label: "vadmin.detail.tasks", route: "/tasks" },
+    { id: "sessions", label: "vadmin.detail.sessions", route: "/sessions" },
+    { id: "coaches", label: "vadmin.detail.coaches", route: "/coaches" },
+    { id: "knowledge", label: "vadmin.detail.knowledge", route: "/knowledge" },
+    { id: "feedback", label: "vadmin.detail.feedback", route: "/feedback" },
+    { id: "fundraising", label: "vadmin.detail.fundraising", route: "/fundraising" },
+    { id: "investors", label: "vadmin.detail.investors", route: "/investors" },
+    { id: "analytics", label: "vadmin.detail.analytics", route: "/analytics" },
   ];
 
   return (
@@ -242,7 +240,7 @@ export default function VentureDetailPage({ params }) {
           onClick={() => router.push("/admin/ventures")}
           className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
         >
-          <ArrowLeft className="w-3 h-3" /> Back to Ventures
+          <ArrowLeft className="w-3 h-3" /> {t("vadmin.detail.backToVentures")}
         </button>
 
         {/* Venture Header */}
@@ -258,14 +256,14 @@ export default function VentureDetailPage({ params }) {
                     {venture.company_name}
                   </h1>
                   <span className={`text-[8px] font-black uppercase px-2 py-1 rounded ${stage.color}`}>
-                    {stage.label}
+                    {t(stage.label)}
                   </span>
                 </div>
                 <div className="flex items-center gap-4 text-[10px] text-slate-500">
                   <span className="font-mono">{venture.venture_id}</span>
                   <span className="flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
-                    Registered {new Date(venture.created_at).toLocaleDateString()}
+                    {t("vadmin.detail.registered", { date: new Date(venture.created_at).toLocaleDateString(lang) })}
                   </span>
                 </div>
               </div>
@@ -276,39 +274,39 @@ export default function VentureDetailPage({ params }) {
                 onClick={() => router.push(`/admin/ventures/${id}/edit`)}
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
               >
-                <Edit3 className="w-3 h-3" /> Edit
+                <Edit3 className="w-3 h-3" /> {t("vadmin.detail.edit")}
               </button>
               <button
                 onClick={() => router.push(`/admin/ventures/permissions`)}
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
-                title="Global permission profiles (applies to all Ventures)"
+                title={t("vadmin.detail.permissionsTitle")}
               >
-                <Shield className="w-3 h-3" /> Permissions
+                <Shield className="w-3 h-3" /> {t("vadmin.detail.permissions")}
               </button>
               <button
                 onClick={() => router.push(`/admin/ventures/${id}/permissions`)}
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
-                title="Who manages/coaches this Venture and at what scope"
+                title={t("vadmin.detail.staffTitle")}
               >
-                <Users className="w-3 h-3" /> Staff
+                <Users className="w-3 h-3" /> {t("vadmin.detail.staff")}
               </button>
               <button
                 onClick={() => router.push(`/admin/ventures/${id}/notes`)}
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
               >
-                <FileText className="w-3 h-3" /> Notes
+                <FileText className="w-3 h-3" /> {t("vadmin.detail.notes")}
               </button>
               <button
                 onClick={() => router.push(`/admin/ventures/${id}/operating-plan`)}
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
               >
-                <Target className="w-3 h-3" /> Operating Plan
+                <Target className="w-3 h-3" /> {t("vadmin.detail.operatingPlan")}
               </button>
               <button
                 onClick={() => router.push(`/admin/ventures/${id}/journey`)}
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
               >
-                <Route className="w-3 h-3" /> Journey
+                <Route className="w-3 h-3" /> {t("vadmin.detail.journey")}
               </button>
             </div>
           </div>
@@ -333,7 +331,7 @@ export default function VentureDetailPage({ params }) {
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5 shrink-0" />
-                  {tab.label}
+                  {t(tab.label)}
                 </button>
               );
             })}
@@ -346,274 +344,22 @@ export default function VentureDetailPage({ params }) {
             {/* Full Dashboard is the first view when opening a Venture (merged
                 with the former standalone dashboard page content). */}
             <VentureDashboard id={id} embedded />
-            {/* Module shortcuts — every sub-page stays one click away */}
+            {/* Module shortcuts — every Venture sub-page stays one click away */}
             <div className="card">
-              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-3">Venture modules</p>
+              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-3">{t("vadmin.detail.ventureModules")}</p>
               <div className="flex flex-wrap gap-2">
                 {HUB_MODULES.map((m) => (
                   <button
                     key={m.id}
-                    onClick={() => (m.route ? router.push(`/admin/ventures/${id}${m.route}`) : setActiveTab(m.id))}
+                    onClick={() => router.push(`/admin/ventures/${id}${m.route}`)}
                     className="px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all text-slate-500 hover:text-[var(--text-primary)]"
                   >
-                    {m.label}
+                    {t(m.label)}
                   </button>
                 ))}
               </div>
             </div>
           </>
-        )}
-
-        {activeTab === "investment" && (
-          <div className="card">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-emerald-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Investment Readiness</h3>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Score, recommendations, and category breakdown
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/investment`)}
-                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-              >
-                <TrendingUp className="w-3.5 h-3.5" /> Open Assessment
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "timeline" && (
-          <div className="card">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
-                  <BarChart3 className="w-6 h-6 text-indigo-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Project Timeline & Progress</h3>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Gantt chart, progress tracking, and delay detection
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/timeline`)}
-                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-              >
-                <BarChart3 className="w-3.5 h-3.5" /> Open Timeline
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "reports" && (
-          <div className="card">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-emerald-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Reports & Analytics</h3>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    KPIs, project health, team productivity, and export
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/reports`)}
-                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-              >
-                <TrendingUp className="w-3.5 h-3.5" /> Open Reports
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "sessions" && (
-          <div className="card">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Mentoring Sessions</h3>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Schedule and manage coaching, mentoring, and advisory sessions
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/sessions`)}
-                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-              >
-                <Calendar className="w-3.5 h-3.5" /> Open Sessions
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "feedback" && (
-          <div className="card">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
-                  <Star className="w-6 h-6 text-amber-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Mentor Feedback & Analytics</h3>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Session ratings, coach performance, and mentoring KPIs
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/feedback`)}
-                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-              >
-                <Star className="w-3.5 h-3.5" /> Open Analytics
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "knowledge" && (
-          <div className="card">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-                  <BookOpen className="w-6 h-6 text-emerald-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Knowledge Hub</h3>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Learning resources, guides, templates, and best practices
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/knowledge`)}
-                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-              >
-                <BookOpen className="w-3.5 h-3.5" /> Open Knowledge Hub
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "coaches" && (
-          <div className="card">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
-                  <BookOpen className="w-6 h-6 text-[var(--brand-orange)]" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Coaches & Advisors</h3>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Assign and manage coaches and advisors for this venture
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/coaches`)}
-                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-              >
-                <BookOpen className="w-3.5 h-3.5" /> Open Coaches
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "milestones" && (
-          <div className="card">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
-                  <Flag className="w-6 h-6 text-[var(--brand-orange)]" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Milestones & Deliverables</h3>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Track execution progress with milestones and deliverables
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/milestones`)}
-                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-              >
-                <Flag className="w-3.5 h-3.5" /> Open Milestones
-              </button>
-            </div>
-            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Milestones</p>
-                <p className="text-2xl font-black text-[var(--text-primary)] mt-1">0</p>
-              </div>
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">In Progress</p>
-                <p className="text-2xl font-black text-blue-400 mt-1">0</p>
-              </div>
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Completed</p>
-                <p className="text-2xl font-black text-emerald-400 mt-1">0</p>
-              </div>
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Delayed</p>
-                <p className="text-2xl font-black text-rose-400 mt-1">0</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "tasks" && (
-          <div className="card">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
-                  <CheckCircle2 className="w-6 h-6 text-[var(--brand-orange)]" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Task Management & Kanban</h3>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Kanban board, list view, and task tracking
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/tasks`)}
-                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-              >
-                <Columns className="w-3.5 h-3.5" /> Open Kanban
-              </button>
-            </div>
-            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Backlog</p>
-                <p className="text-2xl font-black text-slate-400 mt-1">0</p>
-              </div>
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">In Progress</p>
-                <p className="text-2xl font-black text-amber-400 mt-1">0</p>
-              </div>
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Review</p>
-                <p className="text-2xl font-black text-purple-400 mt-1">0</p>
-              </div>
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Done</p>
-                <p className="text-2xl font-black text-emerald-400 mt-1">0</p>
-              </div>
-            </div>
-          </div>
         )}
 
         {(activeTab === "profile" || activeTab === "overview") && (
@@ -624,26 +370,26 @@ export default function VentureDetailPage({ params }) {
               <div className="card">
                 <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                   <Building2 className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-                  Company Details
+                  {t("vadmin.detail.companyDetails")}
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-3 bg-tertiary rounded-xl">
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Industry</p>
+                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t("vadmin.detail.industry")}</p>
                     <p className="text-sm font-bold text-[var(--text-primary)]">{venture.industry}</p>
                   </div>
                   <div className="p-3 bg-tertiary rounded-xl">
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Business Stage</p>
-                    <p className={`text-sm font-bold ${stage.color}`}>{stage.label}</p>
+                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t("vadmin.detail.businessStage")}</p>
+                    <p className={`text-sm font-bold ${stage.color}`}>{t(stage.label)}</p>
                   </div>
                   {venture.registration_number && (
                     <div className="p-3 bg-tertiary rounded-xl">
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Registration #</p>
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t("vadmin.detail.registrationNumber")}</p>
                       <p className="text-sm font-bold text-[var(--text-primary)]">{venture.registration_number}</p>
                     </div>
                   )}
                   {venture.website && (
                     <div className="p-3 bg-tertiary rounded-xl">
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Website</p>
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t("vadmin.detail.website")}</p>
                       <a
                         href={venture.website}
                         target="_blank"
@@ -657,7 +403,7 @@ export default function VentureDetailPage({ params }) {
                   )}
                   {venture.description && (
                     <div className="col-span-2 p-3 bg-tertiary rounded-xl">
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Description</p>
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t("vadmin.detail.description")}</p>
                       <p className="text-sm text-[var(--text-secondary)]">{venture.description}</p>
                     </div>
                   )}
@@ -668,7 +414,7 @@ export default function VentureDetailPage({ params }) {
               <div className="card">
                 <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                   <Layers className="w-3.5 h-3.5 text-purple-500" />
-                  Startup Profile Wizard
+                  {t("vadmin.detail.startupProfileWizard")}
                 </h3>
                 <div className="space-y-3">
                   {WIZARD_STEPS.map((ws) => {
@@ -696,11 +442,11 @@ export default function VentureDetailPage({ params }) {
                           <p className={`text-[11px] font-bold ${
                             completed ? "text-emerald-500" : "text-slate-500"
                           }`}>
-                            Step {ws.step}: {ws.name}
+                            {t("vadmin.detail.stepName", { step: ws.step, name: t(ws.name) })}
                           </p>
                         </div>
                         {completed && (
-                          <span className="text-[8px] font-black text-emerald-500 uppercase">Completed</span>
+                          <span className="text-[8px] font-black text-emerald-500 uppercase">{t("vadmin.detail.completed")}</span>
                         )}
                       </div>
                     );
@@ -713,33 +459,33 @@ export default function VentureDetailPage({ params }) {
             <div className="space-y-6">
               {/* Quick Stats */}
               <div className="card">
-                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Quick Stats</h3>
+                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">{t("vadmin.detail.quickStats")}</h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
                     <div className="flex items-center gap-2">
                       <Users className="w-3.5 h-3.5 text-blue-500" />
-                      <span className="text-[10px] font-bold text-slate-500">Founders</span>
+                      <span className="text-[10px] font-bold text-slate-500">{t("vadmin.detail.founders")}</span>
                     </div>
                     <span className="text-sm font-black">{(venture.founders || []).length}</span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
                     <div className="flex items-center gap-2">
                       <Users className="w-3.5 h-3.5 text-emerald-500" />
-                      <span className="text-[10px] font-bold text-slate-500">Members</span>
+                      <span className="text-[10px] font-bold text-slate-500">{t("vadmin.detail.members")}</span>
                     </div>
                     <span className="text-sm font-black">{(venture.members || []).length}</span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
                     <div className="flex items-center gap-2">
                       <Activity className="w-3.5 h-3.5 text-amber-500" />
-                      <span className="text-[10px] font-bold text-slate-500">Activity Events</span>
+                      <span className="text-[10px] font-bold text-slate-500">{t("vadmin.detail.activityEvents")}</span>
                     </div>
                     <span className="text-sm font-black">{(venture.activity || []).length}</span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
                     <div className="flex items-center gap-2">
                       <Layers className="w-3.5 h-3.5 text-purple-500" />
-                      <span className="text-[10px] font-bold text-slate-500">Wizard Progress</span>
+                      <span className="text-[10px] font-bold text-slate-500">{t("vadmin.detail.wizardProgress")}</span>
                     </div>
                     <span className="text-sm font-black">
                       {(venture.history || []).filter(h => h.event_type === "PROFILE_WIZARD_INIT" && h.metadata?.completed).length}/{WIZARD_STEPS.length}
@@ -750,7 +496,7 @@ export default function VentureDetailPage({ params }) {
 
               {/* Recent Activity (sidebar) */}
               <div className="card">
-                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Recent Activity</h3>
+                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">{t("vadmin.detail.recentActivity")}</h3>
                 <div className="space-y-2">
                   {(venture.activity || []).slice(0, 5).map((act, i) => {
                     const Icon = getActivityIcon(act.action);
@@ -763,14 +509,14 @@ export default function VentureDetailPage({ params }) {
                         <div className="min-w-0">
                           <p className="text-[9px] font-bold text-[var(--text-primary)] truncate">{act.action}</p>
                           <p className="text-[8px] text-slate-500">
-                            {act.actor_name} · {new Date(act.created_at).toLocaleDateString()}
+                            {act.actor_name} · {new Date(act.created_at).toLocaleDateString(lang)}
                           </p>
                         </div>
                       </div>
                     );
                   })}
                   {(venture.activity || []).length === 0 && (
-                    <p className="text-sm text-[var(--text-secondary)] py-3 text-center">No activity yet</p>
+                    <p className="text-sm text-[var(--text-secondary)] py-3 text-center">{t("vadmin.detail.noActivityYet")}</p>
                   )}
                 </div>
               </div>
@@ -783,17 +529,17 @@ export default function VentureDetailPage({ params }) {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 <User className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-                Founders
+                {t("vadmin.detail.founders")}
               </h3>
               <button
                 onClick={() => router.push(`/admin/ventures/${id}/founders`)}
                 className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-xl text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-1.5"
               >
-                <Shield className="w-3 h-3" /> Manage
+                <Shield className="w-3 h-3" /> {t("vadmin.detail.manage")}
               </button>
             </div>
             {(venture.founders || []).length === 0 ? (
-              <p className="text-sm text-[var(--text-secondary)] py-6 text-center">No founders registered</p>
+              <p className="text-sm text-[var(--text-secondary)] py-6 text-center">{t("vadmin.detail.noFounders")}</p>
             ) : (
               <div className="space-y-3">
                 {(venture.founders || []).map((founder, i) => (
@@ -827,11 +573,15 @@ export default function VentureDetailPage({ params }) {
                             ? "bg-amber-500/10 text-amber-500"
                             : "bg-slate-500/10 text-slate-500"
                       }`}>
-                        {founder.status}
+                        {founder.status === "accepted"
+                          ? t("vadmin.detail.accepted")
+                          : founder.status === "pending"
+                            ? t("vadmin.detail.pending")
+                            : founder.status}
                       </span>
                       {founder.invitation_sent_at && (
                         <span className="text-[8px] text-slate-500">
-                          Invited {new Date(founder.invitation_sent_at).toLocaleDateString()}
+                          {t("vadmin.detail.invited", { date: new Date(founder.invitation_sent_at).toLocaleDateString(lang) })}
                         </span>
                       )}
                     </div>
@@ -846,10 +596,10 @@ export default function VentureDetailPage({ params }) {
           <div className="card">
             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Activity className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-              Activity Log
+              {t("vadmin.detail.activityLog")}
             </h3>
             {(venture.activity || []).length === 0 ? (
-              <p className="text-sm text-[var(--text-secondary)] py-6 text-center">No activity recorded</p>
+              <p className="text-sm text-[var(--text-secondary)] py-6 text-center">{t("vadmin.detail.noActivityRecorded")}</p>
             ) : (
               <div className="space-y-1">
                 {(venture.activity || []).map((act, i) => {
@@ -864,11 +614,11 @@ export default function VentureDetailPage({ params }) {
                         <div className="flex items-center gap-2">
                           <p className="text-[11px] font-bold text-[var(--text-primary)]">{act.action}</p>
                           <span className="text-[8px] text-slate-500">
-                            by {act.actor_name || "System"}
+                            {t("vadmin.detail.byActor", { name: act.actor_name || t("vadmin.detail.system") })}
                           </span>
                         </div>
                         <p className="text-[9px] text-slate-500 mt-0.5">
-                          {new Date(act.created_at).toLocaleString()}
+                          {new Date(act.created_at).toLocaleString(lang)}
                         </p>
                         {act.details && (
                           <p className="text-[9px] text-slate-600 mt-1 font-mono">
@@ -894,9 +644,9 @@ export default function VentureDetailPage({ params }) {
                     <Layers className="w-6 h-6 text-purple-500" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-[var(--text-primary)]">Startup Profile Wizard</h3>
+                    <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.startupProfileWizard")}</h3>
                     <p className="text-[10px] text-slate-500 mt-0.5">
-                      Complete or continue your startup onboarding profile
+                      {t("vadmin.detail.wizardDescription")}
                     </p>
                   </div>
                 </div>
@@ -904,7 +654,7 @@ export default function VentureDetailPage({ params }) {
                   onClick={() => router.push(`/ventures/${id}/wizard`)}
                   className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
                 >
-                  <Layers className="w-3.5 h-3.5" /> Open Wizard
+                  <Layers className="w-3.5 h-3.5" /> {t("vadmin.detail.openWizard")}
                 </button>
               </div>
             </div>
@@ -913,7 +663,7 @@ export default function VentureDetailPage({ params }) {
             <div className="card">
               <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <Layers className="w-3.5 h-3.5 text-purple-500" />
-                Progress Overview
+                {t("vadmin.detail.progressOverview")}
               </h3>
               <div className="space-y-3">
                 {WIZARD_STEPS.map((ws) => {
@@ -941,11 +691,11 @@ export default function VentureDetailPage({ params }) {
                         <p className={`text-[11px] font-bold ${
                           completed ? "text-emerald-500" : "text-slate-500"
                         }`}>
-                          Step {ws.step}: {ws.name}
+                          {t("vadmin.detail.stepName", { step: ws.step, name: t(ws.name) })}
                         </p>
                       </div>
                       {completed && (
-                        <span className="text-[8px] font-black text-emerald-500 uppercase">Completed</span>
+                        <span className="text-[8px] font-black text-emerald-500 uppercase">{t("vadmin.detail.completed")}</span>
                       )}
                     </div>
                   );
@@ -957,10 +707,10 @@ export default function VentureDetailPage({ params }) {
             <div className="card">
               <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <FileText className="w-3.5 h-3.5 text-purple-500" />
-                Startup Profile Wizard History
+                {t("vadmin.detail.wizardHistory")}
               </h3>
               {(venture.history || []).length === 0 ? (
-                <p className="text-sm text-[var(--text-secondary)] py-6 text-center">No wizard history yet</p>
+                <p className="text-sm text-[var(--text-secondary)] py-6 text-center">{t("vadmin.detail.noWizardHistory")}</p>
               ) : (
                 <div className="space-y-2">
                   {(venture.history || []).map((entry, i) => (
@@ -973,11 +723,11 @@ export default function VentureDetailPage({ params }) {
                         <p className="text-[9px] text-slate-500 mt-0.5">{entry.description}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[8px] text-slate-600">
-                            {new Date(entry.created_at).toLocaleString()}
+                            {new Date(entry.created_at).toLocaleString(lang)}
                           </span>
                           {entry.metadata?.step && (
                             <span className="text-[8px] font-bold text-purple-500">
-                              Step {entry.metadata.step}/{entry.metadata.total_steps}
+                              {t("vadmin.detail.stepFraction", { step: entry.metadata.step, total: entry.metadata.total_steps })}
                             </span>
                           )}
                         </div>
@@ -990,48 +740,6 @@ export default function VentureDetailPage({ params }) {
           </div>
         )}
 
-        {activeTab === "verification" && (
-          <div className="card">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-                  <Shield className="w-6 h-6 text-emerald-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Startup Verification</h3>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Verify company legitimacy, founder identity, and documentation
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/verification`)}
-                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-              >
-                <Shield className="w-3.5 h-3.5" /> Open Verification
-              </button>
-            </div>
-            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Status</p>
-                <p className="text-sm font-black text-[var(--text-primary)] mt-1 capitalize">{(venture.profile_progress?.is_completed ? "Verified" : "Pending")}</p>
-              </div>
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Categories</p>
-                <p className="text-sm font-black text-[var(--text-primary)] mt-1">6 required</p>
-              </div>
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Documents</p>
-                <p className="text-sm font-black text-[var(--text-primary)] mt-1">0 uploaded</p>
-              </div>
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Last Review</p>
-                <p className="text-sm font-black text-slate-500 mt-1">—</p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {(activeTab === "management" || activeTab === "team") && (
           <div className="card">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -1040,9 +748,9 @@ export default function VentureDetailPage({ params }) {
                   <Shield className="w-6 h-6 text-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Team Management</h3>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.teamManagement")}</h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Manage founders, co-founders, roles, and ownership
+                    {t("vadmin.detail.teamManagementDesc")}
                   </p>
                 </div>
               </div>
@@ -1050,28 +758,28 @@ export default function VentureDetailPage({ params }) {
                 onClick={() => router.push(`/admin/ventures/${id}/founders`)}
                 className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <Shield className="w-3.5 h-3.5" /> Open Founder Management
+                <Shield className="w-3.5 h-3.5" /> {t("vadmin.detail.openFounderManagement")}
               </button>
             </div>
             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Total Members</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.totalMembers")}</p>
                 <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{(venture.founders || []).length}</p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Roles</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.roles")}</p>
                 <p className="text-2xl font-black text-[var(--text-primary)] mt-1">
                   {new Set((venture.founders || []).map((f) => f.role || f.title)).size}
                 </p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Pending</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.pending")}</p>
                 <p className="text-2xl font-black text-amber-400 mt-1">
                   {(venture.founders || []).filter((f) => f.status === "pending").length}
                 </p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Active</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.active")}</p>
                 <p className="text-2xl font-black text-emerald-400 mt-1">
                   {(venture.founders || []).filter((f) => f.status === "accepted").length}
                 </p>
