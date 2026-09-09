@@ -7,7 +7,7 @@
 // =============================================================================
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 import {
   findV2WeeklyReportByProgramWeekTeacher,
   insertV2WeeklyReport,
@@ -27,7 +27,16 @@ export async function GET(req) {
     const week_number = searchParams.get("week_number");
 
     const reports = await listV2WeeklyReports(program_id, week_number);
-    return NextResponse.json({ success: true, reports: reports.rows });
+    // Own-scope (defect batch 2): a teacher session may only read its own
+    // reports; SA keeps the full view.
+    const session = await getSession();
+    const rows =
+      session?.role === "teacher"
+        ? reports.rows.filter(
+            (r) => String(r.teacher_id ?? "") === String(session.cid ?? ""),
+          )
+        : reports.rows;
+    return NextResponse.json({ success: true, reports: rows });
   } catch (e) {
     return NextResponse.json(
       { success: false, error: e.message },
@@ -42,6 +51,12 @@ export async function POST(req) {
     const authError = await requireAuth(["super_admin", "teacher"]);
     if (authError) return authError;
     const body = await req.json();
+    // Identity binding (defect batch 2): teacher sessions file as themselves.
+    const session = await getSession();
+    if (session?.role === "teacher") {
+      body.teacher_id = session.cid;
+      body.teacher_name = session.name || "";
+    }
     const {
       program_id,
       week_number,

@@ -7,7 +7,7 @@
 // =============================================================================
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 import {
   getV2TeacherProgramsByHandlerCid,
   getV2TeacherTeamsByHandlerCid,
@@ -21,7 +21,16 @@ export async function GET(req) {
     const authError = await requireAuth(["super_admin", "teacher"]);
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
-    const cid = searchParams.get("cid");
+    let cid = searchParams.get("cid");
+
+    // Scope binding (defect batch 2): a teacher session can only ever load
+    // ITS OWN workspace — the caller-chosen cid is ignored (previously any
+    // listed role could read any teacher's programs/teams/submissions by
+    // passing their cid). SA keeps cross-teacher inspection.
+    const session = await getSession();
+    if (session?.role === "teacher") {
+      cid = session.cid;
+    }
 
     if (!cid)
       return NextResponse.json({
