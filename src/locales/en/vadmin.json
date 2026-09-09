@@ -1074,7 +1074,10 @@
     "journey": {
       "statusLocked": "Locked",
       "statusActive": "Active",
-      "statusCompleted": "Completed"
+      "statusCompleted": "Completed",
+      "backToVenture": "Back to {name}",
+      "title": "Venture Journey",
+      "subtitle": "{company} · {code} — the staff-defined operating path shown to the Venture"
     }
   }
 }
