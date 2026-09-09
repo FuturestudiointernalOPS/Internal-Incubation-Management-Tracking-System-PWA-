@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { v4 as uuidv4 } from "uuid";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { RESPONSIBILITY_FEATURE_ROLES } from "@/lib/featureAccess";
+import { deriveLegacyRoleEnabled, deriveLegacyRole } from "@/lib/identity";
 
 import { NextResponse } from "next/server";
 
@@ -30,6 +31,31 @@ const SESSION_CACHE_MAX = 5000;
 export async function createSession(userCid, userRole, rememberMe = false, isImpersonation = false) {
   await initDb();
   await ensureTokenHashColumns();
+
+  // PHASE I2 (transitional, flag-gated): when the stored role is a baseline
+  // (member) and legacy-role derivation is enabled, derive the session role
+  // from memberships so legacy gates keep working AFTER contacts.role stops
+  // being mutated on context joins. Baseline stays untouched in the DB.
+  if (deriveLegacyRoleEnabled() && userRole === "member") {
+    try {
+      const { hasActiveParticipantProgram, isActiveVentureOwner } = await import("@/models/authorization/membership");
+      const [inProgram, ownsVenture] = await Promise.all([
+        hasActiveParticipantProgram(userCid),
+        isActiveVentureOwner(userCid),
+      ]);
+      const derived = deriveLegacyRole({
+        storedRole: userRole,
+        hasActiveParticipantProgram: inProgram,
+        isActiveVentureOwner: ownsVenture,
+      });
+      if (derived !== userRole) {
+        console.log("[session] createSession — derived legacy role:", userRole, "→", derived, "(cid:", userCid, ")");
+        userRole = derived;
+      }
+    } catch (e) {
+      console.error("[session] legacy-role derivation failed (falling back to stored role):", e.message);
+    }
+  }
 
   const durationMs = rememberMe ? REMEMBER_ME_DURATION_MS : SESSION_DURATION_MS;
   const token = uuidv4();

@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { stopRoleMutationEnabled } from "@/lib/identity";
 
 /**
  * Admin/ops model — data access for the admin + ops controllers listed below.
@@ -338,6 +339,16 @@ export async function getUserForApproval(userCid) {
 
 /** Mark the contact approved and set their role. */
 export async function approveContact(role, userCid) {
+  // PHASE I2 (flag-gated): context joins no longer rewrite the baseline
+  // identity — approval only changes status; the participant context lives in
+  // participant_programs and legacy readers get the derived role at session
+  // creation (IDENTITY_DERIVE_LEGACY_ROLE=1).
+  if (stopRoleMutationEnabled()) {
+    return db.execute({
+      sql: "UPDATE contacts SET status = 'approved' WHERE cid = ?",
+      args: [userCid],
+    });
+  }
   return db.execute({
     sql: "UPDATE contacts SET status = 'approved', role = ? WHERE cid = ?",
     args: [role || "participant", userCid],

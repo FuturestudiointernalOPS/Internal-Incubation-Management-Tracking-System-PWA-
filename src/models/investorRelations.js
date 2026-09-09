@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { stopRoleMutationEnabled } from "@/lib/identity";
 
 /**
  * Investor relations model — data access for the investor relationship and
@@ -336,6 +337,13 @@ export async function findContactByEmail(email) {
 
 /** Promote an existing contact to the investor role. */
 export async function setContactRoleToInvestor(name, contactId) {
+  // PHASE I2 (flag-gated): investor context must not rewrite the baseline.
+  if (stopRoleMutationEnabled()) {
+    return db.execute({
+      sql: "UPDATE contacts SET name = ? WHERE cid = ?",
+      args: [name, contactId],
+    });
+  }
   return db.execute({
     sql: "UPDATE contacts SET role = 'investor', name = ? WHERE cid = ?",
     args: [name, contactId],
@@ -552,6 +560,10 @@ export async function insertInvestorProfileWithPhoto(userId, organizationName, b
 
 /** Upgrade a contact record to the investor role when not staff/admin. */
 export async function upgradeContactRoleToInvestor(contactId) {
+  // PHASE I2 (flag-gated): same rule as setContactRoleToInvestor.
+  if (stopRoleMutationEnabled()) {
+    return { rows: [], rowCount: 0 };
+  }
   return db.execute({
     sql: "UPDATE contacts SET role = 'investor' WHERE cid = ? AND role NOT IN ('super_admin','staff','admin')",
     args: [contactId],
