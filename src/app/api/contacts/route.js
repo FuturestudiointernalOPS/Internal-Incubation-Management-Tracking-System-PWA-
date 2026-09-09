@@ -433,19 +433,12 @@ export async function GET(req) {
       );
     }
 
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-      "participant",
-      "founder",
-    ]);
+    const authError = await requireAuth();
     if (authError) return authError;
-    // Read access is gated by the role allowlist above. Participants/founders
-    // are additionally scoped to their own contact below, so no extra
-    // capability check is required here (avoids 403s for roles whose access
-    // profile has not been seeded yet).
+    // Phase 1.2: directory and cross-user reads require the contacts.view
+    // capability (resolver + CRM eligibility). Every session keeps the right
+    // to read its OWN contact record, so participants/founders/members can
+    // always self-serve their profile without a profile seed.
 
     const { searchParams } = new URL(req.url);
     const statusFilter = searchParams.get("status");
@@ -453,11 +446,13 @@ export async function GET(req) {
     const groupFilter = searchParams.get("group");
     const cidFilter = searchParams.get("cid");
 
+    const capError = await requireAuthorization("contacts", "view");
+    const canReadDirectory = !capError;
+
     let result;
-    if (session.role === "participant" || session.role === "founder") {
-      // Defect fix (I6A defect queue): external identities may only read their
-      // own contact record — a caller-chosen cid parameter is ignored unless
-      // it IS the session's own cid (self lookup).
+    if (!canReadDirectory) {
+      // Own record only — a caller-chosen cid is ignored unless it is the
+      // session's own cid (self lookup).
       if (cidFilter && String(cidFilter) !== String(session.cid)) {
         return NextResponse.json(
           { success: false, error: "errors.insufficientPermissions" },
@@ -465,16 +460,17 @@ export async function GET(req) {
         );
       }
       result = await getContactByCid(cidFilter || session.cid);
-    } else if (cidFilter) {
-      result = await getContactByCid(cidFilter);
     } else if (statusFilter === "archived" && session.role === "super_admin") {
       // Archived contacts (archived but not soft-deleted)
       result = await getArchivedContacts();
+    } else if (cidFilter) {
+      result = await getContactByCid(cidFilter);
     } else if (session.role === "super_admin") {
       result = await getContactsForSuperAdmin(roleFilter, statusFilter, groupFilter);
     } else {
-      // Staff/Teacher: active only. Program managers also see pending contacts
-      // so they can find unapproved people and assign them as facilitators.
+      // Staff/PM/teacher (with contacts.view): active contacts only, with the
+      // role-appropriate status window (PMs also see pending contacts so they
+      // can find unapproved people and assign them as facilitators).
       result = await getContactsForStaff(session.role, groupFilter);
     }
     const rows = result.rows || [];

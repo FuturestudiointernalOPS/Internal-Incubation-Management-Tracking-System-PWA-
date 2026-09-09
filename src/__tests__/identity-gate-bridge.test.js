@@ -120,6 +120,38 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(src).toMatch(/authorize\(ctx, "programs", "view"\)/);
   });
 
+  test("phase 1.2: contacts GET — bare + capability gate with universal own-record read", () => {
+    const file = "src/app/api/contacts/route.js";
+    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(bareAuthCount(file)).toBe(1);
+    const lists = authBlocks(file);
+    expect(lists).toHaveLength(0); // no contextual-role list remains
+    expect(src).toMatch(/requireAuthorization\("contacts", "view"\)/);
+    expect(src).toMatch(/getContactByCid\(cidFilter \|\| session\.cid\)/);
+  });
+
+  test("phase 1.2: contacts/search GET — bare + membership-keyed branch + capability gate", () => {
+    const file = "src/app/api/contacts/search/route.js";
+    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(bareAuthCount(file)).toBe(1);
+    const lists = authBlocks(file);
+    expect(lists).toHaveLength(0);
+    expect(src).toMatch(/isParticipantInProgram/);
+    expect(src).toMatch(/isVentureFounderInProgram/);
+    expect(src).toMatch(/requireAuthorization\("contacts", "view"\)/);
+  });
+
+  test("phase 1.2: programs GET — bare + directory capability, assignment-scoped ?id=", () => {
+    const file = "src/app/api/programs/route.js";
+    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(bareAuthCount(file)).toBe(1); // GET
+    const lists = authBlocks(file);
+    expect(lists).toHaveLength(2); // POST + PUT [staff, super_admin] — global-only
+    for (const l of lists) expect(containsContextual(l)).toBe(false);
+    expect(src).toMatch(/requireAuthorization\("programs", "view"\)/);
+    expect(src).toMatch(/requireAssignmentAccess/);
+  });
+
   test("pm/full-state: bare (assigned-PM / requireProgramFacilitator decide)", () => {
     expect(bareAuthCount("src/app/api/pm/full-state/route.js")).toBe(1);
     expect(authBlocks("src/app/api/pm/full-state/route.js")).toHaveLength(0);
@@ -176,8 +208,6 @@ describe("I6A/I6B backlog watchlist — deferred contextual-role lists (need dow
   // membership/capability gate exists for the contextual holder. Removing a
   // list here without building the gate = widening access: this test fails.
   const deferred = [
-    "src/app/api/contacts/route.js", // GET directory: role=scope; cidFilter over-read
-    "src/app/api/contacts/search/route.js", // role-keyed branch split (not membership-keyed)
     "src/app/api/families/route.js", // GET unscoped family list
     "src/app/api/participant-programs/route.js", // GET cross-participant read
     "src/app/api/platform/ai/route.js", // AI spend, no context in request
@@ -185,7 +215,6 @@ describe("I6A/I6B backlog watchlist — deferred contextual-role lists (need dow
     "src/app/api/platform/ai/evaluate-submission/route.js", // auto-approve + emails
     "src/app/api/platform/ai/evaluation-scores/route.js", // PII read
     "src/app/api/platform/form-runs/route.js", // review + send_result_emails actions
-    "src/app/api/programs/route.js", // GET whole-directory read (separate from pm/programs)
     "src/app/api/teacher/reports/route.js", // client-supplied teacher identity
     "src/app/api/v2/teacher/fulfillment/route.js", // program-scoped PII read
     "src/app/api/v2/teacher/full-state/route.js", // client-supplied cid scope key

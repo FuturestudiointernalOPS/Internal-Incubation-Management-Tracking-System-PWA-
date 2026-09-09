@@ -1,7 +1,14 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { requireAuth, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import {
+  requireAuth,
+  getSession,
+  hasProgramManagementAccess,
+  requireAssignmentAccess,
+  assertNoParticipantFacilitatorConflict,
+} from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import {
   addParticipantProgramMembership,
   assignFamilyToProgram,
@@ -79,20 +86,44 @@ export async function POST(req) {
   }
 }
 
-export async function GET() {
+export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-    ]);
+    // Phase 1.2: the program directory is capability-governed — management
+    // roles and programs.view holders may list everything; a program-staff
+    // session may resolve ONE program via ?id= only when it holds an
+    // assignment for that program. Everything else is denied.
+    const authError = await requireAuth();
     if (authError) return authError;
+    const session = await getSession();
+    const capError = await requireAuthorization("programs", "view");
+    const canReadDirectory = !capError || hasProgramManagementAccess(session?.role);
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!canReadDirectory) {
+      if (id) {
+        const guardError = await requireAssignmentAccess({
+          resource: "program",
+          contextId: id,
+        });
+        if (guardError) return guardError;
+      } else {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+    }
+
     const { rows } = await getAllPrograms();
 
+    // Assignment-only callers may only see the single program they resolved.
+    const scopedRows = !canReadDirectory && id ? rows.filter((r) => String(r.id) === String(id)) : rows;
+
     // Parse JSON columns
-    const programs = rows.map((r) => ({
+    const programs = scopedRows.map((r) => ({
       ...r,
       topics: r.topics ? JSON.parse(r.topics) : [],
       outcomes: r.outcomes ? JSON.parse(r.outcomes) : [],
