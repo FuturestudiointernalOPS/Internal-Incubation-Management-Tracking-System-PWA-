@@ -18,8 +18,35 @@ export const CAPABILITY_CATALOG = {
       create: { label: "Create", risk: "medium", description: "Add new contacts" },
       edit: { label: "Edit", risk: "medium", description: "Modify contact records" },
       delete: { label: "Delete", risk: "high", description: "Remove contacts (soft delete)" },
-      import: { label: "Import", risk: "high", description: "Bulk-import contacts" },
+      // DOCUMENTED (P1): no enforcing route — bulk contact import is governed
+      // by the bulk_upload.execute gate. Kept so legacy profile rows stay
+      // explainable; grants of this cap are inert until a route adopts it.
+      import: { label: "Import", risk: "high", description: "Bulk-import contacts (superseded by bulk_upload.execute)" },
       export: { label: "Export", risk: "medium", description: "Export contact data" },
+    },
+  },
+  // P1 MODULE DECISION — duplicates is a genuine MODULE, not a Contacts view:
+  // it owns a distinct workflow (flag → review → resolve) with its own
+  // lifecycle, describable without mentioning Contacts. Routes remain
+  // super-admin role-locked until a later phase opens the module
+  // (catalog `locked` metadata documents that intent).
+  duplicates: {
+    name: "Duplicates",
+    risk: "medium",
+    locked: true,
+    capabilities: {
+      view: { label: "View", risk: "low", description: "See duplicate contact flags" },
+      resolve: { label: "Resolve", risk: "high", description: "Resolve duplicate contact pairs" },
+    },
+  },
+  // P1 MODULE DECISION — bulk upload is a genuine MODULE (distinct import
+  // workflow with its own validation pipeline). Its gate replaces the legacy
+  // permissions.assign_capabilities requirement (P1 gate migration).
+  bulk_upload: {
+    name: "Bulk Upload",
+    risk: "high",
+    capabilities: {
+      execute: { label: "Execute", risk: "high", description: "Run bulk contact/people imports" },
     },
   },
   programs: {
@@ -146,6 +173,12 @@ export const CAPABILITY_CATALOG = {
       create: { label: "Create", risk: "medium", description: "Create courses" },
       edit: { label: "Edit", risk: "medium", description: "Edit courses and sections" },
       delete: { label: "Delete", risk: "high", description: "Delete courses" },
+      // RETIRED caps (P1 catalog truth): routes still guard on these, so the
+      // catalog must document them. New grants are blocked by the retirement
+      // backfill — only legacy holders can carry them.
+      assign: { label: "Assign", risk: "high", retired: true, description: "Assign courses (retired — legacy holders only)" },
+      enroll: { label: "Enroll", risk: "medium", retired: true, description: "Enroll learners (retired — legacy holders only)" },
+      publish: { label: "Publish", risk: "high", retired: true, description: "Publish courses (retired — legacy holders only)" },
     },
   },
   tasks: {

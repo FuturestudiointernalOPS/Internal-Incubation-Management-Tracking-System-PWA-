@@ -31,11 +31,15 @@ export const IDENTITY_TYPES = ["role", "group"];
 /**
  * The agreed eligibility-matrix identities — the ONLY identities the
  * Permission UI shows/configures (Super Admin, Staff, Member, Participant,
- * Facilitator, Investor). Functions (developer, teacher, program_manager,
+ * Facilitator, Investor, Founder). Functions (developer, teacher, program_manager,
  * intern, ...) are deliberately NOT eligibility identities — they are
  * profiles/assignments layered on Staff. ROLE_CATALOG remains the full
  * technical catalog (used by the gate-validation tests); this list is the
  * UI-facing subset.
+ *
+ * Founder is an official identity (P1): founder = venture-membership user,
+ * distinct from participant (program enrollment). Founder scope is
+ * venture_own — never an automatic participant surface.
  */
 export const ELIGIBILITY_IDENTITIES = [
   "super_admin",
@@ -44,6 +48,7 @@ export const ELIGIBILITY_IDENTITIES = [
   "participant",
   "facilitator",
   "investor",
+  "founder",
 ];
 
 /** Canonical role catalog: every role referenced by seeds/config plus the

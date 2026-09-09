@@ -87,8 +87,8 @@ export const RESPONSIBILITY_FEATURE_ROLES = {
   system_settings: ["super_admin", "staff"],
   // Tasks — assignments, blockers
   tasks: ["super_admin", "staff", "program_manager", "team"],
-  // Ventures — incubated businesses
-  ventures: ["super_admin", "staff", "program_manager", "investor"],
+  // Ventures — incubated businesses (founder eligible for own-venture access)
+  ventures: ["super_admin", "staff", "program_manager", "investor", "founder"],
   // Investor relations
   investor: ["super_admin", "staff", "investor"],
   // LMS — capability-gated course authoring & learning

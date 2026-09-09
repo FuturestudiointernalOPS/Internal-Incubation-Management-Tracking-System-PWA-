@@ -100,6 +100,7 @@ describe("Phase 9 — model consistency", () => {
       "participant",
       "facilitator",
       "investor",
+      "founder",
     ]);
     // Every UI identity must exist in the technical catalog (gate validation
     // and legacy lookups keep working); functions are intentionally excluded.

@@ -33,7 +33,13 @@ import {
 export async function POST(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("permissions", "assign_capabilities");
+    // P1 gate migration: bulk imports are governed by their own module
+    // capability (bulk_upload.execute), not by permission-administration
+    // powers. Legacy holders of permissions.assign_capabilities were mapped
+    // additively on staging (before-image captured); production mapping is a
+    // documented rollout step before this deploys. The FUTURE STUDIO
+    // protected-group boundary below remains an independent second gate.
+    const capError = await requireAuthorization("bulk_upload", "execute");
     if (capError) return capError;
 
     const formData = await req.formData();

@@ -149,15 +149,19 @@ export async function grantResponsibilityBaseAccess({ userCid, responsibilityKey
     .filter(([, feature]) => feature === responsibilityKey)
     .map(([module]) => module);
 
-  for (const module of modules) {
-    if (!CAPABILITY_CATALOG[module]?.capabilities?.view) continue;
+  for (const mod of modules) {
+    // P1 catalog truth: modules marked `locked` (e.g. duplicates — super-admin
+    // role-locked until a later phase opens them) never enter responsibility
+    // base grants. The catalog is the single source for this decision.
+    if (CAPABILITY_CATALOG[mod]?.locked) continue;
+    if (!CAPABILITY_CATALOG[mod]?.capabilities?.view) continue;
     await db.execute({
       sql: `INSERT INTO user_capabilities (user_cid, module, capability, access_level, granted_by)
             VALUES (?, ?, 'view', 1, ?)
             ON CONFLICT (user_cid, module, capability) DO NOTHING`,
-      args: [userCid, module, grantedBy],
+      args: [userCid, mod, grantedBy],
     });
-    granted.push(`${module}.view`);
+    granted.push(`${mod}.view`);
   }
   return granted;
 }
