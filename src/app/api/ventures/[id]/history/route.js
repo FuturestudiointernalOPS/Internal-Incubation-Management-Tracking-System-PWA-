@@ -6,15 +6,17 @@ import {
   getProgramById,
   getVentureForHistory,
   getVentureFounderHistory,
-  isVentureMemberContact,
 } from "@/models/ventureJourney";
 
 export async function GET(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "participant", "founder", "staff", "program_manager", "super_admin", "teacher", "developer",
-    ]);
+    // Phase 1.1 (watchlist): history is venture-scoped for EVERY non-global
+    // session — an active venture_members row OR an active venture staff
+    // assignment is required, regardless of stored role. This closes the
+    // founder path that previously passed on the allowlist alone and admits
+    // member-baseline founders. SA/developer/admin keep the global bypass.
+    const authError = await requireAuth();
     if (authError) return authError;
 
     const session = await getSession();
@@ -27,12 +29,8 @@ export async function GET(req, { params }) {
     }
 
     const venture = ventureRes.rows[0];
-    const dbId = venture.id;
 
-    // Delegated staff (Phase 2): history is Venture-scoped — staff and
-    // program_manager need an explicit assignment; unassigned teacher reads
-    // are no longer implicit.
-    if (["staff", "program_manager", "teacher"].includes(session.role) && !["super_admin", "developer", "admin"].includes(session.role)) {
+    if (session && !["super_admin", "developer", "admin"].includes(session.role)) {
       const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
       const assigned = await hasActiveVentureAssignment(id, session.cid, db);
       const member = await db.execute({
@@ -41,14 +39,6 @@ export async function GET(req, { params }) {
       });
       if (!assigned && !member.rows?.length) {
         return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-      }
-    }
-
-    if (session.role === "participant" && venture.visibility !== "public") {
-      // venture_members stores venture_id as the VNT code (TEXT)
-      const memberCheck = await isVentureMemberContact(id, session.cid);
-      if (!memberCheck.rows?.length) {
-        return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
       }
     }
 

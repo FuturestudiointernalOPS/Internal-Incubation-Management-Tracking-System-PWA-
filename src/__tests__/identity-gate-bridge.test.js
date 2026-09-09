@@ -88,16 +88,36 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(containsContextual(lists[0])).toBe(false);
   });
 
-  test("submissions: PATCH + GET bare (assignment/own-scope decide); POST self-service list stays", () => {
-    expect(bareAuthCount("src/app/api/submissions/route.js")).toBe(2);
+  test("submissions: POST/PATCH/GET bare — membership binding + assignment/own-scope decide", () => {
+    expect(bareAuthCount("src/app/api/submissions/route.js")).toBe(3);
     const src = fs.readFileSync(path.join(ROOT, "src/app/api/submissions/route.js"), "utf8");
     const lists = authBlocks("src/app/api/submissions/route.js");
-    expect(lists).toHaveLength(2); // POST self-service + one pure-global handler
-    expect(lists[0]).toMatch(/participant/);
-    expect(lists[0]).toMatch(/team/);
-    expect(containsContextual(lists[1])).toBe(false);
-    // Own-scope fallback for no-programId reads.
+    expect(lists).toHaveLength(1); // one pure-global handler stays listed
+    expect(containsContextual(lists[0])).toBe(false);
+    // Own-scope fallback for no-programId reads + self-service identity binding.
     expect(src).toMatch(/participant_id = session\.cid/);
+    expect(src).toMatch(/body\.participant_id = session\.cid/);
+    expect(src).toMatch(/body\.team_id = session\.cid/);
+  });
+
+  test("phase 1.1: ventures/[id]/history — bare + unified membership/assignment gate", () => {
+    const file = "src/app/api/ventures/[id]/history/route.js";
+    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(bareAuthCount(file)).toBe(1);
+    expect(authBlocks(file)).toHaveLength(0);
+    expect(src).toMatch(/hasActiveVentureAssignment/);
+    expect(src).toMatch(/venture_members WHERE venture_id/);
+  });
+
+  test("phase 1.1: pm/teams GET — bare + program-context gate (management/capability/assignment)", () => {
+    const file = "src/app/api/pm/teams/route.js";
+    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(bareAuthCount(file)).toBe(1);
+    const lists = authBlocks(file);
+    expect(lists).toHaveLength(0);
+    expect(src).toMatch(/program_id required/);
+    expect(src).toMatch(/requireAssignmentAccess/);
+    expect(src).toMatch(/authorize\(ctx, "programs", "view"\)/);
   });
 
   test("pm/full-state: bare (assigned-PM / requireProgramFacilitator decide)", () => {
@@ -174,9 +194,6 @@ describe("I6A/I6B backlog watchlist — deferred contextual-role lists (need dow
     "src/app/api/investor/pipeline/route.js", // GET: unscoped venture_id branch
     "src/app/api/teams/route.js", // GET: own-team scope exists only in comments
     "src/app/api/upload/route.js", // no context; eligibility question
-    "src/app/api/ventures/[id]/history/route.js", // founder unchecked; staff gate broken (db)
-    "src/app/api/pm/teams/route.js", // GET: teams of any program; PM-only consumer; teacher listed
-    "src/app/api/submissions/route.js", // POST: self-service + on-behalf eligibility list
   ];
 
   test.each(deferred)("%s keeps its documented role list (locked deferral)", (file) => {

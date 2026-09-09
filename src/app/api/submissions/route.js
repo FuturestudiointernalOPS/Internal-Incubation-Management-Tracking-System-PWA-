@@ -27,6 +27,7 @@ import {
   updateSubmissionScoreById,
   updateSubmissionsScoreForParticipant,
 } from "@/models/forms";
+import { getTeamForOwnershipCheck } from "@/models/teams";
 
 /**
  * SUBMISSIONS API — TRACK 3 ENHANCED
@@ -36,15 +37,81 @@ import {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "participant",
-      "team",
-    ]);
+    // Phase 1.1 (watchlist): self-service identity binding + membership checks
+    // below decide; staff/management keep their on-behalf path. Authentication
+    // only here.
+    const authError = await requireAuth();
     if (authError) return authError;
     const body = await req.json();
+    const session = await getSession();
+    const role = String(session?.role || "").toLowerCase();
+
+    // Phase 1.1 identity binding (self-service):
+    //  - participant/member sessions may only submit AS THEMSELVES and only
+    //    into a program where they hold an active participant membership;
+    //  - team-entity sessions may only submit AS THEIR OWN TEAM and only into
+    //    the program that owns the team.
+    // The caller-chosen participant_id/team_id can no longer target someone
+    // else's record.
+    if (session && (role === "participant" || role === "member")) {
+      if (body.participant_id && String(body.participant_id) !== String(session.cid)) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+      if (!body.program_id) {
+        return NextResponse.json(
+          { success: false, error: "Missing required fields (program_id and deliverable_id or document_id)" },
+          { status: 400 },
+        );
+      }
+      const ppCheck = await getParticipantProgramSubmissionStatus(session.cid, body.program_id);
+      const ppRow = ppCheck.rows?.[0];
+      if (!ppRow || String(ppRow.status || "").toLowerCase() === "completed") {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+      body.participant_id = session.cid;
+      delete body.team_id;
+    } else if (session && role === "team") {
+      if (!body.program_id) {
+        return NextResponse.json(
+          { success: false, error: "Missing required fields (program_id and deliverable_id or document_id)" },
+          { status: 400 },
+        );
+      }
+      const ownTeam = await getTeamForOwnershipCheck(session.cid);
+      const teamRow = ownTeam.rows?.[0];
+      if (!teamRow || String(teamRow.program_id) !== String(body.program_id)) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+      if (body.team_id && String(body.team_id) !== String(session.cid)) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+      body.team_id = session.cid;
+      delete body.participant_id;
+    } else if (
+      session &&
+      !["staff", "super_admin", "program_manager"].includes(role)
+    ) {
+      // Parity guard: every other role (developer, founder, investor, …) was
+      // denied by the old pre-filter and stays denied — only staff/PM/SA may
+      // submit on behalf of others.
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    }
+
     const {
       program_id,
       deliverable_id,
@@ -71,7 +138,6 @@ export async function POST(req) {
     // no longer active (completed/archived). Staff/PM/SA manage programs
     // regardless of its status. Also blocks a participant whose own membership
     // is completed even when the program is still active (Phase 2 acceptance).
-    const session = await getSession();
     if (session && ["participant", "team"].includes(session.role)) {
       try {
         const progCheck = await getSubmissionProgramStatus(program_id);

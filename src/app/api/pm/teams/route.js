@@ -1,8 +1,17 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/mailer";
-import { requireAuth } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import {
+  requireAuth,
+  getSession,
+  hasProgramManagementAccess,
+  requireAssignmentAccess,
+} from "@/lib/auth";
+import {
+  requireAuthorization,
+  getAuthorizationContext,
+  authorize,
+} from "@/lib/authorization";
 import {
   createTeam,
   deleteTeam,
@@ -25,15 +34,33 @@ import {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-    ]);
+    // Phase 1.1 (watchlist): team rosters are program-scoped — authentication
+    // only here; the decision is below (management / programs.view capability
+    // / program assignment). Without a program context nothing is returned.
+    const authError = await requireAuth();
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
+
+    if (!programId) {
+      return NextResponse.json(
+        { success: false, error: "program_id required" },
+        { status: 400 },
+      );
+    }
+
+    const session = await getSession();
+    const ctx = session ? await getAuthorizationContext(session) : null;
+    const canViewTeams =
+      hasProgramManagementAccess(session?.role) ||
+      (!!ctx && authorize(ctx, "programs", "view"));
+    if (session && !canViewTeams) {
+      const guardError = await requireAssignmentAccess({
+        resource: "program",
+        contextId: programId,
+      });
+      if (guardError) return guardError;
+    }
 
     const result = await getTeams(programId);
     return NextResponse.json({ success: true, teams: result.rows });
