@@ -32,7 +32,8 @@ export const SCOPE_POLICIES = {
     key: "venture_own",
     resource: "venture",
     implemented: true,
-    source: "venture_members (active membership: user_cid or contact_id, removed_at IS NULL)",
+    source:
+      "venture_members (active membership: user_cid or contact_id, removed_at IS NULL) UNION venture_staff_assignments (active delegated staff assignment)",
   },
   program_assigned: {
     key: "program_assigned",

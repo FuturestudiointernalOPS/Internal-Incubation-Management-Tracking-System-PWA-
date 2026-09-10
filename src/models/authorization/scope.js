@@ -48,11 +48,19 @@ export async function resolveScopeIds(policyKey, userCid, { email = null } = {})
   try {
     switch (policyKey) {
       case "venture_own": {
+        // UNION matches requireVentureAccess() exactly: an active membership
+        // (founders/team — the venture is theirs) OR an active delegated staff
+        // assignment (venture_staff_assignments). Global-role bypass stays in
+        // the resolver (Super Admin) and in the transitional legacy path.
         const r = await db.execute({
           sql: `SELECT DISTINCT CAST(venture_id AS TEXT) AS id
                 FROM venture_members
-                WHERE (user_cid = ? OR contact_id = ?) AND removed_at IS NULL`,
-          args: [userCid, userCid],
+                WHERE (user_cid = ? OR contact_id = ?) AND removed_at IS NULL
+                UNION
+                SELECT DISTINCT CAST(venture_id AS TEXT) AS id
+                FROM venture_staff_assignments
+                WHERE staff_contact_id = ? AND status = 'active'`,
+          args: [userCid, userCid, userCid],
         });
         return r.rows.map((x) => String(x.id));
       }
@@ -87,6 +95,33 @@ export async function resolveScopeIds(policyKey, userCid, { email = null } = {})
   } catch (e) {
     console.warn(`[Scope] resolveScopeIds(${policyKey}) failed:`, e.message);
     return null; // fail closed — an unresolvable scope is a denial
+  }
+}
+
+/**
+ * Normalize a route's venture identifier to the canonical scope key.
+ *
+ * venture_members / venture_staff_assignments store the VNT code, while some
+ * routes receive the internal UUID — the predicate compares strings, so pass
+ * the canonical code. Fail-soft: when a UUID cannot be resolved (or the lookup
+ * errors) the raw value is returned and the predicate simply won't match
+ * (deny), never a false allow.
+ */
+export async function resolveVentureScopeId(ventureId) {
+  if (ventureId === null || ventureId === undefined || ventureId === "") {
+    return null;
+  }
+  const val = String(ventureId);
+  if (val.startsWith("VNT-")) return val;
+  try {
+    const r = await db.execute({
+      sql: "SELECT venture_id FROM ventures WHERE id::text = ?",
+      args: [val],
+    });
+    return r.rows?.[0]?.venture_id || val;
+  } catch (e) {
+    console.warn("[Scope] resolveVentureScopeId failed:", e.message);
+    return val;
   }
 }
 

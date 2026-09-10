@@ -44,7 +44,7 @@ const {
   evaluateScopeDecision,
   isScopePolicyImplemented,
 } = require("@/lib/authorization/scope-catalog");
-const { resolveScopeIds, isWithinScope } = require("@/lib/authorization/scope");
+const { resolveScopeIds, isWithinScope, resolveVentureScopeId } = require("@/lib/authorization/scope");
 
 const getReq = (params) =>
   new Request(
@@ -120,7 +120,7 @@ describe("Phase 5 — catalogue & decision contract", () => {
 });
 
 describe("Phase 5 — data-layer predicates", () => {
-  test("venture_own reads active venture_members rows for cid or contact_id", async () => {
+  test("venture_own reads active memberships UNION delegated staff assignments", async () => {
     mockRows = [{ id: "V1" }, { id: "V2" }];
     const ids = await resolveScopeIds("venture_own", "C1");
     expect(ids).toEqual(["V1", "V2"]);
@@ -129,7 +129,31 @@ describe("Phase 5 — data-layer predicates", () => {
     expect(q.sql).toContain("removed_at IS NULL");
     expect(q.sql).toContain("user_cid = ?");
     expect(q.sql).toContain("contact_id = ?");
-    expect(q.args).toEqual(["C1", "C1"]);
+    // Delegated staff parity with requireVentureAccess (Phase 5b predicate fix):
+    // an active venture_staff_assignments row is within scope too.
+    expect(q.sql).toContain("FROM venture_staff_assignments");
+    expect(q.sql).toContain("status = 'active'");
+    expect(q.args).toEqual(["C1", "C1", "C1"]);
+  });
+
+  test("resolveVentureScopeId normalizes UUID → VNT code (fail-soft, never false-allow)", async () => {
+    // A canonical code passes through without a lookup.
+    mockExecuted.length = 0;
+    expect(await resolveVentureScopeId("VNT-123")).toBe("VNT-123");
+    expect(mockExecuted).toHaveLength(0);
+
+    // A UUID is resolved to the code.
+    mockRows = [{ venture_id: "VNT-123" }];
+    expect(await resolveVentureScopeId("9f1c-uuid")).toBe("VNT-123");
+    expect(mockExecuted[0].sql).toContain("FROM ventures WHERE id::text = ?");
+
+    // Unresolvable / error / empty → raw value or null (predicate then denies).
+    mockRows = [];
+    expect(await resolveVentureScopeId("9f1c-uuid")).toBe("9f1c-uuid");
+    mockThrow = true;
+    expect(await resolveVentureScopeId("9f1c-uuid")).toBe("9f1c-uuid");
+    mockThrow = false;
+    expect(await resolveVentureScopeId(null)).toBeNull();
   });
 
   test("program_assigned unions staff assignment (email-tolerant) with enrollment", async () => {
