@@ -14,14 +14,12 @@ import {
   Plus,
   Trash2,
   Loader2,
-  RefreshCw,
   Info,
   Layers,
   Copy,
   Eye,
   EyeOff,
   Award,
-  SwitchCamera,
   Pencil,
 } from "lucide-react";
 import AppPagination from "@/components/ui/AppPagination";
@@ -43,17 +41,12 @@ import ContextRolesView from "@/components/permissions/ContextRolesView";
 import Badge from "@/components/permissions/ui/Badge";
 import StatCard from "@/components/permissions/ui/StatCard";
 import WhyDrawer from "@/components/permissions/ui/WhyDrawer";
+import PendingChangesList from "@/components/permissions/ui/PendingChangesList";
+import { diffCapabilities } from "@/components/permissions/pendingChanges";
 import { splitAuditReason } from "@/components/permissions/auditHelpers";
 import { deriveProfileBadges } from "@/components/permissions/profileBadges";
+import { defer } from "@/components/permissions/effectUtils";
 
-const ACCESS_LEVELS = {
-  NONE: 0,
-  VIEW: 1,
-  CREATE: 2,
-  EDIT: 3,
-  DELETE: 4,
-  FULL: 5,
-};
 const ACCESS_LEVEL_KEYS = {
   0: "engineering.permissions.accessLevelNone",
   1: "engineering.permissions.accessLevelView",
@@ -103,7 +96,7 @@ export default function PermissionManager({
   const [searchQuery, setSearchQuery] = useState("");
   const [allUsers, setAllUsers] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
+  const [, setSearching] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [userPerms, setUserPerms] = useState(null);
   const [loadingPerms, setLoadingPerms] = useState(false);
@@ -123,21 +116,13 @@ export default function PermissionManager({
   // Deep-link support: /admin/security/permissions?cid=X preselects a user
   // (used by the Membership Control Center's "View Effective Access").
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const cid = new URLSearchParams(window.location.search).get("cid");
-    if (cid) setPendingCid(cid);
+    // Deferred: read the deep link after commit (no synchronous state write in
+    // the mount effect).
+    defer(() => {
+      const cid = new URLSearchParams(window.location.search).get("cid");
+      if (cid) setPendingCid(cid);
+    });
   }, []);
-
-  useEffect(() => {
-    fetchModules();
-  }, []);
-
-  // Load all users when search tab is active
-  useEffect(() => {
-    if (activeTab === "search" && searchResults.length === 0 && !selectedUser) {
-      fetchAllUsers();
-    }
-  }, [activeTab]);
 
   const fetchModules = async () => {
     try {
@@ -148,6 +133,12 @@ export default function PermissionManager({
       console.error("Failed to fetch modules", e);
     }
   };
+
+  // Effects live BELOW the loaders they call, so no variable is accessed
+  // before its declaration (react-hooks/immutability).
+  useEffect(() => {
+    defer(() => fetchModules());
+  }, []);
 
   const fetchAllUsers = async (bypassCache = false) => {
     const url = "/api/contacts";
@@ -194,6 +185,18 @@ export default function PermissionManager({
     }
   };
 
+  // Load all users when the search tab is active (declared after the loader).
+  useEffect(() => {
+    defer(() => {
+      if (activeTab === "search" && searchResults.length === 0 && !selectedUser) {
+        fetchAllUsers();
+      }
+    });
+    // Intentionally keyed on the tab only — the guard re-reads fresh state in
+    // the deferred callback (same behavior as before, no render loop).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
   const searchUsers = (query) => {
     setSearchQuery(query);
     if (!query.trim()) {
@@ -210,7 +213,9 @@ export default function PermissionManager({
     setSearchResults(filtered);
   };
 
-  const selectUser = async (user) => {
+  // Hoisted declaration: referenced by fetchAllUsers (declared earlier), so it
+  // must not live in the temporal dead zone (react-hooks/immutability).
+  async function selectUser(user) {
     setSelectedUser(user);
     setLoadingPerms(true);
     setActionMsg("");
@@ -273,7 +278,7 @@ export default function PermissionManager({
       } else {
         setAssignErr(t((data.error || t("engineering.permissions.failedToAssign")) || "") || (data.error || t("engineering.permissions.failedToAssign")));
       }
-    } catch (e) {
+    } catch {
       setAssignErr(t("engineering.permissions.networkError"));
     } finally {
       setAssignBusy(false);
@@ -398,7 +403,7 @@ export default function PermissionManager({
         setUserPerms(prevPerms);
         setActionError(t((data.error || t("engineering.permissions.actionFailed")) || "") || (data.error || t("engineering.permissions.actionFailed")));
       }
-    } catch (e) {
+    } catch {
       setUserPerms(prevPerms);
       setActionError(t("engineering.permissions.networkError"));
     }
@@ -411,7 +416,7 @@ export default function PermissionManager({
       );
       const data = await res.json();
       if (data.success) setUserPerms(data);
-    } catch (_) {}
+    } catch {}
   };
 
   return (
@@ -679,7 +684,7 @@ export default function PermissionManager({
                               setActionMsg(t("engineering.permissions.promotedToSuperAdmin"));
                               selectUser(selectedUser);
                             } else setActionError(t((data.error || t("engineering.permissions.failed")) || "") || (data.error || t("engineering.permissions.failed")));
-                          } catch (e) {
+                          } catch {
                             setActionError(t("engineering.permissions.networkError"));
                           }
                         }}
@@ -710,7 +715,7 @@ export default function PermissionManager({
                               setActionMsg(t("engineering.permissions.superAdminRemoved"));
                               selectUser(selectedUser);
                             } else setActionError(t((data.error || t("engineering.permissions.failed")) || "") || (data.error || t("engineering.permissions.failed")));
-                          } catch (e) {
+                          } catch {
                             setActionError(t("engineering.permissions.networkError"));
                           }
                         }}
@@ -1246,7 +1251,7 @@ function RoleDefaultsView() {
   }, []);
 
   useEffect(() => {
-    load();
+    defer(() => load());
   }, [load]);
 
   const setRoleDefault = async () => {
@@ -1269,7 +1274,7 @@ function RoleDefaultsView() {
       } else {
         setFormErr(t((data.error || t("engineering.permissions.failedToSetDefault")) || "") || (data.error || t("engineering.permissions.failedToSetDefault")));
       }
-    } catch (e) {
+    } catch {
       setFormErr(t("engineering.permissions.networkError"));
     } finally {
       setBusy(false);
@@ -1496,12 +1501,12 @@ function AccessProfilesView({ initialProfileId = null }) {
   const { t } = useI18n();
   const [profiles, setProfiles] = useState([]);
   const [roleDefaults, setRoleDefaults] = useState({});
-  const [allRoles, setAllRoles] = useState([]);
+  const [, setAllRoles] = useState([]);
   const [eligibilityRows, setEligibilityRows] = useState([]); // feature_eligibility rows for role-based filtering
   const [moduleToFeature, setModuleToFeature] = useState({}); // capability module → feature key
   const [loading, setLoading] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState(null);
-  const [profileCaps, setProfileCaps] = useState([]);
+  const [, setProfileCaps] = useState([]);
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -1566,7 +1571,7 @@ function AccessProfilesView({ initialProfileId = null }) {
   }, []);
 
   useEffect(() => {
-    fetchProfiles();
+    defer(() => fetchProfiles());
   }, [fetchProfiles]);
 
   const capsToObject = (rows) => {
@@ -1611,7 +1616,8 @@ function AccessProfilesView({ initialProfileId = null }) {
       return;
     }
     const hit = profiles.find((p) => String(p.id) === String(initialProfileId));
-    if (hit) selectProfile(hit);
+    // Deferred: the mount effect must not perform a synchronous state update.
+    if (hit) defer(() => selectProfile(hit));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialProfileId, profiles, selectedProfile]);
 
@@ -1619,7 +1625,7 @@ function AccessProfilesView({ initialProfileId = null }) {
   // it today). Read-only, fail-soft: no number is better than a wrong number.
   useEffect(() => {
     if (!selectedProfile?.id) {
-      setImpactTotal(null);
+      defer(() => setImpactTotal(null));
       return undefined;
     }
     let alive = true;
@@ -1662,7 +1668,7 @@ function AccessProfilesView({ initialProfileId = null }) {
       } else {
         setActionError(t((data.error || t("engineering.permissions.failedToCreate")) || "") || (data.error || t("engineering.permissions.failedToCreate")));
       }
-    } catch (e) {
+    } catch {
       setActionError(t("engineering.permissions.networkError"));
     }
   };
@@ -1703,7 +1709,7 @@ function AccessProfilesView({ initialProfileId = null }) {
       } else {
         setActionError(t((createData.error || t("engineering.permissions.failedToDuplicate")) || "") || (createData.error || t("engineering.permissions.failedToDuplicate")));
       }
-    } catch (e) {
+    } catch {
       setActionError(t("engineering.permissions.networkError"));
     }
   };
@@ -1729,7 +1735,7 @@ function AccessProfilesView({ initialProfileId = null }) {
       } else {
         setActionError(t((data.error || t("engineering.permissions.failedToToggle")) || "") || (data.error || t("engineering.permissions.failedToToggle")));
       }
-    } catch (e) {
+    } catch {
       setActionError(t("engineering.permissions.networkError"));
     }
   };
@@ -1777,7 +1783,7 @@ function AccessProfilesView({ initialProfileId = null }) {
       } else {
         setActionError(t((data.error || t("engineering.permissions.failedToUpdate")) || "") || (data.error || t("engineering.permissions.failedToUpdate")));
       }
-    } catch (e) {
+    } catch {
       setActionError(t("engineering.permissions.networkError"));
     } finally {
       setSaving(false);
@@ -1837,7 +1843,7 @@ function AccessProfilesView({ initialProfileId = null }) {
       } else {
         setActionError(t((data.error || t("engineering.permissions.failedToUpdate")) || "") || (data.error || t("engineering.permissions.failedToUpdate")));
       }
-    } catch (e) {
+    } catch {
       setActionError(t("engineering.permissions.networkError"));
     }
   };
@@ -2205,6 +2211,14 @@ function AccessProfilesView({ initialProfileId = null }) {
                     {t("engineering.permissions.impactAffects", { total: impactTotal })}
                   </p>
                 )}
+                {changesCount > 0 && (
+                  <PendingChangesList
+                    items={diffCapabilities(savedCaps, draftCaps).map((c) => ({
+                      label: c.label,
+                      level: c.to,
+                    }))}
+                  />
+                )}
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <p className="text-[10px] font-bold text-[var(--text-secondary)]">
                     {changesCount > 0
@@ -2509,7 +2523,7 @@ function ResponsibilitiesView() {
         );
         setActionError(t((data.error || t("engineering.permissions.actionFailed")) || "") || (data.error || t("engineering.permissions.actionFailed")));
       }
-    } catch (e) {
+    } catch {
       setResponsibilities((prev) =>
         prev.map((r) =>
           r.id === resp.id ? { ...r, assigned: !r.assigned } : r,
@@ -2786,7 +2800,7 @@ function ResponsibilityAccessView() {
   }, []);
 
   useEffect(() => {
-    fetchAll();
+    defer(() => fetchAll());
   }, [fetchAll]);
 
   const effectiveRoles = (resp) =>
@@ -2818,7 +2832,7 @@ function ResponsibilityAccessView() {
         setSaveError(t((data.error || t("engineering.permissions.accessSaveFailed")) || "") || (data.error || t("engineering.permissions.accessSaveFailed")));
         fetchAll(true);
       }
-    } catch (e) {
+    } catch {
       setSaveError(t("engineering.permissions.networkError"));
       fetchAll(true);
     } finally {
@@ -2856,7 +2870,7 @@ function ResponsibilityAccessView() {
       } else {
         setSaveError(t((data.error || t("engineering.permissions.accessSaveFailed")) || "") || (data.error || t("engineering.permissions.accessSaveFailed")));
       }
-    } catch (e) {
+    } catch {
       setSaveError(t("engineering.permissions.networkError"));
     } finally {
       setSavingId(null);
@@ -3018,22 +3032,24 @@ function EligibilityView() {
   }, [t]);
 
   useEffect(() => {
-    load();
+    defer(() => load());
   }, [load]);
 
   // Rebuild the draft whenever the identity changes.
   useEffect(() => {
-    if (!data) return;
-    const rows = (data.rows || []).filter(
-      (r) =>
-        r.identity_type === identityType &&
-        r.identity_value === identityValue,
-    );
-    const next = {};
-    for (const r of rows) next[r.feature_key] = Number(r.eligible);
-    setDraft(next);
-    setMsg("");
-    setErr("");
+    defer(() => {
+      if (!data) return;
+      const rows = (data.rows || []).filter(
+        (r) =>
+          r.identity_type === identityType &&
+          r.identity_value === identityValue,
+      );
+      const next = {};
+      for (const r of rows) next[r.feature_key] = Number(r.eligible);
+      setDraft(next);
+      setMsg("");
+      setErr("");
+    });
   }, [identityType, identityValue, data]);
 
   const identities =
@@ -3524,7 +3540,7 @@ function AuditView() {
   const [entries, setEntries] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize] = useState(25);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filters, setFilters] = useState({ q: "", action: "", module: "", capability: "", from: "", to: "" });

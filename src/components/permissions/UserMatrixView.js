@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { defer, settled } from "./effectUtils";
 import {
   collectContextModules,
   deriveUserCapState,
@@ -66,7 +67,7 @@ export default function UserMatrixView() {
     const url = "/api/engineering/permissions";
     try {
       const cached = cacheGet(url);
-      const d = cached && cached.success ? cached : await (await fetch(url)).json();
+      const d = cached && cached.success ? await settled(cached) : await (await fetch(url)).json();
       if (d.success) {
         cacheSet(url, d);
         setCatalog(d.catalog || {});
@@ -76,8 +77,10 @@ export default function UserMatrixView() {
   }, []);
 
   useEffect(() => {
-    loadUsers();
-    loadCatalog();
+    defer(() => {
+      loadUsers();
+      loadCatalog();
+    });
   }, [loadUsers, loadCatalog]);
 
   const pick = async (u) => {

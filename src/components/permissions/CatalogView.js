@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Loader2, Lock, Info, ShieldAlert } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { defer, settled } from "./effectUtils";
 import { buildFeatureRows } from "@/components/permissions/matrixHelpers";
 
 /**
@@ -28,7 +29,7 @@ export default function CatalogView() {
       const cachedC = cacheGet(urlCat);
       const [eRes, cRes] =
         cachedE?.success && cachedC?.success
-          ? [cachedE, cachedC]
+          ? await settled([cachedE, cachedC]) // yield before the cached paint
           : await Promise.all([fetch(urlElig), fetch(urlCat)]);
       const elig = eRes.success ? eRes : await eRes.json();
       const cat = cRes.success ? cRes : await cRes.json();
@@ -41,7 +42,7 @@ export default function CatalogView() {
   }, []);
 
   useEffect(() => {
-    load();
+    defer(() => load());
   }, [load]);
 
   const rows = useMemo(() => {
