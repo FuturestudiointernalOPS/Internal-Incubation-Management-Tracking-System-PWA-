@@ -71,6 +71,11 @@ jest.mock("@/lib/ventureAuth", () => ({
   requireVentureAccess: jest.fn().mockResolvedValue({ session: { cid: "u1", role: "super_admin" } }),
 }));
 
+// Phase 5c: the routes now decide through the canonical gate only.
+jest.mock("@/lib/ventureScopedAccess", () => ({
+  requireVentureScopedAccess: jest.fn().mockResolvedValue({ session: { cid: "u1", role: "super_admin" }, path: "super-admin" }),
+}));
+
 jest.mock("@/lib/ventures", () => ({
   notifyVentureFounders: jest.fn().mockResolvedValue(true),
   addVentureHistory: jest.fn().mockResolvedValue(true),
@@ -115,7 +120,7 @@ describe("milestone completion authority (Lead Manager / Super Admin only)", () 
   });
 
   test("coach/founder without a lead_manager assignment gets 403", async () => {
-    require("@/lib/ventureAuth").requireVentureAccess.mockResolvedValueOnce({ session: { cid: "coach-1", role: "staff" } });
+    require("@/lib/ventureScopedAccess").requireVentureScopedAccess.mockResolvedValueOnce({ session: { cid: "coach-1", role: "staff" }, path: "capability+scope" });
     const res = await PATCH(
       new Request("http://localhost/x?id=MS_1", { method: "PATCH", body: JSON.stringify({ status: "completed" }) }),
       ctx,
@@ -127,7 +132,7 @@ describe("milestone completion authority (Lead Manager / Super Admin only)", () 
 
   test("assigned Lead Manager may complete (assignment row found)", async () => {
     mockDb.flags.assignment = "lead";
-    require("@/lib/ventureAuth").requireVentureAccess.mockResolvedValueOnce({ session: { cid: "lm-1", role: "staff" } });
+    require("@/lib/ventureScopedAccess").requireVentureScopedAccess.mockResolvedValueOnce({ session: { cid: "lm-1", role: "staff" }, path: "capability+scope" });
     const res = await PATCH(
       new Request("http://localhost/x?id=MS_1", { method: "PATCH", body: JSON.stringify({ status: "completed" }) }),
       ctx,
@@ -136,7 +141,7 @@ describe("milestone completion authority (Lead Manager / Super Admin only)", () 
   });
 
   test("non-completion transitions stay open to the existing flow (no gate)", async () => {
-    require("@/lib/ventureAuth").requireVentureAccess.mockResolvedValueOnce({ session: { cid: "coach-1", role: "staff" } });
+    require("@/lib/ventureScopedAccess").requireVentureScopedAccess.mockResolvedValueOnce({ session: { cid: "coach-1", role: "staff" }, path: "capability+scope" });
     const res = await PATCH(
       new Request("http://localhost/x?id=MS_1", { method: "PATCH", body: JSON.stringify({ status: "under_review" }) }),
       ctx,

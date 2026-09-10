@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db from "@/lib/db";
-import { requireVentureAccess } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
   listResources, getResource, createResource, updateResource, deleteResource,
   listCategories, toggleBookmark, getUserBookmarks, markResourceComplete,
@@ -12,8 +11,8 @@ import {
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id, db);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+  if (access.error) return access.error;
   const s = new URL(req.url).searchParams;
   const type = s.get("type") || "resources";
 
@@ -74,8 +73,8 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id, db);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+  if (access.error) return access.error;
   const body = await req.json();
   const { action } = body;
 

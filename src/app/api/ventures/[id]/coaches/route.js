@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db from "@/lib/db";
-import { requireVentureAccess } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
   listCoaches, getCoach, createCoach, updateCoach, deleteCoach,
   getVentureAssignments, assignCoachToVenture, removeAssignment,
@@ -13,8 +12,8 @@ import {
  */
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id, db);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+  if (access.error) return access.error;
   const s = new URL(req.url).searchParams;
   const type = s.get("type");
 
@@ -32,8 +31,8 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id, db);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+  if (access.error) return access.error;
   const body = await req.json();
   const { action } = body;
 
@@ -89,8 +88,8 @@ export const POST = createHandler(async (req, { params }) => {
  */
 export const PATCH = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id, db);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+  if (access.error) return access.error;
   const coachId = new URL(req.url).searchParams.get("coach_id");
   if (!coachId) return NextResponse.json({ success: false, error: "coach_id required." }, { status: 400 });
   const body = await req.json();
@@ -101,8 +100,8 @@ export const PATCH = createHandler(async (req, { params }) => {
 
 export const DELETE = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id, db);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+  if (access.error) return access.error;
   const coachId = new URL(req.url).searchParams.get("coach_id");
   if (!coachId) return NextResponse.json({ success: false, error: "coach_id required." }, { status: 400 });
   await deleteCoach(parseInt(coachId));

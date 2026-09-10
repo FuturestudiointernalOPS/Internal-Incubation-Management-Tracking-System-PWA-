@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireVentureAccess } from "@/lib/ventureAuth";
-import { getSession } from "@/lib/auth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
   listTasks, getTask, createTask, updateTask,
   listTaskComments, addTaskComment, deleteTaskComment,
@@ -28,8 +27,8 @@ async function resolveVentureDbId(ventureId) {
  */
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id, db);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+  if (access.error) return access.error;
   const dbId = await resolveVentureDbId(id);
   if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
   const s = new URL(req.url).searchParams;
@@ -52,8 +51,8 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id, db);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+  if (access.error) return access.error;
   const dbId = await resolveVentureDbId(id);
   if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
   const body = await req.json();
@@ -72,8 +71,9 @@ export const POST = createHandler(async (req, { params }) => {
 
 export const PATCH = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id, db);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+  if (access.error) return access.error;
+  const { session } = access;
   const s = new URL(req.url).searchParams;
   const taskId = s.get("id");
   const action = s.get("action");
@@ -148,8 +148,9 @@ export const PATCH = createHandler(async (req, { params }) => {
 
 export const DELETE = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id, db);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+  if (access.error) return access.error;
+  const { session } = access;
   const taskId = new URL(req.url).searchParams.get("id");
   if (!taskId) return NextResponse.json({ success: false, error: "Task ID required." }, { status: 400 });
 
