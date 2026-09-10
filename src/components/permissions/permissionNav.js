@@ -8,6 +8,12 @@
  * Every primary item is a REAL route (deep linkable). `tabs` are sub-tabs
  * rendered by the shell; the selected sub-tab is reflected in the URL
  * (`?sub=`), so links to a specific sub-screen keep working.
+ *
+ * Phase 1 reorder — the admin's mental cascade, not the engine's nouns:
+ *   Home → Eligibility (the ceiling) → Access Profiles → Individual Access →
+ *   Context & Scope → Advanced → Audit
+ * "Governance" is a temporary home for Catalog + Responsibilities until
+ * Phase 2 relocates them; Eligibility was promoted to its own primary item.
  */
 
 export const PERMISSION_BASE = "/admin/security/permissions";
@@ -17,6 +23,13 @@ export const PERMISSION_NAV = [
     key: "overview",
     href: PERMISSION_BASE,
     labelKey: "engineering.permissions.navOverview",
+  },
+  {
+    // Slot 2: the ceiling every capability is gated by ("who may ever
+    // receive this?"), asked before any profile or person.
+    key: "eligibility",
+    href: `${PERMISSION_BASE}/eligibility`,
+    labelKey: "engineering.permissions.navEligibility",
   },
   {
     key: "profiles",
@@ -50,12 +63,13 @@ export const PERMISSION_NAV = [
     ],
   },
   {
+    // Temporary home for Catalog / Responsibilities / Responsibility Access
+    // (Phase 2 relocates them). Eligibility lives at its own route above.
     key: "governance",
     href: `${PERMISSION_BASE}/governance`,
-    labelKey: "engineering.permissions.tabGovernance",
-    defaultSub: "eligibility",
+    labelKey: "engineering.permissions.navGovernance",
+    defaultSub: "catalog",
     tabs: [
-      { key: "eligibility", labelKey: "engineering.permissions.tabEligibility" },
       { key: "catalog", labelKey: "engineering.permissions.tabCatalog" },
       { key: "responsibilities", labelKey: "engineering.permissions.tabResponsibilities" },
       { key: "access", labelKey: "engineering.permissions.tabResponsibilityAccess" },

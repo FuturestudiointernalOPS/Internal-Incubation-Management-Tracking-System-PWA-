@@ -98,6 +98,38 @@ export default function OverviewView() {
         </p>
       )}
 
+      {/* How access is decided — the one place the model is stated on screen. */}
+      <SectionCard title={t("engineering.permissions.modelStripTitle")}>
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { key: "identity", label: t("engineering.permissions.modelStripIdentity"), href: null },
+            { key: "eligibility", label: t("engineering.permissions.modelStripEligibility"), href: `${PERMISSION_BASE}/eligibility` },
+            { key: "profile", label: t("engineering.permissions.modelStripProfile"), href: `${PERMISSION_BASE}/profiles` },
+            { key: "context", label: t("engineering.permissions.modelStripContext"), href: `${PERMISSION_BASE}/context-scope?sub=roles` },
+            { key: "scope", label: t("engineering.permissions.modelStripScope"), href: `${PERMISSION_BASE}/context-scope?sub=policies` },
+          ].map((chip, i) => (
+            <React.Fragment key={chip.key}>
+              {i > 0 && <span className="text-[var(--text-secondary)] opacity-50">→</span>}
+              {chip.href ? (
+                <Link
+                  href={chip.href}
+                  className="px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--brand-orange)]/40 transition-colors"
+                >
+                  {chip.label}
+                </Link>
+              ) : (
+                <span className="px-3 py-1.5 rounded-lg border border-dashed border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-70">
+                  {chip.label}
+                </span>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+        <p className="mt-2 text-[10px] font-bold text-[var(--text-secondary)] opacity-70">
+          {t("engineering.permissions.modelStripHint")}
+        </p>
+      </SectionCard>
+
       <div className="grid sm:grid-cols-3 gap-3">
         <StatCard
           label={t("engineering.permissions.overviewContextCoverage")}

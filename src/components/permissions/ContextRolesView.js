@@ -7,6 +7,22 @@ import Badge from "./ui/Badge";
 import { defer } from "./effectUtils";
 
 /**
+ * Context roles whose access is scope-derived by design — no profile mapping
+ * should be added. A learner reaches courses through lms_enrollments (scope),
+ * while the lms.* capabilities gate course AUTHORING, not learning.
+ */
+const SCOPE_DERIVED_ROLES = new Set(["lms:learner"]);
+
+/** mapped | scopeDerived | gap — the status badge in both renderings. */
+function roleStatus(row) {
+  const mapped = !(row.profile_id === null || row.profile_id === undefined);
+  if (mapped) return "mapped";
+  return SCOPE_DERIVED_ROLES.has(`${row.context}:${row.role_key}`)
+    ? "scopeDerived"
+    : "gap";
+}
+
+/**
  * PHASE 4 — Context Role → Profile registry (Permission Center).
  *
  * Maps each contextual role (what someone IS inside a Program / Venture /
@@ -136,7 +152,7 @@ export default function ContextRolesView() {
         </p>
         <p className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
           <Link2 className="w-3 h-3 text-[var(--brand-orange)]" />
-          {t("engineering.permissions.contextRolesStatus")}
+          {t("engineering.permissions.contextRolesStatusPill")}
         </p>
       </div>
 
@@ -195,13 +211,17 @@ export default function ContextRolesView() {
                     {row.role_key.replace(/_/g, " ")}
                   </td>
                   <td className="p-3 text-center">
-                    {row.profile_id === null || row.profile_id === undefined ? (
-                      <Badge variant="gap">
-                        {t("engineering.permissions.contextRolesStatusGap")}
-                      </Badge>
-                    ) : (
+                    {roleStatus(row) === "mapped" ? (
                       <Badge variant="mapped">
                         {t("engineering.permissions.contextRolesStatusMapped")}
+                      </Badge>
+                    ) : roleStatus(row) === "scopeDerived" ? (
+                      <Badge variant="neutral">
+                        {t("engineering.permissions.contextRolesStatusScopeDerived")}
+                      </Badge>
+                    ) : (
+                      <Badge variant="gap">
+                        {t("engineering.permissions.contextRolesStatusGap")}
                       </Badge>
                     )}
                   </td>
@@ -267,7 +287,6 @@ export default function ContextRolesView() {
           const key = rowKey(row);
           const d = drafts[key] || {};
           const dirty = isDirty(row);
-          const mapped = !(row.profile_id === null || row.profile_id === undefined);
           return (
             <div
               key={key}
@@ -280,9 +299,13 @@ export default function ContextRolesView() {
                 <span className="text-xs font-bold text-[var(--text-primary)]">
                   {row.role_key.replace(/_/g, " ")}
                 </span>
-                {mapped ? (
+                {roleStatus(row) === "mapped" ? (
                   <Badge variant="mapped">
                     {t("engineering.permissions.contextRolesStatusMapped")}
+                  </Badge>
+                ) : roleStatus(row) === "scopeDerived" ? (
+                  <Badge variant="neutral">
+                    {t("engineering.permissions.contextRolesStatusScopeDerived")}
                   </Badge>
                 ) : (
                   <Badge variant="gap">

@@ -62,10 +62,22 @@ describe("UI-1 — navigation model", () => {
     }
   });
 
-  test("the governance route exposes the responsibilities screens as sub-tabs", () => {
+  test("the governance route exposes the advanced sub-tabs (eligibility moved out)", () => {
     const governance = PERMISSION_NAV.find((n) => n.key === "governance");
     const tabKeys = governance.tabs.map((tb) => tb.key);
-    expect(tabKeys).toEqual(["eligibility", "catalog", "responsibilities", "access"]);
+    expect(tabKeys).toEqual(["catalog", "responsibilities", "access"]);
+  });
+
+  test("primary order follows the admin cascade", () => {
+    expect(PERMISSION_NAV.map((n) => n.key)).toEqual([
+      "overview",
+      "eligibility",
+      "profiles",
+      "people",
+      "context",
+      "governance",
+      "audit",
+    ]);
   });
 });
 
