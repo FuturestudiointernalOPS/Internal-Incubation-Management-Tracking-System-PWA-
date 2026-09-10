@@ -107,16 +107,12 @@ jest.mock("@/lib/ventureAuth", () => ({
   isStaffActorForVenture: jest.fn().mockResolvedValue(true),
 }));
 
-// Phase 5c: this route now goes through requireVentureScopedAccess. In tests the
-// canonical path is closed (no capability, no Super Admin), so the gate takes
-// the legacy fallback — the mocks above keep deciding, exactly like before.
+// Phase 5c: this route now goes through requireVentureScopedAccess. The mock
+// resolves as Super Admin (the scenario under test), which is the gate's
+// bypass path — capability + scope are then not consulted.
 jest.mock("@/lib/authorization", () => ({
-  getAuthorizationContext: jest.fn().mockResolvedValue(null),
-  requireAuthorization: jest
-    .fn()
-    .mockResolvedValue(
-      new Response(JSON.stringify({ success: false }), { status: 403 }),
-    ),
+  getAuthorizationContext: jest.fn().mockResolvedValue({ isSuperAdmin: true }),
+  requireAuthorization: jest.fn().mockResolvedValue(null),
 }));
 
 const { GET: readinessGET } = require("@/app/api/ventures/[id]/investment-readiness/route");

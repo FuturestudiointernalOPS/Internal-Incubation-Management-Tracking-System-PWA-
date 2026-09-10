@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
@@ -9,8 +9,6 @@ import {
   updateVentureBusinessModel,
 } from "@/models/ventureJourney";
 
-const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher", "developer"];
-const ALLOWED = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher"];
 
 async function resolveVentureDbId(ventureId) {
   const r = await getBusinessModelVentureId(ventureId);
@@ -21,7 +19,7 @@ export async function GET(req, { params }) {
   try {
     await initDb();
     const { id } = await params;
-    const access = await requireVentureScopedAccess({ db, ventureId: id, module: "ventures", capability: "view", legacyRoles: ROLES });
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
     if (access.error) return access.error;
 
     const dbId = await resolveVentureDbId(id);
@@ -38,7 +36,7 @@ export async function PUT(req, { params }) {
   try {
     await initDb();
     const { id } = await params;
-    const access = await requireVentureScopedAccess({ db, ventureId: id, module: "ventures", capability: "edit", legacyRoles: ALLOWED });
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
     if (access.error) return access.error;
     const { session } = access;
 

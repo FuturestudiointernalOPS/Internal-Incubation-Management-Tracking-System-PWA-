@@ -1,22 +1,23 @@
 /**
- * PHASE 5b — Venture scope pilot: the canonical gate's semantics.
+ * PHASE 5b/5c — venture scoped gate (STRICT ONLY, no legacy fallback).
  *
- * Contracts locked here:
- *   1. The pilot gate preserves EXACT prior behavior through the transitional
- *      fallback: legacy role denial keeps its 403, membership denial keeps its
- *      404, Super Admin keeps resolver bypass semantics.
- *   2. The canonical path (capability + scope) short-circuits the legacy pair.
- *   3. The two pilot route files use the gate directly — no legacy calls.
+ * Locks:
+ *   1. The gate decides with capability + scope alone; Super Admin keeps its
+ *      resolver bypass.
+ *   2. Every denial is explicit and diagnosable (X-Authz-Decision header +
+ *      `missing` payload) — "what is working and what is not" must be visible.
+ *   3. The legacy pair cannot come back: neither the helper nor the converted
+ *      routes may reference requireAuth / requireVentureAccess.
+ *   4. The strict-mode readiness audit reports who would lose access.
  */
 
 const fs = require("fs");
 const path = require("path");
 
-let mockSession = { cid: "C1", name: "Actor", role: "staff" };
-let mockLegacyRoleError = null;
+let mockSession = { cid: "C1", name: "Actor", role: "staff", email: "a@b.c" };
 jest.mock("@/lib/auth", () => ({
   getSession: jest.fn(async () => mockSession),
-  requireAuth: jest.fn(async () => mockLegacyRoleError),
+  requireAuth: jest.fn(),
   logPermissionAudit: jest.fn().mockResolvedValue(true),
 }));
 
@@ -27,216 +28,106 @@ jest.mock("@/lib/authorization", () => ({
   requireAuthorization: jest.fn(async () => mockCapError),
 }));
 
-let mockScopeId = "VNT-1";
 let mockWithin = false;
 jest.mock("@/lib/authorization/scope", () => ({
-  resolveVentureScopeId: jest.fn(async () => mockScopeId),
+  resolveVentureScopeId: jest.fn(async () => "VNT-1"),
   isWithinScope: jest.fn(async () => mockWithin),
 }));
 
-let mockLegacySession = null;
-jest.mock("@/lib/ventureAuth", () => ({
-  requireVentureAccess: jest.fn(async () => ({
-    session: mockLegacySession,
-    ventureId: "VNT-1",
-  })),
-}));
-
 const { requireVentureScopedAccess } = require("@/lib/ventureScopedAccess");
-const { requireAuth } = require("@/lib/auth");
 const { requireAuthorization } = require("@/lib/authorization");
-const { isWithinScope, resolveVentureScopeId } = require("@/lib/authorization/scope");
-const { requireVentureAccess } = require("@/lib/ventureAuth");
+const { isWithinScope } = require("@/lib/authorization/scope");
+const { summarizeVentureStrictAudit } = require("@/models/authorization/ventureScopeAudit");
+
+const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
 const callHelper = (overrides = {}) =>
   requireVentureScopedAccess({
-    db: {},
     ventureId: "9f1c-uuid",
     module: "ventures",
     capability: "view",
-    legacyRoles: ["staff", "super_admin"],
     ...overrides,
   });
 
 beforeEach(() => {
-  mockSession = { cid: "C1", name: "Actor", role: "staff" };
-  mockLegacyRoleError = null;
+  mockSession = { cid: "C1", name: "Actor", role: "staff", email: "a@b.c" };
   mockCtx = null;
   mockCapError = null;
-  mockScopeId = "VNT-1";
   mockWithin = false;
-  mockLegacySession = null;
   jest.clearAllMocks();
 });
 
-describe("Phase 5b — requireVentureScopedAccess semantics", () => {
-  test("Super Admin bypasses scope (resolver semantics, no extra lookups)", async () => {
+describe("Phase 5c — the venture gate (strict only)", () => {
+  test("Super Admin bypasses capability and scope (no extra lookups)", async () => {
     mockCtx = { isSuperAdmin: true };
     const out = await callHelper();
     expect(out.path).toBe("super-admin");
-    expect(out.session).toBeTruthy();
     expect(requireAuthorization).not.toHaveBeenCalled();
     expect(isWithinScope).not.toHaveBeenCalled();
   });
 
-  test("unauthenticated → 401 (no capability or scope evaluation)", async () => {
+  test("unauthenticated → 401, nothing else evaluated", async () => {
     mockSession = null;
     const out = await callHelper();
     expect(out.error.status).toBe(401);
+    expect(out.error.headers.get("X-Authz-Decision")).toBe("unauthenticated");
     expect(requireAuthorization).not.toHaveBeenCalled();
   });
 
-  test("capability + scope → allowed via the canonical path (no legacy calls)", async () => {
-    mockCapError = null;
-    mockWithin = true;
-    const out = await callHelper();
-    expect(out.path).toBe("capability+scope");
-    expect(requireAuth).not.toHaveBeenCalled();
-    expect(requireVentureAccess).not.toHaveBeenCalled();
-  });
-
-  test("scope denial with capability → falls back to legacy (never a new denial path)", async () => {
-    mockCapError = null;
-    mockWithin = false;
-    mockLegacySession = { cid: "C1", role: "staff" };
-    const out = await callHelper();
-    expect(out.path).toBe("legacy-fallback");
-  });
-
-  test("legacy role denial keeps its original response (403 parity)", async () => {
-    mockCapError = new Response(JSON.stringify({ success: false }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
-    mockLegacyRoleError = new Response(
-      JSON.stringify({ success: false, error: "forbidden" }),
-      { status: 403, headers: { "Content-Type": "application/json" } },
-    );
-    const out = await callHelper();
-    expect(out.error.status).toBe(403);
-    expect(requireVentureAccess).not.toHaveBeenCalled();
-  });
-
-  test("membership denial keeps 404 (existence never leaked as 403)", async () => {
-    mockCapError = new Response(JSON.stringify({ success: false }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
-    mockLegacyRoleError = null;
-    mockLegacySession = null;
-    const out = await callHelper();
-    expect(out.error.status).toBe(404);
-  });
-
-  test("scope resolution receives the raw route id (UUIDs normalized inside)", async () => {
-    mockCapError = null;
-    mockWithin = true;
-    await callHelper({ ventureId: "9f1c-uuid" });
-    expect(resolveVentureScopeId).toHaveBeenCalledWith("9f1c-uuid");
-  });
-});
-
-describe("Phase 5c — strict mode (staging verification)", () => {
-  afterEach(() => {
-    delete process.env.AUTHZ_VENTURE_STRICT;
-  });
-
-  test("strict on: capability missing → denied by the new system alone (no legacy calls)", async () => {
-    process.env.AUTHZ_VENTURE_STRICT = "1";
+  test("capability missing → 403 naming the exact key (no scope call)", async () => {
     mockCapError = new Response(JSON.stringify({ success: false }), {
       status: 403,
       headers: { "Content-Type": "application/json" },
     });
     const out = await callHelper();
     expect(out.error.status).toBe(403);
+    expect(out.error.headers.get("X-Authz-Decision")).toBe("capability-missing");
     const body = await out.error.json();
-    expect(body.strict).toBe(true);
-    expect(body.missing.capability).toBe("ventures.view");
-    expect(out.error.headers.get("X-Authz-Decision")).toBe("capability-or-scope-denied");
-    expect(requireAuth).not.toHaveBeenCalled();
-    expect(requireVentureAccess).not.toHaveBeenCalled();
+    expect(body.missing).toEqual({ capability: "ventures.view" });
+    expect(isWithinScope).not.toHaveBeenCalled();
   });
 
-  test("strict on: capability held but out of scope → denied, scope named in the payload", async () => {
-    process.env.AUTHZ_VENTURE_STRICT = "1";
+  test("capability present but the venture is not theirs → out-of-scope denial", async () => {
     mockCapError = null;
     mockWithin = false;
     const out = await callHelper();
     expect(out.error.status).toBe(403);
+    expect(out.error.headers.get("X-Authz-Decision")).toBe("out-of-scope");
     const body = await out.error.json();
-    expect(body.missing.scope).toBe("venture_own");
-    expect(requireVentureAccess).not.toHaveBeenCalled();
+    expect(body.missing).toEqual({
+      capability: "ventures.view",
+      scope: "venture_own",
+    });
   });
 
-  test("strict on: the canonical path still allows (no fallback involved)", async () => {
-    process.env.AUTHZ_VENTURE_STRICT = "1";
+  test("capability + scope → allowed", async () => {
     mockCapError = null;
     mockWithin = true;
     const out = await callHelper();
     expect(out.path).toBe("capability+scope");
+    expect(out.session.cid).toBe("C1");
   });
 
-  test("strict on: Super Admin bypass is unaffected", async () => {
-    process.env.AUTHZ_VENTURE_STRICT = "1";
-    mockCtx = { isSuperAdmin: true };
+  test("an internal failure is an explicit system failure (never a silent allow)", async () => {
+    requireAuthorization.mockRejectedValueOnce(new Error("resolver down"));
     const out = await callHelper();
-    expect(out.path).toBe("super-admin");
-  });
-
-  test("strict off (default): the same denial falls back to legacy (parity)", async () => {
-    mockCapError = new Response(JSON.stringify({ success: false }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
-    mockLegacySession = { cid: "C1", role: "staff" };
-    const out = await callHelper();
-    expect(out.path).toBe("legacy-fallback");
-  });
-
-  test("an unexpected failure in the new path never 500s a working route (strict off)", async () => {
-    const { requireAuthorization } = require("@/lib/authorization");
-    requireAuthorization.mockRejectedValueOnce(new Error("resolver unavailable"));
-    mockLegacySession = { cid: "C1", role: "staff" };
-    const out = await callHelper();
-    expect(out.path).toBe("legacy-fallback");
-  });
-
-  test("strict on: an unexpected failure denies explicitly (no silent allow)", async () => {
-    process.env.AUTHZ_VENTURE_STRICT = "1";
-    const { requireAuthorization } = require("@/lib/authorization");
-    requireAuthorization.mockRejectedValueOnce(new Error("resolver unavailable"));
-    const out = await callHelper();
-    expect(out.error.status).toBe(403);
-    expect(out.error.headers.get("X-Authz-Decision")).toBe("capability-or-scope-denied");
-    expect(requireVentureAccess).not.toHaveBeenCalled();
+    expect(out.error.status).toBe(500);
+    expect(out.error.headers.get("X-Authz-Decision")).toBe("system-failure");
   });
 });
 
-describe("Phase 5b — pilot route contract", () => {
-  const pilots = [
-    "src/app/api/ventures/[id]/blockers/route.js",
-    "src/app/api/ventures/[id]/business-model/route.js",
-  ];
-
-  test.each(pilots)("%s uses the canonical venture gate (no direct legacy calls)", (rel) => {
-    const src = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
-    expect(src).toContain("requireVentureScopedAccess");
-    expect(src).toContain('module: "ventures"');
-    expect(src).toContain('capability: "view"');
-    expect(src).toContain('capability: "edit"');
-    // The legacy pair lives only inside the helper's fallback.
+describe("Phase 5c — the old gate cannot come back", () => {
+  test("the helper contains no legacy fallback", () => {
+    const src = read("src/lib/ventureScopedAccess.js");
+    expect(src).not.toContain("legacy-fallback");
     expect(src).not.toMatch(/requireAuth\(/);
     expect(src).not.toMatch(/requireVentureAccess\(/);
+    expect(src).toContain("capability+scope");
   });
-});
 
-/**
- * PHASE 5c — the batch-converted venture surfaces. Every entry must keep using
- * the canonical gate: no direct requireAuth / requireVentureAccess calls may
- * creep back in, and writes must ask for the edit capability.
- */
-describe("Phase 5c — batch-converted venture routes", () => {
   const converted = [
+    "src/app/api/ventures/[id]/blockers/route.js",
+    "src/app/api/ventures/[id]/business-model/route.js",
     "src/app/api/ventures/[id]/action-plans/route.js",
     "src/app/api/ventures/[id]/calendar/route.js",
     "src/app/api/ventures/[id]/followups/route.js",
@@ -250,14 +141,49 @@ describe("Phase 5c — batch-converted venture routes", () => {
     "src/app/api/ventures/[id]/validations/route.js",
   ];
 
-  test.each(converted)("%s stays on the canonical gate", (rel) => {
-    const src = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+  test.each(converted)("%s is on the canonical gate only", (rel) => {
+    const src = read(rel);
     expect(src).toContain("requireVentureScopedAccess");
     expect(src).toContain('module: "ventures"');
+    expect(src).toMatch(/capability: "(view|edit)"/);
+    expect(src).not.toContain("legacyRoles");
     expect(src).not.toMatch(/requireAuth\(/);
     expect(src).not.toMatch(/requireVentureAccess\(/);
-    // The legacy role array is still handed to the fallback (parity), never
-    // dropped: a conversion must not silently widen access.
-    expect(src).toMatch(/legacyRoles: (ROLES|ALLOWED)/);
+    // The dead legacy role lists are gone too.
+    expect(src).not.toMatch(/const (ROLES|ALLOWED) = \[/);
+  });
+});
+
+describe("Phase 5c — strict-mode readiness audit", () => {
+  test("names the missing key per person", () => {
+    const summary = summarizeVentureStrictAudit([
+      { cid: "C1", name: "David", role: "member", ventures: ["V1", "V2"], viewAllowed: true, editAllowed: false, scopeCount: 2 },
+      { cid: "C2", name: "Sara", role: "staff", ventures: ["V1"], viewAllowed: false, editAllowed: false, scopeCount: 1 },
+    ]);
+    expect(summary.total).toBe(2);
+    expect(summary.viewAllowed).toBe(1);
+    expect(summary.viewMissing.map((r) => r.cid)).toEqual(["C2"]);
+    expect(summary.viewMissing[0].missing).toEqual(["ventures.view"]);
+    expect(summary.editMissing.map((r) => r.cid)).toEqual(["C1"]);
+    expect(summary.editMissing[0].missing).toEqual(["ventures.edit"]);
+  });
+
+  test("a fully-keyed person reports nothing missing", () => {
+    const summary = summarizeVentureStrictAudit([
+      { cid: "C3", ventures: ["V1"], viewAllowed: true, editAllowed: true, scopeCount: 1 },
+    ]);
+    expect(summary.viewMissing).toEqual([]);
+    expect(summary.editMissing).toEqual([]);
+    expect(summary.rows[0].missing).toEqual([]);
+  });
+
+  test("handles empty input", () => {
+    expect(summarizeVentureStrictAudit()).toEqual({
+      total: 0,
+      viewAllowed: 0,
+      viewMissing: [],
+      editMissing: [],
+      rows: [],
+    });
   });
 });

@@ -67,21 +67,47 @@ describe("Phase 5b — ventures capability grants", () => {
     expect(viewHolders).toContain(mockProfileIds["Founder"]);
   });
 
-  test("the Founder profile holds ONLY ventures.view (no scope-free write surface)", async () => {
+  test("ventures.edit reaches only the scoped writers (SA, Staff, PM, Founder)", async () => {
+    await seedDefaultAccessProfiles();
+    const editHolders = mockCapabilityInserts
+      .filter((c) => c.module === "ventures" && c.capability === "edit")
+      .map((c) => c.profileId)
+      .sort((a, b) => a - b);
+    // Phase 5c: writes are scoped (venture_own) on every venture route, so the
+    // writers below can only ever edit the ventures they belong to.
+    expect(editHolders).toEqual(
+      [
+        mockProfileIds["Super Admin Default"],
+        mockProfileIds["Staff Default"],
+        mockProfileIds["Program Manager"],
+        mockProfileIds["Founder"],
+      ].sort((a, b) => a - b),
+    );
+  });
+
+  test("the Founder profile carries view + edit (scoped to its own ventures)", async () => {
     await seedDefaultAccessProfiles();
     const founderCaps = mockCapabilityInserts.filter(
       (c) => c.profileId === mockProfileIds["Founder"],
     );
     expect(founderCaps).toEqual([
       { profileId: mockProfileIds["Founder"], module: "ventures", capability: "view", level: 1 },
+      { profileId: mockProfileIds["Founder"], module: "ventures", capability: "edit", level: 3 },
     ]);
   });
 
-  test("no non-SA profile receives ventures.edit (write expansion guard)", async () => {
+  test("every ventures.edit holder also holds view (view is the base capability)", async () => {
     await seedDefaultAccessProfiles();
-    const editHolders = mockCapabilityInserts
-      .filter((c) => c.module === "ventures" && c.capability === "edit")
-      .map((c) => c.profileId);
-    expect(editHolders).toEqual([mockProfileIds["Super Admin Default"]]);
+    const holders = new Set(
+      mockCapabilityInserts
+        .filter((c) => c.module === "ventures" && c.capability === "edit")
+        .map((c) => c.profileId),
+    );
+    const viewHolders = new Set(
+      mockCapabilityInserts
+        .filter((c) => c.module === "ventures" && c.capability === "view")
+        .map((c) => c.profileId),
+    );
+    for (const holder of holders) expect(viewHolders.has(holder)).toBe(true);
   });
 });

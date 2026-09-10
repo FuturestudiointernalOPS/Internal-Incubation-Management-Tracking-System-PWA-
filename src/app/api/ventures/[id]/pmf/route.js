@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
@@ -7,8 +7,6 @@ import {
   getPmfVentureId,
 } from "@/models/ventureJourney";
 
-const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher", "developer"];
-const ALLOWED = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher"];
 
 async function resolveVentureDbId(ventureId) {
   const r = await getPmfVentureId(ventureId);
@@ -18,7 +16,7 @@ async function resolveVentureDbId(ventureId) {
 export async function GET(req, { params }) {
   try {
     await initDb();
-    const access = await requireVentureScopedAccess({ db, ventureId: id, module: "ventures", capability: "view", legacyRoles: ROLES });
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
     if (access.error) return access.error;
     const { session } = access;
     const { id } = await params;
@@ -37,7 +35,7 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   try {
     await initDb();
-    const access = await requireVentureScopedAccess({ db, ventureId: id, module: "ventures", capability: "edit", legacyRoles: ALLOWED });
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
     if (access.error) return access.error;
     const { session } = access;
     const { id } = await params;
