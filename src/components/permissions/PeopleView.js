@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ShieldCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { defer, settled } from "./effectUtils";
@@ -37,35 +37,17 @@ function SourceGlyph({ on, kind }) {
   return <span className="text-sm font-black text-[var(--brand-orange)]">✓</span>;
 }
 
-export default function PeopleView({ onManageAccess }) {
+export default function PeopleView({ person = null }) {
   const { t } = useI18n();
-  const [users, setUsers] = useState([]);
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(null);
+  // The screen above owns the selection (PersonPicker); this panel follows it.
+  const selected = person;
   const [ctx, setCtx] = useState(null);
   const [catalog, setCatalog] = useState(null);
   const [moduleToFeature, setModuleToFeature] = useState({});
-  const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingCtx, setLoadingCtx] = useState(false);
   const [err, setErr] = useState("");
   const [scope, setScope] = useState([]);
   const [why, setWhy] = useState(null);
-
-  const loadUsers = useCallback(async () => {
-    try {
-      const url = "/api/responsibilities/assign";
-      const cached = cacheGet(url);
-      const d = cached?.success ? await settled(cached) : await (await fetch(url)).json();
-      if (d?.success) {
-        cacheSet(url, d);
-        setUsers(d.users || d.contacts || d.rows || []);
-      }
-    } catch {
-      /* list optional */
-    } finally {
-      setLoadingUsers(false);
-    }
-  }, []);
 
   const loadCatalog = useCallback(async () => {
     try {
@@ -83,27 +65,14 @@ export default function PeopleView({ onManageAccess }) {
   }, []);
 
   useEffect(() => {
-    defer(() => {
-      loadUsers();
-      loadCatalog();
-    });
-  }, [loadUsers, loadCatalog]);
+    defer(() => loadCatalog());
+  }, [loadCatalog]);
 
   const pick = useCallback(
     async (u) => {
-      setSelected(u);
       setCtx(null);
       setScope([]);
       setErr("");
-      // One person, two lenses: keep ?cid= in the URL so switching to the
-      // "Manage access" sub-tab (the write lens) opens the same person.
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.set("cid", u.cid);
-        window.history.replaceState(null, "", url);
-      } catch {
-        /* cosmetic handoff between the two lenses */
-      }
       setLoadingCtx(true);
       try {
         const res = await fetch(
@@ -143,28 +112,16 @@ export default function PeopleView({ onManageAccess }) {
     [],
   );
 
-  // Deep link: ?cid= preselects a user once the list is available.
+  // Follow the selection made above (including the first paint, when a ?cid=
+  // deep link resolves inside the picker). Keyed on the cid: the picker may
+  // hand over a slim { cid } first and the full record a moment later.
+  const lastPickedCid = useRef(null);
   useEffect(() => {
-    if (!users.length) return;
-    let cid = "";
-    try {
-      cid = new URLSearchParams(window.location.search).get("cid") || "";
-    } catch {
-      cid = "";
-    }
-    if (!cid) return;
-    const hit = users.find((u) => String(u.cid) === String(cid));
-    // Deferred: the mount effect must not perform a synchronous state update.
-    if (hit) defer(() => pick(hit));
-  }, [users, pick]);
-
-  const filtered = users.filter(
-    (u) =>
-      !query.trim() ||
-      (u.name || "").toLowerCase().includes(query.toLowerCase()) ||
-      (u.email || "").toLowerCase().includes(query.toLowerCase()) ||
-      (u.cid || "").toLowerCase().includes(query.toLowerCase()),
-  );
+    if (!person) return;
+    if (lastPickedCid.current === person.cid) return;
+    lastPickedCid.current = person.cid;
+    defer(() => pick(person));
+  }, [person, pick]);
 
   const modules = useMemo(() => {
     if (!ctx) return [];
@@ -191,55 +148,8 @@ export default function PeopleView({ onManageAccess }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs font-medium text-[var(--text-secondary)]">
-        {t("engineering.permissions.peopleHint")}
-      </p>
-
-      {/* Search + results */}
-      <div className="grid md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-4">
-        <div className="space-y-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("engineering.permissions.searchPlaceholder")}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40 font-bold text-xs"
-            />
-          </div>
-          {loadingUsers ? (
-            <Skeleton className="h-40" />
-          ) : (
-            <div className="max-h-72 overflow-y-auto rounded-xl border border-[var(--border-primary)] divide-y divide-[var(--border-primary)]">
-              {filtered.slice(0, 50).map((u) => (
-                <button
-                  key={u.cid}
-                  onClick={() => pick(u)}
-                  className={`w-full text-left px-3 py-2 transition-colors ${
-                    selected?.cid === u.cid
-                      ? "bg-[var(--brand-orange)]/10"
-                      : "hover:bg-secondary/60"
-                  }`}
-                >
-                  <span className="block text-xs font-bold text-[var(--text-primary)]">
-                    {u.name || u.cid}
-                  </span>
-                  <span className="block text-[10px] text-[var(--text-secondary)]">
-                    {u.email || u.cid}
-                  </span>
-                </button>
-              ))}
-              {filtered.length === 0 && (
-                <p className="px-3 py-4 text-xs font-bold text-[var(--text-secondary)]">
-                  {t("common.noResults")}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Selected person */}
-        <div className="space-y-3">
+      {/* Selected person */}
+      <div className="space-y-3">
           {!selected && (
             <p className="text-xs font-bold text-[var(--text-secondary)]">
               {t("engineering.permissions.peopleSelectPrompt")}
@@ -276,15 +186,6 @@ export default function PeopleView({ onManageAccess }) {
                     {g}
                   </Badge>
                 ))}
-                {onManageAccess && (
-                  <button
-                    onClick={() => onManageAccess(selected.cid)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
-                  >
-                    <SlidersHorizontal className="w-3 h-3" />
-                    {t("engineering.permissions.peopleManageAccess")}
-                  </button>
-                )}
               </div>
 
               {/* Scope panel — what the engine resolves today (read-only) */}
@@ -446,7 +347,6 @@ export default function PeopleView({ onManageAccess }) {
               </div>
             </>
           )}
-        </div>
       </div>
 
       {/* Why drawer */}

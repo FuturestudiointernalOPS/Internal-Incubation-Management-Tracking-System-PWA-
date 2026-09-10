@@ -47,7 +47,6 @@ export default function PermissionProfilesPage() {
     <PermissionShell active="profiles" sub={sub} onSubChange={setSub}>
       <PermissionManager
         key={sub}
-        embedded
         initialTab="setup"
         initialSection={section}
         initialProfileId={section === "profiles" ? profileId : null}

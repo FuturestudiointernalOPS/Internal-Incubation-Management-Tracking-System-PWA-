@@ -15,9 +15,6 @@ import { defer } from "./effectUtils";
  * linkable), and optional sub-tabs. Views are embedded unchanged; the shell
  * owns chrome and navigation only — it never touches authorization logic.
  *
- * The legacy tab bar inside PermissionManager stays available (embedded=false)
- * but every route renders it embedded, so there is exactly one navigation.
- *
  * Navigation model: ./permissionNav (pure, shared with the route contract
  * tests).
  */
