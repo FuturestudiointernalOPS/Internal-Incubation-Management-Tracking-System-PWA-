@@ -607,6 +607,32 @@ describe("ventures module (Phase 10)", () => {
     );
   });
 
+  // Phase 6: a venture founder is a BASELINE MEMBER with a venture context, so
+  // the feature must be eligible for that baseline — otherwise the capability
+  // the Context Roles mapping grants is dead on arrival (eligibility is checked
+  // first and fails closed). Eligibility stays a CEILING: the capability and
+  // the venture scope still decide.
+  test("member is eligible for ventures, and eligibility remains a ceiling", () => {
+    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.ventures).toContain("member");
+
+    const memberWithGrant = staffCtx({
+      role: "member",
+      eligibility: { ventures: true },
+      effective: { ventures: { view: 1 } },
+    });
+    // eligibility + capability → authorized (scope is enforced separately)
+    expect(authorize(memberWithGrant, "ventures", "view")).toBe(true);
+    // eligible but no capability → denied
+    expect(authorize({ ...memberWithGrant, effective: {} }, "ventures", "view")).toBe(false);
+    // capability but not eligible → denied
+    expect(
+      authorize({ ...memberWithGrant, eligibility: { ventures: false } }, "ventures", "view"),
+    ).toBe(false);
+    // view never implies edit
+    expect(authorize(memberWithGrant, "ventures", "edit")).toBe(false);
+  });
+
   test("staff/PM with backfilled create can create; nobody but SA can edit", () => {
     const staff = staffCtx({
       eligibility: { ventures: true },

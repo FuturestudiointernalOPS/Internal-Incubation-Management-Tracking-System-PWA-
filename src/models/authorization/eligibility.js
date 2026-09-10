@@ -132,6 +132,17 @@ export async function seedLmsFeatureEligibility() {
 }
 
 /**
+ * Phase 6 prerequisite: a venture founder is a BASELINE MEMBER with a venture
+ * context, so the ventures feature must be eligible for that baseline —
+ * otherwise the capability the Context Roles mapping grants is dead on
+ * arrival. Insert-only for the one new role (never overwrites an admin edit),
+ * applied once per database through the migration marker.
+ */
+export async function seedVenturesMemberEligibility() {
+  return seedFeatureRows("ventures", ["member"]);
+}
+
+/**
  * Pure eligibility evaluation over pre-loaded rows.
  *
  * @param {Array<{feature_key, eligible}>} rows
@@ -140,6 +151,7 @@ export async function seedLmsFeatureEligibility() {
  * @returns {boolean} true when at least one identity is eligible AND no
  *   identity explicitly denies the feature.
  */
+
 export function evaluateEligibility(rows, featureKey) {
   let anyEligible = false;
   for (const row of rows || []) {

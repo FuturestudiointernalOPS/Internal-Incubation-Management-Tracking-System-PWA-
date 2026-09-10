@@ -19,6 +19,31 @@ Member joins Venture X as founder
 The audit endpoint showed exactly this for a real staging account ("Gwin Test":
 `scopeCount 1`, `missing: ["ventures.view"]`).
 
+## Prerequisite — feature eligibility (the second gate)
+
+Granting the capability is necessary but **not sufficient**: `authorize()`
+checks eligibility first and fails closed.
+
+```
+eligible?  → no   → DENY (even with the capability)
+eligible?  → yes  → capability level ≥ minLevel → allow
+```
+
+`ventures` eligibility was `["super_admin","staff","program_manager","investor","founder"]`
+— a baseline **Member** was not eligible, so a member-baseline founder would
+have been refused *after* receiving the grant (the grant would have looked
+inert). Phase 6 therefore also:
+
+- adds `"member"` to `FEATURE_ELIGIBILITY_DEFAULTS.ventures` and to
+  `RESPONSIBILITY_FEATURE_ROLES.ventures` (kept in exact sync by a test), and
+- seeds that one missing row per database through the
+  `eligibility-ventures-member-v1` migration (insert-only — an admin edit is
+  never overwritten).
+
+Eligibility stays a **ceiling**: a plain Member has no `ventures.*` capability
+and no scope, so nothing opens by itself. Removing `member` from the
+Eligibility tab (Permission Center) disables the whole mechanism on purpose.
+
 ## What Phase 6 does
 
 ```

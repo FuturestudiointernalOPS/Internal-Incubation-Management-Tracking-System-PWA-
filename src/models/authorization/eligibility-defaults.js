@@ -52,7 +52,18 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
   // P1: founder is an official eligibility identity. Ventures is the founder's
   // own-venture feature (venture_own scope) — founders are NOT program
   // participants and gain no participant defaults from this row.
-  ventures: ["super_admin", "staff", "program_manager", "investor", "founder"],
+  // Phase 6: "member" is included because a founder is a BASELINE MEMBER with a
+  // venture context — the context model cannot work if the feature is
+  // ineligible for the baseline identity. Eligibility is only a CEILING:
+  // the capability (granted by the relationship) + venture scope still decide.
+  ventures: [
+    "super_admin",
+    "staff",
+    "program_manager",
+    "investor",
+    "founder",
+    "member",
+  ],
   investor: ["super_admin", "staff", "investor"],
   // LMS: capability-gated authoring feature (view/create/edit/delete only).
   // Program Manager is the default non-SA holder of lms capabilities
