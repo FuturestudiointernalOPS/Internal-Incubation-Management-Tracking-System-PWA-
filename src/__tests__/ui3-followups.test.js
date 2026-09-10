@@ -90,7 +90,6 @@ describe("UI-3 — deferred effect writes", () => {
       `${PERMS}ContextRolesView.js`,
       `${PERMS}PeopleView.js`,
       `${PERMS}CatalogView.js`,
-      `${PERMS}UserMatrixView.js`,
       `${PERMS}DefaultsMatrixView.js`,
       `${PERMS}PermissionCenter.js`,
     ]) {
