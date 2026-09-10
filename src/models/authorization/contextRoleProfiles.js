@@ -65,9 +65,9 @@ export const CONTEXT_ROLE_SEED = [
   {
     context: "venture",
     role_key: "founder",
-    profile_name: null,
+    profile_name: "Founder",
     notes:
-      "No Founder profile seeded yet — needs a scope-aware profile (venture_own) before mapping; Phase 5 material.",
+      "Filled in Phase 5b: Founder profile (ventures.view) + venture_own scope — the mapping is metadata until a consuming phase applies it.",
   },
   {
     context: "venture",

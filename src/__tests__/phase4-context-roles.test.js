@@ -87,6 +87,7 @@ const SEEDED_PROFILE_NAMES = [
   "Instructor",
   "Finance Assistant",
   "Mentor",
+  "Founder",
 ];
 
 const putReq = (body) =>
@@ -126,11 +127,18 @@ describe("Phase 4 — seed catalogue integrity", () => {
 
   test("unmapped contextual roles stay visible as documented gaps", () => {
     const gaps = CONTEXT_ROLE_SEED.filter((r) => r.profile_name === null);
-    // Founder / team member / facilitator / learner have no seeded profile yet;
+    // Facilitator / team member / learner still have no seeded profile;
     // each gap must carry an explanatory note instead of being hidden.
     expect(gaps.length).toBeGreaterThan(0);
     for (const gap of gaps) expect(String(gap.notes).length).toBeGreaterThan(10);
-    expect(gaps.some((g) => g.context === "venture" && g.role_key === "founder")).toBe(true);
+    expect(gaps.some((g) => g.context === "venture" && g.role_key === "founder")).toBe(false);
+  });
+
+  test("the founder gap is filled (Phase 5b) with the scope-aware Founder profile", () => {
+    const founder = CONTEXT_ROLE_SEED.find(
+      (r) => r.context === "venture" && r.role_key === "founder",
+    );
+    expect(founder.profile_name).toBe("Founder");
   });
 
   test("validation helpers reject junk", () => {
