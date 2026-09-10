@@ -277,7 +277,9 @@
         "investor": "Investor"
       },
       "scopePoliciesIntro": "Record-level scope policies are enforced at the data layer by the Scope Engine (roadmap Phase 5). This registry is the governance surface for those policies — nothing here authorizes anything yet.",
-      "scopePoliciesStatus": "Engine planned — registry placeholder (read-only)",
+      "scopePoliciesStatus": "Engine core implemented — verification only, not enforced (Phase 5)",
+      "scopePoliciesImplemented": "Predicate implemented — verification only (not enforced on routes yet)",
+      "scopePoliciesPending": "Predicate pending — resolves to deny (fail-closed)",
       "scopePoliciesRowVentureTitle": "Assigned ventures",
       "scopePoliciesRowVentureBody": "Founder and team capabilities apply only to ventures the person belongs to.",
       "scopePoliciesRowProgramTitle": "Program context",
