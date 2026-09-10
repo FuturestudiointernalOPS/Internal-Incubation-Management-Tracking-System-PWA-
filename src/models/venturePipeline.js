@@ -283,11 +283,14 @@ export async function createVentureFromSubmission({ submission, run, form, revie
   const coFounderEmails = parseEmailList(data.co_founder_emails);
   const teamEmails = parseEmailList(data.team_member_emails);
   const submitterEmail = String(data.founder_email || "").trim().toLowerCase();
+  // Phase 6: founders whose relationship must grant access (synced at the end).
+  const founderCids = [String(submitterCid)];
   for (const email of new Set([...coFounderEmails, ...teamEmails])) {
     if (email === submitterEmail) continue;
     const isCoFounder = coFounderEmails.includes(email);
     const cid = await resolveOrCreateContact(email, null, isCoFounder ? "founder" : "member");
     if (!cid) continue;
+    if (isCoFounder && !founderCids.includes(String(cid))) founderCids.push(String(cid));
     await db.execute({
       sql: `INSERT INTO venture_members (venture_id, contact_id, user_cid, member_type, role, permissions, joined_at, lead_founder, is_owner)
             VALUES (?, ?, ?, ?, ?, 'edit', ?, FALSE, FALSE)
@@ -373,6 +376,16 @@ export async function createVentureFromSubmission({ submission, run, form, revie
       title: `[${ventureId}] Venture Approved`,
       message: `Venture "${companyName}" created from submission #${submission.id}.`,
     });
+  } catch (_) {}
+
+  // ── 12. Context grants (Phase 6) ──
+  // The venture relationship IS the grant: apply the Context Roles mapping
+  // (venture:founder → Founder profile) so founders can open their Venture
+  // immediately. Best effort — the reconcile endpoint
+  // (GET /api/engineering/permissions/sync-context-grants) is the backstop.
+  try {
+    const { syncContextGrantsForUser } = await import("@/models/authorization/contextGrants");
+    for (const cid of founderCids) await syncContextGrantsForUser(cid);
   } catch (_) {}
 
   return { success: true, venture_id: ventureId, source_type: sourceType };
