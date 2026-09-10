@@ -960,6 +960,14 @@ export async function changeVentureLead({ ventureId, memberId, actorCid, actorNa
     });
   } catch (_) {}
 
+  // Phase 6: the new lead is a founder — make sure the venture relationship
+  // grants what the Context Roles registry maps for venture:founder. Kept last
+  // so it never disturbs the ownership-history/audit writes above.
+  try {
+    const { syncContextGrantsForUser } = await import("@/models/authorization/contextGrants");
+    await syncContextGrantsForUser(member.contact_id || member.user_cid);
+  } catch (_) {}
+
   return { success: true };
 }
 

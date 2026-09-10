@@ -91,10 +91,14 @@ scans every scoped route for that ordering (`phase5b-venture-pilot.test.js`).
 ## Staging steps
 
 1. Re-run the profile seed so the keys land: `GET /api/engineering/permissions/seed-access-profiles`.
-2. Open the audit endpoint and grant anything that is genuinely missing.
-3. Walk the converted screens as: Super Admin, a Staff/venture-manager, a
+2. Apply the Context Roles mapping to existing memberships:
+   `GET /api/engineering/permissions/sync-context-grants` (Phase 6 — active
+   founders receive the Founder profile's capabilities as additive grants;
+   grants whose relationship ended are withdrawn).
+3. Open the audit endpoint and grant anything that is genuinely missing.
+4. Walk the converted screens as: Super Admin, a Staff/venture-manager, a
    Founder, and someone with no venture link (must be refused **explicitly**).
-4. Keep converting the remaining legacy files until the census reads 0, then
+5. Keep converting the remaining legacy files until the census reads 0, then
    delete `requireVentureAccess` from the venture API entirely.
 
 ## Rollback

@@ -37,6 +37,13 @@ export async function POST(req) {
     const vm = await reassignContactVentures(survivor_cid, duplicate_cid);
     counts.ventures = vm.rowsAffected || 0;
 
+    // Phase 6: the survivor inherits the duplicate's venture relationships —
+    // reconcile their context grants so a merged founder keeps working access.
+    try {
+      const { syncContextGrantsForUser } = await import("@/models/authorization/contextGrants");
+      await syncContextGrantsForUser(survivor_cid);
+    } catch (_) {}
+
     // Move timeline events
     const tl = await reassignContactTimelineEvents(survivor_cid, duplicate_cid);
     counts.timeline = tl.rowsAffected || 0;

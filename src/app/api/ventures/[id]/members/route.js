@@ -10,6 +10,18 @@ async function resolveDbId(db, ventureId) {
   } catch { return ventureId; }
 }
 
+/**
+ * Phase 6: reconcile a person's context grants after a membership write.
+ * Never throws, never blocks the response.
+ */
+async function applyContextGrants(cid) {
+  if (!cid) return;
+  try {
+    const { syncContextGrantsForUser } = await import("@/models/authorization/contextGrants");
+    await syncContextGrantsForUser(cid);
+  } catch (_) {}
+}
+
 // venture_members stores venture_id as the VNT code (TEXT), not the internal UUID.
 // Convert an internal UUID (if passed) back to the VNT code so membership queries match.
 async function resolveVentureCode(db, idOrCode) {
@@ -258,6 +270,9 @@ export async function POST(req, { params }) {
       });
     } catch (_) {}
 
+    // Phase 6: a founder relationship grants the mapped profile's capabilities.
+    if (member_type === "founder") await applyContextGrants(targetCid);
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("POST /api/ventures/[id]/members error:", error);
@@ -346,6 +361,10 @@ export async function PATCH(req, { params }) {
           });
         }
       } catch (_) {}
+
+      // Phase 6: reconcile grants — if this was the last founder relationship,
+      // the capability we applied is withdrawn (manual grants are untouched).
+      await applyContextGrants(member.rows[0].contact_id);
     } else {
       let memberContactId = null;
       try {
@@ -380,6 +399,10 @@ export async function PATCH(req, { params }) {
           });
         }
       } catch (_) {}
+
+      // Phase 6: a role change can turn a member into a founder (or back) —
+      // reconcile the applied grants for the affected person.
+      await applyContextGrants(memberContactId);
     }
 
     return NextResponse.json({ success: true });

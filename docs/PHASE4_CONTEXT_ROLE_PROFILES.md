@@ -1,8 +1,12 @@
 # ImpactOS — Phase 4 Brief (Context Role → Profile Registry)
 
 Status: registry implemented (table + seed + API + Permission-Center tab).
-**Governance-only — the resolver does not read the registry, so no effective
-access changed in this phase.**
+
+Phase 6 update: the registry is now **applied at the membership boundary** for
+`venture:founder` — an active venture founder receives the mapped profile's
+capabilities as additive, attributable grants (see
+`docs/PHASE6_CONTEXT_GRANT_APPLICATION.md`). The resolver itself is unchanged;
+scope (`venture_own`) remains the authority on *where*.
 
 ## Why this exists
 
@@ -28,7 +32,7 @@ pattern as `feature_eligibility`).
 | `context` | `program` \| `venture` \| `lms` \| `investor` |
 | `role_key` | lowercase identifier (`founder`, `team_member`, `program_manager`, `facilitator`, `participant`, `learner`, `investor`) |
 | `profile_id` | → `access_profiles.id` (nullable = unmapped, shown as a visible gap) |
-| `is_active` | governance flag (does not gate resolution — nothing consumes the row yet) |
+| `is_active` | governance flag — a disabled or unmapped row applies nothing, and the Phase 6 reconcile removes whatever it previously applied |
 | `notes` | why the mapping / gap exists (data) |
 | unique | `(context, role_key)` |
 
