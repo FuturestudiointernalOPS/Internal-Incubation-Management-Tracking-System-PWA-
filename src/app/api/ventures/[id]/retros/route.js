@@ -1,7 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { requireVentureAccess } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { notifyVentureFounders } from "@/lib/ventures";
 import {
   getRetroForWeek,
@@ -25,10 +24,12 @@ function getWeekNumber() {
 }
 
 export async function GET(req, { params }) {
-  try { await initDb(); const authError = await requireAuth(ROLES); if (authError) return authError;
-    const { id } = await params; const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  try { await initDb();
+    const { id } = await params;
+    const access = await requireVentureScopedAccess({ db, ventureId: id, module: "ventures", capability: "view", legacyRoles: ROLES });
+    if (access.error) return access.error;
+    const { session } = access;
+    const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { week_number, year } = getWeekNumber();
     const cur = await getRetroForWeek(dbId, week_number, year);
     const r = await listVentureRetrosWithCreators(dbId);
@@ -37,10 +38,12 @@ export async function GET(req, { params }) {
 }
 
 export async function POST(req, { params }) {
-  try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
-    const { id } = await params; const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  try { await initDb();
+    const { id } = await params;
+    const access = await requireVentureScopedAccess({ db, ventureId: id, module: "ventures", capability: "edit", legacyRoles: ALLOWED });
+    if (access.error) return access.error;
+    const { session } = access;
+    const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { week_number, year, completed_tasks, outstanding_tasks, carry_forward_notes } = await req.json();
     if (!week_number || !year) return NextResponse.json({ success: false, error: "week_number and year required" }, { status: 400 });
     try { await insertVentureRetro({ venture_id: dbId, week_number, year, completed_tasks, outstanding_tasks, carry_forward_notes, created_by: session.cid });

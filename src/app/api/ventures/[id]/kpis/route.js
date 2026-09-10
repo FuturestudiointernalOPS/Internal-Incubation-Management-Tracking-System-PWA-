@@ -1,7 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { requireVentureAccess } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
   countKpiCustomerInterviews,
   countKpiDoneTasks,
@@ -43,10 +42,10 @@ async function autoCalc(dbId, source) {
 export async function GET(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth(ROLES);
-    if (authError) return authError;
+    const access = await requireVentureScopedAccess({ db, ventureId: id, module: "ventures", capability: "view", legacyRoles: ROLES });
+    if (access.error) return access.error;
+    const { session } = access;
     const { id } = await params;
-    const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
@@ -75,10 +74,10 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth(ALLOWED);
-    if (authError) return authError;
+    const access = await requireVentureScopedAccess({ db, ventureId: id, module: "ventures", capability: "edit", legacyRoles: ALLOWED });
+    if (access.error) return access.error;
+    const { session } = access;
     const { id } = await params;
-    const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
@@ -104,10 +103,10 @@ export async function POST(req, { params }) {
 export async function PATCH(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth(ALLOWED);
-    if (authError) return authError;
+    const access = await requireVentureScopedAccess({ db, ventureId: id, module: "ventures", capability: "edit", legacyRoles: ALLOWED });
+    if (access.error) return access.error;
+    const { session } = access;
     const { id } = await params;
-    const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });

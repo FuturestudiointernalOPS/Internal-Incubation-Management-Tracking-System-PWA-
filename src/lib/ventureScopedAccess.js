@@ -29,6 +29,13 @@ import { requireVentureAccess } from "@/lib/ventureAuth";
  *   no traffic on staging for a full cycle.
  *
  * Returns { session, path } on allow, or { error: NextResponse } on deny.
+ *
+ * Every decision also sets an `X-Authz-Decision` header (visible in the
+ * network tab / logs), so "what is working and what is not" is diagnosable
+ * instead of silent:
+ *
+ *   super-admin | capability+scope | legacy-fallback
+ *   capability-missing | out-of-scope | legacy-role-denied | legacy-not-a-member
  */
 export async function requireVentureScopedAccess({
   db,
@@ -38,13 +45,20 @@ export async function requireVentureScopedAccess({
   minLevel = 1,
   legacyRoles = [],
 }) {
+  const denied = (body, status, decision) => {
+    const res = NextResponse.json(body, { status });
+    res.headers.set("X-Authz-Decision", decision);
+    return res;
+  };
+
   try {
     const session = await getSession();
     if (!session) {
       return {
-        error: NextResponse.json(
+        error: denied(
           { success: false, error: "errors.authRequired" },
-          { status: 401 },
+          401,
+          "unauthenticated",
         ),
       };
     }
@@ -69,16 +83,36 @@ export async function requireVentureScopedAccess({
 
     // LEGACY FALLBACK — exact prior behavior (remove after parity proof).
     const legacyError = await requireAuth(legacyRoles);
-    if (legacyError) return { error: legacyError };
+    if (legacyError) {
+      return {
+        error: denied(
+          {
+            success: false,
+            error: "errors.insufficientPermissions",
+            missing: { capability: `${module}.${capability}` },
+          },
+          legacyError.status || 403,
+          "legacy-role-denied",
+        ),
+      };
+    }
     const { session: legacySession, ventureId: resolved } = await requireVentureAccess(
       ventureId,
       db,
     );
     if (!legacySession) {
       return {
-        error: NextResponse.json(
-          { success: false, error: "errors.notFound" },
-          { status: 404 },
+        error: denied(
+          {
+            success: false,
+            error: "errors.notFound",
+            missing: {
+              capability: `${module}.${capability}`,
+              scope: "venture_own",
+            },
+          },
+          404,
+          "legacy-not-a-member",
         ),
       };
     }
@@ -89,9 +123,10 @@ export async function requireVentureScopedAccess({
   } catch (e) {
     console.error("[requireVentureScopedAccess] error:", e?.message);
     return {
-      error: NextResponse.json(
+      error: denied(
         { success: false, error: "errors.authzSystemFailure" },
-        { status: 500 },
+        500,
+        "system-failure",
       ),
     };
   }

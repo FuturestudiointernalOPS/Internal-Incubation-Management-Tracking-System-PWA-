@@ -1,7 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { requireVentureAccess } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
   getVentureDbIdForCalendar,
   listVentureActionPlansWithDeadlines,
@@ -19,10 +18,12 @@ async function resolveVentureDbId(ventureId) {
 const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
 
 export async function GET(req, { params }) {
-  try { await initDb(); const authError = await requireAuth(ROLES); if (authError) return authError;
-    const { id } = await params; const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  try { await initDb();
+    const { id } = await params;
+    const access = await requireVentureScopedAccess({ db, ventureId: id, module: "ventures", capability: "view", legacyRoles: ROLES });
+    if (access.error) return access.error;
+    const { session } = access;
+    const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     // Venture tasks with due_date
     const tasks = await listVentureTasksWithDueDates(dbId);

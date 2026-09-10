@@ -153,3 +153,35 @@ describe("Phase 5b — pilot route contract", () => {
     expect(src).not.toMatch(/requireVentureAccess\(/);
   });
 });
+
+/**
+ * PHASE 5c — the batch-converted venture surfaces. Every entry must keep using
+ * the canonical gate: no direct requireAuth / requireVentureAccess calls may
+ * creep back in, and writes must ask for the edit capability.
+ */
+describe("Phase 5c — batch-converted venture routes", () => {
+  const converted = [
+    "src/app/api/ventures/[id]/action-plans/route.js",
+    "src/app/api/ventures/[id]/calendar/route.js",
+    "src/app/api/ventures/[id]/followups/route.js",
+    "src/app/api/ventures/[id]/interviews/route.js",
+    "src/app/api/ventures/[id]/investment-readiness/route.js",
+    "src/app/api/ventures/[id]/kpis/route.js",
+    "src/app/api/ventures/[id]/playbook/route.js",
+    "src/app/api/ventures/[id]/pmf/route.js",
+    "src/app/api/ventures/[id]/retros/route.js",
+    "src/app/api/ventures/[id]/standups/route.js",
+    "src/app/api/ventures/[id]/validations/route.js",
+  ];
+
+  test.each(converted)("%s stays on the canonical gate", (rel) => {
+    const src = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+    expect(src).toContain("requireVentureScopedAccess");
+    expect(src).toContain('module: "ventures"');
+    expect(src).not.toMatch(/requireAuth\(/);
+    expect(src).not.toMatch(/requireVentureAccess\(/);
+    // The legacy role array is still handed to the fallback (parity), never
+    // dropped: a conversion must not silently widen access.
+    expect(src).toMatch(/legacyRoles: (ROLES|ALLOWED)/);
+  });
+});
