@@ -1301,7 +1301,7 @@ function RoleDefaultsView() {
             {t("engineering.permissions.roleDefaultsMatrixHint")}
           </p>
         </div>
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-[var(--border-primary)]">
@@ -1369,6 +1369,54 @@ function RoleDefaultsView() {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Small screens: one card per role, one chip per profile — the same
+            tap opens the same confirmation form. */}
+        <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
+          {roles.map((role) => {
+            const def = roleDefaults[role];
+            return (
+              <div key={role} className="p-3 space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
+                  {role}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {profiles.map((p) => {
+                    const isDefault = Boolean(
+                      def && String(def.profileId) === String(p.id),
+                    );
+                    const interactive = Boolean(p.is_active);
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          setRoleDefaultData({ role_name: role, profile_id: p.id });
+                          setShowForm(true);
+                        }}
+                        disabled={!interactive}
+                        title={
+                          isDefault
+                            ? t("engineering.permissions.roleDefaultsCellDefault", { role })
+                            : t("engineering.permissions.roleDefaultsCellSet", { role })
+                        }
+                        className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all text-left ${
+                          isDefault
+                            ? "bg-teal-500/15 text-teal-400"
+                            : "bg-primary text-[var(--text-secondary)] opacity-50 hover:opacity-100 hover:text-[var(--text-primary)]"
+                        } ${interactive ? "" : "cursor-not-allowed opacity-40"}`}
+                      >
+                        <span className="block text-[9px] tracking-widest opacity-70">
+                          {p.name}
+                        </span>
+                        <span>{isDefault ? "✓" : "—"}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
       <p className="text-[10px] font-bold text-[var(--text-secondary)]">
@@ -2179,7 +2227,7 @@ function AccessProfilesView({ initialProfileId = null }) {
                           </span>
                         )}
                       </div>
-                      <div className="overflow-x-auto">
+                      <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-left min-w-[480px]">
                           <thead>
                             <tr className="border-b border-[var(--border-primary)]">
@@ -2233,6 +2281,49 @@ function AccessProfilesView({ initialProfileId = null }) {
                             })}
                           </tbody>
                         </table>
+                      </div>
+
+                      {/* Small screens: one card per capability, one chip per
+                          level — the same targets, just stacked. */}
+                      <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
+                        {mod.capabilities.map((cap) => {
+                          const level = getDraftLevel(modKey, cap);
+                          const changed = isChanged(modKey, cap);
+                          return (
+                            <div
+                              key={cap}
+                              className={`p-3 space-y-2 ${changed ? "bg-amber-500/5" : ""}`}
+                            >
+                              <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
+                                {capabilityLabel(modKey, cap)}
+                                {changed && (
+                                  <span className="ml-2 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+                                    {t("engineering.permissions.changedBadge")}
+                                  </span>
+                                )}
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {LEVELS_ORDER.map((l) => (
+                                  <button
+                                    key={l}
+                                    onClick={() => setDraftLevel(modKey, cap, l)}
+                                    title={`${capabilityLabel(modKey, cap)} → ${l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}`}
+                                    className={`min-w-[3rem] h-10 px-2 rounded-lg border text-[10px] font-bold transition-all ${
+                                      level === l
+                                        ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
+                                        : "bg-secondary border-[var(--border-primary)] text-slate-500 hover:border-[var(--brand-orange)]/40 hover:text-[var(--text-primary)]"
+                                    } ${changed && level === l ? "ring-1 ring-amber-400/70" : ""}`}
+                                  >
+                                    <span className="block text-[8px] uppercase tracking-widest opacity-70">
+                                      {l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}
+                                    </span>
+                                    <span>{ACCESS_SHORT[l]}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -3021,6 +3112,35 @@ function EligibilityView() {
     );
   }
 
+  // One lookup for both presentations (table on md+, cards below) so the two
+  // can never disagree about what a cell shows.
+  const stateFor = (role, feature) => {
+    const row = (data?.rows || []).find(
+      (r) =>
+        r.identity_type === "role" &&
+        r.identity_value === role &&
+        r.feature_key === feature,
+    );
+    const value = row ? Number(row.eligible) : null;
+    return {
+      value,
+      label: value === 1 ? "E" : value === 0 ? "D" : "—",
+      title: `${role} → ${feature}: ${
+        value === 1
+          ? t("engineering.permissions.eligibilityEligible")
+          : value === 0
+            ? t("engineering.permissions.eligibilityNotEligible")
+            : t("engineering.permissions.eligibilityUnset")
+      }`,
+      className:
+        value === 1
+          ? "bg-emerald-500/15 text-emerald-400"
+          : value === 0
+            ? "bg-red-500/15 text-red-400"
+            : "bg-primary text-[var(--text-secondary)] opacity-50",
+    };
+  };
+
   return (
     <div className="space-y-4">
       {/* View toggle: identity editor vs roles × features matrix */}
@@ -3050,7 +3170,7 @@ function EligibilityView() {
               {t("engineering.permissions.eligibilityMatrixHint")}
             </p>
           </div>
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-[var(--border-primary)]">
@@ -3077,13 +3197,7 @@ function EligibilityView() {
                       {role}
                     </td>
                     {(data.features || []).map((f) => {
-                      const row = (data.rows || []).find(
-                        (r) =>
-                          r.identity_type === "role" &&
-                          r.identity_value === role &&
-                          r.feature_key === f,
-                      );
-                      const value = row ? Number(row.eligible) : null;
+                      const state = stateFor(role, f);
                       return (
                         <td key={f} className="px-2 py-1.5 text-center">
                           <button
@@ -3092,20 +3206,10 @@ function EligibilityView() {
                               setIdentityValue(role);
                               setViewMode("identity");
                             }}
-                            title={`${role} → ${f}: ${value === 1 ? t("engineering.permissions.eligibilityEligible") : value === 0 ? t("engineering.permissions.eligibilityNotEligible") : t("engineering.permissions.eligibilityUnset")}`}
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                              value === 1
-                                ? "bg-emerald-500/15 text-emerald-400"
-                                : value === 0
-                                  ? "bg-red-500/15 text-red-400"
-                                  : "bg-primary text-[var(--text-secondary)] opacity-50"
-                            }`}
+                            title={state.title}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${state.className}`}
                           >
-                            {value === 1
-                              ? "E"
-                              : value === 0
-                                ? "D"
-                                : "—"}
+                            {state.label}
                           </button>
                         </td>
                       );
@@ -3114,6 +3218,40 @@ function EligibilityView() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Small screens: one card per identity, one chip per feature — the
+              same tap opens the same identity editor. */}
+          <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
+            {(data.roles || []).map((role) => (
+              <div key={role} className="p-3 space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
+                  {role}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(data.features || []).map((f) => {
+                    const state = stateFor(role, f);
+                    return (
+                      <button
+                        key={f}
+                        onClick={() => {
+                          setIdentityType("role");
+                          setIdentityValue(role);
+                          setViewMode("identity");
+                        }}
+                        title={state.title}
+                        className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border border-transparent text-left ${state.className}`}
+                      >
+                        <span className="block text-[9px] tracking-widest opacity-70">
+                          {f}
+                        </span>
+                        <span>{state.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -3583,7 +3721,8 @@ function AuditView() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
@@ -3640,6 +3779,77 @@ function AuditView() {
               </tbody>
             </table>
           </div>
+
+          {/* Small screens: one card per record — same fields, same drawer. */}
+          <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
+            {entries.map((e) => (
+              <div key={e.id} className="p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-blue-500/10 text-blue-400">
+                    {e.action}
+                  </span>
+                  <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                    {fmtDate(e.created_at)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                      {t("engineering.permissions.auditActor")}
+                    </p>
+                    <p className="text-[10px] font-bold text-[var(--text-primary)]">
+                      {e.actor_name || e.actor_cid || "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                      {t("engineering.permissions.auditTarget")}
+                    </p>
+                    <p className="text-[10px] font-bold text-[var(--text-primary)]">
+                      {e.target_name || e.target_cid || "—"}
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                      {t("engineering.permissions.auditObject")}
+                    </p>
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                      {e.module
+                        ? `${e.module}.${e.capability || "*"}`
+                        : e.details
+                          ? String(e.details).slice(0, 48)
+                          : "—"}
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                      {t("engineering.permissions.auditChange")}
+                    </p>
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                      {e.previous_value || e.new_value ? (
+                        <span>
+                          <span className="text-slate-500 line-through">
+                            {e.previous_value || "—"}
+                          </span>
+                          {" → "}
+                          <span className="text-emerald-400">{e.new_value || "—"}</span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">—</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setDetail(e)}
+                  className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
+                >
+                  {t("engineering.permissions.auditViewDetail")}
+                </button>
+              </div>
+            ))}
+          </div>
+          </>
         )}
         {!loading && entries.length > 0 && (
           <div className="px-5 py-3 border-t border-[var(--border-primary)]">
