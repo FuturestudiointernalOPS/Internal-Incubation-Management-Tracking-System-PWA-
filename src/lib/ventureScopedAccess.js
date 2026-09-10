@@ -36,7 +36,19 @@ import { requireVentureAccess } from "@/lib/ventureAuth";
  *
  *   super-admin | capability+scope | legacy-fallback
  *   capability-missing | out-of-scope | legacy-role-denied | legacy-not-a-member
+ *
+ * STRICT MODE (staging verification): set AUTHZ_VENTURE_STRICT=1 and the
+ * transitional legacy fallback is DISABLED — the route is then decided by the
+ * new system alone (capability + scope), and every denial answers with the
+ * exact missing capability/scope plus the `capability-or-scope-denied`
+ * decision header. That is how you prove a route really runs on the new system
+ * instead of silently falling back. Default: off (parity behaviour unchanged).
  */
+
+/** Read at call time so a single env change (or a test) takes effect at once. */
+export function isVentureStrictMode() {
+  return process.env.AUTHZ_VENTURE_STRICT === "1";
+}
 export async function requireVentureScopedAccess({
   db,
   ventureId,
@@ -68,20 +80,46 @@ export async function requireVentureScopedAccess({
     if (ctx?.isSuperAdmin) return { session, path: "super-admin" };
 
     // NEW PATH — capability (cached context) + scope (live assignment data).
-    const capError = await requireAuthorization(module, capability, minLevel);
-    if (!capError) {
-      const scopeId = await resolveVentureScopeId(ventureId);
-      if (
-        scopeId &&
-        (await isWithinScope("venture_own", session.cid, scopeId, {
-          email: session.email,
-        }))
-      ) {
-        return { session, path: "capability+scope" };
+    // Wrapped so a failure HERE can never break a route that works today:
+    // outside strict mode we simply move on to the legacy gate.
+    try {
+      const capError = await requireAuthorization(module, capability, minLevel);
+      if (!capError) {
+        const scopeId = await resolveVentureScopeId(ventureId);
+        if (
+          scopeId &&
+          (await isWithinScope("venture_own", session.cid, scopeId, {
+            email: session.email,
+          }))
+        ) {
+          return { session, path: "capability+scope" };
+        }
       }
+    } catch (e) {
+      console.warn(
+        "[VentureScope] new-path error — deferring to the legacy gate:",
+        e?.message,
+      );
     }
 
     // LEGACY FALLBACK — exact prior behavior (remove after parity proof).
+    if (isVentureStrictMode()) {
+      console.warn(
+        `[VentureScope][STRICT] denied ${module}.${capability} on venture ${ventureId} — capability or scope missing; legacy fallback disabled`,
+      );
+      return {
+        error: denied(
+          {
+            success: false,
+            error: "errors.insufficientPermissions",
+            missing: { capability: `${module}.${capability}`, scope: "venture_own" },
+            strict: true,
+          },
+          403,
+          "capability-or-scope-denied",
+        ),
+      };
+    }
     const legacyError = await requireAuth(legacyRoles);
     if (legacyError) {
       return {

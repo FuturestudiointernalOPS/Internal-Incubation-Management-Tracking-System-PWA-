@@ -136,6 +136,82 @@ describe("Phase 5b — requireVentureScopedAccess semantics", () => {
   });
 });
 
+describe("Phase 5c — strict mode (staging verification)", () => {
+  afterEach(() => {
+    delete process.env.AUTHZ_VENTURE_STRICT;
+  });
+
+  test("strict on: capability missing → denied by the new system alone (no legacy calls)", async () => {
+    process.env.AUTHZ_VENTURE_STRICT = "1";
+    mockCapError = new Response(JSON.stringify({ success: false }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+    const out = await callHelper();
+    expect(out.error.status).toBe(403);
+    const body = await out.error.json();
+    expect(body.strict).toBe(true);
+    expect(body.missing.capability).toBe("ventures.view");
+    expect(out.error.headers.get("X-Authz-Decision")).toBe("capability-or-scope-denied");
+    expect(requireAuth).not.toHaveBeenCalled();
+    expect(requireVentureAccess).not.toHaveBeenCalled();
+  });
+
+  test("strict on: capability held but out of scope → denied, scope named in the payload", async () => {
+    process.env.AUTHZ_VENTURE_STRICT = "1";
+    mockCapError = null;
+    mockWithin = false;
+    const out = await callHelper();
+    expect(out.error.status).toBe(403);
+    const body = await out.error.json();
+    expect(body.missing.scope).toBe("venture_own");
+    expect(requireVentureAccess).not.toHaveBeenCalled();
+  });
+
+  test("strict on: the canonical path still allows (no fallback involved)", async () => {
+    process.env.AUTHZ_VENTURE_STRICT = "1";
+    mockCapError = null;
+    mockWithin = true;
+    const out = await callHelper();
+    expect(out.path).toBe("capability+scope");
+  });
+
+  test("strict on: Super Admin bypass is unaffected", async () => {
+    process.env.AUTHZ_VENTURE_STRICT = "1";
+    mockCtx = { isSuperAdmin: true };
+    const out = await callHelper();
+    expect(out.path).toBe("super-admin");
+  });
+
+  test("strict off (default): the same denial falls back to legacy (parity)", async () => {
+    mockCapError = new Response(JSON.stringify({ success: false }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+    mockLegacySession = { cid: "C1", role: "staff" };
+    const out = await callHelper();
+    expect(out.path).toBe("legacy-fallback");
+  });
+
+  test("an unexpected failure in the new path never 500s a working route (strict off)", async () => {
+    const { requireAuthorization } = require("@/lib/authorization");
+    requireAuthorization.mockRejectedValueOnce(new Error("resolver unavailable"));
+    mockLegacySession = { cid: "C1", role: "staff" };
+    const out = await callHelper();
+    expect(out.path).toBe("legacy-fallback");
+  });
+
+  test("strict on: an unexpected failure denies explicitly (no silent allow)", async () => {
+    process.env.AUTHZ_VENTURE_STRICT = "1";
+    const { requireAuthorization } = require("@/lib/authorization");
+    requireAuthorization.mockRejectedValueOnce(new Error("resolver unavailable"));
+    const out = await callHelper();
+    expect(out.error.status).toBe(403);
+    expect(out.error.headers.get("X-Authz-Decision")).toBe("capability-or-scope-denied");
+    expect(requireVentureAccess).not.toHaveBeenCalled();
+  });
+});
+
 describe("Phase 5b — pilot route contract", () => {
   const pilots = [
     "src/app/api/ventures/[id]/blockers/route.js",
