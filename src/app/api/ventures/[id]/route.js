@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import db, { initDb } from "@/lib/db";
-import { requireAuthorization } from "@/lib/authorization";
+import { getSession } from "@/lib/auth";
+import { getAuthorizationContext, requireAuthorization } from "@/lib/authorization";
+import { isWithinScope, resolveVentureScopeId } from "@/lib/authorization/scope";
 import {
   getVentureById,
   updateVenture,
@@ -78,6 +80,30 @@ export const PATCH = createHandler(async (req, { params }) => {
   const capError = await requireAuthorization("ventures", "edit");
   if (capError) return capError;
   const { id } = await params;
+
+    // Phase 5c — capability is not enough: the venture must be THEIRS.
+    {
+      const session = await getSession();
+      const ctx = await getAuthorizationContext(session);
+      if (!ctx?.isSuperAdmin) {
+        const scopeId = await resolveVentureScopeId(id);
+        const within =
+          Boolean(scopeId) &&
+          (await isWithinScope("venture_own", session?.cid, scopeId));
+        if (!within) {
+          const res = NextResponse.json(
+            {
+              success: false,
+              error: "errors.insufficientPermissions",
+              missing: { capability: "ventures.edit", scope: "venture_own" },
+            },
+            { status: 403 },
+          );
+          res.headers.set("X-Authz-Decision", "out-of-scope");
+          return res;
+        }
+      }
+    }
 
     // Check venture exists
     const existingVenture = await getVentureById(id);

@@ -39,6 +39,15 @@ jest.mock("uuid", () => ({
 // so the gate is mocked as granted.
 jest.mock("@/lib/authorization", () => ({
   requireAuthorization: jest.fn().mockResolvedValue(null),
+  // Phase 5c: the venture gate asks the resolver for the context (Super Admin
+  // bypass) and checks record scope on the converted routes.
+  getAuthorizationContext: jest.fn().mockResolvedValue({ isSuperAdmin: true }),
+  authorize: jest.fn().mockReturnValue(true),
+}));
+
+jest.mock("@/lib/authorization/scope", () => ({
+  resolveVentureScopeId: jest.fn(async (id) => id),
+  isWithinScope: jest.fn().mockResolvedValue(true),
 }));
 
 // Phase 3/10 (post-dating these tests): the /api/ventures/[id] routes also

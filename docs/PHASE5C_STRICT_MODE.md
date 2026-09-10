@@ -1,79 +1,84 @@
-# ImpactOS — Phase 5c (Strict Mode & Venture Coverage)
+# ImpactOS — Phase 5c (Strict Venture Gate — No Fallback)
 
-Status: strict mode + coverage census shipped. **Default is parity (fallback
-active)** — nothing changes until `AUTHZ_VENTURE_STRICT=1` is set.
+Status: the transitional fallback is **removed**. The venture gate decides with
+**capability + scope only**; the old role arrays and the old membership helper
+are no longer consulted on converted routes.
 
-## Why this exists
-
-The transitional fallback keeps old behaviour during the migration, but a
-fallback that is always taken means the NEW system is never actually exercised.
-Strict mode turns the fallback off so staging proves, route by route, that the
-canonical gate decides on its own.
-
-## Strict mode
+## The gate
 
 ```
-AUTHZ_VENTURE_STRICT=1     # staging only, until clean
+Super Admin bypass (resolver)
+  → CAPABILITY  ventures.view (reads) / ventures.edit (writes)
+  → SCOPE       venture_own — active membership OR active staff assignment
+  → ALLOW
 ```
 
-| Mode | Behaviour |
-|---|---|
-| off (default) | capability + scope → allow; otherwise the ORIGINAL role-array + membership check decides (parity, logs `[VentureScope] legacy fallback used …`) |
-| on | capability + scope → allow; otherwise **deny** with `X-Authz-Decision: capability-or-scope-denied` and a payload naming exactly what is missing |
+Every denial is explicit and diagnosable:
 
-Denial payload in strict mode:
+| `X-Authz-Decision` | Status | Payload `missing` |
+|---|---|---|
+| `unauthenticated` | 401 | — |
+| `capability-missing` | 403 | `{ capability: "ventures.view" }` |
+| `out-of-scope` | 403 | `{ capability, scope: "venture_own" }` |
+| `system-failure` | 500 | — |
+| *(allow)* | 200 | `super-admin` / `capability+scope` |
 
-```json
-{ "success": false,
-  "error": "errors.insufficientPermissions",
-  "missing": { "capability": "ventures.view", "scope": "venture_own" },
-  "strict": true }
+## Keys (grants) — who can do what
+
+| Profile | ventures.view | ventures.edit | Effect |
+|---|---|---|---|
+| Super Admin Default | ✔ (all) | ✔ | unscoped (resolver bypass) |
+| Staff Default (venture manager) | ✔ | ✔ | only ventures they belong to / are assigned to |
+| Program Manager | ✔ | ✔ | same |
+| Founder | ✔ | ✔ | only their own ventures |
+| Everyone else | — | — | no venture surfaces (participants/learners/instructors live in their own contexts) |
+
+Writes are scope-checked on **every** write route, including the two that used
+to check capability only (`PUT /api/ventures`, `PATCH /api/ventures/[id]`), so
+`ventures.edit` can never open an unscoped write.
+
+## What would fail? (ask before you test)
+
+```
+GET /api/engineering/permissions/venture-strict-audit     (requires permissions.view_matrix)
 ```
 
-Super Admin bypass is unaffected (it is resolver semantics, not the fallback).
+Read-only. For every person attached to a venture it reports:
 
-### How to read any request
+- `viewAllowed` / `editAllowed` — what the strict gate decides **today**
+- `missing: ["ventures.view"]` / `["ventures.edit"]` — the key to grant
+- `scopeCount` — how many ventures the scope policy resolves for them
+- summaries: `viewMissing`, `editMissing`
 
-| `X-Authz-Decision` | Meaning |
-|---|---|
-| `super-admin` | SA bypass |
-| `capability+scope` | decided by the NEW system — this is the goal |
-| `legacy-fallback` | allowed only by the OLD gate (logged) — convert/grant before removing the fallback |
-| `capability-or-scope-denied` | strict mode denial — the payload says what to grant |
-| `legacy-role-denied` / `legacy-not-a-member` | old-path denials (non-strict mode) |
+If the audit shows an empty `viewMissing` for people who should work, strict
+mode is ready for them.
 
-## Coverage census
+## Coverage census (how far the migration is)
 
 ```
 node scripts/authz-venture-coverage.mjs
 ```
 
-Prints the census, exits 1 while any venture route still uses the old gate.
+Exits 1 while any venture route file still uses the old gate.
 
-Current state (73 route files):
+| Bucket | Meaning |
+|---|---|
+| NEW SYSTEM (scoped) | uses `requireVentureScopedAccess` |
+| OLD GATE (legacy) | still calls `requireAuth` / `requireVentureAccess` — to convert |
+| NO VENTURE GATE | SA-only or custom guard — verify individually |
 
-| Bucket | Count | Meaning |
-|---|---|---|
-| NEW SYSTEM (scoped) | 13 | use `requireVentureScopedAccess` |
-| OLD GATE (legacy) | 39 | still call `requireAuth` / `requireVentureAccess` directly |
-| NO VENTURE GATE | 21 | no venture gate found (SA-only or custom guards) — verify individually |
+Current: **13 scoped**, 39 legacy, 21 no-gate (of 73 route files).
 
-## Rollout sequence
+## Staging steps
 
-1. **Staging, strict OFF** — confirm the 13 converted routes still work
-   (`X-Authz-Decision: legacy-fallback` tells you who still needs grants).
-2. **Staging, strict ON** — the denials list exactly what is missing. Grant via
-   profiles (`ventures.view` for Staff / venture-manager, Founder owns
-   `venture_own`) or fix the route. Repeat until no denial remains for a normal
-   working day.
-3. **Convert the remaining 39 legacy files** (census drives this to zero), then
-   remove the fallback from the helper and delete this flag.
-4. **Production** — only after staging is clean; production flips last, never
-   before its grants exist.
+1. Re-run the profile seed so the keys land: `GET /api/engineering/permissions/seed-access-profiles`.
+2. Open the audit endpoint and grant anything that is genuinely missing.
+3. Walk the converted screens as: Super Admin, a Staff/venture-manager, a
+   Founder, and someone with no venture link (must be refused **explicitly**).
+4. Keep converting the remaining legacy files until the census reads 0, then
+   delete `requireVentureAccess` from the venture API entirely.
 
-## Safety notes
+## Rollback
 
-- Strict mode is read **per call** from the environment, so it can be flipped
-  without a code change and takes effect immediately.
-- The fallback path is untouched when strict is off — that is today's parity.
-- The census is read-only; it never edits files.
+One commit: `git revert` the strict-gate commit restores the previous helper.
+There is no data migration — grants live in `access_profiles` and are additive.

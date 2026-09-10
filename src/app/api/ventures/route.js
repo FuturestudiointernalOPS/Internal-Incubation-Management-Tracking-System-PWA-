@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { getAuthorizationContext, requireAuthorization } from "@/lib/authorization";
+import { isWithinScope, resolveVentureScopeId } from "@/lib/authorization/scope";
 import { updateVenture } from "@/lib/ventures";
 import {
   listVenturesWithCounts,
@@ -81,6 +82,31 @@ export const PUT = createHandler(async (req) => {
     const { id, ...updates } = body;
     if (!id) {
       return NextResponse.json({ success: false, error: "id (venture_id) is required" }, { status: 400 });
+    }
+
+    // Phase 5c — capability is not enough: the venture must be THEIRS. Scope is
+    // checked here so granting ventures.edit can never open unscoped writes.
+    {
+      const session = await getSession();
+      const ctx = await getAuthorizationContext(session);
+      if (!ctx?.isSuperAdmin) {
+        const scopeId = await resolveVentureScopeId(id);
+        const within =
+          Boolean(scopeId) &&
+          (await isWithinScope("venture_own", session?.cid, scopeId));
+        if (!within) {
+          const res = NextResponse.json(
+            {
+              success: false,
+              error: "errors.insufficientPermissions",
+              missing: { capability: "ventures.edit", scope: "venture_own" },
+            },
+            { status: 403 },
+          );
+          res.headers.set("X-Authz-Decision", "out-of-scope");
+          return res;
+        }
+      }
     }
     // Lifecycle guardrail: only global roles or delegated staff with an active
     // assignment may change a Venture's status (founder/member edits keep all

@@ -1230,7 +1230,7 @@ export async function seedDefaultAccessProfiles() {
         capabilities: {
           projects: { view: 1, create: 2, edit: 3 },
           programs: { view: 1 },
-          ventures: { view: 1 },
+          ventures: { view: 1, edit: 3 },
           reports: { view: 1, create: 2 },
           messaging: { view: 1, send: 2 },
           contacts: { view: 1 },
@@ -1267,7 +1267,7 @@ export async function seedDefaultAccessProfiles() {
         capabilities: {
           programs: { view: 1, create: 2, edit: 3, publish: 4 },
           projects: { view: 1 },
-          ventures: { view: 1 },
+          ventures: { view: 1, edit: 3 },
           reports: { view: 1, create: 2, export: 3 },
           messaging: { view: 1, send: 2 },
           contacts: { view: 1, create: 2 },
@@ -1319,13 +1319,12 @@ export async function seedDefaultAccessProfiles() {
         },
       },
       // P1/Phase 5b: Founder is an official identity (Member + venture
-      // membership), NOT a Staff profile. Deliberately minimal — ventures.view
-      // only; scope (venture_own) restricts it to the founder's own ventures.
-      // Any further capability for founders is a product decision.
+      // membership), NOT a Staff profile. Phase 5c: view + edit, both scoped by
+      // venture_own — a founder writes only inside their own ventures.
       Founder: {
         description: "Venture founder — own venture workspace (venture_own scope)",
         capabilities: {
-          ventures: { view: 1 },
+          ventures: { view: 1, edit: 3 },
         },
       },
     };

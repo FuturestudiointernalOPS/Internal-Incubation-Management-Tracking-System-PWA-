@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
@@ -9,7 +9,6 @@ import {
   insertPlaybookStage,
 } from "@/models/ventureJourney";
 
-const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
 
 const PLAYBOOK_STAGES = [
   { stage_order: 1, stage_name: "Complete Venture Profile",
@@ -142,7 +141,7 @@ async function resolveVentureDbId(ventureId) {
 export async function GET(req, { params }) {
   try {
     await initDb();
-    const access = await requireVentureScopedAccess({ db, ventureId: id, module: "ventures", capability: "view", legacyRoles: ROLES });
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
     if (access.error) return access.error;
     const { session } = access;
     const { id } = await params;
