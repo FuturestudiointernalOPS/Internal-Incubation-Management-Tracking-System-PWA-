@@ -95,6 +95,15 @@ export default function PeopleView({ onManageAccess }) {
       setCtx(null);
       setScope([]);
       setErr("");
+      // One person, two lenses: keep ?cid= in the URL so switching to the
+      // "Manage access" sub-tab (the write lens) opens the same person.
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("cid", u.cid);
+        window.history.replaceState(null, "", url);
+      } catch {
+        /* cosmetic handoff between the two lenses */
+      }
       setLoadingCtx(true);
       try {
         const res = await fetch(

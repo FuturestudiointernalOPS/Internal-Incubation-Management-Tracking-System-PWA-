@@ -62,10 +62,40 @@ describe("UI-1 — navigation model", () => {
     }
   });
 
-  test("the governance route exposes the advanced sub-tabs (eligibility moved out)", () => {
-    const governance = PERMISSION_NAV.find((n) => n.key === "governance");
-    const tabKeys = governance.tabs.map((tb) => tb.key);
-    expect(tabKeys).toEqual(["catalog", "responsibilities", "access"]);
+  test("the retired Advanced door forwards to the screens' new homes", () => {
+    const file = path.join(ROUTE_ROOT, "governance", "page.js");
+    const src = fs.readFileSync(file, "utf8");
+    // A pure forwarder: no shell, so this path can never render a second
+    // navigation for the same screen.
+    expect(src).not.toContain("PermissionShell");
+    for (const target of [
+      "profiles?sub=catalog",
+      "people?sub=jobs",
+      "eligibility?sub=warnings",
+      "context-scope?sub=memberships",
+    ]) {
+      expect(src).toContain(target);
+    }
+  });
+
+  test("every relocation target is a real sub-tab of a nav item", () => {
+    const subs = new Map(
+      PERMISSION_NAV.map((n) => [n.key, (n.tabs || []).map((tb) => tb.key)]),
+    );
+    expect(subs.get("profiles")).toContain("catalog");
+    expect(subs.get("people")).toContain("jobs");
+    expect(subs.get("eligibility")).toContain("warnings");
+    expect(subs.get("context")).toContain("memberships");
+  });
+
+  test("there is exactly one navigation: no legacy tab bar survives", () => {
+    const src = fs.readFileSync(
+      path.join(process.cwd(), "src/components/permissions/PermissionCenter.js"),
+      "utf8",
+    );
+    expect(src).not.toContain("setActiveTab");
+    expect(src).not.toContain("setSetupSection");
+    expect(src).not.toContain("tabAccessSetup");
   });
 
   test("primary order follows the admin cascade", () => {
@@ -75,7 +105,6 @@ describe("UI-1 — navigation model", () => {
       "profiles",
       "people",
       "context",
-      "governance",
       "audit",
     ]);
   });

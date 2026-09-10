@@ -9,7 +9,11 @@ import PeopleView from "@/components/permissions/PeopleView";
  * PHASE UI-1/UI-2b — People.
  *   search → Individual Access editor (existing write surface, unchanged)
  *   matrix → the access matrix with sources, effective reasons and a "why"
- *            drawer, plus the resolved-scope panel (read-only).
+ *            drawer, plus the resolved-scope panel (read-only)
+ *   jobs   → responsibility assignments ("job shortcuts") with the role
+ *            eligibility warning — relocated here in Phase 2 from the retired
+ *            "Advanced" section; assigning grants base view access and is
+ *            never revoked on unassign
  * Supports the ?cid= deep link on both sub-tabs.
  */
 export default function PermissionPeoplePage() {
@@ -32,7 +36,11 @@ export default function PermissionPeoplePage() {
       {sub === "matrix" ? (
         <PeopleView onManageAccess={manageAccess} />
       ) : (
-        <PermissionManager key={sub} embedded initialTab="search" />
+        <PermissionManager
+          key={sub}
+          embedded
+          initialTab={sub === "jobs" ? "responsibilities" : "search"}
+        />
       )}
     </PermissionShell>
   );
