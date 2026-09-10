@@ -86,6 +86,20 @@ export function deriveUserCapState(sources, module, capability) {
 }
 
 /**
+ * Why a capability is denied (UI-2). Returns a machine reason the UI maps to
+ * localized copy — a restriction always wins, otherwise the capability simply
+ * has no source at all.
+ *
+ * @returns {"restriction"|"no-source"|null} null when the capability is held
+ */
+export function deriveDenialReason(state) {
+  if (!state || state.effective) return null;
+  if (state.restricted) return "restriction";
+  if (!state.profile && !state.group && !state.grant) return "no-source";
+  return null;
+}
+
+/**
  * Union of modules that appear in ANY source layer — the User Matrix only
  * renders rows that exist in the user's actual context.
  */
