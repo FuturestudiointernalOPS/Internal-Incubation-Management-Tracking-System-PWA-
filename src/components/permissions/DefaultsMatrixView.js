@@ -286,7 +286,7 @@ export default function DefaultsMatrixView() {
       )}
 
       {/* Matrix */}
-      <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)] bg-secondary/40">
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-[var(--border-primary)] bg-secondary/40">
         <table className="w-full text-left border-collapse min-w-[820px]">
           <thead>
             <tr className="border-b border-[var(--border-primary)]">
@@ -383,6 +383,99 @@ export default function DefaultsMatrixView() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Small screens: the same features, the same identity totals, and the
+          same drawer — nothing is hidden, the table just reflows into cards. */}
+      <div className="md:hidden space-y-3">
+        {rows.map((row) => {
+          const isOpen = Boolean(expanded[row.feature]);
+          return (
+            <div
+              key={row.feature}
+              className="rounded-xl border border-[var(--border-primary)] bg-secondary/40 overflow-hidden"
+            >
+              <button
+                aria-expanded={isOpen}
+                onClick={() =>
+                  setExpanded((prev) => ({ ...prev, [row.feature]: !prev[row.feature] }))
+                }
+                className="w-full flex items-center gap-2 p-3 text-left"
+              >
+                {isOpen ? (
+                  <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                ) : (
+                  <ChevronRight className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                )}
+                <span className="text-xs font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  {row.feature.replace(/_/g, " ")}
+                </span>
+              </button>
+              <div className="flex flex-wrap gap-1.5 px-3 pb-3">
+                {identityCells.map((ident) => {
+                  const total = row.modules.reduce(
+                    (acc, m) => acc + moduleCapsFor(ident, m.module).heldCount,
+                    0,
+                  );
+                  return (
+                    <span
+                      key={ident}
+                      className="px-2 py-0.5 rounded-md bg-secondary border border-[var(--border-primary)] text-[10px] font-black text-[var(--text-secondary)]"
+                    >
+                      {ident.replace(/_/g, " ")} {total > 0 ? `[${total}]` : "—"}
+                    </span>
+                  );
+                })}
+              </div>
+              {isOpen &&
+                row.modules.map((m) => (
+                  <div
+                    key={`${row.feature}-${m.module}`}
+                    className="border-t border-[var(--border-primary)]/50 px-3 py-3 space-y-2"
+                  >
+                    <span className="flex items-center gap-2 text-xs font-bold text-[var(--text-primary)]">
+                      {m.locked && <Lock className="w-3 h-3 text-amber-400" />}
+                      {m.module.replace(/_/g, " ")}
+                      {m.locked && (
+                        <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
+                          {t("engineering.permissions.moduleLocked")}
+                        </span>
+                      )}
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {identityCells.map((ident) => {
+                        const state = moduleCapsFor(ident, m.module);
+                        const profile = defaultProfileFor(ident);
+                        const label = profile
+                          ? state.accessible
+                            ? `[${state.heldCount}]`
+                            : "[—]"
+                          : "—";
+                        return (
+                          <button
+                            key={ident}
+                            disabled={m.locked || !profile}
+                            onClick={() => openDrawer(ident, m.module)}
+                            aria-label={ident.replace(/_/g, " ")}
+                            className={`px-2 py-1 rounded-md text-[10px] font-black border text-left transition-all ${
+                              state.accessible && profile
+                                ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]/30 text-[var(--brand-orange)]"
+                                : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)]"
+                            } ${m.locked || !profile ? "cursor-not-allowed opacity-60" : "hover:opacity-80"}`}
+                          >
+                            <span className="block text-[9px] uppercase tracking-widest opacity-70">
+                              {ident.replace(/_/g, " ")}
+                            </span>
+                            <span>{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          );
+        })}
       </div>
 
       {/* Pending tray */}
