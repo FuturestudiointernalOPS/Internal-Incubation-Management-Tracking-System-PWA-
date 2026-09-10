@@ -169,6 +169,50 @@ export async function seedContextRoleProfiles() {
   }
 }
 
+/**
+ * Phase 6 repair: rows seeded BEFORE their mapped profile existed were stored
+ * with profile_id NULL, and the seed's ON CONFLICT DO NOTHING kept them that
+ * way (e.g. `venture:founder` was seeded in Phase 4; the "Founder" profile
+ * only arrived in Phase 5b). Fill a NULL mapping once the named profile exists.
+ *
+ * Safety: only NULL rows are touched — a non-NULL profile_id is an
+ * administrator decision and is never overwritten, and `is_active` is never
+ * changed. Runs once per database via runAuthzMigration (see backfill.js) and
+ * throws on failure so a failed pass is retried on the next boot.
+ */
+export async function backfillContextRoleProfileMappings() {
+  await ensureContextRoleProfilesSchema();
+  // Ensure the seed rows exist first (INSERT … DO NOTHING — admin rows win).
+  const seeded = await seedContextRoleProfiles();
+  if (!seeded.success) {
+    throw new Error(seeded.error || "context role profile seed failed");
+  }
+
+  const updated = [];
+  for (const row of CONTEXT_ROLE_SEED) {
+    if (!row.profile_name) continue;
+    const profile = await db.execute({
+      sql: "SELECT id FROM access_profiles WHERE name = ?",
+      args: [row.profile_name],
+    });
+    const profileId = profile.rows?.[0]?.id ?? null;
+    if (!profileId) continue;
+    const res = await db.execute({
+      sql: `UPDATE context_role_profiles
+            SET profile_id = ?, updated_at = NOW()
+            WHERE context = ? AND role_key = ? AND profile_id IS NULL`,
+      args: [profileId, row.context, row.role_key],
+    });
+    updated.push({
+      context: row.context,
+      role_key: row.role_key,
+      profile: row.profile_name,
+      rowsAffected: res?.rowsAffected ?? 0,
+    });
+  }
+  return { success: true, updated };
+}
+
 /** Every registry row, with the mapped profile name (LEFT JOIN, never hidden). */
 export async function listContextRoleProfiles() {
   return db.execute({

@@ -256,3 +256,27 @@ describe("PUT /api/engineering/permissions/context-roles", () => {
     expect(invalidateAllAuthorizationContexts).not.toHaveBeenCalled();
   });
 });
+
+describe("Phase 6 — NULL mapping repair (profile added after the seed)", () => {
+  test("fills only NULL mappings and never touches a configured one", async () => {
+    const {
+      backfillContextRoleProfileMappings,
+    } = require("@/models/authorization/contextRoleProfiles");
+    executed.length = 0;
+
+    const result = await backfillContextRoleProfileMappings();
+
+    expect(result.success).toBe(true);
+    const updates = executed.filter((q) => q.sql.includes("UPDATE context_role_profiles"));
+    expect(updates.length).toBeGreaterThan(0);
+    // The repair is strictly additive: only rows still NULL are eligible.
+    for (const u of updates) expect(u.sql).toContain("profile_id IS NULL");
+
+    const founderUpdate = updates.find((u) => u.args[1] === "venture" && u.args[2] === "founder");
+    expect(founderUpdate).toBeTruthy();
+    expect(founderUpdate.args[0]).toBe(7); // the profile id resolved by name
+    expect(
+      result.updated.find((u) => u.context === "venture" && u.role_key === "founder").profile,
+    ).toBe("Founder");
+  });
+});
