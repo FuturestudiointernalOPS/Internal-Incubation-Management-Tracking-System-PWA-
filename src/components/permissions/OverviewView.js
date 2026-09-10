@@ -157,7 +157,7 @@ export default function OverviewView() {
         action={
           <Link
             href={`${PERMISSION_BASE}/audit`}
-            className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:opacity-80"
+            className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 rounded-sm"
           >
             {t("engineering.permissions.overviewViewAudit")}
           </Link>
@@ -200,7 +200,7 @@ export default function OverviewView() {
             <Link
               key={item.key}
               href={item.href}
-              className="px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[11px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--brand-orange)]/40 transition-colors"
+              className="px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[11px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--brand-orange)]/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
             >
               {t(item.labelKey)}
             </Link>

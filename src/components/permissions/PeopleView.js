@@ -191,7 +191,7 @@ export default function PeopleView({ onManageAccess }) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("engineering.permissions.searchPlaceholder")}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40 font-bold text-xs"
             />
           </div>
           {loadingUsers ? (
@@ -266,7 +266,7 @@ export default function PeopleView({ onManageAccess }) {
                 {onManageAccess && (
                   <button
                     onClick={() => onManageAccess(selected.cid)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
                   >
                     <SlidersHorizontal className="w-3 h-3" />
                     {t("engineering.permissions.peopleManageAccess")}
@@ -300,7 +300,12 @@ export default function PeopleView({ onManageAccess }) {
               </div>
 
               {/* Sources matrix */}
-              <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
+              <div
+                tabIndex={0}
+                role="region"
+                aria-label={t("engineering.permissions.peopleTableAria")}
+                className="overflow-x-auto rounded-xl border border-[var(--border-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+              >
                 <table className="w-full text-left border-collapse min-w-[720px]">
                   <thead>
                     <tr className="border-b border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
@@ -331,7 +336,17 @@ export default function PeopleView({ onManageAccess }) {
                             <tr
                               key={`${m.module}.${cap}`}
                               onClick={() => setWhy({ module: m.module, cap, state: s, reason })}
-                              className="border-b border-[var(--border-primary)]/40 cursor-pointer hover:bg-secondary/40"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  setWhy({ module: m.module, cap, state: s, reason });
+                                }
+                              }}
+                              tabIndex={0}
+                              aria-label={t("engineering.permissions.peopleRowAria", {
+                                capability: `${m.module}.${cap}`,
+                              })}
+                              className="border-b border-[var(--border-primary)]/40 cursor-pointer hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-orange)]/60"
                             >
                               <td className="px-3 py-1.5 text-xs font-bold text-[var(--text-primary)]">
                                 {m.module}.{cap}
