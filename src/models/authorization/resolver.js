@@ -24,6 +24,7 @@ import {
   ensureEligibilitySchema,
   seedDefaultEligibility,
   seedLmsFeatureEligibility,
+  seedVenturesMemberEligibility,
   evaluateEligibility,
 } from "./eligibility";
 import { ensureCapabilityBackfills } from "./backfill";
@@ -53,6 +54,13 @@ function ensureEligibilitySeeded() {
         await runAuthzMigration(
           "eligibility-lms-bootstrap-v2",
           seedLmsFeatureEligibility,
+        );
+        // Phase 6: member-baseline founders need the ventures feature to be
+        // eligible for their baseline identity (the capability alone is not
+        // enough — eligibility is checked first and fails closed).
+        await runAuthzMigration(
+          "eligibility-ventures-member-v1",
+          seedVenturesMemberEligibility,
         );
         eligibilitySeeded = true;
       })().finally(() => {

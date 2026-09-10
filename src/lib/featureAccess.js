@@ -87,8 +87,18 @@ export const RESPONSIBILITY_FEATURE_ROLES = {
   system_settings: ["super_admin", "staff"],
   // Tasks — assignments, blockers
   tasks: ["super_admin", "staff", "program_manager", "team"],
-  // Ventures — incubated businesses (founder eligible for own-venture access)
-  ventures: ["super_admin", "staff", "program_manager", "investor", "founder"],
+  // Ventures — incubated businesses (founder eligible for own-venture access).
+  // Phase 6: member is the baseline identity of a founder — eligibility is a
+  // ceiling only (capability + venture scope still decide). Kept in exact sync
+  // with FEATURE_ELIGIBILITY_DEFAULTS.ventures (single-source test).
+  ventures: [
+    "super_admin",
+    "staff",
+    "program_manager",
+    "investor",
+    "founder",
+    "member",
+  ],
   // Investor relations
   investor: ["super_admin", "staff", "investor"],
   // LMS — capability-gated course authoring & learning
