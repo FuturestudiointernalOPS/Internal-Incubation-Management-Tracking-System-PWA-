@@ -277,7 +277,9 @@
         "investor": "Investisseur"
       },
       "scopePoliciesIntro": "Les politiques de portée au niveau des enregistrements sont appliquées au niveau de la couche de données par le Scope Engine (feuille de route, phase 5). Ce registre est la surface de gouvernance de ces politiques — rien ici n'autorise quoi que ce soit pour l'instant.",
-      "scopePoliciesStatus": "Moteur prévu — registre provisoire (lecture seule)",
+      "scopePoliciesStatus": "Noyau du moteur implémenté — vérification seulement, non appliqué (phase 5)",
+      "scopePoliciesImplemented": "Prédicat implémenté — vérification seulement (pas encore appliqué aux routes)",
+      "scopePoliciesPending": "Prédicat en attente — résout en refus (fermé par défaut)",
       "scopePoliciesRowVentureTitle": "Ventures assignées",
       "scopePoliciesRowVentureBody": "Les capacités de fondateur et d'équipe s'appliquent uniquement aux ventures auxquelles la personne appartient.",
       "scopePoliciesRowProgramTitle": "Contexte de programme",
