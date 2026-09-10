@@ -11,6 +11,7 @@ const VARIANTS = {
   mapped: "border-emerald-400/30 bg-emerald-400/10 text-emerald-400",
   gap: "border-amber-400/30 bg-amber-400/10 text-amber-400",
   pending: "border-amber-400/30 bg-amber-400/10 text-amber-400",
+  denied: "border-red-400/30 bg-red-400/10 text-red-400",
   locked: "border-[var(--border-primary)] bg-secondary text-[var(--text-secondary)]",
   verified:
     "border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]",

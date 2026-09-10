@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, Link2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import Badge from "./ui/Badge";
 
 /**
  * PHASE 4 — Context Role → Profile registry (Permission Center).
@@ -158,6 +159,9 @@ export default function ContextRolesView() {
                 {t("engineering.permissions.contextRolesRole")}
               </th>
               <th className="p-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] text-center">
+                {t("engineering.permissions.contextRolesStatus")}
+              </th>
+              <th className="p-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] text-center">
                 {t("engineering.permissions.contextRolesHolders")}
               </th>
               <th className="p-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
@@ -186,6 +190,17 @@ export default function ContextRolesView() {
                   </td>
                   <td className="p-3 text-xs font-bold text-[var(--text-primary)]">
                     {row.role_key.replace(/_/g, " ")}
+                  </td>
+                  <td className="p-3 text-center">
+                    {row.profile_id === null || row.profile_id === undefined ? (
+                      <Badge variant="gap">
+                        {t("engineering.permissions.contextRolesStatusGap")}
+                      </Badge>
+                    ) : (
+                      <Badge variant="mapped">
+                        {t("engineering.permissions.contextRolesStatusMapped")}
+                      </Badge>
+                    )}
                   </td>
                   <td className="p-3 text-center text-xs font-bold text-[var(--text-secondary)]">
                     {row.holders === null || row.holders === undefined
