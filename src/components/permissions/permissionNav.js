@@ -59,10 +59,9 @@ export const PERMISSION_NAV = [
     key: "people",
     href: `${PERMISSION_BASE}/people`,
     labelKey: "engineering.permissions.navPeople",
-    defaultSub: "search",
+    defaultSub: "access",
     tabs: [
-      { key: "search", labelKey: "engineering.permissions.tabUserSearch" },
-      { key: "matrix", labelKey: "engineering.permissions.tabUserMatrix" },
+      { key: "access", labelKey: "engineering.permissions.tabIndividualAccess" },
       { key: "jobs", labelKey: "engineering.permissions.tabJobShortcuts" },
     ],
   },
@@ -87,6 +86,15 @@ export const PERMISSION_NAV = [
 export function navByKey(key) {
   return PERMISSION_NAV.find((n) => n.key === key) || null;
 }
+
+/**
+ * Sub-tab values that existed before Individual Access was merged into one
+ * screen. The route redirects them to `access` so old bookmarks keep working.
+ */
+export const PERMISSION_PEOPLE_SUB_ALIASES = {
+  search: "access",
+  matrix: "access",
+};
 
 /** Relative route segment under the Permission Center base ("" = overview). */
 export function routeSegmentFor(navItem) {

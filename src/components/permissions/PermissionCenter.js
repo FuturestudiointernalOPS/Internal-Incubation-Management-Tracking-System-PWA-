@@ -85,6 +85,7 @@ export default function PermissionManager({
   initialTab = "search",
   initialSection = "profiles",
   initialProfileId = null,
+  cid = null,
 }) {
   const { t, lang } = useI18n();
   // Navigation is owned by the Permission Shell (route + `?sub=`); this screen
@@ -92,10 +93,6 @@ export default function PermissionManager({
   // instance on the sub-tab, so switching a sub-tab remounts it fresh — there
   // is no internal tab state left to disagree with the URL.
   const activeTab = initialTab;
-  const [searchQuery, setSearchQuery] = useState("");
-  const [allUsers, setAllUsers] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
-  const [, setSearching] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [userPerms, setUserPerms] = useState(null);
   const [loadingPerms, setLoadingPerms] = useState(false);
@@ -103,7 +100,6 @@ export default function PermissionManager({
   const [expandedModules, setExpandedModules] = useState({});
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
-  const [pendingCid, setPendingCid] = useState(null);
   const [whyTarget, setWhyTarget] = useState(null); // { module, capability } for the explanation modal
   const [showAssignForm, setShowAssignForm] = useState(false);
   const [assignProfileId, setAssignProfileId] = useState("");
@@ -112,16 +108,12 @@ export default function PermissionManager({
   const [assignErr, setAssignErr] = useState("");
   const [assignBusy, setAssignBusy] = useState(false);
 
-  // Deep-link support: /admin/security/permissions?cid=X preselects a user
-  // (used by the Membership Control Center's "View Effective Access").
+  // The screen above owns the person selection: the editor follows the cid it
+  // is handed (Individual Access merged both lenses onto one selection).
   useEffect(() => {
-    // Deferred: read the deep link after commit (no synchronous state write in
-    // the mount effect).
-    defer(() => {
-      const cid = new URLSearchParams(window.location.search).get("cid");
-      if (cid) setPendingCid(cid);
-    });
-  }, []);
+    if (!cid) return;
+    defer(() => selectUser({ cid }));
+  }, [cid]);
 
   const fetchModules = async () => {
     try {
@@ -139,81 +131,8 @@ export default function PermissionManager({
     defer(() => fetchModules());
   }, []);
 
-  const fetchAllUsers = async (bypassCache = false) => {
-    const url = "/api/contacts";
-    const apply = (data) => {
-      if (!data.success) return;
-      // Sort: active first, then by name
-      const sorted = (data.contacts || []).sort((a, b) => {
-        if (a.status === "active" && b.status !== "active") return -1;
-        if (a.status !== "active" && b.status === "active") return 1;
-        return (a.name || "").localeCompare(b.name || "");
-      });
-      setAllUsers(sorted);
-      setSearchResults(sorted);
-      // Deep-link: preselect the user requested via ?cid=
-      if (pendingCid) {
-        const match = sorted.find((u) => String(u.cid) === String(pendingCid));
-        if (match) {
-          selectUser(match);
-          setPendingCid(null);
-        }
-      }
-    };
-    setSearching(true);
-    try {
-      // Cache-first paint: returning to this tab renders the user list
-      // instantly from a fresh snapshot; the network refresh below converges.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setSearching(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch users", e);
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  // Load all users when the search tab is active (declared after the loader).
-  useEffect(() => {
-    defer(() => {
-      if (activeTab === "search" && searchResults.length === 0 && !selectedUser) {
-        fetchAllUsers();
-      }
-    });
-    // Intentionally keyed on the tab only — the guard re-reads fresh state in
-    // the deferred callback (same behavior as before, no render loop).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
-
-  const searchUsers = (query) => {
-    setSearchQuery(query);
-    if (!query.trim()) {
-      setSearchResults(allUsers);
-      return;
-    }
-    const q = query.toLowerCase();
-    const filtered = allUsers.filter(
-      (u) =>
-        (u.name || "").toLowerCase().includes(q) ||
-        (u.email || "").toLowerCase().includes(q) ||
-        (u.cid || "").toLowerCase().includes(q),
-    );
-    setSearchResults(filtered);
-  };
-
-  // Hoisted declaration: referenced by fetchAllUsers (declared earlier), so it
-  // must not live in the temporal dead zone (react-hooks/immutability).
+  // Hoisted declaration: referenced by the effects above, so it must not live
+  // in the temporal dead zone (react-hooks/immutability).
   async function selectUser(user) {
     setSelectedUser(user);
     // One person, two lenses: keep ?cid= in the URL so the "Effective access"
@@ -427,6 +346,77 @@ export default function PermissionManager({
     } catch {}
   };
 
+  // Promote / remove Super Admin — one implementation, rendered either inside
+  // the full identity bar (standalone screen) or in the compact header of the
+  // merged Individual Access screen.
+  const superAdminAction = selectedUser && userPerms && (
+    userPerms.user.role !== "super_admin" ? (
+      <button
+        onClick={async () => {
+          setActionMsg("");
+          setActionError("");
+          try {
+            const res = await fetch("/api/engineering/permissions", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "promote_super_admin",
+                user_cid: selectedUser.cid,
+              }),
+            });
+            const data = await res.json();
+            if (data.success) {
+              setActionMsg(t("engineering.permissions.promotedToSuperAdmin"));
+              selectUser(selectedUser);
+            } else
+              setActionError(
+                t((data.error || t("engineering.permissions.failed")) || "") ||
+                  (data.error || t("engineering.permissions.failed")),
+              );
+          } catch {
+            setActionError(t("engineering.permissions.networkError"));
+          }
+        }}
+        className="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 text-[10px] font-bold uppercase tracking-widest hover:bg-purple-500/20 transition-all"
+      >
+        <Shield className="w-3 h-3 inline mr-1" />
+        {t("engineering.permissions.makeSuperAdmin")}
+      </button>
+    ) : (
+      <button
+        onClick={async () => {
+          setActionMsg("");
+          setActionError("");
+          try {
+            const res = await fetch("/api/engineering/permissions", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "remove_super_admin",
+                user_cid: selectedUser.cid,
+              }),
+            });
+            const data = await res.json();
+            if (data.success) {
+              setActionMsg(t("engineering.permissions.superAdminRemoved"));
+              selectUser(selectedUser);
+            } else
+              setActionError(
+                t((data.error || t("engineering.permissions.failed")) || "") ||
+                  (data.error || t("engineering.permissions.failed")),
+              );
+          } catch {
+            setActionError(t("engineering.permissions.networkError"));
+          }
+        }}
+        className="px-3 py-2 rounded-xl bg-red-500/10 text-red-400 text-[10px] font-bold uppercase tracking-widest hover:bg-red-500/20 transition-all"
+      >
+        <Shield className="w-3 h-3 inline mr-1" />
+        {t("engineering.permissions.removeSuperAdmin")}
+      </button>
+    )
+  );
+
   return (
     <>
       <div className="space-y-8 pb-20">
@@ -448,177 +438,15 @@ export default function PermissionManager({
         )}
         {activeTab === "search" && (
           <div className="space-y-6">
-            <p className="text-xs font-bold text-[var(--text-secondary)]">
-              {t("engineering.permissions.individualAccessHint")}
-            </p>
-            {/* Search */}
-            <div className="flex gap-3">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
-                <input
-                  value={searchQuery}
-                  onChange={(e) => searchUsers(e.target.value)}
-                  placeholder={t("engineering.permissions.searchPlaceholder")}
-                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
-                />
-              </div>
-              <button
-                onClick={() => {
-                  setSearchQuery("");
-                  setSearchResults(allUsers);
-                }}
-                className="px-4 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
-              >
-                {t("engineering.permissions.clear")}
-              </button>
-            </div>
-
-            {/* Results */}
-            {searchResults.length > 0 && !selectedUser && (
-              <div className="space-y-1">
-                {searchResults.map((u) => (
-                  <button
-                    key={u.cid}
-                    onClick={() => selectUser(u)}
-                    className="w-full ios-card !p-4 border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                        <User className="w-5 h-5 text-[var(--brand-orange)]" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                          {u.name}
-                        </p>
-                        <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                          {u.email} · {u.role} · {u.status}
-                        </p>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
-                  </button>
-                ))}
-              </div>
-            )}
-
             {/* User Permission Panel */}
             {selectedUser && userPerms && (
               <div className="space-y-6">
-                {/* User info bar */}
-                <div className="ios-card !p-5 border-[var(--border-primary)] flex items-center justify-between bg-secondary/50">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center">
-                      <User className="w-7 h-7 text-[var(--brand-orange)]" />
-                    </div>
-                    <div>
-                      <p className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
-                        {userPerms.user.name}
-                      </p>
-                      <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                        {userPerms.user.email}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-orange-500/10 text-[var(--brand-orange)] uppercase tracking-wider">
-                          {userPerms.user.role}
-                        </span>
-                        {(userPerms.groups || []).map((g) => (
-                          <span
-                            key={g}
-                            className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider"
-                          >
-                            {g}
-                          </span>
-                        ))}
-                        {userPerms.effectiveProfile && (
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                              userPerms.effectiveProfile.source === "user"
-                                ? "bg-purple-500/10 text-purple-400"
-                                : userPerms.effectiveProfile.source === "role"
-                                  ? "bg-teal-500/10 text-teal-400"
-                                  : "bg-slate-500/10 text-slate-400"
-                            }`}
-                            title={`${t("engineering.permissions.sourceLabel")}: ${userPerms.effectiveProfile.source}${userPerms.effectiveProfile.profileName ? ` — ${userPerms.effectiveProfile.profileName}` : ` — ${t("engineering.permissions.legacyRoleCapabilities")}`}`}
-                          >
-                            {userPerms.effectiveProfile.profileName || t("engineering.permissions.legacy")}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {userPerms.user.role !== "super_admin" ? (
-                      <button
-                        onClick={async () => {
-                          setActionMsg("");
-                          setActionError("");
-                          try {
-                            const res = await fetch(
-                              "/api/engineering/permissions",
-                              {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  action: "promote_super_admin",
-                                  user_cid: selectedUser.cid,
-                                }),
-                              },
-                            );
-                            const data = await res.json();
-                            if (data.success) {
-                              setActionMsg(t("engineering.permissions.promotedToSuperAdmin"));
-                              selectUser(selectedUser);
-                            } else setActionError(t((data.error || t("engineering.permissions.failed")) || "") || (data.error || t("engineering.permissions.failed")));
-                          } catch {
-                            setActionError(t("engineering.permissions.networkError"));
-                          }
-                        }}
-                        className="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 text-[10px] font-bold uppercase tracking-widest hover:bg-purple-500/20 transition-all"
-                      >
-                        <Shield className="w-3 h-3 inline mr-1" />
-                        {t("engineering.permissions.makeSuperAdmin")}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={async () => {
-                          setActionMsg("");
-                          setActionError("");
-                          try {
-                            const res = await fetch(
-                              "/api/engineering/permissions",
-                              {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  action: "remove_super_admin",
-                                  user_cid: selectedUser.cid,
-                                }),
-                              },
-                            );
-                            const data = await res.json();
-                            if (data.success) {
-                              setActionMsg(t("engineering.permissions.superAdminRemoved"));
-                              selectUser(selectedUser);
-                            } else setActionError(t((data.error || t("engineering.permissions.failed")) || "") || (data.error || t("engineering.permissions.failed")));
-                          } catch {
-                            setActionError(t("engineering.permissions.networkError"));
-                          }
-                        }}
-                        className="px-3 py-2 rounded-xl bg-red-500/10 text-red-400 text-[10px] font-bold uppercase tracking-widest hover:bg-red-500/20 transition-all"
-                      >
-                        <Shield className="w-3 h-3 inline mr-1" />
-                        {t("engineering.permissions.removeSuperAdmin")}
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        setSelectedUser(null);
-                        setUserPerms(null);
-                      }}
-                      className="p-2 hover:bg-tertiary rounded-lg transition-all"
-                    >
-                      <X className="w-4 h-4 text-[var(--text-secondary)]" />
-                    </button>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                    {t("engineering.permissions.accessEditorTitle")}
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {superAdminAction}
                   </div>
                 </div>
 

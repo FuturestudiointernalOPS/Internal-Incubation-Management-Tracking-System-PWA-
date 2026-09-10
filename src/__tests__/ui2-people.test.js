@@ -71,15 +71,29 @@ describe("UI-2b — denial reasons", () => {
 
 describe("UI-2b — screen wiring", () => {
   const route = "src/app/admin/security/permissions/people/page.js";
+  const merged = "src/components/permissions/IndividualAccessScreen.js";
   const view = "src/components/permissions/PeopleView.js";
 
-  test("the people route composes the matrix screen and keeps Individual Access", () => {
+  test("the people route renders ONE merged Individual Access screen", () => {
     const src = read(route);
+    expect(src).toContain("IndividualAccessScreen");
+    // Job shortcuts stay their own screen under the same door.
+    expect(src).toContain('initialTab="responsibilities"');
+    // Pre-merge sub-tabs (?sub=search, ?sub=matrix) still resolve.
+    expect(src).toContain("PERMISSION_PEOPLE_SUB_ALIASES");
+  });
+
+  test("the merged screen feeds the same person to both lenses", () => {
+    const src = read(merged);
+    expect(src).toContain("PersonPicker");
     expect(src).toContain("PeopleView");
     expect(src).toContain("PermissionCenter");
-    // The write lens (Individual Access editor) is the default landing, and it
-    // shares the selected person with the matrix through ?cid=.
-    expect(src).toContain('initialTab={sub === "jobs" ? "responsibilities" : "search"}');
+    // One selection, two panels: read (person=) and write (cid=).
+    expect(src).toContain("person={person}");
+    expect(src).toContain("cid={person.cid}");
+    // One picker in the whole flow: the editor no longer fetches a user list.
+    const editor = read("src/components/permissions/PermissionCenter.js");
+    expect(editor).not.toContain("fetchAllUsers");
   });
 
   test("the view uses the real endpoints and shared primitives", () => {
@@ -102,7 +116,8 @@ describe("UI-2b — screen wiring", () => {
     const keys = [
       "engineering.permissions.peopleHint",
       "engineering.permissions.peopleSelectPrompt",
-      "engineering.permissions.peopleManageAccess",
+      "engineering.permissions.accessEditorTitle",
+      "engineering.permissions.tabIndividualAccess",
       "engineering.permissions.peopleScopeTitle",
       "engineering.permissions.peopleScopeEmpty",
       "engineering.permissions.peopleScopeNote",

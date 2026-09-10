@@ -25,7 +25,7 @@ export default function PermissionEligibilityPage() {
   const tab = TAB_BY_SUB[sub] || "eligibility";
   return (
     <PermissionShell active="eligibility" sub={sub} onSubChange={setSub}>
-      <PermissionManager key={sub} embedded initialTab={tab} />
+      <PermissionManager key={sub} initialTab={tab} />
     </PermissionShell>
   );
 }

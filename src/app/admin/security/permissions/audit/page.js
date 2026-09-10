@@ -8,7 +8,7 @@ import PermissionManager from "@/components/permissions/PermissionCenter";
 export default function PermissionAuditPage() {
   return (
     <PermissionShell active="audit">
-      <PermissionManager embedded initialTab="audit" />
+      <PermissionManager initialTab="audit" />
     </PermissionShell>
   );
 }
