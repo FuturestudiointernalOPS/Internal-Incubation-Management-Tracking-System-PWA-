@@ -39,6 +39,7 @@ import DefaultsMatrixView from "@/components/permissions/DefaultsMatrixView";
 import UserMatrixView from "@/components/permissions/UserMatrixView";
 import CatalogView from "@/components/permissions/CatalogView";
 import ScopePoliciesView from "@/components/permissions/ScopePoliciesView";
+import ContextRolesView from "@/components/permissions/ContextRolesView";
 
 const ACCESS_LEVELS = {
   NONE: 0,
@@ -476,6 +477,12 @@ export default function PermissionManager() {
               className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "scopePolicies" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
             >
               {t("engineering.permissions.tabScopePolicies")}
+            </button>
+            <button
+              onClick={() => setActiveTab("contextRoles")}
+              className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "contextRoles" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+            >
+              {t("engineering.permissions.tabContextRoles")}
             </button>
           </div>
           {/* Secondary admin section — responsibilities remain available but
@@ -1154,6 +1161,7 @@ export default function PermissionManager() {
         {activeTab === "userMatrix" && <UserMatrixView />}
         {activeTab === "catalog" && <CatalogView />}
         {activeTab === "scopePolicies" && <ScopePoliciesView />}
+        {activeTab === "contextRoles" && <ContextRolesView />}
         {whyTarget && (
           <CapabilityWhyModal
             userPerms={userPerms}
