@@ -1,7 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { requireVentureAccess } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
   addSupportingUrlColumnToBlockers,
   dropBlockersTaskForeignKeyIfExists,
@@ -23,20 +22,23 @@ const ROLES = ["participant","founder","staff","program_manager","super_admin","
 const ALLOWED = ["participant","founder","staff","program_manager","super_admin","teacher"];
 
 export async function GET(req, { params }) {
-  try { await initDb(); const authError = await requireAuth(ROLES); if (authError) return authError;
-    const { id } = await params; const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  try { await initDb();
+    const { id } = await params;
+    const access = await requireVentureScopedAccess({ db, ventureId: id, module: "ventures", capability: "view", legacyRoles: ROLES });
+    if (access.error) return access.error;
+    const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const r = await listVentureBlockersWithCreators(dbId);
     return NextResponse.json({ success: true, blockers: r.rows || [] });
   } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }
 
 export async function POST(req, { params }) {
-  try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
-    const { id } = await params; const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  try { await initDb();
+    const { id } = await params;
+    const access = await requireVentureScopedAccess({ db, ventureId: id, module: "ventures", capability: "edit", legacyRoles: ALLOWED });
+    if (access.error) return access.error;
+    const { session } = access;
+    const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { title, description, venture_retro_id, task_id, supporting_url } = await req.json();
     if (!venture_retro_id) return NextResponse.json({ success: false, error: "venture_retro_id required - blockers must come from a retro" }, { status: 400 });
     if (!title) return NextResponse.json({ success: false, error: "title required" }, { status: 400 });
@@ -56,10 +58,12 @@ export async function POST(req, { params }) {
 }
 
 export async function PATCH(req, { params }) {
-  try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
-    const { id } = await params; const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  try { await initDb();
+    const { id } = await params;
+    const access = await requireVentureScopedAccess({ db, ventureId: id, module: "ventures", capability: "edit", legacyRoles: ALLOWED });
+    if (access.error) return access.error;
+    const { session } = access;
+    const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { blocker_id, action } = await req.json();
     if (action === "resolve") {
       const b = await getVentureBlockerCreator(blocker_id, dbId);
