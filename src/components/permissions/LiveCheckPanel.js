@@ -88,7 +88,7 @@ export default function LiveCheckPanel() {
           <select
             value={policy}
             onChange={(e) => setPolicy(e.target.value)}
-            className="bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50"
+            className="bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
           >
             {SCOPE_POLICY_KEYS.map((key) => (
               <option key={key} value={key}>
@@ -107,7 +107,7 @@ export default function LiveCheckPanel() {
             onChange={(e) => setCid(e.target.value)}
             list="live-check-users"
             placeholder={t("engineering.permissions.liveCheckUserPlaceholder")}
-            className="w-56 bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50"
+            className="w-56 bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
           />
           <datalist id="live-check-users">
             {users.slice(0, 200).map((u) => (
@@ -126,14 +126,14 @@ export default function LiveCheckPanel() {
             value={resourceId}
             onChange={(e) => setResourceId(e.target.value)}
             placeholder={t("engineering.permissions.liveCheckResourcePlaceholder")}
-            className="w-56 bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50"
+            className="w-56 bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
           />
         </label>
 
         <button
           onClick={run}
           disabled={busy || !cid.trim()}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
         >
           {busy ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />

@@ -211,7 +211,7 @@ export default function ContextRolesView() {
                     <select
                       value={d.profile_id ?? ""}
                       onChange={(e) => setDraftField(row, "profile_id", e.target.value)}
-                      className={`w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 ${
+                      className={`w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40 ${
                         d.profile_id === "" ? "opacity-70" : ""
                       }`}
                     >
@@ -237,14 +237,14 @@ export default function ContextRolesView() {
                     <input
                       value={d.notes || ""}
                       onChange={(e) => setDraftField(row, "notes", e.target.value)}
-                      className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50"
+                      className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
                     />
                   </td>
                   <td className="p-3 text-right">
                     <button
                       onClick={() => save(row)}
                       disabled={!dirty || busyKey === key}
-                      className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
+                      className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
                     >
                       {busyKey === key
                         ? t("engineering.permissions.contextRolesSaving")

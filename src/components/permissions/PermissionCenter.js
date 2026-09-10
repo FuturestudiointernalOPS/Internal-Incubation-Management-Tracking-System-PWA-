@@ -41,6 +41,9 @@ import CatalogView from "@/components/permissions/CatalogView";
 import ScopePoliciesView from "@/components/permissions/ScopePoliciesView";
 import ContextRolesView from "@/components/permissions/ContextRolesView";
 import Badge from "@/components/permissions/ui/Badge";
+import StatCard from "@/components/permissions/ui/StatCard";
+import WhyDrawer from "@/components/permissions/ui/WhyDrawer";
+import { splitAuditReason } from "@/components/permissions/auditHelpers";
 import { deriveProfileBadges } from "@/components/permissions/profileBadges";
 
 const ACCESS_LEVELS = {
@@ -3748,48 +3751,55 @@ function AuditView() {
         )}
       </div>
 
-      {/* Detail modal — read-only */}
+      {/* Detail drawer — read-only; the audit reason gets its own field */}
       {detail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setDetail(null)} />
-          <div
-            className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto"
-            style={{ background: "var(--surface-1)", border: "1px solid var(--border-primary)" }}
-          >
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-black uppercase tracking-tight" style={{ color: "var(--text-primary)" }}>
-                {t("engineering.permissions.auditDetailTitle")}
-              </h4>
-              <button onClick={() => setDetail(null)} className="p-2 hover:bg-tertiary rounded-lg transition-all">
-                <X className="w-4 h-4 text-[var(--text-secondary)]" />
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-[10px]">
-              <Field label={t("engineering.permissions.auditActor")} value={detail.actor_name || detail.actor_cid || "—"} />
-              <Field label={t("engineering.permissions.auditTarget")} value={detail.target_name || detail.target_cid || "—"} />
-              <Field label={t("engineering.permissions.auditDate")} value={fmtDate(detail.created_at)} />
-              <Field label={t("engineering.permissions.auditAction")} value={detail.action} />
-              <Field
-                label={t("engineering.permissions.auditObject")}
-                value={detail.module ? `${detail.module}.${detail.capability || "*"}` : "—"}
-              />
-              <Field
-                label={t("engineering.permissions.auditChange")}
-                value={
-                  detail.previous_value || detail.new_value
-                    ? `${detail.previous_value || "—"} → ${detail.new_value || "—"}`
-                    : t("engineering.permissions.auditNotAvailable")
-                }
-              />
-              <div className="col-span-2">
-                <Field
-                  label={t("engineering.permissions.auditDetails")}
-                  value={detail.details || t("engineering.permissions.auditNotAvailable")}
-                />
-              </div>
-            </div>
+        <WhyDrawer
+          title={t("engineering.permissions.auditDetailTitle")}
+          onClose={() => setDetail(null)}
+        >
+          <div className="flex items-center gap-2">
+            <Badge variant="neutral">{detail.action}</Badge>
+            {detail.created_at && (
+              <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                {fmtDate(detail.created_at)}
+              </span>
+            )}
           </div>
-        </div>
+          {(() => {
+            const parsed = splitAuditReason(detail.details);
+            return (
+              <div className="grid grid-cols-2 gap-3 text-[10px]">
+                <Field label={t("engineering.permissions.auditActor")} value={detail.actor_name || detail.actor_cid || "—"} />
+                <Field label={t("engineering.permissions.auditTarget")} value={detail.target_name || detail.target_cid || "—"} />
+                <Field label={t("engineering.permissions.auditObject")} value={detail.module ? `${detail.module}.${detail.capability || "*"}` : "—"} />
+                <Field
+                  label={t("engineering.permissions.auditChange")}
+                  value={
+                    detail.previous_value || detail.new_value
+                      ? `${detail.previous_value || "—"} → ${detail.new_value || "—"}`
+                      : t("engineering.permissions.auditNotAvailable")
+                  }
+                />
+                <div className="col-span-2">
+                  <Field
+                    label={t("engineering.permissions.auditDetails")}
+                    value={parsed.text || t("engineering.permissions.auditNotAvailable")}
+                  />
+                </div>
+                {parsed.reason && (
+                  <div className="col-span-2 rounded-lg border border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/5 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)] mb-1">
+                      {t("engineering.permissions.auditReason")}
+                    </p>
+                    <p className="text-[10px] font-bold text-[var(--text-primary)] break-words">
+                      {parsed.reason}
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </WhyDrawer>
       )}
     </div>
   );
@@ -3879,18 +3889,8 @@ function GovernanceView() {
     profileName: v?.profileName || v?.profileId,
   }));
 
-  const statCard = (label, value, color) => (
-    <div
-      className="rounded-xl p-4"
-      style={{ background: "var(--surface-2)", border: "1px solid var(--border-primary)" }}
-    >
-      <p className="text-2xl font-black" style={{ color }}>
-        {value}
-      </p>
-      <p className="text-[10px] font-bold uppercase tracking-widest mt-1" style={{ color: "var(--text-secondary)" }}>
-        {label}
-      </p>
-    </div>
+  const statCard = (label, value, tone) => (
+    <StatCard label={label} value={value} tone={tone} />
   );
 
   return (
@@ -3913,10 +3913,10 @@ function GovernanceView() {
               {t("engineering.permissions.governanceMembership")}
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {statCard(t("engineering.permissions.governanceActive"), stats.active, "#10B981")}
-              {statCard(t("engineering.permissions.governanceExpiringSoon"), stats.expiringSoon, "#F59E0B")}
-              {statCard(t("engineering.permissions.governanceExpired"), stats.expired, "#EF4444")}
-              {statCard(t("engineering.permissions.governanceEnded"), stats.ended, "#94A3B8")}
+              {statCard(t("engineering.permissions.governanceActive"), stats.active, "success")}
+              {statCard(t("engineering.permissions.governanceExpiringSoon"), stats.expiringSoon, "warning")}
+              {statCard(t("engineering.permissions.governanceExpired"), stats.expired, "denied")}
+              {statCard(t("engineering.permissions.governanceEnded"), stats.ended, "neutral")}
             </div>
           </div>
 
@@ -3947,10 +3947,14 @@ function GovernanceView() {
                       <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
                         {e.actor_name || e.actor_cid} → {e.target_name || e.target_cid}
                       </p>
-                      <p className="text-[10px] font-bold text-[var(--text-tertiary)]">
-                        {e.action}
-                        {e.module ? ` · ${e.module}.${e.capability || "*"}` : ""}
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Badge variant="neutral">{e.action}</Badge>
+                        {e.module && (
+                          <span className="text-[10px] font-bold text-[var(--text-tertiary)]">
+                            {e.module}.{e.capability || "*"}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <span className="text-[10px] font-bold text-[var(--text-tertiary)] whitespace-nowrap">
                       {e.created_at ? new Date(e.created_at).toLocaleDateString("en-GB") : "—"}
@@ -4077,14 +4081,13 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
     ["expired", "ended"].includes(deriveMembershipStatus(m)),
   );
 
-  const row = (label, value, strong) => (
+  const row = (label, value, toneClass) => (
     <div className="flex items-start justify-between gap-3 py-1.5">
       <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] shrink-0">
         {label}
       </span>
       <span
-        className={`text-[10px] font-bold text-right ${strong ? "" : "text-[var(--text-primary)]"}`}
-        style={strong ? { color: strong } : undefined}
+        className={`text-[10px] font-bold text-right ${toneClass || "text-[var(--text-primary)]"}`}
       >
         {value}
       </span>
@@ -4135,7 +4138,7 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
               eligibility.eligible
                 ? t("engineering.permissions.whyEligibleFor", { identity: user.role || "—", feature })
                 : t("engineering.permissions.whyNotEligible"),
-              eligibility.eligible ? "#10B981" : "#EF4444",
+              eligibility.eligible ? "text-emerald-400" : "text-red-400",
             )}
             {(eligibility.sources || []).length > 0 && (
               <p className="text-[10px] font-bold text-[var(--text-tertiary)] text-right">
@@ -4222,10 +4225,10 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
             {row(
               t("engineering.permissions.whyRestriction"),
               restriction ? t("engineering.permissions.whyRestricted") : t("engineering.permissions.whyNone"),
-              restriction ? "#EF4444" : undefined,
+              restriction ? "text-red-400" : undefined,
             )}
             {restriction && (
-              <p className="text-[10px] font-bold text-right" style={{ color: "#EF4444" }}>
+              <p className="text-[10px] font-bold text-right text-red-400">
                 {t("engineering.permissions.whyRestrictionPrecedence")}
               </p>
             )}

@@ -60,7 +60,10 @@ export default function PermissionShell({ active, sub, onSubChange, children }) 
     <div className="space-y-6 pb-20">
       {/* Breadcrumb + header */}
       <header className="space-y-3">
-        <nav className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+        <nav
+          aria-label={t("engineering.permissions.shellBreadcrumbAria")}
+          className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]"
+        >
           <Link
             href="/admin/security"
             className="hover:text-[var(--text-primary)] transition-colors"
@@ -98,14 +101,18 @@ export default function PermissionShell({ active, sub, onSubChange, children }) 
       </header>
 
       {/* Primary navigation — real routes */}
-      <nav className="flex flex-wrap items-center gap-1 border-b border-[var(--border-primary)]">
+      <nav
+        aria-label={t("engineering.permissions.shellNavAria")}
+        className="flex flex-wrap items-center gap-1 border-b border-[var(--border-primary)]"
+      >
         {PERMISSION_NAV.map((item) => {
           const isActive = item.key === active;
           return (
             <Link
               key={item.key}
               href={item.href}
-              className={`px-4 py-3 text-[11px] font-bold uppercase tracking-widest border-b-2 transition-colors ${
+              aria-current={isActive ? "page" : undefined}
+              className={`px-4 py-3 text-[11px] font-bold uppercase tracking-widest border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 rounded-sm ${
                 isActive
                   ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
                   : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -119,14 +126,20 @@ export default function PermissionShell({ active, sub, onSubChange, children }) 
 
       {/* Sub-tabs (URL-reflected, cosmetic navigation) */}
       {tabs.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div
+          role="tablist"
+          aria-label={t("engineering.permissions.shellSubTabsAria")}
+          className="flex flex-wrap items-center gap-2"
+        >
           {tabs.map((tab) => {
             const isActive = tab.key === sub;
             return (
               <button
                 key={tab.key}
+                role="tab"
+                aria-selected={isActive}
                 onClick={() => onSubChange && onSubChange(tab.key)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-widest border transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-widest border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 ${
                   isActive
                     ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
                     : "border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"

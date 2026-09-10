@@ -11,6 +11,7 @@ const TONES = {
   brand: "text-[var(--brand-orange)]",
   warning: "text-amber-400",
   success: "text-emerald-400",
+  denied: "text-red-400",
 };
 
 export default function StatCard({ label, value, hint, icon: Icon, tone = "neutral" }) {

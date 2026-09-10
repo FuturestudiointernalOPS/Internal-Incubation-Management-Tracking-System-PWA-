@@ -2,6 +2,7 @@
 
 import React from "react";
 import { X } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * UI-2 primitive — the standard "why" drawer. One place to explain a decision
@@ -9,6 +10,7 @@ import { X } from "lucide-react";
  * screen instead of living in a view-specific modal.
  */
 export default function WhyDrawer({ title, onClose, children }) {
+  const { t } = useI18n();
   if (!title) return null;
   return (
     <div
@@ -27,7 +29,11 @@ export default function WhyDrawer({ title, onClose, children }) {
           <h3 className="text-xs font-black uppercase tracking-widest text-[var(--text-primary)]">
             {title}
           </h3>
-          <button onClick={onClose} aria-label="close">
+          <button
+            onClick={onClose}
+            aria-label={t("engineering.permissions.whyClose")}
+            className="p-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+          >
             <X className="w-4 h-4 text-[var(--text-secondary)]" />
           </button>
         </div>
