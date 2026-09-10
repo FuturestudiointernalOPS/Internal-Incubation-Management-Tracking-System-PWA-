@@ -77,7 +77,9 @@ describe("UI-2b — screen wiring", () => {
     const src = read(route);
     expect(src).toContain("PeopleView");
     expect(src).toContain("PermissionCenter");
-    expect(src).toContain('initialTab="search"');
+    // The write lens (Individual Access editor) is the default landing, and it
+    // shares the selected person with the matrix through ?cid=.
+    expect(src).toContain('initialTab={sub === "jobs" ? "responsibilities" : "search"}');
   });
 
   test("the view uses the real endpoints and shared primitives", () => {

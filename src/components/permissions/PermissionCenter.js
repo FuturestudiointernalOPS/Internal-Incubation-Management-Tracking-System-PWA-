@@ -85,11 +85,13 @@ export default function PermissionManager({
   initialTab = "search",
   initialSection = "profiles",
   initialProfileId = null,
-  embedded = false,
 }) {
   const { t, lang } = useI18n();
-  const [activeTab, setActiveTab] = useState(initialTab);
-  const [setupSection, setSetupSection] = useState(initialSection); // Access Setup sub-section: profiles | roles | defaultsMatrix
+  // Navigation is owned by the Permission Shell (route + `?sub=`); this screen
+  // renders exactly the view its props ask for. The call sites key the
+  // instance on the sub-tab, so switching a sub-tab remounts it fresh — there
+  // is no internal tab state left to disagree with the URL.
+  const activeTab = initialTab;
   const [searchQuery, setSearchQuery] = useState("");
   const [allUsers, setAllUsers] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
@@ -214,6 +216,15 @@ export default function PermissionManager({
   // must not live in the temporal dead zone (react-hooks/immutability).
   async function selectUser(user) {
     setSelectedUser(user);
+    // One person, two lenses: keep ?cid= in the URL so the "Effective access"
+    // sub-tab (the read lens) opens the same person.
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("cid", user.cid);
+      window.history.replaceState(null, "", url);
+    } catch {
+      /* cosmetic handoff between the two lenses */
+    }
     setLoadingPerms(true);
     setActionMsg("");
     setActionError("");
@@ -419,122 +430,17 @@ export default function PermissionManager({
   return (
     <>
       <div className="space-y-8 pb-20">
-        {/* Sticky page head — hidden when the screen is embedded in the
-            Permission Shell (the shell owns the header + navigation). */}
-        {!embedded && (
-        <div className="sticky top-0 z-30 bg-primary border-b border-[var(--border-primary)] -mx-6 lg:-mx-10 px-6 lg:px-10 pt-6 pb-5">
-        {/* Header */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-8">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest">
-                {t("engineering.permissions.authorization")}
-              </span>
-            </div>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              {t("engineering.permissions.pageTitle")}
-            </h1>
-            <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              {t("engineering.permissions.pageSubtitle")}
-            </p>
-          </div>
-        </header>
-
-        {/* Primary tabs — the configuration workflow */}
-        <div className="space-y-2">
-          <div className="flex gap-1 bg-secondary rounded-xl p-1 border border-[var(--border-primary)] w-fit flex-wrap">
-            <button
-              onClick={() => setActiveTab("eligibility")}
-              className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "eligibility" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-            >
-              {t("engineering.permissions.tabEligibility")}
-            </button>
-            <button
-              onClick={() => setActiveTab("setup")}
-              className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "setup" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-            >
-              {t("engineering.permissions.tabAccessSetup")}
-            </button>
-            <button
-              onClick={() => setActiveTab("search")}
-              className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "search" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-            >
-              {t("engineering.permissions.tabUserSearch")}
-            </button>
-            <button
-              onClick={() => setActiveTab("audit")}
-              className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "audit" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-            >
-              {t("engineering.permissions.tabAudit")}
-            </button>
-            <button
-              onClick={() => setActiveTab("governance")}
-              className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "governance" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-            >
-              {t("engineering.permissions.tabGovernance")}
-            </button>
-            <button
-              onClick={() => setActiveTab("catalog")}
-              className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "catalog" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-            >
-              {t("engineering.permissions.tabCatalog")}
-            </button>
-          </div>
-          {/* Secondary admin section — responsibilities remain available but
-              stay visually out of the primary configuration workflow. */}
-          <div className="flex items-center gap-2 pl-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50">
-              {t("engineering.permissions.tabSecondaryAdmin")}
-            </span>
-            <div className="h-3 w-px bg-[var(--border-primary)]" />
-            <button
-              onClick={() => setActiveTab("responsibilities")}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "responsibilities" ? "bg-secondary text-[var(--brand-orange)]" : "text-[var(--text-secondary)] opacity-70 hover:text-[var(--text-primary)]"}`}
-            >
-              {t("engineering.permissions.tabResponsibilities")}
-            </button>
-            <button
-              onClick={() => setActiveTab("access")}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "access" ? "bg-secondary text-[var(--brand-orange)]" : "text-[var(--text-secondary)] opacity-70 hover:text-[var(--text-primary)]"}`}
-            >
-              {t("engineering.permissions.tabResponsibilityAccess")}
-            </button>
-          </div>
-        </div>
-        </div>
-        )}
-
         {activeTab === "eligibility" && <EligibilityView />}
         {activeTab === "setup" && (
           <div className="space-y-4">
-            <p className="text-xs font-bold text-[var(--text-secondary)]">
-              {t("engineering.permissions.accessSetupHint")}
-            </p>
-            <div className="flex gap-1 bg-secondary rounded-xl p-1 border border-[var(--border-primary)] w-fit">
-              <button
-                onClick={() => setSetupSection("profiles")}
-                className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${setupSection === "profiles" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-              >
-                {t("engineering.permissions.tabAccessProfiles")}
-              </button>
-              <button
-                onClick={() => setSetupSection("roles")}
-                className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${setupSection === "roles" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-              >
-                {t("engineering.permissions.tabRoleDefaults")}
-              </button>
-              <button
-                onClick={() => setSetupSection("defaultsMatrix")}
-                className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${setupSection === "defaultsMatrix" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-              >
-                {t("engineering.permissions.tabDefaultsMatrix")}
-              </button>
-            </div>
-            {setupSection === "profiles" ? (
+            {/* The section is chosen by the shell's sub-tabs (?sub=…, owned by
+                the route page) — there is exactly ONE navigation per door. */}
+            {initialSection === "profiles" ? (
               <AccessProfilesView initialProfileId={initialProfileId} />
-            ) : setupSection === "roles" ? (
+            ) : initialSection === "roles" ? (
               <RoleDefaultsView />
+            ) : initialSection === "catalog" ? (
+              <CatalogView />
             ) : (
               <DefaultsMatrixView />
             )}
@@ -1154,7 +1060,6 @@ export default function PermissionManager({
         {activeTab === "responsibilities" && <ResponsibilitiesView />}
         {activeTab === "access" && <ResponsibilityAccessView />}
         {activeTab === "audit" && <AuditView />}
-        {activeTab === "governance" && <GovernanceView />}
         {activeTab === "catalog" && <CatalogView />}
         {whyTarget && (
           <CapabilityWhyModal
@@ -3808,7 +3713,13 @@ function Field({ label, value }) {
 
 /* ─── Phase 7: Governance overview ───────────────────────────────────────── */
 
-function GovernanceView() {
+/*
+ * Memberships (formerly the "Governance" / "Advanced" door). Exported because
+ * Phase 2 retired that door: the screen now lives under Context & Scope, next
+ * to the context-role registry it reads its data from. Exported rather than
+ * moved to keep this change reviewable — a file move is a Phase 3 cleanup.
+ */
+export function GovernanceView() {
   const { t } = useI18n();
   const [memberships, setMemberships] = useState(null);
   const [protectedMap, setProtectedMap] = useState({});

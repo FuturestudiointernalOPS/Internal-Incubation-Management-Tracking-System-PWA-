@@ -1,20 +1,31 @@
 "use client";
 
 import React from "react";
-import PermissionShell from "@/components/permissions/PermissionShell";
+import PermissionShell, { useSubTab } from "@/components/permissions/PermissionShell";
 import PermissionManager from "@/components/permissions/PermissionCenter";
 
 /**
- * PHASE UI-1 — Eligibility (promoted to its own primary item, slot 2).
+ * PHASE UI-1/UI-2 — Eligibility (primary slot 2).
  *
- * The ceiling: "who may EVER receive this feature?" — checked by the engine
- * before any capability and fails closed. It never grants access by itself;
- * it only decides who is allowed to receive it.
+ *   ceilings → the feature × identity allowlists the engine enforces (fail
+ *              closed: a missing row denies)
+ *   warnings → the responsibility role allowlists that drive the in-app
+ *              "role incompatibility" warnings (relocated here in Phase 2
+ *              from the retired "Advanced" section)
+ *
+ * Same two views as before, now two clicks closer to the top.
  */
+const TAB_BY_SUB = {
+  ceilings: "eligibility",
+  warnings: "access",
+};
+
 export default function PermissionEligibilityPage() {
+  const [sub, setSub] = useSubTab("ceilings");
+  const tab = TAB_BY_SUB[sub] || "eligibility";
   return (
-    <PermissionShell active="eligibility">
-      <PermissionManager key="eligibility" embedded initialTab="eligibility" />
+    <PermissionShell active="eligibility" sub={sub} onSubChange={setSub}>
+      <PermissionManager key={sub} embedded initialTab={tab} />
     </PermissionShell>
   );
 }

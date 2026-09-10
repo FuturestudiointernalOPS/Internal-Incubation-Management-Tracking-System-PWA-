@@ -5,15 +5,22 @@
  * segments, and the UI contract tests. No React / Next imports, so it can be
  * unit-tested directly.
  *
- * Every primary item is a REAL route (deep linkable). `tabs` are sub-tabs
- * rendered by the shell; the selected sub-tab is reflected in the URL
- * (`?sub=`), so links to a specific sub-screen keep working.
+ * Every primary item is a REAL route (deep linkable). `tabs` are the ONLY
+ * navigation below a door: the shell renders them and reflects the selection
+ * in the URL (`?sub=`), so links to a specific sub-screen keep working and no
+ * view is reachable through two different navs.
  *
  * Phase 1 reorder — the admin's mental cascade, not the engine's nouns:
  *   Home → Eligibility (the ceiling) → Access Profiles → Individual Access →
- *   Context & Scope → Advanced → Audit
- * "Governance" is a temporary home for Catalog + Responsibilities until
- * Phase 2 relocates them; Eligibility was promoted to its own primary item.
+ *   Context & Scope → Audit
+ *
+ * Phase 2 consolidation — the temporary "Advanced" door was retired and its
+ * three screens moved to the question they belong to:
+ *   Catalog          → Access Profiles  (?sub=catalog)
+ *   Responsibilities → Individual Access (?sub=jobs)
+ *   Resp. access     → Eligibility      (?sub=warnings)
+ * Six doors, one navigation per door: a sub-tab is the only way to reach a
+ * screen, so nothing is reachable twice.
  */
 
 export const PERMISSION_BASE = "/admin/security/permissions";
@@ -30,6 +37,11 @@ export const PERMISSION_NAV = [
     key: "eligibility",
     href: `${PERMISSION_BASE}/eligibility`,
     labelKey: "engineering.permissions.navEligibility",
+    defaultSub: "ceilings",
+    tabs: [
+      { key: "ceilings", labelKey: "engineering.permissions.tabEligibilityCeilings" },
+      { key: "warnings", labelKey: "engineering.permissions.tabResponsibilityAccess" },
+    ],
   },
   {
     key: "profiles",
@@ -40,6 +52,7 @@ export const PERMISSION_NAV = [
       { key: "profiles", labelKey: "engineering.permissions.tabAccessProfiles" },
       { key: "roles", labelKey: "engineering.permissions.tabRoleDefaults" },
       { key: "defaultsMatrix", labelKey: "engineering.permissions.tabDefaultsMatrix" },
+      { key: "catalog", labelKey: "engineering.permissions.tabCatalog" },
     ],
   },
   {
@@ -50,6 +63,7 @@ export const PERMISSION_NAV = [
     tabs: [
       { key: "search", labelKey: "engineering.permissions.tabUserSearch" },
       { key: "matrix", labelKey: "engineering.permissions.tabUserMatrix" },
+      { key: "jobs", labelKey: "engineering.permissions.tabJobShortcuts" },
     ],
   },
   {
@@ -59,20 +73,8 @@ export const PERMISSION_NAV = [
     defaultSub: "roles",
     tabs: [
       { key: "roles", labelKey: "engineering.permissions.tabContextRoles" },
+      { key: "memberships", labelKey: "engineering.permissions.tabMemberships" },
       { key: "policies", labelKey: "engineering.permissions.tabScopePolicies" },
-    ],
-  },
-  {
-    // Temporary home for Catalog / Responsibilities / Responsibility Access
-    // (Phase 2 relocates them). Eligibility lives at its own route above.
-    key: "governance",
-    href: `${PERMISSION_BASE}/governance`,
-    labelKey: "engineering.permissions.navGovernance",
-    defaultSub: "catalog",
-    tabs: [
-      { key: "catalog", labelKey: "engineering.permissions.tabCatalog" },
-      { key: "responsibilities", labelKey: "engineering.permissions.tabResponsibilities" },
-      { key: "access", labelKey: "engineering.permissions.tabResponsibilityAccess" },
     ],
   },
   {
