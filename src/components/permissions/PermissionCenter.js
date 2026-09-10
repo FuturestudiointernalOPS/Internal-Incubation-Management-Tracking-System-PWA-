@@ -40,6 +40,8 @@ import UserMatrixView from "@/components/permissions/UserMatrixView";
 import CatalogView from "@/components/permissions/CatalogView";
 import ScopePoliciesView from "@/components/permissions/ScopePoliciesView";
 import ContextRolesView from "@/components/permissions/ContextRolesView";
+import Badge from "@/components/permissions/ui/Badge";
+import { deriveProfileBadges } from "@/components/permissions/profileBadges";
 
 const ACCESS_LEVELS = {
   NONE: 0,
@@ -89,6 +91,7 @@ const MODULE_CATEGORIES = [
 export default function PermissionManager({
   initialTab = "search",
   initialSection = "profiles",
+  initialProfileId = null,
   embedded = false,
 }) {
   const { t, lang } = useI18n();
@@ -542,7 +545,7 @@ export default function PermissionManager({
               </button>
             </div>
             {setupSection === "profiles" ? (
-              <AccessProfilesView />
+              <AccessProfilesView initialProfileId={initialProfileId} />
             ) : setupSection === "roles" ? (
               <RoleDefaultsView />
             ) : (
@@ -1486,7 +1489,7 @@ function RoleDefaultsView() {
   );
 }
 
-function AccessProfilesView() {
+function AccessProfilesView({ initialProfileId = null }) {
   const { t } = useI18n();
   const [profiles, setProfiles] = useState([]);
   const [roleDefaults, setRoleDefaults] = useState({});
@@ -1507,6 +1510,10 @@ function AccessProfilesView() {
   const [saving, setSaving] = useState(false);
   const [renameMode, setRenameMode] = useState(false);
   const [renameValue, setRenameValue] = useState("");
+  // UI-2c — review-before-save: an optional audit reason and the number of
+  // users this profile currently reaches (real count, from the impact API).
+  const [reason, setReason] = useState("");
+  const [impactTotal, setImpactTotal] = useState(null);
 
   const fetchProfiles = useCallback(async (bypassCache = false) => {
     const urls = [
@@ -1588,6 +1595,46 @@ function AccessProfilesView() {
       console.error("Failed to load profile capabilities", e);
     }
   };
+
+  // UI-2c — deep-link / rail preselection: ?profile=<id> (or the rail) selects
+  // a profile as soon as the list is available. Never auto-selects without a
+  // requested id (the screen keeps its explicit "select a profile" state).
+  useEffect(() => {
+    if (!initialProfileId) return;
+    if (
+      selectedProfile &&
+      String(selectedProfile.id) === String(initialProfileId)
+    ) {
+      return;
+    }
+    const hit = profiles.find((p) => String(p.id) === String(initialProfileId));
+    if (hit) selectProfile(hit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialProfileId, profiles, selectedProfile]);
+
+  // UI-2c — impact preview for the selected profile (how many users resolve to
+  // it today). Read-only, fail-soft: no number is better than a wrong number.
+  useEffect(() => {
+    if (!selectedProfile?.id) {
+      setImpactTotal(null);
+      return undefined;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/engineering/permissions/impact?profile_id=${encodeURIComponent(selectedProfile.id)}`,
+        );
+        const d = await res.json();
+        if (alive) setImpactTotal(d.success ? Number(d.impact?.total || 0) : null);
+      } catch {
+        if (alive) setImpactTotal(null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [selectedProfile?.id]);
 
   const createProfile = async () => {
     if (!newProfile.name.trim()) return;
@@ -1714,11 +1761,15 @@ function AccessProfilesView() {
         body: JSON.stringify({
           id: selectedProfile.id,
           capabilities: draftCaps,
+          // UI-2c: the review bar's reason lands in the permission audit log
+          // (the endpoint has recorded it since Phase 3d).
+          reason: reason.trim() || undefined,
         }),
       });
       const data = await res.json();
       if (data.success) {
         await selectProfile(selectedProfile); // reload the saved state
+        setReason("");
         setActionMsg(t("engineering.permissions.permissionsSaved"));
       } else {
         setActionError(t((data.error || t("engineering.permissions.failedToUpdate")) || "") || (data.error || t("engineering.permissions.failedToUpdate")));
@@ -2015,12 +2066,21 @@ function AccessProfilesView() {
                             <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate">
                               {profile.name}
                             </p>
-                            <p className="text-[10px] font-bold text-[var(--text-secondary)] truncate">
-                              {t("engineering.permissions.capabilitiesCount", { count: profile.capability_count || 0 })}
-                              {isDefaultFor.length > 0
-                                ? ` · ${t("engineering.permissions.defaultFor", { roles: isDefaultFor.join(", ") })}`
-                                : ""}
-                            </p>
+                            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                              <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                                {t("engineering.permissions.capabilitiesCount", { count: profile.capability_count || 0 })}
+                              </span>
+                              {deriveProfileBadges(profile, isDefaultFor).map((badge) => (
+                                <span
+                                  key={badge}
+                                  title={badge === "roleDefault" ? isDefaultFor.join(", ") : undefined}
+                                >
+                                  <Badge variant={badge === "roleDefault" ? "verified" : "locked"}>
+                                    {t(`engineering.permissions.profileBadge_${badge}`)}
+                                  </Badge>
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </button>
@@ -2136,32 +2196,45 @@ function AccessProfilesView() {
                 </div>
               )}
 
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                  {changesCount > 0
-                    ? t("engineering.permissions.changesPending", {
-                        count: changesCount,
-                      })
-                    : t("engineering.permissions.noPendingChanges")}
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={discardChanges}
-                    disabled={changesCount === 0 || saving}
-                    className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all disabled:opacity-40"
-                  >
-                    {t("engineering.permissions.discardChanges")}
-                  </button>
-                  <button
-                    onClick={saveChanges}
-                    disabled={changesCount === 0 || saving}
-                    className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-40"
-                  >
-                    {saving
-                      ? t("engineering.permissions.saving")
-                      : t("engineering.permissions.saveChanges")}
-                  </button>
+              <div className="sticky bottom-4 z-20 rounded-xl border border-[var(--border-primary)] bg-surface-1 p-3 space-y-2 shadow-lg">
+                {impactTotal !== null && impactTotal > 0 && (
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                    {t("engineering.permissions.impactAffects", { total: impactTotal })}
+                  </p>
+                )}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                    {changesCount > 0
+                      ? t("engineering.permissions.changesPending", {
+                          count: changesCount,
+                        })
+                      : t("engineering.permissions.noPendingChanges")}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={discardChanges}
+                      disabled={changesCount === 0 || saving}
+                      className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all disabled:opacity-40"
+                    >
+                      {t("engineering.permissions.discardChanges")}
+                    </button>
+                    <button
+                      onClick={saveChanges}
+                      disabled={changesCount === 0 || saving}
+                      className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-40"
+                    >
+                      {saving
+                        ? t("engineering.permissions.saving")
+                        : t("engineering.permissions.saveChanges")}
+                    </button>
+                  </div>
                 </div>
+                <input
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder={t("engineering.permissions.reasonPlaceholder")}
+                  className="w-full rounded-lg border border-[var(--border-primary)] bg-secondary px-3 py-2 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] placeholder:opacity-60 focus:outline-none focus:border-[var(--brand-orange)]"
+                />
               </div>
 
               {selectedIsDefaultFor.length > 0 ? (

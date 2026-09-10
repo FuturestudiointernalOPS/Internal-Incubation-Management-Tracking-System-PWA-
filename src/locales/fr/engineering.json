@@ -325,6 +325,9 @@
       "effectiveDenied": "Refusé",
       "effectiveReasonRestriction": "Restriction",
       "effectiveReasonNoSource": "Aucune source",
+      "profileBadge_roleDefault": "Défaut de rôle",
+      "profileBadge_inactive": "Inactif",
+      "profileBadge_superAdmin": "Super Admin",
       "contextRolesContexts": {
         "program": "Programme",
         "venture": "Venture",
