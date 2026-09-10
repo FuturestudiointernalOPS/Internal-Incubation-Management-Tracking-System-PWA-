@@ -16,6 +16,7 @@ import db from "@/lib/db";
 import { ensurePermissionsSchema } from "@/lib/auth";
 import { runAuthzMigration } from "./migrations";
 import { ensureMembershipBootstrap } from "./membership";
+import { backfillContextRoleProfileMappings } from "./contextRoleProfiles";
 
 // Phase 2: Knowledge Base.
 // /api/knowledge (GET/POST/PATCH/DELETE) previously allowed staff + super_admin
@@ -69,6 +70,13 @@ export function ensureCapabilityBackfills() {
           // become active, no-expiry memberships (zero behavior change at
           // cutover; see membership.js).
           runAuthzMigration("membership-bootstrap-v1", ensureMembershipBootstrap),
+          // Phase 6: registry rows seeded before their mapped profile existed
+          // carry profile_id NULL (the Founder profile post-dates the
+          // venture:founder seed). Fill NULLs only — admin mappings win.
+          runAuthzMigration(
+            "context-role-profile-mappings-v1",
+            backfillContextRoleProfileMappings,
+          ),
         ]);
         backfillsSeeded = true;
       })().finally(() => {
