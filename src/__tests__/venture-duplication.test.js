@@ -157,6 +157,11 @@ jest.mock("@/lib/ventureAuth", () => ({
   requireVentureAccess: jest.fn().mockResolvedValue({ session: SESSION }),
 }));
 
+// Phase 5c: milestone/task duplication routes decide through the canonical gate.
+jest.mock("@/lib/ventureScopedAccess", () => ({
+  requireVentureScopedAccess: jest.fn().mockResolvedValue({ session: SESSION, path: "super-admin" }),
+}));
+
 jest.mock("@/lib/ventureOperatingPlans", () => ({
   resolvePlanAccess: jest.fn().mockResolvedValue({ ok: true, global: true, code: "VNT-TEST" }),
   allowsPlanAction: jest.fn().mockResolvedValue(true),

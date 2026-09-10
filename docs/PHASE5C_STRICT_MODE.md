@@ -67,7 +67,26 @@ Exits 1 while any venture route file still uses the old gate.
 | OLD GATE (legacy) | still calls `requireAuth` / `requireVentureAccess` — to convert |
 | NO VENTURE GATE | SA-only or custom guard — verify individually |
 
-Current: **13 scoped**, 39 legacy, 21 no-gate (of 73 route files).
+Current: **26 scoped**, 26 legacy, 21 no-gate (of 73 route files).
+
+### Wave 1 (safe set) — converted
+
+`[id]` root GET, `coaches`, `dashboard`, `knowledge`, `milestones`,
+`milestones/archive`, `milestones/duplicate`, `sessions`, `tasks`,
+`tasks/archive`, `tasks/duplicate`, `timeline`, `venture-history`.
+
+Rule for this wave: the file's only gate was the legacy membership check
+(`requireVentureAccess`), so capability defaults (Staff Default / Program
+Manager / Founder hold `ventures.view` + `ventures.edit`) keep the same people
+working while every entry is now capability + scope. No new keys, no seed
+change. Inner business rules (staff review queues, lead-manager completion,
+staff-only sections) are preserved untouched — tightening those is the next
+wave, which needs the staff-tier capability.
+
+Fixed in the same commit: 7 already-converted files (15 handlers) evaluated
+`ventureId: id` **before** `const { id } = await params;` — a TDZ
+ReferenceError that made those routes 500 at runtime. A regression test now
+scans every scoped route for that ordering (`phase5b-venture-pilot.test.js`).
 
 ## Staging steps
 

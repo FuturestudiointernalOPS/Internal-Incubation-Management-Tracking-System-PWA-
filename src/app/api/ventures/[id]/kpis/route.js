@@ -40,10 +40,10 @@ async function autoCalc(dbId, source) {
 export async function GET(req, { params }) {
   try {
     await initDb();
+    const { id } = await params;
     const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
     if (access.error) return access.error;
     const { session } = access;
-    const { id } = await params;
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
@@ -72,11 +72,12 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   try {
     await initDb();
+    const { id } = await params;
     const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
     if (access.error) return access.error;
     const { session } = access;
-    const { id } = await params;
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
@@ -101,11 +102,12 @@ export async function POST(req, { params }) {
 export async function PATCH(req, { params }) {
   try {
     await initDb();
+    const { id } = await params;
     const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
     if (access.error) return access.error;
     const { session } = access;
-    const { id } = await params;
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 

@@ -4,6 +4,7 @@ import db, { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { getAuthorizationContext, requireAuthorization } from "@/lib/authorization";
 import { isWithinScope, resolveVentureScopeId } from "@/lib/authorization/scope";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
   getVentureById,
   updateVenture,
@@ -18,15 +19,12 @@ import {
  * Fetch a venture by its venture_id with all related data.
  */
 export const GET = createHandler(
-  { roles: ["super_admin", "staff", "program_manager", "participant", "founder", "teacher", "developer"] },
   async (req, { params }) => {
     const { id } = await params;
 
-    const { requireVentureAccess } = await import("@/lib/ventureAuth");
-    const { session } = await requireVentureAccess(id, db);
-    if (!session) {
-      return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    }
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+    if (access.error) return access.error;
+    const { session } = access;
 
     const venture = await getVentureById(id);
 

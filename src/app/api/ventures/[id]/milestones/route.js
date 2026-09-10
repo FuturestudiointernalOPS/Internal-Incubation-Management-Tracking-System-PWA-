@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireVentureAccess } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { computeInitialMilestoneStatus, completeMilestoneAndUnlockNext, isMilestoneLeadAuthority } from "@/lib/ventureMilestoneEngine";
 import { notifyVentureFounders } from "@/lib/ventures";
 import {
@@ -11,8 +11,8 @@ import {
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id, db);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+  if (access.error) return access.error;
   const ventureRes = await getVentureDbIdForMilestoneList(id);
   const ventureDbId = ventureRes.rows?.[0]?.id;
   if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
@@ -27,8 +27,8 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id, db);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+  if (access.error) return access.error;
   const body = await req.json();
   const { title, description, target_date } = body;
   if (!title?.trim()) return NextResponse.json({ success: false, error: "Milestone title is required." }, { status: 400 });
@@ -65,8 +65,9 @@ export const POST = createHandler(async (req, { params }) => {
 
 export const PATCH = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id, db);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+  if (access.error) return access.error;
+  const { session } = access;
   const { searchParams } = new URL(req.url);
   const mid = searchParams.get("id");
   if (!mid) return NextResponse.json({ success: false, error: "Milestone ID required." }, { status: 400 });

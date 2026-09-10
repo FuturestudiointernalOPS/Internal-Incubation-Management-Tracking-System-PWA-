@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireVentureAccess } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { duplicateTask } from "@/lib/ventureDuplication";
 
 export const dynamic = "force-dynamic";
@@ -16,8 +16,9 @@ export async function POST(req, { params }) {
   try {
     await initDb();
     const { id } = await params;
-    const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
+    const { session } = access;
 
     const body = await req.json();
     const taskId = body.task_id ? String(body.task_id) : null;

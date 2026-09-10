@@ -126,19 +126,32 @@ describe("Phase 5c — the old gate cannot come back", () => {
   });
 
   const converted = [
+    "src/app/api/ventures/[id]/route.js",
     "src/app/api/ventures/[id]/blockers/route.js",
     "src/app/api/ventures/[id]/business-model/route.js",
     "src/app/api/ventures/[id]/action-plans/route.js",
     "src/app/api/ventures/[id]/calendar/route.js",
+    "src/app/api/ventures/[id]/coaches/route.js",
+    "src/app/api/ventures/[id]/dashboard/route.js",
     "src/app/api/ventures/[id]/followups/route.js",
     "src/app/api/ventures/[id]/interviews/route.js",
     "src/app/api/ventures/[id]/investment-readiness/route.js",
+    "src/app/api/ventures/[id]/knowledge/route.js",
     "src/app/api/ventures/[id]/kpis/route.js",
+    "src/app/api/ventures/[id]/milestones/route.js",
+    "src/app/api/ventures/[id]/milestones/archive/route.js",
+    "src/app/api/ventures/[id]/milestones/duplicate/route.js",
     "src/app/api/ventures/[id]/playbook/route.js",
     "src/app/api/ventures/[id]/pmf/route.js",
     "src/app/api/ventures/[id]/retros/route.js",
+    "src/app/api/ventures/[id]/sessions/route.js",
     "src/app/api/ventures/[id]/standups/route.js",
+    "src/app/api/ventures/[id]/tasks/route.js",
+    "src/app/api/ventures/[id]/tasks/archive/route.js",
+    "src/app/api/ventures/[id]/tasks/duplicate/route.js",
+    "src/app/api/ventures/[id]/timeline/route.js",
     "src/app/api/ventures/[id]/validations/route.js",
+    "src/app/api/ventures/[id]/venture-history/route.js",
   ];
 
   test.each(converted)("%s is on the canonical gate only", (rel) => {
@@ -151,6 +164,36 @@ describe("Phase 5c — the old gate cannot come back", () => {
     expect(src).not.toMatch(/requireVentureAccess\(/);
     // The dead legacy role lists are gone too.
     expect(src).not.toMatch(/const (ROLES|ALLOWED) = \[/);
+  });
+
+  test("the gate is never called before params are destructured", () => {
+    // Regression guard: `ventureId: id` evaluated before `const { id } = await
+    // params;` is a TDZ ReferenceError — the route would 500 on every call.
+    const root = path.join(process.cwd(), "src", "app", "api", "ventures");
+    const files = [];
+    (function walk(dir) {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) walk(full);
+        else if (e.name === "route.js") files.push(full);
+      }
+    })(root);
+    const offenders = [];
+    for (const file of files) {
+      const src = fs.readFileSync(file, "utf8");
+      if (!src.includes("requireVentureScopedAccess")) continue;
+      const lines = src.split(/\r?\n/);
+      lines.forEach((line, i) => {
+        if (!line.includes("requireVentureScopedAccess") || !line.includes("ventureId: id")) return;
+        let declared = false;
+        for (let j = i - 1; j >= 0; j--) {
+          if (/const \{ id \}[^=]*= await params/.test(lines[j])) { declared = true; break; }
+          if (/export (async )?function|export const [A-Z]+ = createHandler/.test(lines[j])) break;
+        }
+        if (!declared) offenders.push(`${path.relative(process.cwd(), file)}:${i + 1}`);
+      });
+    }
+    expect(offenders).toEqual([]);
   });
 });
 

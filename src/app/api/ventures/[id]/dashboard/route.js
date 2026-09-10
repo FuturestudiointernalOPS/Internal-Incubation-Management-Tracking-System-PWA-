@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireVentureAccess } from "@/lib/ventureAuth";
-import { getSession } from "@/lib/auth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
   getOrCreateStartupProfile,
   getOrCreateVerification,
@@ -18,8 +17,9 @@ import {
 export const GET = createHandler(
   async (req, { params }) => {
     const { id } = await params;
-    const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+    if (access.error) return access.error;
+    const { session } = access;
 
     // Internal viewers = global Venture authority (super_admin/developer/admin).
     // They see the INTERNAL audit stream + internal 'sa' notification feed.
