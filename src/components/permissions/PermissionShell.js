@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Shield } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { PERMISSION_BASE, PERMISSION_NAV, navByKey } from "./permissionNav";
+import { defer } from "./effectUtils";
 
 /**
  * PHASE UI-1 — Permission Center shell.
@@ -31,12 +32,16 @@ export { PERMISSION_BASE, PERMISSION_NAV, navByKey };
 export function useSubTab(defaultKey) {
   const [sub, setSub] = useState(defaultKey);
   useEffect(() => {
-    try {
-      const s = new URLSearchParams(window.location.search).get("sub");
-      if (s) setSub(s);
-    } catch {
-      /* SSR / malformed URL — keep the default */
-    }
+    // Deep-link sync runs after the commit (deferred) so the mount effect
+    // performs no synchronous state update — server and client markup match.
+    defer(() => {
+      try {
+        const s = new URLSearchParams(window.location.search).get("sub");
+        if (s) setSub(s);
+      } catch {
+        /* SSR / malformed URL — keep the default */
+      }
+    });
   }, []);
   const change = useCallback((key) => {
     setSub(key);

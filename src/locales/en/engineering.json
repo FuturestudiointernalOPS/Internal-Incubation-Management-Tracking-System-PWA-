@@ -335,6 +335,8 @@
       "peopleRowAria": "Explain {capability}",
       "peopleTableAria": "Access matrix (scrolls horizontally on small screens)",
       "auditReason": "Reason",
+      "pendingLevelFull": "FULL ({level})",
+      "pendingLevelOff": "OFF",
       "contextRolesContexts": {
         "program": "Program",
         "venture": "Venture",

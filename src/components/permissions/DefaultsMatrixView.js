@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { defer, settled } from "./effectUtils";
+import PendingChangesList from "./ui/PendingChangesList";
 import {
   buildFeatureRows,
   deriveModuleCaps,
@@ -30,7 +32,6 @@ import {
  * /api/access-profiles, the existing profile-capabilities endpoint). Impact
  * hint = the roles the profile is default for.
  */
-const LEVEL_LABEL = { 1: "V", 2: "C", 3: "E", 4: "D", 5: "F" };
 
 export default function DefaultsMatrixView() {
   const { t } = useI18n();
@@ -52,22 +53,25 @@ export default function DefaultsMatrixView() {
   // the reviewer sees "this change affects N users" before applying.
   useEffect(() => {
     let alive = true;
-    setImpactTotal(null);
-    const profileIds = [...new Set(tray.map((i) => String(i.profileId)))];
-    if (profileIds.length === 0) return undefined;
-    Promise.all(
-      profileIds.map(async (pid) => {
-        try {
-          const res = await fetch(`/api/engineering/permissions/impact?profile_id=${encodeURIComponent(pid)}`);
-          const d = await res.json();
-          return d.success ? Number(d.impact?.total || 0) : 0;
-        } catch {
-          return 0;
-        }
-      }),
-    ).then((counts) => {
-      if (alive) setImpactTotal(counts.reduce((a, b) => a + b, 0));
+    defer(() => {
+      if (alive) setImpactTotal(null);
     });
+    const profileIds = [...new Set(tray.map((i) => String(i.profileId)))];
+    if (profileIds.length > 0) {
+      Promise.all(
+        profileIds.map(async (pid) => {
+          try {
+            const res = await fetch(`/api/engineering/permissions/impact?profile_id=${encodeURIComponent(pid)}`);
+            const d = await res.json();
+            return d.success ? Number(d.impact?.total || 0) : 0;
+          } catch {
+            return 0;
+          }
+        }),
+      ).then((counts) => {
+        if (alive) setImpactTotal(counts.reduce((a, b) => a + b, 0));
+      });
+    }
     return () => {
       alive = false;
     };
@@ -94,6 +98,7 @@ export default function DefaultsMatrixView() {
       if (!bypassCache) {
         const cached = [cacheGet(urlElig), cacheGet(urlCat), cacheGet(urlProf)];
         if (cached.every((c) => c && c.success)) {
+          await settled(null); // yield before the cached paint
           apply(cached[0], cached[1], cached[2]);
           setLoading(false);
           painted = true;
@@ -123,7 +128,7 @@ export default function DefaultsMatrixView() {
   }, [t]);
 
   useEffect(() => {
-    load();
+    defer(() => load());
   }, [load]);
 
   // Lazy-load the caps of an identity's default profile when the drawer opens.
@@ -397,13 +402,7 @@ export default function DefaultsMatrixView() {
               {t("engineering.permissions.matrixClear")}
             </button>
           </div>
-          <ul className="space-y-1">
-            {tray.map((item, i) => (
-              <li key={i} className="text-xs font-bold text-[var(--text-primary)]">
-                {item.label} → {item.level > 0 ? `FULL (${item.level})` : "OFF"}
-              </li>
-            ))}
-          </ul>
+          <PendingChangesList items={tray} />
           {impactTotal !== null && impactTotal > 0 && (
             <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
               {t("engineering.permissions.impactAffects", { total: impactTotal })}

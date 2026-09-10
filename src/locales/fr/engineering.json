@@ -335,6 +335,8 @@
       "peopleRowAria": "Expliquer {capability}",
       "peopleTableAria": "Matrice d'accès (défilement horizontal sur petits écrans)",
       "auditReason": "Motif",
+      "pendingLevelFull": "COMPLET ({level})",
+      "pendingLevelOff": "DÉSACTIVÉ",
       "contextRolesContexts": {
         "program": "Programme",
         "venture": "Venture",

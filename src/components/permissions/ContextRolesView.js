@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, Link2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import Badge from "./ui/Badge";
+import { defer } from "./effectUtils";
 
 /**
  * PHASE 4 — Context Role → Profile registry (Permission Center).
@@ -45,7 +46,9 @@ export default function ContextRolesView() {
   }, []);
 
   const load = useCallback(async () => {
-    setErr("");
+    // NOTE: no synchronous state write here — the mount effect calls this
+    // loader, and react-hooks/set-state-in-effect forbids sync updates in
+    // effects. Errors are cleared by the save path instead.
     try {
       const res = await fetch("/api/engineering/permissions/context-roles");
       const json = await res.json();
@@ -59,7 +62,7 @@ export default function ContextRolesView() {
   }, [apply, t]);
 
   useEffect(() => {
-    load();
+    defer(() => load());
   }, [load]);
 
   const setDraftField = (row, field, value) => {
@@ -148,7 +151,7 @@ export default function ContextRolesView() {
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)] bg-secondary/40">
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-[var(--border-primary)] bg-secondary/40">
         <table className="w-full text-left border-collapse min-w-[900px]">
           <thead>
             <tr className="border-b border-[var(--border-primary)]">
@@ -256,6 +259,95 @@ export default function ContextRolesView() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Small screens: the same fields as cards (no control is hidden) */}
+      <div className="md:hidden space-y-3">
+        {roles.map((row) => {
+          const key = rowKey(row);
+          const d = drafts[key] || {};
+          const dirty = isDirty(row);
+          const mapped = !(row.profile_id === null || row.profile_id === undefined);
+          return (
+            <div
+              key={key}
+              className="rounded-xl border border-[var(--border-primary)] bg-secondary/30 p-3 space-y-2"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="neutral">
+                  {t(`engineering.permissions.contextRolesContexts.${row.context}`)}
+                </Badge>
+                <span className="text-xs font-bold text-[var(--text-primary)]">
+                  {row.role_key.replace(/_/g, " ")}
+                </span>
+                {mapped ? (
+                  <Badge variant="mapped">
+                    {t("engineering.permissions.contextRolesStatusMapped")}
+                  </Badge>
+                ) : (
+                  <Badge variant="gap">
+                    {t("engineering.permissions.contextRolesStatusGap")}
+                  </Badge>
+                )}
+                <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                  {t("engineering.permissions.contextRolesHolders")}:{" "}
+                  {row.holders === null || row.holders === undefined ? "—" : row.holders}
+                </span>
+              </div>
+
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                  {t("engineering.permissions.contextRolesProfile")}
+                </span>
+                <select
+                  value={d.profile_id ?? ""}
+                  onChange={(e) => setDraftField(row, "profile_id", e.target.value)}
+                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+                >
+                  <option value="">{t("engineering.permissions.contextRolesNone")}</option>
+                  {profiles.map((p) => (
+                    <option key={p.id} value={String(p.id)}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={Boolean(d.is_active)}
+                  onChange={(e) => setDraftField(row, "is_active", e.target.checked)}
+                  className="accent-[var(--brand-orange)]"
+                />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                  {t("engineering.permissions.contextRolesActive")}
+                </span>
+              </label>
+
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                  {t("engineering.permissions.contextRolesNotes")}
+                </span>
+                <input
+                  value={d.notes || ""}
+                  onChange={(e) => setDraftField(row, "notes", e.target.value)}
+                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+                />
+              </label>
+
+              <button
+                onClick={() => save(row)}
+                disabled={!dirty || busyKey === key}
+                className="w-full px-3 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+              >
+                {busyKey === key
+                  ? t("engineering.permissions.contextRolesSaving")
+                  : t("engineering.permissions.contextRolesSave")}
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-70">

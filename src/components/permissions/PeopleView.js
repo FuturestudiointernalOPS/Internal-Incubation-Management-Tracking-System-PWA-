@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Search, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { Search, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { defer, settled } from "./effectUtils";
 import { Skeleton } from "@/components/ui/Skeleton";
 import Badge from "./ui/Badge";
 import EffectiveBadge from "./ui/EffectiveBadge";
@@ -54,7 +55,7 @@ export default function PeopleView({ onManageAccess }) {
     try {
       const url = "/api/responsibilities/assign";
       const cached = cacheGet(url);
-      const d = cached?.success ? cached : await (await fetch(url)).json();
+      const d = cached?.success ? await settled(cached) : await (await fetch(url)).json();
       if (d?.success) {
         cacheSet(url, d);
         setUsers(d.users || d.contacts || d.rows || []);
@@ -70,7 +71,7 @@ export default function PeopleView({ onManageAccess }) {
     try {
       const url = "/api/engineering/permissions";
       const cached = cacheGet(url);
-      const d = cached?.success ? cached : await (await fetch(url)).json();
+      const d = cached?.success ? await settled(cached) : await (await fetch(url)).json();
       if (d?.success) {
         cacheSet(url, d);
         setCatalog(d.catalog || {});
@@ -82,8 +83,10 @@ export default function PeopleView({ onManageAccess }) {
   }, []);
 
   useEffect(() => {
-    loadUsers();
-    loadCatalog();
+    defer(() => {
+      loadUsers();
+      loadCatalog();
+    });
   }, [loadUsers, loadCatalog]);
 
   const pick = useCallback(
@@ -142,7 +145,8 @@ export default function PeopleView({ onManageAccess }) {
     }
     if (!cid) return;
     const hit = users.find((u) => String(u.cid) === String(cid));
-    if (hit) pick(hit);
+    // Deferred: the mount effect must not perform a synchronous state update.
+    if (hit) defer(() => pick(hit));
   }, [users, pick]);
 
   const filtered = users.filter(
@@ -304,7 +308,7 @@ export default function PeopleView({ onManageAccess }) {
                 tabIndex={0}
                 role="region"
                 aria-label={t("engineering.permissions.peopleTableAria")}
-                className="overflow-x-auto rounded-xl border border-[var(--border-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                className="hidden md:block overflow-x-auto rounded-xl border border-[var(--border-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
               >
                 <table className="w-full text-left border-collapse min-w-[720px]">
                   <thead>
@@ -380,6 +384,56 @@ export default function PeopleView({ onManageAccess }) {
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Small screens: the same rows as cards (no data hidden) */}
+              <div className="md:hidden space-y-3">
+                {modules.map((m) => (
+                  <div key={m.module} className="space-y-1.5">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                      {m.module.replace(/_/g, " ")}
+                      <span className="ml-2 font-bold normal-case tracking-normal text-[var(--text-secondary)] opacity-70">
+                        {m.feature.replace(/_/g, " ")}
+                      </span>
+                    </p>
+                    {capsFor(m).map((cap) => {
+                      const s = deriveUserCapState(ctx.sources, m.module, cap);
+                      const reason = reasonFor(s);
+                      return (
+                        <button
+                          key={`${m.module}.${cap}`}
+                          onClick={() => setWhy({ module: m.module, cap, state: s, reason })}
+                          className="w-full text-left rounded-xl border border-[var(--border-primary)] bg-secondary/30 p-3 space-y-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-[var(--text-primary)]">
+                              {m.module}.{cap}
+                            </span>
+                            <EffectiveBadge effective={s.effective} reason={reason} />
+                          </span>
+                          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-bold text-[var(--text-secondary)]">
+                            {[
+                              { label: t("engineering.permissions.userMatrixProfile"), on: s.profile, kind: "profile" },
+                              { label: t("engineering.permissions.userMatrixGroup"), on: s.group, kind: "groups" },
+                              { label: t("engineering.permissions.userMatrixGrant"), on: s.grant, kind: "grants" },
+                              { label: t("engineering.permissions.userMatrixRestriction"), on: s.restricted, kind: "restrictions" },
+                            ].map((src) => (
+                              <span key={src.label} className="inline-flex items-center gap-1">
+                                {src.label}
+                                <SourceGlyph on={src.on} kind={src.kind} />
+                              </span>
+                            ))}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+                {modules.length === 0 && (
+                  <p className="rounded-xl border border-[var(--border-primary)] p-6 text-center text-xs font-bold text-[var(--text-secondary)]">
+                    {t("engineering.permissions.userMatrixEmpty")}
+                  </p>
+                )}
               </div>
             </>
           )}
