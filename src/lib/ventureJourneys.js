@@ -43,6 +43,11 @@ export async function ensureJourneyTable(db) {
   });
   await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS objective TEXT" });
   await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS target_date DATE" });
+  // Archive (soft delete): archived journeys stay in the database (history
+  // preserved) but are hidden from the Venture and from default lists.
+  await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE" });
+  await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ" });
+  await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS archived_by TEXT" });
 }
 
 /**
@@ -63,16 +68,32 @@ export async function resolveVentureInternalId(db, ventureId) {
   return r.rows?.[0]?.id || null;
 }
 
-/** Ordered stages for a Venture — only Venture-facing columns. */
-export async function listJourneyStages(db, dbId) {
-  const res = await db.execute({
-    sql: `SELECT id, name, description, objective, target_date, stage_order,
-                 status, completed_at, created_at
-          FROM venture_journey_stages WHERE venture_id = ?
-          ORDER BY stage_order ASC`,
-    args: [dbId],
-  });
-  return res.rows || [];
+/** Ordered stages for a Venture — only Venture-facing columns.
+ *
+ * Archived (soft-deleted) journeys are hidden by default; management
+ * surfaces pass { includeArchived: true }. Falls back to the pre-archive
+ * column set when the archive columns have not been migrated yet.
+ */
+export async function listJourneyStages(db, dbId, { includeArchived = false } = {}) {
+  const baseCols = `id, name, description, objective, target_date, stage_order,
+                 status, completed_at, created_at`;
+  const run = (withArchive) => {
+    const cols = withArchive ? `${baseCols}, is_archived, archived_at` : baseCols;
+    const where = withArchive && !includeArchived ? " AND (is_archived = FALSE OR is_archived IS NULL)" : "";
+    return db.execute({
+      sql: `SELECT ${cols}
+            FROM venture_journey_stages WHERE venture_id = ?${where}
+            ORDER BY stage_order ASC`,
+      args: [dbId],
+    });
+  };
+  try {
+    const res = await run(true);
+    return res.rows || [];
+  } catch (_) {
+    const res = await run(false);
+    return res.rows || [];
+  }
 }
 
 export async function getJourneyStage(db, dbId, stageId) {

@@ -51,7 +51,9 @@ export async function POST(req, { params }) {
       });
     } catch (_) {}
 
-    const stages = await listJourneyStages(db, dbId);
+    // Managers keep their Archived view in sync (same rule as GET).
+    const canManage = await allowsPlanAction(db, access, "manage");
+    const stages = await listJourneyStages(db, dbId, { includeArchived: canManage });
     return NextResponse.json({ success: true, stages, ...result });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });

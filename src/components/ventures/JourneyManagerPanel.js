@@ -15,6 +15,9 @@ import {
   CopyPlus,
   CheckCircle2,
   AlertTriangle,
+  Square,
+  CheckSquare,
+  Archive,
   RotateCcw,
   Pencil,
   Lock,
@@ -43,6 +46,10 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [access, setAccess] = useState({ create: false, edit: false, manage: false });
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+  // Journey archive/delete (Super Admin): selection + archived view + busy flag.
+  const [viewArchived, setViewArchived] = useState(false);
+  const [selectedStageIds, setSelectedStageIds] = useState(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({ name: "", description: "", objective: "", target_date: "" });
@@ -69,7 +76,9 @@ export default function JourneyManagerPanel({ ventureId }) {
 
   const load = async () => {
     try {
-      const res = await fetch(`/api/ventures/${ventureId}/journey`);
+      // include_archived=1: management surfaces render archived journeys in
+      // their own view (the Venture never sees them).
+      const res = await fetch(`/api/ventures/${ventureId}/journey?include_archived=1`);
       const d = await res.json();
       if (d.success) {
         setStages(d.stages || []);
@@ -250,6 +259,112 @@ export default function JourneyManagerPanel({ ventureId }) {
     }
   };
 
+  // ── Journey archive / permanent delete (double-confirmed) ────────────────
+  const activeStages = stages.filter((s) => s.is_archived !== true);
+  const archivedStages = stages.filter((s) => s.is_archived === true);
+  const visibleStages = viewArchived ? archivedStages : activeStages;
+  const allSelected =
+    activeStages.length > 0 && activeStages.every((s) => selectedStageIds.has(String(s.id)));
+
+  const toggleSelectStage = (id) => {
+    const next = new Set(selectedStageIds);
+    const key = String(id);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setSelectedStageIds(next);
+  };
+  const toggleSelectAllStages = () => {
+    if (allSelected) setSelectedStageIds(new Set());
+    else setSelectedStageIds(new Set(activeStages.map((s) => String(s.id))));
+  };
+
+  const runBulk = async ({ ids, action = "archive", endpoint }) => {
+    if (!ids.length) return;
+    setBulkBusy(true);
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/journey/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, action }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        const done =
+          endpoint === "delete"
+            ? d.deleted || []
+            : action === "restore"
+              ? d.restored || []
+              : d.archived || [];
+        const blocked = d.blocked || [];
+        const parts = [];
+        if (done.length) {
+          parts.push(
+            endpoint === "delete"
+              ? t("venture.manager.journeysDeleted", { n: done.length })
+              : action === "restore"
+                ? t("venture.manager.journeysRestored", { n: done.length })
+                : t("venture.manager.journeysArchived", { n: done.length }),
+          );
+        }
+        if (blocked.length) parts.push(blocked[0]?.reason || t("venture.manager.journeysBlocked", { n: blocked.length }));
+        notify(parts.join(" — ") || t("venture.manager.journeysArchived", { n: 0 }), blocked.length && !done.length ? "error" : "success");
+        if (d.stages) setStages(d.stages);
+      } else {
+        notify(d.error || "Action failed.", "error");
+      }
+    } catch (_) {
+      notify("Action failed.", "error");
+    }
+    setSelectedStageIds(new Set());
+    setBulkBusy(false);
+  };
+
+  // Double confirmation: a second explicit "are you sure" is always required
+  // for archiving or deleting journeys.
+  const confirmTwice = (first, second) => window.confirm(first) && window.confirm(second);
+
+  const selectedActiveIds = () =>
+    activeStages.filter((s) => selectedStageIds.has(String(s.id))).map((s) => String(s.id));
+
+  const archiveSelectedJourneys = () => {
+    const ids = selectedActiveIds();
+    if (!ids.length) return;
+    if (!confirmTwice(
+      t("venture.manager.archiveJourneysConfirm", { n: ids.length }),
+      t("venture.manager.archiveJourneysConfirm2"),
+    )) return;
+    runBulk({ ids, action: "archive", endpoint: "archive" });
+  };
+
+  const deleteSelectedJourneys = () => {
+    const ids = selectedActiveIds();
+    if (!ids.length) return;
+    if (!confirmTwice(
+      t("venture.manager.deleteJourneysConfirm", { n: ids.length }),
+      t("venture.manager.deleteJourneysConfirm2"),
+    )) return;
+    runBulk({ ids, endpoint: "delete" });
+  };
+
+  const archiveOneJourney = (stage) => {
+    if (!confirmTwice(
+      t("venture.manager.archiveJourneysConfirm", { n: 1 }),
+      t("venture.manager.archiveJourneysConfirm2"),
+    )) return;
+    runBulk({ ids: [String(stage.id)], action: "archive", endpoint: "archive" });
+  };
+  const restoreOneJourney = (stage) => {
+    if (!window.confirm(t("venture.manager.restoreJourneyConfirm", { name: stage.name }))) return;
+    runBulk({ ids: [String(stage.id)], action: "restore", endpoint: "archive" });
+  };
+  const deleteOneJourney = (stage) => {
+    if (!confirmTwice(
+      t("venture.manager.deleteJourneysConfirm", { n: 1 }),
+      t("venture.manager.deleteJourneysConfirm2"),
+    )) return;
+    runBulk({ ids: [String(stage.id)], endpoint: "delete" });
+  };
+
   const statusPill = (stage) => {
     const cls =
       stage.status === "completed"
@@ -274,7 +389,7 @@ export default function JourneyManagerPanel({ ventureId }) {
 
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-          <Route className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> Venture Journey ({stages.length} stages)
+          <Route className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> Venture Journey ({activeStages.length} stages)
         </h3>
         {access.create && (
           <div className="flex items-center gap-2">
@@ -285,7 +400,7 @@ export default function JourneyManagerPanel({ ventureId }) {
               <Copy className="w-3 h-3" />
               {applyOpen ? "Cancel" : "From Template"}
             </button>
-            {access.manage && stages.length > 0 && (
+            {access.manage && activeStages.length > 0 && (
               <button
                 onClick={() => setSaveOpen(!saveOpen)}
                 className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--brand-orange)]/40 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/10 flex items-center gap-1.5"
@@ -307,6 +422,54 @@ export default function JourneyManagerPanel({ ventureId }) {
       <p className="text-[10px] text-slate-400 mb-3 -mt-1">
         Define the journey this Venture actually needs — it is not a fixed curriculum. Members see only the published stages (name, description, objective, target date, status).
       </p>
+
+      {/* Journey archive toolbar: Active/Archived views, select all, bulk
+          archive/delete (each with a double confirmation). */}
+      {access.manage && stages.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <button
+            onClick={() => { setViewArchived(false); setSelectedStageIds(new Set()); }}
+            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${!viewArchived ? "bg-[var(--brand-orange)]/15 text-[var(--brand-orange)] border-[var(--brand-orange)]/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}
+          >
+            {t("venture.manager.viewActiveJourneys", { n: activeStages.length })}
+          </button>
+          <button
+            onClick={() => { setViewArchived(true); setSelectedStageIds(new Set()); }}
+            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${viewArchived ? "bg-[var(--brand-orange)]/15 text-[var(--brand-orange)] border-[var(--brand-orange)]/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}
+          >
+            {t("venture.manager.viewArchivedJourneys", { n: archivedStages.length })}
+          </button>
+          {!viewArchived && activeStages.length > 0 && (
+            <button
+              onClick={toggleSelectAllStages}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-[var(--text-primary)] border border-[var(--border-primary)] transition-all"
+            >
+              {allSelected ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+              {t("venture.manager.selectAllJourneys")}
+            </button>
+          )}
+          {!viewArchived && selectedStageIds.size > 0 && (
+            <>
+              <button
+                onClick={archiveSelectedJourneys}
+                disabled={bulkBusy}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 disabled:opacity-40"
+              >
+                {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Archive className="w-3.5 h-3.5" />}
+                {t("venture.manager.archiveSelectedJourneys", { n: selectedStageIds.size })}
+              </button>
+              <button
+                onClick={deleteSelectedJourneys}
+                disabled={bulkBusy}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 disabled:opacity-40"
+              >
+                {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                {t("venture.manager.deleteSelectedJourneys", { n: selectedStageIds.size })}
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {saveOpen && (
         <form onSubmit={saveJourneyTemplate} className="mb-4 p-3 rounded-xl border border-[var(--brand-orange)]/30 bg-tertiary space-y-2">
@@ -396,7 +559,13 @@ export default function JourneyManagerPanel({ ventureId }) {
 
       {loading ? (
         <div className="text-center py-6"><Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400" /></div>
-      ) : stages.length === 0 ? (
+      ) : visibleStages.length === 0 ? (
+        viewArchived ? (
+          <div className="rounded-xl border border-dashed border-[var(--border-primary)] p-6 text-center">
+            <Archive className="w-6 h-6 mx-auto text-slate-500 mb-2" />
+            <p className="text-xs font-bold text-[var(--text-primary)]">{t("venture.manager.emptyArchivedJourneys")}</p>
+          </div>
+        ) : (
         <div className="rounded-xl border border-dashed border-[var(--border-primary)] p-6 text-center">
           <Route className="w-6 h-6 mx-auto text-slate-500 mb-2" />
           <p className="text-xs font-bold text-[var(--text-primary)]">No journey defined yet</p>
@@ -404,9 +573,10 @@ export default function JourneyManagerPanel({ ventureId }) {
             Add stages for this Venture or generate the journey from a reusable template. The Venture will see an empty state until you publish stages.
           </p>
         </div>
+        )
       ) : (
         <div className="space-y-2">
-          {stages.map((stage, i) => (
+          {visibleStages.map((stage, i) => (
             <div key={stage.id} className={`rounded-xl border border-[var(--border-primary)] p-3 ${stage.status === "locked" ? "opacity-75" : ""}`}>
               {editId === stage.id ? (
                 <form onSubmit={saveEdit} className="space-y-2">
@@ -447,6 +617,15 @@ export default function JourneyManagerPanel({ ventureId }) {
                 </form>
               ) : (
                 <div className="flex items-start gap-3">
+                  {access.manage && !stage.is_archived && (
+                    <button
+                      onClick={() => toggleSelectStage(stage.id)}
+                      className={`mt-1 p-0.5 rounded transition-colors ${selectedStageIds.has(String(stage.id)) ? "text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}
+                      title={t("venture.manager.selectJourney")}
+                    >
+                      {selectedStageIds.has(String(stage.id)) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                    </button>
+                  )}
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                     stage.status === "completed" ? "bg-emerald-500/15 text-emerald-400" :
                     stage.status === "active" ? "bg-blue-500/15 text-blue-400" :
@@ -479,6 +658,13 @@ export default function JourneyManagerPanel({ ventureId }) {
 
                   {(access.edit || access.manage) && (
                     <div className="flex items-center gap-1 shrink-0">
+                      {stage.is_archived && (
+                        <button onClick={() => restoreOneJourney(stage)} disabled={bulkBusy} className="p-1 text-slate-400 hover:text-emerald-400 disabled:opacity-40" title={t("venture.manager.restoreJourney")}>
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {!stage.is_archived && (
+                        <>
                       {access.edit && (
                         <button onClick={() => startEdit(stage)} className="p-1 text-slate-400 hover:text-[var(--text-primary)]" title="Edit stage">
                           <Pencil className="w-3.5 h-3.5" />
@@ -489,7 +675,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                           <button onClick={() => patch({ action: "move", stage_id: stage.id, direction: "up" })} disabled={i === 0} className="p-1 text-slate-400 hover:text-[var(--text-primary)] disabled:opacity-30" title="Move up">
                             <ChevronUp className="w-3.5 h-3.5" />
                           </button>
-                          <button onClick={() => patch({ action: "move", stage_id: stage.id, direction: "down" })} disabled={i === stages.length - 1} className="p-1 text-slate-400 hover:text-[var(--text-primary)] disabled:opacity-30" title="Move down">
+                          <button onClick={() => patch({ action: "move", stage_id: stage.id, direction: "down" })} disabled={i === visibleStages.length - 1} className="p-1 text-slate-400 hover:text-[var(--text-primary)] disabled:opacity-30" title="Move down">
                             <ChevronDown className="w-3.5 h-3.5" />
                           </button>
                           {stage.status === "locked" && (
@@ -522,9 +708,14 @@ export default function JourneyManagerPanel({ ventureId }) {
                           <button onClick={() => duplicateStage(stage)} disabled={dupBusy === stage.id} className="p-1 text-slate-400 hover:text-sky-300 disabled:opacity-40" title={t("venture.manager.duplicateStageTitle")}>
                             {dupBusy === stage.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CopyPlus className="w-3.5 h-3.5" />}
                           </button>
-                          <button onClick={async () => { if (window.confirm(`Delete stage "${stage.name}"? This does not delete Venture data — only the journey stage.`)) { const ok = await patch({ action: "delete", stage_id: stage.id }); if (ok) notify("Stage deleted."); } }} className="p-1 text-slate-400 hover:text-rose-400" title="Delete stage">
+                          <button onClick={() => archiveOneJourney(stage)} disabled={bulkBusy} className="p-1 text-slate-400 hover:text-amber-400 disabled:opacity-40" title={t("venture.manager.archiveJourney")}>
+                            {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Archive className="w-3.5 h-3.5" />}
+                          </button>
+                          <button onClick={() => deleteOneJourney(stage)} disabled={bulkBusy} className="p-1 text-slate-400 hover:text-rose-400 disabled:opacity-40" title={t("venture.manager.deleteJourney")}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
+                        </>
+                      )}
                         </>
                       )}
                     </div>

@@ -42,12 +42,22 @@ export async function GET(req, { params }) {
     const ownersSql = OWNERS_IN(owners);
 
     const [stagesRes, msRes, tasksRes, subRes, sessRes, supportRes] = await Promise.all([
+      // Archived journeys (soft-deleted) are excluded from the operating
+      // report. Guarded: a pre-migration database without the archive column
+      // falls back to the plain stage read.
       db.execute({
         sql: `SELECT id, name, status, stage_order, target_date, completed_at
-              FROM venture_journey_stages WHERE venture_id = ?
+              FROM venture_journey_stages WHERE venture_id = ? AND COALESCE(is_archived, FALSE) = FALSE
               ORDER BY stage_order ASC`,
         args: [dbId],
-      }).catch(() => ({ rows: [] })),
+      }).catch(() =>
+        db.execute({
+          sql: `SELECT id, name, status, stage_order, target_date, completed_at
+                FROM venture_journey_stages WHERE venture_id = ?
+                ORDER BY stage_order ASC`,
+          args: [dbId],
+        }).catch(() => ({ rows: [] })),
+      ),
       db.execute({
         sql: `SELECT journey_stage_id, status FROM venture_milestones
               WHERE venture_id ${ownersSql} AND journey_stage_id IS NOT NULL`,

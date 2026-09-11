@@ -57,7 +57,8 @@ export async function saveJourneyAsTemplate(db, { dbId, name, description = null
           ORDER BY stage_order ASC`,
     args: [dbId],
   });
-  const stages = rowsOf(stageRes);
+  // Archived (soft-deleted) journeys are never captured into a new template.
+  const stages = rowsOf(stageRes).filter((s) => s.is_archived !== true);
   if (stages.length === 0) return { error: "This Venture has no journey stages to save yet." };
 
   const templateId = newUuid();
