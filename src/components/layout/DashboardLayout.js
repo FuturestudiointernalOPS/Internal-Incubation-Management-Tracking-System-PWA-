@@ -1496,13 +1496,14 @@ export default function DashboardLayout({ children, role = "admin", modals, full
         isVentureMember: false,
         ventures: [],
       };
-      const homeRole = sessionRole || activeRole;
-      const dashboardHref =
-        homeRole === "team"
-          ? "/team"
-          : homeRole === "participant"
-            ? "/participant"
-            : "/workspaces";
+      // ONE dashboard per surface: the calendar page. "member" is the
+      // baseline identity, not a destination — a member (and a founder, and a
+      // participant) all land on /participant and get their contexts as
+      // sidebar additions. Only the team surface has a different calendar
+      // page. Do NOT key this off sessionRole: a member sitting on
+      // /participant has activeRole "participant" but sessionRole "member",
+      // which silently sent the Dashboard link back to the /workspaces hub.
+      const dashboardHref = activeRole === "team" ? "/team" : "/participant";
       const items = [
         { id: "dashboard", name: "DASHBOARD", icon: LayoutDashboard, href: dashboardHref },
       ];
@@ -1518,12 +1519,33 @@ export default function DashboardLayout({ children, role = "admin", modals, full
 
     // If user has responsibilities assigned, build nav from responsibilities
     // across ALL role views instead of just the user's role view
+    // SIDEBAR ADDITION — the ventures console appears only when this staff
+    // member actually holds venture assignments. Navigation belongs in the
+    // sidebar, not on the dashboard: clicking it opens ALL ventures.
+    const withVentureConsole = (list) => {
+      if (!["staff", "program_manager"].includes(activeRole)) return list;
+      if (typeof ventureAssignCount !== "number" || ventureAssignCount <= 0) {
+        return list;
+      }
+      if (list.some((i) => i.id === "ventures")) return list;
+      const dashIndex = list.findIndex((i) => i.id === "dashboard");
+      const insertAt = dashIndex === -1 ? 0 : dashIndex + 1;
+      const next = list.slice();
+      next.splice(insertAt, 0, {
+        id: "ventures",
+        name: "MY VENTURES",
+        icon: Rocket,
+        href: "/staff/ventures",
+      });
+      return next;
+    };
+
     if (!bypass && userResponsibilities && userResponsibilities.length > 0) {
       const respKeys = new Set(userResponsibilities.map((r) => r.key));
       const respNav = attachIcons(
         buildNavFromResponsibilities(respKeys, activeRole),
       );
-      return gateMyLearning(respNav);
+      return gateMyLearning(withVentureConsole(respNav));
     }
 
     // Fallback: role view (backward compatible)
@@ -1571,14 +1593,8 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     // Currently applies to staff (incl. PM-as-staff); other roles pass through.
     const projected = projectNavForCapabilities(base, effectiveCaps, activeRole);
     const itemsFinal = attachIcons(projected);
-    // ONE DASHBOARD: no extra top-level entries are injected for staff
-    // assignments. "My Dashboard" and "MY VENTURES" used to be inserted here,
-    // which made one account look like it had three dashboards; the dashboard
-    // now owns the calendar and the contexts are added to it as stat cards
-    // (see components/dashboard/ContextCardsPanel.js). The console pages stay
-    // reachable from those cards, not from the sidebar.
     // "My Learning" is hidden for participants who have no course enrollment.
-    return gateMyLearning(itemsFinal);
+    return gateMyLearning(withVentureConsole(itemsFinal));
   }, [
     user.role,
     user.groups,

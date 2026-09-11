@@ -126,6 +126,11 @@ export const ROLE_HOME = {
   facilitator: "/facilitator",
   developer: "/developer",
   participant: "/participant",
+  // A member starts on the DASHBOARD (the page that owns the calendar), not on
+  // the /workspaces listing — the workspace hub showed first and read like a
+  // second home. Contexts are sidebar additions and the hub stays reachable.
+  // With no program context the dashboard simply shows its empty states.
+  member: "/participant",
   finance: "/finance",
   investor: "/investor/dashboard",
 };

@@ -1,172 +1,108 @@
 /**
- * ONE DASHBOARD — contracts.
+ * ONE DASHBOARD + SIDEBAR ADDITIONS — contracts.
  *
- * The rule this locks: there is ONE dashboard per surface, and the contexts a
- * person holds are added to it as STAT CARDS — never as extra dashboards, never
- * as injected sidebar entries, never as contexts listed in the switcher.
+ * The rule this locks: there is ONE dashboard per surface — the page that owns
+ * the calendar — and contexts are SIDEBAR ADDITIONS. A context that appears for
+ * someone (ventures, programs, learning) becomes a door in the sidebar that
+ * opens its full page (ALL ventures, ALL programs); it never becomes a second
+ * dashboard and never a list on the dashboard itself.
  *
  * Defects being prevented from coming back:
- *   • "My Dashboard" (/staff/me) was a second dashboard with its own calendar,
- *     notifications and ventures list;
- *   • the sidebar injected "MY DASHBOARD" and "MY VENTURES" above the real one;
- *   • the context switcher listed staff program assignments as destinations.
+ *   • "My Dashboard" (/staff/me) — a second dashboard with its own calendar;
+ *   • the dashboard carrying a row of context cards instead of the sidebar
+ *     carrying the doors;
+ *   • a member landing on the workspace hub (/workspaces) instead of on the
+ *     dashboard, which made "the workspace show first";
+ *   • the context switcher listing staff program assignments as destinations.
  */
 
 const fs = require("fs");
 const path = require("path");
 
-const { buildContextCards, MAX_NAMES_PER_CARD } = require("@/components/dashboard/contextCards");
-
-const EN = require("@/locales/en/common.json");
-const FR = require("@/locales/fr/common.json");
+const { ROLE_HOME, roleHomeHref } = require("@/models/platform/roles");
+const { ROLE_ACCESS } = require("@/lib/masterNavigation");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
-const resolveKey = (bundle, dotted) =>
-  dotted.split(".").reduce((acc, part) => (acc == null ? undefined : acc[part]), bundle);
+const exists = (rel) => fs.existsSync(path.join(process.cwd(), rel));
 
-describe("one dashboard — context cards", () => {
-  test("no context means no cards at all", () => {
-    expect(buildContextCards()).toEqual([]);
-    expect(buildContextCards({})).toEqual([]);
-    expect(buildContextCards({ contexts: {}, assignedVentures: [] })).toEqual([]);
-  });
+const DASHBOARD = "src/components/layout/DashboardLayout.js";
 
-  test("a program manager gets a programs card, named and counted", () => {
-    const cards = buildContextCards({
-      contexts: {
-        program_assignments: [
-          { program_id: "1", program_name: "Founders 2026", href: "/pm/programs" },
-          { program_id: "2", program_name: "Incubator 5", href: "/pm/programs" },
-        ],
-      },
-    });
-    expect(cards).toEqual([
-      {
-        key: "programsManaged",
-        count: 2,
-        names: ["Founders 2026", "Incubator 5"],
-        href: "/pm/programs",
-      },
-    ]);
-  });
-
-  test("a venture manager gets a ventures card from the delegations", () => {
-    const cards = buildContextCards({
-      assignedVentures: [
-        { venture_id: "VNT-1", company_name: "Acme" },
-        { venture_id: "VNT-2", name: "Beta Co" },
-        { venture_id: "VNT-3" },
-        { venture_id: "VNT-4" },
-      ],
-    });
-    expect(cards).toHaveLength(1);
-    expect(cards[0].key).toBe("venturesAssigned");
-    expect(cards[0].count).toBe(4);
-    // Four ventures must not become four names — the count carries the volume.
-    expect(cards[0].names).toHaveLength(MAX_NAMES_PER_CARD);
-    expect(cards[0].names[2]).toBe("VNT-3");
-    expect(cards[0].href).toBe("/staff/ventures");
-  });
-
-  test("completed participations do not count as active programs", () => {
-    const cards = buildContextCards({
-      contexts: {
-        program_participations: [
-          { program_id: "1", program_name: "Done", completed: true },
-          { program_id: "2", program_name: "Running", completed: false },
-        ],
-      },
-    });
-    expect(cards).toEqual([
-      {
-        key: "programsParticipating",
-        count: 1,
-        names: ["Running"],
-        href: "/participant/dashboard",
-      },
-    ]);
-  });
-
-  test("an LMS enrollment adds the learning card without a count", () => {
-    const cards = buildContextCards({ contexts: { learning: { enrolled: true } } });
-    expect(cards).toEqual([
-      { key: "learning", count: null, names: [], href: "/participant/learning" },
-    ]);
-    expect(buildContextCards({ contexts: { learning: { enrolled: false } } })).toEqual([]);
-  });
-
-  test("every held context becomes its own card, in a stable order", () => {
-    const cards = buildContextCards({
-      contexts: {
-        program_assignments: [{ program_id: "1", program_name: "P1" }],
-        program_participations: [{ program_id: "2", program_name: "P2" }],
-        venture_memberships: [{ venture_id: "VNT-9", venture_name: "Nine" }],
-        learning: { enrolled: true },
-      },
-      assignedVentures: [{ venture_id: "VNT-1", company_name: "Acme" }],
-    });
-    expect(cards.map((c) => c.key)).toEqual([
-      "programsManaged",
-      "programsParticipating",
-      "venturesAssigned",
-      "venturesMember",
-      "learning",
-    ]);
-  });
-
-  test("malformed input never throws and never invents a card", () => {
-    expect(buildContextCards({ contexts: { program_assignments: null } })).toEqual([]);
-    expect(buildContextCards({ contexts: { program_assignments: "nope" } })).toEqual([]);
-    expect(buildContextCards({ assignedVentures: null })).toEqual([]);
-    expect(buildContextCards({ contexts: { learning: "yes" } })).toEqual([]);
-  });
-});
-
-describe("one dashboard — the screens", () => {
-  test("the staff dashboard composes the context cards with the calendar dashboard", () => {
+describe("one dashboard — the calendar page is the only dashboard", () => {
+  test("the staff dashboard renders the calendar dashboard, with no cards", () => {
     const src = read("src/app/staff/page.js");
-    expect(src).toContain("ContextCardsPanel");
     expect(src).toContain("UnifiedDashboard");
+    expect(src).not.toContain("ContextCards");
+  });
+
+  test("the retired context-card row is deleted, not kept around", () => {
+    expect(exists("src/components/dashboard/ContextCardsPanel.js")).toBe(false);
+    expect(exists("src/components/dashboard/contextCards.js")).toBe(false);
   });
 
   test("the retired second dashboard forwards to the real one", () => {
-    const src = read("src/app/staff/me/page.js");
-    expect(src).toContain('router.replace("/staff")');
+    expect(read("src/app/staff/me/page.js")).toContain('router.replace("/staff")');
+  });
+});
+
+describe("sidebar additions — the doors live in the sidebar", () => {
+  const src = read(DASHBOARD);
+
+  test("assigned staff get the ventures door, opening ALL ventures", () => {
+    expect(src).toContain("withVentureConsole");
+    expect(src).toContain('name: "MY VENTURES"');
+    expect(src).toContain('href: "/staff/ventures"');
+    // …and it is conditional: no assignment, no door.
+    expect(src).toContain("ventureAssignCount <= 0");
   });
 
-  test("the sidebar injects no second dashboard and no injected ventures entry", () => {
-    const src = read("src/components/layout/DashboardLayout.js");
+  test("the doubled-up entries stay deleted", () => {
     expect(src).not.toContain("personal_home");
     expect(src).not.toContain("MY DASHBOARD");
-    // No nav item is injected any more (the old blocks spliced entries in at
-    // `insertAt`); the founder surface keeps its own legitimate ventures item.
-    expect(src).not.toContain("insertAt");
-    expect(src).not.toContain('"MY VENTURES", icon: Rocket, href: "/staff/ventures"');
-    expect(src).not.toContain('"/staff/me"');
   });
 
-  test("the switcher no longer lists staff program assignments as destinations", () => {
+  test("participants already carry their own additions in the nav", () => {
+    // Programs + Learning are part of the participant surface…
+    expect(ROLE_ACCESS.participant.top).toContain("learning");
+    expect(ROLE_ACCESS.participant.top).toContain("programs");
+    // …and a venture member gets the ventures door (opens their ventures).
+    expect(src).toContain('name: "MY VENTURES", icon: Rocket, href: "/participant/ventures"');
+  });
+});
+
+describe("landing — the dashboard shows first, not the workspace hub", () => {
+  test("a member lands on the dashboard", () => {
+    expect(ROLE_HOME.member).toBe("/participant");
+    expect(roleHomeHref("member")).toBe("/participant");
+  });
+
+  test("the member sidebar Dashboard door points at the dashboard too", () => {
+    // nav contract: buildRoleNav("member") resolves dashboard → /participant.
+    // (The per-page sidebar is built from /api/me/relationships; this locks
+    // the fallback contract so the two can never disagree.)
+    expect(ROLE_ACCESS.member.hrefs.dashboard).toBe("/participant");
+  });
+
+  test("the sidebar never keys the dashboard href off sessionRole", () => {
+    // Regression: a member on /participant has activeRole "participant" but
+    // sessionRole "member"; keying off sessionRole sent Dashboard back to
+    // /workspaces. The personal branch must resolve the href from activeRole.
+    const src = read(DASHBOARD);
+    expect(src).not.toMatch(/homeRole\s*=\s*sessionRole/);
+    expect(src).toContain('activeRole === "team" ? "/team" : "/participant"');
+  });
+
+  test("the other surfaces are unchanged", () => {
+    expect(roleHomeHref("staff")).toBe("/staff");
+    expect(roleHomeHref("super_admin")).toBe("/admin");
+    expect(roleHomeHref("participant")).toBe("/participant");
+  });
+});
+
+describe("the switcher moves between surfaces only", () => {
+  test("staff program assignments are not switcher destinations", () => {
     const src = read("src/components/layout/ContextSwitcher.js");
     expect(src).not.toContain("program_assignments");
-    // Participations and memberships are still legitimate surface moves.
     expect(src).toContain("program_participations");
     expect(src).toContain("venture_memberships");
-  });
-
-  test("every card label exists in English and French", () => {
-    for (const key of [
-      "common.dashboardContexts.title",
-      "common.dashboardContexts.count",
-      "common.dashboardContexts.enrolled",
-      "common.dashboardContexts.open",
-      "common.dashboardContexts.programsManaged",
-      "common.dashboardContexts.programsParticipating",
-      "common.dashboardContexts.venturesAssigned",
-      "common.dashboardContexts.venturesMember",
-      "common.dashboardContexts.learning",
-    ]) {
-      expect(typeof resolveKey(EN, key)).toBe("string");
-      expect(typeof resolveKey(FR, key)).toBe("string");
-    }
   });
 });

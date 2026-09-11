@@ -200,7 +200,7 @@ const FIXTURE = {
     { id: "messages", href: "/staff/messages", subItems: null },
   ],
 
-  member: [{ id: "dashboard", href: "/workspaces", subItems: null }],
+  member: [{ id: "dashboard", href: "/participant", subItems: null }],
 
   participant: [
     { id: "dashboard", href: "/participant", subItems: null },
