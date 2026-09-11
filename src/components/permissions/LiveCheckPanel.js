@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Loader2, PlayCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { settled } from "./effectUtils";
 import Badge from "./ui/Badge";
 import { SCOPE_POLICIES, SCOPE_POLICY_KEYS } from "@/lib/authorization/scope-catalog";
 import { describeScopeCheck } from "./scopeCheckHelpers";
@@ -22,6 +23,7 @@ export default function LiveCheckPanel() {
   const [cid, setCid] = useState("");
   const [resourceId, setResourceId] = useState("");
   const [users, setUsers] = useState([]);
+  const [listErr, setListErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [err, setErr] = useState("");
@@ -30,20 +32,35 @@ export default function LiveCheckPanel() {
     let alive = true;
     (async () => {
       try {
-        const url = "/api/responsibilities/assign";
+        // Same directory as the Individual Access picker. (This used to call
+        // /api/responsibilities/assign without a user_cid, which answers 400,
+        // so the suggestion list was silently always empty.)
+        const url = "/api/contacts";
         const cached = cacheGet(url);
-        const d = cached?.success ? cached : await (await fetch(url)).json();
-        if (!alive || !d?.success) return;
+        const d = cached?.success
+          ? await settled(cached)
+          : await (await fetch(url)).json();
+        if (!alive) return;
+        if (!d?.success) throw new Error(d?.error || "HTTP error");
         cacheSet(url, d);
-        setUsers(d.users || d.contacts || d.rows || []);
-      } catch {
-        /* the picker is a convenience — a raw cid still works */
+        setUsers(
+          (d.contacts || [])
+            .slice()
+            .sort((a, b) => (a.name || "").localeCompare(b.name || "")),
+        );
+        setListErr("");
+      } catch (e) {
+        // The picker is a convenience — a raw cid still works — but the user
+        // is told the list is unavailable instead of being left guessing.
+        if (alive) {
+          setListErr(e?.message || t("engineering.permissions.liveCheckListFailed"));
+        }
       }
     })();
     return () => {
       alive = false;
     };
-  }, []);
+  }, [t]);
 
   const run = async () => {
     if (!cid.trim()) return;
@@ -116,6 +133,11 @@ export default function LiveCheckPanel() {
               </option>
             ))}
           </datalist>
+          {listErr && (
+            <span className="text-[9px] font-bold text-amber-400">
+              {t("engineering.permissions.liveCheckListFailed")}
+            </span>
+          )}
         </label>
 
         <label className="flex flex-col gap-1">

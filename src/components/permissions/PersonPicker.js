@@ -1,42 +1,68 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { RefreshCw, Search } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { defer, settled } from "./effectUtils";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 /**
- * PHASE UI-3e — the one person picker.
+ * PHASE UI-3e / UI-4a — the one person picker.
  *
  * Individual Access is a single screen (picker + the selected person's panels),
  * so the searchable list lives here instead of inside each lens: the write lens
- * and the read lens both receive the person this picks. Same endpoint and cache
- * as before (`/api/responsibilities/assign`), and the same `?cid=` deep-link
- * behaviour, which is what the Membership Control Center links rely on.
+ * and the read lens both receive the person this picks.
+ *
+ * Source of truth: /api/contacts — the same directory the Job-shortcuts screen
+ * uses. It used to call /api/responsibilities/assign without a `user_cid`, and
+ * that endpoint answers 400 "user_cid is required", so the list was always
+ * empty and the search box looked broken.
+ *
+ * Failure is stated, never silent: a refused or failed fetch shows the reason
+ * with a Retry, and an empty result says whether the directory is empty or the
+ * search simply matched nothing. The `?cid=` deep link still preselects, which
+ * is what the Membership Control Center links rely on.
  */
 export default function PersonPicker({ selectedCid = null, onSelect }) {
   const { t } = useI18n();
   const [users, setUsers] = useState([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
 
-  const loadUsers = useCallback(async () => {
-    try {
-      const url = "/api/responsibilities/assign";
-      const cached = cacheGet(url);
-      const d = cached?.success ? await settled(cached) : await (await fetch(url)).json();
-      if (d?.success) {
-        cacheSet(url, d);
-        setUsers(d.users || d.contacts || d.rows || []);
+  const loadUsers = useCallback(
+    async (bypassCache = false) => {
+      const url = "/api/contacts";
+      const apply = (data) => {
+        const sorted = (data.contacts || []).slice().sort((a, b) => {
+          if (a.status === "active" && b.status !== "active") return -1;
+          if (a.status !== "active" && b.status === "active") return 1;
+          return (a.name || "").localeCompare(b.name || "");
+        });
+        setUsers(sorted);
+      };
+      try {
+        // Cache-first paint, then converge on the network (the pattern used
+        // across the Permission Center).
+        if (!bypassCache) {
+          const cached = cacheGet(url);
+          if (cached?.success) apply(await settled(cached));
+        }
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data?.success) throw new Error(data?.error || `HTTP ${res.status}`);
+        cacheSet(url, data);
+        apply(data);
+        setErr("");
+      } catch (e) {
+        setErr(e?.message || t("engineering.permissions.peopleListFailed"));
+      } finally {
+        setLoading(false);
       }
-    } catch {
-      /* list optional */
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [t],
+  );
 
   useEffect(() => {
     defer(() => loadUsers());
@@ -75,8 +101,29 @@ export default function PersonPicker({ selectedCid = null, onSelect }) {
           className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40 font-bold text-xs"
         />
       </div>
+
       {loading ? (
         <Skeleton className="h-40" />
+      ) : err ? (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3 space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-red-400">
+            {t("engineering.permissions.peopleListFailed")}
+          </p>
+          <p className="text-[10px] font-medium text-[var(--text-secondary)] break-words">
+            {err}
+          </p>
+          <button
+            onClick={() => {
+              setErr("");
+              setLoading(true);
+              loadUsers(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+          >
+            <RefreshCw className="w-3 h-3" />
+            {t("common.refresh")}
+          </button>
+        </div>
       ) : (
         <div className="max-h-72 overflow-y-auto rounded-xl border border-[var(--border-primary)] divide-y divide-[var(--border-primary)]">
           {filtered.slice(0, 50).map((u) => (
@@ -99,7 +146,9 @@ export default function PersonPicker({ selectedCid = null, onSelect }) {
           ))}
           {filtered.length === 0 && (
             <p className="px-3 py-4 text-xs font-bold text-[var(--text-secondary)]">
-              {t("common.noResults")}
+              {users.length === 0
+                ? t("engineering.permissions.peopleListEmpty")
+                : t("common.noResults")}
             </p>
           )}
         </div>
