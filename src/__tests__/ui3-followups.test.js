@@ -45,9 +45,8 @@ describe("UI-3 — pending changes diff", () => {
 });
 
 describe("UI-3 — one pending-changes presentation", () => {
-  test("the profile editor and the defaults matrix both use the shared list", () => {
+  test("the template editor uses the shared pending-changes list", () => {
     expect(read(`${PERMS}PermissionCenter.js`)).toContain("PendingChangesList");
-    expect(read(`${PERMS}DefaultsMatrixView.js`)).toContain("PendingChangesList");
     expect(read(`${PERMS}ui/PendingChangesList.js`)).toContain("pendingLevelOff");
   });
 
@@ -90,7 +89,6 @@ describe("UI-3 — deferred effect writes", () => {
       `${PERMS}ContextRolesView.js`,
       `${PERMS}PeopleView.js`,
       `${PERMS}CatalogView.js`,
-      `${PERMS}DefaultsMatrixView.js`,
       `${PERMS}PermissionCenter.js`,
     ]) {
       expect(read(file)).toContain("effectUtils");

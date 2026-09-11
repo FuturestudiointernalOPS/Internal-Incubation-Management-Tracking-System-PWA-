@@ -33,8 +33,6 @@ import {
   ALL_FEATURE_ROLES,
 } from "@/lib/featureAccess";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
-import DefaultsMatrixView from "@/components/permissions/DefaultsMatrixView";
-import CatalogView from "@/components/permissions/CatalogView";
 import Badge from "@/components/permissions/ui/Badge";
 import StatCard from "@/components/permissions/ui/StatCard";
 import WhyDrawer from "@/components/permissions/ui/WhyDrawer";
@@ -42,7 +40,6 @@ import PendingChangesList from "@/components/permissions/ui/PendingChangesList";
 import { diffCapabilities } from "@/components/permissions/pendingChanges";
 import { splitAuditReason } from "@/components/permissions/auditHelpers";
 import { deriveProfileBadges } from "@/components/permissions/profileBadges";
-import { roleDefaultRows } from "@/components/permissions/matrixHelpers";
 import { defer } from "@/components/permissions/effectUtils";
 
 const ACCESS_LEVEL_KEYS = {
@@ -84,7 +81,6 @@ const MODULE_CATEGORIES = [
 
 export default function PermissionManager({
   initialTab = "search",
-  initialSection = "profiles",
   initialProfileId = null,
   cid = null,
 }) {
@@ -422,21 +418,7 @@ export default function PermissionManager({
     <>
       <div className="space-y-8 pb-20">
         {activeTab === "eligibility" && <EligibilityView />}
-        {activeTab === "setup" && (
-          <div className="space-y-4">
-            {/* The section is chosen by the shell's sub-tabs (?sub=…, owned by
-                the route page) — there is exactly ONE navigation per door. */}
-            {initialSection === "profiles" ? (
-              <AccessProfilesView initialProfileId={initialProfileId} />
-            ) : initialSection === "roles" ? (
-              <RoleDefaultsView />
-            ) : initialSection === "catalog" ? (
-              <CatalogView />
-            ) : (
-              <DefaultsMatrixView />
-            )}
-          </div>
-        )}
+        {activeTab === "setup" && <AccessProfilesView initialProfileId={initialProfileId} />}
         {activeTab === "search" && (
           <div className="space-y-6">
             {/* User Permission Panel */}
@@ -889,7 +871,6 @@ export default function PermissionManager({
         {activeTab === "responsibilities" && <ResponsibilitiesView />}
         {activeTab === "access" && <ResponsibilityAccessView />}
         {activeTab === "audit" && <AuditView />}
-        {activeTab === "catalog" && <CatalogView />}
         {whyTarget && (
           <CapabilityWhyModal
             userPerms={userPerms}
@@ -905,377 +886,11 @@ export default function PermissionManager({
   );
 }
 
-function RoleDefaultsView() {
-  const { t } = useI18n();
-  const [roleDefaults, setRoleDefaults] = useState({});
-  const [profiles, setProfiles] = useState([]);
-  const [roles, setRoles] = useState([]);
-  // Identities first, then every other configured role name (UI-4b): a stored
-  // default is never invisible just because its name is not an identity.
-  const roleRows = roleDefaultRows(roles, roleDefaults);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [roleDefaultData, setRoleDefaultData] = useState({
-    role_name: "",
-    profile_id: "",
-  });
-  const [formMsg, setFormMsg] = useState("");
-  const [formErr, setFormErr] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async (bypassCache = false) => {
-    const urls = [
-      "/api/access-profiles",
-      "/api/engineering/permissions/eligibility",
-    ];
-    const apply = (profilesData, eligData) => {
-      if (profilesData.success) {
-        setRoleDefaults(profilesData.roleDefaults || {});
-        setProfiles(profilesData.profiles || []);
-      }
-      if (eligData.success) setRoles(eligData.roles || []);
-    };
-    let painted = false;
-    try {
-      // Cache-first paint: returning to this tab renders instantly from fresh
-      // snapshots; the network refresh below converges.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1]);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const [profilesRes, eligRes] = await Promise.all([
-        fetch(urls[0]),
-        fetch(urls[1]),
-      ]);
-      const profilesData = await profilesRes.json();
-      const eligData = await eligRes.json();
-      if (profilesData.success) cacheSet(urls[0], profilesData);
-      if (eligData.success) cacheSet(urls[1], eligData);
-      apply(profilesData, eligData);
-    } catch (e) {
-      if (!painted) console.error("Failed to load role defaults:", e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    defer(() => load());
-  }, [load]);
-
-  const setRoleDefault = async () => {
-    if (!roleDefaultData.role_name || !roleDefaultData.profile_id || busy) return;
-    setBusy(true);
-    setFormMsg("");
-    setFormErr("");
-    try {
-      const res = await fetch("/api/access-profiles/role-defaults", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(roleDefaultData),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setFormMsg(t(data.message || "") || data.message);
-        setShowForm(false);
-        setRoleDefaultData({ role_name: "", profile_id: "" });
-        load(true);
-      } else {
-        setFormErr(t((data.error || t("engineering.permissions.failedToSetDefault")) || "") || (data.error || t("engineering.permissions.failedToSetDefault")));
-      }
-    } catch {
-      setFormErr(t("engineering.permissions.networkError"));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (loading)
-    return (
-      <div className="flex items-center justify-center py-10">
-        <div
-          className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
-          style={{
-            borderColor: "rgba(255,102,0,0.1)",
-            borderTopColor: "var(--brand-orange)",
-          }}
-        />
-      </div>
-    );
-
-  if (roles.length === 0) {
-    return (
-      <div className="py-10 text-center opacity-40">
-        <Shield className="w-12 h-12 text-slate-500 mx-auto mb-3" />
-        <p className="text-sm font-black text-[var(--text-primary)] uppercase">
-          {t("engineering.permissions.noDefaultsSeeded")}
-        </p>
-        <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-1">
-          {t("engineering.permissions.noDefaultsHint")}
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-[var(--text-secondary)]">
-          {t("engineering.permissions.defaultAccessHint")}
-        </p>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all"
-        >
-          {t("engineering.permissions.setRoleDefaultTitle")}
-        </button>
-      </div>
-
-      {formMsg && (
-        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-          <p className="text-[10px] font-bold text-emerald-400">{formMsg}</p>
-        </div>
-      )}
-      {formErr && (
-        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-          <p className="text-[10px] font-bold text-red-400">{formErr}</p>
-        </div>
-      )}
-
-      {/* Set Role Default form — connects a role to its default Access Profile */}
-      {showForm && (
-        <div className="ios-card !p-5 border-[var(--border-primary)] space-y-4">
-          <h4 className="text-[11px] font-bold text-[var(--brand-orange)] uppercase tracking-wide">
-            {t("engineering.permissions.setRoleDefaultTitle")}
-          </h4>
-          <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-            {t("engineering.permissions.roleDefaultHint")}
-          </p>
-          <div className="space-y-3">
-            <select
-              value={roleDefaultData.role_name}
-              onChange={(e) =>
-                setRoleDefaultData({
-                  ...roleDefaultData,
-                  role_name: e.target.value,
-                })
-              }
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
-            >
-              <option value="">{t("engineering.permissions.selectRole")}</option>
-              {roles.map((r) => (
-                <option key={r} value={r}>
-                  {r.replace(/_/g, " ")}
-                  {roleDefaults[r]
-                    ? t("engineering.permissions.currentSuffix", {
-                        name: roleDefaults[r].profileName,
-                      })
-                    : ""}
-                </option>
-              ))}
-            </select>
-            <select
-              value={roleDefaultData.profile_id}
-              onChange={(e) =>
-                setRoleDefaultData({
-                  ...roleDefaultData,
-                  profile_id: e.target.value,
-                })
-              }
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
-            >
-              <option value="">{t("engineering.permissions.selectProfile")}</option>
-              {profiles
-                .filter((p) => p.is_active)
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-            </select>
-            <div className="flex gap-2">
-              <button
-                onClick={setRoleDefault}
-                disabled={
-                  !roleDefaultData.role_name ||
-                  !roleDefaultData.profile_id ||
-                  busy
-                }
-                className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
-              >
-                {t("engineering.permissions.setDefault")}
-              </button>
-              <button
-                onClick={() => {
-                  setShowForm(false);
-                  setRoleDefaultData({ role_name: "", profile_id: "" });
-                }}
-                className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
-              >
-                {t("engineering.permissions.cancel")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Matrix view: roles × profiles — a cell marks the profile that is the
-          default for that role; click a cell to set/change the default.
-          Rows cover the identities AND every other configured role name (a
-          function such as developer or teacher), badged for what it is: a
-          stored default is never hidden just because it is not an identity. */}
-      <div className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden">
-        <div className="p-3 bg-secondary border-b border-[var(--border-primary)]">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
-            {t("engineering.permissions.roleDefaultsMatrixTitle")}
-          </p>
-          <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
-            {t("engineering.permissions.roleDefaultsMatrixHint")}
-          </p>
-        </div>
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-[var(--border-primary)]">
-                <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] sticky left-0 bg-secondary">
-                  {t("engineering.permissions.roleColumn")}
-                </th>
-                {profiles.map((p) => (
-                  <th
-                    key={p.id}
-                    className={`px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] whitespace-nowrap ${p.is_active ? "" : "opacity-40"}`}
-                  >
-                    {p.name}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {roleRows.map(({ name: role, isIdentity }) => {
-                const def = roleDefaults[role];
-                return (
-                  <tr
-                    key={role}
-                    className="border-b border-[var(--border-primary)] last:border-0"
-                  >
-                    <td className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)] sticky left-0 bg-secondary">
-                      {role}
-                      {!isIdentity && (
-                        <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-amber-400">
-                          {t("engineering.permissions.roleDefaultsNotIdentity")}
-                        </span>
-                      )}
-                    </td>
-                    {profiles.map((p) => {
-                      const isDefault = Boolean(
-                        def && String(def.profileId) === String(p.id),
-                      );
-                      const interactive = Boolean(p.is_active);
-                      return (
-                        <td
-                          key={p.id}
-                          className={`px-2 py-1.5 text-center ${interactive ? "" : "opacity-40"}`}
-                        >
-                          <button
-                            onClick={() => {
-                              setRoleDefaultData({
-                                role_name: role,
-                                profile_id: p.id,
-                              });
-                              setShowForm(true);
-                            }}
-                            disabled={!interactive}
-                            title={
-                              isDefault
-                                ? t("engineering.permissions.roleDefaultsCellDefault", { role })
-                                : t("engineering.permissions.roleDefaultsCellSet", { role })
-                            }
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
-                              isDefault
-                                ? "bg-teal-500/15 text-teal-400"
-                                : "bg-primary text-[var(--text-secondary)] opacity-50 hover:opacity-100 hover:text-[var(--text-primary)]"
-                            } ${interactive ? "" : "cursor-not-allowed"}`}
-                          >
-                            {isDefault ? "✓" : "—"}
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Small screens: one card per role, one chip per profile — the same
-            tap opens the same confirmation form. */}
-        <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
-          {roleRows.map(({ name: role, isIdentity }) => {
-            const def = roleDefaults[role];
-            return (
-              <div key={role} className="p-3 space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
-                  {role}
-                  {!isIdentity && (
-                    <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-amber-400">
-                      {t("engineering.permissions.roleDefaultsNotIdentity")}
-                    </span>
-                  )}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {profiles.map((p) => {
-                    const isDefault = Boolean(
-                      def && String(def.profileId) === String(p.id),
-                    );
-                    const interactive = Boolean(p.is_active);
-                    return (
-                      <button
-                        key={p.id}
-                        onClick={() => {
-                          setRoleDefaultData({ role_name: role, profile_id: p.id });
-                          setShowForm(true);
-                        }}
-                        disabled={!interactive}
-                        title={
-                          isDefault
-                            ? t("engineering.permissions.roleDefaultsCellDefault", { role })
-                            : t("engineering.permissions.roleDefaultsCellSet", { role })
-                        }
-                        className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all text-left ${
-                          isDefault
-                            ? "bg-teal-500/15 text-teal-400"
-                            : "bg-primary text-[var(--text-secondary)] opacity-50 hover:opacity-100 hover:text-[var(--text-primary)]"
-                        } ${interactive ? "" : "cursor-not-allowed opacity-40"}`}
-                      >
-                        <span className="block text-[9px] tracking-widest opacity-70">
-                          {p.name}
-                        </span>
-                        <span>{isDefault ? "✓" : "—"}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-        {t("engineering.permissions.defaultAccessHintTail")}
-      </p>
-    </div>
-  );
-}
-
 function AccessProfilesView({ initialProfileId = null }) {
   const { t } = useI18n();
   const [profiles, setProfiles] = useState([]);
   const [roleDefaults, setRoleDefaults] = useState({});
-  const [, setAllRoles] = useState([]);
+  const [allRoles, setAllRoles] = useState([]);
   const [eligibilityRows, setEligibilityRows] = useState([]); // feature_eligibility rows for role-based filtering
   const [moduleToFeature, setModuleToFeature] = useState({}); // capability module → feature key
   // The capability catalog (PERMISSION_MODULES) as served by /api/access-profiles
@@ -1302,6 +917,13 @@ function AccessProfilesView({ initialProfileId = null }) {
   // users this profile currently reaches (real count, from the impact API).
   const [reason, setReason] = useState("");
   const [impactTotal, setImpactTotal] = useState(null);
+  // "Default for" — which kinds of person receive this template. This was the
+  // Role → Profile screen; it belongs on the template it changes, one click
+  // from the contents it affects. Same endpoint, no new authority.
+  const [defaultRoleChoice, setDefaultRoleChoice] = useState("");
+  const [defaultRoleMsg, setDefaultRoleMsg] = useState("");
+  const [defaultRoleErr, setDefaultRoleErr] = useState("");
+  const [defaultRoleBusy, setDefaultRoleBusy] = useState(false);
 
   const fetchProfiles = useCallback(async (bypassCache = false) => {
     const urls = [
@@ -1518,6 +1140,44 @@ function AccessProfilesView({ initialProfileId = null }) {
       }
     } catch {
       setActionError(t("engineering.permissions.networkError"));
+    }
+  };
+
+  // ── "Default for" assignment (the retired Role → Profile screen). ──
+  const assignRoleDefault = async () => {
+    if (!selectedProfile?.id || !defaultRoleChoice) return;
+    setDefaultRoleBusy(true);
+    setDefaultRoleMsg("");
+    setDefaultRoleErr("");
+    try {
+      const res = await fetch("/api/access-profiles/role-defaults", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role_name: defaultRoleChoice,
+          profile_id: selectedProfile.id,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDefaultRoleMsg(
+          t("engineering.permissions.defaultForSetMsg", {
+            name: selectedProfile.name,
+            role: defaultRoleChoice,
+          }),
+        );
+        setDefaultRoleChoice("");
+        fetchProfiles(true);
+      } else {
+        setDefaultRoleErr(
+          t((data.error || t("engineering.permissions.failedToUpdate")) || "") ||
+            (data.error || t("engineering.permissions.failedToUpdate")),
+        );
+      }
+    } catch {
+      setDefaultRoleErr(t("engineering.permissions.networkError"));
+    } finally {
+      setDefaultRoleBusy(false);
     }
   };
 
@@ -1904,18 +1564,63 @@ function AccessProfilesView({ initialProfileId = null }) {
                 </span>
               </div>
 
-              {selectedIsDefaultFor.length > 0 && (
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
-                  <p className="text-[10px] font-bold text-amber-400">
-                    {t("engineering.permissions.profileInUseWarning", {
-                      roles: selectedIsDefaultFor.join(", "),
-                    })}
-                  </p>
-                  <p className="text-[10px] font-bold text-amber-400/70 mt-0.5">
-                    {t("engineering.permissions.profileChangeAffectsUsers")}
-                  </p>
+              {/* Default for — which kinds of person receive this template. */}
+              <div className="rounded-xl border border-[var(--border-primary)] bg-secondary/40 p-3 space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                  {t("engineering.permissions.defaultForTitle")}
+                </p>
+                <p className="text-[10px] font-bold text-[var(--text-primary)]">
+                  {selectedIsDefaultFor.length > 0
+                    ? selectedIsDefaultFor.join(", ")
+                    : t("engineering.permissions.defaultForNone")}
+                </p>
+                {selectedIsDefaultFor.length > 0 && (
+                  <>
+                    <p className="text-[10px] font-bold text-amber-400">
+                      {t("engineering.permissions.profileInUseWarning", {
+                        roles: selectedIsDefaultFor.join(", "),
+                      })}
+                    </p>
+                    <p className="text-[10px] font-bold text-amber-400/70">
+                      {t("engineering.permissions.profileChangeAffectsUsers")}
+                    </p>
+                  </>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={defaultRoleChoice}
+                    onChange={(e) => setDefaultRoleChoice(e.target.value)}
+                    aria-label={t("engineering.permissions.defaultForTitle")}
+                    className="bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+                  >
+                    <option value="">
+                      {t("engineering.permissions.defaultForPick")}
+                    </option>
+                    {(allRoles || [])
+                      .filter((r) => !selectedIsDefaultFor.includes(r))
+                      .map((r) => (
+                        <option key={r} value={r}>
+                          {r.replace(/_/g, " ")}
+                        </option>
+                      ))}
+                  </select>
+                  <button
+                    onClick={assignRoleDefault}
+                    disabled={!defaultRoleChoice || defaultRoleBusy}
+                    className="px-3 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                  >
+                    {t("engineering.permissions.defaultForSet")}
+                  </button>
                 </div>
-              )}
+                {defaultRoleMsg && (
+                  <p className="text-[10px] font-bold text-emerald-400">
+                    {defaultRoleMsg}
+                  </p>
+                )}
+                {defaultRoleErr && (
+                  <p className="text-[10px] font-bold text-red-400">{defaultRoleErr}</p>
+                )}
+              </div>
 
               <div className="sticky bottom-4 z-20 rounded-xl border border-[var(--border-primary)] bg-surface-1 p-3 space-y-2 shadow-lg">
                 {impactTotal !== null && impactTotal > 0 && (

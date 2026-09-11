@@ -19,11 +19,11 @@ import { PERMISSION_BASE } from "@/components/permissions/permissionNav";
  * Nothing is rendered here; the shell is never mounted on this path.
  */
 const TARGET_BY_SUB = {
-  catalog: `${PERMISSION_BASE}/profiles?sub=catalog`,
+  catalog: `${PERMISSION_BASE}/eligibility?sub=ceilings`,
   responsibilities: `${PERMISSION_BASE}/people?sub=jobs`,
   access: `${PERMISSION_BASE}/eligibility?sub=warnings`,
   governance: `${PERMISSION_BASE}/context-scope?sub=memberships`,
-  eligibility: `${PERMISSION_BASE}/profiles?sub=catalog`,
+  eligibility: `${PERMISSION_BASE}/eligibility?sub=ceilings`,
 };
 
 export default function PermissionGovernanceRedirectPage() {

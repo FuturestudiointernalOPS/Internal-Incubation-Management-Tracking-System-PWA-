@@ -14,8 +14,6 @@
 const fs = require("fs");
 const path = require("path");
 
-const { roleDefaultRows } = require("@/components/permissions/matrixHelpers");
-
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
 
@@ -44,53 +42,29 @@ describe("UI-4b — the editor reads the server catalog", () => {
     expect(src).toContain("moduleCatalog && visibleModules.length === 0");
   });
 
-  test("the Role → Profile grid shows stored defaults outside the identity list", () => {
-    expect(src).toContain("roleDefaultRows(");
-    expect(src).toContain("roleDefaultsNotIdentity");
-  });
-});
-
-describe("UI-4b — roleDefaultRows", () => {
-  test("identities keep their order, extras follow alphabetically", () => {
-    const rows = roleDefaultRows(
-      ["super_admin", "staff", "member"],
-      { member: 1, teacher: 2, developer: 3, admin: 4 },
-    );
-    expect(rows).toEqual([
-      { name: "super_admin", isIdentity: true },
-      { name: "staff", isIdentity: true },
-      { name: "member", isIdentity: true },
-      { name: "admin", isIdentity: false },
-      { name: "developer", isIdentity: false },
-      { name: "teacher", isIdentity: false },
-    ]);
-  });
-
-  test("an identity with a default is not duplicated as an extra", () => {
-    const rows = roleDefaultRows(["staff"], { staff: 7 });
-    expect(rows).toEqual([{ name: "staff", isIdentity: true }]);
-  });
-
-  test("nothing configured means nothing extra is invented", () => {
-    expect(roleDefaultRows(["staff"], {})).toEqual([{ name: "staff", isIdentity: true }]);
-  });
-
-  test("empty and malformed input is safe", () => {
-    expect(roleDefaultRows()).toEqual([]);
-    expect(roleDefaultRows(null, null)).toEqual([]);
-    expect(roleDefaultRows(undefined, { teacher: 1 })).toEqual([
-      { name: "teacher", isIdentity: false },
-    ]);
+  test("the 'Default for' control replaces the retired Role → Profile grid", () => {
+    // The same guarantee the grid carried: every stored role default is visible
+    // on the template that receives it, including names outside the identity
+    // list (selectedIsDefaultFor is read from the unfiltered map).
+    expect(src).toContain("defaultForTitle");
+    expect(src).toContain("assignRoleDefault");
+    expect(src).toContain("/api/access-profiles/role-defaults");
+    expect(src).toContain("selectedIsDefaultFor");
   });
 });
 
 describe("UI-4b — the tabs say what they map", () => {
   const keys = [
-    "engineering.permissions.tabAccessProfiles",
-    "engineering.permissions.tabRoleDefaults",
-    "engineering.permissions.tabDefaultsMatrix",
-    "engineering.permissions.tabCatalog",
-    "engineering.permissions.roleDefaultsNotIdentity",
+    "engineering.permissions.navPeople",
+    "engineering.permissions.navTemplates",
+    "engineering.permissions.navRules",
+    "engineering.permissions.navWhereItApplies",
+    "engineering.permissions.navHistory",
+    "engineering.permissions.questionPeople",
+    "engineering.permissions.questionTemplates",
+    "engineering.permissions.questionRules",
+    "engineering.permissions.questionWhere",
+    "engineering.permissions.questionHistory",
     "engineering.permissions.catalogUnavailable",
   ];
 
@@ -99,14 +73,8 @@ describe("UI-4b — the tabs say what they map", () => {
     expect(typeof resolveKey(FR, key)).toBe("string");
   });
 
-  test("the four profile tabs are distinguishable at a glance", () => {
-    const label = (key) => resolveKey(EN, key);
-    const labels = [
-      "engineering.permissions.tabAccessProfiles",
-      "engineering.permissions.tabRoleDefaults",
-      "engineering.permissions.tabDefaultsMatrix",
-      "engineering.permissions.tabCatalog",
-    ].map(label);
+  test("the five tab labels are distinguishable at a glance", () => {
+    const labels = keys.slice(0, 5).map((key) => resolveKey(EN, key));
     expect(new Set(labels).size).toBe(labels.length);
   });
 });

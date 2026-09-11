@@ -201,11 +201,9 @@ describe("UI-4c — the screens use them", () => {
     expect(src).toContain("peopleContextsPartial");
   });
 
-  test("both matrices label context roles as such", () => {
+  test("the eligibility matrix labels context roles as such", () => {
     const center = read("src/components/permissions/PermissionCenter.js");
-    const matrix = read("src/components/permissions/DefaultsMatrixView.js");
     expect(center).toContain("contextRoleTag");
-    expect(matrix).toContain("contextRoleTag");
   });
 
   test("every new string exists in English and French", () => {

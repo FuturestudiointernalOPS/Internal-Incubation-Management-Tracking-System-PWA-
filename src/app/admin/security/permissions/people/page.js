@@ -6,6 +6,7 @@ import PermissionManager from "@/components/permissions/PermissionCenter";
 import IndividualAccessScreen from "@/components/permissions/IndividualAccessScreen";
 import { defer } from "@/components/permissions/effectUtils";
 import { PERMISSION_PEOPLE_SUB_ALIASES } from "@/components/permissions/permissionNav";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * PHASE UI-1/UI-2b/UI-3e — Individual Access.
@@ -22,6 +23,7 @@ import { PERMISSION_PEOPLE_SUB_ALIASES } from "@/components/permissions/permissi
  * `access` so old bookmarks land on the merged screen instead of a blank one.
  */
 export default function PermissionPeoplePage() {
+  const { t } = useI18n();
   const [sub, setSub] = useSubTab("access");
   const canonical = PERMISSION_PEOPLE_SUB_ALIASES[sub] || sub;
 
@@ -31,6 +33,9 @@ export default function PermissionPeoplePage() {
 
   return (
     <PermissionShell active="people" sub={canonical} onSubChange={setSub}>
+      <p className="mb-4 text-xs font-medium text-[var(--text-secondary)]">
+        {t("engineering.permissions.questionPeople")}
+      </p>
       {canonical === "jobs" ? (
         <PermissionManager initialTab="responsibilities" />
       ) : (
