@@ -62,6 +62,17 @@
     "allPrograms": "All Programs",
     "due": "Due:",
     "project": "Project:",
+    "dashboardContexts": {
+      "title": "What you are part of",
+      "count": "{count}",
+      "enrolled": "Enrolled",
+      "open": "Open",
+      "programsManaged": "My programs",
+      "programsParticipating": "Programs I'm in",
+      "venturesAssigned": "My ventures",
+      "venturesMember": "Ventures I'm part of",
+      "learning": "My learning"
+    },
     "workspaces": {
       "title": "My Workspaces",
       "subtitle": "Programs and modules assigned to you.",

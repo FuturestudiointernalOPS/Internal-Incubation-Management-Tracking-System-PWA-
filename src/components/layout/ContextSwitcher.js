@@ -74,14 +74,10 @@ export default function ContextSwitcher() {
     })),
   ];
   const programItems = [
-    ...(ctx?.program_assignments || []).map((a) => ({
-      key: `assign-${a.program_id}-${a.role}`,
-      title: a.program_name || a.program_id,
-      labelKey: roleLabelKey(a.role || a.title),
-      href: a.href,
-      type: "program_assignment",
-      contextId: a.program_id,
-    })),
+    // NOTE: program ASSIGNMENTS (staff work inside a program) are deliberately
+    // NOT switcher items — they are the staff surface's own work and appear as
+    // stat cards on the dashboard. The switcher is for moving between genuinely
+    // different surfaces, never between contexts of the same one.
     ...(ctx?.program_participations || []).map((p) => ({
       key: `part-${p.program_id}`,
       title: p.program_name || p.program_id,

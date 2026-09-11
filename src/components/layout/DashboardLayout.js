@@ -1523,32 +1523,6 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       const respNav = attachIcons(
         buildNavFromResponsibilities(respKeys, activeRole),
       );
-      // Staff Venture console (Phase 3): personal home + ventures appear only
-      // when the staff member holds at least one active Venture assignment.
-      if (
-        ["staff", "program_manager"].includes(activeRole) &&
-        typeof ventureAssignCount === "number" &&
-        ventureAssignCount > 0
-      ) {
-        const dashIndex = respNav.findIndex((i) => i.id === "dashboard");
-        const insertAt = dashIndex === -1 ? 0 : dashIndex + 1;
-        if (!respNav.some((i) => i.id === "personal_home")) {
-          respNav.splice(insertAt, 0, {
-            id: "personal_home",
-            name: "MY DASHBOARD",
-            icon: LayoutDashboard,
-            href: "/staff/me",
-          });
-        }
-        if (!respNav.some((i) => i.id === "ventures")) {
-          respNav.splice(insertAt + 1, 0, {
-            id: "ventures",
-            name: "MY VENTURES",
-            icon: Rocket,
-            href: "/staff/ventures",
-          });
-        }
-      }
       return gateMyLearning(respNav);
     }
 
@@ -1597,30 +1571,12 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     // Currently applies to staff (incl. PM-as-staff); other roles pass through.
     const projected = projectNavForCapabilities(base, effectiveCaps, activeRole);
     const itemsFinal = attachIcons(projected);
-    // Staff Venture console (Phase 3): appears only when the staff member has
-    // at least one active Venture assignment — delegated access, never global.
-    if (
-      ["staff", "program_manager"].includes(activeRole) &&
-      typeof ventureAssignCount === "number" &&
-      ventureAssignCount > 0
-    ) {
-      const dashIndex = itemsFinal.findIndex((i) => i.id === "dashboard");
-      const insertAt = dashIndex === -1 ? 0 : dashIndex + 1;
-      if (!itemsFinal.some((i) => i.id === "personal_home")) {
-        itemsFinal.splice(insertAt, 0, {
-          id: "personal_home",
-          name: "MY DASHBOARD",
-          icon: LayoutDashboard,
-          href: "/staff/me",
-        });
-      }
-      itemsFinal.splice(insertAt + 1, 0, {
-        id: "ventures",
-        name: "MY VENTURES",
-        icon: Rocket,
-        href: "/staff/ventures",
-      });
-    }
+    // ONE DASHBOARD: no extra top-level entries are injected for staff
+    // assignments. "My Dashboard" and "MY VENTURES" used to be inserted here,
+    // which made one account look like it had three dashboards; the dashboard
+    // now owns the calendar and the contexts are added to it as stat cards
+    // (see components/dashboard/ContextCardsPanel.js). The console pages stay
+    // reachable from those cards, not from the sidebar.
     // "My Learning" is hidden for participants who have no course enrollment.
     return gateMyLearning(itemsFinal);
   }, [
