@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Route } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 
 /**
@@ -12,6 +13,7 @@ import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 export default function VentureJourneyPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { t } = useI18n();
   const [venture, setVenture] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -38,12 +40,12 @@ export default function VentureJourneyPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+    <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <button
         onClick={() => router.push(`/admin/ventures/${id}`)}
         className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
       >
-        <ArrowLeft className="w-3 h-3" /> Back to {venture?.company_name || "Venture"}
+        <ArrowLeft className="w-3 h-3" /> {t("vadmin.journey.backToVenture", { name: venture?.company_name || t("vadmin.dashboard.venture") })}
       </button>
 
       <div className="card">
@@ -52,9 +54,9 @@ export default function VentureJourneyPage() {
             <Route className="w-6 h-6 text-[var(--brand-orange)]" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-[var(--text-primary)]">Venture Journey</h1>
+            <h1 className="text-xl font-black text-[var(--text-primary)]">{t("vadmin.journey.title")}</h1>
             <p className="text-[10px] text-slate-500 mt-0.5">
-              {venture?.company_name} · {venture?.venture_id} — staff-defined operating path shown to the Venture
+              {t("vadmin.journey.subtitle", { company: venture?.company_name, code: venture?.venture_id })}
             </p>
           </div>
         </div>

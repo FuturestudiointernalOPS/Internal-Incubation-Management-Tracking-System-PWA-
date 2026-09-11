@@ -33,8 +33,8 @@ describe("ensureJourneyTable", () => {
     db.execute.mockResolvedValue({ rows: [] });
     await ensureJourneyTable(db);
 
-    expect(db.execute).toHaveBeenCalledTimes(6); // CREATE + 5 ALTERs (objective, target_date, is_archived, archived_at, archived_by)
-    const [create, alterObjective, alterDate, alterArchived, alterArchivedAt, alterArchivedBy] = db.execute.mock.calls.map((c) => c[0].sql);
+    expect(db.execute).toHaveBeenCalledTimes(8); // CREATE + 7 ALTERs (objective, target_date, archive ×3, template provenance ×2)
+    const [create, alterObjective, alterDate, alterArchived, alterArchivedAt, alterArchivedBy, alterSourceType, alterSourceId] = db.execute.mock.calls.map((c) => c[0].sql);
     expect(create).toContain("CREATE TABLE IF NOT EXISTS venture_journey_stages");
     expect(alterObjective).toContain("ADD COLUMN IF NOT EXISTS objective");
     expect(alterDate).toContain("ADD COLUMN IF NOT EXISTS target_date");
@@ -42,6 +42,9 @@ describe("ensureJourneyTable", () => {
     expect(alterArchived).toContain("ADD COLUMN IF NOT EXISTS is_archived");
     expect(alterArchivedAt).toContain("ADD COLUMN IF NOT EXISTS archived_at");
     expect(alterArchivedBy).toContain("ADD COLUMN IF NOT EXISTS archived_by");
+    // Template provenance columns — which reusable template generated a stage.
+    expect(alterSourceType).toContain("ADD COLUMN IF NOT EXISTS source_template_type");
+    expect(alterSourceId).toContain("ADD COLUMN IF NOT EXISTS source_template_id");
     // Structural only — no INSERTs of a standard curriculum.
     expect(create).not.toContain("INSERT INTO");
   });

@@ -359,7 +359,54 @@
       "irTasks": "Tasks",
       "irDeliverables": "Approved deliverables",
       "irMilestonesDone": "milestones done",
-      "irTasksDone": "tasks done"
+      "irTasksDone": "tasks done",
+      "title": "Venture Journey",
+      "stagesCount": "{count} stages",
+      "intro": "Define the journey this Venture actually needs — it is not a fixed curriculum. Members see only the published stages (name, description, objective, target date, status).",
+      "fromTemplate": "From Template",
+      "generateFromTemplate": "Generate the journey from a reusable template",
+      "selectTemplate": "Select a template…",
+      "journeyTplOption": "{name} ({count} stages · journey template)",
+      "planTplOption": "{name} ({count} sections · operating-plan template)",
+      "generate": "Generate",
+      "addStage": "Add Stage",
+      "stageNamePlaceholder": "Stage name — e.g. Due Diligence, Go-To-Market Readiness",
+      "stageDescPlaceholder": "What this stage is (shown to the Venture)",
+      "stageObjectivePlaceholder": "Objective / expected outcome (optional)",
+      "noStages": "No journey defined yet",
+      "noStagesDesc": "Add stages for this Venture or generate the journey from a reusable template. The Venture will see an empty state until you publish stages.",
+      "milestones": "Milestones",
+      "noMilestones": "No milestones yet",
+      "objective": "Objective",
+      "targetDate": "Target: {date}",
+      "completedOn": "Completed {date}",
+      "sourceFrom": "Generated from template",
+      "sourceTypeJourney": "Journey template",
+      "sourceTypePlan": "Operating-plan template",
+      "editStage": "Edit stage",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "activateStage": "Activate (current stage)",
+      "markCompleted": "Mark completed",
+      "lockStage": "Lock stage",
+      "reopenStage": "Reopen from this stage",
+      "deleteStage": "Delete stage",
+      "deleteStageConfirm": "Delete stage \"{name}\"? This does not delete Venture data — only the journey stage.",
+      "stageAdded": "Stage added. It stays locked until you activate it.",
+      "addFailed": "Add failed.",
+      "actionFailed": "Action failed.",
+      "stageUpdated": "Stage updated.",
+      "journeyGeneratedPlan": "Journey generated from template — structure only (no Venture data).",
+      "applyFailed": "Apply failed.",
+      "stageDeleted": "Stage deleted.",
+      "milestoneStatuses": {
+        "locked": "Locked",
+        "not_started": "Not started",
+        "in_progress": "In progress",
+        "under_review": "Under review",
+        "changes_requested": "Changes requested",
+        "completed": "Completed"
+      }
     },
     "personal": {
       "title": "My Dashboard",
@@ -386,7 +433,8 @@
     "staffAssign": {
       "searchPlaceholder": "Search Future Studio staff by name or email…",
       "noStaffFound": "No Future Studio staff match this search."
-    },    "coach": {
+    },
+    "coach": {
       "mySessionsBadge": "Coached by you",
       "reportAction": "Session report",
       "reportNotes": "Session notes",
@@ -396,7 +444,8 @@
       "reportLoadError": "Could not load the session report.",
       "reportSaveError": "Could not save your note.",
       "contextTask": "Task"
-    },    "history": {
+    },
+    "history": {
       "title": "Venture History",
       "subtitle": "Institutional memory — everything recorded about this Venture, in one place.",
       "events": "Events",

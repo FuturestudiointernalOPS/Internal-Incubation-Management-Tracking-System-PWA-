@@ -1192,6 +1192,19 @@ function AccessProfilesView({ initialProfileId = null }) {
     (draftCaps[mod]?.[cap] ?? 0) !== (savedCaps[mod]?.[cap] ?? 0);
 
   const setDraftLevel = (mod, cap, level) => {
+    // View is the base capability: it cannot be removed while another
+    // capability in the same module stays enabled (mirrors the server-side
+    // normalization in /api/access-profiles).
+    if (cap === "view" && level === 0) {
+      const othersActive = Object.entries(draftCaps[mod] || {}).some(
+        ([c, lvl]) => c !== "view" && Number(lvl) > 0,
+      );
+      if (othersActive) {
+        setActionError(t("engineering.permissions.viewRequiredMsg"));
+        return;
+      }
+    }
+    setActionError("");
     setDraftCaps((prev) => {
       const next = { ...prev, [mod]: { ...(prev[mod] || {}) } };
       next[mod][cap] = level;
@@ -1703,6 +1716,12 @@ function AccessProfilesView({ initialProfileId = null }) {
                 </div>
               )}
 
+              {moduleCatalog && visibleModules.length > 0 && (
+                <p className="text-[10px] font-medium text-[var(--text-secondary)]">
+                  {t("engineering.permissions.viewBaseHint")}
+                </p>
+              )}
+
               <div className="space-y-4">
                 {visibleModules.map(([modKey, mod]) => {
                   const moduleChanged = mod.capabilities.some((cap) =>
@@ -1744,6 +1763,11 @@ function AccessProfilesView({ initialProfileId = null }) {
                             {mod.capabilities.map((cap) => {
                               const level = getDraftLevel(modKey, cap);
                               const changed = isChanged(modKey, cap);
+                              const viewLocked =
+                                cap === "view" &&
+                                Object.entries(draftCaps[modKey] || {}).some(
+                                  ([c, lvl]) => c !== "view" && Number(lvl) > 0,
+                                );
                               return (
                                 <tr
                                   key={cap}
@@ -1761,8 +1785,13 @@ function AccessProfilesView({ initialProfileId = null }) {
                                     <td key={l} className="px-1 py-1.5 text-center">
                                       <button
                                         onClick={() => setDraftLevel(modKey, cap, l)}
-                                        title={`${capabilityLabel(modKey, cap)} → ${l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}`}
-                                        className={`w-8 h-8 rounded-lg border text-[10px] font-bold transition-all ${
+                                        disabled={viewLocked && l === 0}
+                                        title={
+                                          viewLocked && l === 0
+                                            ? t("engineering.permissions.viewRequiredMsg")
+                                            : `${capabilityLabel(modKey, cap)} → ${l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}`
+                                        }
+                                        className={`w-8 h-8 rounded-lg border text-[10px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
                                           level === l
                                             ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
                                             : "bg-secondary border-[var(--border-primary)] text-slate-500 hover:border-[var(--brand-orange)]/40 hover:text-[var(--text-primary)]"
@@ -1785,6 +1814,11 @@ function AccessProfilesView({ initialProfileId = null }) {
                         {mod.capabilities.map((cap) => {
                           const level = getDraftLevel(modKey, cap);
                           const changed = isChanged(modKey, cap);
+                          const viewLocked =
+                            cap === "view" &&
+                            Object.entries(draftCaps[modKey] || {}).some(
+                              ([c, lvl]) => c !== "view" && Number(lvl) > 0,
+                            );
                           return (
                             <div
                               key={cap}
@@ -1803,8 +1837,13 @@ function AccessProfilesView({ initialProfileId = null }) {
                                   <button
                                     key={l}
                                     onClick={() => setDraftLevel(modKey, cap, l)}
-                                    title={`${capabilityLabel(modKey, cap)} → ${l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}`}
-                                    className={`min-w-[3rem] h-10 px-2 rounded-lg border text-[10px] font-bold transition-all ${
+                                    disabled={viewLocked && l === 0}
+                                    title={
+                                      viewLocked && l === 0
+                                        ? t("engineering.permissions.viewRequiredMsg")
+                                        : `${capabilityLabel(modKey, cap)} → ${l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}`
+                                    }
+                                    className={`min-w-[3rem] h-10 px-2 rounded-lg border text-[10px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
                                       level === l
                                         ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
                                         : "bg-secondary border-[var(--border-primary)] text-slate-500 hover:border-[var(--brand-orange)]/40 hover:text-[var(--text-primary)]"

@@ -149,7 +149,7 @@ export default function VentureCoachesPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <button onClick={()=>router.push(`/admin/ventures/${id}/dashboard`)}
+            <button onClick={()=>router.push(`/admin/ventures/${id}`)}
               className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
               <ArrowLeft className="w-3 h-3" /> {t("vadmin.coaches.backToDashboard")}
             </button>

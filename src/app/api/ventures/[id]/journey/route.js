@@ -97,6 +97,24 @@ export async function GET(req, { params }) {
       const key = String(m.journey_stage_id);
       (milestonesByStage[key] = milestonesByStage[key] || []).push(m);
     }
+
+    // Template provenance: stages generated from a reusable template carry a
+    // (type, id) stamp — resolve the current template name for the UI banner.
+    const stamped = stages.find((s) => s.source_template_id);
+    let templateSource = null;
+    if (stamped && stamped.source_template_id) {
+      const srcType = stamped.source_template_type === "journey" ? "journey" : "plan";
+      const table = srcType === "journey" ? "venture_journey_templates" : "venture_plan_templates";
+      try {
+        const tplRes = await db.execute({
+          sql: `SELECT name FROM ${table} WHERE id = ?`,
+          args: [stamped.source_template_id],
+        }).catch(() => ({ rows: [] }));
+        const tpl = tplRes.rows?.[0];
+        if (tpl) templateSource = { type: srcType, id: stamped.source_template_id, name: tpl.name || null };
+      } catch (_) {}
+    }
+
     for (const stage of stages) {
       const list = milestonesByStage[stage.id] || [];
       stage.milestones = list;
@@ -104,6 +122,9 @@ export async function GET(req, { params }) {
         total: list.length,
         completed: list.filter((m) => m.status === "completed").length,
       };
+      // Provenance is surfaced once at the top level — never per-stage.
+      delete stage.source_template_type;
+      delete stage.source_template_id;
     }
 
     // Guided experience (Vinance 3 — Phase 2): non-staff viewers (founders /
@@ -132,10 +153,11 @@ export async function GET(req, { params }) {
         stages: visibleStages,
         access,
         guided: true,
+        template_source: templateSource,
       });
     }
 
-    return NextResponse.json({ success: true, stages, access });
+    return NextResponse.json({ success: true, stages, access, template_source: templateSource });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }
