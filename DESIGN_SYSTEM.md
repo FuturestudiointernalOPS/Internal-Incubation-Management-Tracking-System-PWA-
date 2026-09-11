@@ -138,6 +138,7 @@ All located in `src/components/ui/`. Import them directly:
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import AppModal from "@/components/ui/AppModal";
+import AppMenu from "@/components/ui/AppMenu";
 import AppTabs from "@/components/ui/AppTabs";
 
 // Forms
@@ -295,6 +296,7 @@ src/
 │       ├── AppEmptyState.js     ← Empty/placeholder state (sm/md/lg)
 │       ├── AppInput.js
 │       ├── AppModal.js
+│       ├── AppMenu.js           ← Row-action menu (⋯) — grouped items, danger items
 │       ├── AppPagination.js     ← Pagination with page numbers or compact
 │       ├── AppSelect.js
 │       ├── AppStatusBadge.js    ← Status badge using shared STATUS_CONFIG

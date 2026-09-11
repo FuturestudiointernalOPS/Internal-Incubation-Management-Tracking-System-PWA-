@@ -23,8 +23,12 @@ import {
   Lock,
   Play,
   StickyNote,
+  Flag,
+  Upload,
 } from "lucide-react";
 import ScopedNotes from "@/components/ventures/ScopedNotes";
+import AppModal from "@/components/ui/AppModal";
+import AppMenu from "@/components/ui/AppMenu";
 
 /**
  * JourneyManagerPanel — staff instrument for a Venture's Journey.
@@ -48,7 +52,7 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [toast, setToast] = useState(null);
 
   const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "", objective: "", target_date: "" });
+  const [form, setForm] = useState({ name: "", description: "", objective: "" });
   const [saving, setSaving] = useState(false);
 
   const [applyOpen, setApplyOpen] = useState(false);
@@ -66,6 +70,30 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [viewArchived, setViewArchived] = useState(false);
   const [selectedStageIds, setSelectedStageIds] = useState(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  // In-app confirmation flow (no browser dialogs): step 1 asks, step 2 is the
+  // final confirmation for archive/delete; restore asks once.
+  const [confirmState, setConfirmState] = useState(null);
+
+  // Milestones inside a journey (Phase 1): add/edit/reorder/archive. The
+  // structure controls are shown only when the server says the viewer is the
+  // Lead Manager or a Super Admin (milestone_authority on the journey read).
+  const [milestoneAuthority, setMilestoneAuthority] = useState(false);
+  const [msAddFor, setMsAddFor] = useState(null);
+  const [msForm, setMsForm] = useState({ title: "", description: "", objective: "", target_date: "", priority: "medium" });
+  const [msSaving, setMsSaving] = useState(false);
+  const [msEditId, setMsEditId] = useState(null);
+  const [msEditForm, setMsEditForm] = useState({});
+  const [msBusy, setMsBusy] = useState(null);
+
+  // Deliverables (evidence) attached to a milestone: add/edit (Lead Manager /
+  // Super Admin), submit evidence, approve / request changes.
+  const [dvAddFor, setDvAddFor] = useState(null);
+  const [dvAction, setDvAction] = useState(null); // { id, mode: edit|submit|review }
+  const [dvForm, setDvForm] = useState({ title: "", description: "", deliverable_type: "document", due_date: "" });
+  const [dvText, setDvText] = useState("");
+  const [dvFile, setDvFile] = useState(null);
+  const [dvSaving, setDvSaving] = useState(false);
+  const [dvBusy, setDvBusy] = useState(null);
 
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -85,6 +113,7 @@ export default function JourneyManagerPanel({ ventureId }) {
         setStages(d.stages || []);
         setAccess(d.access || {});
         setTemplateSource(d.template_source || null);
+        setMilestoneAuthority(Boolean(d.milestone_authority));
       }
     } catch (e) {
       console.error("Failed to load journey:", e);
@@ -133,7 +162,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       const d = await res.json();
       if (d.success) {
         notify(t("venture.manager.stageAdded"));
-        setForm({ name: "", description: "", objective: "", target_date: "" });
+        setForm({ name: "", description: "", objective: "" });
         setAddOpen(false);
         setStages(d.stages || []);
       } else {
@@ -199,7 +228,6 @@ export default function JourneyManagerPanel({ ventureId }) {
       name: stage.name || "",
       description: stage.description || "",
       objective: stage.objective || "",
-      target_date: stage.target_date ? String(stage.target_date).slice(0, 10) : "",
     });
   };
 
@@ -321,50 +349,421 @@ export default function JourneyManagerPanel({ ventureId }) {
     setBulkBusy(false);
   };
 
-  // Double confirmation: a second explicit "are you sure" is always required
-  // for archiving or deleting journeys.
-  const confirmTwice = (first, second) => window.confirm(first) && window.confirm(second);
-
+  // Destructive journey actions always go through an in-app confirmation
+  // modal. Archive/delete need TWO explicit steps; restore needs one.
   const selectedActiveIds = () =>
     activeStages.filter((s) => selectedStageIds.has(String(s.id))).map((s) => String(s.id));
 
-  const archiveSelectedJourneys = () => {
+  const askArchiveSelected = () => {
     const ids = selectedActiveIds();
-    if (!ids.length) return;
-    if (!confirmTwice(
-      t("venture.manager.archiveJourneysConfirm", { n: ids.length }),
-      t("venture.manager.archiveJourneysConfirm2"),
-    )) return;
-    runBulk({ ids, action: "archive", endpoint: "archive" });
+    if (ids.length) setConfirmState({ kind: "archive", ids, n: ids.length, step: 1 });
   };
 
-  const deleteSelectedJourneys = () => {
+  const askDeleteSelected = () => {
     const ids = selectedActiveIds();
-    if (!ids.length) return;
-    if (!confirmTwice(
-      t("venture.manager.deleteJourneysConfirm", { n: ids.length }),
-      t("venture.manager.deleteJourneysConfirm2"),
-    )) return;
-    runBulk({ ids, endpoint: "delete" });
+    if (ids.length) setConfirmState({ kind: "delete", ids, n: ids.length, step: 1 });
   };
 
-  const archiveOneJourney = (stage) => {
-    if (!confirmTwice(
-      t("venture.manager.archiveJourneysConfirm", { n: 1 }),
-      t("venture.manager.archiveJourneysConfirm2"),
-    )) return;
-    runBulk({ ids: [String(stage.id)], action: "archive", endpoint: "archive" });
+  const archiveOneJourney = (stage) =>
+    setConfirmState({ kind: "archive", ids: [String(stage.id)], n: 1, name: stage.name, step: 1 });
+  const restoreOneJourney = (stage) =>
+    setConfirmState({ kind: "restore", ids: [String(stage.id)], n: 1, name: stage.name, step: 1 });
+  const deleteOneJourney = (stage) =>
+    setConfirmState({ kind: "delete", ids: [String(stage.id)], n: 1, name: stage.name, step: 1 });
+
+  // ── Milestones inside a journey ─────────────────────────────────────────
+  const emptyMilestoneForm = { title: "", description: "", objective: "", target_date: "", priority: "medium" };
+
+  const addMilestone = async (e, stage) => {
+    e.preventDefault();
+    if (!msForm.title.trim()) return;
+    setMsSaving(true);
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/milestones`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...msForm,
+          journey_stage_id: stage.id,
+          display_order: (stage.milestones?.length || 0) + 1,
+        }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        notify(t("venture.manager.milestoneAdded"));
+        setMsForm(emptyMilestoneForm);
+        setMsAddFor(null);
+        await load();
+      } else {
+        notify(d.error || t("venture.manager.actionFailed"), "error");
+      }
+    } catch (_) {
+      notify(t("venture.manager.actionFailed"), "error");
+    } finally {
+      setMsSaving(false);
+    }
   };
-  const restoreOneJourney = (stage) => {
-    if (!window.confirm(t("venture.manager.restoreJourneyConfirm", { name: stage.name }))) return;
-    runBulk({ ids: [String(stage.id)], action: "restore", endpoint: "archive" });
+
+  const patchMilestone = async (milestoneId, body) => {
+    const res = await fetch(`/api/ventures/${ventureId}/milestones?id=${encodeURIComponent(milestoneId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (d.success) return true;
+    notify(d.error || t("venture.manager.actionFailed"), "error");
+    return false;
   };
-  const deleteOneJourney = (stage) => {
-    if (!confirmTwice(
-      t("venture.manager.deleteJourneysConfirm", { n: 1 }),
-      t("venture.manager.deleteJourneysConfirm2"),
-    )) return;
-    runBulk({ ids: [String(stage.id)], endpoint: "delete" });
+
+  const startMilestoneEdit = (ms) => {
+    setMsEditId(ms.id);
+    setMsEditForm({
+      title: ms.title || "",
+      description: ms.description || "",
+      objective: ms.objective || "",
+      target_date: ms.target_date ? String(ms.target_date).slice(0, 10) : "",
+      priority: ms.priority || "medium",
+    });
+  };
+
+  const saveMilestoneEdit = async (e) => {
+    e.preventDefault();
+    const ok = await patchMilestone(msEditId, msEditForm);
+    if (ok) {
+      notify(t("venture.manager.milestoneUpdated"));
+      setMsEditId(null);
+      setMsEditForm({});
+      await load();
+    }
+  };
+
+  const moveMilestone = async (stage, ms, direction) => {
+    setMsBusy(ms.id);
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/milestones/reorder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ milestone_id: ms.id, journey_stage_id: stage.id, direction }),
+      });
+      const d = await res.json();
+      if (d.success) await load();
+      else notify(d.error || t("venture.manager.actionFailed"), "error");
+    } catch (_) {
+      notify(t("venture.manager.actionFailed"), "error");
+    } finally {
+      setMsBusy(null);
+    }
+  };
+
+  const duplicateMilestone = async (ms) => {
+    setMsBusy(ms.id);
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/milestones/duplicate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ milestone_id: ms.id }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        notify(t("venture.manager.milestoneDuplicated"));
+        await load();
+      } else {
+        notify(d.error || t("venture.manager.actionFailed"), "error");
+      }
+    } catch (_) {
+      notify(t("venture.manager.actionFailed"), "error");
+    } finally {
+      setMsBusy(null);
+    }
+  };
+
+  // ── Deliverables inside a milestone ──────────────────────────────────────
+  const emptyDeliverableForm = { title: "", description: "", deliverable_type: "document", due_date: "" };
+
+  const patchDeliverable = async (body) => {
+    const res = await fetch(`/api/ventures/${ventureId}/deliverables`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (d.success) return true;
+    notify(d.error || t("venture.manager.actionFailed"), "error");
+    return false;
+  };
+
+  const addDeliverable = async (e, ms) => {
+    e.preventDefault();
+    if (!dvForm.title.trim()) return;
+    setDvSaving(true);
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/deliverables`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...dvForm, milestone_id: ms.id }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        notify(t("venture.manager.deliverableAdded"));
+        setDvForm(emptyDeliverableForm);
+        setDvAddFor(null);
+        await load();
+      } else {
+        notify(d.error || t("venture.manager.actionFailed"), "error");
+      }
+    } catch (_) {
+      notify(t("venture.manager.actionFailed"), "error");
+    } finally {
+      setDvSaving(false);
+    }
+  };
+
+  const startDeliverableEdit = (dv) => {
+    setDvAction({ id: dv.id, mode: "edit" });
+    setDvForm({
+      title: dv.title || "",
+      description: dv.description || "",
+      deliverable_type: dv.deliverable_type || "document",
+      due_date: dv.due_date ? String(dv.due_date).slice(0, 10) : "",
+    });
+  };
+
+  const saveDeliverableEdit = async (e) => {
+    e.preventDefault();
+    setDvSaving(true);
+    const ok = await patchDeliverable({ id: dvAction.id, action: "update", ...dvForm });
+    setDvSaving(false);
+    if (ok) {
+      notify(t("venture.manager.deliverableUpdated"));
+      setDvAction(null);
+      await load();
+    }
+  };
+
+  const submitDeliverableEvidence = async () => {
+    if (!dvFile && !dvText.trim()) return;
+    setDvSaving(true);
+    try {
+      let url = dvText.trim();
+      let name = null;
+      // A chosen file is uploaded first (any type, max 5MB); the returned URL
+      // is what gets recorded on the deliverable.
+      if (dvFile) {
+        const fd = new FormData();
+        fd.append("file", dvFile);
+        if (dvAction?.id) fd.append("deliverable_id", String(dvAction.id));
+        const upRes = await fetch(`/api/ventures/${ventureId}/deliverables/upload`, { method: "POST", body: fd });
+        const up = await upRes.json().catch(() => ({}));
+        if (!up.success) {
+          notify(up.error || t("venture.manager.actionFailed"), "error");
+          return;
+        }
+        url = up.path;
+        name = up.name || dvFile.name || null;
+      }
+      const ok = await patchDeliverable({ id: dvAction.id, action: "submit", attachment_url: url, attachment_name: name });
+      if (ok) {
+        notify(t("venture.manager.deliverableSubmitted"));
+        setDvAction(null);
+        setDvText("");
+        setDvFile(null);
+        await load();
+      }
+    } catch (_) {
+      notify(t("venture.manager.actionFailed"), "error");
+    } finally {
+      setDvSaving(false);
+    }
+  };
+
+  const reviewDeliverable = async (dv, decision) => {
+    setDvBusy(dv.id);
+    const ok = await patchDeliverable({
+      id: dv.id,
+      action: "review",
+      decision,
+      comments: decision === "changes_requested" ? dvText.trim() : undefined,
+    });
+    setDvBusy(null);
+    if (ok) {
+      notify(t("venture.manager.deliverableReviewed", { decision: t(decision === "approved" ? "venture.manager.approveDeliverable" : "venture.manager.requestChanges") }));
+      setDvAction(null);
+      setDvText("");
+      await load();
+    }
+  };
+
+  const deliverableStatus = (dv) => {
+    if (dv.approval_status === "approved" || dv.status === "completed" || dv.status === "approved") {
+      return { key: "approved", dot: "bg-emerald-400", cls: "text-emerald-400 bg-emerald-500/10" };
+    }
+    if (dv.approval_status === "rejected") {
+      return { key: "changes_requested", dot: "bg-rose-400", cls: "text-rose-400 bg-rose-500/10" };
+    }
+    if (dv.status === "submitted") {
+      return { key: "submitted", dot: "bg-amber-400", cls: "text-amber-400 bg-amber-500/10" };
+    }
+    if (dv.status === "in_progress") {
+      return { key: "in_progress", dot: "bg-sky-400", cls: "text-sky-400 bg-sky-500/10" };
+    }
+    return { key: "pending", dot: "bg-slate-500", cls: "text-slate-400 bg-slate-500/10" };
+  };
+
+  const deliverableMenuItems = (dv) => [
+    { key: "edit", label: t("venture.manager.editDeliverable"), icon: Pencil, onSelect: () => startDeliverableEdit(dv) },
+    { key: "submit", label: t("venture.manager.submitEvidence"), icon: Upload, onSelect: () => { setDvAction({ id: dv.id, mode: "submit" }); setDvText(/^https?:\/\//i.test(dv.attachment_url || "") ? dv.attachment_url : ""); } },
+    { separator: true },
+    { key: "approve", label: t("venture.manager.approveDeliverable"), icon: CheckCircle2, onSelect: () => reviewDeliverable(dv, "approved") },
+    { key: "changes", label: t("venture.manager.requestChanges"), icon: RotateCcw, onSelect: () => { setDvAction({ id: dv.id, mode: "review" }); setDvText(""); } },
+  ];
+
+  const milestoneMenuItems = (stage, ms, idx, list) => [
+    { key: "edit", label: t("venture.manager.editMilestone"), icon: Pencil, onSelect: () => startMilestoneEdit(ms) },
+    { key: "up", label: t("venture.manager.moveUp"), icon: ChevronUp, disabled: idx === 0, onSelect: () => moveMilestone(stage, ms, "up") },
+    { key: "down", label: t("venture.manager.moveDown"), icon: ChevronDown, disabled: idx === list.length - 1, onSelect: () => moveMilestone(stage, ms, "down") },
+    ms.status !== "completed" && {
+      key: "complete",
+      label: t("venture.manager.markCompleted"),
+      icon: CheckCircle2,
+      onSelect: () => setConfirmState({ kind: "milestone-complete", ids: [String(ms.id)], n: 1, name: ms.title, step: 1 }),
+    },
+    { key: "duplicate", label: t("venture.manager.duplicateMilestone"), icon: CopyPlus, onSelect: () => duplicateMilestone(ms) },
+    { separator: true },
+    {
+      key: "archive",
+      label: t("venture.manager.archiveMilestone"),
+      icon: Archive,
+      danger: true,
+      onSelect: () => setConfirmState({ kind: "milestone-archive", ids: [String(ms.id)], n: 1, name: ms.title, step: 1 }),
+    },
+  ].filter(Boolean);
+
+  const journeyMenuItems = (stage, i) => [
+    stage.status === "locked" && {
+      key: "activate", label: t("venture.manager.activateStage"), icon: Play,
+      onSelect: () => patch({ action: "activate", stage_id: stage.id }),
+    },
+    stage.status === "active" && {
+      key: "complete", label: t("venture.manager.markCompleted"), icon: CheckCircle2,
+      onSelect: () => patch({ action: "complete", stage_id: stage.id }),
+    },
+    stage.status === "active" && {
+      key: "lock", label: t("venture.manager.lockStage"), icon: Lock,
+      onSelect: () => patch({ action: "lock", stage_id: stage.id }),
+    },
+    stage.status === "completed" && {
+      key: "reset", label: t("venture.manager.reopenStage"), icon: RotateCcw,
+      onSelect: () => patch({ action: "reset", stage_id: stage.id }),
+    },
+    { separator: true },
+    { key: "edit", label: t("venture.manager.editStage"), icon: Pencil, disabled: !access.edit, onSelect: () => startEdit(stage) },
+    { key: "up", label: t("venture.manager.moveUp"), icon: ChevronUp, disabled: !access.manage || i === 0, onSelect: () => patch({ action: "move", stage_id: stage.id, direction: "up" }) },
+    { key: "down", label: t("venture.manager.moveDown"), icon: ChevronDown, disabled: !access.manage || i === visibleStages.length - 1, onSelect: () => patch({ action: "move", stage_id: stage.id, direction: "down" }) },
+    { key: "duplicate", label: t("venture.manager.duplicateStageTitle"), icon: CopyPlus, disabled: !access.manage || dupBusy === stage.id, onSelect: () => duplicateStage(stage) },
+    { key: "notes", label: t("venture.manager.notes.title"), icon: StickyNote, onSelect: () => setNotesStageId(notesStageId === stage.id ? null : stage.id) },
+    { separator: true },
+    { key: "archive", label: t("venture.manager.archiveJourney"), icon: Archive, disabled: !access.manage, onSelect: () => archiveOneJourney(stage) },
+    { key: "delete", label: t("venture.manager.deleteJourney"), icon: Trash2, danger: true, disabled: !access.manage, onSelect: () => deleteOneJourney(stage) },
+  ].filter(Boolean);
+
+  const confirmCopy = (state) => {
+    if (!state) return { title: "", body: "", confirm: "" };
+    if (state.kind === "milestone-complete") {
+      return {
+        title: t("venture.manager.markCompleted"),
+        body: t("venture.manager.completeMilestoneConfirm", { name: state.name }),
+        confirm: t("venture.manager.markCompleted"),
+      };
+    }
+    if (state.kind === "milestone-archive") {
+      return {
+        title: t("venture.manager.archiveMilestone"),
+        body: t("venture.manager.milestoneArchiveConfirm", { name: state.name }),
+        confirm: t("venture.manager.archiveMilestone"),
+      };
+    }
+    if (state.kind === "archive") {
+      return {
+        title: t("venture.manager.archiveJourney"),
+        body:
+          state.step === 1
+            ? t("venture.manager.archiveJourneysConfirm", { n: state.n })
+            : t("venture.manager.archiveJourneysConfirm2", { n: state.n }),
+        confirm: t("venture.manager.archiveJourney"),
+      };
+    }
+    if (state.kind === "restore") {
+      return {
+        title: t("venture.manager.restoreJourney"),
+        body: t("venture.manager.restoreJourneyConfirm", { name: state.name }),
+        confirm: t("venture.manager.restoreJourney"),
+      };
+    }
+    return {
+      title: t("venture.manager.deleteJourney"),
+      body:
+        state.step === 1
+          ? t("venture.manager.deleteJourneysConfirm", { n: state.n })
+          : t("venture.manager.deleteJourneysConfirm2", { n: state.n }),
+      confirm: t("common.delete"),
+    };
+  };
+
+  const confirmBusy = bulkBusy;
+
+  const runConfirmedAction = async () => {
+    if (!confirmState) return;
+    const { kind, ids, step } = confirmState;
+
+    // Milestone actions are single-step in-app confirmations.
+    if (kind === "milestone-complete") {
+      setConfirmState(null);
+      const ok = await patchMilestone(ids[0], { status: "completed" });
+      if (ok) {
+        notify(t("venture.manager.milestoneCompleted"));
+        await load();
+      }
+      return;
+    }
+    if (kind === "milestone-archive") {
+      setConfirmState(null);
+      setMsBusy(ids[0]);
+      try {
+        const res = await fetch(`/api/ventures/${ventureId}/milestones/archive`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids, action: "archive" }),
+        });
+        const d = await res.json();
+        if (d.success) {
+          const archived = d.archived || [];
+          const blocked = d.blocked || [];
+          const parts = [];
+          if (archived.length) parts.push(t("venture.manager.milestoneArchived"));
+          if (blocked.length) parts.push(blocked[0]?.reason || t("venture.manager.actionFailed"));
+          notify(parts.join(" — ") || t("venture.manager.milestoneArchived"), blocked.length && !archived.length ? "error" : "success");
+          await load();
+        } else {
+          notify(d.error || t("venture.manager.actionFailed"), "error");
+        }
+      } catch (_) {
+        notify(t("venture.manager.actionFailed"), "error");
+      } finally {
+        setMsBusy(null);
+      }
+      return;
+    }
+
+    // Archive/delete: step 1 → step 2 → execute. Restore executes at step 1.
+    if ((kind === "archive" || kind === "delete") && step === 1) {
+      setConfirmState({ ...confirmState, step: 2 });
+      return;
+    }
+    setConfirmState(null);
+    if (kind === "restore") await runBulk({ ids, action: "restore", endpoint: "archive" });
+    else if (kind === "archive") await runBulk({ ids, action: "archive", endpoint: "archive" });
+    else await runBulk({ ids, endpoint: "delete" });
   };
 
   const stageStatusKey = (status) =>
@@ -510,7 +909,7 @@ export default function JourneyManagerPanel({ ventureId }) {
           {!viewArchived && selectedStageIds.size > 0 && (
             <>
               <button
-                onClick={archiveSelectedJourneys}
+                onClick={askArchiveSelected}
                 disabled={bulkBusy}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 disabled:opacity-40"
               >
@@ -518,7 +917,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                 {t("venture.manager.archiveSelectedJourneys", { n: selectedStageIds.size })}
               </button>
               <button
-                onClick={deleteSelectedJourneys}
+                onClick={askDeleteSelected}
                 disabled={bulkBusy}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 disabled:opacity-40"
               >
@@ -602,12 +1001,6 @@ export default function JourneyManagerPanel({ ventureId }) {
             placeholder={t("venture.manager.stageObjectivePlaceholder")}
             className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
           />
-          <input
-            type="date"
-            value={form.target_date}
-            onChange={(e) => setForm({ ...form, target_date: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
-          />
           <div className="flex justify-end">
             <button type="submit" disabled={saving} className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} {t("venture.manager.addStage")}
@@ -678,12 +1071,6 @@ export default function JourneyManagerPanel({ ventureId }) {
                         placeholder={t("venture.manager.stageObjectivePlaceholder")}
                         className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                       />
-                      <input
-                        type="date"
-                        value={editForm.target_date || ""}
-                        onChange={(e) => setEditForm({ ...editForm, target_date: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                      />
                       <div className="flex justify-end gap-2">
                         <button type="button" onClick={() => { setEditId(null); setEditForm({}); }} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:bg-tertiary">
                           {t("common.cancel")}
@@ -709,7 +1096,22 @@ export default function JourneyManagerPanel({ ventureId }) {
                             )}
                             <h4 className={`text-sm font-black text-[var(--text-primary)] ${isDone ? "line-through text-slate-400" : ""}`}>{stage.name}</h4>
                           </div>
-                          {statusPill(stage)}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {statusPill(stage)}
+                            {!isEditing && !stage.is_archived && (access.edit || access.manage) && (
+                              <AppMenu
+                                label={t("venture.manager.journeyActions")}
+                                align="right"
+                                buttonClassName="!p-1"
+                                items={journeyMenuItems(stage, i)}
+                              />
+                            )}
+                            {!isEditing && stage.is_archived && access.manage && (
+                              <button onClick={() => restoreOneJourney(stage)} disabled={bulkBusy} className="p-1 text-slate-400 hover:text-emerald-400 disabled:opacity-40" title={t("venture.manager.restoreJourney")}>
+                                <RotateCcw className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                         {stage.description && <p className="text-xs text-[var(--text-secondary)] mt-1.5">{stage.description}</p>}
                         {stage.objective && (
@@ -717,9 +1119,8 @@ export default function JourneyManagerPanel({ ventureId }) {
                             <span className="font-bold not-italic uppercase tracking-widest text-slate-500">{t("venture.manager.objective")}: </span>{stage.objective}
                           </p>
                         )}
-                        {(stage.target_date || stage.completed_at || !isDone) && (
+                        {(stage.completed_at || !isDone) && (
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-400">
-                            {stage.target_date && <span>{t("venture.manager.targetDate", { date: fmtDate(stage.target_date) })}</span>}
                             {stage.completed_at && <span>{t("venture.manager.completedOn", { date: new Date(stage.completed_at).toLocaleDateString(lang) })}</span>}
                             {!isDone && (
                               <span className={isActive ? "text-sky-300/90" : "text-slate-500"}>
@@ -744,106 +1145,349 @@ export default function JourneyManagerPanel({ ventureId }) {
                         )}
                       </div>
 
-                      {milestones.length > 0 && (
-                        <div className="px-4 pb-4">
-                          <div className="rounded-xl border border-[var(--border-primary)] divide-y divide-[var(--border-primary)]/60 overflow-hidden">
-                            {milestones.map((ms) => {
-                              const msProgress = Math.min(100, Math.max(0, Number(ms.progress) || 0));
-                              return (
-                                <div key={ms.id} className="flex items-center gap-3 px-3 py-2">
-                                  <span className={`w-2 h-2 rounded-full shrink-0 ${milestoneDotClass(ms.status)}`} />
-                                  <div className="flex-1 min-w-0">
-                                    <p className={`text-[11px] font-bold text-[var(--text-primary)] truncate ${ms.status === "completed" ? "line-through text-slate-400" : ""}`}>
-                                      {ms.title}
-                                    </p>
-                                    {msProgress > 0 && ms.status !== "completed" && (
-                                      <div className="w-28 h-1 rounded-full bg-tertiary mt-1 overflow-hidden">
-                                        <div className="h-full bg-sky-400/70 rounded-full" style={{ width: `${msProgress}%` }} />
+                      {(milestones.length > 0 || (milestoneAuthority && !stage.is_archived)) && (
+                        <div className="px-4 pb-4 space-y-2">
+                          {milestones.length > 0 && (
+                            <div className="rounded-xl border border-[var(--border-primary)] divide-y divide-[var(--border-primary)]/60 overflow-hidden">
+                              {milestones.map((ms, msIdx) => {
+                                const msProgress = Math.min(100, Math.max(0, Number(ms.progress) || 0));
+                                const dvList = ms.deliverables || [];
+                                return (
+                                  <div key={ms.id} className="px-3 py-2">
+                                    {msEditId === ms.id ? (
+                                      <form onSubmit={saveMilestoneEdit} className="space-y-2 py-1">
+                                        <input
+                                          value={msEditForm.title || ""}
+                                          onChange={(e) => setMsEditForm({ ...msEditForm, title: e.target.value })}
+                                          placeholder={t("venture.manager.milestoneTitlePlaceholder")}
+                                          className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
+                                          required
+                                        />
+                                        <textarea
+                                          value={msEditForm.description || ""}
+                                          onChange={(e) => setMsEditForm({ ...msEditForm, description: e.target.value })}
+                                          rows={2}
+                                          placeholder={t("venture.manager.milestoneDescPlaceholder")}
+                                          className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                        />
+                                        <input
+                                          value={msEditForm.objective || ""}
+                                          onChange={(e) => setMsEditForm({ ...msEditForm, objective: e.target.value })}
+                                          placeholder={t("venture.manager.stageObjectivePlaceholder")}
+                                          className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                        />
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <input
+                                            type="date"
+                                            value={msEditForm.target_date || ""}
+                                            onChange={(e) => setMsEditForm({ ...msEditForm, target_date: e.target.value })}
+                                            className="flex-1 min-w-[150px] px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                          />
+                                          <select
+                                            value={msEditForm.priority || "medium"}
+                                            onChange={(e) => setMsEditForm({ ...msEditForm, priority: e.target.value })}
+                                            className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                          >
+                                            <option value="low">{t("venture.low")}</option>
+                                            <option value="medium">{t("venture.medium")}</option>
+                                            <option value="high">{t("venture.high")}</option>
+                                          </select>
+                                        </div>
+                                        <div className="flex justify-end gap-2">
+                                          <button type="button" onClick={() => { setMsEditId(null); setMsEditForm({}); }} className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+                                            {t("common.cancel")}
+                                          </button>
+                                          <button type="submit" className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1">
+                                            <Save className="w-3 h-3" /> {t("common.save")}
+                                          </button>
+                                        </div>
+                                      </form>
+                                    ) : (
+                                      <>
+                                      <div className="flex items-center gap-3">
+                                        <span className={`w-2 h-2 rounded-full shrink-0 ${milestoneDotClass(ms.status)}`} />
+                                        <div className="flex-1 min-w-0">
+                                          <p className={`text-[11px] font-bold text-[var(--text-primary)] truncate ${ms.status === "completed" ? "line-through text-slate-400" : ""}`}>
+                                            {ms.title}
+                                          </p>
+                                          {msProgress > 0 && ms.status !== "completed" && (
+                                            <div className="w-28 h-1 rounded-full bg-tertiary mt-1 overflow-hidden">
+                                              <div className="h-full bg-sky-400/70 rounded-full" style={{ width: `${msProgress}%` }} />
+                                            </div>
+                                          )}
+                                        </div>
+                                        {msProgress > 0 && <span className="text-[10px] font-bold text-[var(--text-secondary)] w-8 text-right">{msProgress}%</span>}
+                                        {ms.target_date && <span className="hidden sm:inline text-[10px] text-slate-500">{fmtDate(ms.target_date)}</span>}
+                                        <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${milestoneStatusClass(ms.status)}`}>
+                                          {milestoneStatusKey(ms.status)}
+                                        </span>
+                                        {milestoneAuthority && !stage.is_archived && (
+                                          <AppMenu
+                                            label={t("venture.manager.milestoneActions")}
+                                            align="right"
+                                            buttonClassName="!p-1"
+                                            items={milestoneMenuItems(stage, ms, msIdx, milestones)}
+                                          />
+                                        )}
+                                        {msBusy === ms.id && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400 shrink-0" />}
                                       </div>
+
+                                      {(dvList.length > 0 || milestoneAuthority) && (
+                                        <div className="mt-2 ml-5 space-y-1.5">
+                                          <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
+                                            {t("venture.manager.deliverables")}
+                                          </p>
+                                          {dvList.map((dv) => {
+                                            const st = deliverableStatus(dv);
+                                            const mode = dvAction?.id === dv.id ? dvAction.mode : null;
+                                            return (
+                                              <div key={dv.id} className="rounded-lg border border-[var(--border-primary)]/70 px-2.5 py-2">
+                                                {mode === "edit" ? (
+                                                  <form onSubmit={saveDeliverableEdit} className="space-y-2">
+                                                    <input
+                                                      value={dvForm.title}
+                                                      onChange={(e) => setDvForm({ ...dvForm, title: e.target.value })}
+                                                      placeholder={t("venture.manager.deliverableTitlePlaceholder")}
+                                                      className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                      required
+                                                    />
+                                                    <textarea
+                                                      value={dvForm.description}
+                                                      onChange={(e) => setDvForm({ ...dvForm, description: e.target.value })}
+                                                      rows={2}
+                                                      placeholder={t("venture.manager.deliverableDescPlaceholder")}
+                                                      className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                    />
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                      <input
+                                                        type="date"
+                                                        value={dvForm.due_date}
+                                                        onChange={(e) => setDvForm({ ...dvForm, due_date: e.target.value })}
+                                                        className="flex-1 min-w-[140px] px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                      />
+                                                      <select
+                                                        value={dvForm.deliverable_type}
+                                                        onChange={(e) => setDvForm({ ...dvForm, deliverable_type: e.target.value })}
+                                                        className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                      >
+                                                        {["document", "link", "presentation", "report"].map((ty) => (
+                                                          <option key={ty} value={ty}>{t(`venture.manager.deliverableTypes.${ty}`)}</option>
+                                                        ))}
+                                                      </select>
+                                                    </div>
+                                                    <div className="flex justify-end gap-2">
+                                                      <button type="button" onClick={() => setDvAction(null)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+                                                        {t("common.cancel")}
+                                                      </button>
+                                                      <button type="submit" disabled={dvSaving} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1 disabled:opacity-50">
+                                                        {dvSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} {t("common.save")}
+                                                      </button>
+                                                    </div>
+                                                  </form>
+                                                ) : mode === "submit" ? (
+                                                  <div className="space-y-2">
+                                                    <p className="text-[11px] font-bold text-[var(--text-primary)]">{dv.title}</p>
+                                                    <input
+                                                      type="file"
+                                                      onChange={(e) => setDvFile(e.target.files?.[0] || null)}
+                                                      className="w-full text-[10px] text-slate-400 file:mr-2 file:px-2.5 file:py-1 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:tracking-widest file:bg-[var(--brand-orange)] file:text-black"
+                                                    />
+                                                    <p className="text-[9px] uppercase tracking-widest text-slate-500">{t("venture.manager.orPasteLink")}</p>
+                                                    <input
+                                                      value={dvText}
+                                                      onChange={(e) => setDvText(e.target.value)}
+                                                      placeholder={t("venture.manager.evidenceUrlPlaceholder")}
+                                                      className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                    />
+                                                    <div className="flex justify-end gap-2">
+                                                      <button type="button" onClick={() => { setDvAction(null); setDvFile(null); }} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+                                                        {t("common.cancel")}
+                                                      </button>
+                                                      <button type="button" onClick={submitDeliverableEvidence} disabled={dvSaving || (!dvFile && !dvText.trim())} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black disabled:opacity-50">
+                                                        {dvSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : null} {t("venture.manager.submitEvidence")}
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                ) : mode === "review" ? (
+                                                  <div className="space-y-2">
+                                                    <p className="text-[11px] font-bold text-[var(--text-primary)]">{dv.title}</p>
+                                                    <textarea
+                                                      value={dvText}
+                                                      onChange={(e) => setDvText(e.target.value)}
+                                                      rows={2}
+                                                      placeholder={t("venture.manager.reviewCommentsPlaceholder")}
+                                                      className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                    />
+                                                    <div className="flex justify-end gap-2">
+                                                      <button type="button" onClick={() => setDvAction(null)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+                                                        {t("common.cancel")}
+                                                      </button>
+                                                      <button type="button" onClick={() => reviewDeliverable(dv, "changes_requested")} disabled={dvBusy === dv.id || !dvText.trim()} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30 disabled:opacity-50">
+                                                        {t("venture.manager.requestChanges")}
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                ) : (
+                                                  <div className="flex items-center gap-2">
+                                                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${st.dot}`} />
+                                                    <p className="flex-1 min-w-0 text-[11px] font-bold text-[var(--text-primary)] truncate">{dv.title}</p>
+                                                    {dv.due_date && <span className="hidden sm:inline text-[9px] text-slate-500">{fmtDate(dv.due_date)}</span>}
+                                                    {dv.attachment_url && (
+                                                      <a href={dv.evidence_download_url || dv.attachment_url} target="_blank" rel="noreferrer" className="text-[9px] font-bold text-sky-300 hover:underline shrink-0">
+                                                        {dv.attachment_name || t("venture.manager.viewEvidence")}
+                                                      </a>
+                                                    )}
+                                                    <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0 ${st.cls}`}>
+                                                      {t(`venture.manager.deliverableStatuses.${st.key}`)}
+                                                    </span>
+                                                    {milestoneAuthority && (
+                                                      <AppMenu
+                                                        label={t("venture.manager.deliverableActions")}
+                                                        align="right"
+                                                        buttonClassName="!p-1"
+                                                        items={deliverableMenuItems(dv)}
+                                                      />
+                                                    )}
+                                                    {dvBusy === dv.id && <Loader2 className="w-3 h-3 animate-spin text-slate-400 shrink-0" />}
+                                                  </div>
+                                                )}
+                                                {!mode && dv.approval_status === "rejected" && dv.rejection_reason && (
+                                                  <p className="text-[9px] text-rose-400 mt-1">
+                                                    {t("venture.manager.changesRequestedReason", { reason: dv.rejection_reason })}
+                                                  </p>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+
+                                          {milestoneAuthority && (
+                                            dvAddFor === ms.id ? (
+                                              <form onSubmit={(e) => addDeliverable(e, ms)} className="rounded-lg border border-[var(--border-primary)] bg-tertiary p-2.5 space-y-2">
+                                                <input
+                                                  value={dvForm.title}
+                                                  onChange={(e) => setDvForm({ ...dvForm, title: e.target.value })}
+                                                  placeholder={t("venture.manager.deliverableTitlePlaceholder")}
+                                                  className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                  required
+                                                />
+                                                <textarea
+                                                  value={dvForm.description}
+                                                  onChange={(e) => setDvForm({ ...dvForm, description: e.target.value })}
+                                                  rows={2}
+                                                  placeholder={t("venture.manager.deliverableDescPlaceholder")}
+                                                  className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                />
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                  <input
+                                                    type="date"
+                                                    value={dvForm.due_date}
+                                                    onChange={(e) => setDvForm({ ...dvForm, due_date: e.target.value })}
+                                                    className="flex-1 min-w-[140px] px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                  />
+                                                  <select
+                                                    value={dvForm.deliverable_type}
+                                                    onChange={(e) => setDvForm({ ...dvForm, deliverable_type: e.target.value })}
+                                                    className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                  >
+                                                    {["document", "link", "presentation", "report"].map((ty) => (
+                                                      <option key={ty} value={ty}>{t(`venture.manager.deliverableTypes.${ty}`)}</option>
+                                                    ))}
+                                                  </select>
+                                                </div>
+                                                <div className="flex justify-end gap-2">
+                                                  <button type="button" onClick={() => { setDvAddFor(null); setDvForm(emptyDeliverableForm); }} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+                                                    {t("common.cancel")}
+                                                  </button>
+                                                  <button type="submit" disabled={dvSaving} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1 disabled:opacity-50">
+                                                    {dvSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} {t("venture.manager.addDeliverable")}
+                                                  </button>
+                                                </div>
+                                              </form>
+                                            ) : (
+                                              <button
+                                                onClick={() => { setDvAddFor(ms.id); setDvForm(emptyDeliverableForm); }}
+                                                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest text-slate-400 border border-[var(--border-primary)] hover:text-[var(--brand-orange)]"
+                                              >
+                                                <Plus className="w-3 h-3" /> {t("venture.manager.addDeliverable")}
+                                              </button>
+                                            )
+                                          )}
+                                        </div>
+                                      )}
+                                      </>
                                     )}
                                   </div>
-                                  {msProgress > 0 && <span className="text-[10px] font-bold text-[var(--text-secondary)] w-8 text-right">{msProgress}%</span>}
-                                  {ms.target_date && <span className="hidden sm:inline text-[10px] text-slate-500">{fmtDate(ms.target_date)}</span>}
-                                  <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${milestoneStatusClass(ms.status)}`}>
-                                    {milestoneStatusKey(ms.status)}
-                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {milestoneAuthority && !stage.is_archived && (
+                            msAddFor === stage.id ? (
+                              <form onSubmit={(e) => addMilestone(e, stage)} className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-3 space-y-2">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] flex items-center gap-1.5">
+                                  <Flag className="w-3.5 h-3.5" /> {t("venture.manager.addMilestone")}
+                                </p>
+                                <input
+                                  value={msForm.title}
+                                  onChange={(e) => setMsForm({ ...msForm, title: e.target.value })}
+                                  placeholder={t("venture.manager.milestoneTitlePlaceholder")}
+                                  className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
+                                  required
+                                />
+                                <textarea
+                                  value={msForm.description}
+                                  onChange={(e) => setMsForm({ ...msForm, description: e.target.value })}
+                                  rows={2}
+                                  placeholder={t("venture.manager.milestoneDescPlaceholder")}
+                                  className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                />
+                                <input
+                                  value={msForm.objective}
+                                  onChange={(e) => setMsForm({ ...msForm, objective: e.target.value })}
+                                  placeholder={t("venture.manager.stageObjectivePlaceholder")}
+                                  className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                />
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <input
+                                    type="date"
+                                    value={msForm.target_date}
+                                    onChange={(e) => setMsForm({ ...msForm, target_date: e.target.value })}
+                                    className="flex-1 min-w-[150px] px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                  />
+                                  <select
+                                    value={msForm.priority}
+                                    onChange={(e) => setMsForm({ ...msForm, priority: e.target.value })}
+                                    className="px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                  >
+                                    <option value="low">{t("venture.low")}</option>
+                                    <option value="medium">{t("venture.medium")}</option>
+                                    <option value="high">{t("venture.high")}</option>
+                                  </select>
                                 </div>
-                              );
-                            })}
-                          </div>
+                                <div className="flex justify-end gap-2">
+                                  <button type="button" onClick={() => { setMsAddFor(null); setMsForm(emptyMilestoneForm); }} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]">
+                                    {t("common.cancel")}
+                                  </button>
+                                  <button type="submit" disabled={msSaving} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5 disabled:opacity-50">
+                                    {msSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} {t("venture.manager.addMilestone")}
+                                  </button>
+                                </div>
+                              </form>
+                            ) : (
+                              <button
+                                onClick={() => { setMsAddFor(stage.id); setMsForm(emptyMilestoneForm); }}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] border border-[var(--brand-orange)]/30 hover:bg-[var(--brand-orange)]/10"
+                              >
+                                <Plus className="w-3.5 h-3.5" /> {t("venture.manager.addMilestone")}
+                              </button>
+                            )
+                          )}
                         </div>
                       )}
                     </>
                   )}
 
-                  {(access.edit || access.manage) && !isEditing && (
-                    <div className="flex flex-wrap items-center gap-1 border-t border-[var(--border-primary)]/60 bg-tertiary/40 px-2 py-1.5">
-                      {stage.is_archived && access.manage && (
-                        <button onClick={() => restoreOneJourney(stage)} disabled={bulkBusy} className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-white/5 disabled:opacity-40" title={t("venture.manager.restoreJourney")}>
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          <span className="text-[8px] font-black uppercase tracking-widest hidden md:inline">{t("venture.manager.restoreJourney")}</span>
-                        </button>
-                      )}
-                      {!stage.is_archived && (
-                        <>
-                      {access.edit && (
-                        <button onClick={() => startEdit(stage)} className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-slate-400 hover:text-[var(--text-primary)] hover:bg-white/5" title={t("venture.manager.editStage")}>
-                          <Pencil className="w-3.5 h-3.5" />
-                          <span className="text-[8px] font-black uppercase tracking-widest hidden md:inline">{t("venture.manager.editStage")}</span>
-                        </button>
-                      )}
-                      {access.manage && (
-                        <>
-                          <span className="w-px h-4 bg-[var(--border-primary)] mx-1" />
-                          <button onClick={() => patch({ action: "move", stage_id: stage.id, direction: "up" })} disabled={i === 0} className="p-1.5 rounded-lg text-slate-400 hover:text-[var(--text-primary)] hover:bg-white/5 disabled:opacity-30" title={t("venture.manager.moveUp")}>
-                            <ChevronUp className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => patch({ action: "move", stage_id: stage.id, direction: "down" })} disabled={i === visibleStages.length - 1} className="p-1.5 rounded-lg text-slate-400 hover:text-[var(--text-primary)] hover:bg-white/5 disabled:opacity-30" title={t("venture.manager.moveDown")}>
-                            <ChevronDown className="w-3.5 h-3.5" />
-                          </button>
-                          {isLocked && (
-                            <button onClick={() => patch({ action: "activate", stage_id: stage.id })} className="p-1.5 rounded-lg text-blue-400 hover:text-blue-300 hover:bg-white/5" title={t("venture.manager.activateStage")}>
-                              <Play className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {isActive && (
-                            <>
-                              <button onClick={() => patch({ action: "complete", stage_id: stage.id })} className="p-1.5 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-white/5" title={t("venture.manager.markCompleted")}>
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button onClick={() => patch({ action: "lock", stage_id: stage.id })} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/5" title={t("venture.manager.lockStage")}>
-                                <Lock className="w-3.5 h-3.5" />
-                              </button>
-                            </>
-                          )}
-                          {isDone && (
-                            <button onClick={() => patch({ action: "reset", stage_id: stage.id })} className="p-1.5 rounded-lg text-amber-400 hover:text-amber-300 hover:bg-white/5" title={t("venture.manager.reopenStage")}>
-                              <RotateCcw className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          <span className="w-px h-4 bg-[var(--border-primary)] mx-1" />
-                          <button
-                            onClick={() => setNotesStageId(notesStageId === stage.id ? null : stage.id)}
-                            className={`p-1.5 rounded-lg hover:bg-white/5 ${notesStageId === stage.id ? "text-sky-300" : "text-slate-400 hover:text-sky-300"}`}
-                            title={t("venture.manager.notes.title")}
-                          >
-                            <StickyNote className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => duplicateStage(stage)} disabled={dupBusy === stage.id} className="p-1.5 rounded-lg text-slate-400 hover:text-sky-300 hover:bg-white/5 disabled:opacity-40" title={t("venture.manager.duplicateStageTitle")}>
-                            {dupBusy === stage.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CopyPlus className="w-3.5 h-3.5" />}
-                          </button>
-                          <button onClick={() => archiveOneJourney(stage)} disabled={bulkBusy} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-white/5 disabled:opacity-40" title={t("venture.manager.archiveJourney")}>
-                            {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Archive className="w-3.5 h-3.5" />}
-                          </button>
-                          <button onClick={() => deleteOneJourney(stage)} disabled={bulkBusy} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-white/5 disabled:opacity-40" title={t("venture.manager.deleteJourney")}>
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      )}
-                        </>
-                      )}
-                    </div>
-                  )}
                 </div>
 
                 {notesStageId === stage.id && !isEditing && (
@@ -856,6 +1500,47 @@ export default function JourneyManagerPanel({ ventureId }) {
           })}
         </div>
       )}
+
+      {/* In-app confirmation — replaces browser dialogs. Archive/delete ask
+          twice; restore asks once. */}
+      <AppModal
+        isOpen={Boolean(confirmState)}
+        onClose={() => { if (!confirmBusy) setConfirmState(null); }}
+        title={confirmCopy(confirmState).title}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-2">
+            {confirmState?.step === 2 && <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />}
+            <p className="text-sm text-[var(--text-secondary)]">{confirmCopy(confirmState).body}</p>
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmState(null)}
+              disabled={confirmBusy}
+              className="text-[9px] font-black uppercase tracking-widest px-3 py-2 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)] disabled:opacity-40"
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              onClick={runConfirmedAction}
+              disabled={confirmBusy}
+              className={`text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 ${
+                confirmState?.kind === "delete" && confirmState?.step === 2
+                  ? "bg-rose-500 text-white"
+                  : "bg-[var(--brand-orange)] text-black"
+              }`}
+            >
+              {confirmBusy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {confirmState?.kind !== "restore" && confirmState?.step === 1
+                ? t("common.continue")
+                : confirmCopy(confirmState).confirm}
+            </button>
+          </div>
+        </div>
+      </AppModal>
     </div>
   );
 }

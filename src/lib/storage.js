@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { createClient } from '@supabase/supabase-js'
 
 /**
  * IMPACTOS OPERATIONAL STORAGE — SUPABASE INTEGRATION
@@ -152,6 +153,75 @@ export const uploadTaskAttachment = async (file, taskId) => {
       return {
         success: false,
         error: `Storage bucket "task-attachments" is not configured. Please contact your administrator.`
+      }
+    }
+
+    return { success: false, error: `Upload failed: ${error.message}` }
+  }
+}
+
+/**
+ * Deliverable evidence uploads — the Venture (founders/team) and staff attach
+ * the proof for a deliverable. Shares the task-attachments bucket (already
+ * provisioned, accepts any file type) under a `deliverables/` prefix so the
+ * evidence stays grouped and traceable. Size is capped like every other
+ * upload; authorization happens in the route (Venture access).
+ */
+export const uploadDeliverableEvidence = async (file, { ventureId, deliverableId }) => {
+  try {
+    if (!file) {
+      return { success: false, error: 'No file provided.' }
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return {
+        success: false,
+        error: `File size exceeds the maximum of 5MB. This file is ${(file.size / (1024 * 1024)).toFixed(1)}MB. Please compress it or paste a link instead.`
+      }
+    }
+
+    // PRIVATE bucket: evidence is never world-readable. Authorized viewers get
+    // a short-lived signed URL (lib/ventureEvidence.js); the database stores
+    // the storage path, not a public URL. Service-role client so the private
+    // bucket can be written/created regardless of storage policies.
+    const bucket = 'deliverable-evidence'
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const client = url && serviceKey ? createClient(url, serviceKey) : supabase
+
+    const sanitized = String(file.name || 'evidence').replace(/\s+/g, '_')
+    const scope = String(ventureId || 'unknown').replace(/[^A-Za-z0-9_-]/g, '_')
+    const item = String(deliverableId || 'new').replace(/[^A-Za-z0-9_-]/g, '_')
+    const path = `deliverables/${scope}/${item}/${Date.now()}_${sanitized}`
+
+    let { error } = await client.storage
+      .from(bucket)
+      .upload(path, file, {
+        cacheControl: '3600',
+        upsert: true,
+      })
+
+    if (error && /bucket.*not found|does not exist/i.test(error.message)) {
+      await client.storage.createBucket(bucket, { public: false });
+      const retry = await client.storage
+        .from(bucket)
+        .upload(path, file, {
+          cacheControl: '3600',
+          upsert: true,
+        });
+      error = retry.error;
+    }
+
+    if (error) throw error;
+
+    return { success: true, path, name: file.name }
+  } catch (error) {
+    console.error('Storage Error:', error.message)
+
+    if (/bucket/i.test(error.message)) {
+      return {
+        success: false,
+        error: `Storage bucket "deliverable-evidence" is not configured. Please contact your administrator.`
       }
     }
 

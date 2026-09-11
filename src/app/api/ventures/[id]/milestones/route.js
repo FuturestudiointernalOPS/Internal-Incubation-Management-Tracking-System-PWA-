@@ -2,7 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { computeInitialMilestoneStatus, completeMilestoneAndUnlockNext, isMilestoneLeadAuthority } from "@/lib/ventureMilestoneEngine";
+import { computeInitialMilestoneStatus, completeMilestoneAndUnlockNext, isMilestoneLeadAuthority, canManageMilestones } from "@/lib/ventureMilestoneEngine";
 import { notifyVentureFounders } from "@/lib/ventures";
 import {
   getVentureDbIdForMilestoneCreate,
@@ -29,6 +29,16 @@ export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
   const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
   if (access.error) return access.error;
+
+  // Adding a milestone is a STRUCTURE action: Lead Manager or Super Admin.
+  const allowed = await canManageMilestones(db, { id, cid: access.session?.cid, role: access.session?.role });
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: "Only the Venture's Lead Manager or a Super Admin can add milestones." },
+      { status: 403 },
+    );
+  }
+
   const body = await req.json();
   const { title, description, target_date } = body;
   if (!title?.trim()) return NextResponse.json({ success: false, error: "Milestone title is required." }, { status: 400 });
@@ -51,8 +61,19 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   // Sequential release (Phase 3): bound milestones start 'locked' unless they
-  // are the stage's first milestone or follow a completed one.
-  const initialStatus = await computeInitialMilestoneStatus(db, { dbId: ventureDbId, stageId: journey_stage_id || null });
+  // are the stage's first milestone or follow a completed one — and only an
+  // ACTIVE journey releases its milestones. In a locked (future) or completed
+  // journey every newly added milestone starts locked; activating the journey
+  // releases the first one.
+  let initialStatus = await computeInitialMilestoneStatus(db, { dbId: ventureDbId, stageId: journey_stage_id || null });
+  if (journey_stage_id) {
+    const stageRes = await db.execute({
+      sql: "SELECT status FROM venture_journey_stages WHERE id = ? AND venture_id = ?",
+      args: [journey_stage_id, ventureDbId],
+    }).catch(() => ({ rows: [] }));
+    const stageStatus = stageRes.rows?.[0]?.status;
+    if (stageStatus && stageStatus !== "active") initialStatus = "locked";
+  }
 
   const randomUUID = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; const v = c==='x'?r:(r&0x3|0x8); return v.toString(16); });
 
