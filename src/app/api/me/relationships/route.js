@@ -18,6 +18,7 @@ import {
  *   isProgramParticipant : has participant_programs rows (or v2_participants)
  *   ventures             : active venture_memberships (venture_members)
  *   isVentureMember      : ventures.length > 0
+ *   isFounder            : owns at least one of those ventures
  */
 
 export async function GET() {
@@ -57,10 +58,22 @@ export async function GET() {
       ventures = vm.rows || [];
     } catch (_) {}
 
+    // Founder follows the same classification the authorization layer uses
+    // (see models/authorization/contactContexts.js ventureRoles): an owning or
+    // founder-typed membership. Used for the personal sidebar ORDER only —
+    // navigation is a projection, never a permission.
+    const isFounder = ventures.some((v) => {
+      const memberType = String(v.member_type || "").toLowerCase();
+      const owner =
+        v.is_owner === true || v.is_owner === 1 || Number(v.is_owner) === 1;
+      return memberType === "founder" || owner;
+    });
+
     return NextResponse.json({
       success: true,
       isProgramParticipant,
       isVentureMember: ventures.length > 0,
+      isFounder,
       ventures,
     });
   } catch (error) {

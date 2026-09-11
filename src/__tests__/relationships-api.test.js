@@ -87,13 +87,17 @@ describe("GET /api/me/relationships", () => {
     expect(executedQueries[1].sql).toContain("FROM v2_participants");
     expect(executedQueries[1].args).toEqual(["user-1", "user-1"]);
 
-    // Ventures query scoped to the session cid, excludes removed memberships
+    // Ventures query scoped to the session cid (user_cid OR contact_id),
+    // excludes removed memberships
     const ventureQuery = executedQueries.find((q) =>
       q.sql.includes("FROM venture_members vm"),
     );
-    expect(ventureQuery.sql).toContain("vm.contact_id = ?");
+    expect(ventureQuery.sql).toContain("vm.user_cid = ? OR vm.contact_id = ?");
     expect(ventureQuery.sql).toContain("vm.removed_at IS NULL");
-    expect(ventureQuery.args).toEqual(["user-1"]);
+    expect(ventureQuery.args).toEqual(["user-1", "user-1"]);
+
+    // The row carries no founder signal → not a founder the sidebar can act on
+    expect(data.isFounder).toBe(false);
 
     // Neutral-role backfill is triggered on every call
     expect(mockBackfill).toHaveBeenCalled();
@@ -113,6 +117,55 @@ describe("GET /api/me/relationships", () => {
       expect(data.isProgramParticipant).toBe(false);
       expect(data.isVentureMember).toBe(false);
       expect(data.ventures).toEqual([]);
+    } finally {
+      mockExecute.mockImplementation(defaultImpl);
+    }
+  });
+
+  test("isFounder follows the owning/founder-typed membership", async () => {
+    const founderImpl = async ({ sql, args }) => {
+      if (sql.includes("FROM participant_programs")) return { rows: [] };
+      if (sql.includes("FROM v2_participants")) return { rows: [] };
+      if (sql.includes("FROM venture_members vm")) {
+        return {
+          rows: [
+            { venture_id: "VNT-1", name: "Acme", status: "active", member_type: "founder", is_owner: false },
+            { venture_id: "VNT-2", name: "Beta", status: "active", member_type: "team_member", is_owner: 1 },
+          ],
+        };
+      }
+      return { rows: [] };
+    };
+    mockExecute.mockImplementation(founderImpl);
+    try {
+      const res = await GET(new Request("http://localhost/api/me/relationships"));
+      const data = await readJson(res);
+      expect(data.isVentureMember).toBe(true);
+      expect(data.isFounder).toBe(true);
+    } finally {
+      mockExecute.mockImplementation(defaultImpl);
+    }
+  });
+
+  test("a team member is a venture member but not a founder", async () => {
+    const teamImpl = async ({ sql }) => {
+      if (sql.includes("FROM participant_programs")) return { rows: [] };
+      if (sql.includes("FROM v2_participants")) return { rows: [] };
+      if (sql.includes("FROM venture_members vm")) {
+        return {
+          rows: [
+            { venture_id: "VNT-3", name: "Gamma", status: "active", member_type: "team_member", is_owner: 0 },
+          ],
+        };
+      }
+      return { rows: [] };
+    };
+    mockExecute.mockImplementation(teamImpl);
+    try {
+      const res = await GET(new Request("http://localhost/api/me/relationships"));
+      const data = await readJson(res);
+      expect(data.isVentureMember).toBe(true);
+      expect(data.isFounder).toBe(false);
     } finally {
       mockExecute.mockImplementation(defaultImpl);
     }
