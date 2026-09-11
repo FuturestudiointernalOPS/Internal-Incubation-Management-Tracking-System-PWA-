@@ -16,6 +16,33 @@ import { createClient } from "@supabase/supabase-js";
 export const EVIDENCE_BUCKET = "deliverable-evidence";
 export const EVIDENCE_URL_TTL_SECONDS = 60 * 60; // 1 hour
 
+/**
+ * Deliverable evidence is a DOCUMENT (PDF / Office) or a URL — nothing else.
+ * The upload path enforces this; pasted links stay free-form (any http(s) URL).
+ */
+export const EVIDENCE_DOCUMENT_EXTENSIONS = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i;
+export const EVIDENCE_DOCUMENT_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+];
+
+/** True when the file is an accepted evidence document (MIME or extension). */
+export function isAllowedEvidenceDocument(file) {
+  if (!file) return false;
+  const mimeOk = EVIDENCE_DOCUMENT_MIME_TYPES.includes(String(file.type || ""));
+  const extOk = EVIDENCE_DOCUMENT_EXTENSIONS.test(String(file.name || ""));
+  return mimeOk || extOk;
+}
+
+/** User-facing message for a rejected file. */
+export const EVIDENCE_DOCUMENT_ERROR =
+  "Only documents can be uploaded (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX) — or paste a URL instead.";
+
 /** True when the stored value is an external link rather than a storage path. */
 export function isExternalEvidenceLink(value) {
   return /^https?:\/\//i.test(String(value || "").trim());
@@ -66,4 +93,4 @@ export async function evidenceDownloadUrl(value, expiresIn = EVIDENCE_URL_TTL_SE
   return signEvidencePath(raw, expiresIn);
 }
 
-export default { EVIDENCE_BUCKET, EVIDENCE_URL_TTL_SECONDS, isExternalEvidenceLink, evidenceStoragePath, signEvidencePath, evidenceDownloadUrl };
+export default { EVIDENCE_BUCKET, EVIDENCE_URL_TTL_SECONDS, isExternalEvidenceLink, evidenceStoragePath, signEvidencePath, evidenceDownloadUrl, isAllowedEvidenceDocument, EVIDENCE_DOCUMENT_ERROR };

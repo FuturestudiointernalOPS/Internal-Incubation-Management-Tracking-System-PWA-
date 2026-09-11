@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { createClient } from '@supabase/supabase-js'
+import { isAllowedEvidenceDocument, EVIDENCE_DOCUMENT_ERROR } from './ventureEvidence'
 
 /**
  * IMPACTOS OPERATIONAL STORAGE — SUPABASE INTEGRATION
@@ -178,6 +179,11 @@ export const uploadDeliverableEvidence = async (file, { ventureId, deliverableId
         success: false,
         error: `File size exceeds the maximum of 5MB. This file is ${(file.size / (1024 * 1024)).toFixed(1)}MB. Please compress it or paste a link instead.`
       }
+    }
+
+    // Evidence is a document or a URL — only documents are uploaded here.
+    if (!isAllowedEvidenceDocument(file)) {
+      return { success: false, error: EVIDENCE_DOCUMENT_ERROR }
     }
 
     // PRIVATE bucket: evidence is never world-readable. Authorized viewers get

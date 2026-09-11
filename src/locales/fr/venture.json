@@ -331,10 +331,8 @@
       "deliverableTitlePlaceholder": "Titre du livrable — ex. Term sheet signé",
       "deliverableDescPlaceholder": "Ce qui doit être produit (affiché à l'entreprise)",
       "deliverableTypes": {
-        "document": "Document",
-        "link": "Lien",
-        "presentation": "Présentation",
-        "report": "Rapport"
+        "document": "Document (PDF)",
+        "link": "URL"
       },
       "deliverableAdded": "Livrable ajouté.",
       "deliverableUpdated": "Livrable mis à jour.",
@@ -344,7 +342,7 @@
       "approveDeliverable": "Approuver",
       "requestChanges": "Demander des modifications",
       "evidenceUrlPlaceholder": "Lien de la preuve (URL)",
-      "attachFile": "Joindre un fichier (tout type, max 5 Mo)",
+      "attachFile": "Joindre un document (PDF, Word, Excel, PowerPoint — max 5 Mo)",
       "orPasteLink": "ou collez un lien",
       "viewEvidence": "Voir",
       "reviewCommentsPlaceholder": "Que faut-il modifier ?",

@@ -81,7 +81,9 @@ export const POST = createHandler(async (req, { params }) => {
     sql: `INSERT INTO venture_milestones (id, venture_id, title, description, target_date, status, progress, created_by, journey_stage_id, objective, start_date, priority, owner_cid, display_order) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
     args: [randomUUID, ventureDbId, title, description || null, target_date || null, initialStatus, req.session?.cid || null, journey_stage_id || null, body.objective || null, body.start_date || null, body.priority || null, body.owner_cid || null, body.display_order ?? null],
   });
-  return NextResponse.json({ success: true, status: initialStatus });
+  // milestone_id is returned so callers can attach deliverables in the same
+  // flow (the journey panel creates the milestone and its deliverables at once).
+  return NextResponse.json({ success: true, status: initialStatus, milestone_id: randomUUID });
 });
 
 export const PATCH = createHandler(async (req, { params }) => {
