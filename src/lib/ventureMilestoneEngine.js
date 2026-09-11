@@ -39,6 +39,32 @@ export async function isMilestoneLeadAuthority(db, { code, cid, role }) {
   }
 }
 
+/** Resolve the VNT code of a Venture from either its code or internal UUID. */
+export async function resolveVentureCode(db, id) {
+  const r = await db
+    .execute({
+      sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?",
+      args: [id, id],
+    })
+    .catch(() => ({ rows: [] }));
+  const row = rowsOf(r)[0];
+  if (!row) return null;
+  return row.venture_id || (typeof id === "string" && id.startsWith("VNT-") ? id : null);
+}
+
+/**
+ * Milestone STRUCTURE authority (add / remove / duplicate / reorder): the
+ * Venture's assigned Lead Manager or a Super Admin. Progress transitions are
+ * deliberately NOT gated here — only completion is (see the milestones route).
+ */
+export async function canManageMilestones(db, { id, cid, role }) {
+  if (role === "super_admin") return true;
+  if (!cid) return false;
+  const code = await resolveVentureCode(db, id);
+  if (!code) return false;
+  return isMilestoneLeadAuthority(db, { code, cid, role });
+}
+
 /**
  * Status for a newly created milestone bound to a Journey stage:
  * not_started when it is the stage's first milestone or the previous one is
@@ -59,6 +85,50 @@ export async function computeInitialMilestoneStatus(db, { dbId, stageId }) {
     return isMilestoneComplete(last.status) ? "not_started" : "locked";
   } catch (_) {
     return "not_started";
+  }
+}
+
+/**
+ * Release the first unfinished milestone of an ACTIVE journey stage.
+ *
+ * The chain is: the first milestone (by display order) that is not completed
+ * becomes available (locked -> not_started). Everything after it stays locked,
+ * and nothing is ever locked back or un-completed — so re-running this is safe.
+ * Returns { released_milestone_id } (null when there is nothing to release).
+ */
+export async function releaseFirstMilestoneForStage(db, { dbId, stageId }) {
+  if (!stageId) return { released_milestone_id: null };
+  try {
+    const stageRes = await db.execute({
+      sql: "SELECT status FROM venture_journey_stages WHERE id = ? AND venture_id = ?",
+      args: [String(stageId), dbId],
+    }).catch(() => ({ rows: [] }));
+    const stage = rowsOf(stageRes)[0];
+    if (!stage || stage.status !== "active") return { released_milestone_id: null };
+
+    // Archived milestones are not part of the chain (guarded for databases
+    // whose schema predates the is_archived column).
+    const richSql = `SELECT id, status FROM venture_milestones
+                     WHERE venture_id = ? AND journey_stage_id = ? AND COALESCE(is_archived, FALSE) = FALSE
+                     ORDER BY COALESCE(display_order, 0) ASC, created_at ASC`;
+    const plainSql = `SELECT id, status FROM venture_milestones
+                      WHERE venture_id = ? AND journey_stage_id = ?
+                      ORDER BY COALESCE(display_order, 0) ASC, created_at ASC`;
+    const msRes = await db
+      .execute({ sql: richSql, args: [dbId, String(stageId)] })
+      .catch(() => db.execute({ sql: plainSql, args: [dbId, String(stageId)] }).catch(() => ({ rows: [] })));
+    const list = rowsOf(msRes);
+
+    const firstOpen = list.find((m) => !isMilestoneComplete(m.status));
+    if (!firstOpen || firstOpen.status !== "locked") return { released_milestone_id: null };
+
+    await db.execute({
+      sql: "UPDATE venture_milestones SET status = 'not_started', updated_at = NOW() WHERE id = ? AND status = 'locked'",
+      args: [firstOpen.id],
+    });
+    return { released_milestone_id: firstOpen.id };
+  } catch (_) {
+    return { released_milestone_id: null };
   }
 }
 
@@ -99,4 +169,4 @@ export async function completeMilestoneAndUnlockNext(db, { dbId, milestoneId }) 
   return { unlocked_milestone_id: next.id };
 }
 
-export default { isMilestoneLeadAuthority, computeInitialMilestoneStatus, completeMilestoneAndUnlockNext };
+export default { isMilestoneLeadAuthority, resolveVentureCode, canManageMilestones, computeInitialMilestoneStatus, releaseFirstMilestoneForStage, completeMilestoneAndUnlockNext };

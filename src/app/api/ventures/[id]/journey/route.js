@@ -4,6 +4,8 @@ import { getSession } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
 import { roleIsPrivileged } from "@/lib/ventureAuth";
+import { canManageMilestones, releaseFirstMilestoneForStage } from "@/lib/ventureMilestoneEngine";
+import { evidenceDownloadUrl, isExternalEvidenceLink } from "@/lib/ventureEvidence";
 import {
   ensureJourneyTable,
   resolveVentureInternalId,
@@ -81,21 +83,75 @@ export async function GET(req, { params }) {
       includeArchived: wantArchived && Boolean(access && access.manage),
     });
 
+    // Milestone STRUCTURE authority (add / remove / duplicate / reorder) is
+    // Lead Manager or Super Admin only — the panel hides those controls when
+    // this is false. Never granted to members.
+    let milestoneAuthority = false;
+    if (viewer) {
+      milestoneAuthority = await canManageMilestones(db, { id, cid: viewer.cid, role: viewer.role });
+    }
+
     // Phase 2 spine: attach the milestones bound to each stage so the Journey
     // timeline can show stage -> milestone progress. Venture-facing data only
     // (milestones are visible to members through their own tools). Defensive:
     // if the additive columns are missing the stage list still renders.
     const milestoneRes = await db.execute({
-      sql: `SELECT id, title, status, progress, target_date, journey_stage_id
+      sql: `SELECT id, title, description, objective, status, progress, target_date,
+                   priority, display_order, created_at, journey_stage_id
             FROM venture_milestones
             WHERE venture_id = ? AND journey_stage_id IS NOT NULL
             ORDER BY COALESCE(display_order, 0), created_at ASC`,
       args: [dbId],
-    }).catch(() => ({ rows: [] }));
+    }).catch(() =>
+      db.execute({
+        sql: `SELECT id, title, status, progress, target_date, journey_stage_id
+              FROM venture_milestones
+              WHERE venture_id = ? AND journey_stage_id IS NOT NULL
+              ORDER BY COALESCE(display_order, 0), created_at ASC`,
+        args: [dbId],
+      }).catch(() => ({ rows: [] })),
+    );
     const milestonesByStage = {};
     for (const m of milestoneRes.rows || []) {
       const key = String(m.journey_stage_id);
       (milestonesByStage[key] = milestonesByStage[key] || []).push(m);
+    }
+
+    // Deliverables attached to each milestone (evidence submitted by the
+    // Venture, reviewed by the Lead Manager / a scoped coach). Guarded so a
+    // database without the table still renders the journey.
+    const boundMilestoneIds = Object.values(milestonesByStage)
+      .flat()
+      .map((m) => String(m.id));
+    const deliverablesByMilestone = {};
+    if (boundMilestoneIds.length > 0) {
+      const dvRes = await db
+        .execute({
+          sql: `SELECT id, milestone_id, title, description, deliverable_type, status, approval_status,
+                       due_date, attachment_url, attachment_name, rejection_reason, reviewer_name
+                FROM venture_deliverables
+                WHERE milestone_id::text = ANY(?)
+                ORDER BY created_at ASC`,
+          args: [boundMilestoneIds],
+        })
+        .catch(() => ({ rows: [] }));
+      for (const dv of dvRes.rows || []) {
+        const key = String(dv.milestone_id);
+        (deliverablesByMilestone[key] = deliverablesByMilestone[key] || []).push(dv);
+      }
+      // Private evidence: a storage path is signed per read (1h), while an
+      // external link the author pasted passes through untouched. Only viewers
+      // who already passed this Venture read ever receive a usable URL.
+      await Promise.all(
+        Object.values(deliverablesByMilestone)
+          .flat()
+          .map(async (dv) => {
+            if (!dv.attachment_url) return;
+            dv.evidence_download_url = isExternalEvidenceLink(dv.attachment_url)
+              ? dv.attachment_url
+              : await evidenceDownloadUrl(dv.attachment_url);
+          }),
+      );
     }
 
     // Template provenance: stages generated from a reusable template carry a
@@ -118,6 +174,9 @@ export async function GET(req, { params }) {
     for (const stage of stages) {
       const list = milestonesByStage[stage.id] || [];
       stage.milestones = list;
+      for (const m of list) {
+        m.deliverables = deliverablesByMilestone[String(m.id)] || [];
+      }
       stage.milestone_counts = {
         total: list.length,
         completed: list.filter((m) => m.status === "completed").length,
@@ -154,10 +213,11 @@ export async function GET(req, { params }) {
         access,
         guided: true,
         template_source: templateSource,
+        milestone_authority: milestoneAuthority,
       });
     }
 
-    return NextResponse.json({ success: true, stages, access, template_source: templateSource });
+    return NextResponse.json({ success: true, stages, access, template_source: templateSource, milestone_authority: milestoneAuthority });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }
@@ -275,6 +335,8 @@ export async function PATCH(req, { params }) {
         await query("UPDATE venture_journey_stages SET status = 'locked' WHERE venture_id = ? AND status = 'active'", [dbId]);
         await query("UPDATE venture_journey_stages SET status = 'active' WHERE id = ? AND venture_id = ?", [stageId, dbId]);
       });
+      // The journey is now active — its first milestone becomes available.
+      await releaseFirstMilestoneForStage(db, { dbId, stageId });
     } else if (action === "lock") {
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
       if (stage.status === "completed") {
@@ -298,6 +360,16 @@ export async function PATCH(req, { params }) {
           [dbId, stage.stage_order + 1],
         );
       });
+      // If completing this journey activated the next one, release its first
+      // milestone (the chain continues into the new journey).
+      const nextStageRes = await db
+        .execute({
+          sql: "SELECT id FROM venture_journey_stages WHERE venture_id = ? AND stage_order = ? AND status = 'active'",
+          args: [dbId, stage.stage_order + 1],
+        })
+        .catch(() => ({ rows: [] }));
+      const nextStageId = nextStageRes.rows?.[0]?.id;
+      if (nextStageId) await releaseFirstMilestoneForStage(db, { dbId, stageId: nextStageId });
       try {
         const { notifyAndEmailVentureFounders } = await import("@/lib/ventureNotify");
         await notifyAndEmailVentureFounders(db, {
@@ -324,6 +396,8 @@ export async function PATCH(req, { params }) {
         );
         await query("UPDATE venture_journey_stages SET status = 'active' WHERE id = ? AND venture_id = ?", [stageId, dbId]);
       });
+      // Reopened journey is active again — release its first unfinished milestone.
+      await releaseFirstMilestoneForStage(db, { dbId, stageId });
     } else if (action === "delete") {
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
       await deleteJourneyStage(db, { dbId, stageId });

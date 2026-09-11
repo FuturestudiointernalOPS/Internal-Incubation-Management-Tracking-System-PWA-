@@ -11,12 +11,15 @@ import { useVenture } from "../VentureContext";
    review each submission (approved / changes requested). */
 export function JourneyTab() {
   const { t } = useI18n();
-  const { journeyStages, cardStyle, params, notifyMsg } = useVenture();
+  const { journeyStages, cardStyle, params, notifyMsg, fetchJourney } = useVenture();
   const [openId, setOpenId] = useState(null);
   const [tasksByMilestone, setTasksByMilestone] = useState({});
   const [subsByTask, setSubsByTask] = useState({});
   const [openTaskId, setOpenTaskId] = useState(null);
   const [drafts, setDrafts] = useState({});
+  // Deliverable evidence drafts per deliverable: { url, file }. Submitted by
+  // the Venture (upload or link), then reviewed by the Lead Manager / coach.
+  const [dvDrafts, setDvDrafts] = useState({});
 
   const TASK_LABEL_KEYS = { review: "pendingReview", accepted: "approved", revision_requested: "revisionRequested" };
   const MILESTONE_LABEL_KEYS = { not_started: "notStarted", in_progress: "inProgress", under_review: "pendingReview", changes_requested: "revisionRequested" };
@@ -74,6 +77,60 @@ export function JourneyTab() {
         setDrafts((p) => ({ ...p, [taskId]: { url: "", notes: "" } }));
         setSubsByTask((p) => ({ ...p, [taskId]: d.latest || null }));
         if (mid) loadMilestoneTasks(mid);
+      } else {
+        notifyMsg(d.error || t("venture.submitFailed"));
+      }
+    } catch (_) {
+      notifyMsg(t("venture.submitFailed"));
+    }
+  };
+
+  // Deliverable evidence: the Venture submits a URL; the status chip then
+  // reflects the review (submitted / approved / changes requested).
+  const dvStatus = (dv) => {
+    if (dv.approval_status === "approved" || dv.status === "completed" || dv.status === "approved") {
+      return { key: "approved", cls: "bg-green-500/15 text-green-400" };
+    }
+    if (dv.approval_status === "rejected") {
+      return { key: "changes_requested", cls: "bg-rose-500/15 text-rose-400" };
+    }
+    if (dv.status === "submitted") {
+      return { key: "submitted", cls: "bg-amber-500/15 text-amber-400" };
+    }
+    return { key: "pending", cls: "bg-white/10 text-slate-400" };
+  };
+
+  const submitDeliverable = async (deliverableId) => {
+    const draft = dvDrafts[deliverableId] || {};
+    const file = draft.file || null;
+    const url = (draft.url || "").trim();
+    if (!file && !url) return;
+    try {
+      let evidenceUrl = url;
+      let evidenceName = null;
+      if (file) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("deliverable_id", String(deliverableId));
+        const upRes = await fetch(`/api/ventures/${params.id}/deliverables/upload`, { method: "POST", body: fd });
+        const up = await upRes.json().catch(() => ({}));
+        if (!up.success) {
+          notifyMsg(up.error || t("venture.submitFailed"));
+          return;
+        }
+        evidenceUrl = up.path;
+        evidenceName = up.name || file.name || null;
+      }
+      const res = await fetch(`/api/ventures/${params.id}/deliverables`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: deliverableId, action: "submit", attachment_url: evidenceUrl, attachment_name: evidenceName }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        notifyMsg(t("venture.manager.deliverableSubmitted"));
+        setDvDrafts((p) => ({ ...p, [deliverableId]: { url: "", file: null } }));
+        fetchJourney(true);
       } else {
         notifyMsg(d.error || t("venture.submitFailed"));
       }
@@ -164,6 +221,60 @@ export function JourneyTab() {
                                 </div>
                               </div>
                               {m.target_date && <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.targetDate') || 'Target Date'}: {new Date(`${m.target_date}T00:00:00`).toLocaleDateString()}</p>}
+
+                              {/* Deliverables: evidence the Venture must submit for review */}
+                              {(m.deliverables || []).length > 0 && (
+                                <div className="space-y-1.5 pt-1">
+                                  <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>
+                                    {t('venture.manager.deliverables')}
+                                  </p>
+                                  {(m.deliverables || []).map((dv) => {
+                                    const st = dvStatus(dv);
+                                    const canSubmit = stage.status === 'active' && st.key !== 'approved';
+                                    return (
+                                      <div key={dv.id} className="rounded-lg border p-2.5 space-y-1.5" style={{ borderColor: 'rgb(255 255 255 / 0.08)' }}>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="flex-1 min-w-0 text-xs font-medium truncate">{dv.title}</span>
+                                          {dv.due_date && <span className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{new Date(dv.due_date).toLocaleDateString()}</span>}
+                                          <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded ${st.cls}`}>
+                                            {t(`venture.manager.deliverableStatuses.${st.key}`)}
+                                          </span>
+                                        </div>
+                                        {dv.description && <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{dv.description}</p>}
+                                        {dv.attachment_url && (
+                                          <a href={dv.evidence_download_url || dv.attachment_url} target="_blank" rel="noreferrer" className="text-[10px] font-bold" style={{ color: 'var(--brand-orange)' }}>
+                                            {dv.attachment_name || t('venture.manager.viewEvidence')}
+                                          </a>
+                                        )}
+                                        {dv.approval_status === 'rejected' && dv.rejection_reason && (
+                                          <p className="text-[10px] text-rose-400">{t('venture.manager.changesRequestedReason', { reason: dv.rejection_reason })}</p>
+                                        )}
+                                        {canSubmit && (
+                                          <div className="space-y-1.5">
+                                            <input
+                                              type="file"
+                                              onChange={(e) => setDvDrafts((p) => ({ ...p, [dv.id]: { ...(p[dv.id] || {}), file: e.target.files?.[0] || null } }))}
+                                              className="w-full text-[10px]"
+                                              style={{ color: 'var(--text-secondary)' }}
+                                            />
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                              <input
+                                                value={(dvDrafts[dv.id] || {}).url || ''}
+                                                onChange={(e) => setDvDrafts((p) => ({ ...p, [dv.id]: { ...(p[dv.id] || {}), url: e.target.value } }))}
+                                                placeholder={t('venture.urlPlaceholder')}
+                                                className="flex-1 min-w-[140px] px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                              />
+                                              <button type="button" onClick={() => submitDeliverable(dv.id)} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-black" style={{ backgroundColor: 'var(--brand-orange)' }}>
+                                                {t('venture.submitForReview')}
+                                              </button>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                               {stage.status === 'locked' ? null : tasks.length === 0 && tasksByMilestone[m.id] !== undefined ? (
                                 <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t('venture.noTasksYet')}</p>
                               ) : null}

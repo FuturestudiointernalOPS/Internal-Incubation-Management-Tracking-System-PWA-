@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { duplicateMilestone } from "@/lib/ventureDuplication";
+import { canManageMilestones } from "@/lib/ventureMilestoneEngine";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,15 @@ export async function POST(req, { params }) {
     const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
     if (access.error) return access.error;
     const { session } = access;
+
+    // Duplicating creates a milestone — Lead Manager or Super Admin only.
+    const allowed = await canManageMilestones(db, { id, cid: session?.cid, role: session?.role });
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: "Only the Venture's Lead Manager or a Super Admin can add milestones." },
+        { status: 403 },
+      );
+    }
 
     const body = await req.json();
     const milestoneId = body.milestone_id ? String(body.milestone_id) : null;

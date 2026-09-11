@@ -3,6 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import db from "@/lib/db";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { applyBulk } from "@/lib/ventureArchive";
+import { canManageMilestones } from "@/lib/ventureMilestoneEngine";
 
 /**
  * POST /api/ventures/[id]/milestones/archive
@@ -18,6 +19,16 @@ export const POST = createHandler(async (req, { params }) => {
   const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
   if (access.error) return access.error;
   const { session } = access;
+
+  // Removing/restoring a milestone is a STRUCTURE action: Lead Manager or
+  // Super Admin only.
+  const allowed = await canManageMilestones(db, { id, cid: session?.cid, role: session?.role });
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: "Only the Venture's Lead Manager or a Super Admin can remove milestones." },
+      { status: 403 },
+    );
+  }
 
   const body = await req.json();
   const ids = Array.isArray(body?.ids) ? body.ids.map((x) => String(x)).filter(Boolean) : [];

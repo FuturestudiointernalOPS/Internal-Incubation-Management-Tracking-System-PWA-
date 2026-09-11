@@ -12,7 +12,6 @@ import { TeamTab } from "@/components/ventures/workspace/tabs/MembersTabs";
 import { DashboardTab } from "@/components/ventures/workspace/tabs/DashboardHistoryTabs";
 import { JourneyTab, BusinessModelTab } from "@/components/ventures/workspace/tabs/JourneyPlaybookTabs";
 import { DiscoveryTab, ValidationTab, PmfTab } from "@/components/ventures/workspace/tabs/LeanStartupTabs";
-import { MilestonesTab } from "@/components/ventures/workspace/tabs/MilestoneTabs";
 import { DocumentsTab } from "@/components/ventures/workspace/tabs/DocumentsTabs";
 import { KpisTab, InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
 
@@ -25,7 +24,7 @@ const TABS = [
 // the Journey page while milestone workspaces bind their content to the items;
 // they are NOT top-level workspace navigation.
 const JOURNEY_TOOLS = [
-  "businessModel", "discovery", "validation", "pmf", "milestones", "documents",
+  "businessModel", "discovery", "validation", "pmf", "documents",
 ];
 const STAGES = ["idea", "validation", "mvp", "growth", "scale"];
 const INDUSTRY_FALLBACK = ["Fintech", "Healthtech", "Edtech", "Cleantech", "SaaS", "E-commerce", "Agritech", "Logistics", "AI / ML", "Blockchain", "Media & Entertainment", "Real Estate", "Other"];
@@ -730,7 +729,6 @@ export default function VentureDetail() {
                 {journeySub === "discovery" && <DiscoveryTab />}
                 {journeySub === "validation" && <ValidationTab />}
                 {journeySub === "pmf" && <PmfTab />}
-                {journeySub === "milestones" && <MilestonesTab />}
                 {journeySub === "documents" && <DocumentsTab />}
               </div>
             )}
