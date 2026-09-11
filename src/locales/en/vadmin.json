@@ -83,6 +83,7 @@
       "inviteFounder": "Invite Founder",
       "knowledgeHub": "Knowledge Hub",
       "kpis": "KPIs",
+      "loadFailed": "Failed to load",
       "manageTeam": "Manage Team",
       "nextMilestones": "Next Milestones",
       "noCoachesOrAdvisors": "No coaches or advisors assigned",
@@ -109,6 +110,7 @@
       "recentActivity": "Recent Activity",
       "recentDocuments": "Recent Documents",
       "refreshAll": "Refresh All",
+      "refreshFailed": "Refresh failed",
       "retry": "Retry",
       "sectionsMissing": "{count} sections missing",
       "stage": "Stage",
@@ -124,7 +126,9 @@
       "uploadFirstDocument": "Upload your first document",
       "venture": "Venture",
       "verification": "Verification",
-      "verifiedCount": "{verified}/{total} verified"
+      "verifiedCount": "{verified}/{total} verified",
+      "verified": "Verified",
+      "rejected": "Rejected"
     },
     "detail": {
       "ventureNotFound": "Venture Not Found",
@@ -226,7 +230,33 @@
       "openFounderManagement": "Open Founder Management",
       "totalMembers": "Total Members",
       "roles": "Roles",
-      "active": "Active"
+      "accepted": "Accepted",
+      "active": "Active",
+      "analytics": "Analytics",
+      "businessInformation": "Business Information",
+      "founderInformation": "Founder Information",
+      "fundraising": "Fundraising",
+      "investors": "Investors",
+      "journey": "Journey",
+      "notes": "Notes",
+      "operatingPlan": "Operating Plan",
+      "permissions": "Permissions",
+      "permissionsTitle": "Global permission profiles (applies to all Ventures)",
+      "profile": "Profile",
+      "reviewAndSubmit": "Review & Submit",
+      "staff": "Staff",
+      "staffTitle": "Who manages/coaches this Venture and at what scope",
+      "stageEarlyTraction": "Early Traction",
+      "stageGrowth": "Growth",
+      "stageIdea": "Idea",
+      "stageScaling": "Scaling",
+      "stageValidation": "Validation",
+      "startupIdentity": "Startup Identity",
+      "stepFraction": "Step {step}/{total}",
+      "stepName": "Step {step}: {name}",
+      "supportingDocuments": "Supporting Documents",
+      "team": "Team",
+      "teamInformation": "Team Information"
     },
     "coaches": {
       "selectCoach": "Select a coach",
@@ -1044,7 +1074,10 @@
     "journey": {
       "statusLocked": "Locked",
       "statusActive": "Active",
-      "statusCompleted": "Completed"
+      "statusCompleted": "Completed",
+      "backToVenture": "Back to {name}",
+      "title": "Venture Journey",
+      "subtitle": "{company} · {code} — the staff-defined operating path shown to the Venture"
     }
   }
 }

@@ -43,6 +43,10 @@ export async function ensureJourneyTable(db) {
   });
   await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS objective TEXT" });
   await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS target_date DATE" });
+  // Template provenance: which reusable template generated this stage (if any).
+  // plan = operating-plan template; journey = saved Journey template.
+  await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS source_template_type TEXT" });
+  await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS source_template_id TEXT" });
 }
 
 /**
@@ -67,7 +71,8 @@ export async function resolveVentureInternalId(db, ventureId) {
 export async function listJourneyStages(db, dbId) {
   const res = await db.execute({
     sql: `SELECT id, name, description, objective, target_date, stage_order,
-                 status, completed_at, created_at
+                 status, completed_at, created_at,
+                 source_template_type, source_template_id
           FROM venture_journey_stages WHERE venture_id = ?
           ORDER BY stage_order ASC`,
     args: [dbId],

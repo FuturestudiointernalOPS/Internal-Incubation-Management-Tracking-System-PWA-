@@ -33,11 +33,14 @@ describe("ensureJourneyTable", () => {
     db.execute.mockResolvedValue({ rows: [] });
     await ensureJourneyTable(db);
 
-    expect(db.execute).toHaveBeenCalledTimes(3); // CREATE + 2 ALTERs (objective, target_date)
-    const [create, alterObjective, alterDate] = db.execute.mock.calls.map((c) => c[0].sql);
+    expect(db.execute).toHaveBeenCalledTimes(5); // CREATE + 4 ALTERs (objective, target_date, template provenance ×2)
+    const [create, alterObjective, alterDate, alterSourceType, alterSourceId] = db.execute.mock.calls.map((c) => c[0].sql);
     expect(create).toContain("CREATE TABLE IF NOT EXISTS venture_journey_stages");
     expect(alterObjective).toContain("ADD COLUMN IF NOT EXISTS objective");
     expect(alterDate).toContain("ADD COLUMN IF NOT EXISTS target_date");
+    // Template provenance columns — which reusable template generated a stage.
+    expect(alterSourceType).toContain("ADD COLUMN IF NOT EXISTS source_template_type");
+    expect(alterSourceId).toContain("ADD COLUMN IF NOT EXISTS source_template_id");
     // Structural only — no INSERTs of a standard curriculum.
     expect(create).not.toContain("INSERT INTO");
   });
