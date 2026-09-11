@@ -347,46 +347,12 @@ export async function PATCH(req, { params }) {
         args: [stageId, dbId],
       });
     } else if (action === "complete") {
-      if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
-      if (stage.status === "completed") return NextResponse.json({ success: false, error: "Stage is already completed." }, { status: 400 });
-      await db.transaction(async (query) => {
-        await query(
-          "UPDATE venture_journey_stages SET status = 'completed', completed_at = NOW(), approved_by = ? WHERE id = ? AND venture_id = ?",
-          [session.cid || null, stageId, dbId],
-        );
-        // Unlock the next scheduled stage so the Venture always has a current one.
-        await query(
-          "UPDATE venture_journey_stages SET status = 'active' WHERE venture_id = ? AND stage_order = ? AND status = 'locked'",
-          [dbId, stage.stage_order + 1],
-        );
-      });
-      // If completing this journey activated the next one, release its first
-      // milestone (the chain continues into the new journey).
-      const nextStageRes = await db
-        .execute({
-          sql: "SELECT id FROM venture_journey_stages WHERE venture_id = ? AND stage_order = ? AND status = 'active'",
-          args: [dbId, stage.stage_order + 1],
-        })
-        .catch(() => ({ rows: [] }));
-      const nextStageId = nextStageRes.rows?.[0]?.id;
-      if (nextStageId) await releaseFirstMilestoneForStage(db, { dbId, stageId: nextStageId });
-      try {
-        const { notifyAndEmailVentureFounders } = await import("@/lib/ventureNotify");
-        await notifyAndEmailVentureFounders(db, {
-          dbId,
-          title: "Stage Completed",
-          message: `"${stage.name}" has been marked as completed.`,
-          emailSubject: "Your Journey milestone was completed",
-          emailLines: [
-            `Your Journey milestone "${stage.name}" has been marked as completed.`,
-            "Log in to ImpactOS to see what is next in your Journey.",
-          ],
-          context: { journey_stage_id: stage.id },
-          templateKey: "venture.notif.stageCompleted",
-          params: { stageName: stage.name },
-          dedupeKey: `journey-stage-complete:${stage.id}`,
-        });
-      } catch (_) {}
+      // A journey is NEVER closed by hand: it completes automatically once all
+      // of its milestones have been marked completed.
+      return NextResponse.json(
+        { success: false, error: "A journey cannot be closed manually — it completes automatically once all of its milestones are completed." },
+        { status: 400 },
+      );
     } else if (action === "reset") {
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
       await db.transaction(async (query) => {

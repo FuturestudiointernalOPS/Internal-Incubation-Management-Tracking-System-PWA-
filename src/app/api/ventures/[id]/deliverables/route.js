@@ -4,6 +4,7 @@ import db from "@/lib/db";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { canDefineDeliverables, canReviewDeliverable } from "@/lib/ventureDeliverables";
+import { dateOrNull, textOrNull } from "@/lib/ventureInput";
 import { listDeliverables, createDeliverable, updateDeliverable, getDeliverable } from "@/lib/ventures";
 
 /**
@@ -210,7 +211,11 @@ export const PATCH = createHandler(async (req, { params }) => {
 
   const updates = {};
   for (const field of ["title", "description", "deliverable_type", "due_date", "assigned_cid"]) {
-    if (body?.[field] !== undefined) updates[field] = body[field];
+    if (body?.[field] === undefined) continue;
+    // A cleared date arrives as "" — Postgres rejects that in a date column.
+    if (field === "due_date") updates[field] = dateOrNull(body[field]);
+    else if (field === "assigned_cid") updates[field] = textOrNull(body[field]);
+    else updates[field] = body[field];
   }
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });

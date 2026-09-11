@@ -33,6 +33,7 @@ import {
 const QUEUE_SQL_NO_LIMIT = `SELECT s.id AS submission_id, s.task_id, s.version, s.file_url, s.file_name, s.notes,
                  s.submitted_by_name, s.created_at,
                  t.title AS task_title,
+                 t.milestone_id,
                  m.title AS milestone_title
           FROM venture_task_submissions s
           JOIN venture_tasks t ON t.id = s.task_id
@@ -84,6 +85,13 @@ export const GET = createHandler(async (req, { params }) => {
     items = items
       .filter((row) => scopedTaskIds.includes(String(row.task_id)))
       .slice(0, 20);
+  }
+
+  // ?milestone_id= — the same queue, narrowed to one milestone. Powers the
+  // review inbox inside a milestone in the Journey panel.
+  const milestoneFilter = new URL(req.url).searchParams.get("milestone_id");
+  if (milestoneFilter) {
+    items = items.filter((row) => String(row.milestone_id ?? "") === String(milestoneFilter));
   }
 
   return NextResponse.json({ success: true, items });

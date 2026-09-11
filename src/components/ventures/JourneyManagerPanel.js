@@ -9,6 +9,7 @@ import {
   Loader2,
   ChevronUp,
   ChevronDown,
+  ChevronRight,
   Trash2,
   Save,
   Copy,
@@ -25,6 +26,7 @@ import {
   StickyNote,
   Flag,
   Upload,
+  CalendarPlus,
 } from "lucide-react";
 import ScopedNotes from "@/components/ventures/ScopedNotes";
 import AppModal from "@/components/ui/AppModal";
@@ -60,7 +62,7 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [tplSel, setTplSel] = useState("");
   const [savingTpl, setSavingTpl] = useState(false);
   const [dupBusy, setDupBusy] = useState(null);
-  const [notesStageId, setNotesStageId] = useState(null);
+  const [notesMsId, setNotesMsId] = useState(null);
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveForm, setSaveForm] = useState({ name: "", description: "" });
   const [savingSave, setSavingSave] = useState(false);
@@ -86,6 +88,8 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [msEditId, setMsEditId] = useState(null);
   const [msEditForm, setMsEditForm] = useState({});
   const [msBusy, setMsBusy] = useState(null);
+  // Milestones are collapsed by default; clicking one opens it (accordion).
+  const [msOpenId, setMsOpenId] = useState(null);
 
   // Deliverables (evidence) attached to a milestone: add/edit (Lead Manager /
   // Super Admin), submit evidence, approve / request changes.
@@ -99,6 +103,18 @@ export default function JourneyManagerPanel({ ventureId }) {
   // Evidence attached while defining a NEW deliverable (optional).
   const [dvNewFile, setDvNewFile] = useState(null);
   const [dvNewUrl, setDvNewUrl] = useState("");
+
+  // Review inbox per milestone: the Venture's submitted work awaiting a
+  // decision, reviewable right here (Approve / Request changes).
+  const [msSubs, setMsSubs] = useState({});
+  const [subsBusy, setSubsBusy] = useState(null);
+  const [subsReview, setSubsReview] = useState(null); // { submission_id, task_id, milestoneId }
+  const [subsComment, setSubsComment] = useState("");
+  // Book a session on a milestone (date + exact time), optionally with a coach.
+  const [bookFor, setBookFor] = useState(null);
+  const [bookForm, setBookForm] = useState({ date: "", time: "", duration: "45", coach_id: "", title: "", note: "" });
+  const [bookSaving, setBookSaving] = useState(false);
+  const [coachOptions, setCoachOptions] = useState([]);
 
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -379,6 +395,114 @@ export default function JourneyManagerPanel({ ventureId }) {
   // ── Milestones inside a journey ─────────────────────────────────────────
   const emptyMilestoneForm = { title: "", description: "", objective: "", target_date: "" };
 
+  const toggleMilestoneOpen = (id) => {
+    const next = String(msOpenId) === String(id) ? null : String(id);
+    setMsOpenId(next);
+    if (!next) setNotesMsId(null);
+    if (next) loadMilestoneSubmissions(next);
+  };
+
+  /** The Venture's submissions awaiting a decision inside one milestone. */
+  const loadMilestoneSubmissions = async (milestoneId) => {
+    try {
+      const res = await fetch(
+        `/api/ventures/${ventureId}/submissions/review-queue?milestone_id=${encodeURIComponent(milestoneId)}`,
+      );
+      const d = await res.json();
+      setMsSubs((p) => ({ ...p, [milestoneId]: d.success ? d.items || [] : [] }));
+    } catch (_) {
+      setMsSubs((p) => ({ ...p, [milestoneId]: [] }));
+    }
+  };
+
+  const decideSubmission = async (milestoneId, item, decision, comment = "") => {
+    setSubsBusy(item.submission_id);
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/tasks/${item.task_id}/submissions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "review",
+          submission_id: item.submission_id,
+          decision,
+          comment: comment.trim() || null,
+        }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        notify(t(decision === "approved" ? "venture.manager.submissionApproved" : "venture.manager.submissionChangesRequested"));
+        setSubsReview(null);
+        setSubsComment("");
+        await loadMilestoneSubmissions(milestoneId);
+      } else {
+        notify(d.error || t("venture.manager.actionFailed"), "error");
+      }
+    } catch (_) {
+      notify(t("venture.manager.actionFailed"), "error");
+    } finally {
+      setSubsBusy(null);
+    }
+  };
+
+  const openBooking = async (ms) => {
+    setBookFor(ms.id);
+    setBookForm({ date: "", time: "", duration: "45", coach_id: "", title: ms.title || "", note: "" });
+    if (coachOptions.length === 0) {
+      try {
+        const res = await fetch(`/api/ventures/${ventureId}/coaches`);
+        const d = await res.json();
+        if (d.success) setCoachOptions(d.coaches || []);
+      } catch (_) {}
+    }
+  };
+
+  const bookSession = async (e, stage, ms) => {
+    e.preventDefault();
+    if (!bookForm.date || !bookForm.time) return;
+    // A session always carries its internal note — the record of why it exists.
+    if (!bookForm.note.trim()) {
+      notify(t("venture.manager.sessionNoteRequired"), "error");
+      return;
+    }
+    setBookSaving(true);
+    try {
+      const start = new Date(`${bookForm.date}T${bookForm.time}:00`);
+      const minutes = Number(bookForm.duration) || 45;
+      const end = new Date(start.getTime() + minutes * 60000);
+      const coach = coachOptions.find((c) => String(c.coach_id) === String(bookForm.coach_id));
+      const res = await fetch(`/api/ventures/${ventureId}/sessions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_session",
+          title: bookForm.title || ms.title,
+          description: bookForm.note.trim(),
+          session_type: "coaching",
+          coach_id: bookForm.coach_id || null,
+          coach_name: coach?.full_name || null,
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          // The Venture is meant to see this session and be notified of it.
+          venture_facing: true,
+          journey_stage_id: stage.id,
+          milestone_ref: String(ms.id),
+        }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        notify(t("venture.manager.sessionBooked"));
+        setBookFor(null);
+      } else {
+        notify(d.error || t("venture.manager.actionFailed"), "error");
+      }
+    } catch (_) {
+      notify(t("venture.manager.actionFailed"), "error");
+    } finally {
+      setBookSaving(false);
+    }
+  };
+
   const addMsDeliverable = () =>
     setMsDeliverables((p) => [...p, { title: "", deliverable_type: "document", due_date: "" }]);
   const updateMsDeliverable = (idx, patch) =>
@@ -417,6 +541,7 @@ export default function JourneyManagerPanel({ ventureId }) {
         setMsForm(emptyMilestoneForm);
         setMsDeliverables([]);
         setMsAddFor(null);
+        if (d.milestone_id) setMsOpenId(String(d.milestone_id));
         await load();
       } else {
         notify(d.error || t("venture.manager.actionFailed"), "error");
@@ -441,6 +566,7 @@ export default function JourneyManagerPanel({ ventureId }) {
   };
 
   const startMilestoneEdit = (ms) => {
+    setMsOpenId(String(ms.id));
     setMsEditId(ms.id);
     setMsEditForm({
       title: ms.title || "",
@@ -674,6 +800,8 @@ export default function JourneyManagerPanel({ ventureId }) {
     { key: "edit", label: t("venture.manager.editMilestone"), icon: Pencil, onSelect: () => startMilestoneEdit(ms) },
     { key: "up", label: t("venture.manager.moveUp"), icon: ChevronUp, disabled: idx === 0, onSelect: () => moveMilestone(stage, ms, "up") },
     { key: "down", label: t("venture.manager.moveDown"), icon: ChevronDown, disabled: idx === list.length - 1, onSelect: () => moveMilestone(stage, ms, "down") },
+    // Internal notes live on the milestone — never outside one.
+    { key: "notes", label: t("venture.manager.notes.title"), icon: StickyNote, onSelect: () => { setMsOpenId(String(ms.id)); setNotesMsId((cur) => (String(cur) === String(ms.id) ? null : String(ms.id))); } },
     ms.status !== "completed" && {
       key: "complete",
       label: t("venture.manager.markCompleted"),
@@ -697,10 +825,6 @@ export default function JourneyManagerPanel({ ventureId }) {
       onSelect: () => patch({ action: "activate", stage_id: stage.id }),
     },
     stage.status === "active" && {
-      key: "complete", label: t("venture.manager.markCompleted"), icon: CheckCircle2,
-      onSelect: () => patch({ action: "complete", stage_id: stage.id }),
-    },
-    stage.status === "active" && {
       key: "lock", label: t("venture.manager.lockStage"), icon: Lock,
       onSelect: () => patch({ action: "lock", stage_id: stage.id }),
     },
@@ -713,7 +837,6 @@ export default function JourneyManagerPanel({ ventureId }) {
     { key: "up", label: t("venture.manager.moveUp"), icon: ChevronUp, disabled: !access.manage || i === 0, onSelect: () => patch({ action: "move", stage_id: stage.id, direction: "up" }) },
     { key: "down", label: t("venture.manager.moveDown"), icon: ChevronDown, disabled: !access.manage || i === visibleStages.length - 1, onSelect: () => patch({ action: "move", stage_id: stage.id, direction: "down" }) },
     { key: "duplicate", label: t("venture.manager.duplicateStageTitle"), icon: CopyPlus, disabled: !access.manage || dupBusy === stage.id, onSelect: () => duplicateStage(stage) },
-    { key: "notes", label: t("venture.manager.notes.title"), icon: StickyNote, onSelect: () => setNotesStageId(notesStageId === stage.id ? null : stage.id) },
     { separator: true },
     { key: "archive", label: t("venture.manager.archiveJourney"), icon: Archive, disabled: !access.manage, onSelect: () => archiveOneJourney(stage) },
     { key: "delete", label: t("venture.manager.deleteJourney"), icon: Trash2, danger: true, disabled: !access.manage, onSelect: () => deleteOneJourney(stage) },
@@ -1179,6 +1302,9 @@ export default function JourneyManagerPanel({ ventureId }) {
                                 {t(isLocked ? "venture.manager.memberVisibilityLocked" : "venture.manager.memberVisibilityActive")}
                               </span>
                             )}
+                            {isActive && (
+                              <span className="text-[10px] text-slate-500 italic">{t("venture.manager.journeyAutoCompletes")}</span>
+                            )}
                           </div>
                         )}
                         {total > 0 && (
@@ -1204,6 +1330,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                               {milestones.map((ms, msIdx) => {
                                 const msProgress = Math.min(100, Math.max(0, Number(ms.progress) || 0));
                                 const dvList = ms.deliverables || [];
+                                const isOpen = msOpenId !== null && String(msOpenId) === String(ms.id);
                                 return (
                                   <div key={ms.id} className="px-3 py-2">
                                     {msEditId === ms.id ? (
@@ -1246,20 +1373,25 @@ export default function JourneyManagerPanel({ ventureId }) {
                                     ) : (
                                       <>
                                       <div className="flex items-center gap-3">
-                                        <span className={`w-2 h-2 rounded-full shrink-0 ${milestoneDotClass(ms.status)}`} />
-                                        <div className="flex-1 min-w-0">
-                                          <p className={`text-[11px] font-bold text-[var(--text-primary)] truncate ${ms.status === "completed" ? "line-through text-slate-400" : ""}`}>
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleMilestoneOpen(ms.id)}
+                                          aria-expanded={isOpen}
+                                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                                        >
+                                          <span className={`w-2 h-2 rounded-full shrink-0 ${milestoneDotClass(ms.status)}`} />
+                                          <span className={`flex-1 min-w-0 text-[11px] font-bold text-[var(--text-primary)] truncate ${ms.status === "completed" ? "line-through text-slate-400" : ""}`}>
                                             {ms.title}
-                                          </p>
-                                          {msProgress > 0 && ms.status !== "completed" && (
-                                            <div className="w-28 h-1 rounded-full bg-tertiary mt-1 overflow-hidden">
-                                              <div className="h-full bg-sky-400/70 rounded-full" style={{ width: `${msProgress}%` }} />
-                                            </div>
+                                          </span>
+                                          {dvList.length > 0 && (
+                                            <span className="shrink-0 flex items-center gap-1 text-[9px] font-bold text-slate-500" title={t("venture.manager.deliverables")}>
+                                              <Flag className="w-3 h-3" /> {dvList.length}
+                                            </span>
                                           )}
-                                        </div>
-                                        {msProgress > 0 && <span className="text-[10px] font-bold text-[var(--text-secondary)] w-8 text-right">{msProgress}%</span>}
-                                        {ms.target_date && <span className="hidden sm:inline text-[10px] text-slate-500">{fmtDate(ms.target_date)}</span>}
-                                        <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${milestoneStatusClass(ms.status)}`}>
+                                          {msProgress > 0 && <span className="shrink-0 text-[10px] font-bold text-[var(--text-secondary)]">{msProgress}%</span>}
+                                          {isOpen ? <ChevronDown className="w-3.5 h-3.5 shrink-0 text-slate-500" /> : <ChevronRight className="w-3.5 h-3.5 shrink-0 text-slate-500" />}
+                                        </button>
+                                        <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0 ${milestoneStatusClass(ms.status)}`}>
                                           {milestoneStatusKey(ms.status)}
                                         </span>
                                         {milestoneAuthority && !stage.is_archived && (
@@ -1273,7 +1405,70 @@ export default function JourneyManagerPanel({ ventureId }) {
                                         {msBusy === ms.id && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400 shrink-0" />}
                                       </div>
 
-                                      {(dvList.length > 0 || milestoneAuthority) && (
+                                      {isOpen && msProgress > 0 && ms.status !== "completed" && (
+                                        <div className="mt-2 ml-5 w-full max-w-xs h-1 rounded-full bg-tertiary overflow-hidden">
+                                          <div className="h-full bg-sky-400/70 rounded-full" style={{ width: `${msProgress}%` }} />
+                                        </div>
+                                      )}
+                                      {isOpen && ms.target_date && (
+                                        <p className="mt-1 ml-5 text-[10px] text-slate-500">{fmtDate(ms.target_date)}</p>
+                                      )}
+
+                                      {/* Review inbox: what the Venture submitted for the tasks in this milestone */}
+                                      {isOpen && (msSubs[ms.id] || []).length > 0 && (
+                                        <div className="mt-2 ml-5 space-y-1.5">
+                                          <p className="text-[8px] font-black uppercase tracking-widest text-amber-400">
+                                            {t("venture.manager.submissionsToReview", { n: (msSubs[ms.id] || []).length })}
+                                          </p>
+                                          {(msSubs[ms.id] || []).map((item) => (
+                                            <div key={item.submission_id} className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-2.5 py-2 space-y-1.5">
+                                              <div className="flex items-center gap-2">
+                                                <p className="flex-1 min-w-0 text-[11px] font-bold text-[var(--text-primary)] truncate">{item.task_title}</p>
+                                                <span className="text-[9px] text-slate-500 shrink-0">
+                                                  v{item.version} · {item.submitted_by_name || t("venture.manager.theVenture")} · {new Date(item.created_at).toLocaleDateString()}
+                                                </span>
+                                              </div>
+                                              {item.notes && <p className="text-[10px] text-slate-400">{item.notes}</p>}
+                                              {item.file_url && (
+                                                <a href={item.file_url} target="_blank" rel="noreferrer" className="text-[9px] font-bold text-sky-300 hover:underline">
+                                                  {item.file_name || t("venture.manager.viewSubmission")}
+                                                </a>
+                                              )}
+                                              {subsReview?.submission_id === item.submission_id ? (
+                                                <div className="space-y-1.5">
+                                                  <textarea
+                                                    value={subsComment}
+                                                    onChange={(e) => setSubsComment(e.target.value)}
+                                                    rows={2}
+                                                    placeholder={t("venture.manager.reviewCommentsPlaceholder")}
+                                                    className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                  />
+                                                  <div className="flex justify-end gap-2">
+                                                    <button type="button" onClick={() => { setSubsReview(null); setSubsComment(""); }} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+                                                      {t("common.cancel")}
+                                                    </button>
+                                                    <button type="button" disabled={subsBusy === item.submission_id || !subsComment.trim()} onClick={() => decideSubmission(ms.id, item, "changes_requested", subsComment)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30 disabled:opacity-50">
+                                                      {t("venture.manager.requestChanges")}
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              ) : (
+                                                <div className="flex items-center gap-2">
+                                                  <button type="button" disabled={subsBusy === item.submission_id} onClick={() => decideSubmission(ms.id, item, "approved")} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 disabled:opacity-50">
+                                                    {t("venture.manager.approveDeliverable")}
+                                                  </button>
+                                                  <button type="button" disabled={subsBusy === item.submission_id} onClick={() => { setSubsReview({ submission_id: item.submission_id, task_id: item.task_id }); setSubsComment(""); }} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/30 disabled:opacity-50">
+                                                    {t("venture.manager.requestChanges")}
+                                                  </button>
+                                                  {subsBusy === item.submission_id && <Loader2 className="w-3 h-3 animate-spin text-slate-400" />}
+                                                </div>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+
+                                      {isOpen && (dvList.length > 0 || milestoneAuthority) && (
                                         <div className="mt-2 ml-5 space-y-1.5">
                                           <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
                                             {t("venture.manager.deliverables")}
@@ -1469,6 +1664,92 @@ export default function JourneyManagerPanel({ ventureId }) {
                                           )}
                                         </div>
                                       )}
+
+                                      {/* Book a session on this milestone (date + exact time) */}
+                                      {isOpen && (milestoneAuthority || access.manage) && !stage.is_archived && (
+                                        <div className="mt-2 ml-5">
+                                          {bookFor === ms.id ? (
+                                            <form onSubmit={(e) => bookSession(e, stage, ms)} className="rounded-lg border border-[var(--border-primary)] p-2.5 space-y-2">
+                                              <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] flex items-center gap-1.5">
+                                                <CalendarPlus className="w-3.5 h-3.5" /> {t("venture.manager.bookSession")}
+                                              </p>
+                                              <input
+                                                value={bookForm.title}
+                                                onChange={(e) => setBookForm({ ...bookForm, title: e.target.value })}
+                                                placeholder={t("venture.manager.sessionTitlePlaceholder")}
+                                                className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                              />
+                                              <textarea
+                                                value={bookForm.note}
+                                                onChange={(e) => setBookForm({ ...bookForm, note: e.target.value })}
+                                                rows={2}
+                                                required
+                                                placeholder={t("venture.manager.sessionNotePlaceholder")}
+                                                className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                              />
+                                              <div className="flex flex-wrap items-center gap-2">
+                                                <input
+                                                  type="date"
+                                                  required
+                                                  value={bookForm.date}
+                                                  onChange={(e) => setBookForm({ ...bookForm, date: e.target.value })}
+                                                  className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                />
+                                                <input
+                                                  type="time"
+                                                  required
+                                                  value={bookForm.time}
+                                                  onChange={(e) => setBookForm({ ...bookForm, time: e.target.value })}
+                                                  className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                />
+                                                <select
+                                                  value={bookForm.duration}
+                                                  onChange={(e) => setBookForm({ ...bookForm, duration: e.target.value })}
+                                                  className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                >
+                                                  {["30", "45", "60", "90"].map((min) => (
+                                                    <option key={min} value={min}>{t("venture.manager.minutes", { n: min })}</option>
+                                                  ))}
+                                                </select>
+                                                <select
+                                                  value={bookForm.coach_id}
+                                                  onChange={(e) => setBookForm({ ...bookForm, coach_id: e.target.value })}
+                                                  className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                >
+                                                  <option value="">{t("venture.manager.noCoach")}</option>
+                                                  {coachOptions.map((c) => (
+                                                    <option key={c.id || c.coach_id} value={c.coach_id}>{c.full_name || c.email}</option>
+                                                  ))}
+                                                </select>
+                                              </div>
+                                              <p className="text-[9px] text-slate-500">{t("venture.manager.sessionNotifyHint")}</p>
+                                              <div className="flex justify-end gap-2">
+                                                <button type="button" onClick={() => setBookFor(null)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+                                                  {t("common.cancel")}
+                                                </button>
+                                                <button type="submit" disabled={bookSaving} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5 disabled:opacity-50">
+                                                  {bookSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CalendarPlus className="w-3 h-3" />} {t("venture.manager.bookSession")}
+                                                </button>
+                                              </div>
+                                            </form>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              onClick={() => openBooking(ms)}
+                                              className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]"
+                                            >
+                                              <CalendarPlus className="w-3 h-3" /> {t("venture.manager.bookSession")}
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
+
+                                      {/* Internal notes are milestone-scoped — they never exist outside a milestone. */}
+                                      {isOpen && notesMsId !== null && String(notesMsId) === String(ms.id) && (
+                                        <div className="mt-2 ml-5">
+                                          <ScopedNotes ventureId={ventureId} scopeType="milestone" scopeId={ms.id} />
+                                        </div>
+                                      )}
                                       </>
                                     )}
                                   </div>
@@ -1572,12 +1853,6 @@ export default function JourneyManagerPanel({ ventureId }) {
                   )}
 
                 </div>
-
-                {notesStageId === stage.id && !isEditing && (
-                  <div className="mt-2">
-                    <ScopedNotes ventureId={ventureId} scopeType="journey_stage" scopeId={stage.id} />
-                  </div>
-                )}
               </div>
             );
           })}

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Loader2, StickyNote, Plus, Trash2, ExternalLink, Paperclip } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import AppModal from "@/components/ui/AppModal";
 
 /**
  * ScopedNotes — contextual internal notes for one operating object
@@ -21,6 +22,7 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
   const [error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [confirmNote, setConfirmNote] = useState(null);
   const [form, setForm] = useState({ title: "", body: "", url: "", urlName: "" });
 
   const load = useCallback(async () => {
@@ -33,10 +35,10 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
         setNotes(d.notes || []);
         setCanPost(!!d.can_post);
       } else {
-        setError(d.error || t("venture.notes.loadFailed"));
+        setError(d.error || t("venture.manager.notes.loadFailed"));
       }
     } catch (e) {
-      setError(t("venture.notes.loadFailed"));
+      setError(t("venture.manager.notes.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -71,17 +73,16 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
         setForm({ title: "", body: "", url: "", urlName: "" });
         await load();
       } else {
-        setError(d.error || t("venture.notes.postFailed"));
+        setError(d.error || t("venture.manager.notes.postFailed"));
       }
     } catch (err) {
-      setError(t("venture.notes.postFailed"));
+      setError(t("venture.manager.notes.postFailed"));
     } finally {
       setPosting(false);
     }
   };
 
   const remove = async (note) => {
-    if (!window.confirm(t("venture.notes.deleteConfirm"))) return;
     try {
       const res = await fetch(`/api/ventures/${ventureId}/notes`, {
         method: "DELETE",
@@ -89,10 +90,14 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
         body: JSON.stringify({ note_id: note.id }),
       });
       const d = await res.json();
-      if (d.success) await load();
-      else setError(d.error || t("venture.notes.deleteFailed"));
+      if (d.success) {
+        setConfirmNote(null);
+        await load();
+      } else {
+        setError(d.error || t("venture.manager.notes.deleteFailed"));
+      }
     } catch (err) {
-      setError(t("venture.notes.deleteFailed"));
+      setError(t("venture.manager.notes.deleteFailed"));
     }
   };
 
@@ -116,26 +121,26 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
         className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-[var(--brand-orange)] transition-colors"
       >
         <StickyNote className="w-3 h-3" />
-        {t("venture.notes.title")} ({notes.length})
+        {t("venture.manager.notes.title")} ({notes.length})
       </button>
 
       {open && (
         <div className="mt-2 space-y-2">
           {loading ? (
             <div className="flex items-center gap-2 text-[10px] text-slate-500 py-1">
-              <Loader2 className="w-3 h-3 animate-spin" /> Loading…
+              <Loader2 className="w-3 h-3 animate-spin" /> {t("common.loading")}
             </div>
           ) : error ? (
             <p className="text-[10px] text-rose-400">{error}</p>
           ) : notes.length === 0 ? (
-            <p className="text-[10px] text-slate-500">{t("venture.notes.empty")}</p>
+            <p className="text-[10px] text-slate-500">{t("venture.manager.notes.empty")}</p>
           ) : (
             <ul className="space-y-1.5">
               {notes.map((n) => (
                 <li key={n.id} className="rounded-lg bg-tertiary/60 border border-[var(--border-primary)] px-2.5 py-2 text-xs">
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-bold text-[var(--text-primary)]">{n.title}</p>
-                    <button onClick={() => remove(n)} className="p-0.5 text-slate-500 hover:text-rose-400" title={t("venture.notes.delete")}>
+                    <button onClick={() => setConfirmNote(n)} className="p-0.5 text-slate-500 hover:text-rose-400" title={t("venture.manager.notes.delete")}>
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
@@ -163,7 +168,7 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
               <input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder={t("venture.notes.titlePlaceholder")}
+                placeholder={t("venture.manager.notes.titlePlaceholder")}
                 required
                 className="w-full px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
               />
@@ -171,7 +176,7 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
                 rows={2}
                 value={form.body}
                 onChange={(e) => setForm({ ...form, body: e.target.value })}
-                placeholder={t("venture.notes.bodyPlaceholder")}
+                placeholder={t("venture.manager.notes.bodyPlaceholder")}
                 required
                 className="w-full px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
               />
@@ -179,25 +184,53 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
                 <input
                   value={form.url}
                   onChange={(e) => setForm({ ...form, url: e.target.value })}
-                  placeholder={t("venture.notes.urlPlaceholder")}
+                  placeholder={t("venture.manager.notes.urlPlaceholder")}
                   className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-[10px] text-[var(--text-primary)]"
                 />
                 <input
                   value={form.urlName}
                   onChange={(e) => setForm({ ...form, urlName: e.target.value })}
-                  placeholder={t("venture.notes.urlNamePlaceholder")}
+                  placeholder={t("venture.manager.notes.urlNamePlaceholder")}
                   className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-[10px] text-[var(--text-primary)]"
                 />
               </div>
               <div className="flex justify-end">
                 <button type="submit" disabled={posting} className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black disabled:opacity-50">
-                  {posting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} {t("venture.notes.add")}
+                  {posting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} {t("venture.manager.notes.add")}
                 </button>
               </div>
             </form>
           )}
         </div>
       )}
+
+      {/* In-app delete confirmation — no browser dialogs. */}
+      <AppModal
+        isOpen={Boolean(confirmNote)}
+        onClose={() => setConfirmNote(null)}
+        title={t("venture.manager.notes.delete")}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-[var(--text-secondary)]">{t("venture.manager.notes.deleteConfirm")}</p>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmNote(null)}
+              className="text-[9px] font-black uppercase tracking-widest px-3 py-2 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              onClick={() => remove(confirmNote)}
+              className="text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-lg bg-rose-500 text-white"
+            >
+              {t("venture.manager.notes.delete")}
+            </button>
+          </div>
+        </div>
+      </AppModal>
     </div>
   );
 }

@@ -142,6 +142,8 @@ export default function VentureSessionsPage() {
 
   const createNewSession = async () => {
     if (!sForm.title.trim() || !sForm.start_time || !sForm.end_time) { notify(t("vadmin.sessions.titleStartEndRequired"), "error"); return; }
+    // A session always carries its internal note (compulsory, like the Journey panel).
+    if (!String(sForm.description || "").trim()) { notify(t("vadmin.sessions.noteRequired"), "error"); return; }
     setSaving(true);
     try {
       const res = await fetch(`/api/ventures/${id}/sessions`, {
@@ -314,8 +316,8 @@ export default function VentureSessionsPage() {
                 <input value={sForm.meeting_link} onChange={(e)=>setSForm((p)=>({...p,meeting_link:e.target.value}))} placeholder="https://meet.google.com/..." className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
               </div>
               <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.description")}</label>
-                <textarea value={sForm.description} onChange={(e)=>setSForm((p)=>({...p,description:e.target.value}))} rows={2} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none resize-none" />
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.descriptionRequired")}</label>
+                <textarea value={sForm.description} onChange={(e)=>setSForm((p)=>({...p,description:e.target.value}))} rows={2} required placeholder={t("vadmin.sessions.description")} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none resize-none" />
               </div>
               {/* Journey context: optional stage/milestone/task links for this session */}
               <div className="rounded-xl border border-[var(--border-primary)] bg-primary p-3 space-y-3">

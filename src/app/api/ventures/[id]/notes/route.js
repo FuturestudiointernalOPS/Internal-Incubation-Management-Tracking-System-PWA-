@@ -154,6 +154,11 @@ export const POST = createHandler(
     }
     const scopeRefType = body.scope_ref_type || null;
     const scopeRefId = body.scope_ref_id ? String(body.scope_ref_id) : null;
+    // Vinance 3 rule: internal notes belong to a milestone and never exist
+    // outside one — venture-wide, section and workstream scopes are refused.
+    if (scopeRefType !== "milestone" || !scopeRefId) {
+      return NextResponse.json({ success: false, error: "Internal notes are milestone-scoped: a milestone is required." }, { status: 400 });
+    }
     // Attachments (Phase 2): array of { name, url, type?, size? } — links and
     // files kept next to the note they belong to.
     let attachments = null;

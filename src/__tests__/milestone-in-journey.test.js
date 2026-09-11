@@ -8,7 +8,7 @@
  * Pure functions with injected db doubles — no module mocking needed.
  */
 const { moveStageMilestone, listStageMilestones } = require("@/lib/ventureMilestoneOrder");
-const { canManageMilestones, releaseFirstMilestoneForStage } = require("@/lib/ventureMilestoneEngine");
+const { canManageMilestones, releaseFirstMilestoneForStage, completeStageIfAllMilestonesDone } = require("@/lib/ventureMilestoneEngine");
 
 /** db double with an in-memory venture_milestones table. */
 function fakeDb(rows) {
@@ -212,5 +212,99 @@ describe("release chain — first unfinished milestone of an active journey", ()
     const db = releaseDb();
     const out = await releaseFirstMilestoneForStage(db, { dbId: "v1", stageId: "s1" });
     expect(out.released_milestone_id).toBe(null);
+  });
+});
+
+describe("a journey closes ONLY when every milestone is completed", () => {
+  function stageDb({ stages, milestones }) {
+    const S = stages.map((s) => ({ ...s }));
+    const M = milestones.map((m) => ({ ...m }));
+    const handler = async (sql, args = []) => {
+      if (sql.includes("SELECT id, name, status, stage_order FROM venture_journey_stages")) {
+        const s = S.find((x) => String(x.id) === String(args[0]));
+        return { rows: s ? [s] : [] };
+      }
+      if (sql.includes("SELECT id, status FROM venture_milestones")) {
+        return {
+          rows: M.filter((m) => String(m.journey_stage_id) === String(args[1])).sort(
+            (a, b) => (Number(a.display_order) || 0) - (Number(b.display_order) || 0),
+          ),
+        };
+      }
+      if (sql.includes("SELECT status FROM venture_journey_stages WHERE id = ? AND venture_id = ?")) {
+        const s = S.find((x) => String(x.id) === String(args[0]));
+        return { rows: s ? [{ status: s.status }] : [] };
+      }
+      if (sql.includes("UPDATE venture_journey_stages SET status = 'completed'")) {
+        const s = S.find((x) => String(x.id) === String(args[1]));
+        if (s) { s.status = "completed"; s.approved_by = args[0]; }
+        return { rows: [] };
+      }
+      if (sql.includes("SELECT id FROM venture_journey_stages WHERE venture_id = ? AND stage_order = ? AND status = 'locked'")) {
+        const s = S.find((x) => Number(x.stage_order) === Number(args[1]) && x.status === "locked");
+        return { rows: s ? [{ id: s.id }] : [] };
+      }
+      if (sql.includes("UPDATE venture_journey_stages SET status = 'active' WHERE id = ?")) {
+        const s = S.find((x) => String(x.id) === String(args[0]));
+        if (s) s.status = "active";
+        return { rows: [] };
+      }
+      if (sql.includes("UPDATE venture_milestones SET status = 'not_started'")) {
+        const m = M.find((x) => String(x.id) === String(args[0]));
+        if (m && m.status === "locked") m.status = "not_started";
+        return { rows: [] };
+      }
+      return { rows: [] };
+    };
+    return { stages: S, milestones: M, execute: async ({ sql, args = [] }) => handler(sql, args) };
+  }
+
+  test("closes the journey, activates the next one and releases its first milestone", async () => {
+    const db = stageDb({
+      stages: [
+        { id: "s1", name: "Family & Friends", status: "active", stage_order: 1 },
+        { id: "s2", name: "GTM", status: "locked", stage_order: 2 },
+      ],
+      milestones: [
+        { id: "m1", status: "completed", journey_stage_id: "s1", display_order: 1 },
+        { id: "m2", status: "completed", journey_stage_id: "s1", display_order: 2 },
+        { id: "m3", status: "locked", journey_stage_id: "s2", display_order: 1 },
+      ],
+    });
+    const out = await completeStageIfAllMilestonesDone(db, { dbId: "v1", stageId: "s1", cid: "lm-1" });
+    expect(out.completed).toBe(true);
+    expect(out.next_stage_id).toBe("s2");
+    expect(db.stages.find((s) => s.id === "s1").status).toBe("completed");
+    expect(db.stages.find((s) => s.id === "s2").status).toBe("active");
+    expect(db.milestones.find((m) => m.id === "m3").status).toBe("not_started");
+  });
+
+  test("does not close while any milestone is still open", async () => {
+    const db = stageDb({
+      stages: [{ id: "s1", name: "A", status: "active", stage_order: 1 }],
+      milestones: [
+        { id: "m1", status: "completed", journey_stage_id: "s1", display_order: 1 },
+        { id: "m2", status: "in_progress", journey_stage_id: "s1", display_order: 2 },
+      ],
+    });
+    const out = await completeStageIfAllMilestonesDone(db, { dbId: "v1", stageId: "s1" });
+    expect(out.completed).toBe(false);
+    expect(db.stages[0].status).toBe("active");
+  });
+
+  test("a journey with no milestones never closes (nothing to close on)", async () => {
+    const db = stageDb({ stages: [{ id: "s1", name: "A", status: "active", stage_order: 1 }], milestones: [] });
+    const out = await completeStageIfAllMilestonesDone(db, { dbId: "v1", stageId: "s1" });
+    expect(out.completed).toBe(false);
+    expect(db.stages[0].status).toBe("active");
+  });
+
+  test("only an active journey can close", async () => {
+    const db = stageDb({
+      stages: [{ id: "s1", name: "A", status: "locked", stage_order: 1 }],
+      milestones: [{ id: "m1", status: "completed", journey_stage_id: "s1", display_order: 1 }],
+    });
+    const out = await completeStageIfAllMilestonesDone(db, { dbId: "v1", stageId: "s1" });
+    expect(out.completed).toBe(false);
   });
 });

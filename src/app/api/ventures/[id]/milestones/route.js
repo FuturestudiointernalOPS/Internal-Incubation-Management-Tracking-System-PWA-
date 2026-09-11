@@ -2,7 +2,8 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { computeInitialMilestoneStatus, completeMilestoneAndUnlockNext, isMilestoneLeadAuthority, canManageMilestones } from "@/lib/ventureMilestoneEngine";
+import { computeInitialMilestoneStatus, completeMilestoneAndUnlockNext, isMilestoneLeadAuthority, canManageMilestones, completeStageIfAllMilestonesDone } from "@/lib/ventureMilestoneEngine";
+import { dateOrNull, isUnknownColumnError } from "@/lib/ventureInput";
 import { notifyVentureFounders } from "@/lib/ventures";
 import {
   getVentureDbIdForMilestoneCreate,
@@ -121,9 +122,9 @@ export const PATCH = createHandler(async (req, { params }) => {
   if (status !== undefined) { updates.push("status = ?"); args.push(status); }
   if (title !== undefined) { updates.push("title = ?"); args.push(title); }
   if (description !== undefined) { updates.push("description = ?"); args.push(description); }
-  if (target_date !== undefined) { updates.push("target_date = ?"); args.push(target_date); }
+  if (target_date !== undefined) { updates.push("target_date = ?"); args.push(dateOrNull(target_date)); }
   if (body.objective !== undefined) { updates.push("objective = ?"); args.push(body.objective); }
-  if (body.start_date !== undefined) { updates.push("start_date = ?"); args.push(body.start_date); }
+  if (body.start_date !== undefined) { updates.push("start_date = ?"); args.push(dateOrNull(body.start_date)); }
   if (body.priority !== undefined) { updates.push("priority = ?"); args.push(body.priority); }
   if (body.owner_cid !== undefined) { updates.push("owner_cid = ?"); args.push(body.owner_cid); }
   if (body.display_order !== undefined) { updates.push("display_order = ?"); args.push(body.display_order); }
@@ -147,7 +148,18 @@ export const PATCH = createHandler(async (req, { params }) => {
 
   if (updates.length === 1) return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
   args.push(mid);
-  await db.execute({ sql: `UPDATE venture_milestones SET ${updates.join(", ")} WHERE id = ?`, args });
+  try {
+    await db.execute({ sql: `UPDATE venture_milestones SET ${updates.join(", ")} WHERE id = ?`, args });
+  } catch (e) {
+    // Safety net for older databases whose milestone table predates the
+    // updated_at column: retry without it rather than failing the whole save.
+    if (!isUnknownColumnError(e)) throw e;
+    const keep = updates.map((u, i) => [u, args[i]]).filter(([u]) => !u.startsWith("updated_at"));
+    await db.execute({
+      sql: `UPDATE venture_milestones SET ${keep.map(([u]) => u).join(", ")} WHERE id = ?`,
+      args: [...keep.map(([, a]) => a), mid],
+    });
+  }
 
   // Approval cascade (Phase 3): completing a milestone unlocks the next
   // locked milestone in the same Journey stage, then founders are notified.
@@ -177,6 +189,37 @@ export const PATCH = createHandler(async (req, { params }) => {
         const { addVentureHistory } = await import("@/lib/ventures");
         await addVentureHistory({ venture_id: id, event_type: "MILESTONE_COMPLETED", description: `Milestone "${m?.title || mid}" completed${outcome?.unlocked_milestone_id ? " — next milestone unlocked" : ""}` });
       } catch (_) {}
+
+      // A Journey is never closed by hand: once EVERY milestone in it is
+      // completed it closes automatically and the next journey becomes current.
+      const stageOutcome = await completeStageIfAllMilestonesDone(db, {
+        dbId: ventureDbId,
+        stageId: m?.journey_stage_id,
+        cid: session.cid,
+      });
+      if (stageOutcome?.completed) {
+        try {
+          const { addVentureHistory } = await import("@/lib/ventures");
+          await addVentureHistory({
+            venture_id: id,
+            event_type: "JOURNEY_COMPLETED",
+            description: `Journey "${stageOutcome.stage_name || ""}" completed — all milestones are done${stageOutcome.next_stage_id ? "; the next journey is now active" : ""}`,
+          });
+        } catch (_) {}
+        try {
+          await notifyVentureFounders(
+            ventureDbId,
+            "Journey completed",
+            `All milestones in "${stageOutcome.stage_name || "your journey"}" are completed.`,
+            { journey_stage_id: m?.journey_stage_id || null },
+            {
+              templateKey: "venture.notif.journeyCompleted",
+              params: { stageName: stageOutcome.stage_name || "" },
+              dedupeKey: `journey-completed:${m?.journey_stage_id}`,
+            },
+          );
+        } catch (_) {}
+      }
     }
   }
 

@@ -71,6 +71,12 @@ export const POST = createHandler(async (req, { params }) => {
 
   if (action === "create_session") {
     try {
+      // A session is never created without its internal note: the note is the
+      // record of why the session exists and what it is expected to cover.
+      const sessionNote = String(body.description || body.agenda || "").trim();
+      if (!sessionNote) {
+        return NextResponse.json({ success: false, error: "A session note is required." }, { status: 400 });
+      }
       // Coach identity (Phase 1): explicit coach_contact_id wins; otherwise
       // resolve the legacy catalog coach by email to a platform contact.
       let coachContactId = body.coach_contact_id ? String(body.coach_contact_id) : null;
@@ -80,7 +86,7 @@ export const POST = createHandler(async (req, { params }) => {
         if (resolvedCoach) coachContactId = resolvedCoach.cid;
       }
       const r = await createSession({
-        ventureId: id, title: body.title, description: body.description,
+        ventureId: id, title: body.title, description: sessionNote,
         sessionType: body.session_type, coachId: body.coach_id, coachName: body.coach_name || resolvedCoach?.name || null,
         founderCid: body.founder_cid, founderName: body.founder_name,
         startTime: body.start_time, endTime: body.end_time, timezone: body.timezone,
@@ -95,6 +101,20 @@ export const POST = createHandler(async (req, { params }) => {
         coachContactId,
         createdBy: req.session?.cid,
       });
+      // The session note is filed on the milestone it was booked against, so
+      // internal notes live exactly where their work lives (never outside a
+      // milestone). Best-effort: a note failure never blocks the session.
+      if (body.milestone_ref) {
+        try {
+          const v = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
+          const code = v.rows?.[0]?.venture_id || id;
+          await db.execute({
+            sql: `INSERT INTO venture_notes (venture_id, author_cid, author_name, title, body, scope_ref_type, scope_ref_id)
+                  VALUES (?,?,?,?,?,?,?)`,
+            args: [code, req.session?.cid || null, req.session?.name || null, String(body.title || "").trim() || "Session", sessionNote, "milestone", String(body.milestone_ref)],
+          });
+        } catch (_) {}
+      }
       // Coach delivery (Phase 1): the coach is added to the session — the
       // platform tells them (in-app + email), regardless of venture_facing.
       if (coachContactId) {
