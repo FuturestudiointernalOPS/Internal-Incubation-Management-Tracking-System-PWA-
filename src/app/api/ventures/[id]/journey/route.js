@@ -58,7 +58,28 @@ export async function GET(req, { params }) {
     const dbId = await resolveDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const stages = await listJourneyStages(db, dbId);
+    // Management surfaces (staff) may request archived journeys; the
+    // Venture-facing read never includes them.
+    const wantArchived = new URL(req.url).searchParams.get("include_archived") === "1";
+
+    // Author flags for staff surfaces only (members never receive them).
+    let access = null;
+    const viewer = await getViewerSession();
+    if (viewer) {
+      const planAccess = await resolvePlanAccess(db, id, viewer);
+      if (planAccess.ok) {
+        const [canCreate, canEdit, canManage] = await Promise.all([
+          allowsPlanAction(db, planAccess, "create"),
+          allowsPlanAction(db, planAccess, "edit"),
+          allowsPlanAction(db, planAccess, "manage"),
+        ]);
+        access = { create: canCreate, edit: canEdit, manage: canManage };
+      }
+    }
+
+    const stages = await listJourneyStages(db, dbId, {
+      includeArchived: wantArchived && Boolean(access && access.manage),
+    });
 
     // Phase 2 spine: attach the milestones bound to each stage so the Journey
     // timeline can show stage -> milestone progress. Venture-facing data only
@@ -104,21 +125,6 @@ export async function GET(req, { params }) {
       // Provenance is surfaced once at the top level — never per-stage.
       delete stage.source_template_type;
       delete stage.source_template_id;
-    }
-
-    // Author flags for staff surfaces only (members never receive them).
-    let access = null;
-    const viewer = await getViewerSession();
-    if (viewer) {
-      const planAccess = await resolvePlanAccess(db, id, viewer);
-      if (planAccess.ok) {
-        const [canCreate, canEdit, canManage] = await Promise.all([
-          allowsPlanAction(db, planAccess, "create"),
-          allowsPlanAction(db, planAccess, "edit"),
-          allowsPlanAction(db, planAccess, "manage"),
-        ]);
-        access = { create: canCreate, edit: canEdit, manage: canManage };
-      }
     }
 
     // Guided experience (Vinance 3 — Phase 2): non-staff viewers (founders /
@@ -193,7 +199,10 @@ export async function POST(req, { params }) {
       await addVentureHistory({ venture_id: id, event_type: "JOURNEY_STAGE_ADDED", description: `Journey stage "${name}" added` });
     } catch (_) {}
 
-    const stages = await listJourneyStages(db, dbId);
+    // Managers keep their Archived view in sync: archived rows are returned
+    // only to callers holding the manage capability (same rule as GET).
+    const canManage = await allowsPlanAction(db, access, "manage");
+    const stages = await listJourneyStages(db, dbId, { includeArchived: canManage });
     return NextResponse.json({ success: true, stage: stages.find((s) => s.id === ins.rows?.[0]?.id) || null, stages });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
@@ -240,7 +249,8 @@ export async function PATCH(req, { params }) {
           stageId, dbId,
         ],
       });
-      const stages = await listJourneyStages(db, dbId);
+      const canManage = await allowsPlanAction(db, access, "manage");
+      const stages = await listJourneyStages(db, dbId, { includeArchived: canManage });
       return NextResponse.json({ success: true, stages });
     }
 
@@ -327,7 +337,8 @@ export async function PATCH(req, { params }) {
       if (moved.error) return NextResponse.json({ success: false, error: moved.error }, { status: 400 });
     }
 
-    const stages = await listJourneyStages(db, dbId);
+    // Reached only after the manage gate above — safe to include archived rows.
+    const stages = await listJourneyStages(db, dbId, { includeArchived: true });
     return NextResponse.json({ success: true, stages });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });

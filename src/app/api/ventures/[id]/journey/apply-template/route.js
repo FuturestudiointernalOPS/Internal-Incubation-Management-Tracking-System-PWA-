@@ -82,7 +82,9 @@ export const POST = createHandler(
       await addVentureHistory({ venture_id: id, event_type: "JOURNEY_TEMPLATE_APPLIED", description: `Journey generated from template "${template.name}"` });
     } catch (_) {}
 
-    const stages = await listJourneyStages(db, dbId);
+    // Managers keep their Archived view in sync (same rule as GET).
+    const canManage = await allowsPlanAction(db, access, "manage");
+    const stages = await listJourneyStages(db, dbId, { includeArchived: canManage });
     return NextResponse.json({ success: true, stages });
   },
 );

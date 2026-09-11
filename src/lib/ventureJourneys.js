@@ -43,6 +43,11 @@ export async function ensureJourneyTable(db) {
   });
   await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS objective TEXT" });
   await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS target_date DATE" });
+  // Archive (soft delete): archived journeys stay in the database (history
+  // preserved) but are hidden from the Venture and from default lists.
+  await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE" });
+  await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ" });
+  await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS archived_by TEXT" });
   // Template provenance: which reusable template generated this stage (if any).
   // plan = operating-plan template; journey = saved Journey template.
   await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS source_template_type TEXT" });
@@ -67,17 +72,38 @@ export async function resolveVentureInternalId(db, ventureId) {
   return r.rows?.[0]?.id || null;
 }
 
-/** Ordered stages for a Venture — only Venture-facing columns. */
-export async function listJourneyStages(db, dbId) {
-  const res = await db.execute({
-    sql: `SELECT id, name, description, objective, target_date, stage_order,
-                 status, completed_at, created_at,
-                 source_template_type, source_template_id
-          FROM venture_journey_stages WHERE venture_id = ?
-          ORDER BY stage_order ASC`,
-    args: [dbId],
-  });
-  return res.rows || [];
+/** Ordered stages for a Venture — only Venture-facing columns.
+ *
+ * Archived (soft-deleted) journeys are hidden by default; management
+ * surfaces pass { includeArchived: true }. Falls back progressively when the
+ * additive archive / template-provenance columns have not been migrated yet.
+ */
+export async function listJourneyStages(db, dbId, { includeArchived = false } = {}) {
+  const coreCols = `id, name, description, objective, target_date, stage_order,
+                 status, completed_at, created_at`;
+  const templateCols = ", source_template_type, source_template_id";
+  const archiveCols = ", is_archived, archived_at";
+  const run = (withArchive, withTemplate) => {
+    const hideArchived = withArchive && !includeArchived;
+    return db.execute({
+      sql: `SELECT ${coreCols}${withTemplate ? templateCols : ""}${withArchive ? archiveCols : ""}
+            FROM venture_journey_stages WHERE venture_id = ?${hideArchived ? " AND (is_archived = FALSE OR is_archived IS NULL)" : ""}
+            ORDER BY stage_order ASC`,
+      args: [dbId],
+    });
+  };
+  try {
+    const res = await run(true, true);
+    return res.rows || [];
+  } catch (_) {
+    try {
+      const res = await run(false, true); // archive columns not migrated yet
+      return res.rows || [];
+    } catch (_) {
+      const res = await run(false, false); // pre-template databases too
+      return res.rows || [];
+    }
+  }
 }
 
 export async function getJourneyStage(db, dbId, stageId) {

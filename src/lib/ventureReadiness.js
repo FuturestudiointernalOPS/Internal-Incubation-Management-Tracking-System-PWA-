@@ -37,10 +37,18 @@ export async function computeRoadmapReadiness(db, { dbId, code }) {
   const args = owners;
 
   const [stageRes, msRes, taskRes, subRes] = await Promise.all([
+    // Archived journeys (soft-deleted) are excluded from the defined
+    // progression. Guarded: a pre-migration database without the archive
+    // column falls back to the plain stage read.
     db.execute({
-      sql: `SELECT status FROM venture_journey_stages WHERE venture_id = ?`,
+      sql: `SELECT status FROM venture_journey_stages WHERE venture_id = ? AND COALESCE(is_archived, FALSE) = FALSE`,
       args: [dbId],
-    }).catch(() => ({ rows: [] })),
+    }).catch(() =>
+      db.execute({
+        sql: `SELECT status FROM venture_journey_stages WHERE venture_id = ?`,
+        args: [dbId],
+      }).catch(() => ({ rows: [] })),
+    ),
     db.execute({
       sql: `SELECT status FROM venture_milestones WHERE venture_id ${ownersSql}`,
       args,

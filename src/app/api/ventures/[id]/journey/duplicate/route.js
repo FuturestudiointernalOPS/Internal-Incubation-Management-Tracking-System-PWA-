@@ -57,7 +57,9 @@ export async function POST(req, { params }) {
       });
     } catch (_) {}
 
-    const stages = await listJourneyStages(db, dbId);
+    // Caller holds manage (see gate above) — include archived rows so the
+    // manager's Archived view stays in sync after duplicating.
+    const stages = await listJourneyStages(db, dbId, { includeArchived: true });
     return NextResponse.json({ success: true, stage: result.stage, stages, milestones_copied: result.milestones_copied, tasks_copied: result.tasks_copied });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
