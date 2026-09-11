@@ -62,17 +62,6 @@
     "allPrograms": "Tous les Programmes",
     "due": "Échéance :",
     "project": "Projet :",
-    "dashboardContexts": {
-      "title": "Ce dont vous faites partie",
-      "count": "{count}",
-      "enrolled": "Inscrit",
-      "open": "Ouvrir",
-      "programsManaged": "Mes programmes",
-      "programsParticipating": "Programmes suivis",
-      "venturesAssigned": "Mes projets",
-      "venturesMember": "Projets dont je fais partie",
-      "learning": "Ma formation"
-    },
     "workspaces": {
       "title": "Mes espaces de travail",
       "subtitle": "Programmes et modules qui vous sont affectés.",
