@@ -1512,7 +1512,17 @@ export default function DashboardLayout({ children, role = "admin", modals, full
         items.push({ id: "certificates", name: "MY CERTIFICATES", icon: FileText, href: "/participant/certificates" });
       }
       if (rel.isVentureMember) {
-        items.push({ id: "ventures", name: "MY VENTURES", icon: Rocket, href: "/participant/ventures" });
+        // A founder's venture door sits with their program doors (the founder
+        // nav contract reads Dashboard → Programs → Ventures → Timeline),
+        // not buried after every participant item. Team members keep the
+        // additive arrangement: their venture door comes last.
+        const ventureDoor = { id: "ventures", name: "MY VENTURES", icon: Rocket, href: "/participant/ventures" };
+        if (rel.isFounder) {
+          const progIndex = items.findIndex((i) => i.id === "programs");
+          items.splice(progIndex === -1 ? 1 : progIndex + 2, 0, ventureDoor);
+        } else {
+          items.push(ventureDoor);
+        }
       }
       return items;
     }

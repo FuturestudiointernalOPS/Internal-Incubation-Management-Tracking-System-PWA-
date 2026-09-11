@@ -67,6 +67,41 @@ describe("sidebar additions — the doors live in the sidebar", () => {
     // …and a venture member gets the ventures door (opens their ventures).
     expect(src).toContain('name: "MY VENTURES", icon: Rocket, href: "/participant/ventures"');
   });
+
+  test("the founder surface orders its doors like the founder nav contract", () => {
+    // The founder contract is Dashboard → Programs → Ventures → Timeline.
+    // The personal sidebar must agree, so a founder's venture door is not
+    // buried after every participant item.
+    expect(ROLE_ACCESS.founder.top).toEqual([
+      "dashboard",
+      "programs",
+      "ventures",
+      "timeline",
+    ]);
+    expect(src).toContain("rel.isFounder");
+    expect(src).toContain('items.splice(progIndex === -1 ? 1 : progIndex + 2, 0, ventureDoor)');
+    // Non-founders keep the additive arrangement (door last, never removed).
+    expect(src).toContain("items.push(ventureDoor)");
+  });
+});
+
+describe("founder classification — ownership, not the role string", () => {
+  test("the memberships the sidebar reads are active memberships", () => {
+    const contacts = require("@/models/contacts");
+    expect(typeof contacts.getVentureMembershipsForContact).toBe("function");
+  });
+
+  test("the relationships API derives isFounder from ownership/founder type", () => {
+    const src = read("src/app/api/me/relationships/route.js");
+    expect(src).toContain("isFounder");
+    expect(src).toContain('memberType === "founder"');
+    expect(src).toContain("Number(v.is_owner) === 1");
+  });
+
+  test("a removed membership is not a relationship", () => {
+    const src = read("src/models/contacts.js");
+    expect(src).toContain("(vm.user_cid = ? OR vm.contact_id = ?) AND vm.removed_at IS NULL");
+  });
 });
 
 describe("landing — the dashboard shows first, not the workspace hub", () => {
