@@ -41,6 +41,67 @@ export function buildFeatureRows(features, moduleToFeature, catalog) {
   return rows;
 }
 
+// Canonical capability progression used to order the matrix columns. Any
+// module-specific capability (archive, publish, export, suspend, …) is placed
+// after these, alphabetically.
+const BASE_CAP_ORDER = ["view", "create", "edit", "delete"];
+
+/**
+ * Group capability modules into FEATURE sections for the defaults matrix.
+ *
+ * A feature is a sidebar-level section (crm, communication, programs, …); its
+ * modules are the sub-sections shown as rows, and the ordered union of their
+ * capabilities are the columns (the header row). Modules with no feature
+ * mapping (e.g. org_membership) become their own section so nothing is ever
+ * hidden.
+ *
+ * @param {Object}   modules         module → { name, capabilities: string[] }
+ * @param {Object}   moduleToFeature module → feature key
+ * @param {string[]} featureOrder    canonical feature order (falls back to map order)
+ * @returns {Array<{feature:string, modules:string[], capabilities:string[], unmapped:boolean}>}
+ */
+export function groupModulesByFeature(modules, moduleToFeature, featureOrder) {
+  const modKeys = Object.keys(modules || {});
+  const order =
+    featureOrder && featureOrder.length
+      ? featureOrder
+      : [...new Set(modKeys.map((m) => moduleToFeature?.[m]).filter(Boolean))];
+
+  const sections = [];
+  const seen = new Set();
+  const push = (feature, members, unmapped) => {
+    if (seen.has(feature) || members.length === 0) return;
+    seen.add(feature);
+    const capSet = new Set();
+    for (const m of members) {
+      for (const c of modules[m]?.capabilities || []) capSet.add(c);
+    }
+    const capabilities = [...capSet].sort((a, b) => {
+      const ia = BASE_CAP_ORDER.indexOf(a);
+      const ib = BASE_CAP_ORDER.indexOf(b);
+      const ka = ia === -1 ? BASE_CAP_ORDER.length : ia;
+      const kb = ib === -1 ? BASE_CAP_ORDER.length : ib;
+      return ka - kb || a.localeCompare(b);
+    });
+    sections.push({ feature, modules: members, capabilities, unmapped });
+  };
+
+  for (const feature of order) {
+    push(
+      feature,
+      modKeys.filter((m) => moduleToFeature?.[m] === feature).sort(),
+      false,
+    );
+  }
+
+  // Modules without a feature mapping are never hidden: each is its own section.
+  for (const modKey of modKeys.filter((m) => !moduleToFeature?.[m]).sort()) {
+    push(modKey, [modKey], true);
+  }
+
+  return sections;
+}
+
 /**
  * Levels of the capabilities a user/profile holds for a module, derived from
  * a capabilities matrix ({module: {cap: level}}).
@@ -83,20 +144,6 @@ export function deriveUserCapState(sources, module, capability) {
     effective,
     reason: restricted ? "restriction" : null,
   };
-}
-
-/**
- * Why a capability is denied (UI-2). Returns a machine reason the UI maps to
- * localized copy — a restriction always wins, otherwise the capability simply
- * has no source at all.
- *
- * @returns {"restriction"|"no-source"|null} null when the capability is held
- */
-export function deriveDenialReason(state) {
-  if (!state || state.effective) return null;
-  if (state.restricted) return "restriction";
-  if (!state.profile && !state.group && !state.grant) return "no-source";
-  return null;
 }
 
 /**

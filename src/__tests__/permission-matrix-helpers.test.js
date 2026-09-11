@@ -10,6 +10,7 @@
  */
 const {
   buildFeatureRows,
+  groupModulesByFeature,
   deriveModuleCaps,
   deriveUserCapState,
   collectContextModules,
@@ -43,6 +44,60 @@ describe("buildFeatureRows", () => {
   test("skips modules unknown to the catalog (registry truth)", () => {
     const rows = buildFeatureRows(["crm"], { ghost: "crm" }, CATALOG);
     expect(rows[0].modules).toEqual([]);
+  });
+});
+
+describe("groupModulesByFeature (feature sections of the Defaults Matrix)", () => {
+  // PERMISSION_MODULES shape: capabilities are arrays, not the CAPABILITY_CATALOG
+  // object maps buildFeatureRows consumes.
+  const MODULES = {
+    contacts: {
+      name: "Contacts",
+      capabilities: ["view", "create", "edit", "delete", "import", "export"],
+    },
+    duplicates: { name: "Duplicates", capabilities: ["view", "resolve"] },
+    org_membership: {
+      name: "Organizational Membership",
+      capabilities: ["view", "manage"],
+    },
+  };
+  const MAP = { contacts: "crm", duplicates: "crm" };
+
+  test("orders capabilities with the CRUD base first, extras alphabetically", () => {
+    const sections = groupModulesByFeature(MODULES, MAP, ["crm"]);
+    expect(sections.map((s) => s.feature)).toEqual(["crm", "org_membership"]);
+    expect(sections[0].modules).toEqual(["contacts", "duplicates"]);
+    expect(sections[0].capabilities).toEqual([
+      "view",
+      "create",
+      "edit",
+      "delete",
+      "export",
+      "import",
+      "resolve",
+    ]);
+  });
+
+  test("modules without a feature mapping stay visible as their own section", () => {
+    const sections = groupModulesByFeature(MODULES, MAP, ["crm"]);
+    const orphan = sections.find((s) => s.feature === "org_membership");
+    expect(orphan.unmapped).toBe(true);
+    expect(orphan.modules).toEqual(["org_membership"]);
+    expect(orphan.capabilities).toEqual(["view", "manage"]);
+  });
+
+  test("falls back to the module→feature map when no feature order is given", () => {
+    const sections = groupModulesByFeature(MODULES, MAP, []);
+    expect(sections.map((s) => s.feature)).toEqual(["crm", "org_membership"]);
+  });
+
+  test("skips a feature that owns no module", () => {
+    const sections = groupModulesByFeature(
+      { contacts: { capabilities: ["view"] } },
+      { contacts: "crm" },
+      ["crm", "finance"],
+    );
+    expect(sections.map((s) => s.feature)).toEqual(["crm"]);
   });
 });
 
