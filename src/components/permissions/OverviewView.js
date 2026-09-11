@@ -28,7 +28,7 @@ function formatStamp(value) {
   return `${s.slice(0, 10)} ${s.slice(11, 16)}`;
 }
 
-export default function OverviewView() {
+export default function OverviewView({ hideRecent = false }) {
   const { t } = useI18n();
   const [state, setState] = useState({
     loading: true,
@@ -184,6 +184,7 @@ export default function OverviewView() {
         </SectionCard>
       )}
 
+      {!hideRecent && (
       <SectionCard
         title={t("engineering.permissions.overviewRecentTitle")}
         action={
@@ -225,6 +226,7 @@ export default function OverviewView() {
           </ul>
         )}
       </SectionCard>
+      )}
 
       <SectionCard title={t("engineering.permissions.overviewQuickLinks")}>
         <div className="flex flex-wrap gap-2">

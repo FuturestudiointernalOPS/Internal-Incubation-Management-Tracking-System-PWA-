@@ -1,37 +1,31 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import PermissionShell, { useSubTab } from "@/components/permissions/PermissionShell";
+import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
+import PermissionShell from "@/components/permissions/PermissionShell";
 import PermissionManager from "@/components/permissions/PermissionCenter";
 import { defer } from "@/components/permissions/effectUtils";
+import { PERMISSION_BASE } from "@/components/permissions/permissionNav";
 
 /**
- * PHASE UI-1/UI-2c — Profiles & Capabilities.
- *   profiles       → master (list with badges: role default / inactive / SA)
- *                    + detail editor with a sticky review bar (impact, change
- *                    count, reason → audit log)
- *   roles          → role default mapping (unchanged)
- *   defaultsMatrix → the feature → module defaults matrix (unchanged)
- *   catalog        → the read-only capability registry (relocated here in
- *                    Phase 2 from the retired "Advanced" door)
+ * PHASE UI-5 — Templates (one screen, no sub-tabs).
  *
- * Deep link: ?profile=<id> selects a profile (shareable; the editor also uses
- * it for preselection when arriving from another screen).
+ * "What does a kind of person get by default?" — the reusable permission
+ * packages, what each contains, how many people a change reaches, and the
+ * "Default for: staff, member" control (which replaced the Role → Profile tab).
+ *
+ * Deep link: ?profile=<id> selects a template (unchanged).
+ * Retired link: ?sub=catalog forwards to Rules, where the registry now lives.
  */
-const SECTION_BY_SUB = {
-  profiles: "profiles",
-  roles: "roles",
-  defaultsMatrix: "defaultsMatrix",
-  catalog: "catalog",
-};
-
-export default function PermissionProfilesPage() {
-  const [sub, setSub] = useSubTab("profiles");
+export default function PermissionTemplatesPage() {
+  const { t } = useI18n();
+  const router = useRouter();
   const [profileId, setProfileId] = useState(null);
 
   useEffect(() => {
-    // Deferred (project convention): the deep link is read after the commit, so
-    // the mount effect performs no synchronous state write.
+    // Deferred (project convention): a mount effect performs no synchronous
+    // state write.
     defer(() => {
       try {
         const pid = new URLSearchParams(window.location.search).get("profile");
@@ -42,15 +36,25 @@ export default function PermissionProfilesPage() {
     });
   }, []);
 
-  const section = SECTION_BY_SUB[sub] || "profiles";
+  useEffect(() => {
+    defer(() => {
+      try {
+        const sub = new URLSearchParams(window.location.search).get("sub");
+        if (sub === "catalog") {
+          router.replace(`${PERMISSION_BASE}/eligibility?sub=ceilings`);
+        }
+      } catch {
+        /* cosmetic forwarding only */
+      }
+    });
+  }, [router]);
+
   return (
-    <PermissionShell active="profiles" sub={sub} onSubChange={setSub}>
-      <PermissionManager
-        key={sub}
-        initialTab="setup"
-        initialSection={section}
-        initialProfileId={section === "profiles" ? profileId : null}
-      />
+    <PermissionShell active="templates">
+      <p className="mb-4 text-xs font-medium text-[var(--text-secondary)]">
+        {t("engineering.permissions.questionTemplates")}
+      </p>
+      <PermissionManager initialTab="setup" initialProfileId={profileId} />
     </PermissionShell>
   );
 }

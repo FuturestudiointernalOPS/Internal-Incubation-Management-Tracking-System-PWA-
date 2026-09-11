@@ -40,8 +40,7 @@ describe("UI-3d — small-screen parity", () => {
     // Guards the counts above from silently passing because a surface lost its
     // table (e.g. a refactor that deletes the md+ branch).
     for (const [file, expected] of [
-      ["PermissionCenter.js", 4],
-      ["DefaultsMatrixView.js", 1],
+      ["PermissionCenter.js", 3],
       ["PeopleView.js", 1],
       ["ContextRolesView.js", 1],
     ]) {

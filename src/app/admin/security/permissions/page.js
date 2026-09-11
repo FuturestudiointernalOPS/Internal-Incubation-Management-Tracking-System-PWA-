@@ -1,38 +1,30 @@
 "use client";
 
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import PermissionShell from "@/components/permissions/PermissionShell";
-import OverviewView from "@/components/permissions/OverviewView";
+import { PERMISSION_BASE } from "@/components/permissions/permissionNav";
 
 /**
- * PHASE UI-1 — Permission Center landing (Overview).
- * Governance health + recent changes + quick links. Read-only.
+ * PHASE UI-5 — Permission Center landing.
  *
- * Backward compatibility: old "View Effective Access" links pointed at the
- * root with ?cid= — forward them to the People screen, which preselects the
- * user (the deep-link handling lives in the People view).
+ * The old Home door is retired: the health numbers now head History. This base
+ * URL is where the master navigation and old bookmarks point, so it forwards to
+ * the first tab — People, the screen an admin actually came to use — keeping a
+ * `?cid=` deep link intact.
  */
-export default function PermissionOverviewPage() {
+export default function PermissionCenterLanding() {
   const router = useRouter();
 
   useEffect(() => {
+    let target = `${PERMISSION_BASE}/people`;
     try {
-      const params = new URLSearchParams(window.location.search);
-      const cid = params.get("cid");
-      if (cid) {
-        router.replace(
-          `/admin/security/permissions/people?cid=${encodeURIComponent(cid)}`,
-        );
-      }
+      const cid = new URLSearchParams(window.location.search).get("cid");
+      if (cid) target += `?cid=${encodeURIComponent(cid)}`;
     } catch {
-      /* cosmetic forwarding only */
+      /* no deep link — land on People */
     }
+    router.replace(target);
   }, [router]);
 
-  return (
-    <PermissionShell active="overview">
-      <OverviewView />
-    </PermissionShell>
-  );
+  return null;
 }
