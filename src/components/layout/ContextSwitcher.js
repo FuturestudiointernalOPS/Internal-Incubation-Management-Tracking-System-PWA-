@@ -45,10 +45,17 @@ export default function ContextSwitcher() {
 
   const go = (href, label, type, contextId) => {
     try {
-      localStorage.setItem(
-        "impactos_active_context",
-        JSON.stringify({ type, contextId, href, label }),
-      );
+      if (type === "home") {
+        // Returning to the dashboard wears no hat — drop the context marker so
+        // the next load starts from the baseline identity, not the last
+        // workspace visited.
+        localStorage.removeItem("impactos_active_context");
+      } else {
+        localStorage.setItem(
+          "impactos_active_context",
+          JSON.stringify({ type, contextId, href, label }),
+        );
+      }
     } catch (_) {}
     setOpen(false);
     router.push(href || "/workspaces");
@@ -117,6 +124,10 @@ export default function ContextSwitcher() {
   // Home/dashboard pages match nothing → no hat, baseline identity only.
   const hatItems = [...programItems, ...ventureItems, ...learningItem];
   const activeItem = activeContextFromPathname(pathname, hatItems);
+
+  // Where "back to my dashboard" goes, and whether we are already there.
+  const homeHref = data?.home || "/workspaces";
+  const onDashboard = pathname === homeHref;
 
   // Baseline identity chip: only when the raw stored role is one of the three
   // baseline identities (super_admin / staff / member). Legacy contextual
@@ -194,13 +205,17 @@ export default function ContextSwitcher() {
               </div>
             )}
             <button
-              onClick={() => go(data.home || "/workspaces", "Dashboard", "home", null)}
+              onClick={() => go(homeHref, t("common.workspaces.myDashboard"), "home", null)}
+              aria-current={onDashboard ? "page" : undefined}
               className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-primary transition-all flex items-center gap-2"
             >
               <LayoutDashboard className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
                 {t("common.workspaces.myDashboard")}
               </span>
+              {onDashboard && (
+                <span className="w-1.5 h-1.5 shrink-0 rounded-full bg-[var(--brand-orange)]" />
+              )}
             </button>
 
             {orgItems.length > 0 && (

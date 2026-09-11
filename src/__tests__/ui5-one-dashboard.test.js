@@ -140,4 +140,16 @@ describe("the switcher moves between surfaces only", () => {
     expect(src).toContain("program_participations");
     expect(src).toContain("venture_memberships");
   });
+
+  test("the dashboard entry is a real way back, not just a label", () => {
+    const src = read("src/components/layout/ContextSwitcher.js");
+    // Localized label (never a hardcoded "Dashboard" string)…
+    expect(src).toContain('t("common.workspaces.myDashboard")');
+    expect(src).not.toContain('"Dashboard", "home", null');
+    // …an active marker so you can see you are already home…
+    expect(src).toContain("onDashboard");
+    expect(src).toContain('aria-current={onDashboard ? "page" : undefined}');
+    // …and returning home drops the context marker instead of leaving it behind.
+    expect(src).toContain('localStorage.removeItem("impactos_active_context")');
+  });
 });
