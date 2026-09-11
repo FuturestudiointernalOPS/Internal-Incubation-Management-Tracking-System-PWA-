@@ -111,3 +111,26 @@ export function collectContextModules(sources) {
   for (const mod of Object.keys(sources?.restrictions || {})) modules.add(mod);
   return [...modules].sort();
 }
+
+/**
+ * UI-4b — the rows of the Role → Profile grid.
+ *
+ * The rows used to be the eligibility identities only, so a stored default
+ * whose role name is not one of them (a function such as developer, teacher or
+ * program_manager) was invisible: configured, stored, never shown.
+ *
+ * Rows now cover both — the identities in their canonical order, then every
+ * other configured name — each flagged so the UI can mark it for what it is.
+ *
+ * @returns {{name: string, isIdentity: boolean}[]}
+ */
+export function roleDefaultRows(identities = [], roleDefaults = {}) {
+  const known = new Set(identities || []);
+  const extras = Object.keys(roleDefaults || {})
+    .filter((name) => !known.has(name))
+    .sort((a, b) => a.localeCompare(b));
+  return [
+    ...(identities || []).map((name) => ({ name, isIdentity: true })),
+    ...extras.map((name) => ({ name, isIdentity: false })),
+  ];
+}

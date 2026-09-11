@@ -9,6 +9,7 @@ import {
   FEATURE_KEYS,
   IDENTITY_TYPES,
   ELIGIBILITY_IDENTITIES,
+  ELIGIBILITY_IDENTITY_GROUPS,
   MODULE_TO_FEATURE,
   validateEligibilityChanges,
 } from "@/lib/authorization";
@@ -82,6 +83,9 @@ export async function GET() {
       // program_manager are not eligibility identities). ROLE_CATALOG stays
       // the full technical catalog for gate validation.
       roles: ELIGIBILITY_IDENTITIES,
+      // The honest split (UI-4c): baseline identities vs the context roles that
+      // share the same ceiling table. The UI labels them, never conflates them.
+      identityGroups: ELIGIBILITY_IDENTITY_GROUPS,
       groups,
       rows,
       canConfigure: !!canConfigure,

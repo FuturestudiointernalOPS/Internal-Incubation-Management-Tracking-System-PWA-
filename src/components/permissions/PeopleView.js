@@ -188,6 +188,57 @@ export default function PeopleView({ person = null }) {
                 ))}
               </div>
 
+              {/* Contextual relationships (UI-4c) — additive, per context, and
+                  read from the same assignment data the scope predicates use.
+                  This is why a participant is a participant: the identity above
+                  stays Member. */}
+              <div className="rounded-xl border border-[var(--border-primary)] bg-secondary/40 p-3 space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                  {t("engineering.permissions.peopleContextsTitle")}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(ctx.contexts || []).map((c) => (
+                    <span
+                      key={`${c.type}:${c.id}`}
+                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)]"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                        {t(`engineering.permissions.contextKind_${c.type}`)}
+                      </span>
+                      <span className="text-[10px] font-bold text-[var(--text-primary)]">
+                        {c.label}
+                      </span>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                        {String(c.role).replace(/_/g, " ")}
+                      </span>
+                      <span className="text-[9px] font-mono text-[var(--text-secondary)] opacity-70">
+                        {c.scopePolicy}
+                      </span>
+                      {!c.scopeImplemented && (
+                        <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
+                          {t("engineering.permissions.contextPending")}
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                  {(ctx.contexts || []).length === 0 && (
+                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                      {t("engineering.permissions.peopleContextsNone")}
+                    </span>
+                  )}
+                </div>
+                {(ctx.contextsUnavailable || []).length > 0 && (
+                  <p className="text-[10px] font-bold text-amber-400">
+                    {t("engineering.permissions.peopleContextsPartial", {
+                      kinds: (ctx.contextsUnavailable || []).join(", "),
+                    })}
+                  </p>
+                )}
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] opacity-70">
+                  {t("engineering.permissions.peopleContextsNote")}
+                </p>
+              </div>
+
               {/* Scope panel — what the engine resolves today (read-only) */}
               <div className="rounded-xl border border-[var(--border-primary)] bg-secondary/40 p-3 space-y-2">
                 <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">

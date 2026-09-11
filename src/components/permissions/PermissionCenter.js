@@ -42,6 +42,7 @@ import PendingChangesList from "@/components/permissions/ui/PendingChangesList";
 import { diffCapabilities } from "@/components/permissions/pendingChanges";
 import { splitAuditReason } from "@/components/permissions/auditHelpers";
 import { deriveProfileBadges } from "@/components/permissions/profileBadges";
+import { roleDefaultRows } from "@/components/permissions/matrixHelpers";
 import { defer } from "@/components/permissions/effectUtils";
 
 const ACCESS_LEVEL_KEYS = {
@@ -909,6 +910,9 @@ function RoleDefaultsView() {
   const [roleDefaults, setRoleDefaults] = useState({});
   const [profiles, setProfiles] = useState([]);
   const [roles, setRoles] = useState([]);
+  // Identities first, then every other configured role name (UI-4b): a stored
+  // default is never invisible just because its name is not an identity.
+  const roleRows = roleDefaultRows(roles, roleDefaults);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [roleDefaultData, setRoleDefaultData] = useState({
@@ -1119,7 +1123,10 @@ function RoleDefaultsView() {
         </div>
       )}
       {/* Matrix view: roles × profiles — a cell marks the profile that is the
-          default for that role; click a cell to set/change the default. */}
+          default for that role; click a cell to set/change the default.
+          Rows cover the identities AND every other configured role name (a
+          function such as developer or teacher), badged for what it is: a
+          stored default is never hidden just because it is not an identity. */}
       <div className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden">
         <div className="p-3 bg-secondary border-b border-[var(--border-primary)]">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
@@ -1147,7 +1154,7 @@ function RoleDefaultsView() {
               </tr>
             </thead>
             <tbody>
-              {roles.map((role) => {
+              {roleRows.map(({ name: role, isIdentity }) => {
                 const def = roleDefaults[role];
                 return (
                   <tr
@@ -1156,6 +1163,11 @@ function RoleDefaultsView() {
                   >
                     <td className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)] sticky left-0 bg-secondary">
                       {role}
+                      {!isIdentity && (
+                        <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-amber-400">
+                          {t("engineering.permissions.roleDefaultsNotIdentity")}
+                        </span>
+                      )}
                     </td>
                     {profiles.map((p) => {
                       const isDefault = Boolean(
@@ -1202,12 +1214,17 @@ function RoleDefaultsView() {
         {/* Small screens: one card per role, one chip per profile — the same
             tap opens the same confirmation form. */}
         <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
-          {roles.map((role) => {
+          {roleRows.map(({ name: role, isIdentity }) => {
             const def = roleDefaults[role];
             return (
               <div key={role} className="p-3 space-y-2">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
                   {role}
+                  {!isIdentity && (
+                    <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-amber-400">
+                      {t("engineering.permissions.roleDefaultsNotIdentity")}
+                    </span>
+                  )}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {profiles.map((p) => {
@@ -1261,6 +1278,12 @@ function AccessProfilesView({ initialProfileId = null }) {
   const [, setAllRoles] = useState([]);
   const [eligibilityRows, setEligibilityRows] = useState([]); // feature_eligibility rows for role-based filtering
   const [moduleToFeature, setModuleToFeature] = useState({}); // capability module → feature key
+  // The capability catalog (PERMISSION_MODULES) as served by /api/access-profiles
+  // — the SAME definition the access-profile writes are validated against. Held
+  // in state: the editor used to read a `window` global and fall back to a
+  // hardcoded 11-module copy of an 18-module catalog, so it showed fewer
+  // modules, two renamed ones and a missing capability.
+  const [moduleCatalog, setModuleCatalog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [, setProfileCaps] = useState([]);
@@ -1289,6 +1312,7 @@ function AccessProfilesView({ initialProfileId = null }) {
       if (data.success) {
         setProfiles(data.profiles || []);
         setRoleDefaults(data.roleDefaults || {});
+        setModuleCatalog(data.modules || {});
       }
       // Full role catalog (ROLE_CATALOG) — not just roles that already have
       // a default — so every role can be configured in the form dropdown.
@@ -1605,78 +1629,9 @@ function AccessProfilesView({ initialProfileId = null }) {
     }
   };
 
-  // Build module/capability list from PERMISSION_MODULES (from API response)
-  const availableModules = window.availableModules || {
-    projects: {
-      name: "Projects",
-      capabilities: ["view", "create", "edit", "delete", "archive"],
-    },
-    programs: {
-      name: "Programs",
-      capabilities: ["view", "create", "edit", "delete", "publish"],
-    },
-    users: {
-      name: "Users",
-      capabilities: [
-        "view",
-        "create",
-        "edit",
-        "suspend",
-        "delete",
-        "assign_roles",
-      ],
-    },
-    reports: {
-      name: "Reports",
-      capabilities: ["view", "create", "export", "delete"],
-    },
-    messaging: { name: "Messaging", capabilities: ["view", "send", "delete"] },
-    internal_comms: {
-      name: "Internal Communication",
-      capabilities: ["view", "create_announcements", "moderate"],
-    },
-    contacts: {
-      name: "Contacts",
-      capabilities: ["view", "create", "edit", "delete", "import", "export"],
-    },
-    permissions: {
-      name: "Permissions",
-      capabilities: [
-        "view_matrix",
-        "grant",
-        "revoke",
-        "assign_capabilities",
-        "assign_groups",
-        "assign_responsibilities",
-        "promote_super_admin",
-        "remove_super_admin",
-      ],
-    },
-    engineering: {
-      name: "Engineering Operations",
-      capabilities: [
-        "view",
-        "manage_tasks",
-        "manage_errors",
-        "manage_developers",
-      ],
-    },
-    finance: {
-      name: "Finance",
-      capabilities: ["view", "create", "edit", "delete", "export"],
-    },
-    settings: { name: "System Settings", capabilities: ["view", "edit"] },
-  };
-
-  // Fetch actual modules from API
-  useEffect(() => {
-    fetch("/api/engineering/permissions")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.success && d.modules) window.availableModules = d.modules;
-      })
-      .catch(() => {});
-  }, []);
+  // The catalog is whatever the server serves (PERMISSION_MODULES). No local
+  // copy exists any more: one definition, everywhere.
+  const availableModules = moduleCatalog || {};
 
   if (loading) {
     return (
@@ -2027,7 +1982,15 @@ function AccessProfilesView({ initialProfileId = null }) {
                 </div>
               )}
 
-              {visibleModules.length === 0 && (
+              {!moduleCatalog && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                  <p className="text-[10px] font-bold text-amber-400">
+                    {t("engineering.permissions.catalogUnavailable")}
+                  </p>
+                </div>
+              )}
+
+              {moduleCatalog && visibleModules.length === 0 && (
                 <div className="py-10 text-center opacity-60">
                   <p className="text-xs font-black text-[var(--text-primary)] uppercase">
                     {t("engineering.permissions.profileNoEligibleFeatures")}
@@ -2940,6 +2903,11 @@ function EligibilityView() {
     );
   }
 
+  // Baseline identities vs context roles (UI-4c): the matrix is honest about
+  // which is which — a context role is a ceiling too, but it is held per
+  // context, never as a platform identity.
+  const contextRoles = new Set(data?.identityGroups?.contextRoles || []);
+
   // One lookup for both presentations (table on md+, cards below) so the two
   // can never disagree about what a cell shows.
   const stateFor = (role, feature) => {
@@ -3023,6 +2991,11 @@ function EligibilityView() {
                   >
                     <td className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)] sticky left-0 bg-secondary">
                       {role}
+                      {contextRoles.has(role) && (
+                        <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-teal-400">
+                          {t("engineering.permissions.contextRoleTag")}
+                        </span>
+                      )}
                     </td>
                     {(data.features || []).map((f) => {
                       const state = stateFor(role, f);
@@ -3055,6 +3028,11 @@ function EligibilityView() {
               <div key={role} className="p-3 space-y-2">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
                   {role}
+                  {contextRoles.has(role) && (
+                    <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-teal-400">
+                      {t("engineering.permissions.contextRoleTag")}
+                    </span>
+                  )}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {(data.features || []).map((f) => {
@@ -3090,6 +3068,10 @@ function EligibilityView() {
           {t("engineering.permissions.eligibilityHint")}
         </p>
       </div>
+
+      <p className="text-[10px] font-bold text-[var(--text-secondary)] opacity-80">
+        {t("engineering.permissions.identityGroupsNote")}
+      </p>
 
       {!canConfigure && (
         <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
