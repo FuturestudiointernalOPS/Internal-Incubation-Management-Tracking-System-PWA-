@@ -52,6 +52,12 @@ import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
 import { fetchSwrJson } from "@/lib/hooks/useApi";
 import { buildRoleNav, NAV_ROLE_KEYS, projectNavForCapabilities } from "@/lib/masterNavigation";
+import {
+  HOVER_CAPABLE_QUERY,
+  canUseHoverIntent,
+  resolveSectionExpanded,
+  nextExplicitState,
+} from "@/components/layout/sidebarMenu";
 
 // LocalStorage keys that remember when the user last viewed a given page,
 // so sidebar badges only count items that arrived after that visit.
@@ -317,6 +323,18 @@ const SidebarContent = ({
   // hovering the next section collapses the previous one (accordion).
   const [hoverMenu, setHoverMenu] = useState(null);
   const hoverTimer = useRef(null);
+  // Sections the user closed by clicking. An explicit close must win over the
+  // hover intent until the pointer leaves (otherwise "collapse" looks broken).
+  const [closedByClick, setClosedByClick] = useState(null);
+
+  // Touch devices fire mouseenter on tap, so hover intent would re-open a
+  // section the user just closed. Unknown capability = keep desktop behaviour.
+  const pointerCanHover = () =>
+    canUseHoverIntent(
+      typeof window !== "undefined" && typeof window.matchMedia === "function"
+        ? window.matchMedia(HOVER_CAPABLE_QUERY).matches
+        : undefined,
+    );
 
   // Clear pending hover/flyout timers on unmount.
   useEffect(
@@ -351,7 +369,16 @@ const SidebarContent = ({
     clearTimeout(hoverTimer.current);
     hoverTimer.current = setTimeout(() => {
       setHoverMenu((prev) => (prev === id ? null : prev));
+      // The pointer left: a previous explicit close no longer applies.
+      setClosedByClick((prev) => (prev === id ? null : prev));
     }, 200);
+  };
+  // Click on a section header: store the explicit state and remember whether
+  // this click was a close, so the hover cannot immediately undo it.
+  const toggleSection = (id) => {
+    const willOpen = nextExplicitState(openMenus[id]);
+    toggleMenu(id);
+    setClosedByClick(willOpen ? null : id);
   };
   // A section stays expanded while the hover target is itself or any of its
   // descendants — hovering a nested parent keeps its ancestors open.
@@ -374,7 +401,11 @@ const SidebarContent = ({
 
     if (hasKids) {
       const isOpen = openMenus[item.id] || false;
-      const expanded = isOpen || isHoverTarget(item, hoverMenu);
+      const expanded = resolveSectionExpanded({
+        open: isOpen,
+        hovered: isHoverTarget(item, hoverMenu),
+        closedByClick: closedByClick === item.id,
+      });
       return (
         <div
           key={item.id}
@@ -384,13 +415,16 @@ const SidebarContent = ({
           }
         >
           <button
-            onClick={() => toggleMenu(item.id)}
+            onClick={() => toggleSection(item.id)}
+            aria-expanded={expanded}
             onMouseEnter={
               collapsed && !showLabels
                 ? (e) => openFlyout(e, item.id)
                 : collapsed
                   ? undefined
-                  : () => scheduleHoverOpen(item.id)
+                  : () => {
+                      if (pointerCanHover()) scheduleHoverOpen(item.id);
+                    }
             }
             onMouseLeave={
               collapsed && !showLabels ? scheduleFlyoutClose : undefined
@@ -1717,7 +1751,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
               onClick={() => setMobileMenuOpen(false)}
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             />
-            <aside className="absolute inset-y-0 left-0 w-64 bg-secondary p-6 border-r border-[var(--border-primary)]">
+            <aside className="absolute inset-y-0 left-0 w-64 flex flex-col overflow-hidden bg-secondary p-6 border-r border-[var(--border-primary)]">
               <SidebarContent {...commonProps} />
             </aside>
           </div>
