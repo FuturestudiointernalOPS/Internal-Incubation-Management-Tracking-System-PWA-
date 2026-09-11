@@ -30,26 +30,56 @@ export const IDENTITY_TYPES = ["role", "group"];
 
 /**
  * The agreed eligibility-matrix identities — the ONLY identities the
- * Permission UI shows/configures (Super Admin, Staff, Member, Participant,
- * Facilitator, Investor, Founder). Functions (developer, teacher, program_manager,
- * intern, ...) are deliberately NOT eligibility identities — they are
- * profiles/assignments layered on Staff. ROLE_CATALOG remains the full
- * technical catalog (used by the gate-validation tests); this list is the
- * UI-facing subset.
+ * Permission UI shows/configures, split into baseline identities and context
+ * roles (see BASELINE_IDENTITIES / CONTEXT_ROLES below). Functions (developer,
+ * teacher, program_manager, intern, ...) are deliberately NOT eligibility
+ * identities — they are profiles/assignments layered on Staff. ROLE_CATALOG
+ * remains the full technical catalog (used by the gate-validation tests); this
+ * list is the UI-facing subset.
  *
- * Founder is an official identity (P1): founder = venture-membership user,
- * distinct from participant (program enrollment). Founder scope is
- * venture_own — never an automatic participant surface.
+ * The split matters: a person keeps ONE baseline identity and holds context
+ * roles additively (Founder of Venture X, Participant in Program A) — the two
+ * are different things that happen to share one enforcement table.
  */
-export const ELIGIBILITY_IDENTITIES = [
-  "super_admin",
-  "staff",
-  "member",
+/**
+ * The baseline identities — the person's relationship with the PLATFORM.
+ * If someone stops participating in a program or a venture, this does not
+ * change: it is who they are here, not what they are doing here.
+ */
+export const BASELINE_IDENTITIES = ["super_admin", "staff", "member"];
+
+/**
+ * Context roles — what someone IS inside a program, a venture or an investment.
+ *
+ * They are ceilings too (the engine enforces them the same way), but they must
+ * not be mistaken for identities: a person holds them PER CONTEXT, additively,
+ * and keeps their baseline identity throughout. Founder = venture membership
+ * (venture_own scope), participant = program enrollment, never a platform-wide
+ * identity and never an automatic participant surface.
+ */
+export const CONTEXT_ROLES = [
   "participant",
   "facilitator",
   "investor",
   "founder",
 ];
+
+/**
+ * The agreed eligibility-matrix identities — the ONLY values the Permission UI
+ * shows/configures. Functions (developer, teacher, program_manager, intern…)
+ * are deliberately NOT here: they are profiles/assignments layered on Staff.
+ * ROLE_CATALOG remains the full technical catalog (gate validation).
+ */
+export const ELIGIBILITY_IDENTITIES = [
+  ...BASELINE_IDENTITIES,
+  ...CONTEXT_ROLES,
+];
+
+/** The two groups, so the UI can label the matrix honestly (UI-4c). */
+export const ELIGIBILITY_IDENTITY_GROUPS = {
+  identities: BASELINE_IDENTITIES,
+  contextRoles: CONTEXT_ROLES,
+};
 
 /** Canonical role catalog: every role referenced by seeds/config plus the
  *  platform role list (teams included via the tasks seed). */

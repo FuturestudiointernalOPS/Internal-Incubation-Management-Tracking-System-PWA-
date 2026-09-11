@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuthorization } from "@/lib/authorization";
 import { resolveAuthorizationContext } from "@/models/authorization/resolver";
+import { getContactContexts } from "@/models/authorization/contactContexts";
 import { getContactByCid } from "@/models/responsibilities";
 
 export const dynamic = "force-dynamic";
@@ -15,9 +16,9 @@ export const dynamic = "force-dynamic";
  * Permission Center "User Matrix" (source columns Profile | Group | Grant |
  * Restriction | Effective).
  *
- * Scope is intentionally NOT included: the scope engine is a later phase. The
- * response carries a placeholder so the UI can render the Scope column
- * honestly.
+ * Scope is included as CONTEXTS, not as a second verdict: the list is produced
+ * by the same data-layer predicates the Scope Engine enforces from, so the
+ * screen can say where each relationship sits without inventing a decision.
  *
  * Gate: permissions.view_matrix (same as the rest of the Permission Center).
  */
@@ -51,6 +52,13 @@ export async function GET(req) {
       group_name: contact.group_name || null,
     });
 
+    // Contextual relationships (UI-4c): additive, per context, read from the
+    // same assignment data the scope predicates use. Fail-soft per kind — an
+    // unreadable lookup is reported, never flattened into "no memberships".
+    const contextData = await getContactContexts(cid, {
+      email: contact.email || null,
+    });
+
     return NextResponse.json({
       success: true,
       cid,
@@ -66,7 +74,12 @@ export async function GET(req) {
         restrictions: ctx.restrictions,
       },
       effective: ctx.effective,
-      scope: { engine: "pending", note: "scope engine arrives in a later phase (P4)" },
+      contexts: contextData.contexts,
+      contextsUnavailable: contextData.unavailable,
+      scope: {
+        engine: "implemented",
+        note: "venture_own · program_assigned · learning_own (team_own pending)",
+      },
     });
   } catch (e) {
     console.error("GET /api/engineering/permissions/user-context error:", e.message);

@@ -87,6 +87,7 @@ export default function DefaultsMatrixView() {
       setData({
         features: elig.features || [],
         roles: identities,
+        identityGroups: elig.identityGroups || {},
         catalog: cat.catalog || {},
         moduleToFeature: cat.moduleToFeature || {},
         profiles: prof.profiles || [],
@@ -272,11 +273,16 @@ export default function DefaultsMatrixView() {
   }
 
   const identityCells = data?.roles || [];
+  // Baseline identities vs context roles (UI-4c) — labelled, never conflated.
+  const contextRoles = new Set(data?.identityGroups?.contextRoles || []);
 
   return (
     <div className="space-y-4">
       <p className="text-xs font-bold text-[var(--text-secondary)]">
         {t("engineering.permissions.defaultsMatrixHint")}
+      </p>
+      <p className="text-[10px] font-bold text-[var(--text-secondary)] opacity-80">
+        {t("engineering.permissions.identityGroupsNote")}
       </p>
       {err && <p className="text-xs font-bold text-red-500">{err}</p>}
       {msg && (
@@ -296,6 +302,11 @@ export default function DefaultsMatrixView() {
               {identityCells.map((ident) => (
                 <th key={ident} className="p-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] text-center">
                   {ident.replace(/_/g, " ")}
+                  {contextRoles.has(ident) && (
+                    <span className="block text-[8px] font-black text-teal-400">
+                      {t("engineering.permissions.contextRoleTag")}
+                    </span>
+                  )}
                 </th>
               ))}
             </tr>
