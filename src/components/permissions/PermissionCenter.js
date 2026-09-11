@@ -40,6 +40,8 @@ import PendingChangesList from "@/components/permissions/ui/PendingChangesList";
 import { diffCapabilities } from "@/components/permissions/pendingChanges";
 import { splitAuditReason } from "@/components/permissions/auditHelpers";
 import { deriveProfileBadges } from "@/components/permissions/profileBadges";
+import FeatureMatrixSection from "@/components/permissions/FeatureMatrixSection";
+import { groupModulesByFeature } from "@/components/permissions/matrixHelpers";
 import { defer } from "@/components/permissions/effectUtils";
 
 const ACCESS_LEVEL_KEYS = {
@@ -893,6 +895,7 @@ function AccessProfilesView({ initialProfileId = null }) {
   const [allRoles, setAllRoles] = useState([]);
   const [eligibilityRows, setEligibilityRows] = useState([]); // feature_eligibility rows for role-based filtering
   const [moduleToFeature, setModuleToFeature] = useState({}); // capability module → feature key
+  const [featureKeys, setFeatureKeys] = useState([]); // canonical feature order (eligibility API)
   // The capability catalog (PERMISSION_MODULES) as served by /api/access-profiles
   // — the SAME definition the access-profile writes are validated against. Held
   // in state: the editor used to read a `window` global and fall back to a
@@ -943,6 +946,7 @@ function AccessProfilesView({ initialProfileId = null }) {
         setAllRoles(eligData.roles || Object.keys(data.roleDefaults || {}));
         setEligibilityRows(eligData.rows || []);
         setModuleToFeature(eligData.moduleToFeature || {});
+        setFeatureKeys(eligData.features || []);
       } else {
         setAllRoles(Object.keys(data.roleDefaults || {}));
       }
@@ -1343,18 +1347,22 @@ function AccessProfilesView({ initialProfileId = null }) {
     return anyEligible;
   };
 
-  // Only show the features the profile's default role(s) are eligible for.
-  // No role context (profile is not a default) or unknown mapping → keep the
-  // module visible rather than hiding capabilities the admin may need.
-  const visibleModules = Object.entries(availableModules).filter(
-    ([modKey]) => {
-      if (selectedIsDefaultFor.length === 0) return true;
-      const feature = moduleToFeature[modKey];
-      if (!feature) return true;
-      return selectedIsDefaultFor.some((role) =>
-        isRoleEligibleForFeature(role, feature),
-      );
-    },
+  // Feature sections: each FEATURE (sidebar-level section) carries its modules
+  // as sub-sections (rows) and the ordered union of their capabilities (the
+  // header row). A section is shown only when one of the profile's default
+  // role(s) is eligible for its feature; modules without a feature mapping
+  // (e.g. org_membership) are always shown.
+  const visibleSections = groupModulesByFeature(
+    availableModules,
+    moduleToFeature,
+    featureKeys,
+  ).filter(
+    (section) =>
+      section.unmapped ||
+      selectedIsDefaultFor.length === 0 ||
+      selectedIsDefaultFor.some((role) =>
+        isRoleEligibleForFeature(role, section.feature),
+      ),
   );
 
   return (
@@ -1708,7 +1716,7 @@ function AccessProfilesView({ initialProfileId = null }) {
                 </div>
               )}
 
-              {moduleCatalog && visibleModules.length === 0 && (
+              {moduleCatalog && visibleSections.length === 0 && (
                 <div className="py-10 text-center opacity-60">
                   <p className="text-xs font-black text-[var(--text-primary)] uppercase">
                     {t("engineering.permissions.profileNoEligibleFeatures")}
@@ -1716,153 +1724,23 @@ function AccessProfilesView({ initialProfileId = null }) {
                 </div>
               )}
 
-              {moduleCatalog && visibleModules.length > 0 && (
+              {moduleCatalog && visibleSections.length > 0 && (
                 <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                   {t("engineering.permissions.viewBaseHint")}
                 </p>
               )}
 
-              <div className="space-y-4">
-                {visibleModules.map(([modKey, mod]) => {
-                  const moduleChanged = mod.capabilities.some((cap) =>
-                    isChanged(modKey, cap),
-                  );
-                  return (
-                    <div
-                      key={modKey}
-                      className="ios-card !p-0 border border-[var(--border-primary)] overflow-hidden"
-                    >
-                      <div className="px-5 py-3 bg-tertiary/30 border-b border-[var(--border-primary)] flex items-center justify-between">
-                        <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
-                          {mod.name}
-                        </h4>
-                        {moduleChanged && (
-                          <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                            {t("engineering.permissions.changedBadge")}
-                          </span>
-                        )}
-                      </div>
-                      <div className="hidden md:block overflow-x-auto">
-                        <table className="w-full text-left min-w-[480px]">
-                          <thead>
-                            <tr className="border-b border-[var(--border-primary)]">
-                              <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                                {t("engineering.permissions.capability")}
-                              </th>
-                              {LEVELS_ORDER.map((l) => (
-                                <th
-                                  key={l}
-                                  className="px-1 py-2.5 text-center text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest"
-                                >
-                                  {l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {mod.capabilities.map((cap) => {
-                              const level = getDraftLevel(modKey, cap);
-                              const changed = isChanged(modKey, cap);
-                              const viewLocked =
-                                cap === "view" &&
-                                Object.entries(draftCaps[modKey] || {}).some(
-                                  ([c, lvl]) => c !== "view" && Number(lvl) > 0,
-                                );
-                              return (
-                                <tr
-                                  key={cap}
-                                  className={`border-b border-[var(--border-primary)]/50 last:border-b-0 ${changed ? "bg-amber-500/5" : ""}`}
-                                >
-                                  <td className="px-4 py-2 text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
-                                    {capabilityLabel(modKey, cap)}
-                                    {changed && (
-                                      <span className="ml-2 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                                        {t("engineering.permissions.changedBadge")}
-                                      </span>
-                                    )}
-                                  </td>
-                                  {LEVELS_ORDER.map((l) => (
-                                    <td key={l} className="px-1 py-1.5 text-center">
-                                      <button
-                                        onClick={() => setDraftLevel(modKey, cap, l)}
-                                        disabled={viewLocked && l === 0}
-                                        title={
-                                          viewLocked && l === 0
-                                            ? t("engineering.permissions.viewRequiredMsg")
-                                            : `${capabilityLabel(modKey, cap)} → ${l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}`
-                                        }
-                                        className={`w-8 h-8 rounded-lg border text-[10px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-                                          level === l
-                                            ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
-                                            : "bg-secondary border-[var(--border-primary)] text-slate-500 hover:border-[var(--brand-orange)]/40 hover:text-[var(--text-primary)]"
-                                        } ${changed && level === l ? "ring-1 ring-amber-400/70" : ""}`}
-                                      >
-                                        {ACCESS_SHORT[l]}
-                                      </button>
-                                    </td>
-                                  ))}
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      {/* Small screens: one card per capability, one chip per
-                          level — the same targets, just stacked. */}
-                      <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
-                        {mod.capabilities.map((cap) => {
-                          const level = getDraftLevel(modKey, cap);
-                          const changed = isChanged(modKey, cap);
-                          const viewLocked =
-                            cap === "view" &&
-                            Object.entries(draftCaps[modKey] || {}).some(
-                              ([c, lvl]) => c !== "view" && Number(lvl) > 0,
-                            );
-                          return (
-                            <div
-                              key={cap}
-                              className={`p-3 space-y-2 ${changed ? "bg-amber-500/5" : ""}`}
-                            >
-                              <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
-                                {capabilityLabel(modKey, cap)}
-                                {changed && (
-                                  <span className="ml-2 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                                    {t("engineering.permissions.changedBadge")}
-                                  </span>
-                                )}
-                              </p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {LEVELS_ORDER.map((l) => (
-                                  <button
-                                    key={l}
-                                    onClick={() => setDraftLevel(modKey, cap, l)}
-                                    disabled={viewLocked && l === 0}
-                                    title={
-                                      viewLocked && l === 0
-                                        ? t("engineering.permissions.viewRequiredMsg")
-                                        : `${capabilityLabel(modKey, cap)} → ${l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}`
-                                    }
-                                    className={`min-w-[3rem] h-10 px-2 rounded-lg border text-[10px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-                                      level === l
-                                        ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
-                                        : "bg-secondary border-[var(--border-primary)] text-slate-500 hover:border-[var(--brand-orange)]/40 hover:text-[var(--text-primary)]"
-                                    } ${changed && level === l ? "ring-1 ring-amber-400/70" : ""}`}
-                                  >
-                                    <span className="block text-[8px] uppercase tracking-widest opacity-70">
-                                      {l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}
-                                    </span>
-                                    <span>{ACCESS_SHORT[l]}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="space-y-6">
+                {visibleSections.map((section) => (
+                  <FeatureMatrixSection
+                    key={section.feature}
+                    section={section}
+                    availableModules={availableModules}
+                    draftCaps={draftCaps}
+                    savedCaps={savedCaps}
+                    onSetLevel={setDraftLevel}
+                  />
+                ))}
               </div>
             </>
           ) : (
