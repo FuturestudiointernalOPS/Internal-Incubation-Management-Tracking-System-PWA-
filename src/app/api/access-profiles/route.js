@@ -51,12 +51,14 @@ function normalizeCapabilities(caps) {
       const lvl = Math.max(0, Number(level) || 0);
       if (lvl > 0) next[capability] = lvl;
     }
-    if (Object.prototype.hasOwnProperty.call(next, "view") && next.view === 0) {
-      const othersActive = Object.keys(next).some(
-        (c) => c !== "view" && next[c] > 0,
-      );
-      if (othersActive) next.view = 1; // edit/create/delete imply view
-    }
+    // Zero rows were dropped above, so a cleared `view` is ABSENT (not 0).
+    // Any other active capability in a module that CARRIES view implies it.
+    const supportsView =
+      PERMISSION_MODULES[module]?.capabilities?.includes("view") ?? false;
+    const othersActive = Object.keys(next).some(
+      (c) => c !== "view" && next[c] > 0,
+    );
+    if (supportsView && othersActive && !next.view) next.view = 1; // edit/create/delete imply view
     if (Object.keys(next).length > 0) out[module] = next;
   }
   return out;
@@ -381,10 +383,13 @@ export async function DELETE(req) {
 
     if (roleRefs.rows.length > 0) {
       const roles = roleRefs.rows.map((r) => r.role_name).join(", ");
-      return NextResponse.json({
-        success: false,
-        error: `Cannot delete: profile is the default for role(s): ${roles}. Change the role default first.`,
-      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Cannot delete: profile is the default for role(s): ${roles}. Change the role default first.`,
+        },
+        { status: 400 },
+      );
     }
 
     // Check if any users reference this profile
