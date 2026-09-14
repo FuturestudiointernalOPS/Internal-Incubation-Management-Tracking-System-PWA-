@@ -161,7 +161,7 @@ const NAV_KEY_MAP = {
   security: "navigation.security",
   integrations: "navigation.integrations",
   access_summary: "navigation.accessSummary",
-  crm_membership: "navigation.groups",
+  crm_membership: "navigation.membership",
   permissions: "navigation.permissions",
   engineering_dashboard: "navigation.engineering",
   system: "navigation.system",

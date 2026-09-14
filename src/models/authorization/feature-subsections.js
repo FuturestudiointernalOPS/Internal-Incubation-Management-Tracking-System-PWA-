@@ -26,10 +26,10 @@
 export const FEATURE_SUBSECTIONS = {
   crm: [
     { id: "crm_dashboard", labelKey: "navigation.crmDashboard" },
-    { id: "all_contacts", labelKey: "navigation.people", module: "contacts" },
+    { id: "all_contacts", labelKey: "navigation.contacts", module: "contacts" },
     { id: "crm_membership", labelKey: "navigation.membership" },
     { id: "crm_timeline", labelKey: "navigation.crmTimeline" },
-    { id: "crm_duplicates", labelKey: "navigation.duplicates", module: "duplicates" },
+    { id: "crm_duplicates", labelKey: "navigation.crmDuplicates", module: "duplicates" },
     { id: "bulk_upload", labelKey: "navigation.bulkUpload", module: "bulk_upload" },
   ],
   communication: [
