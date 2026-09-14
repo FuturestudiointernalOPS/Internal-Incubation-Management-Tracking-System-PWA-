@@ -136,8 +136,8 @@ export async function getContactByCid(cid) {
  * higher level is never overwritten, and removing the responsibility never
  * revokes them (they may be shared with an access profile).
  *
- * Responsibilities without a module mapping (operations, intelligence, …)
- * grant nothing here — their pages rely on manual grants/profiles.
+ * Responsibilities whose feature owns no module (none today) grant nothing
+ * here — their pages rely on manual grants/profiles.
  *
  * @returns {Promise<string[]>} granted `<module>.view` entries (informational).
  */

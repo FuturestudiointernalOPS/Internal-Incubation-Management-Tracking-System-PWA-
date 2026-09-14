@@ -81,10 +81,10 @@ await check("authz_migrations: 9 capability backfills recorded",
     'cap-backfill-programs','cap-backfill-ventures','cap-backfill-investor')`, [{ n: 9 }]);
 
 // 3. Policy #3 applied — stale rows gone
-await check("no admin@internal_comms eligibility row",
-  "SELECT COUNT(*)::int AS n FROM feature_eligibility WHERE feature_key='internal_comms' AND identity_value='admin'", [{ n: 0 }]);
-await check("no admin@reporting eligibility row",
-  "SELECT COUNT(*)::int AS n FROM feature_eligibility WHERE feature_key='reporting' AND identity_value='admin'", [{ n: 0 }]);
+await check("no admin@communication eligibility row",
+  "SELECT COUNT(*)::int AS n FROM feature_eligibility WHERE feature_key='communication' AND identity_value='admin'", [{ n: 0 }]);
+await check("no admin@reports eligibility row",
+  "SELECT COUNT(*)::int AS n FROM feature_eligibility WHERE feature_key='reports' AND identity_value='admin'", [{ n: 0 }]);
 await check("no participant@crm eligibility row",
   "SELECT COUNT(*)::int AS n FROM feature_eligibility WHERE feature_key='crm' AND identity_value='participant'", [{ n: 0 }]);
 await check("no founder@crm eligibility row",
@@ -92,13 +92,13 @@ await check("no founder@crm eligibility row",
 
 // 4. Staff eligibility intact (the Phase 3 boundary)
 await check("staff eligible: programs",
-  "SELECT COUNT(*)::int AS n FROM feature_eligibility WHERE feature_key='program_management' AND identity_value='staff' AND eligible=1", [{ n: 1 }]);
+  "SELECT COUNT(*)::int AS n FROM feature_eligibility WHERE feature_key='programs' AND identity_value='staff' AND eligible=1", [{ n: 1 }]);
 await check("staff eligible: finance",
   "SELECT COUNT(*)::int AS n FROM feature_eligibility WHERE feature_key='finance' AND identity_value='staff' AND eligible=1", [{ n: 1 }]);
 await check("staff eligible: projects",
-  "SELECT COUNT(*)::int AS n FROM feature_eligibility WHERE feature_key='project_ownership' AND identity_value='staff' AND eligible=1", [{ n: 1 }]);
+  "SELECT COUNT(*)::int AS n FROM feature_eligibility WHERE feature_key='operations' AND identity_value='staff' AND eligible=1", [{ n: 1 }]);
 await check("staff eligible: reports",
-  "SELECT COUNT(*)::int AS n FROM feature_eligibility WHERE feature_key='reporting' AND identity_value='staff' AND eligible=1", [{ n: 1 }]);
+  "SELECT COUNT(*)::int AS n FROM feature_eligibility WHERE feature_key='reports' AND identity_value='staff' AND eligible=1", [{ n: 1 }]);
 
 // 5. Staff Default profile still bound + intact (Phase 3 Option B: 11 caps)
 await check("staff role default = Staff Default profile",

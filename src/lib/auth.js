@@ -423,7 +423,7 @@ export const PERMISSION_MODULES = {
   },
   contacts: {
     name: "Contacts",
-    capabilities: ["view", "create", "edit", "delete", "import", "export"],
+    capabilities: ["view", "create", "edit", "delete"],
   },
   permissions: {
     name: "Permissions",
@@ -1656,31 +1656,6 @@ export async function seedDefaultResponsibilities() {
 
     const defaults = [
       {
-        name: "Engineering",
-        key: "engineering",
-        description:
-          "Engineering operations — tasks, standups, retros, error logs",
-        icon: "Wrench",
-      },
-      {
-        name: "Program Management",
-        key: "program_management",
-        description: "Program oversight — programs, participants, submissions",
-        icon: "Briefcase",
-      },
-      {
-        name: "Project Ownership",
-        key: "project_ownership",
-        description: "Project management — projects, tasks, team reporting",
-        icon: "Rocket",
-      },
-      {
-        name: "Operations",
-        key: "operations",
-        description: "Internal operations — workspace, reports, standups",
-        icon: "Settings",
-      },
-      {
         name: "CRM",
         key: "crm",
         description: "People, contacts, timeline, membership, duplicates",
@@ -1693,52 +1668,10 @@ export async function seedDefaultResponsibilities() {
         icon: "Send",
       },
       {
-        name: "Finance",
-        key: "finance",
-        description: "Financial operations — budgets, reports",
-        icon: "BarChart3",
-      },
-      {
-        name: "Reporting",
-        key: "reporting",
-        description: "Reports and analytics",
-        icon: "BarChart3",
-      },
-      {
-        name: "Knowledge Base",
-        key: "knowledge_base",
-        description: "Knowledge management",
-        icon: "Library",
-      },
-      {
-        name: "Intelligence",
-        key: "intelligence",
-        description: "Business intelligence and trends",
-        icon: "TrendingUp",
-      },
-      {
-        name: "User Management",
-        key: "user_management",
-        description: "User administration — personnel, permissions",
-        icon: "Users",
-      },
-      {
-        name: "System Settings",
-        key: "system_settings",
-        description: "System configuration",
-        icon: "Settings",
-      },
-      {
-        name: "LMS",
-        key: "lms",
-        description: "Course management — create and maintain courses",
-        icon: "GraduationCap",
-      },
-      {
-        name: "Tasks",
-        key: "tasks",
-        description: "Task management — tasks and blockers",
-        icon: "CheckSquare",
+        name: "Programs",
+        key: "programs",
+        description: "Program oversight — programs, participants, submissions",
+        icon: "Briefcase",
       },
       {
         name: "Ventures",
@@ -1747,10 +1680,52 @@ export async function seedDefaultResponsibilities() {
         icon: "Rocket",
       },
       {
-        name: "Investor",
-        key: "investor",
+        name: "Investors",
+        key: "investors",
         description: "Investor management — records, reviews, campaigns",
         icon: "TrendingUp",
+      },
+      {
+        name: "Finance",
+        key: "finance",
+        description: "Financial operations — budgets, reports",
+        icon: "BarChart3",
+      },
+      {
+        name: "Operations",
+        key: "operations",
+        description: "Internal operations — projects, tasks, standups, retros",
+        icon: "Settings",
+      },
+      {
+        name: "Reports",
+        key: "reports",
+        description: "Reports and analytics",
+        icon: "BarChart3",
+      },
+      {
+        name: "Knowledge",
+        key: "knowledge",
+        description: "Knowledge management",
+        icon: "Library",
+      },
+      {
+        name: "LMS",
+        key: "lms",
+        description: "Course management — create and maintain courses",
+        icon: "GraduationCap",
+      },
+      {
+        name: "Security",
+        key: "security",
+        description: "User administration — personnel, permissions",
+        icon: "Users",
+      },
+      {
+        name: "Settings",
+        key: "settings",
+        description: "System configuration and engineering operations",
+        icon: "Settings",
       },
     ];
 

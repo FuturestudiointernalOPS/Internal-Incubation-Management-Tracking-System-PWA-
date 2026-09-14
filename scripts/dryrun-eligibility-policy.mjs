@@ -7,8 +7,8 @@
  *
  *   feature       role          effect
  *   -----------   -----------   --------------------------------------
- *   internal_comms  admin       admin loses internal_comms eligibility
- *   reporting       admin       admin loses reporting eligibility
+ *   communication   admin       admin loses communication eligibility
+ *   reports         admin       admin loses reports eligibility
  *   crm             participant participant loses crm eligibility
  *   crm             founder     founder loses crm eligibility
  *
@@ -104,8 +104,8 @@ const { PERMISSION_MODULES, ACCESS_LEVELS } = await import("../src/lib/auth.js")
 
 // ─── The exact policy change under dry-run (item #3) — role rows ONLY ───────
 const POLICY_DELETES = [
-  { feature_key: "internal_comms", identity_value: "admin" },
-  { feature_key: "reporting", identity_value: "admin" },
+  { feature_key: "communication", identity_value: "admin" },
+  { feature_key: "reports", identity_value: "admin" },
   { feature_key: "crm", identity_value: "participant" },
   { feature_key: "crm", identity_value: "founder" },
 ];

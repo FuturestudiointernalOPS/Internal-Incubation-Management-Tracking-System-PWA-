@@ -22,9 +22,9 @@ const ENVS = [
 ];
 
 const ELIG = [
-  ["user_management", "role", "staff", 1],
-  ["system_settings", "role", "staff", 1],
-  ["program_management", "role", "participant", 1],
+  ["security", "role", "staff", 1],
+  ["settings", "role", "staff", 1],
+  ["programs", "role", "participant", 1],
   ["ventures", "role", "investor", 1],
 ];
 
@@ -51,7 +51,7 @@ for (const env of ENVS) {
     await pool.query(
       `INSERT INTO permission_audit_log (actor_cid, actor_name, target_cid, target_name, action, details)
        VALUES ('system', 'system', 'system', 'system', 'eligibility_changed',
-               'Phase 2: added staff→user_management, staff→system_settings, participant→program_management, investor→ventures (additive; no access granted by eligibility alone)')`,
+               'Phase 2: added staff→security, staff→settings, participant→programs, investor→ventures (additive; no access granted by eligibility alone)')`,
     );
     await pool.query(
       `INSERT INTO permission_audit_log (actor_cid, actor_name, target_cid, target_name, action, details)
@@ -63,7 +63,7 @@ for (const env of ENVS) {
 
   // Verify final state
   const v1 = await pool.query(
-    "SELECT feature_key, identity_value FROM feature_eligibility WHERE identity_type='role' AND (identity_value='staff' AND feature_key IN ('user_management','system_settings') OR identity_value='participant' AND feature_key='program_management' OR identity_value='investor' AND feature_key='ventures') ORDER BY feature_key",
+    "SELECT feature_key, identity_value FROM feature_eligibility WHERE identity_type='role' AND (identity_value='staff' AND feature_key IN ('security','settings') OR identity_value='participant' AND feature_key='programs' OR identity_value='investor' AND feature_key='ventures') ORDER BY feature_key",
   );
   console.log("  eligibility verify:", JSON.stringify(v1.rows));
   const v2 = await pool.query("SELECT id, name FROM access_profiles WHERE name = 'Investor Access' OR name = 'Mentor'");

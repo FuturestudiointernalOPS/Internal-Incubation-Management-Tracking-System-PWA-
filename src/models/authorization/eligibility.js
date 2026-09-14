@@ -21,32 +21,40 @@ import { FEATURE_ELIGIBILITY_DEFAULTS } from "./eligibility-defaults";
 
 export { FEATURE_ELIGIBILITY_DEFAULTS };
 
-// Capability module → feature key. The resolver authorizes against capability
-// modules (PERMISSION_MODULES); eligibility is expressed per feature
-// (responsibility-level concept the Product Owner configures).
+// Capability module → feature key. Features ARE the dashboard sections; the
+// modules are their sub-sections. The resolver authorizes against capability
+// modules (PERMISSION_MODULES); eligibility is expressed per feature.
 export const MODULE_TO_FEATURE = {
+  // CRM — people data
   contacts: "crm",
-  // P1: duplicates + bulk_upload are CRM modules — any future grant of their
-  // capabilities is gated by crm feature eligibility (participant/founder/
-  // facilitator remain ineligible for crm by default).
   duplicates: "crm",
   bulk_upload: "crm",
-  finance: "finance",
-  programs: "program_management",
-  projects: "project_ownership",
-  users: "user_management",
-  reports: "reporting",
+  // Communication
   messaging: "communication",
   internal_comms: "communication",
-  knowledge: "knowledge_base",
-  tasks: "tasks",
+  // Programs
+  programs: "programs",
+  facilitator: "programs",
+  // Ventures / Investors
   ventures: "ventures",
-  investor: "investor",
-  permissions: "user_management",
-  engineering: "engineering",
-  settings: "system_settings",
-  facilitator: "program_management",
+  investor: "investors",
+  // Finance
+  finance: "finance",
+  // Operations — projects + tasks share the dashboard OPERATIONS section
+  projects: "operations",
+  tasks: "operations",
+  // Reports
+  reports: "reports",
+  // Knowledge
+  knowledge: "knowledge",
+  // LMS
   lms: "lms",
+  // Security — user administration + permissions
+  users: "security",
+  permissions: "security",
+  // Settings — system configuration + engineering operations
+  settings: "settings",
+  engineering: "settings",
 };
 
 // FEATURE_ELIGIBILITY_DEFAULTS lives in ./eligibility-defaults (pure module,

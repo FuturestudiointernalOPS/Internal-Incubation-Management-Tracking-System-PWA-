@@ -59,7 +59,7 @@ describe("Phase 2 — program write gates (no staff bypass)", () => {
   });
 
   test("staff who is NOT eligible for programs: even a grant cannot bypass eligibility", () => {
-    const ineligible = ctx({ eligibility: { ...STAFF_ELIG, program_management: false }, profileCaps: STAFF_DEFAULT, grants: { programs: { edit: 3 } } });
+    const ineligible = ctx({ eligibility: { ...STAFF_ELIG, programs: false }, profileCaps: STAFF_DEFAULT, grants: { programs: { edit: 3 } } });
     expect(authorize(ineligible, "programs", "edit")).toBe(false);
   });
 

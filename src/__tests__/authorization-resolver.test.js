@@ -22,7 +22,7 @@ jest.mock("@/lib/auth", () => {
     reports: { capabilities: ["view", "create", "export", "delete"] },
     messaging: { capabilities: ["view", "send", "delete"] },
     internal_comms: { capabilities: ["view", "create_announcements", "moderate"] },
-    contacts: { capabilities: ["view", "create", "edit", "delete", "import", "export"] },
+    contacts: { capabilities: ["view", "create", "edit", "delete"] },
     permissions: {
       capabilities: [
         "view_matrix",
@@ -256,14 +256,14 @@ describe("authorize() — non-Super Admin", () => {
 // ─── knowledge module (Phase 2 migration) ───────────────────────────────────
 
 describe("knowledge module (Phase 2)", () => {
-  test("MODULE_TO_FEATURE maps knowledge → knowledge_base", () => {
+  test("MODULE_TO_FEATURE maps knowledge → knowledge", () => {
     const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
-    expect(MODULE_TO_FEATURE.knowledge).toBe("knowledge_base");
+    expect(MODULE_TO_FEATURE.knowledge).toBe("knowledge");
   });
 
   test("eligible staff with knowledge capabilities is allowed", () => {
     const ctx = staffCtx({
-      eligibility: { knowledge_base: true },
+      eligibility: { knowledge: true },
       effective: { knowledge: { view: 1, create: 2, edit: 3, delete: 4 } },
     });
     expect(authorize(ctx, "knowledge", "view")).toBe(true);
@@ -273,7 +273,7 @@ describe("knowledge module (Phase 2)", () => {
 
   test("ineligible user is denied even with knowledge capability", () => {
     const ctx = staffCtx({
-      eligibility: { knowledge_base: false },
+      eligibility: { knowledge: false },
       effective: { knowledge: { view: 1 } },
     });
     expect(authorize(ctx, "knowledge", "view")).toBe(false);
@@ -283,25 +283,25 @@ describe("knowledge module (Phase 2)", () => {
 // ─── reports module (Phase 3 migration) ─────────────────────────────────────
 
 describe("reports module (Phase 3)", () => {
-  test("MODULE_TO_FEATURE maps reports → reporting", () => {
+  test("MODULE_TO_FEATURE maps reports → reports", () => {
     const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
-    expect(MODULE_TO_FEATURE.reports).toBe("reporting");
+    expect(MODULE_TO_FEATURE.reports).toBe("reports");
   });
 
-  test("reporting eligibility defaults cover the submit routes (admin removed by policy #3)", () => {
+  test("reports eligibility defaults cover the submit routes (admin removed by policy #3)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
-    const reporting = FEATURE_ELIGIBILITY_DEFAULTS.reporting;
-    expect(reporting).toEqual(
+    const reports = FEATURE_ELIGIBILITY_DEFAULTS.reports;
+    expect(reports).toEqual(
       expect.arrayContaining(["super_admin", "staff", "program_manager", "teacher", "developer"]),
     );
-    expect(reporting).not.toContain("admin");
+    expect(reports).not.toContain("admin");
   });
 
   test("developer with reports.create is allowed on the submit routes", () => {
     const ctx = staffCtx({
       role: "developer",
       isSuperAdmin: false,
-      eligibility: { reporting: true },
+      eligibility: { reports: true },
       effective: { reports: { view: 1, create: 2 } },
     });
     expect(authorize(ctx, "reports", "create")).toBe(true);
@@ -312,7 +312,7 @@ describe("reports module (Phase 3)", () => {
     const ctx = staffCtx({
       role: "teacher",
       isSuperAdmin: false,
-      eligibility: { reporting: true },
+      eligibility: { reports: true },
       effective: { reports: { view: 1, export: 3 } },
     });
     expect(authorize(ctx, "reports", "export")).toBe(true);
@@ -417,20 +417,20 @@ describe("communication feature (Messages + Announcements)", () => {
 // ─── projects module (Phase 6 migration) ────────────────────────────────────
 
 describe("projects module (Phase 6)", () => {
-  test("MODULE_TO_FEATURE maps projects → project_ownership", () => {
+  test("MODULE_TO_FEATURE maps projects → operations", () => {
     const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
-    expect(MODULE_TO_FEATURE.projects).toBe("project_ownership");
+    expect(MODULE_TO_FEATURE.projects).toBe("operations");
   });
 
   test("staff with backfilled delete can delete; developer without it cannot", () => {
     const staff = staffCtx({
-      eligibility: { project_ownership: true },
+      eligibility: { operations: true },
       effective: { projects: { view: 1, create: 2, edit: 3, delete: 4 } },
     });
     const developer = staffCtx({
       role: "developer",
       isSuperAdmin: false,
-      eligibility: { project_ownership: true },
+      eligibility: { operations: true },
       effective: { projects: { view: 1, create: 2, edit: 3 } }, // no delete backfill
     });
     expect(authorize(staff, "projects", "delete")).toBe(true);
@@ -443,7 +443,7 @@ describe("projects module (Phase 6)", () => {
     const pm = staffCtx({
       role: "program_manager",
       isSuperAdmin: false,
-      eligibility: { project_ownership: true },
+      eligibility: { operations: true },
       effective: { projects: { view: 1, create: 2, edit: 3, delete: 4 } },
     });
     expect(authorize(pm, "projects", "create")).toBe(true);
@@ -451,11 +451,11 @@ describe("projects module (Phase 6)", () => {
     expect(authorize(pm, "projects", "delete")).toBe(true);
   });
 
-  test("admin is NOT eligible for project_ownership even with Staff Default caps", () => {
+  test("admin is NOT eligible for operations even with Staff Default caps", () => {
     const admin = staffCtx({
       role: "admin",
       isSuperAdmin: false,
-      eligibility: { project_ownership: false },
+      eligibility: { operations: false },
       effective: { projects: { view: 1, create: 2, edit: 3, delete: 4 } },
     });
     expect(authorize(admin, "projects", "delete")).toBe(false);
@@ -465,14 +465,14 @@ describe("projects module (Phase 6)", () => {
 // ─── tasks module (Phase 7 migration) ───────────────────────────────────────
 
 describe("tasks module (Phase 7)", () => {
-  test("MODULE_TO_FEATURE maps tasks → tasks", () => {
+  test("MODULE_TO_FEATURE maps tasks → operations", () => {
     const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
-    expect(MODULE_TO_FEATURE.tasks).toBe("tasks");
+    expect(MODULE_TO_FEATURE.tasks).toBe("operations");
   });
 
-  test("tasks eligibility defaults cover the team-tasks allowlist incl. team", () => {
+  test("operations eligibility defaults cover the tasks allowlist incl. team", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
-    expect(FEATURE_ELIGIBILITY_DEFAULTS.tasks).toEqual(
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.operations).toEqual(
       expect.arrayContaining(["super_admin", "staff", "program_manager", "team"]),
     );
   });
@@ -481,7 +481,7 @@ describe("tasks module (Phase 7)", () => {
     const teamUser = staffCtx({
       role: "team",
       isSuperAdmin: false,
-      eligibility: { tasks: true },
+      eligibility: { operations: true },
       effective: { tasks: { view: 1, create: 2, edit: 3, delete: 4 } },
     });
     expect(authorize(teamUser, "tasks", "view")).toBe(true);
@@ -492,7 +492,7 @@ describe("tasks module (Phase 7)", () => {
     const admin = staffCtx({
       role: "admin",
       isSuperAdmin: false,
-      eligibility: { tasks: false },
+      eligibility: { operations: false },
       effective: { tasks: { view: 1, create: 2, edit: 3, delete: 4 } },
     });
     expect(authorize(admin, "tasks", "view")).toBe(false);
@@ -502,16 +502,16 @@ describe("tasks module (Phase 7)", () => {
 // ─── engineering module (Phase 8 migration + errors gap) ────────────────────
 
 describe("engineering module (Phase 8)", () => {
-  test("MODULE_TO_FEATURE maps engineering → engineering", () => {
+  test("MODULE_TO_FEATURE maps engineering → settings", () => {
     const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
-    expect(MODULE_TO_FEATURE.engineering).toBe("engineering");
+    expect(MODULE_TO_FEATURE.engineering).toBe("settings");
   });
 
   test("developer with backfilled manage_developers can manage developers", () => {
     const dev = staffCtx({
       role: "developer",
       isSuperAdmin: false,
-      eligibility: { engineering: true },
+      eligibility: { settings: true },
       effective: {
         engineering: { view: 1, manage_tasks: 2, manage_errors: 1, manage_developers: 2 },
       },
@@ -525,7 +525,7 @@ describe("engineering module (Phase 8)", () => {
     const intern = staffCtx({
       role: "intern",
       isSuperAdmin: false,
-      eligibility: { engineering: false },
+      eligibility: { settings: false },
       effective: { engineering: { view: 1, manage_tasks: 1 } },
     });
     expect(authorize(intern, "engineering", "view")).toBe(false);
@@ -536,7 +536,7 @@ describe("engineering module (Phase 8)", () => {
     const ctx = staffCtx({
       role: "staff",
       isSuperAdmin: false,
-      eligibility: { engineering: false },
+      eligibility: { settings: false },
       effective: {},
     });
     expect(authorize(ctx, "engineering", "manage_errors")).toBe(false);
@@ -546,20 +546,20 @@ describe("engineering module (Phase 8)", () => {
 // ─── programs module (Phase 9 migration) ────────────────────────────────────
 
 describe("programs module (Phase 9)", () => {
-  test("MODULE_TO_FEATURE maps programs → program_management", () => {
+  test("MODULE_TO_FEATURE maps programs → programs", () => {
     const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
-    expect(MODULE_TO_FEATURE.programs).toBe("program_management");
+    expect(MODULE_TO_FEATURE.programs).toBe("programs");
   });
 
   test("staff/teacher with backfilled programs.edit are allowed (bypass replaced)", () => {
     const staff = staffCtx({
-      eligibility: { program_management: true },
+      eligibility: { programs: true },
       effective: { programs: { view: 1, edit: 3 } },
     });
     const teacher = staffCtx({
       role: "teacher",
       isSuperAdmin: false,
-      eligibility: { program_management: true },
+      eligibility: { programs: true },
       effective: { programs: { view: 1, edit: 3 } },
     });
     expect(authorize(staff, "programs", "edit")).toBe(true);
@@ -568,24 +568,24 @@ describe("programs module (Phase 9)", () => {
 
   test("staff WITHOUT backfilled delete is denied on program deletion (SA-only preserved)", () => {
     const staff = staffCtx({
-      eligibility: { program_management: true },
+      eligibility: { programs: true },
       effective: { programs: { view: 1, edit: 3 } }, // no delete backfill
     });
     expect(authorize(staff, "programs", "delete")).toBe(false);
     const pm = staffCtx({
       role: "program_manager",
       isSuperAdmin: false,
-      eligibility: { program_management: true },
+      eligibility: { programs: true },
       effective: { programs: { view: 1, create: 2, edit: 3, publish: 4 } }, // PM profile has no delete
     });
     expect(authorize(pm, "programs", "delete")).toBe(false);
   });
 
-  test("admin is NOT eligible for program_management even with Staff Default caps", () => {
+  test("admin is NOT eligible for programs even with Staff Default caps", () => {
     const admin = staffCtx({
       role: "admin",
       isSuperAdmin: false,
-      eligibility: { program_management: false },
+      eligibility: { programs: false },
       effective: { programs: { view: 1, edit: 3 } }, // inherited Staff Default backfill
     });
     expect(authorize(admin, "programs", "edit")).toBe(false);
@@ -664,30 +664,30 @@ describe("ventures module (Phase 10)", () => {
 // ─── investor module (Phase 11 migration) ───────────────────────────────────
 
 describe("investor module (Phase 11)", () => {
-  test("MODULE_TO_FEATURE maps investor → investor", () => {
+  test("MODULE_TO_FEATURE maps investor → investors", () => {
     const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
-    expect(MODULE_TO_FEATURE.investor).toBe("investor");
+    expect(MODULE_TO_FEATURE.investor).toBe("investors");
   });
 
   test("investor eligibility covers the uniform portal allowlist (no PM)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
-    expect(FEATURE_ELIGIBILITY_DEFAULTS.investor).toEqual(
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.investors).toEqual(
       expect.arrayContaining(["super_admin", "staff", "investor"]),
     );
-    expect(FEATURE_ELIGIBILITY_DEFAULTS.investor).not.toContain("program_manager");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.investors).not.toContain("program_manager");
   });
 
   test("investor with backfilled caps is allowed; mentor (same profile) is NOT eligible", () => {
     const investor = staffCtx({
       role: "investor",
       isSuperAdmin: false,
-      eligibility: { investor: true },
+      eligibility: { investors: true },
       effective: { investor: { view: 1, create: 2, edit: 3 } },
     });
     const mentor = staffCtx({
       role: "mentor",
       isSuperAdmin: false,
-      eligibility: { investor: false },
+      eligibility: { investors: false },
       effective: { investor: { view: 1, create: 2, edit: 3 } }, // Mentor profile carries caps
     });
     expect(authorize(investor, "investor", "view")).toBe(true);
@@ -699,7 +699,7 @@ describe("investor module (Phase 11)", () => {
     const pm = staffCtx({
       role: "program_manager",
       isSuperAdmin: false,
-      eligibility: { investor: false },
+      eligibility: { investors: false },
       effective: { investor: { view: 1 } },
     });
     expect(authorize(pm, "investor", "view")).toBe(false);
@@ -866,10 +866,10 @@ describe("lms module", () => {
 // backfill (ensureFinalPolicyBackfill) and the updated seeds enforce.
 
 describe("final eligibility policy (#3)", () => {
-  test("admin is NOT eligible for communication (internal_comms legacy) or reporting", () => {
+  test("admin is NOT eligible for communication (internal_comms legacy) or reports", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).not.toContain("admin");
-    expect(FEATURE_ELIGIBILITY_DEFAULTS.reporting).not.toContain("admin");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.reports).not.toContain("admin");
   });
 
   test("participant and founder are NOT crm-eligible", () => {
@@ -882,7 +882,7 @@ describe("final eligibility policy (#3)", () => {
     const admin = staffCtx({
       role: "admin",
       isSuperAdmin: false,
-      eligibility: { communication: false, reporting: false },
+      eligibility: { communication: false, reports: false },
       effective: { internal_comms: { view: 1, create_announcements: 2, moderate: 3 } },
     });
     expect(authorize(admin, "internal_comms", "create_announcements")).toBe(false);
@@ -894,7 +894,7 @@ describe("final eligibility policy (#3)", () => {
     const admin = staffCtx({
       role: "admin",
       isSuperAdmin: false,
-      eligibility: { communication: false, reporting: false },
+      eligibility: { communication: false, reports: false },
       effective: { reports: { view: 1, create: 2, export: 3 } },
     });
     expect(authorize(admin, "reports", "create")).toBe(false);
@@ -931,8 +931,8 @@ describe("final eligibility policy (#3)", () => {
     for (const sql of deletes) {
       expect(sql).toMatch(/identity_type\s*=\s*'role'/);
     }
-    expect(allSql).toMatch(/feature_key\s*=\s*'internal_comms'/);
-    expect(allSql).toMatch(/feature_key\s*=\s*'reporting'/);
+    expect(allSql).toMatch(/feature_key\s*=\s*'communication'/);
+    expect(allSql).toMatch(/feature_key\s*=\s*'reports'/);
     expect(allSql).toMatch(/feature_key\s*=\s*'crm'/);
     expect(allSql).toMatch(/identity_value\s*=\s*'admin'/);
     expect(allSql).toMatch(/identity_value\s*IN\s*\(\s*'participant',\s*'founder'\s*\)/);
@@ -961,12 +961,12 @@ describe("permissions.configure_eligibility (Phase A)", () => {
   test("holder of the capability may configure; others are denied", () => {
     const admin = staffCtx({
       role: "staff",
-      eligibility: { user_management: true },
+      eligibility: { security: true },
       effective: { permissions: { view_matrix: 1, configure_eligibility: 1 } },
     });
     const viewer = staffCtx({
       role: "staff",
-      eligibility: { user_management: true },
+      eligibility: { security: true },
       effective: { permissions: { view_matrix: 1 } }, // no configure cap
     });
     expect(authorize(admin, "permissions", "configure_eligibility")).toBe(
@@ -980,7 +980,7 @@ describe("permissions.configure_eligibility (Phase A)", () => {
   test("configure_eligibility is separate from assign_capabilities", () => {
     const ctx = staffCtx({
       role: "staff",
-      eligibility: { user_management: true },
+      eligibility: { security: true },
       effective: { permissions: { assign_capabilities: 2 } }, // different power
     });
     expect(authorize(ctx, "permissions", "configure_eligibility")).toBe(
@@ -1093,10 +1093,10 @@ describe("validateEligibilityChanges (eligibility API)", () => {
         "crm",
         "communication",
         "finance",
-        "program_management",
-        "reporting",
-        "user_management",
-        "system_settings",
+        "programs",
+        "reports",
+        "security",
+        "settings",
       ]),
     );
   });
@@ -1105,7 +1105,7 @@ describe("validateEligibilityChanges (eligibility API)", () => {
     const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
     const r = validateCapabilitiesWithinEligibility(
       { programs: { view: 1 }, contacts: { view: 1 } },
-      { program_management: true, crm: true },
+      { programs: true, crm: true },
     );
     expect(r.valid).toBe(true);
     expect(r.violations).toEqual([]);
@@ -1115,7 +1115,7 @@ describe("validateEligibilityChanges (eligibility API)", () => {
     const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
     const r = validateCapabilitiesWithinEligibility(
       { programs: { view: 1 }, finance: { view: 1 } },
-      { program_management: true, finance: false },
+      { programs: true, finance: false },
     );
     expect(r.valid).toBe(false);
     expect(r.violations).toEqual([
@@ -1127,7 +1127,7 @@ describe("validateEligibilityChanges (eligibility API)", () => {
     const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
     const r = validateCapabilitiesWithinEligibility(
       { finance: { view: 1 } },
-      { program_management: true }, // finance row missing entirely
+      { programs: true }, // finance row missing entirely
     );
     expect(r.valid).toBe(false);
     expect(r.violations[0]).toEqual({
