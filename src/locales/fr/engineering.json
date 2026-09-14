@@ -95,6 +95,17 @@
       "accessLevelEdit": "Modification",
       "accessLevelDelete": "Suppression",
       "accessLevelFull": "Complet",
+      "advancedTitle": "Avancé",
+      "advancedHint": "Capacités privilégiées et opérationnelles (attribuer, promouvoir, envoyer, publier, exécuter…). Elles s'appliquent exactement comme les capacités CRUD — cette section sert à les attribuer.",
+      "advancedEmpty": "Aucune capacité privilégiée disponible pour cette sélection.",
+      "advancedUnmapped": "Autres",
+      "advancedRisk": {
+        "low": "Risque faible",
+        "medium": "Risque moyen",
+        "high": "Risque élevé",
+        "critical": "Critique",
+        "unknown": "Non classé"
+      },
       "features": {
         "crm": "CRM",
         "communication": "Communication",

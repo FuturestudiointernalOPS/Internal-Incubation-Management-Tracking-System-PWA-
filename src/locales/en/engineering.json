@@ -95,6 +95,17 @@
       "accessLevelEdit": "Edit",
       "accessLevelDelete": "Delete",
       "accessLevelFull": "Full",
+      "advancedTitle": "Advanced",
+      "advancedHint": "Privileged and operational capabilities (grant, promote, send, publish, execute…). They are enforced exactly like the CRUD ones — this section is where they are granted.",
+      "advancedEmpty": "No privileged capabilities are available for this selection.",
+      "advancedUnmapped": "Other",
+      "advancedRisk": {
+        "low": "Low risk",
+        "medium": "Medium risk",
+        "high": "High risk",
+        "critical": "Critical",
+        "unknown": "Unclassified"
+      },
       "features": {
         "crm": "CRM",
         "communication": "Communication",
