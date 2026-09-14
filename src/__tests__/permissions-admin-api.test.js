@@ -9,6 +9,8 @@
  */
 
 const mockExecutedQueries = [];
+// Rows affected by the role-default DELETE (0 = no matching mapping).
+let mockRoleDefaultRowsAffected = 1;
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
@@ -17,6 +19,9 @@ jest.mock("@/lib/db", () => ({
       mockExecutedQueries.push(String(sql));
       if (String(sql).includes("FROM access_profiles WHERE id")) {
         return { rows: [{ id: 99, name: "Some Profile" }] };
+      }
+      if (String(sql).includes("DELETE FROM role_access_profile_defaults")) {
+        return { rows: [], rowsAffected: mockRoleDefaultRowsAffected };
       }
       return { rows: [] };
     }),
@@ -56,6 +61,7 @@ jest.mock("@/lib/authorization", () => ({
 
 const { requireAuthorization, invalidateAllAuthorizationContexts, assertTemplateCapsEligible, getAuthorizationContext } =
   require("@/lib/authorization");
+const { logPermissionAudit } = require("@/lib/auth");
 const eligibilityRoute = require("@/app/api/engineering/permissions/eligibility/route");
 const roleDefaultsRoute = require("@/app/api/access-profiles/role-defaults/route");
 const permissionsRoute = require("@/app/api/engineering/permissions/route");
@@ -66,6 +72,7 @@ const jsonReq = (body, method = "PUT", url = "http://localhost/api/x") =>
 beforeEach(() => {
   mockExecutedQueries.length = 0;
   mockAuthzDecision = null;
+  mockRoleDefaultRowsAffected = 1;
   jest.clearAllMocks();
 });
 
@@ -147,6 +154,67 @@ describe("PUT /api/access-profiles/role-defaults — eligibility boundary", () =
     const res = await roleDefaultsRoute.PUT(jsonReq({ role_name: "mentor", profile_id: 99 }));
     expect([400, 403]).toContain(res.status);
     expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO role_access_profile_defaults"))).toBe(false);
+  });
+});
+
+describe("DELETE /api/access-profiles/role-defaults — remove a role default", () => {
+  const delReq = (query) =>
+    new Request(`http://localhost/api/access-profiles/role-defaults?${query}`, {
+      method: "DELETE",
+    });
+  const deleteSql = () =>
+    mockExecutedQueries.find((q) =>
+      q.includes("DELETE FROM role_access_profile_defaults"),
+    );
+
+  test("requires permissions.assign_capabilities (no removal when unauthorized)", async () => {
+    mockAuthzDecision = new Response(JSON.stringify({ success: false, error: "x" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await roleDefaultsRoute.DELETE(delReq("role_name=staff&profile_id=2"));
+    expect(requireAuthorization).toHaveBeenCalledWith("permissions", "assign_capabilities");
+    expect(res.status).toBe(403);
+    expect(deleteSql()).toBeUndefined();
+  });
+
+  test("removes the mapping, scoped to role_name AND profile_id", async () => {
+    const res = await roleDefaultsRoute.DELETE(delReq("role_name=staff&profile_id=2"));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ success: true, removed: 1 });
+    // The DELETE is scoped, so a stale UI can never drop another profile's default.
+    expect(deleteSql()).toContain("role_name = ?");
+    expect(deleteSql()).toContain("access_profile_id = ?");
+  });
+
+  test("a real removal is audited and invalidates the authorization cache", async () => {
+    await roleDefaultsRoute.DELETE(delReq("role_name=staff&profile_id=2"));
+    expect(logPermissionAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "role_default_changed",
+        targetName: "role:staff",
+      }),
+    );
+    expect(invalidateAllAuthorizationContexts).toHaveBeenCalled();
+  });
+
+  test("no matching mapping → success but no audit and no cache invalidation", async () => {
+    mockRoleDefaultRowsAffected = 0;
+    const res = await roleDefaultsRoute.DELETE(delReq("role_name=ghost&profile_id=2"));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ success: true, removed: 0 });
+    expect(logPermissionAudit).not.toHaveBeenCalled();
+    expect(invalidateAllAuthorizationContexts).not.toHaveBeenCalled();
+  });
+
+  test("missing role_name or profile_id → 400 with no query", async () => {
+    for (const query of ["role_name=staff", "profile_id=2", ""]) {
+      const res = await roleDefaultsRoute.DELETE(delReq(query));
+      expect(res.status).toBe(400);
+    }
+    expect(deleteSql()).toBeUndefined();
   });
 });
 
