@@ -24,86 +24,15 @@
  * the server-side route allowlists.
  */
 
+import { FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/eligibility-defaults";
+
 // Initial defaults — used to seed the DB once and as fallback for
 // responsibilities that have not been configured yet.
 //
-// SINGLE SOURCE: values MUST mirror FEATURE_ELIGIBILITY_DEFAULTS in
-// src/models/authorization/eligibility-defaults.js (the canonical map). The
-// model-consistency test (authorization-model.test.js) enforces equality.
-export const RESPONSIBILITY_FEATURE_ROLES = {
-  // Financial operations — budgets, transactions, reports
-  finance: ["super_admin", "staff"],
-  // CRM — people, contacts, timeline
-  crm: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  // Communication — messaging, announcements, forms
-  communication: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  // Program oversight — programs, participants, submissions
-  program_management: ["super_admin", "staff", "program_manager", "teacher", "participant"],
-  // Project management — projects, tasks, team reporting
-  project_ownership: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  // Internal operations — workspace, reports, standups
-  operations: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  // Reports and analytics
-  reporting: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  // Knowledge management
-  knowledge_base: ["super_admin", "staff"],
-  // Business intelligence and trends
-  intelligence: ["super_admin", "developer"],
-  // Engineering operations — tasks, standups, retros, error logs
-  engineering: ["super_admin", "developer"],
-  // User administration — personnel, permissions
-  user_management: ["super_admin", "staff"],
-  // System configuration
-  system_settings: ["super_admin", "staff"],
-  // Tasks — assignments, blockers
-  tasks: ["super_admin", "staff", "program_manager", "team"],
-  // Ventures — incubated businesses (founder eligible for own-venture access).
-  // Phase 6: member is the baseline identity of a founder — eligibility is a
-  // ceiling only (capability + venture scope still decide). Kept in exact sync
-  // with FEATURE_ELIGIBILITY_DEFAULTS.ventures (single-source test).
-  ventures: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "investor",
-    "founder",
-    "member",
-  ],
-  // Investor relations
-  investor: ["super_admin", "staff", "investor"],
-  // LMS — capability-gated course authoring & learning
-  lms: ["super_admin", "program_manager", "developer"],
-};
+// SINGLE SOURCE: these ARE the canonical eligibility defaults, aliased (not
+// copied) so the two can never drift apart. `authorization-model.test.js`
+// still enforces the alignment.
+export const RESPONSIBILITY_FEATURE_ROLES = FEATURE_ELIGIBILITY_DEFAULTS;
 
 // Canonical role list offered in the "Responsibility Access" toggle UI.
 // Keep in sync with src/lib/platform/roles.js when new roles are added.
