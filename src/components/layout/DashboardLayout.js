@@ -51,7 +51,7 @@ import { resolveActiveSurface } from "@/lib/context";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
 import { fetchSwrJson } from "@/lib/hooks/useApi";
-import { buildRoleNav, NAV_ROLE_KEYS, projectNavForCapabilities } from "@/lib/masterNavigation";
+import { buildAccessNav } from "@/lib/masterNavigation";
 import {
   HOVER_CAPABLE_QUERY,
   canUseHoverIntent,
@@ -626,83 +626,6 @@ const SidebarContent = ({
 
 
 
-// =============================================================================
-// RESPONSIBILITY-GATED NAVIGATION
-// =============================================================================
-// Maps nav item IDs to the responsibility key required to see them.
-// Items not listed here are visible to everyone with that role.
-// Super Admin always sees everything.
-// =============================================================================
-
-const NAV_RESPONSIBILITY_MAP = {
-  // CRM
-  crm: "crm",
-  crm_dashboard: "crm",
-  crm_membership: "crm",
-  crm_timeline: "crm",
-  all_contacts: "crm",
-  forms: "crm",
-  messages: "crm",
-  announcements: "crm",
-
-  // Administration (user tools moved out of CRM — kept under security)
-  pending_users: "security",
-  bulk_upload: "security",
-
-  // Programs
-  programs: "programs",
-  all_programs: "programs",
-  create_program: "programs",
-  progress: "programs",
-  program_reports: "programs",
-  submissions: "programs",
-  // Ventures (gated by program ownership today — unchanged semantics)
-  ventures: "programs",
-  all_ventures: "programs",
-  register_venture: "programs",
-  // Projects / Operations
-  operations: "operations",
-  internal_ops: "operations",
-  internal_ops_board: "operations",
-  all_projects: "operations",
-  create_project: "operations",
-  my_projects: "operations",
-  tasks: "operations",
-  blockers: "operations",
-  standup: "operations",
-  retro: "operations",
-  standups_retros: "operations",
-  weekly_ops: "operations",
-  internal_reports: "reports",
-  // Knowledge
-  knowledge: "knowledge",
-  knowledge_base: "knowledge",
-  intelligence: "knowledge",
-  // Finance & Health
-  finance: "finance",
-  metrics: "reports",
-  reports: "reports",
-  // Settings
-  settings: "settings",
-  audit_logs: "settings",
-  security: "settings",
-  integrations: "settings",
-  system: "settings",
-  access_summary: "security",
-  permissions: "security",
-  engineering_dashboard: "settings",
-  engineering: "settings",
-  // Legacy / always visible
-  dashboard: null,
-  projects: null,
-  personnel: "security",
-  logs: "security",
-  groups: "crm",
-  communication: "crm",
-  my_tasks: "operations",
-  assigned_tasks: "operations",
-  rituals: "operations",
-};
 
 // Resolve icon names from the master navigation module into components.
 const NAV_ICONS = {
@@ -739,131 +662,20 @@ function attachIcons(items) {
   }));
 }
 
-// Roles that bypass responsibility filtering entirely
-const RESPONSIBILITY_BYPASS_ROLES = ["super_admin"];
-
-// Admin-only destinations remapped to a page the role can actually open when a
-// responsibility grants a nav item that normally points at /admin/*. Items with
-// no fallback are dropped for non-admin roles instead of leading to a login
-// redirect. Super Admin and developer keep the original admin hrefs.
-const NON_ADMIN_HREF_FALLBACKS = {
-  finance: "/finance",
-  crm_dashboard: "/crm",
-  forms: "/platform",
-};
-
-// The sidebar follows the page context: a user acting under another role
-// (e.g. a staff member assigned as Program Manager) sees that role's nav
-// while on its pages. Surface resolution is single-sourced in lib/context
-// (resolveActiveSurface — longest prefix wins; its 12-entry map also covers
-// /investor, /team and the /workspaces member hub).
-
-/**
- * Build nav items from responsibilities across ALL role matrices.
- * Collects items from every role's matrix where the required responsibility
- * matches the user's assigned responsibilities. Items with no responsibility
- * requirement are always included (dashboard, profile, logout).
- */
-function buildNavFromResponsibilities(userRespKeys, activeRole) {
-  const ownItems = buildRoleNav(activeRole);
-  const otherItems = NAV_ROLE_KEYS.filter((r) => r !== activeRole).map((r) =>
-    buildRoleNav(r),
-  );
-  const allItems = [];
-  const seenIds = new Set();
-  // Only Super Admin and developer can open /admin/* pages.
-  const canOpenAdmin = activeRole === "super_admin" || activeRole === "developer";
-
-  // Items granted from OTHER matrices may point at admin-only pages the user
-  // cannot open. Remap them to a role-appropriate page, or drop them entirely.
-  const resolveHref = (itemId, href) => {
-    if (canOpenAdmin || !href) return href;
-    const fallback = NON_ADMIN_HREF_FALLBACKS[itemId];
-    if (fallback) return fallback;
-    return href.startsWith("/admin/") ? null : href;
-  };
-
-  const collect = (matrix, fromOwnMatrix) => {
-    for (const item of matrix) {
-      if (seenIds.has(item.id)) continue;
-      const required = NAV_RESPONSIBILITY_MAP[item.id];
-      // The user's own role matrix is the baseline (always shown). Items from
-      // other role matrices appear ONLY when a responsibility explicitly
-      // grants them — unmapped items from other roles must never leak in.
-      const includeItem =
-        fromOwnMatrix || (required && userRespKeys.has(required));
-      if (!includeItem) continue;
-      seenIds.add(item.id);
-      if (item.subItems) {
-        const filteredSubs = item.subItems
-          .filter((sub) => {
-            const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
-            return fromOwnMatrix
-              ? true
-              : subRequired && userRespKeys.has(subRequired);
-          })
-          .map((sub) =>
-            fromOwnMatrix
-              ? sub
-              : { ...sub, href: resolveHref(sub.id, sub.href) },
-          )
-          .filter((sub) => sub.href !== null);
-        if (filteredSubs.length > 0) {
-          allItems.push({ ...item, subItems: filteredSubs });
-        }
-      } else {
-        const href = fromOwnMatrix ? item.href : resolveHref(item.id, item.href);
-        if (href === null) continue;
-        allItems.push({ ...item, href });
-      }
-    }
-  };
-
-  collect(ownItems, true);
-  for (const items of otherItems) collect(items, false);
-  return allItems;
-}
-
-/**
- * Filter nav items based on a user's responsibilities.
- * Recursively handles subItems.
- */
-function filterNavByResponsibilities(items, userResponsibilities, bypass) {
-  if (bypass) return items;
-
-  // If no responsibilities assigned yet, don't filter — backward compatible.
-  // Users who haven't been seeded with responsibilities see full role-based nav.
-  if (!userResponsibilities || userResponsibilities.length === 0) return items;
-
-  const respKeys = new Set(userResponsibilities.map((r) => r.key));
-
-  return items.reduce((acc, item) => {
-    // Check if this item has a responsibility requirement
-    const required = NAV_RESPONSIBILITY_MAP[item.id];
-
-    // If it has a required responsibility and user doesn't have it, skip
-    if (required && !respKeys.has(required)) {
-      return acc;
-    }
-
-    // If no requirement, always include it
-    // Process subItems if any
-    if (item.subItems) {
-      const filteredSubItems = item.subItems.filter((sub) => {
-        const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
-        return !subRequired || respKeys.has(subRequired);
-      });
-      if (filteredSubItems.length > 0) {
-        acc.push({ ...item, subItems: filteredSubItems });
-      }
-      // If no subItems remain, don't include the parent
-      return acc;
-    }
-
-    acc.push(item);
-    return acc;
-  }, []);
-}
+// The sidebar follows the page context only for real WORK surfaces: a user
+// acting under another role (e.g. a staff member assigned as Program Manager)
+// sees that role's nav while on its pages. Workspaces owned by a dedicated
+// session role (crm, finance, investor, team) never override the connected
+// user's role — visiting /crm must not turn a staff member's sidebar into the
+// CRM workspace's flat menu.
+const HAT_SURFACES = new Set([
+  "program_manager",
+  "staff",
+  "teacher",
+  "facilitator",
+  "participant",
+  "developer",
+]);
 
 export default function DashboardLayout({ children, role = "admin", modals, fullWidth = false }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -878,7 +690,6 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   const { lang, t, switchLang } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
-  const [userResponsibilities, setUserResponsibilities] = useState([]);
   const [pinnedAnnouncements, setPinnedAnnouncements] = useState([]);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
@@ -1127,7 +938,6 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     const s = getDashboardSession();
     if (s) {
       if (s.user) setUser(s.user);
-      if (s.responsibilities) setUserResponsibilities(s.responsibilities);
       setAuthChecked(true);
       return;
     }
@@ -1211,7 +1021,6 @@ export default function DashboardLayout({ children, role = "admin", modals, full
             try {
               const respData = await respRes.value.json();
               if (respData.success) {
-                setUserResponsibilities(respData.responsibilities || []);
                 const current = getDashboardSession() || {};
                 setDashboardSession({
                   ...current,
@@ -1324,23 +1133,6 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     };
   }, [user.role, user.cid, user.id, pathname, role]);
 
-  // Pre-open menus that have an active child route
-  // useEffect(() => {
-  //   const toOpen = {};
-  //   const checkItems = (items) => {
-  //     items.forEach((item) => {
-  //       if (item.subItems) {
-  //         const hasActiveChild = item.subItems.some((sub) =>
-  //           pathname?.startsWith(sub.href),
-  //         );
-  //         if (hasActiveChild) toOpen[item.id] = true;
-  //       }
-  //     });
-  //   };
-  //   Object.keys(ROLE_ACCESS).forEach((role) => checkItems(buildRoleNav(role)));
-  //   setOpenMenus((prev) => ({ ...prev, ...toOpen }));
-  // }, [pathname]);
-
   // Unread counts per nav type — messages from actual unread count, others from notifications
   const unreadByType = useMemo(() => {
     const counts = {
@@ -1420,15 +1212,19 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   }, [user.cid, user.role]);
 
   const navItems = useMemo(() => {
-    // Priority: page context > user.role (from session) > role (from prop) > fallback 'admin'.
-    // The sidebar follows the page context so a user acting under another role
-    // (e.g. a staff member assigned as Program Manager) sees that role's nav
-    // while on its pages. Super Admin and developer always keep their own.
+    // The sidebar reflects the CONNECTED user: their role, and — via the
+    // capability projection in buildAccessNav — everything their
+    // responsibilities actually grant them. The page context only contributes a
+    // hat for real work surfaces (see HAT_SURFACES); Super Admin and developer
+    // always keep their own.
     const sessionRole = user.role || role || "admin";
+    const surface = resolveActiveSurface(pathname);
     const activeRole =
       sessionRole === "super_admin" || sessionRole === "developer"
         ? sessionRole
-        : resolveActiveSurface(pathname) || sessionRole;
+        : HAT_SURFACES.has(surface)
+          ? surface
+          : sessionRole;
 
     // "My Learning" is hidden until the participant actually has a course
     // (self-subscribed, admin enrollment or program assignment). hasLmsEnrollments
@@ -1483,9 +1279,6 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       ];
     }
 
-    const matrix = buildRoleNav(activeRole);
-    const bypass = RESPONSIBILITY_BYPASS_ROLES.includes(activeRole);
-
     // Personal roles: sidebar is relationship-driven (Phase 1). A person with
     // no program and no venture sees only Dashboard; programs/certificates
     // appear only for participants, ventures only for venture members.
@@ -1527,8 +1320,6 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       return items;
     }
 
-    // If user has responsibilities assigned, build nav from responsibilities
-    // across ALL role views instead of just the user's role view
     // SIDEBAR ADDITION — the ventures console appears only when this staff
     // member actually holds venture assignments. Navigation belongs in the
     // sidebar, not on the dashboard: clicking it opens ALL ventures.
@@ -1550,16 +1341,9 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       return next;
     };
 
-    if (!bypass && userResponsibilities && userResponsibilities.length > 0) {
-      const respKeys = new Set(userResponsibilities.map((r) => r.key));
-      const respNav = attachIcons(
-        buildNavFromResponsibilities(respKeys, activeRole),
-      );
-      return gateMyLearning(withVentureConsole(respNav));
-    }
-
-    // Fallback: role view (backward compatible)
-    const items = attachIcons(matrix);
+    // The single source of sidebar truth: the role's doors plus every section
+    // the user's effective capabilities grant, deduped and href-safe.
+    const items = attachIcons(buildAccessNav(activeRole, effectiveCaps));
 
     if (
       (activeRole === "program_manager" || activeRole === "super_admin") &&
@@ -1598,19 +1382,13 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       }
     }
 
-    const base = filterNavByResponsibilities(items, userResponsibilities, bypass);
-    // Capability projection (visibility only — the server remains authoritative).
-    // Currently applies to staff (incl. PM-as-staff); other roles pass through.
-    const projected = projectNavForCapabilities(base, effectiveCaps, activeRole);
-    const itemsFinal = attachIcons(projected);
     // "My Learning" is hidden for participants who have no course enrollment.
-    return gateMyLearning(withVentureConsole(itemsFinal));
+    return gateMyLearning(withVentureConsole(items));
   }, [
     user.role,
     user.groups,
     role,
     pmPrograms,
-    userResponsibilities,
     pathname,
     hasLmsEnrollments,
     effectiveCaps,
@@ -1685,10 +1463,13 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     router.replace("/login");
   };
 
+  const resolvedSurface = resolveActiveSurface(pathname);
   const activeRole =
     user.role === "super_admin" || user.role === "developer"
       ? user.role
-      : resolveActiveSurface(pathname) || user.role || role || "admin";
+      : HAT_SURFACES.has(resolvedSurface)
+        ? resolvedSurface
+        : user.role || role || "admin";
   const commonProps = {
     collapsed,
     role: activeRole,
