@@ -18,6 +18,9 @@ const {
   toggleFullCapabilities,
   isModuleFull,
   filterSectionsByRoleEligibility,
+  filterSectionsToCrudModules,
+  crudCapabilities,
+  hasCrudCapabilities,
   deriveModuleCaps,
   deriveUserCapState,
   collectContextModules,
@@ -184,7 +187,7 @@ describe("collectContextModules", () => {
 
 // ─── UI-6 — checkbox columns + View dependency ──────────────────────────────
 
-describe("buildSectionColumns (fixed level ladder + named extras)", () => {
+describe("buildSectionColumns (CRUD ladder only)", () => {
   // The section shape produced by groupModulesByFeature for `communication`.
   const SECTION = {
     feature: "communication",
@@ -193,29 +196,26 @@ describe("buildSectionColumns (fixed level ladder + named extras)", () => {
     unmapped: false,
   };
 
-  test("renders View · Edit · Create · Delete · Full, then named extras alphabetically", () => {
-    expect(buildSectionColumns(SECTION).map((c) => c.key)).toEqual([
+  test("renders exactly View · Edit · Create · Delete · Full", () => {
+    expect(buildSectionColumns().map((c) => c.key)).toEqual([
       "view",
       "edit",
       "create",
       "delete",
       "full",
-      "create_announcements",
-      "moderate",
-      "send",
     ]);
   });
 
-  test("the level ladder is fixed even when a section carries none of them", () => {
-    const columns = buildSectionColumns({ capabilities: ["grant", "view_matrix"] });
+  test("the ladder is constant — a section can never add a non-CRUD column", () => {
+    const columns = buildSectionColumns({
+      capabilities: ["view", "delete", "grant", "view_matrix", "send"],
+    });
     expect(columns.map((c) => c.key)).toEqual([
       "view",
       "edit",
       "create",
       "delete",
       "full",
-      "grant",
-      "view_matrix",
     ]);
     expect(columns.find((c) => c.key === "full").kind).toBe("full");
   });
@@ -387,64 +387,68 @@ describe("capability families — catalog metadata contract", () => {
   });
 });
 
-describe("buildSectionColumns (capability families)", () => {
-  const { CAPABILITY_CATALOG } = require("@/lib/authorization/capability-catalog");
-  const PROJECTS = {
-    feature: "operations",
-    modules: ["projects"],
-    capabilities: ["view", "create", "edit", "delete", "archive"],
-    unmapped: false,
-  };
-  const PROGRAMS = {
-    feature: "programs",
-    modules: ["programs"],
-    capabilities: ["view", "create", "edit", "delete", "publish"],
-    unmapped: false,
-  };
-
-  test("places a child column right after its parent", () => {
-    expect(buildSectionColumns(PROJECTS, CAPABILITY_CATALOG).map((c) => c.key)).toEqual([
+describe("crudCapabilities / hasCrudCapabilities / filterSectionsToCrudModules", () => {
+  test("crudCapabilities keeps only view/create/edit/delete", () => {
+    expect(crudCapabilities(["view", "send", "grant", "edit", "view_matrix"])).toEqual([
       "view",
       "edit",
-      "archive",
-      "create",
-      "delete",
-      "full",
-    ]);
-    expect(buildSectionColumns(PROGRAMS, CAPABILITY_CATALOG).map((c) => c.key)).toEqual([
-      "view",
-      "edit",
-      "publish",
-      "create",
-      "delete",
-      "full",
     ]);
   });
 
-  test("tags the family head and its child", () => {
-    const cols = buildSectionColumns(PROGRAMS, CAPABILITY_CATALOG);
-    const edit = cols.find((c) => c.key === "edit");
-    const publish = cols.find((c) => c.key === "publish");
-    expect(edit).toMatchObject({ isGroupHead: true, groupSize: 2, parent: null });
-    expect(publish).toMatchObject({ parent: "edit", isGroupHead: false, groupSize: 1 });
-    // A non-family column is untouched.
-    expect(cols.find((c) => c.key === "create")).toMatchObject({
-      parent: null,
-      isGroupHead: false,
-      groupSize: 1,
-    });
+  test("hasCrudCapabilities is false for capability-only modules", () => {
+    expect(hasCrudCapabilities(["view", "edit"])).toBe(true);
+    expect(hasCrudCapabilities(["grant", "view_matrix"])).toBe(false);
+    expect(hasCrudCapabilities([])).toBe(false);
+    expect(hasCrudCapabilities()).toBe(false);
   });
 
-  test("without a catalog the flat column order is preserved", () => {
-    expect(buildSectionColumns(PROGRAMS).map((c) => c.key)).toEqual([
-      "view",
-      "edit",
-      "create",
-      "delete",
-      "full",
-      "publish",
-    ]);
-    expect(buildSectionColumns(PROGRAMS).every((c) => !c.isGroupHead)).toBe(true);
+  test("drops CRUD-less modules and the sections they leave empty", () => {
+    const modules = {
+      users: { capabilities: ["view", "create", "edit", "delete", "suspend", "assign_roles"] },
+      permissions: { capabilities: ["view_matrix", "grant", "promote_super_admin"] },
+      bulk_upload: { capabilities: ["execute"] },
+    };
+    const sections = [
+      { feature: "user_management", modules: ["users", "permissions"], capabilities: [] },
+      { feature: "crm", modules: ["bulk_upload"], capabilities: [] },
+    ];
+    const out = filterSectionsToCrudModules(sections, modules);
+    expect(out.map((s) => s.feature)).toEqual(["user_management"]);
+    expect(out[0].modules).toEqual(["users"]);
+  });
+
+  test("keeps a view-only module (it still carries a CRUD capability)", () => {
+    const out = filterSectionsToCrudModules(
+      [{ feature: "knowledge_base", modules: ["knowledge"], capabilities: [] }],
+      { knowledge: { capabilities: ["view", "create", "edit", "delete"] } },
+    );
+    expect(out[0].modules).toEqual(["knowledge"]);
+  });
+});
+
+describe("Full is scoped to the CRUD set", () => {
+  test("toggleFullCapabilities only touches the capabilities it is handed", () => {
+    const next = toggleFullCapabilities(
+      { messaging: { view: 1, send: 2 } },
+      "messaging",
+      true,
+      ["view", "create", "edit", "delete"],
+    );
+    expect(next.messaging.view).toBe(5);
+    expect(next.messaging.delete).toBe(5);
+    // `send` is not CRUD → Full never grants it (no hidden privilege grant).
+    expect(next.messaging.send).toBe(2);
+  });
+
+  test("isModuleFull ignores non-CRUD capabilities", () => {
+    expect(isModuleFull({}, "users", [])).toBe(false);
+    expect(
+      isModuleFull(
+        { users: { view: 5, create: 5, edit: 5, delete: 5, suspend: 1 } },
+        "users",
+        ["view", "create", "edit", "delete"],
+      ),
+    ).toBe(true);
   });
 });
 
