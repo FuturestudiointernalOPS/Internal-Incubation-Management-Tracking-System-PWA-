@@ -51,6 +51,8 @@ export function ensureCapabilityBackfills() {
           runAuthzMigration("cap-backfill-knowledge", ensureKnowledgeBackfill),
           runAuthzMigration("cap-backfill-reports", ensureReportsBackfill),
           runAuthzMigration("cap-backfill-announcements", ensureAnnouncementsBackfill),
+          runAuthzMigration("cap-backfill-forms", ensureFormsBackfill),
+          runAuthzMigration("cap-backfill-runs", ensureRunsBackfill),
           runAuthzMigration("cap-backfill-projects", ensureProjectsBackfill),
           runAuthzMigration("cap-backfill-tasks", ensureTasksBackfill),
           runAuthzMigration("cap-backfill-engineering", ensureEngineeringBackfill),
@@ -280,6 +282,113 @@ async function ensureAnnouncementsBackfill() {
   }
 
   for (const [role, rows] of Object.entries(ANNOUNCEMENTS_BACKFILL.roles)) {
+    for (const [module, capability, level] of rows) {
+      await db.execute({
+        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
+              VALUES (?, ?, ?, ?)
+              ON CONFLICT (role, module, capability) DO NOTHING`,
+        args: [role, module, capability, level],
+      });
+    }
+  }
+}
+
+// ─── Communication: Forms module ─────────────────────────────────────────────
+// The Forms builder (/platform/forms, /api/platform/forms) was guarded by a
+// legacy role allowlist: reads allowed super_admin / admin / staff, writes
+// super_admin / admin. The module is now capability-gated
+// (forms.view/create/edit/delete) so it is configurable from the Permissions
+// template. This backfill reproduces the READ population only — writes stay
+// Super-Admin-by-default (SA bypasses) and become grantable per template,
+// matching the legacy gate once admin normalizes to staff at login.
+const FORMS_BACKFILL = {
+  profiles: {
+    "Staff Default": [["forms", "view", 1]],
+  },
+  roles: {
+    staff: [["forms", "view", 1]],
+  },
+};
+
+async function ensureFormsBackfill() {
+  await ensurePermissionsSchema();
+
+  for (const [profileName, rows] of Object.entries(FORMS_BACKFILL.profiles)) {
+    const profile =
+      (
+        await db.execute({
+          sql: "SELECT id FROM access_profiles WHERE name = ? AND is_active = 1",
+          args: [profileName],
+        })
+      ).rows[0] || null;
+    if (!profile) continue;
+    for (const [module, capability, level] of rows) {
+      await db.execute({
+        sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+              VALUES (?, ?, ?, ?)
+              ON CONFLICT (profile_id, module, capability) DO NOTHING`,
+        args: [profile.id, module, capability, level],
+      });
+    }
+  }
+
+  for (const [role, rows] of Object.entries(FORMS_BACKFILL.roles)) {
+    for (const [module, capability, level] of rows) {
+      await db.execute({
+        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
+              VALUES (?, ?, ?, ?)
+              ON CONFLICT (role, module, capability) DO NOTHING`,
+        args: [role, module, capability, level],
+      });
+    }
+  }
+}
+
+// ─── Communication: Runs module ──────────────────────────────────────────────
+// Runs were gated by a legacy role allowlist on GET
+// (super_admin / admin / staff / program_manager) while the sidebar hard-coded
+// `platform-runs` to super_admin — the mismatch behind "communication users".
+// The module is now capability-gated (runs.view/create/edit/delete). This
+// backfill reproduces the legacy READ population so the sidebar and the API
+// finally agree; writes stay Super-Admin-by-default (SA bypass) and become
+// grantable per template. Program-manager write actions (assign / unassign /
+// send messages) were only reachable from a page PMs could not open, so no
+// reachable workflow changes — grant runs.edit explicitly to restore them.
+const RUNS_BACKFILL = {
+  profiles: {
+    "Staff Default": [["runs", "view", 1]],
+    "Program Manager": [["runs", "view", 1]],
+  },
+  roles: {
+    staff: [["runs", "view", 1]],
+    program_manager: [["runs", "view", 1]],
+    admin: [["runs", "view", 1]],
+  },
+};
+
+async function ensureRunsBackfill() {
+  await ensurePermissionsSchema();
+
+  for (const [profileName, rows] of Object.entries(RUNS_BACKFILL.profiles)) {
+    const profile =
+      (
+        await db.execute({
+          sql: "SELECT id FROM access_profiles WHERE name = ? AND is_active = 1",
+          args: [profileName],
+        })
+      ).rows[0] || null;
+    if (!profile) continue;
+    for (const [module, capability, level] of rows) {
+      await db.execute({
+        sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+              VALUES (?, ?, ?, ?)
+              ON CONFLICT (profile_id, module, capability) DO NOTHING`,
+        args: [profile.id, module, capability, level],
+      });
+    }
+  }
+
+  for (const [role, rows] of Object.entries(RUNS_BACKFILL.roles)) {
     for (const [module, capability, level] of rows) {
       await db.execute({
         sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
