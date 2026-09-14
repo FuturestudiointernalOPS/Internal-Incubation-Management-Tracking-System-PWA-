@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
+import { stageStatusWord, statusLabel, statusChipClass } from "@/lib/ventureStatuses";
 
 export default function VentureReportsPage() {
   const { id } = useParams();
@@ -123,15 +124,11 @@ export default function VentureReportsPage() {
     </div>
   );
 
-  const stageStatusLabel = (status) =>
-    status === "completed" ? t("vadmin.journey.statusCompleted")
-    : status === "active" ? t("vadmin.journey.statusActive")
-    : t("vadmin.journey.statusLocked");
+  // ONE vocabulary, shared with the timeline, the Venture Manager panel and the
+  // founder's journey tab (lib/ventureStatuses): Locked / In Progress / Completed.
+  const stageStatusLabel = (status) => statusLabel(stageStatusWord(status), t);
 
-  const journeyStagePill = (status) =>
-    status === "completed" ? "bg-emerald-500/10 text-emerald-400"
-    : status === "active" ? "bg-blue-500/10 text-blue-400"
-    : "bg-slate-500/10 text-slate-400";
+  const journeyStagePill = (status) => statusChipClass(stageStatusWord(status));
 
   if (loading) return (
     <>

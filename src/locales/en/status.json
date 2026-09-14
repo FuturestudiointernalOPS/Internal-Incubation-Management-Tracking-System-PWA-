@@ -18,6 +18,11 @@
     "action": "ACTION",
     "overdue": "Overdue",
     "onTrack": "On Track",
-    "atRisk": "At Risk"
+    "atRisk": "At Risk",
+    "locked": "Locked",
+    "notStarted": "Not Started",
+    "awaitingReview": "Awaiting Review",
+    "changesRequested": "Changes Requested",
+    "approved": "Approved"
   }
 }

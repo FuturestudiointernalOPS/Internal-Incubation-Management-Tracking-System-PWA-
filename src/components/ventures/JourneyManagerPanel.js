@@ -3,6 +3,14 @@
 import React, { useState, useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
 import {
+  stageStatusWord,
+  milestoneStatusWord,
+  deliverableStatusWord,
+  statusLabel,
+  statusChipClass,
+  statusDotClass,
+} from "@/lib/ventureStatuses";
+import {
   Route,
   Plus,
   X,
@@ -796,21 +804,7 @@ export default function JourneyManagerPanel({ ventureId }) {
     }
   };
 
-  const deliverableStatus = (dv) => {
-    if (dv.approval_status === "approved" || dv.status === "completed" || dv.status === "approved") {
-      return { key: "approved", dot: "bg-emerald-400", cls: "text-emerald-400 bg-emerald-500/10" };
-    }
-    if (dv.approval_status === "rejected") {
-      return { key: "changes_requested", dot: "bg-rose-400", cls: "text-rose-400 bg-rose-500/10" };
-    }
-    if (dv.status === "submitted") {
-      return { key: "submitted", dot: "bg-amber-400", cls: "text-amber-400 bg-amber-500/10" };
-    }
-    if (dv.status === "in_progress") {
-      return { key: "in_progress", dot: "bg-sky-400", cls: "text-sky-400 bg-sky-500/10" };
-    }
-    return { key: "pending", dot: "bg-slate-500", cls: "text-slate-400 bg-slate-500/10" };
-  };
+  const deliverableStatus = (dv) => deliverableStatusWord(dv);
 
   const deliverableMenuItems = (dv) => [
     { key: "edit", label: t("venture.manager.editDeliverable"), icon: Pencil, onSelect: () => startDeliverableEdit(dv) },
@@ -965,13 +959,6 @@ export default function JourneyManagerPanel({ ventureId }) {
     else await runBulk({ ids, endpoint: "delete" });
   };
 
-  const stageStatusKey = (status) =>
-    status === "completed"
-      ? "vadmin.journey.statusCompleted"
-      : status === "active"
-        ? "vadmin.journey.statusActive"
-        : "vadmin.journey.statusLocked";
-
   const SESSION_STATUSES = ["scheduled", "confirmed", "in_progress", "completed", "cancelled", "rescheduled", "no_show"];
   const sessionStatusKey = (s) => `venture.manager.sessionStatuses.${SESSION_STATUSES.includes(s) ? s : "scheduled"}`;
 
@@ -982,44 +969,18 @@ export default function JourneyManagerPanel({ ventureId }) {
         ? "bg-blue-500/15 text-blue-400 border-blue-500/40"
         : "bg-slate-500/10 text-slate-400 border-[var(--border-primary)]";
 
-  const milestoneStatusKey = (status) => {
-    const known = ["locked", "not_started", "in_progress", "under_review", "changes_requested", "completed"];
-    return known.includes(status)
-      ? t(`venture.manager.milestoneStatuses.${status}`)
-      : status ? status.replace(/_/g, " ") : "—";
-  };
+  const milestoneStatusKey = (status) => statusLabel(milestoneStatusWord(status), t);
 
-  const milestoneStatusClass = (status) =>
-    status === "completed"
-      ? "text-emerald-400 bg-emerald-500/10"
-      : status === "in_progress"
-        ? "text-sky-400 bg-sky-500/10"
-        : status === "under_review"
-          ? "text-amber-400 bg-amber-500/10"
-          : status === "changes_requested"
-            ? "text-rose-400 bg-rose-500/10"
-            : "text-slate-400 bg-slate-500/10";
+  const milestoneStatusClass = (status) => statusChipClass(milestoneStatusWord(status));
 
-  const milestoneDotClass = (status) =>
-    status === "completed"
-      ? "bg-emerald-400"
-      : status === "in_progress"
-        ? "bg-sky-400"
-        : status === "under_review"
-          ? "bg-amber-400"
-          : status === "changes_requested"
-            ? "bg-rose-400"
-            : "bg-slate-500";
+  const milestoneDotClass = (status) => statusDotClass(milestoneStatusWord(status));
 
+  // ONE vocabulary (lib/ventureStatuses): the same words the founder and Super
+  // Admin see for the same state. Stage: Locked → In Progress → Completed.
   const statusPill = (stage) => {
-    const cls =
-      stage.status === "completed"
-        ? "bg-emerald-500/10 text-emerald-400"
-        : stage.status === "active"
-          ? "bg-blue-500/10 text-blue-400"
-          : "bg-slate-500/10 text-slate-400";
+    const word = stageStatusWord(stage.status);
     return (
-      <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${cls}`}>{t(stageStatusKey(stage.status))}</span>
+      <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${statusChipClass(word)}`}>{statusLabel(word, t)}</span>
     );
   };
 
@@ -1599,7 +1560,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                                                   </div>
                                                 ) : (
                                                   <div className="flex items-center gap-2">
-                                                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${st.dot}`} />
+                                                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDotClass(st)}`} />
                                                     <p className="flex-1 min-w-0 text-[11px] font-bold text-[var(--text-primary)] truncate">{dv.title}</p>
                                                     {dv.due_date && <span className="hidden sm:inline text-[9px] text-slate-500">{fmtDate(dv.due_date)}</span>}
                                                     {dv.attachment_url && (
@@ -1607,8 +1568,8 @@ export default function JourneyManagerPanel({ ventureId }) {
                                                         {dv.attachment_name || t("venture.manager.viewEvidence")}
                                                       </a>
                                                     )}
-                                                    <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0 ${st.cls}`}>
-                                                      {t(`venture.manager.deliverableStatuses.${st.key}`)}
+                                                    <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0 ${statusChipClass(st)}`}>
+                                                      {statusLabel(st, t)}
                                                     </span>
                                                     {milestoneAuthority && (
                                                       <AppMenu
