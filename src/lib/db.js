@@ -49,6 +49,14 @@ const getPool = () => {
   }
 
   try {
+    // Server-side statement_timeout is sent as a STARTUP parameter (`options`)
+    // instead of a `pool.on("connect")` query: the old fire-and-forget SET raced
+    // the first user query on the same client, triggering pg's "client already
+    // executing a query" deprecation warning (removed in pg 9). Supabase's
+    // transaction pooler rejects startup `options`, so it is only applied on
+    // DIRECT connections — the client-side `query_timeout` stays on everywhere.
+    const isPooler = /pooler\.supabase\.com|:6543(\b|\/)/i.test(dbUrl);
+
     pgPool = new Pool({
       connectionString: dbUrl,
       ssl: { rejectUnauthorized: false },
@@ -64,17 +72,7 @@ const getPool = () => {
       // failure cache. 5s lets a slow batch drain without hard-failing normal
       // bursts, and turns true exhaustion into a fast, actionable error.
       acquireTimeoutMillis: 5000,
-    });
-
-    // Set statement timeout at the session level for all pooled connections
-    pgPool.on("connect", (client) => {
-      client.query("SET statement_timeout = '30s'", (err) => {
-        if (err)
-          console.error(
-            " forensics | Failed to set statement_timeout:",
-            err.message,
-          );
-      });
+      ...(isPooler ? {} : { options: "-c statement_timeout=30000" }),
     });
 
     // Prevent uncaughtException when idle connections fail (e.g. read ETIMEDOUT)
