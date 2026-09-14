@@ -68,10 +68,10 @@ const BODY_STEP = 16; // line step for ~9.5-10pt body text
 /** Keep only characters the built-in PDF fonts can render (Latin-1). */
 function sanitize(value) {
   let s = String(value ?? "");
-  s = s.replace(/\r/g, "").replace(/\u0000/g, "").replace(/\t/g, " ");
+  s = s.replace(/\r/g, "").split("\u0000").join("").replace(/\t/g, " ");
   // Allow printable ASCII + Latin-1 (accents used by FR/EN). Anything else
   // (emojis, CJK…) would render as garbage with the standard fonts — drop it.
-  return s.replace(/[^\x0A\x20-\x7E\xA0-\xFF]/g, "");
+  return s.replace(/[^\n\x20-\x7E\xA0-\xFF]/g, "");
 }
 
 function scoreColor10(score) {

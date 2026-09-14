@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import db from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
 import { getAuthorizationContext, requireAuthorization } from "@/lib/authorization";
@@ -29,21 +30,24 @@ export const GET = createHandler(
     //  - Other roles (participant/founder/teacher/member) see only their own
     //    ventures via membership.
     let effectiveContactId = contactId;
+    let assignedStaffId = null;
     try {
       const session = await getSession();
       if (session && !["super_admin", "developer", "admin"].includes(session.role)) {
         if (["staff", "program_manager"].includes(session.role)) {
-          sql += " AND (v.venture_id IN (SELECT venture_id FROM venture_staff_assignments WHERE staff_contact_id = ? AND status = 'active')";
-          args.push(session.cid);
-          sql += " OR v.venture_id IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?))";
-          args.push(session.cid, session.cid);
+          assignedStaffId = session.cid;
         } else {
           effectiveContactId = session.cid;
         }
       }
     } catch (_) {}
 
-    const result = await listVenturesWithCounts({ effectiveContactId, status, search });
+    const result = await listVenturesWithCounts({
+      effectiveContactId,
+      assignedStaffId,
+      status,
+      search,
+    });
 
     return NextResponse.json({
       success: true,
