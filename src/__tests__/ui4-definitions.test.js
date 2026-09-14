@@ -36,10 +36,10 @@ describe("UI-4b — the editor reads the server catalog", () => {
 
   test("the catalog comes from the response, and a failure is stated", () => {
     expect(src).toContain("setModuleCatalog(data.modules || {})");
-    expect(src).toContain("const availableModules = moduleCatalog || {};");
+    expect(src).toContain("const availableModules = moduleCatalog ? buildEditableModules(moduleCatalog) : {};");
     // A missing catalog must not masquerade as "this profile has no features".
     expect(src).toContain("catalogUnavailable");
-    expect(src).toContain("moduleCatalog && visibleModules.length === 0");
+    expect(src).toContain("moduleCatalog && visibleSections.length === 0");
   });
 
   test("the 'Default for' control replaces the retired Role → Profile grid", () => {
