@@ -2,6 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { sendDecisionEmail, getTemplate, resolvePersonName, resolveSubmissionEmail, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun, detectLanguage, getEmailLogRow } from "@/lib/email";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
 import { syncApprovedSubmissionToProgramGroup } from "@/lib/contact-group-sync";
@@ -380,7 +381,7 @@ export async function GET(req) {
       return NextResponse.json({ success: true, run: run.rows[0], submission: mySub.rows[0] || null });
     }
 
-    const authError = await requireAuth(["super_admin", "admin", "staff", "program_manager"]);
+    const authError = await requireAuthorization("runs", "view");
     if (authError) return authError;
 
     // ─── TIMELINE for a specific submission ───
@@ -1218,7 +1219,7 @@ export async function POST(req) {
     // ─── STATUS CHANGE ACTION ───
     if (action === "status") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuth(["super_admin", "admin"]);
+      const authError = await requireAuthorization("runs", "create");
       if (authError) return authError;
 
       const { id, status: newStatus } = body;
@@ -1344,7 +1345,7 @@ export async function POST(req) {
     // exercise the full scoring/review flow when testing.
     if (action === "manual_add") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuth(["super_admin", "admin"]);
+      const authError = await requireAuthorization("runs", "edit");
       if (authError) return authError;
 
       const { run_id, name, email, data, status: subStatus } = body;
@@ -1440,14 +1441,10 @@ export async function POST(req) {
     // ─── REVIEW ACTION ───
     if (action === "review") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      // Phase 1.6 (C5c = A): applicant review (approve/reject + automation +
-      // emails) is management-only (SA/admin/PM).
-      if (!["super_admin", "admin", "program_manager"].includes(session.role)) {
-        return NextResponse.json(
-          { success: false, error: "errors.insufficientPermissions" },
-          { status: 403 },
-        );
-      }
+      // Applicant review (approve/reject + automation + emails) is governed by
+      // the runs.edit capability.
+      const authError = await requireAuthorization("runs", "edit");
+      if (authError) return authError;
 
       const { submission_id, decision, comment, internal_note, dimension_overrides, force } = body;
       if (!submission_id || !decision) return NextResponse.json({ success: false, error: "submission_id and decision required" }, { status: 400 });
@@ -1481,7 +1478,7 @@ export async function POST(req) {
     // activation/access automation, idempotency) — no parallel logic.
     if (action === "bulk_review") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuth(["super_admin", "admin"]);
+      const authError = await requireAuthorization("runs", "edit");
       if (authError) return authError;
 
       const { run_id, submission_ids, decision, comment } = body;
@@ -1550,7 +1547,7 @@ export async function POST(req) {
     // contact, token, template and idempotency logic stay identical.
     if (action === "retry_emails") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuth(["super_admin", "admin"]);
+      const authError = await requireAuthorization("runs", "edit");
       if (authError) return authError;
 
       const { run_id, retries } = body;
@@ -1638,7 +1635,7 @@ export async function POST(req) {
     // preserved and already-sent pairs are never touched.
     if (action === "mark_email_cancelled") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuth(["super_admin", "admin"]);
+      const authError = await requireAuthorization("runs", "edit");
       if (authError) return authError;
 
       const { run_id, items } = body;
@@ -1677,7 +1674,7 @@ export async function POST(req) {
     // ─── LAUNCH ACTION ───
     if (action === "launch") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuth(["super_admin", "admin"]);
+      const authError = await requireAuthorization("runs", "create");
       if (authError) return authError;
 
       const { id } = body;
@@ -1700,7 +1697,7 @@ export async function POST(req) {
     // ─── ASSIGN ACTION ───
     if (action === "assign") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuth(["super_admin", "admin", "program_manager"]);
+      const authError = await requireAuthorization("runs", "edit");
       if (authError) return authError;
 
       // Accept either the legacy single target (target_type + target_id) or a
@@ -1749,7 +1746,7 @@ export async function POST(req) {
     // ─── UNASSIGN ACTION ───
     if (action === "unassign") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuth(["super_admin", "admin", "program_manager"]);
+      const authError = await requireAuthorization("runs", "edit");
       if (authError) return authError;
 
       const { assignment_id } = body;
@@ -1775,13 +1772,9 @@ export async function POST(req) {
     // AI or the form/run names.
     if (action === "send_result_emails") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      // Phase 1.6 (C5c = A): bulk result emails are management-only.
-      if (!["super_admin", "admin", "program_manager"].includes(session.role)) {
-        return NextResponse.json(
-          { success: false, error: "errors.insufficientPermissions" },
-          { status: 403 },
-        );
-      }
+      // Bulk result emails are governed by the runs.edit capability.
+      const authError = await requireAuthorization("runs", "edit");
+      if (authError) return authError;
 
       const { run_id, submission_ids } = body;
       if (!run_id || !Array.isArray(submission_ids) || submission_ids.length === 0) {
@@ -1812,7 +1805,7 @@ export async function POST(req) {
     // ─── DELETE SUBMISSION ACTION (super admin only) ───
     if (action === "delete_submission") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuth(["super_admin"]);
+      const authError = await requireAuthorization("runs", "delete");
       if (authError) return authError;
 
       const { submission_id } = body;
@@ -1841,7 +1834,7 @@ export async function POST(req) {
     // ─── SEND MANUAL MESSAGE ACTION (Room Overview → selected participants) ───
     if (action === "send_manual_message") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuth(["super_admin", "admin", "program_manager"]);
+      const authError = await requireAuthorization("runs", "edit");
       if (authError) return authError;
 
       const { run_id, submission_ids, subject, body: messageBody } = body;
@@ -1938,7 +1931,7 @@ export async function POST(req) {
     // ─── SEND ACTIVATION MESSAGES (Run Overview → selected approved) ───
     if (action === "send_activation_messages") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuth(["super_admin", "admin", "program_manager"]);
+      const authError = await requireAuthorization("runs", "edit");
       if (authError) return authError;
 
       const { run_id, submission_ids, force } = body;
@@ -2028,7 +2021,7 @@ export async function POST(req) {
     // ─── REGENERATE PUBLIC LINK (rotates public_slug — old link stops working) ───
     if (action === "regenerate_link") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuth(["super_admin", "admin"]);
+      const authError = await requireAuthorization("runs", "edit");
       if (authError) return authError;
 
       const { id } = body;
@@ -2057,7 +2050,7 @@ export async function POST(req) {
 
     // ─── CREATE ACTION ───
     if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-    const authError = await requireAuth(["super_admin", "admin"]);
+    const authError = await requireAuthorization("runs", "create");
     if (authError) return authError;
 
     const { form_id, name, description, opens_at, closes_at, assignments, settings } = body;
@@ -2107,7 +2100,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "admin"]);
+    const authError = await requireAuthorization("runs", "edit");
     if (authError) return authError;
 
     const { id, name, description, status, opens_at, closes_at, settings } = await req.json();
@@ -2123,7 +2116,7 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuthorization("runs", "delete");
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

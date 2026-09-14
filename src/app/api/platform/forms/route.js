@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import {
   getPlatformFormByTextId,
   getPlatformFormSections,
@@ -91,8 +91,9 @@ export async function GET(req) {
       });
     }
 
-    // All other operations require admin
-    const authError = await requireAuth(["super_admin", "admin", "staff"]);
+    // Listing forms is the Forms module's read capability. Single-form reads
+    // above stay open to any authenticated user (participants fill forms).
+    const authError = await requireAuthorization("forms", "view");
     if (authError) return authError;
 
     // List forms with filters
@@ -111,10 +112,14 @@ export async function POST(req) {
     if (!session) {
       return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     }
-    const authError = await requireAuth(["super_admin", "admin"]);
-    if (authError) return authError;
 
     const body = await req.json();
+
+    // Publishing a version edits an existing form; any other POST creates one.
+    const capError = body.action === "publish"
+      ? await requireAuthorization("forms", "edit")
+      : await requireAuthorization("forms", "create");
+    if (capError) return capError;
 
     // PUBLISH action: creates a snapshot version
     if (body.action === "publish") {
@@ -198,7 +203,7 @@ export async function PUT(req) {
     if (!session) {
       return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     }
-    const authError = await requireAuth(["super_admin", "admin"]);
+    const authError = await requireAuthorization("forms", "edit");
     if (authError) return authError;
 
     const body = await req.json();
@@ -315,7 +320,7 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuthorization("forms", "delete");
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
