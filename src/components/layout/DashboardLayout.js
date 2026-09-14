@@ -927,6 +927,10 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   // null = unknown (show by default), false = hide "My Learning"
   const [hasLmsEnrollments, setHasLmsEnrollments] = useState(null);
 
+  // Effective capability matrix for sidebar visibility (the server remains
+  // authoritative). Declared before the fast-path effect that restores it.
+  const [effectiveCaps, setEffectiveCaps] = useState(null);
+
   // Fast path: restore the cached session synchronously before first paint so
   // navigating between pages doesn't flash an empty screen while initAuth()
   // re-validates against the server in the background.
@@ -938,6 +942,9 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     const s = getDashboardSession();
     if (s) {
       if (s.user) setUser(s.user);
+      // Restoring the capabilities too is what keeps the sidebar from flashing
+      // the fail-open role matrix on every remount.
+      if (s.capabilities) setEffectiveCaps(s.capabilities);
       setAuthChecked(true);
       return;
     }
@@ -949,16 +956,20 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       }
     } catch (_) {}
   }, []);
-  // Effective capability matrix for visibility projection (server remains authoritative).
-  const [effectiveCaps, setEffectiveCaps] = useState(null);
 
-  // Load the current user's effective permissions once (resolver-cached server-side).
+  // Load the current user's effective permissions once (resolver-cached
+  // server-side), then cache them on the dashboard session so the next remount
+  // paints the real access immediately.
   useEffect(() => {
     let alive = true;
     fetch("/api/me/permissions")
       .then((r) => r.json())
       .then((d) => {
-        if (alive && d.success) setEffectiveCaps(d.effective || null);
+        if (!alive || !d.success) return;
+        const caps = d.effective || null;
+        setEffectiveCaps(caps);
+        const current = getDashboardSession() || {};
+        setDashboardSession({ ...current, capabilities: caps });
       })
       .catch(() => {});
     return () => {
