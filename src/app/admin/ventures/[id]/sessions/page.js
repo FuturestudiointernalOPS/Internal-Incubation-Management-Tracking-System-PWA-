@@ -144,6 +144,8 @@ export default function VentureSessionsPage() {
     if (!sForm.title.trim() || !sForm.start_time || !sForm.end_time) { notify(t("vadmin.sessions.titleStartEndRequired"), "error"); return; }
     // A session always carries its internal note (compulsory, like the Journey panel).
     if (!String(sForm.description || "").trim()) { notify(t("vadmin.sessions.noteRequired"), "error"); return; }
+    // A session never lives outside a milestone (Vinance 3).
+    if (!sForm.journey_stage_id || !sForm.milestone_ref) { notify(t("vadmin.sessions.milestoneRequired"), "error"); return; }
     setSaving(true);
     try {
       const res = await fetch(`/api/ventures/${id}/sessions`, {
@@ -317,7 +319,14 @@ export default function VentureSessionsPage() {
               </div>
               <div>
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.descriptionRequired")}</label>
-                <textarea value={sForm.description} onChange={(e)=>setSForm((p)=>({...p,description:e.target.value}))} rows={2} required placeholder={t("vadmin.sessions.description")} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none resize-none" />
+                <textarea
+                  value={sForm.description}
+                  onChange={(e) => { setSForm((p) => ({ ...p, description: e.target.value })); const el = e.target; el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; }}
+                  rows={3}
+                  required
+                  placeholder={t("vadmin.sessions.description")}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none resize-none overflow-hidden min-h-[72px]"
+                />
               </div>
               {/* Journey context: optional stage/milestone/task links for this session */}
               <div className="rounded-xl border border-[var(--border-primary)] bg-primary p-3 space-y-3">
@@ -336,6 +345,9 @@ export default function VentureSessionsPage() {
                     </select>
                   )}
                 </div>
+                {(milestoneOptions.length === 0 || (sForm.journey_stage_id && stageMilestones.length === 0)) && (
+                  <p className="text-[9px] text-amber-400">{t("vadmin.sessions.noMilestones")}</p>
+                )}
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.milestone")}</label>
                   <select value={sForm.milestone_ref} disabled={!sForm.journey_stage_id} onChange={(e)=>{ setSForm((p)=>({ ...p, milestone_ref: e.target.value, task_id: "" })); }}

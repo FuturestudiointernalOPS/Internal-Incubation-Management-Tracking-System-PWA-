@@ -250,6 +250,63 @@ export async function getCalendarFollowups(programScopeSql, programScopeArgs, vi
   return db.execute({ sql, args });
 }
 
+/**
+ * Venture sessions for one person's own calendar (Vinance 3, Phase 3).
+ *
+ *   - the coach's own sessions, whatever their visibility (coach_contact_id)
+ *   - venture-facing sessions of the Ventures the person belongs to as a
+ *     member (venture_members) or is actively assigned to as staff
+ *     (venture_staff_assignments)
+ *
+ * Cancelled and no-show sessions are never calendar events. Venture ids are
+ * stored in both key styles (the VNT code and the internal UUID), so the scope
+ * list is expanded to cover both. Returns { rows } like the other getters.
+ */
+export async function getCalendarVentureSessions(userId) {
+  const empty = { rows: [] };
+  if (!userId) return empty;
+
+  // 1. The person's Venture scope (membership ∪ active staff assignment).
+  const scopeRes = await db
+    .execute({
+      sql: `SELECT venture_id FROM venture_members
+              WHERE (contact_id = ? OR user_cid = ?) AND removed_at IS NULL
+            UNION
+            SELECT venture_id FROM venture_staff_assignments
+              WHERE staff_contact_id = ? AND status = 'active'`,
+      args: [userId, userId, userId],
+    })
+    .catch(() => empty);
+  const codes = (scopeRes.rows || []).map((r) => r.venture_id).filter(Boolean);
+
+  // 2. Expand to the internal ids too (rows may be keyed either way).
+  let ids = [];
+  if (codes.length > 0) {
+    const idRes = await db
+      .execute({
+        sql: `SELECT id::text AS id FROM ventures WHERE venture_id IN (${codes.map(() => "?").join(",")})`,
+        args: codes,
+      })
+      .catch(() => empty);
+    ids = (idRes.rows || []).map((r) => r.id).filter(Boolean);
+  }
+  const scope = [...new Set([...codes, ...ids])];
+  // Sentinel: a person with no Ventures still gets their own coach sessions,
+  // and the IN list can never match a real venture id.
+  const scopeList = scope.length > 0 ? scope : ["__no_venture_scope__"];
+
+  return db.execute({
+    sql: `SELECT id, title, start_time, coach_name, status, venture_id,
+                 milestone_ref, journey_stage_id, deliverable_id
+          FROM venture_sessions
+          WHERE start_time IS NOT NULL
+            AND status NOT IN ('cancelled', 'no_show')
+            AND (coach_contact_id = ?
+                 OR (venture_facing = TRUE AND venture_id IN (${scopeList.map(() => "?").join(",")})))`,
+    args: [userId, ...scopeList],
+  });
+}
+
 // ────────────────────────────────────────────────────────────
 // /api/sessions — v2_sessions CRUD
 // ────────────────────────────────────────────────────────────

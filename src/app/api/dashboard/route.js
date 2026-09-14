@@ -20,6 +20,7 @@ import {
   getQuickAccessTasks,
   getKpiProgressRows,
 } from "@/models/dashboard";
+import { getCalendarVentureSessions } from "@/models/workspace";
 
 /**
  * UNIFIED DASHBOARD API — OPTIMIZED (parallel queries)
@@ -90,6 +91,7 @@ export async function GET(req) {
       assignmentsRes,
       myTasksRes,
       kpiRes,
+      ventureSessRes,
     ] = await Promise.allSettled([
       // 1. User info
       getUserIdentity(userId),
@@ -136,6 +138,9 @@ export async function GET(req) {
 
       // 15. KPI Progress (cached — updated on submissions approval)
       getKpiProgressRows(userId),
+
+      // 16. Venture sessions (calendar) — coach's own + venture-facing
+      getCalendarVentureSessions(userId),
     ]);
 
     // ─────────────────────────────────────────────
@@ -263,6 +268,27 @@ export async function GET(req) {
           status: "scheduled",
           related_id: s.id,
           project_id: s.program_id,
+        });
+      }
+    }
+
+    // Venture sessions (Vinance 3): the coach's own sessions plus the
+    // venture-facing sessions of the Ventures this person is part of.
+    if (ventureSessRes.status === "fulfilled") {
+      for (const s of ventureSessRes.value.rows || []) {
+        calendarEvents.push({
+          id: `vsess-${s.id}`,
+          title: s.title,
+          date: toDateStr(s.start_time),
+          type: "venture_session",
+          // "session" keeps the existing session colour/icon in the calendar UI;
+          // the type still says exactly what it is.
+          source: "session",
+          status: s.status || "scheduled",
+          related_id: s.id,
+          project_id: null,
+          description: s.coach_name ? `Coach: ${s.coach_name}` : null,
+          milestone_ref: s.milestone_ref || null,
         });
       }
     }

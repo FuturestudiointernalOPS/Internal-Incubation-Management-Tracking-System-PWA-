@@ -31,6 +31,7 @@ import {
 import ScopedNotes from "@/components/ventures/ScopedNotes";
 import AppModal from "@/components/ui/AppModal";
 import AppMenu from "@/components/ui/AppMenu";
+import { minSessionStartInput, isValidSessionStart } from "@/lib/ventureSessionRules";
 
 /**
  * JourneyManagerPanel — staff instrument for a Venture's Journey.
@@ -112,9 +113,11 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [subsComment, setSubsComment] = useState("");
   // Book a session on a milestone (date + exact time), optionally with a coach.
   const [bookFor, setBookFor] = useState(null);
-  const [bookForm, setBookForm] = useState({ date: "", time: "", duration: "45", coach_id: "", title: "", note: "" });
+  const [bookForm, setBookForm] = useState({ date: "", time: "", min_time: "", duration: "45", coach_id: "", title: "", deliverable_id: "", note: "" });
   const [bookSaving, setBookSaving] = useState(false);
   const [coachOptions, setCoachOptions] = useState([]);
+  // Sessions already booked on this venture, listed inside their milestone.
+  const [ventureSessions, setVentureSessions] = useState([]);
 
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -141,6 +144,11 @@ export default function JourneyManagerPanel({ ventureId }) {
     } finally {
       setLoading(false);
     }
+    // Sessions load independently: a failure here must never block the journey.
+    fetch(`/api/ventures/${ventureId}/sessions`)
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setVentureSessions(d.sessions || []); })
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -446,7 +454,10 @@ export default function JourneyManagerPanel({ ventureId }) {
 
   const openBooking = async (ms) => {
     setBookFor(ms.id);
-    setBookForm({ date: "", time: "", duration: "45", coach_id: "", title: ms.title || "", note: "" });
+    // Prefill the earliest bookable slot (30 minutes from now) — never an empty picker.
+    // One instant drives both the floor and the prefill, so the prefilled slot is always valid.
+    const min = minSessionStartInput();
+    setBookForm({ date: toDateInput(min), time: toTimeInput(min), min_time: toTimeInput(min), duration: "45", coach_id: "", title: ms.title || "", deliverable_id: "", note: "" });
     if (coachOptions.length === 0) {
       try {
         const res = await fetch(`/api/ventures/${ventureId}/coaches`);
@@ -464,9 +475,16 @@ export default function JourneyManagerPanel({ ventureId }) {
       notify(t("venture.manager.sessionNoteRequired"), "error");
       return;
     }
+    // One instant for the whole submit: the guard, the end-time maths and the payload.
+    const start = new Date(`${bookForm.date}T${bookForm.time}:00`);
+    if (!isValidSessionStart(start)) {
+      const next = minSessionStartInput();
+      setBookForm((f) => ({ ...f, date: toDateInput(next), time: toTimeInput(next), min_time: toTimeInput(next) }));
+      notify(t("venture.manager.sessionTooSoon"), "error");
+      return;
+    }
     setBookSaving(true);
     try {
-      const start = new Date(`${bookForm.date}T${bookForm.time}:00`);
       const minutes = Number(bookForm.duration) || 45;
       const end = new Date(start.getTime() + minutes * 60000);
       const coach = coachOptions.find((c) => String(c.coach_id) === String(bookForm.coach_id));
@@ -487,12 +505,18 @@ export default function JourneyManagerPanel({ ventureId }) {
           venture_facing: true,
           journey_stage_id: stage.id,
           milestone_ref: String(ms.id),
+          deliverable_id: bookForm.deliverable_id || null,
         }),
       });
       const d = await res.json();
       if (d.success) {
         notify(t("venture.manager.sessionBooked"));
         setBookFor(null);
+        // Surface the new session inside its milestone right away.
+        fetch(`/api/ventures/${ventureId}/sessions`)
+          .then((r) => r.json())
+          .then((sd) => { if (sd.success) setVentureSessions(sd.sessions || []); })
+          .catch(() => {});
       } else {
         notify(d.error || t("venture.manager.actionFailed"), "error");
       }
@@ -948,6 +972,9 @@ export default function JourneyManagerPanel({ ventureId }) {
         ? "vadmin.journey.statusActive"
         : "vadmin.journey.statusLocked";
 
+  const SESSION_STATUSES = ["scheduled", "confirmed", "in_progress", "completed", "cancelled", "rescheduled", "no_show"];
+  const sessionStatusKey = (s) => `venture.manager.sessionStatuses.${SESSION_STATUSES.includes(s) ? s : "scheduled"}`;
+
   const stageNodeClass = (status) =>
     status === "completed"
       ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/40"
@@ -997,6 +1024,12 @@ export default function JourneyManagerPanel({ ventureId }) {
   };
 
   const fmtDate = (iso) => (iso ? new Date(`${String(iso).slice(0, 10)}T00:00:00`).toLocaleDateString(lang) : "");
+
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const toDateInput = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const toTimeInput = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  // A textarea that grows with its content (paragraph note, never a scrollbar).
+  const autoGrow = (e) => { const el = e.target; el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; };
 
   return (
     <div className="card">
@@ -1682,15 +1715,32 @@ export default function JourneyManagerPanel({ ventureId }) {
                                               <textarea
                                                 value={bookForm.note}
                                                 onChange={(e) => setBookForm({ ...bookForm, note: e.target.value })}
-                                                rows={2}
+                                                onInput={autoGrow}
+                                                rows={3}
                                                 required
                                                 placeholder={t("venture.manager.sessionNotePlaceholder")}
-                                                className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)] resize-none overflow-hidden min-h-[72px]"
                                               />
+                                              <div className="space-y-1">
+                                                <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
+                                                  {t("venture.manager.sessionDeliverable")}
+                                                </p>
+                                                <select
+                                                  value={bookForm.deliverable_id}
+                                                  onChange={(e) => setBookForm({ ...bookForm, deliverable_id: e.target.value })}
+                                                  className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                >
+                                                  <option value="">{t("venture.manager.sessionNoDeliverable")}</option>
+                                                  {dvList.map((dv) => (
+                                                    <option key={dv.id} value={dv.id}>{dv.title}</option>
+                                                  ))}
+                                                </select>
+                                              </div>
                                               <div className="flex flex-wrap items-center gap-2">
                                                 <input
                                                   type="date"
                                                   required
+                                                  min={toDateInput(new Date())}
                                                   value={bookForm.date}
                                                   onChange={(e) => setBookForm({ ...bookForm, date: e.target.value })}
                                                   className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
@@ -1698,6 +1748,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                                                 <input
                                                   type="time"
                                                   required
+                                                  min={bookForm.min_time || undefined}
                                                   value={bookForm.time}
                                                   onChange={(e) => setBookForm({ ...bookForm, time: e.target.value })}
                                                   className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
@@ -1722,6 +1773,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                                                   ))}
                                                 </select>
                                               </div>
+                                              <p className="text-[9px] text-slate-500">{t("venture.manager.sessionLeadHint")}</p>
                                               <p className="text-[9px] text-slate-500">{t("venture.manager.sessionNotifyHint")}</p>
                                               <div className="flex justify-end gap-2">
                                                 <button type="button" onClick={() => setBookFor(null)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
@@ -1743,6 +1795,31 @@ export default function JourneyManagerPanel({ ventureId }) {
                                           )}
                                         </div>
                                       )}
+
+                                      {/* Sessions already booked on this milestone — the milestone stays the home of its sessions. */}
+                                      {isOpen && (() => {
+                                        const mine = ventureSessions.filter((s) => String(s.milestone_ref) === String(ms.id) && s.status !== "cancelled");
+                                        if (mine.length === 0) return null;
+                                        return (
+                                          <div className="mt-2 ml-5 space-y-1">
+                                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
+                                              {t("venture.manager.milestoneSessions", { n: mine.length })}
+                                            </p>
+                                            {mine.map((s) => {
+                                              const dv = dvList.find((d) => String(d.id) === String(s.deliverable_id));
+                                              return (
+                                                <div key={s.id} className="flex flex-wrap items-center gap-2 text-[10px] text-[var(--text-secondary)]">
+                                                  <span className="font-bold text-[var(--text-primary)]">{new Date(s.start_time).toLocaleString(lang || undefined)}</span>
+                                                  <span>{s.title}</span>
+                                                  {s.coach_name && <span>· {s.coach_name}</span>}
+                                                  {dv && <span>· {dv.title}</span>}
+                                                  <span className="uppercase tracking-widest">{t(sessionStatusKey(s.status))}</span>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        );
+                                      })()}
 
                                       {/* Internal notes are milestone-scoped — they never exist outside a milestone. */}
                                       {isOpen && notesMsId !== null && String(notesMsId) === String(ms.id) && (

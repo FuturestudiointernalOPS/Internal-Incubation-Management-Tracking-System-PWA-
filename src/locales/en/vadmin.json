@@ -1023,6 +1023,8 @@
       "online": "Online",
       "titleStartEndRequired": "Title, start and end time required",
       "noteRequired": "Please write the session note — a session always carries its note.",
+      "milestoneRequired": "Journey and milestone are required — a session always belongs to a milestone.",
+      "noMilestones": "No milestones available for this selection — add one in the Journey tab first, then book the session.",
       "sessionCreated": "Session created",
       "failed": "Failed",
       "networkError": "Network error",

@@ -1023,6 +1023,8 @@
       "online": "En ligne",
       "titleStartEndRequired": "Titre, heure de début et de fin requis",
       "noteRequired": "Veuillez rédiger la note de séance — une séance porte toujours sa note.",
+      "milestoneRequired": "Le parcours et le jalon sont requis — une séance appartient toujours à un jalon.",
+      "noMilestones": "Aucun jalon disponible pour cette sélection — ajoutez-en un dans l'onglet Parcours, puis réservez la séance.",
       "sessionCreated": "Session créée",
       "failed": "Échec",
       "networkError": "Erreur réseau",

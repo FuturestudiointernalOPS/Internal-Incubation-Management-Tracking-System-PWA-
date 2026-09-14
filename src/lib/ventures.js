@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { hashToken } from "@/lib/token-hashing";
+import { isUnknownColumnError } from "@/lib/ventureInput";
 
 /**
  * VENTURE OS — Shared Business Logic
@@ -250,6 +251,10 @@ export async function ensureVentureSchema() {
     "ALTER TABLE venture_sessions ADD COLUMN IF NOT EXISTS task_id INTEGER",
     "ALTER TABLE venture_sessions ADD COLUMN IF NOT EXISTS preparation_notes TEXT",
     "ALTER TABLE venture_sessions ADD COLUMN IF NOT EXISTS venture_facing BOOLEAN DEFAULT FALSE",
+    // A session always belongs to a milestone; it may additionally be attached
+    // to one of that milestone's deliverables (soft ref — no FK, like
+    // milestone_ref itself).
+    "ALTER TABLE venture_sessions ADD COLUMN IF NOT EXISTS deliverable_id TEXT",
     // Task submissions (D5): append-only versions; founder submits, staff
     // reviews (approved | changes_requested); official task completion requires
     // an approved submission when review_required = TRUE.
@@ -3386,16 +3391,28 @@ export async function checkDoubleBooking({ ventureId, coachId, startTime, endTim
   return { conflict: false };
 }
 
-export async function createSession({ ventureId, title, description, sessionType, coachId, coachName, founderCid, founderName, startTime, endTime, timezone, location, meetingLink, agenda, createdBy, ventureFacing = false, preparationNotes = null, journeyStageId = null, milestoneRef = null, taskId = null, coachContactId = null }) {
+export async function createSession({ ventureId, title, description, sessionType, coachId, coachName, founderCid, founderName, startTime, endTime, timezone, location, meetingLink, agenda, createdBy, ventureFacing = false, preparationNotes = null, journeyStageId = null, milestoneRef = null, taskId = null, coachContactId = null, deliverableId = null }) {
   if (new Date(startTime) >= new Date(endTime)) throw new Error("End time must be after start time.");
   if (new Date(endTime) < new Date()) throw new Error("Cannot schedule sessions in the past.");
   const conflict = await checkDoubleBooking({ ventureId, coachId, startTime, endTime });
   if (conflict.conflict) throw new Error(conflict.message);
-  const res = await db.execute({
-    sql: `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes, journey_stage_id, milestone_ref, task_id, coach_contact_id)
+  const insertSql = `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes, journey_stage_id, milestone_ref, task_id, coach_contact_id, deliverable_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`;
+  const insertArgs = [ventureId, title.trim(), description||null, sessionType||"coaching", coachId||null, coachName||null, founderCid||null, founderName||null, startTime, endTime, timezone||"UTC", location||null, meetingLink||null, agenda||null, createdBy||"system", ventureFacing ? true : false, preparationNotes||null, journeyStageId||null, milestoneRef||null, taskId||null, coachContactId||null, deliverableId||null];
+  let res;
+  try {
+    res = await db.execute({ sql: insertSql, args: insertArgs });
+  } catch (e) {
+    // Older database without the deliverable_id column: keep working, without
+    // the deliverable link (the column arrives with the next migration run).
+    if (!isUnknownColumnError(e)) throw e;
+    const legacyArgs = insertArgs.slice(0, -1);
+    res = await db.execute({
+      sql: `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes, journey_stage_id, milestone_ref, task_id, coach_contact_id)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    args: [ventureId, title.trim(), description||null, sessionType||"coaching", coachId||null, coachName||null, founderCid||null, founderName||null, startTime, endTime, timezone||"UTC", location||null, meetingLink||null, agenda||null, createdBy||"system", ventureFacing ? true : false, preparationNotes||null, journeyStageId||null, milestoneRef||null, taskId||null, coachContactId||null],
-  });
+      args: legacyArgs,
+    });
+  }
   const id = res.rows[0]?.id || res.lastInsertRowid;
   await db.execute({
     sql: `INSERT INTO venture_session_activity (session_id, venture_id, action, actor_cid, details) VALUES (?, ?, 'SESSION_CREATED', ?, ?::jsonb)`,
@@ -3405,7 +3422,7 @@ export async function createSession({ ventureId, title, description, sessionType
 }
 
 export async function updateSession(sessionId, updates) {
-  const allowed = ["title", "description", "session_type", "coach_id", "coach_name", "founder_cid", "founder_name", "start_time", "end_time", "timezone", "location", "meeting_link", "status", "agenda", "recording_url", "venture_facing", "preparation_notes", "journey_stage_id", "milestone_ref", "task_id", "coach_contact_id"];
+  const allowed = ["title", "description", "session_type", "coach_id", "coach_name", "founder_cid", "founder_name", "start_time", "end_time", "timezone", "location", "meeting_link", "status", "agenda", "recording_url", "venture_facing", "preparation_notes", "journey_stage_id", "milestone_ref", "task_id", "coach_contact_id", "deliverable_id"];
   const sets = []; const args = [];
   for (const f of allowed) { if (updates[f] !== undefined) { sets.push(`${f} = ?`); args.push(updates[f]); } }
   if (sets.length === 0) return { updated: false };

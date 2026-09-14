@@ -6,8 +6,9 @@ import { resolveCoachContact } from "@/lib/ventureCoach";
 import {
   listSessions, getSession, createSession, updateSession, cancelSession,
   rescheduleSession, deleteSession, addSessionNote, recordAttendance,
-  createActionItem, updateActionItem,
+  createActionItem, updateActionItem, getDeliverable,
 } from "@/lib/ventures";
+import { SESSION_MIN_LEAD_MINUTES } from "@/lib/ventureSessionRules";
 import { notifyVentureCoach } from "@/lib/ventureNotify";
 
 // Venture-facing session changes notify founders (in-app + email). Sessions
@@ -77,6 +78,31 @@ export const POST = createHandler(async (req, { params }) => {
       if (!sessionNote) {
         return NextResponse.json({ success: false, error: "A session note is required." }, { status: 400 });
       }
+      // Vinance 3 rules: a session always belongs to a milestone (sessions
+      // never exist outside one), always carries a concrete date and time, and
+      // always starts at least SESSION_MIN_LEAD_MINUTES ahead of booking.
+      const milestoneRef = body.milestone_ref ? String(body.milestone_ref) : null;
+      if (!milestoneRef) {
+        return NextResponse.json({ success: false, error: "A session must belong to a milestone." }, { status: 400 });
+      }
+      const startAt = body.start_time ? new Date(body.start_time) : null;
+      if (!startAt || Number.isNaN(startAt.getTime())) {
+        return NextResponse.json({ success: false, error: "A session date and time are required." }, { status: 400 });
+      }
+      if (startAt.getTime() < Date.now() + SESSION_MIN_LEAD_MINUTES * 60 * 1000) {
+        return NextResponse.json(
+          { success: false, error: `A session must start at least ${SESSION_MIN_LEAD_MINUTES} minutes from now.` },
+          { status: 400 },
+        );
+      }
+      // Optional: attach the session to one of the milestone's deliverables.
+      let deliverableId = body.deliverable_id ? String(body.deliverable_id) : null;
+      if (deliverableId) {
+        const dv = await getDeliverable(deliverableId).catch(() => null);
+        if (!dv || String(dv.milestone_id) !== milestoneRef) {
+          return NextResponse.json({ success: false, error: "Unknown deliverable for this milestone." }, { status: 400 });
+        }
+      }
       // Coach identity (Phase 1): explicit coach_contact_id wins; otherwise
       // resolve the legacy catalog coach by email to a platform contact.
       let coachContactId = body.coach_contact_id ? String(body.coach_contact_id) : null;
@@ -96,7 +122,8 @@ export const POST = createHandler(async (req, { params }) => {
         // Operational context: which Journey stage / milestone / task this
         // session supports (soft refs; no FK constraints).
         journeyStageId: body.journey_stage_id || null,
-        milestoneRef: body.milestone_ref ? String(body.milestone_ref) : null,
+        milestoneRef,
+        deliverableId,
         taskId: body.task_id ? parseInt(body.task_id) : null,
         coachContactId,
         createdBy: req.session?.cid,
@@ -104,14 +131,14 @@ export const POST = createHandler(async (req, { params }) => {
       // The session note is filed on the milestone it was booked against, so
       // internal notes live exactly where their work lives (never outside a
       // milestone). Best-effort: a note failure never blocks the session.
-      if (body.milestone_ref) {
+      if (milestoneRef) {
         try {
           const v = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
           const code = v.rows?.[0]?.venture_id || id;
           await db.execute({
             sql: `INSERT INTO venture_notes (venture_id, author_cid, author_name, title, body, scope_ref_type, scope_ref_id)
                   VALUES (?,?,?,?,?,?,?)`,
-            args: [code, req.session?.cid || null, req.session?.name || null, String(body.title || "").trim() || "Session", sessionNote, "milestone", String(body.milestone_ref)],
+            args: [code, req.session?.cid || null, req.session?.name || null, String(body.title || "").trim() || "Session", sessionNote, "milestone", milestoneRef],
           });
         } catch (_) {}
       }

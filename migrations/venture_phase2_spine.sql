@@ -32,6 +32,7 @@ ALTER TABLE venture_sessions ADD COLUMN IF NOT EXISTS milestone_ref TEXT;
 ALTER TABLE venture_sessions ADD COLUMN IF NOT EXISTS task_id INTEGER;
 ALTER TABLE venture_sessions ADD COLUMN IF NOT EXISTS preparation_notes TEXT;
 ALTER TABLE venture_sessions ADD COLUMN IF NOT EXISTS venture_facing BOOLEAN DEFAULT FALSE;
+ALTER TABLE venture_sessions ADD COLUMN IF NOT EXISTS deliverable_id TEXT;
 
 -- ─── Task submissions (append-only versions) ───
 -- Founder submits; staff review (approved | changes_requested). Official
