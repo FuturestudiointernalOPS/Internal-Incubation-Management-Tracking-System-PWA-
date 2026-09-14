@@ -47,7 +47,6 @@ import Link from "next/link";
 import GlobalToast from "@/components/ui/GlobalToast";
 import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
-import { resolveActiveSurface } from "@/lib/context";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
 import { fetchSwrJson } from "@/lib/hooks/useApi";
@@ -201,7 +200,6 @@ const CRUMB_PATH_MAP = {
   announcements: "navigation.announcements",
   programs: "navigation.programs",
   progress: "navigation.progress",
-  responses: "navigation.reportResponses",
   ventures: "navigation.ventures",
   investors: "navigation.investors",
   campaigns: "navigation.investorsCampaigns",
@@ -662,21 +660,6 @@ function attachIcons(items) {
   }));
 }
 
-// The sidebar follows the page context only for real WORK surfaces: a user
-// acting under another role (e.g. a staff member assigned as Program Manager)
-// sees that role's nav while on its pages. Workspaces owned by a dedicated
-// session role (crm, finance, investor, team) never override the connected
-// user's role — visiting /crm must not turn a staff member's sidebar into the
-// CRM workspace's flat menu.
-const HAT_SURFACES = new Set([
-  "program_manager",
-  "staff",
-  "teacher",
-  "facilitator",
-  "participant",
-  "developer",
-]);
-
 export default function DashboardLayout({ children, role = "admin", modals, fullWidth = false }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -1087,16 +1070,10 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     initAuth();
   }, []);
 
-  // Fetch PM programs when user changes or when the user is acting in the PM
-  // context (e.g. a staff member assigned as Program Manager on /pm/*).
+  // Fetch PM programs for program_manager / super_admin roles.
   useEffect(() => {
     if (!user.cid && !user.id) return;
-    const inPmContext = (pathname || "").startsWith("/pm");
-    if (
-      !inPmContext &&
-      user.role !== "program_manager" &&
-      user.role !== "super_admin"
-    ) {
+    if (user.role !== "program_manager" && user.role !== "super_admin") {
       return;
     }
     const url =
@@ -1109,7 +1086,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
         if (data.success) setPmPrograms(data.programs || []);
       })
       .catch((e) => console.error(e));
-  }, [user.role, user.cid, user.id, pathname]);
+  }, [user.role, user.cid, user.id]);
 
   // "My Learning" only appears once the participant has subscribed to a course
   // or been assigned one (admin/program enrollment). The flag is refreshed on
@@ -1118,9 +1095,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   // instead of flashing it off for learners who are enrolled.
   useEffect(() => {
     const sessionRole = user.role || role || "";
-    const participantNavActive =
-      resolveActiveSurface(pathname) === "participant" ||
-      sessionRole === "participant";
+    const participantNavActive = sessionRole === "participant";
     if (
       sessionRole === "super_admin" ||
       sessionRole === "developer" ||
@@ -1142,7 +1117,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     return () => {
       active = false;
     };
-  }, [user.role, user.cid, user.id, pathname, role]);
+  }, [user.role, user.cid, user.id, role]);
 
   // Unread counts per nav type — messages from actual unread count, others from notifications
   const unreadByType = useMemo(() => {
@@ -1225,17 +1200,11 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   const navItems = useMemo(() => {
     // The sidebar reflects the CONNECTED user: their role, and — via the
     // capability projection in buildAccessNav — everything their
-    // responsibilities actually grant them. The page context only contributes a
-    // hat for real work surfaces (see HAT_SURFACES); Super Admin and developer
-    // always keep their own.
+    // responsibilities actually grant them.
     const sessionRole = user.role || role || "admin";
-    const surface = resolveActiveSurface(pathname);
-    const activeRole =
-      sessionRole === "super_admin" || sessionRole === "developer"
-        ? sessionRole
-        : HAT_SURFACES.has(surface)
-          ? surface
-          : sessionRole;
+    // The sidebar reflects the connected user's role and capabilities only.
+    // It never changes with the page being viewed: there is no page "hat".
+    const activeRole = sessionRole;
 
     // "My Learning" is hidden until the participant actually has a course
     // (self-subscribed, admin enrollment or program assignment). hasLmsEnrollments
@@ -1400,7 +1369,6 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     user.groups,
     role,
     pmPrograms,
-    pathname,
     hasLmsEnrollments,
     effectiveCaps,
     ventureAssignCount,
@@ -1474,13 +1442,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     router.replace("/login");
   };
 
-  const resolvedSurface = resolveActiveSurface(pathname);
-  const activeRole =
-    user.role === "super_admin" || user.role === "developer"
-      ? user.role
-      : HAT_SURFACES.has(resolvedSurface)
-        ? resolvedSurface
-        : user.role || role || "admin";
+  const activeRole = user.role || role || "admin";
   const commonProps = {
     collapsed,
     role: activeRole,
@@ -1984,7 +1946,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                       Project Invitation
                     </p>
                     <p className="text-[10px] text-[var(--text-secondary)]">
-                      You've been invited to join{" "}
+                      You&apos;ve been invited to join{" "}
                       <span className="font-bold text-[var(--text-primary)]">
                         {pendingInvites[0].project_name || "a project"}
                       </span>
@@ -2043,7 +2005,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                       Task Assignment
                     </p>
                     <p className="text-[10px] text-[var(--text-secondary)]">
-                      You've been assigned:{" "}
+                      You&apos;ve been assigned:{" "}
                       <span className="font-bold text-[var(--text-primary)]">
                         {pendingAssignments[0].task_title || "a task"}
                       </span>
