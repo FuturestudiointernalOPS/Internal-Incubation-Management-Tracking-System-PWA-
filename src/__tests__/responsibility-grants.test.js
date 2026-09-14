@@ -44,8 +44,13 @@ describe("grantResponsibilityBaseAccess", () => {
       responsibilityKey: "communication",
       grantedBy: null,
     });
-    expect(granted).toEqual(["messaging.view", "internal_comms.view"]);
-    expect(db.execute).toHaveBeenCalledTimes(2);
+    expect(granted).toEqual([
+      "messaging.view",
+      "internal_comms.view",
+      "forms.view",
+      "runs.view",
+    ]);
+    expect(db.execute).toHaveBeenCalledTimes(4);
   });
 
   test("operations owns projects + tasks (dashboard section merge)", async () => {

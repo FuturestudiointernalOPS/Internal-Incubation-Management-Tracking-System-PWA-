@@ -434,6 +434,8 @@ export const PERMISSION_MODULES = {
     name: "Announcements",
     capabilities: ["view", "create_announcements", "moderate"],
   },
+  forms: { name: "Forms", capabilities: ["view", "create", "edit", "delete"] },
+  runs: { name: "Runs", capabilities: ["view", "create", "edit", "delete"] },
   contacts: {
     name: "Contacts",
     capabilities: ["view", "create", "edit", "delete"],

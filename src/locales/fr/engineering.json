@@ -128,6 +128,8 @@
         "reports": "Rapports",
         "messaging": "Messagerie",
         "internal_comms": "Annonces",
+        "forms": "Formulaires",
+        "runs": "Exécutions",
         "contacts": "Contacts",
         "duplicates": "Doublons",
         "bulk_upload": "Import en masse",
