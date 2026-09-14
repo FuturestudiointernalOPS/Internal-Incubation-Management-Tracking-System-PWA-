@@ -29,6 +29,7 @@ export {
   seedDefaultEligibility,
   MODULE_TO_FEATURE,
   FEATURE_ELIGIBILITY_DEFAULTS,
+  FEATURE_ORDER,
 } from "./eligibility";
 
 export { runAuthzMigration } from "./migrations";

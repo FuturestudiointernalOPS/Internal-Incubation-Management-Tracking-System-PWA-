@@ -20,6 +20,7 @@ import db from "@/lib/db";
 import { FEATURE_ELIGIBILITY_DEFAULTS } from "./eligibility-defaults";
 
 export { FEATURE_ELIGIBILITY_DEFAULTS };
+export { FEATURE_ORDER } from "./eligibility-defaults";
 
 // Capability module → feature key. Features ARE the dashboard sections; the
 // modules are their sub-sections. The resolver authorizes against capability

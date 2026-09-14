@@ -888,6 +888,24 @@ export default function PermissionManager({
   );
 }
 
+/**
+ * The module catalog the Access-Profile editor can EDIT: the server-served
+ * PERMISSION_MODULES (the write-validated set) UNION every non-locked module of
+ * the registry (CAPABILITY_CATALOG), shaped as { name, capabilities: string[] }.
+ *
+ * Why: MODULE_TO_FEATURE maps some modules (bulk_upload) that PERMISSION_MODULES
+ * does not carry, so a feature would show only part of its sub-sections. Locked
+ * modules (duplicates) stay out — they are super-admin role-locked.
+ */
+function buildEditableModules(permissionModules) {
+  const out = { ...(permissionModules || {}) };
+  for (const [mod, def] of Object.entries(CAPABILITY_CATALOG)) {
+    if (out[mod] || def.locked) continue;
+    out[mod] = { name: def.name, capabilities: Object.keys(def.capabilities || {}) };
+  }
+  return out;
+}
+
 function AccessProfilesView({ initialProfileId = null }) {
   const { t } = useI18n();
   const [profiles, setProfiles] = useState([]);
@@ -1301,9 +1319,11 @@ function AccessProfilesView({ initialProfileId = null }) {
     }
   };
 
-  // The catalog is whatever the server serves (PERMISSION_MODULES). No local
-  // copy exists any more: one definition, everywhere.
-  const availableModules = moduleCatalog || {};
+  // The editor's module catalog = the registry truth (CAPABILITY_CATALOG), not
+  // just PERMISSION_MODULES, so each feature shows ALL of its sub-sections
+  // (e.g. CRM → Contacts + Bulk Upload). `locked` modules (duplicates) are
+  // super-admin role-locked and never enter a profile.
+  const availableModules = moduleCatalog ? buildEditableModules(moduleCatalog) : {};
 
   if (loading) {
     return (
@@ -1347,11 +1367,14 @@ function AccessProfilesView({ initialProfileId = null }) {
   // header row). STRICT: only the features the profile's assigned role(s) are
   // eligible for are shown (union); a profile with no role shows nothing until
   // it is assigned one (see filterSectionsByRoleEligibility).
+  //
+  // Unmapped modules (modules with no feature — e.g. org_membership) are NOT
+  // features and are dropped: the template only ever shows dashboard sections.
   const visibleSections = filterSectionsByRoleEligibility(
     groupModulesByFeature(availableModules, moduleToFeature, featureKeys),
     selectedIsDefaultFor,
     isRoleEligibleForFeature,
-  );
+  ).filter((section) => !section.unmapped);
 
   return (
     <div className="space-y-6">

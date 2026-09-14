@@ -14,6 +14,26 @@
  * These only fill rows that have never been configured (ON CONFLICT DO
  * NOTHING) — admin edits are never overwritten.
  */
+
+/**
+ * Canonical order of the features — mirrors the dashboard sections so the
+ * Permissions UI lists them the way the sidebar does (NOT alphabetically).
+ */
+export const FEATURE_ORDER = [
+  "crm",
+  "communication",
+  "programs",
+  "ventures",
+  "investors",
+  "finance",
+  "operations",
+  "reports",
+  "knowledge",
+  "lms",
+  "security",
+  "settings",
+];
+
 export const FEATURE_ELIGIBILITY_DEFAULTS = {
   // CRM — people, contacts, duplicates, bulk import
   crm: [
