@@ -111,13 +111,39 @@ describe("POST /api/ventures/[id]/notes — attachments", () => {
     await POST(
       new Request("http://localhost/x", {
         method: "POST",
-        body: JSON.stringify({ title: "Plain", body: "Note", scope_ref_type: "journey_stage", scope_ref_id: "s1" }),
+        body: JSON.stringify({ title: "Plain", body: "Note", scope_ref_type: "milestone", scope_ref_id: "m1" }),
       }),
       ctx,
     );
     const insert = executed.find((e) => e.sql.includes("INSERT INTO venture_notes"));
     expect(insert.sql).not.toContain("attachments");
     expect(insert.args.length).toBe(7);
+  });
+});
+
+describe("POST /api/ventures/[id]/notes — milestone-only scope (Vinance 3 rule)", () => {
+  test("a venture-wide note is refused — notes never exist outside a milestone", async () => {
+    const res = await POST(
+      new Request("http://localhost/x", {
+        method: "POST",
+        body: JSON.stringify({ title: "Venture memo", body: "Loose note" }),
+      }),
+      ctx,
+    );
+    expect(res.status).toBe(400);
+    expect(executed.find((e) => e.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
+  });
+
+  test("a non-milestone scope (journey_stage) is refused", async () => {
+    const res = await POST(
+      new Request("http://localhost/x", {
+        method: "POST",
+        body: JSON.stringify({ title: "Stage note", body: "x", scope_ref_type: "journey_stage", scope_ref_id: "s1" }),
+      }),
+      ctx,
+    );
+    expect(res.status).toBe(400);
+    expect(executed.find((e) => e.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
   });
 });
 

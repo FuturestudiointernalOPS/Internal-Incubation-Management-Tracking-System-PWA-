@@ -14,6 +14,7 @@ import {
   getHomeNotifications,
   getHomeEventsByProgramIds,
 } from "@/models/participantPortal";
+import { getCalendarVentureSessions } from "@/models/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -399,6 +400,29 @@ export async function GET(req) {
             description: ev.description || ev.event_type || "Review",
           });
         }
+      }
+    } catch (_) {}
+
+    // Venture sessions (Vinance 3): booked sessions of the Ventures this
+    // person belongs to. The model returns venture-facing sessions only —
+    // internal staff sessions are never exposed to a founder.
+    try {
+      const vsRes = await getCalendarVentureSessions(cid);
+      for (const s of vsRes.rows || []) {
+        const key = `vsess-${s.id}`;
+        if (seenEventKeys.has(key)) continue;
+        seenEventKeys.add(key);
+        const d = new Date(s.start_time);
+        calendarEvents.push({
+          id: key,
+          title: s.title,
+          date: d.toISOString().split("T")[0],
+          time: d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          type: "venture_session",
+          source: "session",
+          relatedId: s.id,
+          description: s.coach_name ? `Coach: ${s.coach_name}` : null,
+        });
       }
     } catch (_) {}
 

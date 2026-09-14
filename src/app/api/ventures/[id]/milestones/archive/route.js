@@ -3,7 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import db from "@/lib/db";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { applyBulk } from "@/lib/ventureArchive";
-import { canManageMilestones } from "@/lib/ventureMilestoneEngine";
+import { canManageMilestones, completeStageIfAllMilestonesDone } from "@/lib/ventureMilestoneEngine";
 
 /**
  * POST /api/ventures/[id]/milestones/archive
@@ -36,7 +36,7 @@ export const POST = createHandler(async (req, { params }) => {
   if (ids.length === 0) return NextResponse.json({ success: false, error: "No milestones selected." }, { status: 400 });
 
   const rowsRes = await db.execute({
-    sql: `SELECT m.id, m.title FROM venture_milestones m
+    sql: `SELECT m.id, m.title, m.journey_stage_id, v.id AS venture_db_id FROM venture_milestones m
           JOIN ventures v ON v.id = m.venture_id
           WHERE (v.venture_id = ? OR v.id::text = ?)
             AND m.id::text = ANY(?)`,
@@ -49,6 +49,18 @@ export const POST = createHandler(async (req, { params }) => {
     action,
     kind: "milestone",
   });
+
+  // Archiving a milestone can leave a journey with every remaining milestone
+  // completed — the journey then closes automatically.
+  if (action === "archive") {
+    const dbId = (rowsRes.rows || [])[0]?.venture_db_id || null;
+    const stageIds = [...new Set((rowsRes.rows || []).map((r) => r.journey_stage_id).filter(Boolean))];
+    if (dbId) {
+      for (const stageId of stageIds) {
+        await completeStageIfAllMilestonesDone(db, { dbId, stageId, cid: session.cid });
+      }
+    }
+  }
 
   return NextResponse.json({ success: true, ...summary });
 });

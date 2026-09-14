@@ -89,6 +89,67 @@ export async function computeInitialMilestoneStatus(db, { dbId, stageId }) {
 }
 
 /**
+ * A Journey can NEVER be closed manually. It completes automatically the
+ * moment every milestone in it has been marked completed (by the Lead Manager
+ * or a Super Admin), and that completion activates the next journey and
+ * releases its first milestone.
+ *
+ * A journey with NO milestones never auto-completes — there is nothing to
+ * close on.
+ *
+ * Returns { completed: false } unless the stage just closed.
+ */
+export async function completeStageIfAllMilestonesDone(db, { dbId, stageId, cid = null }) {
+  if (!stageId) return { completed: false };
+  try {
+    const stageRes = await db
+      .execute({
+        sql: "SELECT id, name, status, stage_order FROM venture_journey_stages WHERE id = ? AND venture_id = ?",
+        args: [String(stageId), dbId],
+      })
+      .catch(() => ({ rows: [] }));
+    const stage = rowsOf(stageRes)[0];
+    if (!stage || stage.status !== "active") return { completed: false };
+
+    const richSql = `SELECT id, status FROM venture_milestones
+                     WHERE venture_id = ? AND journey_stage_id = ? AND COALESCE(is_archived, FALSE) = FALSE`;
+    const plainSql = `SELECT id, status FROM venture_milestones WHERE venture_id = ? AND journey_stage_id = ?`;
+    const msRes = await db
+      .execute({ sql: richSql, args: [dbId, String(stageId)] })
+      .catch(() => db.execute({ sql: plainSql, args: [dbId, String(stageId)] }).catch(() => ({ rows: [] })));
+    const list = rowsOf(msRes);
+
+    if (list.length === 0) return { completed: false };
+    if (!list.every((m) => isMilestoneComplete(m.status))) return { completed: false };
+
+    await db.execute({
+      sql: "UPDATE venture_journey_stages SET status = 'completed', completed_at = NOW(), approved_by = ? WHERE id = ? AND venture_id = ?",
+      args: [cid, String(stageId), dbId],
+    });
+
+    // The next journey becomes current, and its first milestone is released.
+    const nextRes = await db
+      .execute({
+        sql: "SELECT id FROM venture_journey_stages WHERE venture_id = ? AND stage_order = ? AND status = 'locked'",
+        args: [dbId, stage.stage_order + 1],
+      })
+      .catch(() => ({ rows: [] }));
+    const nextStageId = rowsOf(nextRes)[0]?.id || null;
+    if (nextStageId) {
+      await db.execute({
+        sql: "UPDATE venture_journey_stages SET status = 'active' WHERE id = ? AND venture_id = ?",
+        args: [String(nextStageId), dbId],
+      });
+      await releaseFirstMilestoneForStage(db, { dbId, stageId: nextStageId });
+    }
+
+    return { completed: true, stage_name: stage.name || null, next_stage_id: nextStageId };
+  } catch (_) {
+    return { completed: false };
+  }
+}
+
+/**
  * Release the first unfinished milestone of an ACTIVE journey stage.
  *
  * The chain is: the first milestone (by display order) that is not completed
@@ -169,4 +230,4 @@ export async function completeMilestoneAndUnlockNext(db, { dbId, milestoneId }) 
   return { unlocked_milestone_id: next.id };
 }
 
-export default { isMilestoneLeadAuthority, resolveVentureCode, canManageMilestones, computeInitialMilestoneStatus, releaseFirstMilestoneForStage, completeMilestoneAndUnlockNext };
+export default { isMilestoneLeadAuthority, resolveVentureCode, canManageMilestones, computeInitialMilestoneStatus, releaseFirstMilestoneForStage, completeStageIfAllMilestonesDone, completeMilestoneAndUnlockNext };

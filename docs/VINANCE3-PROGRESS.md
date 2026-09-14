@@ -289,6 +289,30 @@ missing.
 - Contract tests: `venture-archive.test.js` (13). Regression: 54 suites /
   694 tests green; parity 0 missing.
 
+## Internal notes on milestones only + compulsory session note (delivered, uncommitted)
+- **Rule:** internal notes belong to a milestone and never exist outside one.
+  - Journey-level notes affordance removed from the Journey manager; the
+    milestone ⋯ menu now opens milestone-scoped notes inline (inside the
+    expanded milestone).
+  - Notes API POST refuses any non-milestone scope (venture-wide, section,
+    workstream, journey_stage) with 400 — enforced server-side, not only in UI.
+  - `VentureNotesPanel` (staff workspace tab + admin Notes page) files every
+    note against a chosen milestone (milestone picker, EN+FR) and shows the
+    milestone title instead of a raw id; browser `confirm()` replaced by an
+    in-app `AppModal`. `ScopedNotes` i18n keys repaired
+    (`venture.manager.notes.*`) and its delete confirm is in-app too.
+- **Compulsory session note:** every session carries its internal note.
+  - `create_session` rejects an empty note (400) before any row is created.
+  - Milestone "Book session" form requires the note; the admin sessions form
+    requires it as well (label "Session note *").
+  - When the session is bound to a milestone, the note is also filed on that
+    milestone (`venture_notes`, `scope_ref_type = "milestone"`) so the record
+    lives where the work lives. Best-effort — a note failure never blocks the
+    session.
+- Contract tests: `venture-session-note.test.js` (4) + milestone-only scope
+  cases in `venture-notes-context.test.js`. Regression: 85 suites / 1081 tests
+  green; i18n parity 0 missing.
+
 ## Deferred follow-ups (product/screen decisions needed)
 - Milestone/task duplicate buttons on their admin screens (endpoints live).
 - Journey-context fields in the sessions admin form (API/lib live).

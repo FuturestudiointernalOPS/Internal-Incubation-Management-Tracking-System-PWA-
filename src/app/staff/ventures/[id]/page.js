@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
+import { ArrowLeft, Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import OperatingPlanPanel from "@/components/ventures/OperatingPlanPanel";
@@ -16,9 +17,24 @@ import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
  * The page surfaces their own responsibilities/scopes plus read panes for the
  * areas their responsibility profile allows (server remains authoritative).
  */
+/**
+ * The Venture Manager workspace, organized into tabs exactly like the Super
+ * Admin venture hub (same tab bar pattern, same order of ideas): the manager
+ * lands on Overview and switches to Journey / Sessions / Notes / Plan without
+ * scrolling through one long page.
+ */
+const TABS = [
+  { id: "overview", label: "venture.overview", icon: Rocket },
+  { id: "journey", label: "venture.journey", icon: Route },
+  { id: "sessions", label: "venture.sessions", icon: Calendar },
+  { id: "notes", label: "venture.notes", icon: StickyNote },
+  { id: "plan", label: "venture.operatingPlan", icon: FileText },
+];
+
 export default function StaffVentureWorkspace() {
   const { id } = useParams();
   const router = useRouter();
+  const { t } = useI18n();
 
   const [venture, setVenture] = useState(null);
   const [myRoles, setMyRoles] = useState([]);
@@ -37,6 +53,7 @@ export default function StaffVentureWorkspace() {
   const [taskTitleById, setTaskTitleById] = useState({});
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
 
   // Attention: submissions awaiting this staff member's review (Coach view).
   const loadReviewQueue = async () => {
@@ -200,6 +217,30 @@ export default function StaffVentureWorkspace() {
         ]}
       />
 
+      {/* Tabs — same bar as the Super Admin venture hub, for consistency */}
+      <div className="flex gap-1 border-b border-[var(--border-primary)] overflow-x-auto scrollbar-thin">
+        {TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-5 py-3 text-[9px] font-black uppercase tracking-widest flex items-center gap-2 transition-all border-b-2 whitespace-nowrap ${
+                isActive
+                  ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
+                  : "border-transparent text-slate-500 hover:text-[var(--text-primary)]"
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5 shrink-0" />
+              {t(tab.label)}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === "overview" && (
+      <>
       {/* My responsibilities on this Venture */}
       <div className="card">
         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -298,30 +339,6 @@ export default function StaffVentureWorkspace() {
 
         <div className="card">
           <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <Calendar className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> Sessions ({sessions.length})
-          </h3>
-          {sessions.length === 0 ? (
-            <p className="text-xs text-slate-500">No sessions scheduled.</p>
-          ) : (
-            <div className="space-y-2">
-              {sessions.map((s) => (
-                <CoachSessionPanel
-                  key={s.id}
-                  session={s}
-                  ventureId={id}
-                  myCid={myCid}
-                  myName={myName}
-                  stageNameById={stageNameById}
-                  milestoneTitleById={milestoneTitleById}
-                  taskTitleById={taskTitleById}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
             <Users className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> Founders & members ({members.length})
           </h3>
           {members.length === 0 ? (
@@ -346,15 +363,43 @@ export default function StaffVentureWorkspace() {
         </div>
       )}
 
-      <VentureNotesPanel ventureId={id} />
-
-      <OperatingPlanPanel ventureId={id} />
-
-      <JourneyManagerPanel ventureId={id} />
-
       <p className="text-[10px] text-slate-400 flex items-center gap-1.5">
         <FileText className="w-3 h-3" /> Read panes shown according to your assignment. Full management tools are configured through Venture Permissions.
       </p>
+      </>
+      )}
+
+      {activeTab === "sessions" && (
+        <div className="card">
+          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <Calendar className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("venture.sessions")} ({sessions.length})
+          </h3>
+          {sessions.length === 0 ? (
+            <p className="text-xs text-slate-500">No sessions scheduled.</p>
+          ) : (
+            <div className="space-y-2">
+              {sessions.map((s) => (
+                <CoachSessionPanel
+                  key={s.id}
+                  session={s}
+                  ventureId={id}
+                  myCid={myCid}
+                  myName={myName}
+                  stageNameById={stageNameById}
+                  milestoneTitleById={milestoneTitleById}
+                  taskTitleById={taskTitleById}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "journey" && <JourneyManagerPanel ventureId={id} />}
+
+      {activeTab === "notes" && <VentureNotesPanel ventureId={id} />}
+
+      {activeTab === "plan" && <OperatingPlanPanel ventureId={id} />}
     </div>
   );
 }
