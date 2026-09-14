@@ -2,28 +2,34 @@
 
 import React from "react";
 import { useI18n } from "@/lib/i18n";
-import { capabilityLabel, CAPABILITY_CATALOG } from "@/lib/authorization/capability-catalog";
 import {
   buildSectionColumns,
+  crudCapabilities,
   isModuleFull,
 } from "@/components/permissions/matrixHelpers";
 
 /**
- * PHASE UI-6 — one FEATURE section of the Defaults Matrix.
+ * PHASE UI-6 + CRUD split — one FEATURE section of the CRUD matrix.
  *
- * A feature is a sidebar-level section (communication, programs, …);
+ * A feature is a sidebar-level section (communication, program_management, …);
  * its modules are the sub-sections shown in the left column. The header row is
- * the fixed access-level ladder (View · Edit · Create · Delete · Full) followed
- * by one named column per module-specific capability (Send, Moderate, …).
+ * the FIXED access-level ladder View · Edit · Create · Delete · Full.
  *
- * Every cell is a CHECKBOX (no dropdown): a module either holds a capability or
- * it does not. View is the base capability — checking any other capability also
- * checks View, and clearing View clears the module's other capabilities. The
- * header checkbox applies a column to every sub-section of the group at once
- * (indeterminate when only some of them hold it).
+ * This table edits the CRUD ladder ONLY. Every non-CRUD capability (send,
+ * moderate, publish, archive, grant, promote_super_admin, execute, …) lives in
+ * the "Advanced" section (AdvancedCapabilities) — so it stays real and
+ * enforceable, but never clutters this table.
  *
- * Level numbers are preserved for the engine (view=1 … delete=4, Full=5);
- * extras are stored as level 1 (granted) — authorization only compares ≥1.
+ * "Full" is scoped to the module's CRUD set: it can never grant a capability
+ * this table does not show. That is what keeps hiding a capability from the
+ * matrix from silently granting it.
+ *
+ * Every cell is a CHECKBOX (no dropdown). View is the base capability —
+ * checking any other CRUD capability also checks View, and clearing View clears
+ * the module's other CRUD capabilities. The header checkbox applies a column to
+ * every sub-section of the group at once (indeterminate when only some hold it).
+ *
+ * Level numbers are preserved for the engine (view=1 … delete=4, Full=5).
  */
 
 const LEVEL_LABEL_KEYS = {
@@ -72,16 +78,14 @@ export default function FeatureMatrixSection({
   const { feature, modules, unmapped } = section;
 
   const moduleCaps = (mod) => availableModules?.[mod]?.capabilities || [];
+  const crudCaps = (mod) => crudCapabilities(moduleCaps(mod));
   const levelOf = (mod, cap) => Number(draftCaps?.[mod]?.[cap] ?? 0);
   const isChecked = (mod, cap) => levelOf(mod, cap) > 0;
   const isChanged = (mod, cap) =>
     (draftCaps?.[mod]?.[cap] ?? 0) !== (savedCaps?.[mod]?.[cap] ?? 0);
-  const moduleFull = (mod) => isModuleFull(draftCaps, mod, moduleCaps(mod));
+  const moduleFull = (mod) => isModuleFull(draftCaps, mod, crudCaps(mod));
 
-  const columns = buildSectionColumns(section, CAPABILITY_CATALOG);
-  // A family child column is visually attached to its parent (dashed separator).
-  const childClass = (col) =>
-    col.parent ? "border-l border-dashed border-[var(--border-primary)]" : "";
+  const columns = buildSectionColumns();
 
   // i18n with a real fallback: a missing key comes back as the key itself.
   const labelOr = (key, fallback) => {
@@ -107,29 +111,15 @@ export default function FeatureMatrixSection({
       availableModules?.[mod]?.name || mod.replace(/_/g, " "),
     );
 
-  // i18n label for any capability: CRUD level keys first, then the module's
-  // named extras (via the shared catalog, with a key-name fallback).
-  const capabilityLabelFor = (capability) => {
-    if (LEVEL_LABEL_KEYS[capability]) return t(LEVEL_LABEL_KEYS[capability]);
-    const owner =
-      modules.find((m) => moduleCaps(m).includes(capability)) || modules[0];
-    return labelOr(
-      `engineering.permissions.capabilityLabels.${capability.replace(/\./g, "_")}`,
-      capabilityLabel(owner, capability),
-    );
-  };
-
-  const columnLabel = (col) => {
-    if (col.kind === "full") return t(LEVEL_LABEL_KEYS.full);
-    const own = capabilityLabelFor(col.capability);
-    // Family child (archive/publish…): show the parent so the nesting reads.
-    return col.parent ? `${capabilityLabelFor(col.parent)} › ${own}` : own;
-  };
+  const columnLabel = (col) =>
+    col.kind === "full"
+      ? t(LEVEL_LABEL_KEYS.full)
+      : t(LEVEL_LABEL_KEYS[col.capability]);
 
   /** Applicable modules + checked/indeterminate state for a header column. */
   const headerState = (col) => {
     const applicable = modules.filter((mod) => {
-      const caps = moduleCaps(mod);
+      const caps = crudCaps(mod);
       return col.kind === "full" ? caps.length > 0 : caps.includes(col.capability);
     });
     if (applicable.length === 0) {
@@ -145,21 +135,21 @@ export default function FeatureMatrixSection({
   const onHeaderToggle = (col, next) => {
     const { applicable } = headerState(col);
     for (const mod of applicable) {
-      if (col.kind === "full") onToggleFull(mod, next, moduleCaps(mod));
-      else onToggle(mod, col.capability, next, moduleCaps(mod));
+      const caps = crudCaps(mod);
+      if (col.kind === "full") onToggleFull(mod, next, caps);
+      else onToggle(mod, col.capability, next, caps);
     }
   };
 
-  const cellTitle = (mod, col) =>
-    `${moduleLabel(mod)} · ${columnLabel(col)}`;
+  const cellTitle = (mod, col) => `${moduleLabel(mod)} · ${columnLabel(col)}`;
 
   const sectionChanged = modules.some((mod) =>
-    moduleCaps(mod).some((cap) => isChanged(mod, cap)),
+    crudCaps(mod).some((cap) => isChanged(mod, cap)),
   );
 
   /** A checkbox cell for one module + column, or the "not carried" placeholder. */
   const renderCell = (mod, col) => {
-    const caps = moduleCaps(mod);
+    const caps = crudCaps(mod);
     if (col.kind === "full") {
       if (caps.length === 0) return <Placeholder />;
       return (
@@ -207,7 +197,7 @@ export default function FeatureMatrixSection({
                 return (
                   <th
                     key={col.key}
-                    className={`px-2 py-2.5 text-center align-bottom whitespace-nowrap ${childClass(col)}`}
+                    className="px-2 py-2.5 text-center align-bottom whitespace-nowrap"
                   >
                     <span className="flex flex-col items-center gap-1.5">
                       <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
@@ -236,7 +226,7 @@ export default function FeatureMatrixSection({
                   {moduleLabel(mod)}
                 </td>
                 {columns.map((col) => (
-                  <td key={col.key} className={`px-2 py-1.5 text-center ${childClass(col)}`}>
+                  <td key={col.key} className="px-2 py-1.5 text-center">
                     {renderCell(mod, col)}
                   </td>
                 ))}
@@ -258,7 +248,7 @@ export default function FeatureMatrixSection({
                 .filter(
                   (col) =>
                     col.kind === "full" ||
-                    moduleCaps(mod).includes(col.capability),
+                    crudCaps(mod).includes(col.capability),
                 )
                 .map((col) => (
                   <label

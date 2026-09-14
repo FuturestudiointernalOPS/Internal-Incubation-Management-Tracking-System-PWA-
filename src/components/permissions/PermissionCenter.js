@@ -41,7 +41,8 @@ import { diffCapabilities } from "@/components/permissions/pendingChanges";
 import { splitAuditReason } from "@/components/permissions/auditHelpers";
 import { deriveProfileBadges } from "@/components/permissions/profileBadges";
 import FeatureMatrixSection from "@/components/permissions/FeatureMatrixSection";
-import { groupModulesByFeature, toggleCapability, toggleFullCapabilities, filterSectionsByRoleEligibility } from "@/components/permissions/matrixHelpers";
+import AdvancedCapabilities from "@/components/permissions/AdvancedCapabilities";
+import { groupModulesByFeature, toggleCapability, toggleFullCapabilities, filterSectionsByRoleEligibility, filterSectionsToCrudModules, crudCapabilities } from "@/components/permissions/matrixHelpers";
 import { defer } from "@/components/permissions/effectUtils";
 
 const ACCESS_LEVEL_KEYS = {
@@ -96,6 +97,7 @@ export default function PermissionManager({
   const [userPerms, setUserPerms] = useState(null);
   const [loadingPerms, setLoadingPerms] = useState(false);
   const [modules, setModules] = useState({});
+  const [moduleToFeature, setModuleToFeature] = useState({});
   const [expandedModules, setExpandedModules] = useState({});
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
@@ -118,7 +120,10 @@ export default function PermissionManager({
     try {
       const res = await fetch("/api/engineering/permissions");
       const data = await res.json();
-      if (data.success) setModules(data.modules || {});
+      if (data.success) {
+        setModules(data.modules || {});
+        setModuleToFeature(data.moduleToFeature || {});
+      }
     } catch (e) {
       console.error("Failed to fetch modules", e);
     }
@@ -592,7 +597,10 @@ export default function PermissionManager({
                         {category.modules.map((modKey) => {
                           const mod = modules[modKey];
                           if (!mod) return null;
-                          const caps = mod.capabilities || [];
+                          // The CRUD grid edits CRUD only; the module's other
+                          // capabilities live in the Advanced section below.
+                          const caps = crudCapabilities(mod.capabilities || []);
+                          if (caps.length === 0) return null;
                           const isExpanded = expandedModules[modKey] !== false;
 
                           return (
@@ -863,6 +871,22 @@ export default function PermissionManager({
                         })}
                       </div>
                     ))}
+
+                    {/* Non-CRUD capabilities (grant, promote_super_admin, send,
+                        publish, execute…) — individual grants/restrictions. */}
+                    <AdvancedCapabilities
+                      availableModules={modules}
+                      moduleToFeature={moduleToFeature}
+                      mode="individual"
+                      stateOf={(module, capability) => ({
+                        level: getEffectiveLevel(module, capability),
+                        origin: getOrigin(module, capability),
+                      })}
+                      onAction={handleQuickAction}
+                      onWhy={(module, capability) =>
+                        setWhyTarget({ module, capability })
+                      }
+                    />
                   </div>
                 )}
               </div>
@@ -1370,11 +1394,25 @@ function AccessProfilesView({ initialProfileId = null }) {
   //
   // Unmapped modules (modules with no feature — e.g. org_membership) are NOT
   // features and are dropped: the template only ever shows dashboard sections.
-  const visibleSections = filterSectionsByRoleEligibility(
+  const eligibleSections = filterSectionsByRoleEligibility(
     groupModulesByFeature(availableModules, moduleToFeature, featureKeys),
     selectedIsDefaultFor,
     isRoleEligibleForFeature,
   ).filter((section) => !section.unmapped);
+
+  // The features the profile's roles are eligible for. Also the ceiling for the
+  // Advanced section, so it never offers what the roles cannot hold.
+  const visibleFeatures = new Set(
+    eligibleSections.map((section) => section.feature),
+  );
+
+  // The CRUD matrix only shows modules that carry CRUD capabilities. Modules
+  // whose powers are all non-CRUD (permissions, facilitator, bulk_upload) are
+  // served by the Advanced section instead.
+  const visibleSections = filterSectionsToCrudModules(
+    eligibleSections,
+    availableModules,
+  );
 
   return (
     <div className="space-y-6">
@@ -1758,6 +1796,19 @@ function AccessProfilesView({ initialProfileId = null }) {
                   />
                 ))}
               </div>
+
+              {/* Non-CRUD capabilities (grant, promote_super_admin, send,
+                  publish, execute…) — editable on the same draft + save flow. */}
+              <AdvancedCapabilities
+                availableModules={availableModules}
+                moduleToFeature={moduleToFeature}
+                visibleFeatures={visibleFeatures}
+                mode="profile"
+                stateOf={(module, capability) => ({
+                  level: draftCaps?.[module]?.[capability] ?? 0,
+                })}
+                onToggle={toggleDraftCap}
+              />
             </>
           ) : (
             <div className="ios-card !p-10 border border-[var(--border-primary)] flex flex-col items-center justify-center text-center opacity-60 space-y-2">
