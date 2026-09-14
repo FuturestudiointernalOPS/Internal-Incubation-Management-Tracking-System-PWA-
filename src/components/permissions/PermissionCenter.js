@@ -30,7 +30,7 @@ import {
   isResponsibilityBlockedForRole,
   normalizeAllowedRoles,
   defaultAllowedRoles,
-  ALL_FEATURE_ROLES,
+  eligibleRolesForFeature,
 } from "@/lib/featureAccess";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import Badge from "@/components/permissions/ui/Badge";
@@ -41,7 +41,7 @@ import { diffCapabilities } from "@/components/permissions/pendingChanges";
 import { splitAuditReason } from "@/components/permissions/auditHelpers";
 import { deriveProfileBadges } from "@/components/permissions/profileBadges";
 import FeatureMatrixSection from "@/components/permissions/FeatureMatrixSection";
-import { groupModulesByFeature } from "@/components/permissions/matrixHelpers";
+import { groupModulesByFeature, toggleCapability, toggleFullCapabilities, filterSectionsByRoleEligibility } from "@/components/permissions/matrixHelpers";
 import { defer } from "@/components/permissions/effectUtils";
 
 const ACCESS_LEVEL_KEYS = {
@@ -1191,29 +1191,24 @@ function AccessProfilesView({ initialProfileId = null }) {
       .filter(([, v]) => v.profileId === profileId)
       .map(([role]) => role);
 
-  const getDraftLevel = (mod, cap) => draftCaps[mod]?.[cap] ?? 0;
   const isChanged = (mod, cap) =>
     (draftCaps[mod]?.[cap] ?? 0) !== (savedCaps[mod]?.[cap] ?? 0);
 
-  const setDraftLevel = (mod, cap, level) => {
-    // View is the base capability: it cannot be removed while another
-    // capability in the same module stays enabled (mirrors the server-side
-    // normalization in /api/access-profiles).
-    if (cap === "view" && level === 0) {
-      const othersActive = Object.entries(draftCaps[mod] || {}).some(
-        ([c, lvl]) => c !== "view" && Number(lvl) > 0,
-      );
-      if (othersActive) {
-        setActionError(t("engineering.permissions.viewRequiredMsg"));
-        return;
-      }
-    }
+  // Checkbox editing: View is the base capability. The pure helpers apply the
+  // product dependency — checking any other capability also checks View, and
+  // clearing View clears the module's other capabilities (matrixHelpers).
+  const toggleDraftCap = (mod, capability, checked, moduleCapabilities = []) => {
     setActionError("");
-    setDraftCaps((prev) => {
-      const next = { ...prev, [mod]: { ...(prev[mod] || {}) } };
-      next[mod][cap] = level;
-      return next;
-    });
+    setDraftCaps((prev) =>
+      toggleCapability(prev, mod, capability, checked, moduleCapabilities),
+    );
+  };
+
+  const toggleDraftFull = (mod, checked, moduleCapabilities = []) => {
+    setActionError("");
+    setDraftCaps((prev) =>
+      toggleFullCapabilities(prev, mod, checked, moduleCapabilities),
+    );
   };
 
   const persistCaps = async () => {
@@ -1349,20 +1344,13 @@ function AccessProfilesView({ initialProfileId = null }) {
 
   // Feature sections: each FEATURE (sidebar-level section) carries its modules
   // as sub-sections (rows) and the ordered union of their capabilities (the
-  // header row). A section is shown only when one of the profile's default
-  // role(s) is eligible for its feature; modules without a feature mapping
-  // (e.g. org_membership) are always shown.
-  const visibleSections = groupModulesByFeature(
-    availableModules,
-    moduleToFeature,
-    featureKeys,
-  ).filter(
-    (section) =>
-      section.unmapped ||
-      selectedIsDefaultFor.length === 0 ||
-      selectedIsDefaultFor.some((role) =>
-        isRoleEligibleForFeature(role, section.feature),
-      ),
+  // header row). STRICT: only the features the profile's assigned role(s) are
+  // eligible for are shown (union); a profile with no role shows nothing until
+  // it is assigned one (see filterSectionsByRoleEligibility).
+  const visibleSections = filterSectionsByRoleEligibility(
+    groupModulesByFeature(availableModules, moduleToFeature, featureKeys),
+    selectedIsDefaultFor,
+    isRoleEligibleForFeature,
   );
 
   return (
@@ -1719,7 +1707,11 @@ function AccessProfilesView({ initialProfileId = null }) {
               {moduleCatalog && visibleSections.length === 0 && (
                 <div className="py-10 text-center opacity-60">
                   <p className="text-xs font-black text-[var(--text-primary)] uppercase">
-                    {t("engineering.permissions.profileNoEligibleFeatures")}
+                    {t(
+                      selectedIsDefaultFor.length === 0
+                        ? "engineering.permissions.profileNoRolesEmpty"
+                        : "engineering.permissions.profileNoEligibleFeatures",
+                    )}
                   </p>
                 </div>
               )}
@@ -1738,7 +1730,8 @@ function AccessProfilesView({ initialProfileId = null }) {
                     availableModules={availableModules}
                     draftCaps={draftCaps}
                     savedCaps={savedCaps}
-                    onSetLevel={setDraftLevel}
+                    onToggle={toggleDraftCap}
+                    onToggleFull={toggleDraftFull}
                   />
                 ))}
               </div>
@@ -2153,6 +2146,9 @@ function ResponsibilityAccessView() {
   const [savingId, setSavingId] = useState(null);
   const [saveMsg, setSaveMsg] = useState("");
   const [saveError, setSaveError] = useState("");
+  // feature_eligibility rows — the ceiling that bounds which roles each feature
+  // may offer (a role the feature is not eligible for is never proposed).
+  const [eligibilityRows, setEligibilityRows] = useState([]);
 
   const fetchAll = useCallback(async (bypassCache = false) => {
     const url = "/api/responsibilities";
@@ -2187,6 +2183,33 @@ function ResponsibilityAccessView() {
   useEffect(() => {
     defer(() => fetchAll());
   }, [fetchAll]);
+
+  // Load the eligibility ceiling (cache-first, fail-soft): without it the role
+  // toggles fall back to the full canonical list.
+  useEffect(() => {
+    let alive = true;
+    const url = "/api/engineering/permissions/eligibility";
+    const cached = cacheGet(url);
+    if (cached !== null && cached.success) {
+      defer(() => setEligibilityRows(cached.rows || []));
+    }
+    (async () => {
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!alive) return;
+        if (data.success) {
+          cacheSet(url, data);
+          setEligibilityRows(data.rows || []);
+        }
+      } catch {
+        /* fail-soft — the full role list stays available */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const effectiveRoles = (resp) =>
     normalizeAllowedRoles(resp.allowed_roles) ??
@@ -2333,7 +2356,7 @@ function ResponsibilityAccessView() {
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">
-                  {ALL_FEATURE_ROLES.map((role) => {
+                  {eligibleRolesForFeature(eligibilityRows, resp.key).map((role) => {
                     const active = effective.includes(role);
                     const saving = savingId === resp.id;
                     return (
@@ -2525,10 +2548,12 @@ function EligibilityView() {
     );
   }
 
-  // Baseline identities vs context roles (UI-4c): the matrix is honest about
-  // which is which — a context role is a ceiling too, but it is held per
-  // context, never as a platform identity.
+  // Eligibility manages BASELINE identities. Context roles (participant,
+  // facilitator, investor, founder) are ceilings too, but they are held per
+  // relationship, so they are NOT rows of the matrix — they stay selectable in
+  // the identity editor, where they are tagged as context roles.
   const contextRoles = new Set(data?.identityGroups?.contextRoles || []);
+  const matrixRoles = (data?.roles || []).filter((r) => !contextRoles.has(r));
 
   // One lookup for both presentations (table on md+, cards below) so the two
   // can never disagree about what a cell shows.
@@ -2606,18 +2631,13 @@ function EligibilityView() {
                 </tr>
               </thead>
               <tbody>
-                {(data.roles || []).map((role) => (
+                {matrixRoles.map((role) => (
                   <tr
                     key={role}
                     className="border-b border-[var(--border-primary)] last:border-0"
                   >
                     <td className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)] sticky left-0 bg-secondary">
                       {role}
-                      {contextRoles.has(role) && (
-                        <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-teal-400">
-                          {t("engineering.permissions.contextRoleTag")}
-                        </span>
-                      )}
                     </td>
                     {(data.features || []).map((f) => {
                       const state = stateFor(role, f);
@@ -2646,15 +2666,10 @@ function EligibilityView() {
           {/* Small screens: one card per identity, one chip per feature — the
               same tap opens the same identity editor. */}
           <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
-            {(data.roles || []).map((role) => (
+            {matrixRoles.map((role) => (
               <div key={role} className="p-3 space-y-2">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
                   {role}
-                  {contextRoles.has(role) && (
-                    <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-teal-400">
-                      {t("engineering.permissions.contextRoleTag")}
-                    </span>
-                  )}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {(data.features || []).map((f) => {
@@ -2756,6 +2771,11 @@ function EligibilityView() {
                   ? t("engineering.permissions.eligibilityRole")
                   : t("engineering.permissions.eligibilityGroup")}
                 : {selected}
+                {identityType === "role" && contextRoles.has(selected) && (
+                  <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-teal-400">
+                    {t("engineering.permissions.contextRoleTag")}
+                  </span>
+                )}
               </p>
               <div className="flex items-center gap-2 flex-wrap">
                 {msg && (

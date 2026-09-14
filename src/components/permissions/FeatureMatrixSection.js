@@ -3,91 +3,169 @@
 import React from "react";
 import { useI18n } from "@/lib/i18n";
 import { capabilityLabel } from "@/lib/authorization/capability-catalog";
-
-const ACCESS_LEVEL_KEYS = {
-  0: "engineering.permissions.accessLevelNone",
-  1: "engineering.permissions.accessLevelView",
-  2: "engineering.permissions.accessLevelCreate",
-  3: "engineering.permissions.accessLevelEdit",
-  4: "engineering.permissions.accessLevelDelete",
-  5: "engineering.permissions.accessLevelFull",
-};
-const LEVELS_ORDER = [0, 1, 2, 3, 4, 5];
+import {
+  buildSectionColumns,
+  isModuleFull,
+} from "@/components/permissions/matrixHelpers";
 
 /**
- * One FEATURE section of the Defaults Matrix.
+ * PHASE UI-6 — one FEATURE section of the Defaults Matrix.
  *
- * A feature is a sidebar-level section (crm, communication, programs, …). Its
- * modules are the sub-sections, rendered as rows; the ordered union of their
- * capabilities is the header row (the columns). A cell sets the access level
- * of one capability on one sub-section. Capabilities a sub-section does not
- * carry show a muted placeholder.
+ * A feature is a sidebar-level section (communication, program_management, …);
+ * its modules are the sub-sections shown in the left column. The header row is
+ * the fixed access-level ladder (View · Edit · Create · Delete · Full) followed
+ * by one named column per module-specific capability (Send, Moderate, …).
  *
- * View stays the base capability: its level-0 option is disabled while another
- * capability of the same sub-section is enabled — the API enforces the same
- * rule in /api/access-profiles.
+ * Every cell is a CHECKBOX (no dropdown): a module either holds a capability or
+ * it does not. View is the base capability — checking any other capability also
+ * checks View, and clearing View clears the module's other capabilities. The
+ * header checkbox applies a column to every sub-section of the group at once
+ * (indeterminate when only some of them hold it).
+ *
+ * Level numbers are preserved for the engine (view=1 … delete=4, Full=5);
+ * extras are stored as level 1 (granted) — authorization only compares ≥1.
  */
+
+const LEVEL_LABEL_KEYS = {
+  view: "engineering.permissions.accessLevelView",
+  create: "engineering.permissions.accessLevelCreate",
+  edit: "engineering.permissions.accessLevelEdit",
+  delete: "engineering.permissions.accessLevelDelete",
+  full: "engineering.permissions.accessLevelFull",
+};
+
+/** Tri-state checkbox (native indeterminate is only reachable through a ref). */
+function MatrixCheckbox({
+  checked,
+  indeterminate = false,
+  disabled = false,
+  onChange,
+  title,
+}) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (ref.current) ref.current.indeterminate = !checked && indeterminate;
+  }, [checked, indeterminate]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.checked)}
+      title={title}
+      aria-label={title}
+      className="h-4 w-4 rounded border-[var(--border-primary)] accent-[var(--brand-orange)] cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
+    />
+  );
+}
+
 export default function FeatureMatrixSection({
   section,
   availableModules,
   draftCaps,
   savedCaps,
-  onSetLevel,
+  onToggle,
+  onToggleFull,
 }) {
   const { t } = useI18n();
-  const { feature, modules, capabilities, unmapped } = section;
+  const { feature, modules, unmapped } = section;
 
-  const label = unmapped
-    ? availableModules[feature]?.name || feature.replace(/_/g, " ")
-    : feature.replace(/_/g, " ");
-
-  const levelOf = (mod, cap) => draftCaps?.[mod]?.[cap] ?? 0;
+  const moduleCaps = (mod) => availableModules?.[mod]?.capabilities || [];
+  const levelOf = (mod, cap) => Number(draftCaps?.[mod]?.[cap] ?? 0);
+  const isChecked = (mod, cap) => levelOf(mod, cap) > 0;
   const isChanged = (mod, cap) =>
     (draftCaps?.[mod]?.[cap] ?? 0) !== (savedCaps?.[mod]?.[cap] ?? 0);
-  const othersActive = (mod) =>
-    Object.entries(draftCaps?.[mod] || {}).some(
-      ([c, lvl]) => c !== "view" && Number(lvl) > 0,
-    );
+  const moduleFull = (mod) => isModuleFull(draftCaps, mod, moduleCaps(mod));
 
-  // The column header for a capability is owned by the first sub-section that
-  // carries it (labels are stable across modules).
-  const columnLabel = (cap) => {
-    const owner =
-      modules.find((m) =>
-        (availableModules[m]?.capabilities || []).includes(cap),
-      ) || modules[0];
-    return capabilityLabel(owner, cap);
+  const columns = buildSectionColumns(section);
+
+  // i18n with a real fallback: a missing key comes back as the key itself.
+  const labelOr = (key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
   };
 
-  const sectionChanged = modules.some((m) =>
-    capabilities.some((c) => isChanged(m, c)),
+  // Section title = the FEATURE (the group), or the module name when a module
+  // has no feature mapping of its own.
+  const title = unmapped
+    ? labelOr(
+        `engineering.permissions.moduleLabels.${feature}`,
+        availableModules[feature]?.name || feature.replace(/_/g, " "),
+      )
+    : labelOr(
+        `engineering.permissions.features.${feature}`,
+        feature.replace(/_/g, " "),
+      );
+
+  const moduleLabel = (mod) =>
+    labelOr(
+      `engineering.permissions.moduleLabels.${mod}`,
+      availableModules?.[mod]?.name || mod.replace(/_/g, " "),
+    );
+
+  const columnLabel = (col) => {
+    if (col.kind === "full") return t(LEVEL_LABEL_KEYS.full);
+    if (col.kind === "level") return t(LEVEL_LABEL_KEYS[col.capability]);
+    const owner =
+      modules.find((m) => moduleCaps(m).includes(col.capability)) || modules[0];
+    return labelOr(
+      `engineering.permissions.capabilityLabels.${col.capability.replace(/\./g, "_")}`,
+      capabilityLabel(owner, col.capability),
+    );
+  };
+
+  /** Applicable modules + checked/indeterminate state for a header column. */
+  const headerState = (col) => {
+    const applicable = modules.filter((mod) => {
+      const caps = moduleCaps(mod);
+      return col.kind === "full" ? caps.length > 0 : caps.includes(col.capability);
+    });
+    if (applicable.length === 0) {
+      return { applicable, checked: false, indeterminate: false };
+    }
+    const states = applicable.map((mod) =>
+      col.kind === "full" ? moduleFull(mod) : isChecked(mod, col.capability),
+    );
+    const checked = states.every(Boolean);
+    return { applicable, checked, indeterminate: states.some(Boolean) && !checked };
+  };
+
+  const onHeaderToggle = (col, next) => {
+    const { applicable } = headerState(col);
+    for (const mod of applicable) {
+      if (col.kind === "full") onToggleFull(mod, next, moduleCaps(mod));
+      else onToggle(mod, col.capability, next, moduleCaps(mod));
+    }
+  };
+
+  const cellTitle = (mod, col) =>
+    `${moduleLabel(mod)} · ${columnLabel(col)}`;
+
+  const sectionChanged = modules.some((mod) =>
+    moduleCaps(mod).some((cap) => isChanged(mod, cap)),
   );
 
-  const renderSelect = (modKey, cap) => {
-    const level = levelOf(modKey, cap);
-    const changed = isChanged(modKey, cap);
-    const viewLocked = cap === "view" && othersActive(modKey);
+  /** A checkbox cell for one module + column, or the "not carried" placeholder. */
+  const renderCell = (mod, col) => {
+    const caps = moduleCaps(mod);
+    if (col.kind === "full") {
+      if (caps.length === 0) return <Placeholder />;
+      return (
+        <MatrixCheckbox
+          checked={moduleFull(mod)}
+          onChange={(next) => onToggleFull(mod, next, caps)}
+          title={cellTitle(mod, col)}
+        />
+      );
+    }
+    if (!caps.includes(col.capability)) return <Placeholder />;
     return (
-      <select
-        value={level}
-        onChange={(e) => onSetLevel(modKey, cap, Number(e.target.value))}
-        title={
-          viewLocked
-            ? t("engineering.permissions.viewRequiredMsg")
-            : `${availableModules[modKey]?.name || modKey} · ${capabilityLabel(modKey, cap)}`
-        }
-        className={`w-full rounded-lg border px-2 py-1.5 text-[10px] font-bold bg-secondary text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] ${
-          changed
-            ? "border-amber-400/70 ring-1 ring-amber-400/40"
-            : "border-[var(--border-primary)]"
-        }`}
-      >
-        {LEVELS_ORDER.map((l) => (
-          <option key={l} value={l} disabled={viewLocked && l === 0}>
-            {l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}
-          </option>
-        ))}
-      </select>
+      <MatrixCheckbox
+        checked={isChecked(mod, col.capability)}
+        onChange={(next) => onToggle(mod, col.capability, next, caps)}
+        title={cellTitle(mod, col)}
+      />
     );
   };
 
@@ -95,7 +173,7 @@ export default function FeatureMatrixSection({
     <div className="ios-card !p-0 border border-[var(--border-primary)] overflow-hidden">
       <div className="px-5 py-3 bg-tertiary/30 border-b border-[var(--border-primary)] flex items-center justify-between">
         <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
-          {label}
+          {title}
         </h4>
         {sectionChanged && (
           <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
@@ -104,7 +182,7 @@ export default function FeatureMatrixSection({
         )}
       </div>
 
-      {/* Desktop: sub-sections are rows, capabilities are the columns. */}
+      {/* Desktop: sub-sections are rows, access-level columns are checkboxes. */}
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-left min-w-[480px]">
           <thead>
@@ -112,75 +190,92 @@ export default function FeatureMatrixSection({
               <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                 {t("engineering.permissions.subsections")}
               </th>
-              {capabilities.map((cap) => (
-                <th
-                  key={cap}
-                  className="px-2 py-2.5 text-center text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest whitespace-nowrap"
-                >
-                  {columnLabel(cap)}
-                </th>
-              ))}
+              {columns.map((col) => {
+                const state = headerState(col);
+                const disabled = state.applicable.length === 0;
+                return (
+                  <th
+                    key={col.key}
+                    className="px-2 py-2.5 text-center align-bottom whitespace-nowrap"
+                  >
+                    <span className="flex flex-col items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                        {columnLabel(col)}
+                      </span>
+                      <MatrixCheckbox
+                        checked={state.checked}
+                        indeterminate={state.indeterminate}
+                        disabled={disabled}
+                        onChange={(next) => onHeaderToggle(col, next)}
+                        title={`${title} · ${columnLabel(col)}`}
+                      />
+                    </span>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
-            {modules.map((modKey) => {
-              const modCaps = availableModules[modKey]?.capabilities || [];
-              return (
-                <tr
-                  key={modKey}
-                  className="border-b border-[var(--border-primary)]/50 last:border-b-0"
-                >
-                  <td className="px-4 py-2 text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide whitespace-nowrap">
-                    {availableModules[modKey]?.name || modKey.replace(/_/g, " ")}
+            {modules.map((mod) => (
+              <tr
+                key={mod}
+                className="border-b border-[var(--border-primary)]/50 last:border-b-0"
+              >
+                <td className="px-4 py-2 text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide whitespace-nowrap">
+                  {moduleLabel(mod)}
+                </td>
+                {columns.map((col) => (
+                  <td key={col.key} className="px-2 py-1.5 text-center">
+                    {renderCell(mod, col)}
                   </td>
-                  {capabilities.map((cap) =>
-                    modCaps.includes(cap) ? (
-                      <td key={cap} className="px-2 py-1.5 min-w-[6rem]">
-                        {renderSelect(modKey, cap)}
-                      </td>
-                    ) : (
-                      <td key={cap} className="px-2 py-1.5 text-center">
-                        <span className="text-[10px] text-[var(--text-secondary)] opacity-30">
-                          ·
-                        </span>
-                      </td>
-                    ),
-                  )}
-                </tr>
-              );
-            })}
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
 
-      {/* Small screens: one card per sub-section, one control per capability. */}
+      {/* Small screens: one card per sub-section, one checkbox per capability. */}
       <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
-        {modules.map((modKey) => {
-          const modCaps = availableModules[modKey]?.capabilities || [];
-          return (
-            <div key={modKey} className="p-3 space-y-2">
-              <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
-                {availableModules[modKey]?.name || modKey.replace(/_/g, " ")}
-              </p>
-              <div className="space-y-1.5">
-                {capabilities
-                  .filter((cap) => modCaps.includes(cap))
-                  .map((cap) => (
-                    <div
-                      key={cap}
-                      className="flex items-center justify-between gap-2"
-                    >
-                      <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wide">
-                        {capabilityLabel(modKey, cap)}
-                      </span>
-                      {renderSelect(modKey, cap)}
-                    </div>
-                  ))}
-              </div>
+        {modules.map((mod) => (
+          <div key={mod} className="p-3 space-y-2">
+            <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
+              {moduleLabel(mod)}
+            </p>
+            <div className="space-y-1.5">
+              {columns
+                .filter(
+                  (col) =>
+                    col.kind === "full" ||
+                    moduleCaps(mod).includes(col.capability),
+                )
+                .map((col) => (
+                  <label
+                    key={col.key}
+                    className="flex items-center justify-between gap-2 cursor-pointer"
+                  >
+                    <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wide">
+                      {columnLabel(col)}
+                    </span>
+                    {renderCell(mod, col)}
+                  </label>
+                ))}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
+  );
+}
+
+/** A capability the sub-section does not carry for that column. */
+function Placeholder() {
+  return (
+    <span
+      aria-hidden="true"
+      className="text-[10px] text-[var(--text-secondary)] opacity-30"
+    >
+      ·
+    </span>
   );
 }
