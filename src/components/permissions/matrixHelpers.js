@@ -103,6 +103,118 @@ export function groupModulesByFeature(modules, moduleToFeature, featureOrder) {
 }
 
 /**
+ * PHASE UI-6 — the defaults matrix renders a FIXED set of access-level columns
+ * (the product order) plus one extra column per capability that is not part of
+ * the CRUD level set (send, moderate, archive, publish, …).
+ *
+ * The columns are checkboxes: a module either holds a capability or it does
+ * not. There is no level dropdown any more, so the matrix only has to answer
+ * "can this profile do X?", which is what the engine evaluates (minLevel 1).
+ */
+export const MATRIX_LEVEL_ORDER = ["view", "edit", "create", "delete"];
+export const MATRIX_FULL = "full";
+
+/** Canonical stored level of a CRUD capability (rows above are the product
+ *  order; the level numbers keep the historical ACCESS_LEVELS values). */
+export const CAPABILITY_LEVELS = { view: 1, create: 2, edit: 3, delete: 4 };
+
+/** Level stored for a checked capability (extras are plain "granted"). */
+export function capabilityLevel(capability) {
+  return CAPABILITY_LEVELS[capability] ?? 1;
+}
+
+/** The module-specific capabilities of a section (everything outside CRUD). */
+export function extraCapabilities(section) {
+  return (section?.capabilities || []).filter(
+    (c) => !MATRIX_LEVEL_ORDER.includes(c),
+  );
+}
+
+/**
+ * Ordered column descriptors for a section. `kind` is "level" (a CRUD
+ * capability), "full" (the collective column, level 5) or "extra" (a
+ * module-specific capability rendered by its own named column).
+ *
+ * @returns {Array<{key:string, kind:"level"|"full"|"extra", capability:string|null}>}
+ */
+export function buildSectionColumns(section) {
+  return [
+    ...MATRIX_LEVEL_ORDER.map((capability) => ({ key: capability, kind: "level", capability })),
+    { key: MATRIX_FULL, kind: "full", capability: null },
+    ...extraCapabilities(section).map((capability) => ({ key: capability, kind: "extra", capability })),
+  ];
+}
+
+/**
+ * STRICT section filter (UI-6): a profile only shows the features its assigned
+ * role(s) are eligible for — the UNION across those roles. A profile that is
+ * not the default of any role has no role to derive the ceiling from, so it
+ * shows NOTHING until it is assigned to one. Modules without a feature mapping
+ * (e.g. org_membership — `unmapped`) carry no eligibility ceiling and stay
+ * visible once the profile has at least one role.
+ *
+ * Pure: `isEligible(role, feature)` is injected (the caller supplies the
+ * fail-closed role eligibility reader).
+ */
+export function filterSectionsByRoleEligibility(sections, roles, isEligible) {
+  if (!roles || roles.length === 0) return [];
+  return (sections || []).filter(
+    (section) =>
+      section.unmapped || roles.some((role) => isEligible(role, section.feature)),
+  );
+}
+
+function cloneModule(caps, module) {
+  return { ...(caps || {}), [module]: { ...((caps || {})[module] || {}) } };
+}
+
+/**
+ * Toggle ONE capability of ONE module, applying the product dependency: View is
+ * the base capability, so checking any other capability also checks View, and
+ * clearing View clears every other capability of the module.
+ *
+ * @returns a NEW capabilities matrix (never mutates the input)
+ */
+export function toggleCapability(caps, module, capability, checked, moduleCapabilities = []) {
+  const next = cloneModule(caps, module);
+  const hasView = moduleCapabilities.includes("view");
+  if (checked) {
+    next[module][capability] = capabilityLevel(capability);
+    if (hasView && capability !== "view" && !(Number(next[module].view) > 0)) {
+      next[module].view = capabilityLevel("view");
+    }
+  } else {
+    next[module][capability] = 0;
+    if (capability === "view") {
+      for (const other of moduleCapabilities) {
+        if (other !== "view") next[module][other] = 0;
+      }
+    }
+  }
+  return next;
+}
+
+/**
+ * Toggle the collective "Full" column for one module: every capability of the
+ * module is set to level 5 (checked) or 0 (unchecked).
+ */
+export function toggleFullCapabilities(caps, module, checked, moduleCapabilities = []) {
+  const next = cloneModule(caps, module);
+  for (const capability of moduleCapabilities) {
+    next[module][capability] = checked ? 5 : 0;
+  }
+  return next;
+}
+
+/** True when every capability of the module is held at level 5. */
+export function isModuleFull(caps, module, moduleCapabilities = []) {
+  if (moduleCapabilities.length === 0) return false;
+  return moduleCapabilities.every(
+    (c) => Number((caps || {})[module]?.[c] ?? 0) === 5,
+  );
+}
+
+/**
  * Levels of the capabilities a user/profile holds for a module, derived from
  * a capabilities matrix ({module: {cap: level}}).
  *
