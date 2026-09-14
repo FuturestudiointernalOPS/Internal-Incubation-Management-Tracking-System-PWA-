@@ -374,6 +374,19 @@ export async function setRoleDefaultProfile(roleName, profileId) {
   });
 }
 
+/**
+ * DELETE — remove a role's default profile mapping, but only while it still
+ * points at the given profile (guards against deleting a different profile's
+ * default from a stale UI).
+ */
+export async function removeRoleDefaultProfile(roleName, profileId) {
+  return db.execute({
+    sql: `DELETE FROM role_access_profile_defaults
+          WHERE role_name = ? AND access_profile_id = ?`,
+    args: [roleName, profileId],
+  });
+}
+
 /** GET — all role → profile default mappings with profile names + active flag. */
 export async function listRoleDefaultMappings() {
   return db.execute({
