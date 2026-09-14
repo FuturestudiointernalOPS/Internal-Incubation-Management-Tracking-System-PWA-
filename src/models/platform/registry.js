@@ -17,7 +17,7 @@ const REGISTERED_MODULES = [
     href: "/platform",
     enabled: true,
     visible: true,
-    permissions: ["super_admin", "admin"],
+    permissions: ["super_admin", "admin", "staff"],
     order: 0,
   },
   {
@@ -28,7 +28,9 @@ const REGISTERED_MODULES = [
     href: "/platform/forms",
     enabled: true,
     visible: true,
-    permissions: ["super_admin"],
+    // Mirrors the backing API: /api/platform/forms + /api/platform/collections
+    // read allow super_admin, admin and staff (writes stay admin-only).
+    permissions: ["super_admin", "admin", "staff"],
     order: 1,
     future: false,
   },
@@ -86,7 +88,10 @@ const REGISTERED_MODULES = [
  * Returns all registered modules, optionally filtered by role.
  */
 export function getRegisteredModules(role) {
-  if (!role) return [...REGISTERED_MODULES];
+  // Fail CLOSED on an unknown role: a caller that has not resolved the session
+  // yet must never be shown the full module list (that flashed every module for
+  // a moment before the real role arrived).
+  if (!role) return [];
   return REGISTERED_MODULES.filter((m) => {
     if (!m.enabled) return false;
     if (!m.permissions || m.permissions.length === 0) return true;
