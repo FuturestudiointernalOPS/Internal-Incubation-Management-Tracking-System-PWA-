@@ -82,8 +82,11 @@ async function ventureRoles(cid, ids) {
     const owner = row.is_owner === true || Number(row.is_owner) === 1;
     roles[key] = owner ? "founder" : row.member_type || "team_member";
   }
+  // venture_staff_assignments stores the delegated responsibility in
+  // `responsibility_code` (there is no `role` column — it was renamed when the
+  // responsibility+scope model landed). Every other reader uses that column.
   const s = await db.execute({
-    sql: `SELECT CAST(venture_id AS TEXT) AS id, role
+    sql: `SELECT CAST(venture_id AS TEXT) AS id, responsibility_code
           FROM venture_staff_assignments
           WHERE staff_contact_id = ? AND status = 'active'
             AND CAST(venture_id AS TEXT) IN (${ph(ids.length)})`,
@@ -91,7 +94,7 @@ async function ventureRoles(cid, ids) {
   });
   for (const row of s.rows) {
     const key = String(row.id);
-    if (!roles[key]) roles[key] = row.role || "venture_staff";
+    if (!roles[key]) roles[key] = row.responsibility_code || "venture_staff";
   }
   return roles;
 }

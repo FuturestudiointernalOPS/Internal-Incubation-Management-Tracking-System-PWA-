@@ -24,6 +24,7 @@ const mockState = {
   programRows: [],
   courseRows: [],
   ventureMemberRows: [],
+  ventureStaffRows: [],
   programStaffRows: [],
   participantRows: [],
   throwOn: null,
@@ -51,7 +52,7 @@ jest.mock("@/lib/db", () => ({
       if (s.includes("FROM v2_programs")) return { rows: mockState.programRows };
       if (s.includes("FROM lms_courses")) return { rows: mockState.courseRows };
       if (s.includes("member_type")) return { rows: mockState.ventureMemberRows };
-      if (s.includes("FROM venture_staff_assignments")) return { rows: [] };
+      if (s.includes("FROM venture_staff_assignments")) return { rows: mockState.ventureStaffRows };
       if (s.includes("SELECT CAST(program_id AS TEXT) AS id, role")) {
         return { rows: mockState.programStaffRows };
       }
@@ -87,6 +88,7 @@ beforeEach(() => {
   mockState.programRows = [];
   mockState.courseRows = [];
   mockState.ventureMemberRows = [];
+  mockState.ventureStaffRows = [];
   mockState.programStaffRows = [];
   mockState.participantRows = [];
   mockState.throwOn = null;
@@ -156,6 +158,18 @@ describe("UI-4c — getContactContexts", () => {
   test("no cid means no lookup at all", async () => {
     expect(await getContactContexts(null)).toEqual({ contexts: [], unavailable: [] });
     expect(await getContactContexts("")).toEqual({ contexts: [], unavailable: [] });
+  });
+
+  test("a delegated staff assignment reports its responsibility_code as the role", async () => {
+    mockState.ventureScope = [{ id: "VNT-2" }];
+    mockState.ventureRows = [{ id: "VNT-2", label: "Acme" }];
+    // venture_staff_assignments has `responsibility_code`, not `role`.
+    mockState.ventureStaffRows = [{ id: "VNT-2", responsibility_code: "lead_manager" }];
+
+    const { contexts } = await getContactContexts("USR-1");
+
+    expect(contexts).toHaveLength(1);
+    expect(contexts[0]).toMatchObject({ type: "venture", role: "lead_manager" });
   });
 
   test("a missing label falls back to the id, never to a blank chip", async () => {
