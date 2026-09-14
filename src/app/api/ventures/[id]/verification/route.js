@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import db from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { signEvidencePath } from "@/lib/ventureEvidence";
 import {
   getOrCreateVerification,
   submitVerification,
@@ -41,7 +42,19 @@ export const GET = createHandler(
     }
 
     const data = await getOrCreateVerification(id);
-    return NextResponse.json({ success: true, ...data });
+
+    // Documents are PRIVATE: the stored file_url is a storage path and gets a
+    // short-lived signed URL minted per read for viewers who already passed
+    // the gate above. `file_url` stays exactly as stored (nothing renamed) and
+    // the signed value is additive; external links and failures stay null.
+    const documents = await Promise.all(
+      (data.documents || []).map(async (doc) => ({
+        ...doc,
+        file_url_signed: await signEvidencePath(doc.file_url),
+      })),
+    );
+
+    return NextResponse.json({ success: true, ...data, documents });
   },
 );
 

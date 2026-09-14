@@ -466,6 +466,8 @@
     "investment": {
       "backToDashboard": "Back to Dashboard",
       "investmentReadiness": "Investment Readiness",
+      "roadmapReadiness": "Roadmap readiness (derived)",
+      "recordedAssessment": "Recorded assessment",
       "evaluating": "Evaluating...",
       "runAssessment": "Run Assessment",
       "notReady": "Not Ready",

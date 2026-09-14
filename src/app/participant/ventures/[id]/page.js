@@ -14,9 +14,10 @@ import { JourneyTab, BusinessModelTab } from "@/components/ventures/workspace/ta
 import { DiscoveryTab, ValidationTab, PmfTab } from "@/components/ventures/workspace/tabs/LeanStartupTabs";
 import { DocumentsTab } from "@/components/ventures/workspace/tabs/DocumentsTabs";
 import { KpisTab, InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
+import { VerificationTab } from "@/components/ventures/workspace/tabs/VerificationTab";
 
 const TABS = [
-  "dashboard", "journey", "kpis", "investment",
+  "dashboard", "journey", "kpis", "investment", "verification",
   "profile", "team", "settings",
 ];
 
@@ -736,6 +737,7 @@ export default function VentureDetail() {
         )}
         {activeTab === "kpis" && <KpisTab />}
         {activeTab === "investment" && <InvestmentTab />}
+        {activeTab === "verification" && <VerificationTab />}
         {activeTab === "profile" && <ProfileTab />}
         {activeTab === "team" && <TeamTab />}
         {activeTab === "settings" && <SettingsTab />}

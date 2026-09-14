@@ -296,6 +296,15 @@
     "notReady": "Pas encore prêt",
     "documentsApproved": "documents approuvés",
     "investment": "Préparation à l'investissement",
+    "verification": "Vérification",
+    "verificationTab": {
+      "yourDocuments": "Vos documents",
+      "missingDocuments": "Aucun document téléversé",
+      "stillRequired": "Encore requis : {items}",
+      "noItems": "Aucun élément de vérification pour le moment",
+      "deleteDocument": "Supprimer le document",
+      "fromReviewer": "Équipe de révision"
+    },
     "backlog": "Backlog",
     "todo": "À faire",
     "in_progress": "En cours",
@@ -517,6 +526,7 @@
       "title": "À traiter",
       "overdue": "Tâches en retard",
       "awaitingReview": "En attente de révision",
+      "awaitingDeliverables": "Livrables à réviser",
       "upcomingSessions": "Sessions à venir",
       "awaitingApproval": "Jalons à approuver",
       "journeyProgress": "Progression du parcours",

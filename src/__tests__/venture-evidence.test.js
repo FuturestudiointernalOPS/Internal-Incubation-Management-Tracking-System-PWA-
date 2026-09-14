@@ -12,6 +12,9 @@ const {
   evidenceDownloadUrl,
   EVIDENCE_BUCKET,
   isAllowedEvidenceDocument,
+  isAllowedEvidenceImage,
+  EVIDENCE_DOCUMENT_ERROR,
+  EVIDENCE_IMAGE_ERROR,
 } = require("@/lib/ventureEvidence");
 
 describe("evidence value discrimination", () => {
@@ -80,5 +83,31 @@ describe("evidence is a document or a URL", () => {
     expect(isAllowedEvidenceDocument({ name: "archive.zip", type: "application/zip" })).toBe(false);
     expect(isAllowedEvidenceDocument({ name: "clip.mp4", type: "video/mp4" })).toBe(false);
     expect(isAllowedEvidenceDocument(null)).toBe(false);
+  });
+});
+
+describe("verification documents accept images; deliverable evidence does not", () => {
+  test("isAllowedEvidenceImage accepts PNG / JPG, by MIME or extension", () => {
+    expect(isAllowedEvidenceImage({ name: "id-card.png", type: "image/png" })).toBe(true);
+    expect(isAllowedEvidenceImage({ name: "id-card.png", type: "" })).toBe(true);
+    expect(isAllowedEvidenceImage({ name: "card.jpg", type: "image/jpeg" })).toBe(true);
+    expect(isAllowedEvidenceImage({ name: "card.jpeg", type: "image/jpg" })).toBe(true);
+    expect(isAllowedEvidenceImage({ name: "deck.pdf", type: "application/pdf" })).toBe(true);
+    expect(isAllowedEvidenceImage({ name: "plan.docx", type: "" })).toBe(true);
+  });
+
+  test("isAllowedEvidenceImage still rejects everything else", () => {
+    expect(isAllowedEvidenceImage({ name: "installer.exe", type: "application/x-msdownload" })).toBe(false);
+    expect(isAllowedEvidenceImage({ name: "installer.exe", type: "" })).toBe(false);
+    expect(isAllowedEvidenceImage({ name: "archive.zip", type: "application/zip" })).toBe(false);
+    expect(isAllowedEvidenceImage({ name: "clip.mp4", type: "video/mp4" })).toBe(false);
+    expect(isAllowedEvidenceImage(null)).toBe(false);
+  });
+
+  test("deliverable evidence is unchanged: the document allow-list still rejects an image", () => {
+    expect(isAllowedEvidenceDocument({ name: "id-card.png", type: "image/png" })).toBe(false);
+    expect(isAllowedEvidenceDocument({ name: "card.jpg", type: "image/jpeg" })).toBe(false);
+    expect(EVIDENCE_DOCUMENT_ERROR).toContain("Only documents");
+    expect(EVIDENCE_IMAGE_ERROR).toContain("documents or images");
   });
 });

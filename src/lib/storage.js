@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 import { createClient } from '@supabase/supabase-js'
-import { isAllowedEvidenceDocument, EVIDENCE_DOCUMENT_ERROR } from './ventureEvidence'
+import { isAllowedEvidenceDocument, EVIDENCE_DOCUMENT_ERROR, isAllowedEvidenceImage, EVIDENCE_IMAGE_ERROR } from './ventureEvidence'
 
 /**
  * IMPACTOS OPERATIONAL STORAGE — SUPABASE INTEGRATION
@@ -167,8 +167,12 @@ export const uploadTaskAttachment = async (file, taskId) => {
  * provisioned, accepts any file type) under a `deliverables/` prefix so the
  * evidence stays grouped and traceable. Size is capped like every other
  * upload; authorization happens in the route (Venture access).
+ *
+ * `allowImages` widens the allow-list to PNG/JPG — used by verification
+ * documents (founder ID photos, scanned cards). Deliverable evidence keeps the
+ * documents-only default.
  */
-export const uploadDeliverableEvidence = async (file, { ventureId, deliverableId }) => {
+export const uploadDeliverableEvidence = async (file, { ventureId, deliverableId, allowImages = false }) => {
   try {
     if (!file) {
       return { success: false, error: 'No file provided.' }
@@ -181,9 +185,10 @@ export const uploadDeliverableEvidence = async (file, { ventureId, deliverableId
       }
     }
 
-    // Evidence is a document or a URL — only documents are uploaded here.
-    if (!isAllowedEvidenceDocument(file)) {
-      return { success: false, error: EVIDENCE_DOCUMENT_ERROR }
+    // Evidence is a document — or, where the caller allows it (verification),
+    // a document or an image.
+    if (allowImages ? !isAllowedEvidenceImage(file) : !isAllowedEvidenceDocument(file)) {
+      return { success: false, error: allowImages ? EVIDENCE_IMAGE_ERROR : EVIDENCE_DOCUMENT_ERROR }
     }
     // PRIVATE bucket: evidence is never world-readable. Authorized viewers get
     // a short-lived signed URL (lib/ventureEvidence.js); the database stores

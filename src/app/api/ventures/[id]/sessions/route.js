@@ -9,7 +9,7 @@ import {
   createActionItem, updateActionItem, getDeliverable,
 } from "@/lib/ventures";
 import { SESSION_MIN_LEAD_MINUTES } from "@/lib/ventureSessionRules";
-import { notifyVentureCoach } from "@/lib/ventureNotify";
+import { notifyVentureCoach, notifyVentureLeadManagers } from "@/lib/ventureNotify";
 
 // Venture-facing session changes notify founders (in-app + email). Sessions
 // created before the venture_facing flag existed (NULL) are treated as
@@ -204,6 +204,39 @@ export const POST = createHandler(async (req, { params }) => {
           }
         } catch (_) {}
       }
+      // Lead Manager delivery (A8): the Venture's active Lead Managers are told
+      // about the new session too (in-app + email), regardless of
+      // venture_facing. The creator and an LM who is also the coach are left
+      // out (they got the coach wording above).
+      try {
+        const lmV = await db.execute({ sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
+        const dbId = lmV.rows?.[0]?.id;
+        const ventureCode = lmV.rows?.[0]?.venture_id || id;
+        if (dbId) {
+          const when = body.start_time ? new Date(body.start_time).toLocaleString() : "";
+          await notifyVentureLeadManagers(db, {
+            dbId, ventureCode,
+            title: "Session scheduled",
+            message: `You have been added to the Venture session "${body.title}"${when ? ` for ${when}` : ""}.`,
+            emailSubject: "You have been added to a Venture session",
+            emailLines: [
+              `Session "${body.title}" has been scheduled${when ? ` for ${when}` : ""}.`,
+              body.preparation_notes ? `Preparation: ${body.preparation_notes}` : "",
+              body.meeting_link ? `Meeting link: ${body.meeting_link}` : "",
+              "Log in to ImpactOS to see the details in your calendar.",
+            ].filter(Boolean),
+            context: {
+              journey_stage_id: body.journey_stage_id || null,
+              milestone_id: body.milestone_ref ? String(body.milestone_ref) : null,
+              session_id: r.id || null,
+            },
+            templateKey: "venture.notif.sessionScheduled",
+            params: { title: body.title, when: when ? ` for ${when}` : "" },
+            dedupeKey: `session-scheduled:${r.id}`,
+            excludeCids: [req.session?.cid, coachContactId].filter(Boolean),
+          });
+        }
+      } catch (_) {}
       return NextResponse.json({ success: true, session_id: r.id });
     } catch (e) { return NextResponse.json({ success: false, error: e.message }, { status: 400 }); }
   }
@@ -253,6 +286,35 @@ export const POST = createHandler(async (req, { params }) => {
         params: { title: sess.title },
         dedupeKey: `session-cancelled:${sess.id}`,
       });
+      // Lead Manager delivery (A8): same event for the Venture's active Lead
+      // Managers (in-app + email), minus the actor and the session coach.
+      try {
+        const lmV = await db.execute({ sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
+        const dbId = lmV.rows?.[0]?.id;
+        const ventureCode = lmV.rows?.[0]?.venture_id || id;
+        if (dbId) {
+          await notifyVentureLeadManagers(db, {
+            dbId, ventureCode,
+            title: "Session cancelled",
+            message: `Venture session "${sess.title}" has been cancelled${sess.start_time ? ` (was ${fmtWhen(sess.start_time)})` : ""}.`,
+            emailSubject: "Your Venture session was cancelled",
+            emailLines: [
+              `Session "${sess.title}" has been cancelled.`,
+              sess.start_time ? `Was scheduled for: ${fmtWhen(sess.start_time)}` : "",
+              "Log in to ImpactOS to see your updated calendar.",
+            ].filter(Boolean),
+            context: {
+              journey_stage_id: sess.journey_stage_id || null,
+              milestone_id: sess.milestone_ref || null,
+              session_id: sess.id || null,
+            },
+            templateKey: "venture.notif.sessionCancelled",
+            params: { title: sess.title },
+            dedupeKey: `session-cancelled:${sess.id}`,
+            excludeCids: [req.session?.cid, sess.coach_contact_id].filter(Boolean),
+          });
+        }
+      } catch (_) {}
     }
     return NextResponse.json({ success: true });
   }
@@ -276,6 +338,36 @@ export const POST = createHandler(async (req, { params }) => {
           params: { title: sess.title },
           dedupeKey: `session-rescheduled:${sess.id}`,
         });
+        // Lead Manager delivery (A8): same event for the Venture's active Lead
+        // Managers (in-app + email), minus the actor and the session coach.
+        try {
+          const lmV = await db.execute({ sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
+          const dbId = lmV.rows?.[0]?.id;
+          const ventureCode = lmV.rows?.[0]?.venture_id || id;
+          if (dbId) {
+            await notifyVentureLeadManagers(db, {
+              dbId, ventureCode,
+              title: "Session rescheduled",
+              message: `Venture session "${sess.title}" has been rescheduled${sess.start_time ? ` to ${fmtWhen(sess.start_time)}` : ""}.`,
+              emailSubject: "Your Venture session was rescheduled",
+              emailLines: [
+                `Session "${sess.title}" has been rescheduled.`,
+                sess.start_time ? `New time: ${fmtWhen(sess.start_time)}` : "",
+                sess.meeting_link ? `Meeting link: ${sess.meeting_link}` : "",
+                "Log in to ImpactOS to see the details.",
+              ].filter(Boolean),
+              context: {
+                journey_stage_id: sess.journey_stage_id || null,
+                milestone_id: sess.milestone_ref || null,
+                session_id: sess.id || null,
+              },
+              templateKey: "venture.notif.sessionRescheduled",
+              params: { title: sess.title },
+              dedupeKey: `session-rescheduled:${sess.id}`,
+              excludeCids: [req.session?.cid, sess.coach_contact_id].filter(Boolean),
+            });
+          }
+        } catch (_) {}
       }
       return NextResponse.json({ success: true });
     } catch (e) { return NextResponse.json({ success: false, error: e.message }, { status: 400 }); }

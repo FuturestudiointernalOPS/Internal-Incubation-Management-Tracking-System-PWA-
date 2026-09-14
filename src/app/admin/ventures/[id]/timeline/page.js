@@ -1,12 +1,20 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, AlertCircle, CheckCircle2, AlertTriangle, Calendar, Clock,
-  Flag, BarChart3, Layers, ChevronRight, RefreshCw, Target,
+  Flag, BarChart3, Layers, ChevronRight, RefreshCw, Target, Route,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useI18n } from "@/lib/i18n";
+import {
+  MILESTONE_STATUSES,
+  stageStatusWord,
+  milestoneStatusWord,
+  statusLabel,
+  statusChipClass,
+} from "@/lib/ventureStatuses";
 
 const ROW_COLORS = {
   milestone: { bg: "bg-indigo-500/10", text: "text-indigo-400", border: "border-indigo-500/20" },
@@ -25,6 +33,7 @@ const STATUS_COLORS = {
 export default function VentureTimelinePage() {
   const { id } = useParams();
   const router = useRouter();
+  const { t } = useI18n();
   const [venture, setVenture] = useState(null);
   const [data, setData] = useState(null);
   const [progress, setProgress] = useState(null);
@@ -32,6 +41,12 @@ export default function VentureTimelinePage() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("gantt"); // gantt | timeline | progress
   const [zoom, setZoom] = useState("week"); // day | week | month
+
+  // Roadmap view state — the journey report is fetched on demand only, never
+  // as part of the `view=` requests above (see the effect below fetchAll).
+  const [journeyReport, setJourneyReport] = useState(null);
+  const [journeyLoading, setJourneyLoading] = useState(false);
+  const roadmapRequested = useRef(false);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -71,6 +86,27 @@ export default function VentureTimelinePage() {
       apply(v, t, p, d);
     } catch {} finally { setLoading(false); }
   };
+
+  // Roadmap view only: the journey report loads when the view is selected, and
+  // again on a later visit (the ref clears once another view is active). It is
+  // deliberately independent of the `view=` fetches above, so the three
+  // existing views are never affected — a failure degrades to the empty state.
+  const fetchJourneyReport = async () => {
+    setJourneyLoading(true);
+    try {
+      const res = await fetch(`/api/ventures/${id}/journey-report`);
+      const d = await res.json();
+      setJourneyReport(d.success ? d.journey_report || null : null);
+    } catch { setJourneyReport(null); }
+    finally { setJourneyLoading(false); }
+  };
+
+  useEffect(() => {
+    if (view !== "roadmap") { roadmapRequested.current = false; return; }
+    if (roadmapRequested.current) return;
+    roadmapRequested.current = true;
+    fetchJourneyReport();
+  }, [view]);
 
   if (loading) return (
     <>
@@ -119,6 +155,14 @@ export default function VentureTimelinePage() {
     </div>
   );
 
+  // Roadmap wording — ONE vocabulary, shared with the Venture Manager panel and
+  // the founder's journey tab (lib/ventureStatuses). Never a second opinion.
+  const journeyStatusLabel = (status) => statusLabel(stageStatusWord(status), t);
+
+  const journeyStatusPill = (status) => statusChipClass(stageStatusWord(status));
+
+  const milestoneStatusLabel = (status) => statusLabel(milestoneStatusWord(status), t);
+
   return (
     <>
       <div className="space-y-8 pb-20">
@@ -142,6 +186,10 @@ export default function VentureTimelinePage() {
                   {v === "gantt" ? "Gantt" : v === "progress" ? "Progress" : "Delays"}
                 </button>
               ))}
+              <button onClick={() => setView("roadmap")}
+                className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${view === "roadmap" ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}>
+                {t("vadmin.reports.tabJourney")}
+              </button>
             </div>
             <button onClick={fetchAll} className="p-2 hover:bg-white/5 rounded-lg"><RefreshCw className="w-4 h-4 text-slate-500" /></button>
           </div>
@@ -361,6 +409,99 @@ export default function VentureTimelinePage() {
                 <p className="text-[10px] text-slate-500">{progress.blocked} task(s) currently blocked</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Roadmap View — the Venture's defined progression (read-only) */}
+        {view === "roadmap" && (
+          <div className="space-y-6">
+            {journeyLoading && !journeyReport ? (
+              <div className="card flex items-center justify-center py-16">
+                <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)]" />
+              </div>
+            ) : !journeyReport || (journeyReport.stages || []).length === 0 ? (
+              <div className="card text-center py-12">
+                <Route className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                <p className="text-sm text-slate-500">{t("vadmin.timeline.noDataYet")}</p>
+              </div>
+            ) : (() => {
+              const jp = journeyReport.journey_progression || {};
+              const stages = journeyReport.stages || [];
+              const taskCompletion = journeyReport.task_completion || {};
+              const milestonesByStatus = journeyReport.milestones_by_status || {};
+              const milestonesDone = stages.reduce((n, s) => n + (s.milestones?.completed || 0), 0);
+              const milestonesTotal = stages.reduce((n, s) => n + (s.milestones?.total || 0), 0);
+              const awaitingDeliverables = journeyReport.deliverables_awaiting_review || 0;
+              const upcomingSessions = journeyReport.sessions?.upcoming || 0;
+              const responsibilities = journeyReport.support?.responsibilities || [];
+              const shownStatuses = MILESTONE_STATUSES.filter((s) => milestonesByStatus[s] > 0);
+              return (
+                <>
+                  {/* Summary — what the operating report already computes */}
+                  <div className="card">
+                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">{t("vadmin.reports.journeyProgression")}</h3>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-bold text-[var(--text-primary)]">
+                        {t("vadmin.reports.journeyCompleteOf", { done: jp.completed || 0, total: jp.total || 0 })}
+                        <span className="text-slate-500"> · {jp.progress_pct || 0}%</span>
+                      </p>
+                    </div>
+                    {progressBar(jp.progress_pct || 0)}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-4">
+                      {overview(t("vadmin.reports.tabJourney"), `${jp.completed || 0}/${jp.total || 0}`)}
+                      {overview(t("vadmin.reports.milestones"), `${milestonesDone}/${milestonesTotal}`)}
+                      {overview(t("vadmin.reports.tasks"), `${taskCompletion.completed || 0}/${taskCompletion.total || 0}`)}
+                      {overview(t("venture.attention.awaitingDeliverables"), awaitingDeliverables, awaitingDeliverables > 0 ? "text-amber-400" : "text-[var(--text-primary)]")}
+                      {overview(t("vadmin.reports.upcomingSessions"), upcomingSessions)}
+                      {overview(t("vadmin.reports.support"), responsibilities.length)}
+                    </div>
+                  </div>
+
+                  {/* Journeys — in the order defined on the roadmap */}
+                  <div className="card">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t("venture.manager.stagesCount", { count: stages.length })}</h3>
+                      <span className="text-[9px] font-bold text-slate-500">{t("vadmin.reports.milestonesFraction", { done: milestonesDone, total: milestonesTotal })}</span>
+                    </div>
+                    <div className="space-y-3">
+                      {stages.map((st, i) => (
+                        <div key={st.id} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[9px] font-black text-slate-500">{String(i + 1).padStart(2, "0")}</span>
+                              <span className="text-xs font-bold text-[var(--text-primary)]">{st.name}</span>
+                              <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${journeyStatusPill(st.status)}`}>{journeyStatusLabel(st.status)}</span>
+                            </div>
+                            <span className="text-[9px] font-bold text-slate-500 shrink-0">
+                              {t("vadmin.reports.milestonesFraction", { done: st.milestones?.completed || 0, total: st.milestones?.total || 0 })} · {st.milestones?.progress_pct || 0}%
+                            </span>
+                          </div>
+                          {progressBar(st.milestones?.progress_pct || 0)}
+                          {(st.target_date || st.completed_at) && (
+                            <div className="flex items-center gap-3 mt-2 text-[8px] text-slate-500">
+                              {st.target_date && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{t("venture.manager.targetDate", { date: new Date(st.target_date).toLocaleDateString() })}</span>}
+                              {st.completed_at && <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />{t("venture.manager.completedOn", { date: new Date(st.completed_at).toLocaleDateString() })}</span>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Milestone states — the roadmap's milestone breakdown */}
+                  {shownStatuses.length > 0 && (
+                    <div className="card">
+                      <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">{t("venture.manager.irMilestones")}</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                        {shownStatuses.map((s) => (
+                          <React.Fragment key={s}>{overview(milestoneStatusLabel(s), milestonesByStatus[s])}</React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
       </div>

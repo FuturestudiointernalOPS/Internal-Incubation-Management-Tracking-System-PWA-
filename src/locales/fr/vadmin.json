@@ -466,6 +466,8 @@
     "investment": {
       "backToDashboard": "Retour au tableau de bord",
       "investmentReadiness": "Préparation à l'investissement",
+      "roadmapReadiness": "Préparation à l'investissement (dérivée)",
+      "recordedAssessment": "Évaluation enregistrée",
       "evaluating": "Évaluation en cours...",
       "runAssessment": "Lancer l'évaluation",
       "notReady": "Pas prêt",

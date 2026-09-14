@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -13,16 +13,15 @@ import {
   Upload,
   Trash2,
   Send,
-  RefreshCw,
   X,
   FileText,
+  Download,
   Mail,
   Phone,
   Building2,
   User,
   Briefcase,
   DollarSign,
-  ChevronRight,
   MessageCircle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -53,6 +52,15 @@ const ITEM_STATUS_CONFIG = {
   not_applicable: { label: "vadmin.verification.itemStatusNotApplicable", color: "text-slate-500 bg-slate-500/5" },
 };
 
+// Documents are private: prefer the short-lived signed URL minted by the read
+// path, and fall back to the raw value only when it is an external link
+// (pasted links carry no storage path and need no signature).
+const documentHref = (doc) => {
+  if (doc?.file_url_signed) return doc.file_url_signed;
+  const raw = String(doc?.file_url || "").trim();
+  return /^https?:\/\//i.test(raw) ? raw : null;
+};
+
 export default function VentureVerificationPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -73,14 +81,25 @@ export default function VentureVerificationPage() {
   const [reviewNotes, setReviewNotes] = useState("");
   const [reviewing, setReviewing] = useState(false);
 
-  useEffect(() => { fetchData(); }, []);
-
   const notify = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 4000);
   };
 
-  const fetchData = async (bypassCache = false) => {
+  // Server errors arrive either as a locale key ("errors.notFound") or as a
+  // message; keys that resolve nowhere fall back to a local label.
+  const messageFor = (raw, fallbackKey) => {
+    const value = typeof raw === "string" ? raw.trim() : "";
+    if (!value) return t(fallbackKey);
+    const translated = t(value);
+    if (translated !== value) return translated;
+    return value.includes(" ") ? value : t(fallbackKey);
+  };
+
+  // `id` is fixed for the route's lifetime; `t` changes only on a language
+  // switch, which legitimately re-runs the fetch so stored error strings are
+  // re-translated.
+  const fetchData = useCallback(async (bypassCache = false) => {
     const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/verification`];
     const apply = (vData, verData) => {
       if (!vData.success) throw new Error(t((vData.error || t("vadmin.verification.loadVentureFailed")) || "") || (vData.error || t("vadmin.verification.loadVentureFailed")));
@@ -114,7 +133,14 @@ export default function VentureVerificationPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, t]);
+
+  // Mount fetch. The call is deferred by one microtask so the effect body
+  // performs no synchronous state write (react-hooks/set-state-in-effect); the
+  // writes still land before the next paint, exactly as before.
+  useEffect(() => {
+    Promise.resolve().then(() => fetchData());
+  }, [fetchData]);
 
   const getStatusBadge = (status) => {
     const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.draft;
@@ -135,20 +161,19 @@ export default function VentureVerificationPage() {
     if (!file) return;
     setUploading((p) => ({ ...p, [category]: true }));
     try {
-      // Try Vercel Blob upload first
-      let fileUrl;
-      try {
-        const uploadRes = await fetch("/api/upload", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "upload", file_name: file.name, file_type: file.type }),
-        });
-        const uploadData = await uploadRes.json();
-        fileUrl = uploadData.url;
-      } catch {
-        fileUrl = URL.createObjectURL(file);
+      // Documents live in a PRIVATE bucket: the multipart upload returns the
+      // storage PATH (never a public URL) for upload_document to record; the
+      // read path mints a short-lived signed URL from it.
+      const form = new FormData();
+      form.append("file", file);
+      form.append("category", category);
+      const uploadRes = await fetch(`/api/ventures/${id}/verification/upload`, { method: "POST", body: form });
+      const uploadData = await uploadRes.json().catch(() => ({}));
+      if (!uploadRes.ok || !uploadData?.success || !uploadData?.path) {
+        throw new Error(messageFor(uploadData?.error, "vadmin.verification.uploadFailed"));
       }
 
-      await fetch(`/api/ventures/${id}/verification`, {
+      const registerRes = await fetch(`/api/ventures/${id}/verification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -158,14 +183,18 @@ export default function VentureVerificationPage() {
           file_name: file.name,
           file_size: file.size,
           file_type: file.type,
-          file_url: fileUrl || "pending",
+          file_url: uploadData.path,
         }),
       });
+      const registerData = await registerRes.json().catch(() => ({}));
+      if (!registerRes.ok || !registerData?.success) {
+        throw new Error(messageFor(registerData?.error, "vadmin.verification.uploadFailed"));
+      }
 
       notify(t("vadmin.verification.documentUploaded"));
       fetchData(true);
-    } catch {
-      notify(t("vadmin.verification.uploadFailed"), "error");
+    } catch (e) {
+      notify(e?.message || t("vadmin.verification.uploadFailed"), "error");
     } finally {
       setUploading((p) => ({ ...p, [category]: false }));
     }
@@ -330,16 +359,25 @@ export default function VentureVerificationPage() {
                   {/* Uploaded documents */}
                   {stepDocs.length > 0 && (
                     <div className="space-y-1.5 mb-3">
-                      {stepDocs.map((doc) => (
+                      {stepDocs.map((doc) => {
+                        const href = documentHref(doc);
+                        return (
                         <div key={doc.id} className="flex items-center justify-between p-2 bg-primary rounded-lg border border-[var(--border-primary)]">
                           <div className="flex items-center gap-2 min-w-0">
                             <FileText className="w-3 h-3 text-[var(--brand-orange)] shrink-0" />
                             <span className="text-[10px] font-bold text-[var(--text-primary)] truncate">{doc.file_name}</span>
                             {doc.file_size && <span className="text-[10px] text-[var(--text-secondary)]">({(doc.file_size / 1024).toFixed(0)} KB)</span>}
                           </div>
-                          <button onClick={() => handleDeleteDoc(doc.id)} className="p-1 text-rose-500 hover:bg-rose-500/10 rounded shrink-0"><Trash2 className="w-3 h-3" /></button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {href && (
+                              <a href={href} target="_blank" rel="noreferrer" title={t("common.view")}
+                                className="p-1 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/10 rounded"><Download className="w-3 h-3" /></a>
+                            )}
+                            <button onClick={() => handleDeleteDoc(doc.id)} className="p-1 text-rose-500 hover:bg-rose-500/10 rounded shrink-0"><Trash2 className="w-3 h-3" /></button>
+                          </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
