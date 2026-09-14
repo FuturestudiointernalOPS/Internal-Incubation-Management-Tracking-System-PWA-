@@ -224,9 +224,10 @@ no re-fetch of the auth/badge chain on every link click):
 | `/team/*` | `src/app/team/layout.js` | `team` |
 
 **Do NOT wrap a page in `<DashboardLayout>` anymore.** Pages simply return their own
-content; the section layout provides the shell. The `role` prop is only a fallback —
-the effective role is derived from the session user + pathname. If a page needs
-edge-to-edge content, that behavior is pathname-based inside DashboardLayout.
+content; the section layout provides the shell. The `role` prop is only a pre-session
+fallback: the effective role is always the connected user's session role, and the
+sidebar is built from that role + the user's effective capabilities. The visited page
+never selects a role.
 
 ---
 

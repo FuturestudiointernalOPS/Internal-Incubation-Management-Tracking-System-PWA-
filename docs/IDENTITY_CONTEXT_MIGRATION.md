@@ -29,7 +29,7 @@ global value per person today**.
 | **True baseline identity** | auth.js session; resolver SA bypass; admin layout (SA/dev); authorization.js promote/demote (super_admin/staff) | `contacts.role='super_admin'|'staff'` |
 | **Contextual role stored as global role** (anti-pattern to remove) | participant/founder/investor/facilitator mutations + allowlists | see C |
 | **Legacy authorization gates** | 276/386 route files `requireAuth([roles])`; role_capabilities fallback (roles: admin, developer, investor, program_manager, staff, teacher, team); eligibility-defaults legacy role lists | see D |
-| **UI / navigation** | ROLE_ACCESS role masks (incl. developer/teacher/crm/finance contexts); PATH_CONTEXT_ROLES; PERSONAL_ROLES; context switcher | sidebar role selection |
+| **UI / navigation** | ROLE_ACCESS role masks (incl. developer/teacher/crm/finance contexts); PERSONAL_ROLES; context switcher | sidebar = `buildAccessNav(role, capabilities)` — role + effective capabilities, never the visited path; context-switcher hat = `activeContextFromPathname` |
 | **Business rules** | "Staff cannot be Participant" style checks; venture founder guards | see C |
 | **Context checks (healthy — the future spine)** | ventureAuth (venture_members / venture_staff_assignments), facilitation (v2_program_staff / v2_teams.handler), program scope lookups | membership-table driven |
 

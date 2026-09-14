@@ -47,7 +47,7 @@ This is why some routes check role AND capability — role gets you in the door,
 | `participant` | `participant/` | Participant-facing views, also `register-participant/`, `participant/` signup flows |
 | `developer` / `intern` | `developer/` | Internal engineering dashboard |
 
-Sidebar navigation and role→route resolution live in `src/components/layout/DashboardLayout.js` (`NAVIGATION_MATRIX`).
+Sidebar navigation is defined once in `src/lib/masterNavigation.js` (`MASTER_NAVIGATION` structure + `ROLE_ACCESS` masks) and built for the connected user by `buildAccessNav(role, capabilities)`; `src/components/layout/DashboardLayout.js` only renders it. The section layout's `role` prop is a pre-session fallback — the effective role is always the session user's (`contacts.role`), never the visited page.
 
 ## Internationalization (i18n)
 
