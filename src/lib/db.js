@@ -195,6 +195,42 @@ const execute = async (queryObj) => {
 const db = { execute };
 
 /**
+ * Role-level `statement_timeout`, so pooled connections get it too.
+ *
+ * Direct connections already receive `statement_timeout` as a startup parameter
+ * (`options`, see getPool). Supabase's transaction pooler rejects startup
+ * `options`, so the only pooler-safe way is a session default on the ROLE —
+ * catalog state that every future backend session picks up.
+ *
+ * Best-effort and idempotent: a privilege error is logged, never fatal, and the
+ * client-side `query_timeout` (30s) still applies regardless. Runs ONCE per
+ * process (a failure is not retried, so a persistent privilege error cannot
+ * turn into a per-request DDL storm).
+ */
+let statementTimeoutApplied = null;
+const applyStatementTimeout = () => {
+  if (statementTimeoutApplied) return;
+  statementTimeoutApplied = db
+    .execute({
+      sql: `DO $$
+              BEGIN
+                EXECUTE format('ALTER ROLE %I SET statement_timeout = %L', current_user, '30s');
+              EXCEPTION WHEN insufficient_privilege THEN
+                RAISE NOTICE 'statement_timeout not applied (insufficient privilege)';
+              END $$`,
+      args: [],
+    })
+    .catch((e) => {
+      console.warn(
+        " forensics | statement_timeout not applied:",
+        e.message,
+      );
+      // Deliberately NOT reset: a privilege/DDL failure must not retry on every
+      // initDb() call (retry storm). One attempt per process is enough.
+    });
+};
+
+/**
  * Execute a callback within a database transaction.
  * The callback receives a `query(sql, args)` function.
  * Auto-rollback on error, auto-commit on success.
@@ -244,6 +280,10 @@ export const initDb = async () => {
     throw new Error(
       "Database initialization failed. Check environment variables.",
     );
+  // Best-effort, once per process: role-level statement_timeout covers pooled
+  // connections (where startup `options` are rejected). Never awaited — it must
+  // not delay the first request.
+  applyStatementTimeout();
   return db;
 };
 
