@@ -256,8 +256,10 @@ export const ROLE_ACCESS = {
   },
 
   staff: {
-    top: ["dashboard", "weekly_ops", "programs", "my_projects", "messages"],
-    children: {},
+    top: ["dashboard", "weekly_ops", "programs", "my_projects", "communication"],
+    children: {
+      communication: ["messages", "forms"],
+    },
     hrefs: {
       dashboard: "/staff",
       programs: "/pm/programs",

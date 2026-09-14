@@ -159,7 +159,14 @@ const FIXTURE = {
     { id: "weekly_ops", href: "/staff/op-report", subItems: null },
     { id: "programs", href: "/pm/programs", subItems: null },
     { id: "my_projects", href: "/staff/projects", subItems: null },
-    { id: "messages", href: "/staff/messages", subItems: null },
+    {
+      id: "communication",
+      href: null,
+      subItems: [
+        { id: "messages", href: "/staff/messages", subItems: null },
+        { id: "forms", href: "/platform", subItems: null },
+      ],
+    },
   ],
 
   teacher: [
