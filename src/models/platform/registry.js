@@ -42,6 +42,10 @@ const REGISTERED_MODULES = [
     href: "/platform/runs",
     enabled: true,
     visible: true,
+    // Governance: the `runs.view` capability (Communication feature). When a
+    // capability predicate is supplied the sidebar evaluates it; the role
+    // allowlist below stays the fallback for role-only consumers.
+    capability: { module: "runs", capability: "view" },
     permissions: ["super_admin"],
     order: 2,
     future: false,
@@ -85,15 +89,24 @@ const REGISTERED_MODULES = [
 ];
 
 /**
- * Returns all registered modules, optionally filtered by role.
+ * Returns all registered modules, optionally filtered by role and/or by a
+ * capability predicate.
+ *
+ * A module may declare `capability` ({ module, capability }) to be governed by
+ * the resolver instead of a role allowlist. When `hasCapability` is supplied,
+ * that predicate decides; otherwise the module falls back to its legacy
+ * `permissions` role list so role-only consumers keep working.
  */
-export function getRegisteredModules(role) {
+export function getRegisteredModules(role, hasCapability = null) {
   // Fail CLOSED on an unknown role: a caller that has not resolved the session
   // yet must never be shown the full module list (that flashed every module for
   // a moment before the real role arrived).
   if (!role) return [];
   return REGISTERED_MODULES.filter((m) => {
     if (!m.enabled) return false;
+    if (m.capability && typeof hasCapability === "function") {
+      return hasCapability(m.capability);
+    }
     if (!m.permissions || m.permissions.length === 0) return true;
     return m.permissions.includes(role);
   });
@@ -109,8 +122,10 @@ export function getModuleById(moduleId) {
 /**
  * Returns only active (non-future, visible) modules for navigation.
  */
-export function getActiveModules(role) {
-  return getRegisteredModules(role).filter((m) => m.visible && !m.future);
+export function getActiveModules(role, hasCapability = null) {
+  return getRegisteredModules(role, hasCapability).filter(
+    (m) => m.visible && !m.future,
+  );
 }
 
 export default REGISTERED_MODULES;

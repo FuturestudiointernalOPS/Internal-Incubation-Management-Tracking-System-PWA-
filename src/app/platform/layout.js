@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -64,6 +64,7 @@ export default function PlatformLayout({ children }) {
   const [user, setUser] = useState({ role: "" });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [mePerms, setMePerms] = useState(null);
 
   useEffect(() => {
     // Server session is authoritative; localStorage is only a legacy fallback.
@@ -83,7 +84,32 @@ export default function PlatformLayout({ children }) {
       });
   }, []);
 
-  const navModules = useMemo(() => getActiveModules(user.role), [user.role]);
+  // Capability projection for the navigation: modules that declare a
+  // `capability` (e.g. Runs → runs.view) are governed by the resolver, not by
+  // the session role. Fail closed until the matrix arrives so an unloaded
+  // predicate never flashes a module the user cannot open.
+  useEffect(() => {
+    fetch("/api/me/permissions")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) setMePerms(d);
+      })
+      .catch(() => {});
+  }, []);
+
+  const hasCapability = useCallback(
+    ({ module, capability }) => {
+      if (!mePerms) return false;
+      if (mePerms.isSuperAdmin) return true;
+      return Number(mePerms.effective?.[module]?.[capability] ?? 0) > 0;
+    },
+    [mePerms],
+  );
+
+  const navModules = useMemo(
+    () => getActiveModules(user.role, hasCapability),
+    [user.role, hasCapability],
+  );
   const isActive = (href) => pathname === href;
 
   // Leave the platform workspace back to wherever the user came from (e.g. the
