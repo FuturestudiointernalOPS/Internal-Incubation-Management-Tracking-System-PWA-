@@ -68,7 +68,7 @@ export async function PUT(req) {
       if (responsibilityKey) {
         try {
           grantedModules = await grantResponsibilityBaseAccess({
-            userCid,
+            userCid: user_cid,
             responsibilityKey,
             grantedBy: session?.cid,
           });

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { initDb } from "@/lib/db";
+import db, { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
 import { logVentureActivity, addVentureHistory } from "@/lib/ventures";
 import {
@@ -36,16 +36,21 @@ export async function POST(req, { params }) {
     if (!session) {
       return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     }
+
+    const { id } = await params;
+
+    // Resolve the VNT code (ventures store the code as their business key).
+    let ventureId = id;
+    if (typeof id === "string" && id.includes("-") && !id.startsWith("VNT-")) {
+      const byId = await getLifecycleVentureByUuid(id);
+      if (byId.rows?.[0]) ventureId = byId.rows[0].venture_id;
+    }
+
     if (!["super_admin", "developer", "admin"].includes(session.role)) {
       // Delegated staff (Phase 2): lifecycle changes require an explicit
       // Venture assignment — never the staff role alone.
       const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
-      let lcCode = id;
-      if (typeof id === "string" && id.includes("-") && !id.startsWith("VNT-")) {
-        const byId = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id::text = ?", args: [id] });
-        if (byId.rows?.[0]) lcCode = byId.rows[0].venture_id;
-      }
-      if (!(await hasActiveVentureAssignment(lcCode, session.cid, db))) {
+      if (!(await hasActiveVentureAssignment(ventureId, session.cid, db))) {
         return NextResponse.json(
           { success: false, error: "Unauthorized. Only assigned Venture staff can change a Venture's lifecycle." },
           { status: 403 },
@@ -53,7 +58,6 @@ export async function POST(req, { params }) {
       }
     }
 
-    const { id } = await params;
     const body = await req.json();
     const action = body?.action;
     if (!ACTIONS.includes(action)) {
@@ -63,12 +67,6 @@ export async function POST(req, { params }) {
       );
     }
 
-    // Resolve the VNT code (ventures store the code as their business key).
-    let ventureId = id;
-    if (typeof id === "string" && id.includes("-") && !id.startsWith("VNT-")) {
-      const byId = await getLifecycleVentureByUuid(id);
-      if (byId.rows?.[0]) ventureId = byId.rows[0].venture_id;
-    }
     const exists = await getLifecycleVentureId(ventureId);
     if (exists.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Venture not found." }, { status: 404 });

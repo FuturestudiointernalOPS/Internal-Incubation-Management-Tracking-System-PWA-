@@ -22,7 +22,7 @@ import db from "@/lib/db";
 // ── GET/POST/PUT /api/ventures ───────────────────────────────────────────────
 
 /** Ventures list with founder/member counts and optional directory filters. */
-export async function listVenturesWithCounts({ effectiveContactId, status, search }) {
+export async function listVenturesWithCounts({ effectiveContactId, assignedStaffId, status, search }) {
   let sql = `
       SELECT v.*,
         (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id = v.venture_id AND vm.member_type = 'founder' AND vm.removed_at IS NULL) as founder_count,
@@ -34,6 +34,13 @@ export async function listVenturesWithCounts({ effectiveContactId, status, searc
   if (effectiveContactId) {
     sql += " AND v.venture_id IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?)";
     args.push(effectiveContactId, effectiveContactId);
+  }
+
+  // Delegated staff/program_manager: assigned Ventures OR Ventures they are a
+  // member of — never the whole directory.
+  if (assignedStaffId) {
+    sql += " AND (v.venture_id IN (SELECT venture_id FROM venture_staff_assignments WHERE staff_contact_id = ? AND status = 'active') OR v.venture_id IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?))";
+    args.push(assignedStaffId, assignedStaffId, assignedStaffId);
   }
 
   if (status) {
