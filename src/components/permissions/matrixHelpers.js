@@ -114,6 +114,23 @@ export function groupModulesByFeature(modules, moduleToFeature, featureOrder) {
 export const MATRIX_LEVEL_ORDER = ["view", "edit", "create", "delete"];
 export const MATRIX_FULL = "full";
 
+/**
+ * The CRUD capability SET the matrix edits (membership, not display order).
+ * Everything outside it (send, moderate, publish, archive, grant, execute,
+ * manage, …) is an "advanced" capability owned by the Advanced section.
+ */
+export const CRUD_CAPABILITIES = ["view", "create", "edit", "delete"];
+
+/** Keep only the CRUD capabilities of a module. */
+export function crudCapabilities(capabilities = []) {
+  return capabilities.filter((capability) => CRUD_CAPABILITIES.includes(capability));
+}
+
+/** True when a module carries at least one CRUD capability. */
+export function hasCrudCapabilities(capabilities = []) {
+  return crudCapabilities(capabilities).length > 0;
+}
+
 /** Canonical stored level of a CRUD capability (rows above are the product
  *  order; the level numbers keep the historical ACCESS_LEVELS values). */
 export const CAPABILITY_LEVELS = { view: 1, create: 2, edit: 3, delete: 4 };
@@ -131,70 +148,42 @@ export function extraCapabilities(section) {
 }
 
 /**
- * Ordered column descriptors for a section. `kind` is "level" (a CRUD
- * capability), "full" (the collective column, level 5) or "extra" (a
- * module-specific capability rendered by its own named column).
+ * Ordered column descriptors for the CRUD matrix: the fixed ladder
+ * View · Edit · Create · Delete · Full. Non-CRUD capabilities are deliberately
+ * NOT columns any more — they live in the Advanced section, kept out of this
+ * table so it stays readable, and so that "Full" can never silently grant a
+ * capability the table does not show.
  *
- * When a `catalog` (CAPABILITY_CATALOG shape) is supplied, capability FAMILIES
- * are applied as a presentation grouping: a child column is placed immediately
- * after its parent, and each descriptor carries `parent` (the family head, null
- * for top-level columns), `isGroupHead` and `groupSize`. No capability is added
- * or removed by grouping — only its position and the metadata are affected.
- *
- * @param {Object} section groupModulesByFeature section ({ modules, capabilities })
- * @param {Object} [catalog] CAPABILITY_CATALOG (module → { capabilities })
- * @returns {Array<{key:string, kind:"level"|"full"|"extra", capability:string|null,
- *           parent:string|null, isGroupHead:boolean, groupSize:number}>}
+ * @returns {Array<{key:string, kind:"level"|"full", capability:string|null}>}
  */
-export function buildSectionColumns(section, catalog) {
-  const ladder = MATRIX_LEVEL_ORDER.map((capability) => ({
-    key: capability,
-    kind: "level",
-    capability,
-  }));
-  const full = { key: MATRIX_FULL, kind: "full", capability: null };
-  const extras = extraCapabilities(section).map((capability) => ({
-    key: capability,
-    kind: "extra",
-    capability,
-  }));
+export function buildSectionColumns() {
+  return [
+    ...MATRIX_LEVEL_ORDER.map((capability) => ({
+      key: capability,
+      kind: "level",
+      capability,
+    })),
+    { key: MATRIX_FULL, kind: "full", capability: null },
+  ];
+}
 
-  // Family head of a capability, resolved across the section's own modules.
-  const parentOf = (capability) =>
-    (section?.modules || [])
-      .map((mod) => catalog?.[mod]?.capabilities?.[capability]?.parent)
-      .find(Boolean) || null;
-  const childrenOf = (capability) =>
-    capability
-      ? extras.filter((c) => parentOf(c.capability) === capability).map((c) => c.capability)
-      : [];
-
-  const emitted = new Set();
-  const ordered = [];
-  const push = (col) => {
-    if (emitted.has(col.key)) return;
-    emitted.add(col.key);
-    ordered.push(col);
-  };
-
-  // Emit each column, inserting a family head's children right after it.
-  for (const col of [...ladder, full, ...extras]) {
-    if (emitted.has(col.key)) continue;
-    push({ ...col, parent: null });
-    for (const child of childrenOf(col.capability)) {
-      push({ key: child, kind: "extra", capability: child, parent: col.capability });
-    }
-  }
-
-  return ordered.map((col) => {
-    const children = childrenOf(col.capability);
-    return {
-      ...col,
-      parent: children.length > 0 ? null : col.parent,
-      isGroupHead: children.length > 0,
-      groupSize: 1 + children.length,
-    };
-  });
+/**
+ * Keep only the modules that carry at least one CRUD capability, dropping any
+ * section left empty. Modules whose capabilities are all non-CRUD (permissions,
+ * facilitator, bulk_upload, …) belong to the Advanced section, not the matrix.
+ *
+ * @param {Array}  sections  groupModulesByFeature output
+ * @param {Object} modules   module → { capabilities: string[] }
+ */
+export function filterSectionsToCrudModules(sections, modules) {
+  return (sections || [])
+    .map((section) => ({
+      ...section,
+      modules: (section.modules || []).filter((module) =>
+        hasCrudCapabilities(modules?.[module]?.capabilities),
+      ),
+    }))
+    .filter((section) => section.modules.length > 0);
 }
 
 /**
