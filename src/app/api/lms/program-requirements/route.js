@@ -23,8 +23,7 @@ export const dynamic = "force-dynamic";
  *      Body: { program_id, course_id, week_number?, session_id?, title?,
  *              description?, is_required? }
  *      Attaches an EXISTING course to a program — the course is never copied.
- *      Requires lms.assign (Program Course Assignment permission, distinct from
- *      course authoring lms.create/edit). After attaching, all current program
+ *      Requires lms.edit. After attaching, all current program
  *      participants are auto-enrolled in the course (server-side, idempotent).
  */
 export async function GET(req) {
@@ -62,8 +61,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    // Phase 3 (Option A): retired lms.assign migrated to the canonical lms.edit
-    // gate — program-requirement wiring is course management.
+    // Program-requirement wiring is course management (lms.edit).
     const capError = await requireAuthorization("lms", "edit");
     if (capError) return capError;
 

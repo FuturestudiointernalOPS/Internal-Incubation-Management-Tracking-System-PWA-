@@ -1,9 +1,10 @@
 /**
- * PHASE 3 — Retired-LMS freeze contract.
+ * PHASE 3+ — Retired LMS capabilities are GONE from the catalog.
  *
- * Locks Decision 5: lms.assign / lms.enroll / lms.publish are retired —
- * no new grants, route enforcement inventoried (self-revealing when a site
- * migrates), removal only after zero-dependency proof (Phase 6).
+ * The retired caps (assign / enroll / publish) migrated to the canonical
+ * lms.edit gate and have now been deleted from the catalog. This guard makes
+ * re-adding them fail loudly: a retired capability is dead weight, not a
+ * capability.
  */
 const fs = require("node:fs");
 const path = require("node:path");
@@ -22,15 +23,22 @@ function walk(dir, out = []) {
 
 const SRC_DIRS = ["src/app", "src/models", "src/lib"];
 
-describe("Phase 3 — retired LMS capabilities stay retired", () => {
-  test("catalog marks assign/enroll/publish as retired", () => {
+describe("Retired LMS capabilities stay removed", () => {
+  test("catalog no longer exposes assign/enroll/publish", () => {
     const { CAPABILITY_CATALOG } = require("@/models/authorization/capability-catalog");
     for (const cap of RETIRED) {
-      expect(CAPABILITY_CATALOG.lms.capabilities[cap]?.retired).toBe(true);
+      expect(CAPABILITY_CATALOG.lms.capabilities[cap]).toBeUndefined();
     }
   });
 
-  test("no route enforces a retired capability anymore (migrated to lms.edit, Option A)", () => {
+  test("PERMISSION_MODULES never lists a retired capability", () => {
+    const { PERMISSION_MODULES } = require("@/lib/auth");
+    for (const cap of RETIRED) {
+      expect(PERMISSION_MODULES.lms.capabilities).not.toContain(cap);
+    }
+  });
+
+  test("no route enforces a retired capability (migrated to lms.edit)", () => {
     const sites = [];
     for (const root of SRC_DIRS) {
       for (const f of walk(path.join(ROOT, root))) {
@@ -42,30 +50,6 @@ describe("Phase 3 — retired LMS capabilities stay retired", () => {
         }
       }
     }
-    // Phase 3 Option A migrated all six sites to lms.edit (rosters,
-    // enrollment, publish, program requirements). If a retired gate appears
-    // again this fails — migrate it, don't re-add.
     expect(sites).toEqual([]);
-  });
-
-  test("no grant seed writes a retired capability (no new grants)", () => {
-    const offenders = [];
-    for (const root of SRC_DIRS) {
-      for (const f of walk(path.join(ROOT, root))) {
-        const src = fs.readFileSync(f, "utf8");
-        if (!/INSERT INTO (access_profile_capabilities|user_capabilities|role_capabilities)/.test(src)) continue;
-        for (const m of src.matchAll(
-          /INSERT INTO (access_profile_capabilities|user_capabilities|role_capabilities)[^;]*?/gs,
-        )) {
-          const block = m[0];
-          for (const cap of RETIRED) {
-            if (new RegExp(`["']lms["']\\s*,\\s*["']${cap}["']|lms\\.${cap}`).test(block)) {
-              offenders.push(`${f}: lms.${cap}`);
-            }
-          }
-        }
-      }
-    }
-    expect(offenders).toEqual([]);
   });
 });

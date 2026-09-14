@@ -16,18 +16,17 @@ export const dynamic = "force-dynamic";
  *        Body: { title?, description?, is_required?, position?, week_number?,
  *                session_id? }
  *        Updates one learning item (e.g. toggle REQUIRED / OPTIONAL).
- *        Requires lms.assign.
+ *        Requires lms.edit.
  *
  * DELETE /api/lms/program-requirements/[id]
  *        Detaches the course from the program. Existing learner enrollments
  *        are kept (access is not silently revoked).
- *        Requires lms.assign.
+ *        Requires lms.edit.
  */
 export async function PUT(req, { params }) {
   try {
     await initDb();
-    // Phase 3 (Option A): retired lms.assign migrated to the canonical lms.edit
-    // gate (PUT).
+    // Program-requirement editing is course management (lms.edit).
     const capError = await requireAuthorization("lms", "edit");
     if (capError) return capError;
 
@@ -50,8 +49,7 @@ export async function PUT(req, { params }) {
 export async function DELETE(req, { params }) {
   try {
     await initDb();
-    // Phase 3 (Option A): retired lms.assign migrated to the canonical lms.edit
-    // gate (DELETE).
+    // Program-requirement detach is course management (lms.edit).
     const capError = await requireAuthorization("lms", "edit");
     if (capError) return capError;
 

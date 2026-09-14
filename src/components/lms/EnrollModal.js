@@ -11,7 +11,7 @@ import { formatDate } from "@/lib/constants";
 
 /**
  * Admin enrollment enabler — list a course's learners and enroll by email/cid.
- * Server-side authorization: lms.enroll on the API. A full enrollment
+ * Server-side authorization: lms.edit on the API. A full enrollment
  * management experience belongs to a later phase.
  */
 export default function EnrollModal({ isOpen, onClose, courseId }) {

@@ -8,13 +8,12 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/lms/courses/[id]/enrollments
- * Admin view of a course's learners. Requires lms.enroll.
+ * Admin view of a course's learners. Requires lms.edit.
  */
 export async function GET(req, { params }) {
   try {
     await initDb();
-    // Phase 3 (Option A): retired lms.enroll migrated to the canonical lms.edit
-    // gate — learner rosters are course management.
+    // Learner rosters are course management (lms.edit).
     const capError = await requireAuthorization("lms", "edit");
     if (capError) return capError;
 
