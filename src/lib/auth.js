@@ -12,7 +12,7 @@ const SESSION_DURATION_HOURS = 24;
 const REMEMBER_ME_DURATION_HOURS = 720; // 30 days
 const SESSION_DURATION_MS = SESSION_DURATION_HOURS * 60 * 60 * 1000;
 const REMEMBER_ME_DURATION_MS = REMEMBER_ME_DURATION_HOURS * 60 * 60 * 1000;
-const SESSION_CACHE_TTL = 5000; // 5s cache for session lookups
+const SESSION_CACHE_TTL = 15000; // 15s — a page's burst of getSession() calls hits the cache
 const _sessionCache = new Map();
 const _failureCache = new Map(); // Cache DB failures to avoid cascading timeouts
 const FAILURE_CACHE_TTL = 5000; // If DB fails, don't retry for 5s (avoids 30s lockouts on transient errors)
@@ -143,14 +143,26 @@ export async function getSession() {
     );
 
     const tokenHash = hashToken(token);
-    const result = await db.execute({
+
+    // Look up by token_hash FIRST so the unique partial index is used. The old
+    // `token_hash = ? OR token = ?` defeated the index → sequential scan (~1–2s).
+    // Legacy rows without a hash fall back to the plaintext token (PK-indexed).
+    let result = await db.execute({
       sql: `SELECT s.*, c.name, c.email, c.status, c.group_name
             FROM user_sessions s
             LEFT JOIN contacts c ON s.user_cid = c.cid
-            WHERE s.expires_at > NOW()
-              AND (s.token_hash = ? OR s.token = ?)`,
-      args: [tokenHash, token],
+            WHERE s.expires_at > NOW() AND s.token_hash = ?`,
+      args: [tokenHash],
     });
+    if (result.rows.length === 0) {
+      result = await db.execute({
+        sql: `SELECT s.*, c.name, c.email, c.status, c.group_name
+              FROM user_sessions s
+              LEFT JOIN contacts c ON s.user_cid = c.cid
+              WHERE s.expires_at > NOW() AND s.token = ?`,
+        args: [token],
+      });
+    }
 
     if (result.rows.length === 0) {
       console.log(
@@ -262,6 +274,7 @@ export async function destroySession() {
     const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
     if (token) {
+      _sessionCache.delete(token); // never serve a session we just destroyed
       const tokenHash = hashToken(token);
       await db.execute({
         sql: "DELETE FROM user_sessions WHERE token_hash = ? OR token = ?",
