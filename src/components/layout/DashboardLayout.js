@@ -660,6 +660,16 @@ function attachIcons(items) {
   }));
 }
 
+/**
+ * The role that drives the shell + sidebar. It is ALWAYS the connected user's
+ * session role; the section layout's `role` prop is only a pre-session
+ * fallback (before the cached/server session supplies `user.role`). The visited
+ * page never contributes a role — a staff member on /crm stays staff.
+ */
+function shellRole(user, role) {
+  return user.role || role || "admin";
+}
+
 export default function DashboardLayout({ children, role = "admin", modals, fullWidth = false }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -1200,11 +1210,9 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   const navItems = useMemo(() => {
     // The sidebar reflects the CONNECTED user: their role, and — via the
     // capability projection in buildAccessNav — everything their
-    // responsibilities actually grant them.
-    const sessionRole = user.role || role || "admin";
-    // The sidebar reflects the connected user's role and capabilities only.
-    // It never changes with the page being viewed: there is no page "hat".
-    const activeRole = sessionRole;
+    // responsibilities actually grant them. It never changes with the page
+    // being viewed (see shellRole).
+    const activeRole = shellRole(user, role);
 
     // "My Learning" is hidden until the participant actually has a course
     // (self-subscribed, admin enrollment or program assignment). hasLmsEnrollments
@@ -1272,10 +1280,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       // ONE dashboard per surface: the calendar page. "member" is the
       // baseline identity, not a destination — a member (and a founder, and a
       // participant) all land on /participant and get their contexts as
-      // sidebar additions. Only the team surface has a different calendar
-      // page. Do NOT key this off sessionRole: a member sitting on
-      // /participant has activeRole "participant" but sessionRole "member",
-      // which silently sent the Dashboard link back to the /workspaces hub.
+      // sidebar additions. Only the team surface has a different calendar page.
       const dashboardHref = activeRole === "team" ? "/team" : "/participant";
       const items = [
         { id: "dashboard", name: "DASHBOARD", icon: LayoutDashboard, href: dashboardHref },
@@ -1442,7 +1447,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     router.replace("/login");
   };
 
-  const activeRole = user.role || role || "admin";
+  const activeRole = shellRole(user, role);
   const commonProps = {
     collapsed,
     role: activeRole,
