@@ -74,7 +74,7 @@ const MODULE_CATEGORIES = [
   },
   {
     label: "engineering.permissions.categoryPeople",
-    modules: ["users", "messaging", "internal_comms"],
+    modules: ["users", "messaging", "internal_comms", "forms", "runs"],
   },
   {
     label: "engineering.permissions.categorySystem",
