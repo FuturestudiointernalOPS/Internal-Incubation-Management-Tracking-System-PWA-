@@ -139,6 +139,35 @@ export function defaultAllowedRoles(responsibilityKey) {
 }
 
 /**
+ * The roles OFFERED for a feature in the Responsibility Access UI.
+ *
+ * Eligibility is the ceiling: a feature only offers the roles it is eligible
+ * for, so a role the feature cannot reach is never proposed here (the saved
+ * allowed_roles stays a subset of the eligibility boundary).
+ *
+ * Falls back to the full role list when the feature has NO eligibility rows at
+ * all (unknown / custom responsibility — there is nothing to filter by, so the
+ * UI must not hide every toggle).
+ *
+ * @param {Array<{identity_type:string, identity_value:string,
+ *   feature_key:string, eligible:number}>} rows  feature_eligibility rows
+ * @param {string} featureKey  the responsibility key (= feature key)
+ * @param {string[]} [allRoles] canonical role list
+ * @returns {string[]} eligible roles, in the canonical order
+ */
+export function eligibleRolesForFeature(rows, featureKey, allRoles = ALL_FEATURE_ROLES) {
+  if (!featureKey) return [...allRoles];
+  const scoped = (rows || []).filter(
+    (r) => r.identity_type === "role" && r.feature_key === featureKey,
+  );
+  if (scoped.length === 0) return [...allRoles]; // no ceiling to apply
+  const eligible = new Set(
+    scoped.filter((r) => Number(r.eligible) === 1).map((r) => r.identity_value),
+  );
+  return allRoles.filter((role) => eligible.has(role));
+}
+
+/**
  * Normalize a saved allowed_roles value (may be null, a JSON string, or an
  * array) into an array of roles, or null when not configured yet.
  */
