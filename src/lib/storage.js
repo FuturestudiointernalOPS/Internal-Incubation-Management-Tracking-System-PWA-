@@ -185,7 +185,6 @@ export const uploadDeliverableEvidence = async (file, { ventureId, deliverableId
     if (!isAllowedEvidenceDocument(file)) {
       return { success: false, error: EVIDENCE_DOCUMENT_ERROR }
     }
-
     // PRIVATE bucket: evidence is never world-readable. Authorized viewers get
     // a short-lived signed URL (lib/ventureEvidence.js); the database stores
     // the storage path, not a public URL. Service-role client so the private

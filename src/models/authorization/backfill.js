@@ -17,6 +17,7 @@ import { ensurePermissionsSchema } from "@/lib/auth";
 import { runAuthzMigration } from "./migrations";
 import { ensureMembershipBootstrap } from "./membership";
 import { backfillContextRoleProfileMappings } from "./contextRoleProfiles";
+import { ensureEligibilitySchema } from "./eligibility";
 
 // Phase 2: Knowledge Base.
 // /api/knowledge (GET/POST/PATCH/DELETE) previously allowed staff + super_admin
@@ -78,6 +79,11 @@ export function ensureCapabilityBackfills() {
             backfillContextRoleProfileMappings,
           ),
         ]);
+
+        // Feature-key alignment (FEATURES = dashboard sections) runs AFTER the
+        // parallel backfills so it never races the rows they touch.
+        await runAuthzMigration("feature-key-alignment-v1", ensureFeatureKeyAlignment);
+
         backfillsSeeded = true;
       })().finally(() => {
         backfillPromise = null;
@@ -297,7 +303,7 @@ async function ensureAnnouncementsBackfill() {
 //     have projects.view)
 //   - staff needs delete (Staff Default already has view/create/edit)
 //   - admin inherits Staff Default delete but is NOT eligible for
-//     project_ownership → no access change
+//     operations → no access change
 //   - developer needs nothing for DELETE/members (not in those allowlists);
 //     it already has create via the Developer profile
 //
@@ -389,7 +395,7 @@ async function ensureProjectsBackfill() {
 // inserts the full role set (not just extras).
 
 const TASKS_BACKFILL = {
-  eligibility: { tasks: ["super_admin", "staff", "program_manager", "team"] },
+  eligibility: { operations: ["super_admin", "staff", "program_manager", "team"] },
   profiles: {
     "Staff Default": [
       ["tasks", "view", 1],
@@ -557,7 +563,7 @@ async function ensureEngineeringBackfill() {
 // Deliberately NOT migrated (documented): pm/programs POST + templates POST
 // (migrating would let PMs — who hold programs.create via profile — create
 // programs; a policy decision, not a mechanical flip), pm/programs PUT
-// (admin in allowlist but not in program_management eligibility), programs
+// (admin in allowlist but not in programs eligibility), programs
 // POST/PUT (role-gated main route), and the facilitator-scoped surface
 // (participants/sessions/submissions/attendance/followups/facilitator-reviews
 // — requireAssignmentAccess + dotted capabilities are their own system).
@@ -709,7 +715,7 @@ async function ensureVenturesBackfill() {
 // setup-password flows.
 
 const INVESTOR_BACKFILL = {
-  eligibility: { investor: ["super_admin", "staff", "investor"] },
+  eligibility: { investors: ["super_admin", "staff", "investor"] },
   profiles: {
     "Staff Default": [
       ["investor", "view", 1],
@@ -838,7 +844,7 @@ async function ensureMessagingPolicyBackfill() {
   for (const role of MESSAGING_REMOVED_ROLES) {
     await db.execute({
       sql: `DELETE FROM feature_eligibility
-            WHERE feature_key = 'messaging' AND identity_type = 'role' AND identity_value = ?`,
+            WHERE feature_key = 'communication' AND identity_type = 'role' AND identity_value = ?`,
       args: [role],
     });
   }
@@ -849,7 +855,7 @@ async function ensureMessagingPolicyBackfill() {
     await db.execute({
       sql: `INSERT INTO feature_eligibility
               (feature_key, identity_type, identity_value, eligible)
-            VALUES ('messaging', 'role', ?, 1)
+            VALUES ('communication', 'role', ?, 1)
             ON CONFLICT (feature_key, identity_type, identity_value)
             DO NOTHING`,
       args: [role],
@@ -881,8 +887,8 @@ export async function ensureFinalPolicyBackfill() {
     sql: `DELETE FROM feature_eligibility
           WHERE identity_type = 'role'
             AND (
-              (feature_key = 'internal_comms' AND identity_value = 'admin')
-              OR (feature_key = 'reporting' AND identity_value = 'admin')
+              (feature_key = 'communication' AND identity_value = 'admin')
+              OR (feature_key = 'reports' AND identity_value = 'admin')
               OR (feature_key = 'crm' AND identity_value IN ('participant', 'founder'))
             )`,
     args: [],
@@ -919,5 +925,111 @@ export async function ensureCommunicationFeatureBackfill() {
             DO NOTHING`,
       args: [role],
     });
+  }
+}
+
+// ─── Feature-key alignment (FEATURES = dashboard sections) ───────────────────
+// The feature keys were renamed so that FEATURES ARE the dashboard sections
+// (crm, communication, programs, ventures, investors, finance, operations,
+// reports, knowledge, lms, security, settings). Existing databases keep the
+// legacy keys; this ONE-TIME migration renames/merges them so the resolver,
+// the eligibility matrix and the responsibility map agree again.
+//
+// Merge rule: an explicit DENY (eligible = 0) wins over any ALLOW row (mirrors
+// evaluateEligibility). For responsibilities, the surviving row keeps every
+// user assignment (user_responsibilities is re-pointed before the duplicate
+// row is deleted).
+const FEATURE_KEY_RENAMES = {
+  program_management: "programs",
+  project_ownership: "operations",
+  tasks: "operations",
+  reporting: "reports",
+  investor: "investors",
+  user_management: "security",
+  system_settings: "settings",
+  engineering: "settings",
+  knowledge_base: "knowledge",
+  intelligence: "knowledge",
+  // Legacy per-module feature keys (pre-consolidation) fold into communication.
+  messaging: "communication",
+  internal_comms: "communication",
+};
+
+// Target feature key → the legacy responsibility keys it absorbs.
+const RESPONSIBILITY_MERGES = {
+  programs: ["program_management"],
+  operations: ["project_ownership", "tasks"],
+  reports: ["reporting"],
+  investors: ["investor"],
+  security: ["user_management"],
+  settings: ["system_settings", "engineering"],
+  knowledge: ["knowledge_base", "intelligence"],
+};
+
+export async function ensureFeatureKeyAlignment() {
+  await ensureEligibilitySchema();
+  await ensurePermissionsSchema();
+
+  // 1. feature_eligibility — rename + merge with deny-wins.
+  for (const [oldKey, newKey] of Object.entries(FEATURE_KEY_RENAMES)) {
+    await db.execute({
+      sql: `INSERT INTO feature_eligibility
+              (feature_key, identity_type, identity_value, eligible)
+            SELECT ?, identity_type, identity_value, MIN(eligible)
+              FROM feature_eligibility
+             WHERE feature_key = ?
+             GROUP BY identity_type, identity_value
+            ON CONFLICT (feature_key, identity_type, identity_value)
+            DO UPDATE SET eligible = LEAST(feature_eligibility.eligible, EXCLUDED.eligible)`,
+      args: [newKey, oldKey],
+    });
+    await db.execute({
+      sql: "DELETE FROM feature_eligibility WHERE feature_key = ?",
+      args: [oldKey],
+    });
+  }
+
+  // 2. responsibilities — rename/merge, preserving every user assignment.
+  for (const [newKey, oldKeys] of Object.entries(RESPONSIBILITY_MERGES)) {
+    const keys = [newKey, ...oldKeys];
+    const ph = keys.map(() => "?").join(",");
+    const rows = (
+      await db.execute({
+        sql: `SELECT id, key FROM responsibilities WHERE key IN (${ph})`,
+        args: keys,
+      })
+    ).rows;
+    if (rows.length === 0) continue;
+
+    // Survivor: the row already carrying the target key, else the lowest id.
+    const sorted = [...rows].sort((a, b) => {
+      if ((a.key === newKey) !== (b.key === newKey)) return a.key === newKey ? -1 : 1;
+      return Number(a.id) - Number(b.id);
+    });
+    const survivor = sorted[0];
+    const dupes = sorted.slice(1);
+
+    if (survivor.key !== newKey) {
+      await db.execute({
+        sql: "UPDATE responsibilities SET key = ? WHERE id = ?",
+        args: [newKey, survivor.id],
+      });
+    }
+    for (const dupe of dupes) {
+      await db.execute({
+        sql: `INSERT INTO user_responsibilities (user_cid, responsibility_id, assigned_by)
+              SELECT user_cid, ?, assigned_by FROM user_responsibilities WHERE responsibility_id = ?
+              ON CONFLICT (user_cid, responsibility_id) DO NOTHING`,
+        args: [survivor.id, dupe.id],
+      });
+      await db.execute({
+        sql: "DELETE FROM user_responsibilities WHERE responsibility_id = ?",
+        args: [dupe.id],
+      });
+      await db.execute({
+        sql: "DELETE FROM responsibilities WHERE id = ?",
+        args: [dupe.id],
+      });
+    }
   }
 }

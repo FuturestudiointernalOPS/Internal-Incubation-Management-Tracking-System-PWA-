@@ -159,7 +159,14 @@ const FIXTURE = {
     { id: "weekly_ops", href: "/staff/op-report", subItems: null },
     { id: "programs", href: "/pm/programs", subItems: null },
     { id: "my_projects", href: "/staff/projects", subItems: null },
-    { id: "messages", href: "/staff/messages", subItems: null },
+    {
+      id: "communication",
+      href: null,
+      subItems: [
+        { id: "messages", href: "/staff/messages", subItems: null },
+        { id: "forms", href: "/platform", subItems: null },
+      ],
+    },
   ],
 
   teacher: [
@@ -349,59 +356,114 @@ describe("Master navigation — role projections", () => {
   });
 });
 
-describe("capability projection consistency (Phase 4 contract)", () => {
+describe("capability projection — buildAccessNav contract", () => {
   const {
-    NAV_ROLE_KEYS,
     NAV_CAPABILITY_REQUIREMENTS,
-    ROLE_NAV_PROJECTION,
-    EXTRA_SECTION_HREFS,
     buildRoleNav,
+    buildAccessNav,
   } = require("@/lib/masterNavigation");
   const { CAPABILITY_CATALOG } = require("@/lib/authorization/capability-catalog");
-  const { FEATURE_ELIGIBILITY_DEFAULTS, MODULE_TO_FEATURE } = require("@/models/authorization/eligibility");
 
-  // Every nav id any role can render (union across role masks).
-  const allIds = new Set();
-  const collect = (items) => {
-    for (const item of items || []) {
-      allIds.add(item.id);
-      collect(item.subItems);
-    }
+  const collect = (items, out = []) => {
+    (items || []).forEach((item) => {
+      out.push(item);
+      collect(item.subItems, out);
+    });
+    return out;
   };
-  for (const role of NAV_ROLE_KEYS) collect(buildRoleNav(role));
+  const ids = (items) => collect(items).map((i) => i.id);
 
-  test("every projection requirement resolves to a real catalog capability and nav node", () => {
-    for (const [nodeId, req] of Object.entries(NAV_CAPABILITY_REQUIREMENTS)) {
+  test("every requirement resolves to a real catalog capability", () => {
+    for (const [, req] of Object.entries(NAV_CAPABILITY_REQUIREMENTS)) {
       expect(CAPABILITY_CATALOG[req.module]).toBeDefined();
       expect(CAPABILITY_CATALOG[req.module].capabilities[req.capability]).toBeDefined();
-      expect(allIds.has(nodeId)).toBe(true);
     }
   });
 
-  test("staff hide/show ids exist, carry requirements, and extras have landing hrefs", () => {
-    const staff = ROLE_NAV_PROJECTION.staff;
-    for (const id of [...(staff.hide || []), ...(staff.show || [])]) {
-      expect(allIds.has(id)).toBe(true);
-      expect(NAV_CAPABILITY_REQUIREMENTS[id]).toBeDefined();
-    }
-    expect(Object.keys(EXTRA_SECTION_HREFS).sort()).toEqual([...(staff.show || [])].sort());
+  test("unknown capabilities fail OPEN on visibility, never on hrefs", () => {
+    const nav = buildAccessNav("staff", null);
+    expect(ids(nav)).toEqual(ids(buildRoleNav("staff")));
   });
 
-  test("menu extras never exceed the staff eligibility boundary", () => {
-    const staff = ROLE_NAV_PROJECTION.staff;
-    for (const id of staff.show) {
-      const feature = MODULE_TO_FEATURE[NAV_CAPABILITY_REQUIREMENTS[id].module];
-      expect(feature).toBeDefined();
-      expect(FEATURE_ELIGIBILITY_DEFAULTS[feature]).toContain("staff");
+  test("super admin keeps the full admin navigation", () => {
+    expect(buildAccessNav("super_admin", null)).toEqual(buildRoleNav("super_admin"));
+  });
+
+  test("a granted section is added with only its reachable children", () => {
+    const nav = buildAccessNav("staff", { contacts: { view: 1 } });
+    const crm = nav.find((i) => i.id === "crm");
+    expect(crm).toBeDefined();
+    // Only the CRM children that have a non-admin route AND pass their own
+    // capability requirement survive (membership needs org_membership.view).
+    expect(crm.subItems.map((s) => s.id)).toEqual([
+      "crm_dashboard",
+      "all_contacts",
+      "crm_timeline",
+    ]);
+    expect(crm.subItems.map((s) => s.href)).toEqual([
+      "/crm",
+      "/crm/contacts",
+      "/crm/timeline",
+    ]);
+  });
+
+  test("membership appears only when org_membership.view is held", () => {
+    const without = buildAccessNav("staff", { contacts: { view: 1 } });
+    expect(ids(without)).not.toContain("crm_membership");
+
+    const withMembership = buildAccessNav("staff", {
+      contacts: { view: 1 },
+      org_membership: { view: 1 },
+    });
+    const crm = withMembership.find((i) => i.id === "crm");
+    const membership = crm.subItems.find((s) => s.id === "crm_membership");
+    expect(membership).toBeDefined();
+    expect(membership.href).toBe("/crm/membership");
+  });
+
+  test("a granted leaf (finance) is added through its non-admin fallback", () => {
+    const nav = buildAccessNav("staff", { finance: { view: 1 } });
+    const finance = nav.find((i) => i.id === "finance");
+    expect(finance).toBeDefined();
+    expect(finance.href).toBe("/finance");
+  });
+
+  test("a role's own doors keep their hrefs (no /admin surgery on the base)", () => {
+    const nav = buildAccessNav("admin", null);
+    expect(nav.map((i) => i.href)).toEqual(["/admin", "/admin/projects", "/admin/reports"]);
+  });
+
+  test("role-only sections (rituals, lms) are never granted by a capability", () => {
+    const everything = Object.fromEntries(
+      Object.entries(NAV_CAPABILITY_REQUIREMENTS).map(([, req]) => [
+        req.module,
+        { [req.capability]: 5 },
+      ]),
+    );
+    const staff = ids(buildAccessNav("staff", everything));
+    expect(staff).not.toContain("rituals");
+    expect(staff).not.toContain("lms");
+  });
+
+  test("non-admin navigation never renders an /admin link", () => {
+    const caps = {
+      contacts: { view: 1 },
+      messaging: { view: 1 },
+      reports: { view: 1, create: 1 },
+      programs: { view: 1 },
+      projects: { view: 1 },
+      finance: { view: 1 },
+    };
+    for (const role of ["staff", "program_manager", "teacher"]) {
+      for (const item of collect(buildAccessNav(role, caps))) {
+        if (item.href) expect(item.href.startsWith("/admin")).toBe(false);
+      }
     }
   });
 
-  test("hidden sections are staff-eligible features shown only when the cap is granted", () => {
-    const staff = ROLE_NAV_PROJECTION.staff;
-    for (const id of staff.hide) {
-      const feature = MODULE_TO_FEATURE[NAV_CAPABILITY_REQUIREMENTS[id].module];
-      if (!feature) continue; // no eligibility concept — role-mask driven
-      expect(FEATURE_ELIGIBILITY_DEFAULTS[feature]).toContain("staff");
-    }
+  test("every id renders at most once", () => {
+    const nav = buildAccessNav("staff", { contacts: { view: 1 }, messaging: { view: 1 } });
+    const rendered = ids(nav);
+    expect(new Set(rendered).size).toBe(rendered.length);
   });
 });

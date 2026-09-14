@@ -7,10 +7,20 @@
       "formsSubtitle": "Create and manage collection forms and runs",
       "messagesTitle": "Messages",
       "messagesSubtitle": "Internal communications and announcements",
-      "adminOnlyNote": "Full CRM administration (people, timeline, duplicates, pending approvals, bulk import) is available to Super Admins."
+      "timelineSubtitle": "Every event for one person, in a single view.",
+      "adminOnlyNote": "Duplicates, pending approvals and bulk import stay in the Super Admin CRM."
     },
     "backToPrevious": "Back to previous menu",
     "backToCrm": "Back to CRM",
+    "directory": {
+      "subtitle": "The people you can see, based on your CRM access.",
+      "searchPlaceholder": "Search by name, email, role or group...",
+      "columnName": "Name",
+      "columnEmail": "Email",
+      "columnRole": "Role",
+      "columnGroup": "Group",
+      "columnStatus": "Status"
+    },
     "campaigns": {
       "title": "Campaigns",
       "subtitle": "Broadcast messages and track engagement metrics.",

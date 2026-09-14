@@ -8,10 +8,34 @@
  *   - the Responsibility Access defaults (`src/lib/featureAccess.js`),
  *   - the model-consistency tests (roles must stay within ROLE_CATALOG).
  *
+ * FEATURES = the dashboard sections (CRM, Communication, Programs, …). Their
+ * modules are the sub-sections (see MODULE_TO_FEATURE).
+ *
  * These only fill rows that have never been configured (ON CONFLICT DO
  * NOTHING) — admin edits are never overwritten.
  */
+
+/**
+ * Canonical order of the features — mirrors the dashboard sections so the
+ * Permissions UI lists them the way the sidebar does (NOT alphabetically).
+ */
+export const FEATURE_ORDER = [
+  "crm",
+  "communication",
+  "programs",
+  "ventures",
+  "investors",
+  "finance",
+  "operations",
+  "reports",
+  "knowledge",
+  "lms",
+  "security",
+  "settings",
+];
+
 export const FEATURE_ELIGIBILITY_DEFAULTS = {
+  // CRM — people, contacts, duplicates, bulk import
   crm: [
     "super_admin",
     "staff",
@@ -19,6 +43,7 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "teacher",
     "developer",
   ],
+  // Communication — messaging, announcements, forms
   communication: [
     "super_admin",
     "staff",
@@ -26,36 +51,9 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "teacher",
     "developer",
   ],
-  finance: ["super_admin", "staff"],
-  program_management: ["super_admin", "staff", "program_manager", "teacher", "participant"],
-  project_ownership: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  operations: ["super_admin", "staff", "program_manager", "teacher", "developer"],
-  reporting: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  knowledge_base: ["super_admin", "staff"],
-  intelligence: ["super_admin", "developer"],
-  engineering: ["super_admin", "developer"],
-  user_management: ["super_admin", "staff"],
-  system_settings: ["super_admin", "staff"],
-  tasks: ["super_admin", "staff", "program_manager", "team"],
-  // P1: founder is an official eligibility identity. Ventures is the founder's
-  // own-venture feature (venture_own scope) — founders are NOT program
-  // participants and gain no participant defaults from this row.
-  // Phase 6: "member" is included because a founder is a BASELINE MEMBER with a
-  // venture context — the context model cannot work if the feature is
-  // ineligible for the baseline identity. Eligibility is only a CEILING:
-  // the capability (granted by the relationship) + venture scope still decide.
+  // Programs — programs, participants, submissions (facilitator module)
+  programs: ["super_admin", "staff", "program_manager", "teacher", "participant"],
+  // Ventures — incubated businesses (founder eligible for own-venture access).
   ventures: [
     "super_admin",
     "staff",
@@ -64,12 +62,33 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "founder",
     "member",
   ],
-  investor: ["super_admin", "staff", "investor"],
-  // LMS: capability-gated authoring feature (view/create/edit/delete only).
-  // Program Manager is the default non-SA holder of lms capabilities
-  // (previously lms.view + lms.assign); developer is included so a developer
-  // granted the LMS responsibility can open the /admin course pages. The
-  // publish/enroll/assign capabilities were retired from the module
-  // (see backfill.js) and can never be granted again.
+  // Investors — investor relations
+  investors: ["super_admin", "staff", "investor"],
+  // Finance — budgets, reports
+  finance: ["super_admin", "staff"],
+  // Operations — projects, tasks, blockers, standups, retros
+  operations: [
+    "super_admin",
+    "staff",
+    "program_manager",
+    "teacher",
+    "developer",
+    "team",
+  ],
+  // Reports — reports and analytics
+  reports: [
+    "super_admin",
+    "staff",
+    "program_manager",
+    "teacher",
+    "developer",
+  ],
+  // Knowledge — knowledge base
+  knowledge: ["super_admin", "staff", "developer"],
+  // LMS — capability-gated course authoring & learning
   lms: ["super_admin", "program_manager", "developer"],
+  // Security — user administration + permission matrix
+  security: ["super_admin", "staff"],
+  // Settings — system configuration + engineering operations
+  settings: ["super_admin", "staff", "developer"],
 };

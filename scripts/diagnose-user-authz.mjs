@@ -214,5 +214,5 @@ const messagingGrants = map.grants.filter((r) => r.module === "messaging");
 console.log("\n— messaging capability rows anywhere in the DB —");
 console.log(`role_capabilities: ${messagingCaps.length ? JSON.stringify(messagingCaps) : "NONE (no role has messaging caps)"}`);
 console.log(`user_capabilities: ${messagingGrants.length ? JSON.stringify(messagingGrants) : "NONE"}`);
-console.log(`feature_eligibility (messaging): ${JSON.stringify(map.eligibility.filter((r) => r.feature_key === "messaging"))}`);
+console.log(`feature_eligibility (communication): ${JSON.stringify(map.eligibility.filter((r) => r.feature_key === "communication"))}`);
 process.exit(0);

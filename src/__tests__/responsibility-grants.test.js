@@ -48,10 +48,19 @@ describe("grantResponsibilityBaseAccess", () => {
     expect(db.execute).toHaveBeenCalledTimes(2);
   });
 
-  test("a responsibility without a module mapping grants nothing (operations)", async () => {
+  test("operations owns projects + tasks (dashboard section merge)", async () => {
     const granted = await grantResponsibilityBaseAccess({
       userCid: "USR-1",
       responsibilityKey: "operations",
+      grantedBy: "SA-1",
+    });
+    expect(granted).toEqual(["projects.view", "tasks.view"]);
+  });
+
+  test("a responsibility without a module mapping grants nothing (org_membership)", async () => {
+    const granted = await grantResponsibilityBaseAccess({
+      userCid: "USR-1",
+      responsibilityKey: "org_membership",
       grantedBy: "SA-1",
     });
     expect(granted).toEqual([]);

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/lms/enrollments
- * Admin enrollment (source: admin). Requires lms.enroll.
+ * Admin enrollment (source: admin). Requires lms.edit.
  * Accepts a user by cid OR email. Idempotent (ON CONFLICT DO NOTHING).
  * Minimal enabler so Phase 3 learners can exist; a full enrollment
  * management experience belongs to a later phase.
@@ -16,8 +16,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req) {
   try {
     await initDb();
-    // Phase 3 (Option A): retired lms.enroll migrated to the canonical lms.edit
-    // gate — admin enrollment is course management.
+    // Admin enrollment is course management (lms.edit).
     const capError = await requireAuthorization("lms", "edit");
     if (capError) return capError;
 

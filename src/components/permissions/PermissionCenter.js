@@ -24,13 +24,13 @@ import {
 } from "lucide-react";
 import AppPagination from "@/components/ui/AppPagination";
 import { useI18n } from "@/lib/i18n";
-import { capabilityLabel, CAPABILITY_CATALOG } from "@/lib/authorization/capability-catalog";
+import { capabilityLabel, CAPABILITY_CATALOG, moduleCapabilityParents } from "@/lib/authorization/capability-catalog";
 import { deriveMembershipStatus } from "@/lib/membership-ui";
 import {
   isResponsibilityBlockedForRole,
   normalizeAllowedRoles,
   defaultAllowedRoles,
-  ALL_FEATURE_ROLES,
+  eligibleRolesForFeature,
 } from "@/lib/featureAccess";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import Badge from "@/components/permissions/ui/Badge";
@@ -40,6 +40,9 @@ import PendingChangesList from "@/components/permissions/ui/PendingChangesList";
 import { diffCapabilities } from "@/components/permissions/pendingChanges";
 import { splitAuditReason } from "@/components/permissions/auditHelpers";
 import { deriveProfileBadges } from "@/components/permissions/profileBadges";
+import FeatureMatrixSection from "@/components/permissions/FeatureMatrixSection";
+import AdvancedCapabilities from "@/components/permissions/AdvancedCapabilities";
+import { groupModulesByFeature, buildSubsectionRows, toggleCapability, toggleFullCapabilities, filterSectionsByRoleEligibility, crudCapabilities } from "@/components/permissions/matrixHelpers";
 import { defer } from "@/components/permissions/effectUtils";
 
 const ACCESS_LEVEL_KEYS = {
@@ -94,6 +97,7 @@ export default function PermissionManager({
   const [userPerms, setUserPerms] = useState(null);
   const [loadingPerms, setLoadingPerms] = useState(false);
   const [modules, setModules] = useState({});
+  const [moduleToFeature, setModuleToFeature] = useState({});
   const [expandedModules, setExpandedModules] = useState({});
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
@@ -116,7 +120,10 @@ export default function PermissionManager({
     try {
       const res = await fetch("/api/engineering/permissions");
       const data = await res.json();
-      if (data.success) setModules(data.modules || {});
+      if (data.success) {
+        setModules(data.modules || {});
+        setModuleToFeature(data.moduleToFeature || {});
+      }
     } catch (e) {
       console.error("Failed to fetch modules", e);
     }
@@ -590,7 +597,10 @@ export default function PermissionManager({
                         {category.modules.map((modKey) => {
                           const mod = modules[modKey];
                           if (!mod) return null;
-                          const caps = mod.capabilities || [];
+                          // The CRUD grid edits CRUD only; the module's other
+                          // capabilities live in the Advanced section below.
+                          const caps = crudCapabilities(mod.capabilities || []);
+                          if (caps.length === 0) return null;
                           const isExpanded = expandedModules[modKey] !== false;
 
                           return (
@@ -861,6 +871,22 @@ export default function PermissionManager({
                         })}
                       </div>
                     ))}
+
+                    {/* Non-CRUD capabilities (grant, promote_super_admin, send,
+                        publish, execute…) — individual grants/restrictions. */}
+                    <AdvancedCapabilities
+                      availableModules={modules}
+                      moduleToFeature={moduleToFeature}
+                      mode="individual"
+                      stateOf={(module, capability) => ({
+                        level: getEffectiveLevel(module, capability),
+                        origin: getOrigin(module, capability),
+                      })}
+                      onAction={handleQuickAction}
+                      onWhy={(module, capability) =>
+                        setWhyTarget({ module, capability })
+                      }
+                    />
                   </div>
                 )}
               </div>
@@ -886,6 +912,24 @@ export default function PermissionManager({
   );
 }
 
+/**
+ * The module catalog the Access-Profile editor can EDIT: the server-served
+ * PERMISSION_MODULES (the write-validated set) UNION every non-locked module of
+ * the registry (CAPABILITY_CATALOG), shaped as { name, capabilities: string[] }.
+ *
+ * Why: MODULE_TO_FEATURE maps some modules (bulk_upload) that PERMISSION_MODULES
+ * does not carry, so a feature would show only part of its sub-sections. Locked
+ * modules (duplicates) stay out — they are super-admin role-locked.
+ */
+function buildEditableModules(permissionModules) {
+  const out = { ...(permissionModules || {}) };
+  for (const [mod, def] of Object.entries(CAPABILITY_CATALOG)) {
+    if (out[mod] || def.locked) continue;
+    out[mod] = { name: def.name, capabilities: Object.keys(def.capabilities || {}) };
+  }
+  return out;
+}
+
 function AccessProfilesView({ initialProfileId = null }) {
   const { t } = useI18n();
   const [profiles, setProfiles] = useState([]);
@@ -893,6 +937,7 @@ function AccessProfilesView({ initialProfileId = null }) {
   const [allRoles, setAllRoles] = useState([]);
   const [eligibilityRows, setEligibilityRows] = useState([]); // feature_eligibility rows for role-based filtering
   const [moduleToFeature, setModuleToFeature] = useState({}); // capability module → feature key
+  const [featureKeys, setFeatureKeys] = useState([]); // canonical feature order (eligibility API)
   // The capability catalog (PERMISSION_MODULES) as served by /api/access-profiles
   // — the SAME definition the access-profile writes are validated against. Held
   // in state: the editor used to read a `window` global and fall back to a
@@ -943,6 +988,7 @@ function AccessProfilesView({ initialProfileId = null }) {
         setAllRoles(eligData.roles || Object.keys(data.roleDefaults || {}));
         setEligibilityRows(eligData.rows || []);
         setModuleToFeature(eligData.moduleToFeature || {});
+        setFeatureKeys(eligData.features || []);
       } else {
         setAllRoles(Object.keys(data.roleDefaults || {}));
       }
@@ -1187,29 +1233,24 @@ function AccessProfilesView({ initialProfileId = null }) {
       .filter(([, v]) => v.profileId === profileId)
       .map(([role]) => role);
 
-  const getDraftLevel = (mod, cap) => draftCaps[mod]?.[cap] ?? 0;
   const isChanged = (mod, cap) =>
     (draftCaps[mod]?.[cap] ?? 0) !== (savedCaps[mod]?.[cap] ?? 0);
 
-  const setDraftLevel = (mod, cap, level) => {
-    // View is the base capability: it cannot be removed while another
-    // capability in the same module stays enabled (mirrors the server-side
-    // normalization in /api/access-profiles).
-    if (cap === "view" && level === 0) {
-      const othersActive = Object.entries(draftCaps[mod] || {}).some(
-        ([c, lvl]) => c !== "view" && Number(lvl) > 0,
-      );
-      if (othersActive) {
-        setActionError(t("engineering.permissions.viewRequiredMsg"));
-        return;
-      }
-    }
+  // Checkbox editing: View is the base capability and, within a capability
+  // family, a child requires its parent (checking `archive` also checks
+  // `edit`; clearing `edit` clears `archive`). The pure helpers own the rules.
+  const toggleDraftCap = (mod, capability, checked, moduleCapabilities = []) => {
     setActionError("");
-    setDraftCaps((prev) => {
-      const next = { ...prev, [mod]: { ...(prev[mod] || {}) } };
-      next[mod][cap] = level;
-      return next;
-    });
+    setDraftCaps((prev) =>
+      toggleCapability(prev, mod, capability, checked, moduleCapabilities, moduleCapabilityParents(mod)),
+    );
+  };
+
+  const toggleDraftFull = (mod, checked, moduleCapabilities = []) => {
+    setActionError("");
+    setDraftCaps((prev) =>
+      toggleFullCapabilities(prev, mod, checked, moduleCapabilities),
+    );
   };
 
   const persistCaps = async () => {
@@ -1302,9 +1343,11 @@ function AccessProfilesView({ initialProfileId = null }) {
     }
   };
 
-  // The catalog is whatever the server serves (PERMISSION_MODULES). No local
-  // copy exists any more: one definition, everywhere.
-  const availableModules = moduleCatalog || {};
+  // The editor's module catalog = the registry truth (CAPABILITY_CATALOG), not
+  // just PERMISSION_MODULES, so each feature shows ALL of its sub-sections
+  // (e.g. CRM → Contacts + Bulk Upload). `locked` modules (duplicates) are
+  // super-admin role-locked and never enter a profile.
+  const availableModules = moduleCatalog ? buildEditableModules(moduleCatalog) : {};
 
   if (loading) {
     return (
@@ -1343,19 +1386,31 @@ function AccessProfilesView({ initialProfileId = null }) {
     return anyEligible;
   };
 
-  // Only show the features the profile's default role(s) are eligible for.
-  // No role context (profile is not a default) or unknown mapping → keep the
-  // module visible rather than hiding capabilities the admin may need.
-  const visibleModules = Object.entries(availableModules).filter(
-    ([modKey]) => {
-      if (selectedIsDefaultFor.length === 0) return true;
-      const feature = moduleToFeature[modKey];
-      if (!feature) return true;
-      return selectedIsDefaultFor.some((role) =>
-        isRoleEligibleForFeature(role, feature),
-      );
-    },
+  // Feature sections: each FEATURE (sidebar-level section) carries its modules
+  // as sub-sections (rows) and the ordered union of their capabilities (the
+  // header row). STRICT: only the features the profile's assigned role(s) are
+  // eligible for are shown (union); a profile with no role shows nothing until
+  // it is assigned one (see filterSectionsByRoleEligibility).
+  //
+  // Unmapped modules (modules with no feature — e.g. org_membership) are NOT
+  // features and are dropped: the template only ever shows dashboard sections.
+  const eligibleSections = filterSectionsByRoleEligibility(
+    groupModulesByFeature(availableModules, moduleToFeature, featureKeys),
+    selectedIsDefaultFor,
+    isRoleEligibleForFeature,
+  ).filter((section) => !section.unmapped);
+
+  // The features the profile's roles are eligible for. Also the ceiling for the
+  // Advanced section, so it never offers what the roles cannot hold.
+  const visibleFeatures = new Set(
+    eligibleSections.map((section) => section.feature),
   );
+
+  // Every module of every eligible feature is listed as a sub-section — INCLUDING
+  // modules whose capabilities are all non-CRUD (bulk_upload, permissions,
+  // facilitator): the feature must show its real sub-sections. Those capabilities
+  // are edited in the Advanced section below; the CRUD cells stay empty for them.
+  const visibleSections = eligibleSections;
 
   return (
     <div className="space-y-6">
@@ -1708,162 +1763,51 @@ function AccessProfilesView({ initialProfileId = null }) {
                 </div>
               )}
 
-              {moduleCatalog && visibleModules.length === 0 && (
+              {moduleCatalog && visibleSections.length === 0 && (
                 <div className="py-10 text-center opacity-60">
                   <p className="text-xs font-black text-[var(--text-primary)] uppercase">
-                    {t("engineering.permissions.profileNoEligibleFeatures")}
+                    {t(
+                      selectedIsDefaultFor.length === 0
+                        ? "engineering.permissions.profileNoRolesEmpty"
+                        : "engineering.permissions.profileNoEligibleFeatures",
+                    )}
                   </p>
                 </div>
               )}
 
-              {moduleCatalog && visibleModules.length > 0 && (
+              {moduleCatalog && visibleSections.length > 0 && (
                 <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                   {t("engineering.permissions.viewBaseHint")}
                 </p>
               )}
 
-              <div className="space-y-4">
-                {visibleModules.map(([modKey, mod]) => {
-                  const moduleChanged = mod.capabilities.some((cap) =>
-                    isChanged(modKey, cap),
-                  );
-                  return (
-                    <div
-                      key={modKey}
-                      className="ios-card !p-0 border border-[var(--border-primary)] overflow-hidden"
-                    >
-                      <div className="px-5 py-3 bg-tertiary/30 border-b border-[var(--border-primary)] flex items-center justify-between">
-                        <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
-                          {mod.name}
-                        </h4>
-                        {moduleChanged && (
-                          <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                            {t("engineering.permissions.changedBadge")}
-                          </span>
-                        )}
-                      </div>
-                      <div className="hidden md:block overflow-x-auto">
-                        <table className="w-full text-left min-w-[480px]">
-                          <thead>
-                            <tr className="border-b border-[var(--border-primary)]">
-                              <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                                {t("engineering.permissions.capability")}
-                              </th>
-                              {LEVELS_ORDER.map((l) => (
-                                <th
-                                  key={l}
-                                  className="px-1 py-2.5 text-center text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest"
-                                >
-                                  {l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {mod.capabilities.map((cap) => {
-                              const level = getDraftLevel(modKey, cap);
-                              const changed = isChanged(modKey, cap);
-                              const viewLocked =
-                                cap === "view" &&
-                                Object.entries(draftCaps[modKey] || {}).some(
-                                  ([c, lvl]) => c !== "view" && Number(lvl) > 0,
-                                );
-                              return (
-                                <tr
-                                  key={cap}
-                                  className={`border-b border-[var(--border-primary)]/50 last:border-b-0 ${changed ? "bg-amber-500/5" : ""}`}
-                                >
-                                  <td className="px-4 py-2 text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
-                                    {capabilityLabel(modKey, cap)}
-                                    {changed && (
-                                      <span className="ml-2 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                                        {t("engineering.permissions.changedBadge")}
-                                      </span>
-                                    )}
-                                  </td>
-                                  {LEVELS_ORDER.map((l) => (
-                                    <td key={l} className="px-1 py-1.5 text-center">
-                                      <button
-                                        onClick={() => setDraftLevel(modKey, cap, l)}
-                                        disabled={viewLocked && l === 0}
-                                        title={
-                                          viewLocked && l === 0
-                                            ? t("engineering.permissions.viewRequiredMsg")
-                                            : `${capabilityLabel(modKey, cap)} → ${l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}`
-                                        }
-                                        className={`w-8 h-8 rounded-lg border text-[10px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-                                          level === l
-                                            ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
-                                            : "bg-secondary border-[var(--border-primary)] text-slate-500 hover:border-[var(--brand-orange)]/40 hover:text-[var(--text-primary)]"
-                                        } ${changed && level === l ? "ring-1 ring-amber-400/70" : ""}`}
-                                      >
-                                        {ACCESS_SHORT[l]}
-                                      </button>
-                                    </td>
-                                  ))}
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      {/* Small screens: one card per capability, one chip per
-                          level — the same targets, just stacked. */}
-                      <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
-                        {mod.capabilities.map((cap) => {
-                          const level = getDraftLevel(modKey, cap);
-                          const changed = isChanged(modKey, cap);
-                          const viewLocked =
-                            cap === "view" &&
-                            Object.entries(draftCaps[modKey] || {}).some(
-                              ([c, lvl]) => c !== "view" && Number(lvl) > 0,
-                            );
-                          return (
-                            <div
-                              key={cap}
-                              className={`p-3 space-y-2 ${changed ? "bg-amber-500/5" : ""}`}
-                            >
-                              <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
-                                {capabilityLabel(modKey, cap)}
-                                {changed && (
-                                  <span className="ml-2 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                                    {t("engineering.permissions.changedBadge")}
-                                  </span>
-                                )}
-                              </p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {LEVELS_ORDER.map((l) => (
-                                  <button
-                                    key={l}
-                                    onClick={() => setDraftLevel(modKey, cap, l)}
-                                    disabled={viewLocked && l === 0}
-                                    title={
-                                      viewLocked && l === 0
-                                        ? t("engineering.permissions.viewRequiredMsg")
-                                        : `${capabilityLabel(modKey, cap)} → ${l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}`
-                                    }
-                                    className={`min-w-[3rem] h-10 px-2 rounded-lg border text-[10px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-                                      level === l
-                                        ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
-                                        : "bg-secondary border-[var(--border-primary)] text-slate-500 hover:border-[var(--brand-orange)]/40 hover:text-[var(--text-primary)]"
-                                    } ${changed && level === l ? "ring-1 ring-amber-400/70" : ""}`}
-                                  >
-                                    <span className="block text-[8px] uppercase tracking-widest opacity-70">
-                                      {l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}
-                                    </span>
-                                    <span>{ACCESS_SHORT[l]}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="space-y-6">
+                {visibleSections.map((section) => (
+                  <FeatureMatrixSection
+                    key={section.feature}
+                    section={section}
+                    rows={buildSubsectionRows(section.feature, availableModules, moduleToFeature)}
+                    availableModules={availableModules}
+                    draftCaps={draftCaps}
+                    savedCaps={savedCaps}
+                    onToggle={toggleDraftCap}
+                    onToggleFull={toggleDraftFull}
+                  />
+                ))}
               </div>
+
+              {/* Non-CRUD capabilities (grant, promote_super_admin, send,
+                  publish, execute…) — editable on the same draft + save flow. */}
+              <AdvancedCapabilities
+                availableModules={availableModules}
+                moduleToFeature={moduleToFeature}
+                visibleFeatures={visibleFeatures}
+                mode="profile"
+                stateOf={(module, capability) => ({
+                  level: draftCaps?.[module]?.[capability] ?? 0,
+                })}
+                onToggle={toggleDraftCap}
+              />
             </>
           ) : (
             <div className="ios-card !p-10 border border-[var(--border-primary)] flex flex-col items-center justify-center text-center opacity-60 space-y-2">
@@ -2275,6 +2219,9 @@ function ResponsibilityAccessView() {
   const [savingId, setSavingId] = useState(null);
   const [saveMsg, setSaveMsg] = useState("");
   const [saveError, setSaveError] = useState("");
+  // feature_eligibility rows — the ceiling that bounds which roles each feature
+  // may offer (a role the feature is not eligible for is never proposed).
+  const [eligibilityRows, setEligibilityRows] = useState([]);
 
   const fetchAll = useCallback(async (bypassCache = false) => {
     const url = "/api/responsibilities";
@@ -2309,6 +2256,33 @@ function ResponsibilityAccessView() {
   useEffect(() => {
     defer(() => fetchAll());
   }, [fetchAll]);
+
+  // Load the eligibility ceiling (cache-first, fail-soft): without it the role
+  // toggles fall back to the full canonical list.
+  useEffect(() => {
+    let alive = true;
+    const url = "/api/engineering/permissions/eligibility";
+    const cached = cacheGet(url);
+    if (cached !== null && cached.success) {
+      defer(() => setEligibilityRows(cached.rows || []));
+    }
+    (async () => {
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!alive) return;
+        if (data.success) {
+          cacheSet(url, data);
+          setEligibilityRows(data.rows || []);
+        }
+      } catch {
+        /* fail-soft — the full role list stays available */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const effectiveRoles = (resp) =>
     normalizeAllowedRoles(resp.allowed_roles) ??
@@ -2455,7 +2429,7 @@ function ResponsibilityAccessView() {
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">
-                  {ALL_FEATURE_ROLES.map((role) => {
+                  {eligibleRolesForFeature(eligibilityRows, resp.key).map((role) => {
                     const active = effective.includes(role);
                     const saving = savingId === resp.id;
                     return (
@@ -2647,10 +2621,12 @@ function EligibilityView() {
     );
   }
 
-  // Baseline identities vs context roles (UI-4c): the matrix is honest about
-  // which is which — a context role is a ceiling too, but it is held per
-  // context, never as a platform identity.
+  // Eligibility manages BASELINE identities. Context roles (participant,
+  // facilitator, investor, founder) are ceilings too, but they are held per
+  // relationship, so they are NOT rows of the matrix — they stay selectable in
+  // the identity editor, where they are tagged as context roles.
   const contextRoles = new Set(data?.identityGroups?.contextRoles || []);
+  const matrixRoles = (data?.roles || []).filter((r) => !contextRoles.has(r));
 
   // One lookup for both presentations (table on md+, cards below) so the two
   // can never disagree about what a cell shows.
@@ -2728,18 +2704,13 @@ function EligibilityView() {
                 </tr>
               </thead>
               <tbody>
-                {(data.roles || []).map((role) => (
+                {matrixRoles.map((role) => (
                   <tr
                     key={role}
                     className="border-b border-[var(--border-primary)] last:border-0"
                   >
                     <td className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)] sticky left-0 bg-secondary">
                       {role}
-                      {contextRoles.has(role) && (
-                        <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-teal-400">
-                          {t("engineering.permissions.contextRoleTag")}
-                        </span>
-                      )}
                     </td>
                     {(data.features || []).map((f) => {
                       const state = stateFor(role, f);
@@ -2768,15 +2739,10 @@ function EligibilityView() {
           {/* Small screens: one card per identity, one chip per feature — the
               same tap opens the same identity editor. */}
           <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
-            {(data.roles || []).map((role) => (
+            {matrixRoles.map((role) => (
               <div key={role} className="p-3 space-y-2">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
                   {role}
-                  {contextRoles.has(role) && (
-                    <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-teal-400">
-                      {t("engineering.permissions.contextRoleTag")}
-                    </span>
-                  )}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {(data.features || []).map((f) => {
@@ -2878,6 +2844,11 @@ function EligibilityView() {
                   ? t("engineering.permissions.eligibilityRole")
                   : t("engineering.permissions.eligibilityGroup")}
                 : {selected}
+                {identityType === "role" && contextRoles.has(selected) && (
+                  <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-teal-400">
+                    {t("engineering.permissions.contextRoleTag")}
+                  </span>
+                )}
               </p>
               <div className="flex items-center gap-2 flex-wrap">
                 {msg && (

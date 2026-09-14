@@ -8,15 +8,13 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/lms/courses/[id]/publish
- * Validate then publish a draft course. Requires lms.publish.
+ * Validate then publish a draft course. Requires lms.edit.
  * Returns 422 with `details` (field-level errors) when validation fails.
  */
 export async function POST(req, { params }) {
   try {
     await initDb();
-    // Phase 3 (Option A): retired lms.publish migrated to the canonical
-    // lms.edit gate — course lifecycle (publish/unpublish) is course
-    // management.
+    // Course lifecycle (publish/unpublish) is course management (lms.edit).
     const capError = await requireAuthorization("lms", "edit");
     if (capError) return capError;
 

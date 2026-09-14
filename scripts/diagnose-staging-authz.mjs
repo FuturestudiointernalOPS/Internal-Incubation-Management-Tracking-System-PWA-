@@ -61,7 +61,7 @@ await q("latest 25 audit events", `SELECT actor_cid, actor_name, target_cid, tar
 await q("restricted events ever (SA-related)", `SELECT actor_name, target_cid, target_name, module, capability, details, created_at FROM permission_audit_log WHERE action IN ('restricted','unrestricted') ORDER BY created_at DESC LIMIT 20`);
 await q("granted/revoked events (last 20)", `SELECT actor_name, target_cid, target_name, module, capability, details, created_at FROM permission_audit_log WHERE action IN ('granted','revoked') ORDER BY created_at DESC LIMIT 20`);
 
-await q("feature_eligibility for user_management", "SELECT feature_key, identity_type, identity_value, eligible FROM feature_eligibility WHERE feature_key = 'user_management'");
+await q("feature_eligibility for security", "SELECT feature_key, identity_type, identity_value, eligible FROM feature_eligibility WHERE feature_key = 'security'");
 await q("ALL feature_eligibility rows", "SELECT feature_key, identity_type, identity_value, eligible FROM feature_eligibility ORDER BY identity_value, feature_key");
 await q("access_profile_capabilities (profile 1)", "SELECT profile_id, module, capability, access_level FROM access_profile_capabilities ORDER BY module, capability");
 await q("ALL contacts", "SELECT cid, name, email, role, status, access_profile_id, group_name FROM contacts ORDER BY role");

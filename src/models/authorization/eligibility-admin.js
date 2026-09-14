@@ -17,14 +17,24 @@
 import db from "@/lib/db";
 
 import { MODULE_TO_FEATURE, FEATURE_ELIGIBILITY_DEFAULTS, evaluateEligibility } from "./eligibility";
+import { FEATURE_ORDER } from "./eligibility-defaults";
 
-/** Every configurable feature (module-mapped features + seeded features). */
-export const FEATURE_KEYS = [
+const CONFIGURABLE_FEATURES = [
   ...new Set([
     ...Object.values(MODULE_TO_FEATURE),
     ...Object.keys(FEATURE_ELIGIBILITY_DEFAULTS),
   ]),
-].sort();
+];
+
+/**
+ * Every configurable feature (module-mapped features + seeded features), in the
+ * canonical dashboard order. Any unknown/extra feature is appended, sorted, so
+ * nothing is ever hidden.
+ */
+export const FEATURE_KEYS = [
+  ...FEATURE_ORDER.filter((f) => CONFIGURABLE_FEATURES.includes(f)),
+  ...CONFIGURABLE_FEATURES.filter((f) => !FEATURE_ORDER.includes(f)).sort(),
+];
 
 export const IDENTITY_TYPES = ["role", "group"];
 

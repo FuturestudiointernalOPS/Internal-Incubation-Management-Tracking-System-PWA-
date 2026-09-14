@@ -7,10 +7,20 @@
       "formsSubtitle": "Créer et gérer des formulaires de collecte et des exécutions",
       "messagesTitle": "Messages",
       "messagesSubtitle": "Communications internes et annonces",
-      "adminOnlyNote": "L'administration complète du CRM (personnes, historique, doublons, approbations en attente, import en masse) est réservée aux Super Admins."
+      "timelineSubtitle": "Tous les événements d'une personne, en une seule vue.",
+      "adminOnlyNote": "Les doublons, les approbations en attente et l'import en masse restent dans le CRM Super Admin."
     },
     "backToPrevious": "Retour au menu précédent",
     "backToCrm": "Retour au CRM",
+    "directory": {
+      "subtitle": "Les personnes que vous pouvez voir, selon votre accès CRM.",
+      "searchPlaceholder": "Rechercher par nom, e-mail, rôle ou groupe...",
+      "columnName": "Nom",
+      "columnEmail": "E-mail",
+      "columnRole": "Rôle",
+      "columnGroup": "Groupe",
+      "columnStatus": "Statut"
+    },
     "campaigns": {
       "title": "Campagnes",
       "subtitle": "Diffusez des messages et suivez les métriques d'engagement.",

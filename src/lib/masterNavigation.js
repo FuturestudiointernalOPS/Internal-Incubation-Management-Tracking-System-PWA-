@@ -20,8 +20,8 @@
  *   zero structure. Do not add navigation sections to a role config; extend
  *   MASTER_NAVIGATION instead.
  * - Node ids are the contract shared with NAV_KEY_MAP (labels), CRUMB_PATH_MAP
- *   (breadcrumbs), NAV_RESPONSIBILITY_MAP (access), badges, active-route
- *   detection and the future permission system. Never rename an id.
+ *   (breadcrumbs), buildAccessNav (access), badges, active-route
+ *   detection and the permission system. Never rename an id.
  * - Icons are stored as string names here (keeps this module test-friendly);
  *   the sidebar resolves them to components (see NAV_ICONS in DashboardLayout).
  */
@@ -256,8 +256,10 @@ export const ROLE_ACCESS = {
   },
 
   staff: {
-    top: ["dashboard", "weekly_ops", "programs", "my_projects", "messages"],
-    children: {},
+    top: ["dashboard", "weekly_ops", "programs", "my_projects", "communication"],
+    children: {
+      communication: ["messages", "forms"],
+    },
     hrefs: {
       dashboard: "/staff",
       programs: "/pm/programs",
@@ -360,8 +362,6 @@ export const ROLE_ACCESS = {
   },
 };
 
-export const NAV_ROLE_KEYS = Object.keys(ROLE_ACCESS);
-
 // ─── Capability-projected navigation (Phase: nav reflects effective access) ──
 // Nodes that represent GLOBAL-management sections carry a capability
 // requirement. The projection only touches nodes listed here — everything
@@ -380,6 +380,10 @@ export const NAV_ROLE_KEYS = Object.keys(ROLE_ACCESS);
 // the server gates remain authoritative).
 export const NAV_CAPABILITY_REQUIREMENTS = {
   crm: { module: "contacts", capability: "view" },
+  // Membership lives under the CRM section but is backed by its own module
+  // (GET /api/org-membership requires org_membership.view) — so it only appears
+  // when that capability is actually held, not merely because CRM is granted.
+  crm_membership: { module: "org_membership", capability: "view" },
   finance: { module: "finance", capability: "view" },
   security: { module: "settings", capability: "view" },
   programs: { module: "programs", capability: "view" },
@@ -396,28 +400,16 @@ export const NAV_CAPABILITY_REQUIREMENTS = {
   settings: { module: "settings", capability: "view" },
 };
 
-// Per-role projection rules. Only Staff (incl. PM-as-staff, which resolves to
-// the staff session role) is projected today: nodes in `hide` disappear when
-// the capability is missing, sections in `show` appear when the capability is
-// present (e.g. CRM for a Staff member granted contacts.view). Other roles
-// keep their role masks exactly as before.
-export const ROLE_NAV_PROJECTION = {
-  staff: {
-    hide: ["programs", "weekly_ops", "my_projects", "messages"],
-    show: ["crm", "finance", "security", "knowledge", "reports", "ventures", "investors"],
-  },
-};
-
-// Primary landing URL for sections added by the projection (rendered as leaf
-// links — never the full admin child list, which may be admin-only).
-export const EXTRA_SECTION_HREFS = {
-  crm: "/admin/crm",
-  finance: "/admin/finance",
-  security: "/admin/security",
-  knowledge: "/admin/knowledge",
-  reports: "/admin/reports/responses",
-  ventures: "/admin/ventures",
-  investors: "/admin/investors",
+// Admin-only destinations remapped to a page the role can actually open. Any
+// OTHER /admin node is dropped for a non-admin role: the sidebar never renders
+// a link the role would be redirected away from.
+export const NON_ADMIN_HREF_FALLBACKS = {
+  finance: "/finance",
+  crm_dashboard: "/crm",
+  all_contacts: "/crm/contacts",
+  crm_membership: "/crm/membership",
+  crm_timeline: "/crm/timeline",
+  forms: "/platform",
 };
 
 /** Pure capability check against an effective matrix. */
@@ -425,53 +417,138 @@ export function hasCapability(effective, module, capability, minLevel = 1) {
   return Number(effective?.[module]?.[capability] ?? 0) >= minLevel;
 }
 
+/** Project one master section for a role (role child list + href/icon overrides). */
+function projectMasterSection(node, access) {
+  // Child list precedence: the role's own list, then Super Admin's canonical
+  // expression of the master tree (which omits role-specific extras such as
+  // `groups`), then the raw master children.
+  const childIds =
+    (access.children && access.children[node.id]) ||
+    ROLE_ACCESS.super_admin.children[node.id] ||
+    (node.children || []).map((child) => child.id);
+  return {
+    id: node.id,
+    name: node.name,
+    icon: (access.icons && access.icons[node.id]) || node.icon,
+    subItems: childIds
+      .map(
+        (id) =>
+          (node.children || []).find((child) => child.id === id) ||
+          NAV_NODE_INDEX[id],
+      )
+      .filter(Boolean)
+      .map((child) => ({
+        id: child.id,
+        name: child.name,
+        icon: child.icon,
+        href: (access.hrefs && access.hrefs[child.id]) || child.href,
+      })),
+  };
+}
+
 /**
- * Project a role's navigation against the user's effective capabilities.
- * Returns the same items when: no projection rules exist for the role, no
- * effective matrix is available (fail-open on visibility — the server remains
- * authoritative), or the node has no capability requirement.
+ * The single source of sidebar truth: a role's navigation projected against the
+ * user's effective capabilities.
+ *
+ *   base   = buildRoleNav(role) — the role's own doors (hrefs already resolved)
+ *   grants = master sections the role matrix omits but the capabilities grant
+ *
+ * One pass then:
+ *   - drops every node whose NAV_CAPABILITY_REQUIREMENTS entry is not met;
+ *   - resolves non-admin hrefs through the role's scoped href or
+ *     NON_ADMIN_HREF_FALLBACKS, and DROPS the node when neither exists
+ *     (no dead links, and no leak from another role's flat menu);
+ *   - drops a section left without children;
+ *   - renders every id at most once (first occurrence wins).
+ *
+ * `effective === null` (capabilities not loaded yet) fails OPEN on visibility —
+ * the server stays authoritative — but never on hrefs.
  */
-export function projectNavForCapabilities(navItems, effective, role) {
-  if (!effective) return navItems;
-  const rules = ROLE_NAV_PROJECTION[role];
-  if (!rules) return navItems;
-  const req = NAV_CAPABILITY_REQUIREMENTS;
-  const passes = (node) => {
-    if (!req[node.id]) return true; // role-mask driven — never filtered
-    return hasCapability(effective, req[node.id].module, req[node.id].capability);
+export function buildAccessNav(role, effective) {
+  const access = ROLE_ACCESS[role] || ROLE_ACCESS.admin;
+  const canOpenAdmin = role === "super_admin" || role === "developer";
+  const roleHrefs = access.hrefs || {};
+
+  const passes = (id) => {
+    const req = NAV_CAPABILITY_REQUIREMENTS[id];
+    if (!req || !effective) return true;
+    return hasCapability(effective, req.module, req.capability);
   };
 
-  const filterNode = (node) => {
-    if (node.subItems && node.subItems.length > 0) {
-      const kids = node.subItems.map(filterNode).filter(Boolean);
-      if (kids.length > 0) return { ...node, subItems: kids };
-      // Empty section: keep only when the section itself passes its requirement.
-      return passes(node) ? node : null;
-    }
-    if ((rules.hide || []).includes(node.id) && !passes(node)) return null;
-    return node;
+  const resolveHref = (id, href) => {
+    if (canOpenAdmin || !href) return href;
+    if (roleHrefs[id]) return roleHrefs[id];
+    const fallback = NON_ADMIN_HREF_FALLBACKS[id];
+    if (fallback) return fallback;
+    return href.startsWith("/admin") ? null : href;
   };
 
-  const filtered = (navItems || []).map(filterNode).filter(Boolean);
+  const base = buildRoleNav(role);
+  const present = new Set();
+  const collect = (items) =>
+    (items || []).forEach((item) => {
+      present.add(item.id);
+      collect(item.subItems);
+    });
+  collect(base);
 
-  // Add sections the user now has the capability for, as leaf links to the
-  // section's primary page (e.g. CRM for a Staff member granted contacts.view).
-  const extras = (rules.show || [])
-    .filter((id) => req[id] && hasCapability(effective, req[id].module, req[id].capability))
-    .map((id) => {
-      const node = NAV_NODE_INDEX[id];
-      if (!node) return null;
-      return {
-        id: node.id,
-        name: node.name,
-        icon: node.icon,
-        href: EXTRA_SECTION_HREFS[id] || node.href,
-      };
-    })
-    .filter(Boolean)
-    .filter((n) => !filtered.some((f) => f.id === n.id));
+  // Top-level nodes that carry a requirement can be ADDED by a capability when
+  // the role matrix omits them (sections get their canonical children, leaves
+  // such as `finance` are added as a single link). Grants require an effective
+  // matrix: while it is still loading we show the role's own doors, never guess.
+  const grants = !effective
+    ? []
+    : MASTER_NAVIGATION.filter(
+        (node) =>
+          NAV_CAPABILITY_REQUIREMENTS[node.id] &&
+          !present.has(node.id) &&
+          passes(node.id),
+      ).map((node) =>
+        Array.isArray(node.children) && node.children.length > 0
+          ? projectMasterSection(node, access)
+          : {
+              id: node.id,
+              name: node.name,
+              icon: (access.icons && access.icons[node.id]) || node.icon,
+              href: (access.hrefs && access.hrefs[node.id]) || node.href,
+            },
+      );
 
-  return [...filtered, ...extras];
+  // Capability gate. A role's OWN doors keep their hrefs (a role matrix may
+  // legitimately point at /admin); only GRANTED nodes get href surgery, because
+  // they come from another role's world and must not become dead links.
+  const gate = (items, dropUnreachable) =>
+    (items || [])
+      .map((item) => {
+        if (!passes(item.id)) return null;
+        if (item.subItems && item.subItems.length > 0) {
+          const kids = gate(item.subItems, dropUnreachable).filter(Boolean);
+          return kids.length > 0 ? { ...item, subItems: kids } : null;
+        }
+        const href = dropUnreachable
+          ? resolveHref(item.id, item.href)
+          : item.href;
+        return href ? { ...item, href } : null;
+      })
+      .filter(Boolean);
+
+  const seen = new Set();
+  const dedupe = (items) =>
+    (items || [])
+      .map((item) => {
+        if (seen.has(item.id)) return null;
+        if (item.subItems) {
+          const kids = dedupe(item.subItems).filter(Boolean);
+          if (kids.length === 0) return null;
+          seen.add(item.id);
+          return { ...item, subItems: kids };
+        }
+        seen.add(item.id);
+        return item;
+      })
+      .filter(Boolean);
+
+  return dedupe([...gate(base, false), ...gate(grants, true)]);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

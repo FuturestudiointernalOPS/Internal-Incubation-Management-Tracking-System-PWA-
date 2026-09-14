@@ -54,20 +54,6 @@ function collectRouteUsages() {
  * Every entry MUST say why in a comment next to it.
  */
 const ALLOWED_UNROUTED = new Set([
-  // lms.assign/enroll/publish — RETIRED (Decision 5): kept in the catalog as
-  // historical metadata for legacy holders; all six enforcement sites migrated
-  // to lms.edit in Phase 3 (Option A). Permanent removal follows the Phase 6
-  // zero-dependency proof.
-  "lms.assign",
-  "lms.enroll",
-  "lms.publish",
-  // contacts.import — superseded by the bulk_upload.execute gate (P1). Kept
-  // in the catalog so legacy profile rows remain explainable; no route
-  // enforces it directly.
-  "contacts.import",
-  // contacts.export — no export endpoint exists today; cap kept for profile
-  // compatibility until an export surface is built (P3 backlog).
-  "contacts.export",
   // duplicates.view/resolve — module introduced in P1; routes remain
   // super-admin role-locked until the duplicates module is opened in a later
   // phase (catalog marks it `locked`).

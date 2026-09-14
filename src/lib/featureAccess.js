@@ -24,86 +24,15 @@
  * the server-side route allowlists.
  */
 
+import { FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/eligibility-defaults";
+
 // Initial defaults — used to seed the DB once and as fallback for
 // responsibilities that have not been configured yet.
 //
-// SINGLE SOURCE: values MUST mirror FEATURE_ELIGIBILITY_DEFAULTS in
-// src/models/authorization/eligibility-defaults.js (the canonical map). The
-// model-consistency test (authorization-model.test.js) enforces equality.
-export const RESPONSIBILITY_FEATURE_ROLES = {
-  // Financial operations — budgets, transactions, reports
-  finance: ["super_admin", "staff"],
-  // CRM — people, contacts, timeline
-  crm: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  // Communication — messaging, announcements, forms
-  communication: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  // Program oversight — programs, participants, submissions
-  program_management: ["super_admin", "staff", "program_manager", "teacher", "participant"],
-  // Project management — projects, tasks, team reporting
-  project_ownership: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  // Internal operations — workspace, reports, standups
-  operations: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  // Reports and analytics
-  reporting: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  // Knowledge management
-  knowledge_base: ["super_admin", "staff"],
-  // Business intelligence and trends
-  intelligence: ["super_admin", "developer"],
-  // Engineering operations — tasks, standups, retros, error logs
-  engineering: ["super_admin", "developer"],
-  // User administration — personnel, permissions
-  user_management: ["super_admin", "staff"],
-  // System configuration
-  system_settings: ["super_admin", "staff"],
-  // Tasks — assignments, blockers
-  tasks: ["super_admin", "staff", "program_manager", "team"],
-  // Ventures — incubated businesses (founder eligible for own-venture access).
-  // Phase 6: member is the baseline identity of a founder — eligibility is a
-  // ceiling only (capability + venture scope still decide). Kept in exact sync
-  // with FEATURE_ELIGIBILITY_DEFAULTS.ventures (single-source test).
-  ventures: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "investor",
-    "founder",
-    "member",
-  ],
-  // Investor relations
-  investor: ["super_admin", "staff", "investor"],
-  // LMS — capability-gated course authoring & learning
-  lms: ["super_admin", "program_manager", "developer"],
-};
+// SINGLE SOURCE: these ARE the canonical eligibility defaults, aliased (not
+// copied) so the two can never drift apart. `authorization-model.test.js`
+// still enforces the alignment.
+export const RESPONSIBILITY_FEATURE_ROLES = FEATURE_ELIGIBILITY_DEFAULTS;
 
 // Canonical role list offered in the "Responsibility Access" toggle UI.
 // Keep in sync with src/lib/platform/roles.js when new roles are added.
@@ -136,6 +65,35 @@ const WARNING_BYPASS_ROLES = ["super_admin", "developer"];
 export function defaultAllowedRoles(responsibilityKey) {
   const allowed = RESPONSIBILITY_FEATURE_ROLES[responsibilityKey];
   return allowed ? [...allowed] : null;
+}
+
+/**
+ * The roles OFFERED for a feature in the Responsibility Access UI.
+ *
+ * Eligibility is the ceiling: a feature only offers the roles it is eligible
+ * for, so a role the feature cannot reach is never proposed here (the saved
+ * allowed_roles stays a subset of the eligibility boundary).
+ *
+ * Falls back to the full role list when the feature has NO eligibility rows at
+ * all (unknown / custom responsibility — there is nothing to filter by, so the
+ * UI must not hide every toggle).
+ *
+ * @param {Array<{identity_type:string, identity_value:string,
+ *   feature_key:string, eligible:number}>} rows  feature_eligibility rows
+ * @param {string} featureKey  the responsibility key (= feature key)
+ * @param {string[]} [allRoles] canonical role list
+ * @returns {string[]} eligible roles, in the canonical order
+ */
+export function eligibleRolesForFeature(rows, featureKey, allRoles = ALL_FEATURE_ROLES) {
+  if (!featureKey) return [...allRoles];
+  const scoped = (rows || []).filter(
+    (r) => r.identity_type === "role" && r.feature_key === featureKey,
+  );
+  if (scoped.length === 0) return [...allRoles]; // no ceiling to apply
+  const eligible = new Set(
+    scoped.filter((r) => Number(r.eligible) === 1).map((r) => r.identity_value),
+  );
+  return allRoles.filter((role) => eligible.has(role));
 }
 
 /**

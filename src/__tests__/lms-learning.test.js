@@ -7,7 +7,7 @@
  *   - progress (idempotent completion, server-side persistence, course +
  *     section progress, completion state transition)
  *   - assessment content is never exposed to learners (no questions/answers)
- *   - admin enrollment enabler (lms.enroll authorization)
+ *   - admin enrollment enabler (lms.edit authorization)
  */
 
 const { createFakeDb } = require("./helpers/fakeLmsDb");
@@ -455,7 +455,7 @@ describe("Learner API routes", () => {
     expect(rows).toHaveLength(1);
   });
 
-  test("admin enrollment requires lms.enroll capability", async () => {
+  test("admin enrollment requires the lms.edit capability", async () => {
     seedPublishedCourse();
     requireAuthorization.mockResolvedValueOnce({ status: 403 });
     const res = await enrollPOST(

@@ -668,7 +668,7 @@ export async function getVentureMembershipsForContact(cid) {
   return db.execute({
     sql: `SELECT v.venture_id, COALESCE(v.company_name, v.name) AS name, v.status,
                  vm.member_type,
-                 COALESCE(vm.is_owner, 0) AS is_owner
+                 COALESCE(vm.is_owner, false) AS is_owner
               FROM venture_members vm
               LEFT JOIN ventures v ON v.venture_id = vm.venture_id
               WHERE (vm.user_cid = ? OR vm.contact_id = ?) AND vm.removed_at IS NULL

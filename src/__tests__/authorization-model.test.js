@@ -119,3 +119,49 @@ describe("Phase 9 — model consistency", () => {
     }
   });
 });
+
+describe("Responsibility Access — roles are bounded by feature eligibility", () => {
+  const { eligibleRolesForFeature, ALL_FEATURE_ROLES } = require("@/lib/featureAccess");
+
+  const rows = [
+    { identity_type: "role", identity_value: "super_admin", feature_key: "crm", eligible: 1 },
+    { identity_type: "role", identity_value: "staff", feature_key: "crm", eligible: 1 },
+    { identity_type: "role", identity_value: "teacher", feature_key: "crm", eligible: 1 },
+    { identity_type: "role", identity_value: "mentor", feature_key: "crm", eligible: 0 },
+    { identity_type: "group", identity_value: "FUTURE STUDIO", feature_key: "crm", eligible: 1 },
+  ];
+
+  test("offers only the roles eligible for the feature, in canonical order", () => {
+    expect(eligibleRolesForFeature(rows, "crm")).toEqual([
+      "super_admin",
+      "staff",
+      "teacher",
+    ]);
+  });
+
+  test("an explicit deny removes the role even though it exists in the catalog", () => {
+    expect(eligibleRolesForFeature(rows, "crm")).not.toContain("mentor");
+    expect(ALL_FEATURE_ROLES).toContain("mentor");
+  });
+
+  test("group identities never contribute role toggles", () => {
+    expect(eligibleRolesForFeature(rows, "crm")).not.toContain("FUTURE STUDIO");
+  });
+
+  test("a feature with no eligibility rows falls back to the full list", () => {
+    expect(eligibleRolesForFeature(rows, "custom_feature")).toEqual([
+      ...ALL_FEATURE_ROLES,
+    ]);
+    expect(eligibleRolesForFeature([], "crm")).toEqual([...ALL_FEATURE_ROLES]);
+  });
+
+  test("a feature explicitly denied to everyone offers no role", () => {
+    const denied = ALL_FEATURE_ROLES.map((role) => ({
+      identity_type: "role",
+      identity_value: role,
+      feature_key: "finance",
+      eligible: 0,
+    }));
+    expect(eligibleRolesForFeature(denied, "finance")).toEqual([]);
+  });
+});

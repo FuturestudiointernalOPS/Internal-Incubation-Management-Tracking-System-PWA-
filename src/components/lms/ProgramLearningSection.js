@@ -16,8 +16,7 @@ import { useI18n } from "@/lib/i18n";
  * REQUIRED/OPTIONAL, and detach. Progress is never shown or stored here — the
  * LMS remains the single source of truth; the participant surfaces read it.
  *
- * Authorization: the API requires lms.assign for mutations (Program Course
- * Assignment permission — distinct from course authoring) and lms.view for
+ * Authorization: the API requires lms.edit for mutations and lms.view for
  * reads. The `canEdit` prop only controls visibility; the server enforces.
  */
 export default function ProgramLearningSection({

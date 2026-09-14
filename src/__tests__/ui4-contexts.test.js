@@ -215,8 +215,12 @@ describe("UI-4c — the screens use them", () => {
     expect(src).toContain("peopleContextsPartial");
   });
 
-  test("the eligibility matrix labels context roles as such", () => {
+  test("the eligibility matrix lists baseline identities, not context roles", () => {
     const center = read("src/components/permissions/PermissionCenter.js");
+    // Matrix rows exclude context roles...
+    expect(center).toContain("matrixRoles");
+    expect(center).toContain("!contextRoles.has(r)");
+    // ...which stay selectable in the identity editor, tagged as context roles.
     expect(center).toContain("contextRoleTag");
   });
 
