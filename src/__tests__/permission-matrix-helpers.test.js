@@ -345,3 +345,166 @@ describe("filterSectionsByRoleEligibility (strict role-driven display)", () => {
     expect(out.map((s) => s.feature)).toEqual(["org_membership"]);
   });
 });
+
+// ─── Capability families (parent ▸ children) ─────────────────────────────────
+
+describe("capability families — catalog metadata contract", () => {
+  const {
+    CAPABILITY_CATALOG,
+    capabilityParent,
+    capabilityChildren,
+    moduleCapabilityParents,
+    isCapabilityParent,
+  } = require("@/lib/authorization/capability-catalog");
+
+  test("every parent resolves to a capability of the SAME module", () => {
+    for (const def of Object.values(CAPABILITY_CATALOG)) {
+      for (const meta of Object.values(def.capabilities || {})) {
+        if (!meta.parent) continue;
+        expect(def.capabilities[meta.parent]).toBeDefined();
+      }
+    }
+  });
+
+  test("families are one level deep (a parent is never itself a child)", () => {
+    for (const def of Object.values(CAPABILITY_CATALOG)) {
+      for (const meta of Object.values(def.capabilities || {})) {
+        if (!meta.parent) continue;
+        expect(def.capabilities[meta.parent].parent).toBeUndefined();
+      }
+    }
+  });
+
+  test("pilot families: projects.edit ▸ archive and programs.edit ▸ publish", () => {
+    expect(capabilityParent("projects", "archive")).toBe("edit");
+    expect(capabilityChildren("projects", "edit")).toEqual(["archive"]);
+    expect(capabilityParent("programs", "publish")).toBe("edit");
+    expect(capabilityChildren("programs", "edit")).toEqual(["publish"]);
+    expect(moduleCapabilityParents("programs")).toEqual({ publish: "edit" });
+    expect(moduleCapabilityParents("contacts")).toEqual({});
+    expect(isCapabilityParent("programs", "edit")).toBe(true);
+    expect(isCapabilityParent("programs", "view")).toBe(false);
+  });
+});
+
+describe("buildSectionColumns (capability families)", () => {
+  const { CAPABILITY_CATALOG } = require("@/lib/authorization/capability-catalog");
+  const PROJECTS = {
+    feature: "operations",
+    modules: ["projects"],
+    capabilities: ["view", "create", "edit", "delete", "archive"],
+    unmapped: false,
+  };
+  const PROGRAMS = {
+    feature: "programs",
+    modules: ["programs"],
+    capabilities: ["view", "create", "edit", "delete", "publish"],
+    unmapped: false,
+  };
+
+  test("places a child column right after its parent", () => {
+    expect(buildSectionColumns(PROJECTS, CAPABILITY_CATALOG).map((c) => c.key)).toEqual([
+      "view",
+      "edit",
+      "archive",
+      "create",
+      "delete",
+      "full",
+    ]);
+    expect(buildSectionColumns(PROGRAMS, CAPABILITY_CATALOG).map((c) => c.key)).toEqual([
+      "view",
+      "edit",
+      "publish",
+      "create",
+      "delete",
+      "full",
+    ]);
+  });
+
+  test("tags the family head and its child", () => {
+    const cols = buildSectionColumns(PROGRAMS, CAPABILITY_CATALOG);
+    const edit = cols.find((c) => c.key === "edit");
+    const publish = cols.find((c) => c.key === "publish");
+    expect(edit).toMatchObject({ isGroupHead: true, groupSize: 2, parent: null });
+    expect(publish).toMatchObject({ parent: "edit", isGroupHead: false, groupSize: 1 });
+    // A non-family column is untouched.
+    expect(cols.find((c) => c.key === "create")).toMatchObject({
+      parent: null,
+      isGroupHead: false,
+      groupSize: 1,
+    });
+  });
+
+  test("without a catalog the flat column order is preserved", () => {
+    expect(buildSectionColumns(PROGRAMS).map((c) => c.key)).toEqual([
+      "view",
+      "edit",
+      "create",
+      "delete",
+      "full",
+      "publish",
+    ]);
+    expect(buildSectionColumns(PROGRAMS).every((c) => !c.isGroupHead)).toBe(true);
+  });
+});
+
+describe("toggleCapability (capability families)", () => {
+  const { moduleCapabilityParents } = require("@/lib/authorization/capability-catalog");
+  const PROJECT_CAPS = ["view", "create", "edit", "delete", "archive"];
+  const PROJECT_PARENTS = moduleCapabilityParents("projects");
+  const PROGRAM_CAPS = ["view", "create", "edit", "delete", "publish"];
+  const PROGRAM_PARENTS = moduleCapabilityParents("programs");
+
+  test("checking a child also checks its parent (never the other way)", () => {
+    expect(
+      toggleCapability({}, "projects", "archive", true, PROJECT_CAPS, PROJECT_PARENTS),
+    ).toEqual({ projects: { archive: 1, edit: 3, view: 1 } });
+
+    // Granting the parent does NOT grant the child.
+    expect(
+      toggleCapability({}, "projects", "edit", true, PROJECT_CAPS, PROJECT_PARENTS),
+    ).toEqual({ projects: { edit: 3, view: 1 } });
+  });
+
+  test("clearing a parent clears its children", () => {
+    const next = toggleCapability(
+      { programs: { view: 1, edit: 3, publish: 1 } },
+      "programs",
+      "edit",
+      false,
+      PROGRAM_CAPS,
+      PROGRAM_PARENTS,
+    );
+    expect(next).toEqual({ programs: { view: 1, edit: 0, publish: 0 } });
+  });
+
+  test("clearing a child leaves the parent intact", () => {
+    const next = toggleCapability(
+      { programs: { view: 1, edit: 3, publish: 1 } },
+      "programs",
+      "publish",
+      false,
+      PROGRAM_CAPS,
+      PROGRAM_PARENTS,
+    );
+    expect(next).toEqual({ programs: { view: 1, edit: 3, publish: 0 } });
+  });
+
+  test("a parent already held keeps its level when a child is checked", () => {
+    const next = toggleCapability(
+      { projects: { view: 1, edit: 5 } },
+      "projects",
+      "archive",
+      true,
+      PROJECT_CAPS,
+      PROJECT_PARENTS,
+    );
+    expect(next).toEqual({ projects: { view: 1, edit: 5, archive: 1 } });
+  });
+
+  test("never mutates the input matrix", () => {
+    const input = { projects: { view: 1 } };
+    toggleCapability(input, "projects", "archive", true, PROJECT_CAPS, PROJECT_PARENTS);
+    expect(input).toEqual({ projects: { view: 1 } });
+  });
+});

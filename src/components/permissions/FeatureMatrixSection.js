@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useI18n } from "@/lib/i18n";
-import { capabilityLabel } from "@/lib/authorization/capability-catalog";
+import { capabilityLabel, CAPABILITY_CATALOG } from "@/lib/authorization/capability-catalog";
 import {
   buildSectionColumns,
   isModuleFull,
@@ -11,7 +11,7 @@ import {
 /**
  * PHASE UI-6 — one FEATURE section of the Defaults Matrix.
  *
- * A feature is a sidebar-level section (communication, program_management, …);
+ * A feature is a sidebar-level section (communication, programs, …);
  * its modules are the sub-sections shown in the left column. The header row is
  * the fixed access-level ladder (View · Edit · Create · Delete · Full) followed
  * by one named column per module-specific capability (Send, Moderate, …).
@@ -78,7 +78,10 @@ export default function FeatureMatrixSection({
     (draftCaps?.[mod]?.[cap] ?? 0) !== (savedCaps?.[mod]?.[cap] ?? 0);
   const moduleFull = (mod) => isModuleFull(draftCaps, mod, moduleCaps(mod));
 
-  const columns = buildSectionColumns(section);
+  const columns = buildSectionColumns(section, CAPABILITY_CATALOG);
+  // A family child column is visually attached to its parent (dashed separator).
+  const childClass = (col) =>
+    col.parent ? "border-l border-dashed border-[var(--border-primary)]" : "";
 
   // i18n with a real fallback: a missing key comes back as the key itself.
   const labelOr = (key, fallback) => {
@@ -104,15 +107,23 @@ export default function FeatureMatrixSection({
       availableModules?.[mod]?.name || mod.replace(/_/g, " "),
     );
 
+  // i18n label for any capability: CRUD level keys first, then the module's
+  // named extras (via the shared catalog, with a key-name fallback).
+  const capabilityLabelFor = (capability) => {
+    if (LEVEL_LABEL_KEYS[capability]) return t(LEVEL_LABEL_KEYS[capability]);
+    const owner =
+      modules.find((m) => moduleCaps(m).includes(capability)) || modules[0];
+    return labelOr(
+      `engineering.permissions.capabilityLabels.${capability.replace(/\./g, "_")}`,
+      capabilityLabel(owner, capability),
+    );
+  };
+
   const columnLabel = (col) => {
     if (col.kind === "full") return t(LEVEL_LABEL_KEYS.full);
-    if (col.kind === "level") return t(LEVEL_LABEL_KEYS[col.capability]);
-    const owner =
-      modules.find((m) => moduleCaps(m).includes(col.capability)) || modules[0];
-    return labelOr(
-      `engineering.permissions.capabilityLabels.${col.capability.replace(/\./g, "_")}`,
-      capabilityLabel(owner, col.capability),
-    );
+    const own = capabilityLabelFor(col.capability);
+    // Family child (archive/publish…): show the parent so the nesting reads.
+    return col.parent ? `${capabilityLabelFor(col.parent)} › ${own}` : own;
   };
 
   /** Applicable modules + checked/indeterminate state for a header column. */
@@ -196,7 +207,7 @@ export default function FeatureMatrixSection({
                 return (
                   <th
                     key={col.key}
-                    className="px-2 py-2.5 text-center align-bottom whitespace-nowrap"
+                    className={`px-2 py-2.5 text-center align-bottom whitespace-nowrap ${childClass(col)}`}
                   >
                     <span className="flex flex-col items-center gap-1.5">
                       <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
@@ -225,7 +236,7 @@ export default function FeatureMatrixSection({
                   {moduleLabel(mod)}
                 </td>
                 {columns.map((col) => (
-                  <td key={col.key} className="px-2 py-1.5 text-center">
+                  <td key={col.key} className={`px-2 py-1.5 text-center ${childClass(col)}`}>
                     {renderCell(mod, col)}
                   </td>
                 ))}

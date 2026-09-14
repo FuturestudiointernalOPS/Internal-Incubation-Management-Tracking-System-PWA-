@@ -52,7 +52,8 @@ export const CAPABILITY_CATALOG = {
       create: { label: "Create", risk: "medium", description: "Create new programs" },
       edit: { label: "Edit", risk: "medium", description: "Edit program content and teams" },
       delete: { label: "Delete", risk: "high", description: "Delete programs" },
-      publish: { label: "Publish", risk: "medium", description: "Publish program content" },
+      // Family child: `publish` is a refinement of `edit` (independent grant).
+      publish: { label: "Publish", risk: "medium", parent: "edit", description: "Publish program content" },
     },
   },
   reports: {
@@ -91,7 +92,10 @@ export const CAPABILITY_CATALOG = {
       create: { label: "Create", risk: "medium", description: "Create projects" },
       edit: { label: "Edit", risk: "medium", description: "Edit projects" },
       delete: { label: "Delete", risk: "high", description: "Delete projects" },
-      archive: { label: "Archive", risk: "medium", description: "Archive projects" },
+      // Family child: `archive` is a refinement of `edit`. Granting `edit` does
+      // NOT grant archive — the child stays an independent, explicitly-granted
+      // capability (see "capability families" note at the bottom of this file).
+      archive: { label: "Archive", risk: "medium", parent: "edit", description: "Archive projects" },
     },
   },
   users: {
@@ -241,4 +245,52 @@ export function capabilityRisk(module, capability) {
     CAPABILITY_CATALOG[module]?.risk ||
     "unknown"
   );
+}
+
+// =============================================================================
+// CAPABILITY FAMILIES (parent → children)
+// =============================================================================
+//
+// A capability may declare `parent` to place it in a FAMILY. A family is a
+// PRESENTATION grouping: the parent (e.g. `edit`) is itself a real, grantable
+// capability, and each child (e.g. `archive`, `publish`) stays an INDEPENDENT
+// grant stored under its own name.
+//
+// Design rules (locked by src/__tests__/permission-matrix-helpers.test.js):
+//   - A parent NEVER implies its children. Granting `edit` does not grant
+//     `archive` — the UI only enforces the reverse dependency (a child requires
+//     its parent, so checking a child also checks the parent).
+//   - Families are ONE level deep: a child is never itself a parent.
+//   - `parent` is metadata only; it never changes stored capability names, so
+//     no data migration is implied and existing grants are untouched.
+//   - Authority capabilities (permissions.*, users.suspend, org_membership
+//     .manage, …) are deliberately left top-level, never folded into a family.
+
+/** Parent (family head) of a capability, or null when it is top-level. */
+export function capabilityParent(module, capability) {
+  return CAPABILITY_CATALOG[module]?.capabilities?.[capability]?.parent || null;
+}
+
+/** Child capabilities attached to a parent, in catalog order. */
+export function capabilityChildren(module, parentCapability) {
+  const caps = CAPABILITY_CATALOG[module]?.capabilities || {};
+  return Object.keys(caps).filter((cap) => caps[cap]?.parent === parentCapability);
+}
+
+/**
+ * { childCapability → parentCapability } map for one module ({} when the module
+ * has no families). This is the shape matrixHelpers.toggleCapability consumes.
+ */
+export function moduleCapabilityParents(module) {
+  const caps = CAPABILITY_CATALOG[module]?.capabilities || {};
+  const parents = {};
+  for (const [cap, def] of Object.entries(caps)) {
+    if (def?.parent) parents[cap] = def.parent;
+  }
+  return parents;
+}
+
+/** True when the capability is the head of a family (it has ≥1 child). */
+export function isCapabilityParent(module, capability) {
+  return capabilityChildren(module, capability).length > 0;
 }

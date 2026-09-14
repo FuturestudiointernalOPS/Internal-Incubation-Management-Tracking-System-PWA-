@@ -135,14 +135,66 @@ export function extraCapabilities(section) {
  * capability), "full" (the collective column, level 5) or "extra" (a
  * module-specific capability rendered by its own named column).
  *
- * @returns {Array<{key:string, kind:"level"|"full"|"extra", capability:string|null}>}
+ * When a `catalog` (CAPABILITY_CATALOG shape) is supplied, capability FAMILIES
+ * are applied as a presentation grouping: a child column is placed immediately
+ * after its parent, and each descriptor carries `parent` (the family head, null
+ * for top-level columns), `isGroupHead` and `groupSize`. No capability is added
+ * or removed by grouping — only its position and the metadata are affected.
+ *
+ * @param {Object} section groupModulesByFeature section ({ modules, capabilities })
+ * @param {Object} [catalog] CAPABILITY_CATALOG (module → { capabilities })
+ * @returns {Array<{key:string, kind:"level"|"full"|"extra", capability:string|null,
+ *           parent:string|null, isGroupHead:boolean, groupSize:number}>}
  */
-export function buildSectionColumns(section) {
-  return [
-    ...MATRIX_LEVEL_ORDER.map((capability) => ({ key: capability, kind: "level", capability })),
-    { key: MATRIX_FULL, kind: "full", capability: null },
-    ...extraCapabilities(section).map((capability) => ({ key: capability, kind: "extra", capability })),
-  ];
+export function buildSectionColumns(section, catalog) {
+  const ladder = MATRIX_LEVEL_ORDER.map((capability) => ({
+    key: capability,
+    kind: "level",
+    capability,
+  }));
+  const full = { key: MATRIX_FULL, kind: "full", capability: null };
+  const extras = extraCapabilities(section).map((capability) => ({
+    key: capability,
+    kind: "extra",
+    capability,
+  }));
+
+  // Family head of a capability, resolved across the section's own modules.
+  const parentOf = (capability) =>
+    (section?.modules || [])
+      .map((mod) => catalog?.[mod]?.capabilities?.[capability]?.parent)
+      .find(Boolean) || null;
+  const childrenOf = (capability) =>
+    capability
+      ? extras.filter((c) => parentOf(c.capability) === capability).map((c) => c.capability)
+      : [];
+
+  const emitted = new Set();
+  const ordered = [];
+  const push = (col) => {
+    if (emitted.has(col.key)) return;
+    emitted.add(col.key);
+    ordered.push(col);
+  };
+
+  // Emit each column, inserting a family head's children right after it.
+  for (const col of [...ladder, full, ...extras]) {
+    if (emitted.has(col.key)) continue;
+    push({ ...col, parent: null });
+    for (const child of childrenOf(col.capability)) {
+      push({ key: child, kind: "extra", capability: child, parent: col.capability });
+    }
+  }
+
+  return ordered.map((col) => {
+    const children = childrenOf(col.capability);
+    return {
+      ...col,
+      parent: children.length > 0 ? null : col.parent,
+      isGroupHead: children.length > 0,
+      groupSize: 1 + children.length,
+    };
+  });
 }
 
 /**
@@ -169,22 +221,41 @@ function cloneModule(caps, module) {
 }
 
 /**
- * Toggle ONE capability of ONE module, applying the product dependency: View is
- * the base capability, so checking any other capability also checks View, and
- * clearing View clears every other capability of the module.
+ * Toggle ONE capability of ONE module, applying the product dependencies:
  *
+ *   1. View is the base capability — checking any other capability also checks
+ *      View, and clearing View clears every other capability of the module.
+ *   2. Capability families (optional `parents` map { child → parent }): checking
+ *      a child also checks its parent; clearing a parent clears its children.
+ *      A parent NEVER auto-checks its children (granting `edit` must not grant
+ *      `archive`/`publish`) — the dependency only runs child → parent upwards,
+ *      and parent → children on clear.
+ *
+ * @param {Object} caps              capabilities matrix ({module:{cap:level}})
+ * @param {string} module
+ * @param {string} capability
+ * @param {boolean} checked
+ * @param {string[]} moduleCapabilities  every capability of the module
+ * @param {Object} [parents]         { childCapability → parentCapability }
  * @returns a NEW capabilities matrix (never mutates the input)
  */
-export function toggleCapability(caps, module, capability, checked, moduleCapabilities = []) {
+export function toggleCapability(caps, module, capability, checked, moduleCapabilities = [], parents = {}) {
   const next = cloneModule(caps, module);
   const hasView = moduleCapabilities.includes("view");
+  const parent = parents?.[capability] || null;
+  const children = Object.keys(parents || {}).filter((child) => parents[child] === capability);
+
   if (checked) {
     next[module][capability] = capabilityLevel(capability);
+    if (parent && !(Number(next[module][parent]) > 0)) {
+      next[module][parent] = capabilityLevel(parent);
+    }
     if (hasView && capability !== "view" && !(Number(next[module].view) > 0)) {
       next[module].view = capabilityLevel("view");
     }
   } else {
     next[module][capability] = 0;
+    for (const child of children) next[module][child] = 0;
     if (capability === "view") {
       for (const other of moduleCapabilities) {
         if (other !== "view") next[module][other] = 0;

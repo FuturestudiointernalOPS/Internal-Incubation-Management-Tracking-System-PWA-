@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import AppPagination from "@/components/ui/AppPagination";
 import { useI18n } from "@/lib/i18n";
-import { capabilityLabel, CAPABILITY_CATALOG } from "@/lib/authorization/capability-catalog";
+import { capabilityLabel, CAPABILITY_CATALOG, moduleCapabilityParents } from "@/lib/authorization/capability-catalog";
 import { deriveMembershipStatus } from "@/lib/membership-ui";
 import {
   isResponsibilityBlockedForRole,
@@ -1194,13 +1194,13 @@ function AccessProfilesView({ initialProfileId = null }) {
   const isChanged = (mod, cap) =>
     (draftCaps[mod]?.[cap] ?? 0) !== (savedCaps[mod]?.[cap] ?? 0);
 
-  // Checkbox editing: View is the base capability. The pure helpers apply the
-  // product dependency — checking any other capability also checks View, and
-  // clearing View clears the module's other capabilities (matrixHelpers).
+  // Checkbox editing: View is the base capability and, within a capability
+  // family, a child requires its parent (checking `archive` also checks
+  // `edit`; clearing `edit` clears `archive`). The pure helpers own the rules.
   const toggleDraftCap = (mod, capability, checked, moduleCapabilities = []) => {
     setActionError("");
     setDraftCaps((prev) =>
-      toggleCapability(prev, mod, capability, checked, moduleCapabilities),
+      toggleCapability(prev, mod, capability, checked, moduleCapabilities, moduleCapabilityParents(mod)),
     );
   };
 
