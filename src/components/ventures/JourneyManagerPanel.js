@@ -80,6 +80,8 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [milestoneAuthority, setMilestoneAuthority] = useState(false);
   const [msAddFor, setMsAddFor] = useState(null);
   const [msForm, setMsForm] = useState({ title: "", description: "", objective: "", target_date: "", priority: "medium" });
+  // Deliverables drafted while creating the milestone (created right after it).
+  const [msDeliverables, setMsDeliverables] = useState([]);
   const [msSaving, setMsSaving] = useState(false);
   const [msEditId, setMsEditId] = useState(null);
   const [msEditForm, setMsEditForm] = useState({});
@@ -94,6 +96,9 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [dvFile, setDvFile] = useState(null);
   const [dvSaving, setDvSaving] = useState(false);
   const [dvBusy, setDvBusy] = useState(null);
+  // Evidence attached while defining a NEW deliverable (optional).
+  const [dvNewFile, setDvNewFile] = useState(null);
+  const [dvNewUrl, setDvNewUrl] = useState("");
 
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -374,6 +379,13 @@ export default function JourneyManagerPanel({ ventureId }) {
   // ── Milestones inside a journey ─────────────────────────────────────────
   const emptyMilestoneForm = { title: "", description: "", objective: "", target_date: "", priority: "medium" };
 
+  const addMsDeliverable = () =>
+    setMsDeliverables((p) => [...p, { title: "", deliverable_type: "document", due_date: "" }]);
+  const updateMsDeliverable = (idx, patch) =>
+    setMsDeliverables((p) => p.map((d, i) => (i === idx ? { ...d, ...patch } : d)));
+  const removeMsDeliverable = (idx) =>
+    setMsDeliverables((p) => p.filter((_, i) => i !== idx));
+
   const addMilestone = async (e, stage) => {
     e.preventDefault();
     if (!msForm.title.trim()) return;
@@ -390,8 +402,20 @@ export default function JourneyManagerPanel({ ventureId }) {
       });
       const d = await res.json();
       if (d.success) {
+        // Deliverables drafted in the same form are created right after the
+        // milestone, so the milestone is never saved without its evidence list.
+        const rows = msDeliverables.filter((x) => x.title.trim());
+        for (const row of rows) {
+          if (!d.milestone_id) break;
+          await fetch(`/api/ventures/${ventureId}/deliverables`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...row, milestone_id: d.milestone_id }),
+          }).catch(() => {});
+        }
         notify(t("venture.manager.milestoneAdded"));
         setMsForm(emptyMilestoneForm);
+        setMsDeliverables([]);
         setMsAddFor(null);
         await load();
       } else {
@@ -479,6 +503,9 @@ export default function JourneyManagerPanel({ ventureId }) {
   };
 
   // ── Deliverables inside a milestone ──────────────────────────────────────
+  // Deliverable kinds the Venture can be asked for. Evidence itself is always a
+  // document (PDF / Office) or a URL — enforced on upload and on submit.
+  const DELIVERABLE_TYPES = ["document", "link", "presentation", "report"];
   const emptyDeliverableForm = { title: "", description: "", deliverable_type: "document", due_date: "" };
 
   const patchDeliverable = async (body) => {
@@ -505,8 +532,35 @@ export default function JourneyManagerPanel({ ventureId }) {
       });
       const d = await res.json();
       if (d.success) {
+        // Evidence attached while defining the deliverable: upload it and
+        // record it as submitted right away.
+        let evidenceUrl = dvNewUrl.trim();
+        let evidenceName = null;
+        if (dvNewFile) {
+          const fd = new FormData();
+          fd.append("file", dvNewFile);
+          if (d.id) fd.append("deliverable_id", String(d.id));
+          const upRes = await fetch(`/api/ventures/${ventureId}/deliverables/upload`, { method: "POST", body: fd });
+          const up = await upRes.json().catch(() => ({}));
+          if (!up.success) {
+            notify(up.error || t("venture.manager.actionFailed"), "error");
+            await load();
+            return;
+          }
+          evidenceUrl = up.path;
+          evidenceName = up.name || dvNewFile.name || null;
+        }
+        if (d.id && evidenceUrl) {
+          await fetch(`/api/ventures/${ventureId}/deliverables`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: d.id, action: "submit", attachment_url: evidenceUrl, attachment_name: evidenceName }),
+          }).catch(() => {});
+        }
         notify(t("venture.manager.deliverableAdded"));
         setDvForm(emptyDeliverableForm);
+        setDvNewFile(null);
+        setDvNewUrl("");
         setDvAddFor(null);
         await load();
       } else {
@@ -1270,7 +1324,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                                                         onChange={(e) => setDvForm({ ...dvForm, deliverable_type: e.target.value })}
                                                         className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                                                       >
-                                                        {["document", "link", "presentation", "report"].map((ty) => (
+                                                        {DELIVERABLE_TYPES.map((ty) => (
                                                           <option key={ty} value={ty}>{t(`venture.manager.deliverableTypes.${ty}`)}</option>
                                                         ))}
                                                       </select>
@@ -1287,6 +1341,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                                                 ) : mode === "submit" ? (
                                                   <div className="space-y-2">
                                                     <p className="text-[11px] font-bold text-[var(--text-primary)]">{dv.title}</p>
+                                                    <p className="text-[9px] uppercase tracking-widest text-slate-500">{t("venture.manager.attachFile")}</p>
                                                     <input
                                                       type="file"
                                                       onChange={(e) => setDvFile(e.target.files?.[0] || null)}
@@ -1389,13 +1444,26 @@ export default function JourneyManagerPanel({ ventureId }) {
                                                     onChange={(e) => setDvForm({ ...dvForm, deliverable_type: e.target.value })}
                                                     className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                                                   >
-                                                    {["document", "link", "presentation", "report"].map((ty) => (
+                                                    {DELIVERABLE_TYPES.map((ty) => (
                                                       <option key={ty} value={ty}>{t(`venture.manager.deliverableTypes.${ty}`)}</option>
                                                     ))}
                                                   </select>
                                                 </div>
+                                                {/* Optional: attach the document itself now. */}
+                                                <p className="text-[9px] uppercase tracking-widest text-slate-500">{t("venture.manager.attachFile")}</p>
+                                                <input
+                                                  type="file"
+                                                  onChange={(e) => setDvNewFile(e.target.files?.[0] || null)}
+                                                  className="w-full text-[10px] text-slate-400 file:mr-2 file:px-2.5 file:py-1 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:tracking-widest file:bg-[var(--brand-orange)] file:text-black"
+                                                />
+                                                <input
+                                                  value={dvNewUrl}
+                                                  onChange={(e) => setDvNewUrl(e.target.value)}
+                                                  placeholder={t("venture.manager.orPasteLink")}
+                                                  className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                                />
                                                 <div className="flex justify-end gap-2">
-                                                  <button type="button" onClick={() => { setDvAddFor(null); setDvForm(emptyDeliverableForm); }} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+                                                  <button type="button" onClick={() => { setDvAddFor(null); setDvForm(emptyDeliverableForm); setDvNewFile(null); setDvNewUrl(""); }} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
                                                     {t("common.cancel")}
                                                   </button>
                                                   <button type="submit" disabled={dvSaving} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1 disabled:opacity-50">
@@ -1405,7 +1473,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                                               </form>
                                             ) : (
                                               <button
-                                                onClick={() => { setDvAddFor(ms.id); setDvForm(emptyDeliverableForm); }}
+                                                onClick={() => { setDvAddFor(ms.id); setDvForm(emptyDeliverableForm); setDvNewFile(null); setDvNewUrl(""); }}
                                                 className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest text-slate-400 border border-[var(--border-primary)] hover:text-[var(--brand-orange)]"
                                               >
                                                 <Plus className="w-3 h-3" /> {t("venture.manager.addDeliverable")}
@@ -1465,6 +1533,45 @@ export default function JourneyManagerPanel({ ventureId }) {
                                     <option value="high">{t("venture.high")}</option>
                                   </select>
                                 </div>
+
+                                {/* Deliverables are defined with the milestone, so
+                                    the milestone is never created empty. */}
+                                <div className="space-y-2 rounded-lg border border-[var(--border-primary)] p-2.5">
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                    {t("venture.manager.deliverables")}
+                                  </p>
+                                  {msDeliverables.map((dv, dvIdx) => (
+                                    <div key={dvIdx} className="flex flex-wrap items-center gap-2">
+                                      <input
+                                        value={dv.title}
+                                        onChange={(e) => updateMsDeliverable(dvIdx, { title: e.target.value })}
+                                        placeholder={t("venture.manager.deliverableTitlePlaceholder")}
+                                        className="flex-1 min-w-[150px] px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                      />
+                                      <select
+                                        value={dv.deliverable_type}
+                                        onChange={(e) => updateMsDeliverable(dvIdx, { deliverable_type: e.target.value })}
+                                        className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                      >
+                                        {DELIVERABLE_TYPES.map((ty) => (
+                                          <option key={ty} value={ty}>{t(`venture.manager.deliverableTypes.${ty}`)}</option>
+                                        ))}
+                                      </select>
+                                      <input
+                                        type="date"
+                                        value={dv.due_date}
+                                        onChange={(e) => updateMsDeliverable(dvIdx, { due_date: e.target.value })}
+                                        className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                      />
+                                      <button type="button" onClick={() => removeMsDeliverable(dvIdx)} className="p-1 text-slate-500 hover:text-rose-400" title={t("common.delete")}>
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                  <button type="button" onClick={addMsDeliverable} className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                                    <Plus className="w-3 h-3" /> {t("venture.manager.addDeliverable")}
+                                  </button>
+                                </div>
                                 <div className="flex justify-end gap-2">
                                   <button type="button" onClick={() => { setMsAddFor(null); setMsForm(emptyMilestoneForm); }} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]">
                                     {t("common.cancel")}
@@ -1476,7 +1583,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                               </form>
                             ) : (
                               <button
-                                onClick={() => { setMsAddFor(stage.id); setMsForm(emptyMilestoneForm); }}
+                                onClick={() => { setMsAddFor(stage.id); setMsForm(emptyMilestoneForm); setMsDeliverables([]); }}
                                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] border border-[var(--brand-orange)]/30 hover:bg-[var(--brand-orange)]/10"
                               >
                                 <Plus className="w-3.5 h-3.5" /> {t("venture.manager.addMilestone")}

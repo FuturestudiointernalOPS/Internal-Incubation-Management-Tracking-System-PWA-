@@ -331,8 +331,8 @@
       "deliverableTitlePlaceholder": "Deliverable title — e.g. Signed term sheet",
       "deliverableDescPlaceholder": "What must be produced (shown to the Venture)",
       "deliverableTypes": {
-        "document": "Document",
-        "link": "Link",
+        "document": "Document (PDF)",
+        "link": "URL",
         "presentation": "Presentation",
         "report": "Report"
       },
@@ -344,7 +344,7 @@
       "approveDeliverable": "Approve",
       "requestChanges": "Request changes",
       "evidenceUrlPlaceholder": "Evidence link (URL)",
-      "attachFile": "Attach file (any type, max 5MB)",
+      "attachFile": "Attach document (PDF, Word, Excel, PowerPoint — max 5MB)",
       "orPasteLink": "or paste a link",
       "viewEvidence": "View",
       "reviewCommentsPlaceholder": "What needs to change?",

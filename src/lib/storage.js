@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { createClient } from '@supabase/supabase-js'
+import { isAllowedEvidenceDocument, EVIDENCE_DOCUMENT_ERROR } from './ventureEvidence'
 
 /**
  * IMPACTOS OPERATIONAL STORAGE — SUPABASE INTEGRATION
@@ -180,6 +181,10 @@ export const uploadDeliverableEvidence = async (file, { ventureId, deliverableId
       }
     }
 
+    // Evidence is a document or a URL — only documents are uploaded here.
+    if (!isAllowedEvidenceDocument(file)) {
+      return { success: false, error: EVIDENCE_DOCUMENT_ERROR }
+    }
     // PRIVATE bucket: evidence is never world-readable. Authorized viewers get
     // a short-lived signed URL (lib/ventureEvidence.js); the database stores
     // the storage path, not a public URL. Service-role client so the private

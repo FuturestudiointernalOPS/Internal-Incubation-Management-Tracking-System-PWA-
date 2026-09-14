@@ -251,6 +251,9 @@ export function JourneyTab() {
                                         )}
                                         {canSubmit && (
                                           <div className="space-y-1.5">
+                                            <p className="text-[9px] uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>
+                                              {t('venture.manager.attachFile')}
+                                            </p>
                                             <input
                                               type="file"
                                               onChange={(e) => setDvDrafts((p) => ({ ...p, [dv.id]: { ...(p[dv.id] || {}), file: e.target.files?.[0] || null } }))}

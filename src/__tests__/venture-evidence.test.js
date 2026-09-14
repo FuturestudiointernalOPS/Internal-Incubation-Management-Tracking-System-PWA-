@@ -11,6 +11,7 @@ const {
   signEvidencePath,
   evidenceDownloadUrl,
   EVIDENCE_BUCKET,
+  isAllowedEvidenceDocument,
 } = require("@/lib/ventureEvidence");
 
 describe("evidence value discrimination", () => {
@@ -61,5 +62,23 @@ describe("signing fails closed", () => {
 
   test("evidence lives in a dedicated bucket", () => {
     expect(EVIDENCE_BUCKET).toBe("deliverable-evidence");
+  });
+});
+
+describe("evidence is a document or a URL", () => {
+  test("PDF and Office documents are accepted", () => {
+    expect(isAllowedEvidenceDocument({ name: "deck.pdf", type: "application/pdf" })).toBe(true);
+    expect(isAllowedEvidenceDocument({ name: "plan.docx", type: "" })).toBe(true);
+    expect(isAllowedEvidenceDocument({ name: "model.xlsx", type: "" })).toBe(true);
+    expect(isAllowedEvidenceDocument({ name: "pitch.pptx", type: "" })).toBe(true);
+    expect(isAllowedEvidenceDocument({ name: "notes.doc", type: "application/msword" })).toBe(true);
+  });
+
+  test("images and other files are rejected", () => {
+    expect(isAllowedEvidenceDocument({ name: "screenshot.png", type: "image/png" })).toBe(false);
+    expect(isAllowedEvidenceDocument({ name: "photo.jpg", type: "image/jpeg" })).toBe(false);
+    expect(isAllowedEvidenceDocument({ name: "archive.zip", type: "application/zip" })).toBe(false);
+    expect(isAllowedEvidenceDocument({ name: "clip.mp4", type: "video/mp4" })).toBe(false);
+    expect(isAllowedEvidenceDocument(null)).toBe(false);
   });
 });
