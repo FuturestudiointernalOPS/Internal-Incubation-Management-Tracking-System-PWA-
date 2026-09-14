@@ -969,6 +969,12 @@ function AccessProfilesView({ initialProfileId = null }) {
   const [defaultRoleMsg, setDefaultRoleMsg] = useState("");
   const [defaultRoleErr, setDefaultRoleErr] = useState("");
   const [defaultRoleBusy, setDefaultRoleBusy] = useState(false);
+  // Assigned-roles editor: the roles list is read-only by default (chips), and
+  // the modal holds the add/remove controls.
+  const [rolesModalOpen, setRolesModalOpen] = useState(false);
+  const [removeBusy, setRemoveBusy] = useState("");
+  const [removeMsg, setRemoveMsg] = useState("");
+  const [removeErr, setRemoveErr] = useState("");
 
   const fetchProfiles = useCallback(async (bypassCache = false) => {
     const urls = [
@@ -1053,6 +1059,36 @@ function AccessProfilesView({ initialProfileId = null }) {
     }
   };
 
+  // Picker → selection + deep link. `replaceState` keeps the URL shareable
+  // (?profile=<id>) without importing next/navigation into this file.
+  const handleProfilePick = (e) => {
+    const id = e.target.value;
+    if (!id) {
+      setSelectedProfile(null);
+      setProfileCaps([]);
+      setSavedCaps({});
+      setDraftCaps({});
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("profile");
+        window.history.replaceState({}, "", url);
+      } catch {
+        /* history unavailable — ignore */
+      }
+      return;
+    }
+    const profile = profiles.find((p) => String(p.id) === String(id));
+    if (!profile) return;
+    selectProfile(profile);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("profile", id);
+      window.history.replaceState({}, "", url);
+    } catch {
+      /* history unavailable — ignore */
+    }
+  };
+
   // UI-2c — deep-link / rail preselection: ?profile=<id> (or the rail) selects
   // a profile as soon as the list is available. Never auto-selects without a
   // requested id (the screen keeps its explicit "select a profile" state).
@@ -1114,6 +1150,13 @@ function AccessProfilesView({ initialProfileId = null }) {
         setShowCreateForm(false);
         setNewProfile({ name: "", description: "" });
         fetchProfiles(true);
+        // Auto-select the profile just created (the route returns its id).
+        selectProfile({
+          id: data.profileId,
+          name: newProfile.name.trim(),
+          description: newProfile.description,
+          is_active: 1,
+        });
       } else {
         setActionError(t((data.error || t("engineering.permissions.failedToCreate")) || "") || (data.error || t("engineering.permissions.failedToCreate")));
       }
@@ -1224,6 +1267,35 @@ function AccessProfilesView({ initialProfileId = null }) {
       setDefaultRoleErr(t("engineering.permissions.networkError"));
     } finally {
       setDefaultRoleBusy(false);
+    }
+  };
+
+  // Remove a role's default profile mapping (the role falls back to legacy
+  // role_capabilities until another default is set).
+  const removeRoleDefault = async (role) => {
+    if (!selectedProfile?.id) return;
+    setRemoveBusy(role);
+    setRemoveMsg("");
+    setRemoveErr("");
+    try {
+      const res = await fetch(
+        `/api/access-profiles/role-defaults?role_name=${encodeURIComponent(role)}&profile_id=${encodeURIComponent(selectedProfile.id)}`,
+        { method: "DELETE" },
+      );
+      const data = await res.json();
+      if (data.success) {
+        setRemoveMsg(t("engineering.permissions.rolesRemoved"));
+        fetchProfiles(true);
+      } else {
+        setRemoveErr(
+          t((data.error || t("engineering.permissions.failedToRemoveDefault")) || "") ||
+            (data.error || t("engineering.permissions.failedToRemoveDefault")),
+        );
+      }
+    } catch {
+      setRemoveErr(t("engineering.permissions.networkError"));
+    } finally {
+      setRemoveBusy("");
     }
   };
 
@@ -1425,22 +1497,20 @@ function AccessProfilesView({ initialProfileId = null }) {
         </div>
       )}
 
-      <div className="lg:grid lg:grid-cols-[300px_1fr] lg:gap-6 space-y-6 lg:space-y-0">
-        {/* LEFT — Access Profiles list (master) */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-bold text-[var(--text-secondary)]">
-              {t("engineering.permissions.profilesIntro")}
-            </p>
-            <button
-              onClick={() => setShowCreateForm(!showCreateForm)}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all shrink-0"
-            >
-              <Plus className="w-3 h-3" /> {t("engineering.permissions.newProfile")}
-            </button>
-          </div>
+      {/* Header aligné : descriptif à gauche, bouton "Nouveau profil" à droite */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <p className="text-xs font-bold text-[var(--text-secondary)] max-w-3xl">
+          {t("engineering.permissions.profilesIntro")}
+        </p>
+        <button
+          onClick={() => setShowCreateForm(!showCreateForm)}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all shrink-0 self-start"
+        >
+          <Plus className="w-3 h-3" /> {t("engineering.permissions.newProfile")}
+        </button>
+      </div>
 
-          {showCreateForm && (
+      {showCreateForm && (
             <div className="ios-card !p-5 border-[var(--border-primary)] space-y-4">
               <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
                 {t("engineering.permissions.newAccessProfile")}
@@ -1484,90 +1554,39 @@ function AccessProfilesView({ initialProfileId = null }) {
             </div>
           )}
 
-          {profiles.length === 0 ? (
-            <div className="py-10 text-center opacity-40">
-              <Layers className="w-12 h-12 text-slate-500 mx-auto mb-3" />
-              <p className="text-sm font-black text-[var(--text-primary)] uppercase">
-                {t("engineering.permissions.noAccessProfiles")}
-              </p>
-              <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-1">
-                {t("engineering.permissions.noAccessProfilesHint")}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2 lg:max-h-[75vh] lg:overflow-y-auto pr-1">
-              {profiles.map((profile) => {
-                const isDefaultFor = defaultRolesFor(profile.id);
-                const isSelected = selectedProfile?.id === profile.id;
-                return (
-                  <div
-                    key={profile.id}
-                    className={`ios-card !p-0 border overflow-hidden transition-all ${isSelected ? "border-[var(--brand-orange)]/60" : "border-[var(--border-primary)]"} ${!profile.is_active ? "opacity-50" : ""}`}
-                  >
-                    <div className="p-3 flex items-center justify-between gap-2">
-                      <button
-                        onClick={() => selectProfile(profile)}
-                        className="flex-1 text-left min-w-0"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Layers className={`w-3.5 h-3.5 shrink-0 ${isSelected ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`} />
-                          <div className="min-w-0">
-                            <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate">
-                              {profile.name}
-                            </p>
-                            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                              <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                                {t("engineering.permissions.capabilitiesCount", { count: profile.capability_count || 0 })}
-                              </span>
-                              {deriveProfileBadges(profile, isDefaultFor).map((badge) => (
-                                <span
-                                  key={badge}
-                                  title={badge === "roleDefault" ? isDefaultFor.join(", ") : undefined}
-                                >
-                                  <Badge variant={badge === "roleDefault" ? "verified" : "locked"}>
-                                    {t(`engineering.permissions.profileBadge_${badge}`)}
-                                  </Badge>
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-                      <div className="flex items-center gap-0.5 shrink-0">
-                        <button
-                          onClick={() => duplicateProfile(profile)}
-                          title={t("engineering.permissions.duplicateProfileTitle")}
-                          className="p-1.5 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => toggleProfileActive(profile)}
-                          title={
-                            profile.is_active
-                              ? t("engineering.permissions.disableProfile")
-                              : t("engineering.permissions.enableProfile")
-                          }
-                          className="p-1.5 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                        >
-                          {profile.is_active ? (
-                            <Eye className="w-3.5 h-3.5" />
-                          ) : (
-                            <EyeOff className="w-3.5 h-3.5 text-slate-400" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+      {/* Champ déroulant des profils — remplace l'ancienne liste latérale */}
+      <div className="ios-card !p-5 border-[var(--border-primary)] space-y-2">
+        <label
+          htmlFor="access-profile-picker"
+          className="block text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]"
+        >
+          {t("engineering.permissions.profilePickerLabel")}
+        </label>
+        <select
+          id="access-profile-picker"
+          value={selectedProfile ? String(selectedProfile.id) : ""}
+          onChange={handleProfilePick}
+          className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+        >
+          <option value="">{t("engineering.permissions.selectProfileOption")}</option>
+          {profiles.map((profile) => (
+            <option key={profile.id} value={profile.id}>
+              {profile.name}
+              {!profile.is_active
+                ? ` — ${t("engineering.permissions.disabled")}`
+                : ""}
+            </option>
+          ))}
+        </select>
+        <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+          {profiles.length === 0
+            ? t("engineering.permissions.noAccessProfilesHint")
+            : t("engineering.permissions.profilePickerHint")}
+        </p>
+      </div>
 
-        {/* RIGHT — selected profile details (detail) */}
-        <div className="space-y-6 min-w-0">
-          {selectedProfile ? (
+      {/* Détail — affiché en dessous, seulement si un profil est sélectionné */}
+      {selectedProfile ? (
             <>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -1618,30 +1637,106 @@ function AccessProfilesView({ initialProfileId = null }) {
                       {selectedProfile.description}
                     </p>
                   )}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                      {t("engineering.permissions.capabilitiesCount", {
+                        count: selectedProfile.capability_count || 0,
+                      })}
+                    </span>
+                    {deriveProfileBadges(selectedProfile, selectedIsDefaultFor).map((badge) => (
+                      <span
+                        key={badge}
+                        title={
+                          badge === "roleDefault"
+                            ? selectedIsDefaultFor.join(", ")
+                            : undefined
+                        }
+                      >
+                        <Badge variant={badge === "roleDefault" ? "verified" : "locked"}>
+                          {t(`engineering.permissions.profileBadge_${badge}`)}
+                        </Badge>
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <span
-                  className={`text-[10px] font-bold px-2 py-1 rounded shrink-0 ${
-                    selectedProfile.is_active
-                      ? "bg-emerald-500/10 text-emerald-400"
-                      : "bg-red-500/10 text-red-400"
-                  }`}
-                >
-                  {selectedProfile.is_active
-                    ? t("engineering.permissions.active")
-                    : t("engineering.permissions.disabled")}
-                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span
+                    className={`text-[10px] font-bold px-2 py-1 rounded ${
+                      selectedProfile.is_active
+                        ? "bg-emerald-500/10 text-emerald-400"
+                        : "bg-red-500/10 text-red-400"
+                    }`}
+                  >
+                    {selectedProfile.is_active
+                      ? t("engineering.permissions.active")
+                      : t("engineering.permissions.disabled")}
+                  </span>
+                  <button
+                    onClick={() => duplicateProfile(selectedProfile)}
+                    title={t("engineering.permissions.duplicateProfileTitle")}
+                    className="p-1.5 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => toggleProfileActive(selectedProfile)}
+                    title={
+                      selectedProfile.is_active
+                        ? t("engineering.permissions.disableProfile")
+                        : t("engineering.permissions.enableProfile")
+                    }
+                    className="p-1.5 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  >
+                    {selectedProfile.is_active ? (
+                      <Eye className="w-3.5 h-3.5" />
+                    ) : (
+                      <EyeOff className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
               </div>
 
-              {/* Default for — which kinds of person receive this template. */}
-              <div className="rounded-xl border border-[var(--border-primary)] bg-secondary/40 p-3 space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("engineering.permissions.defaultForTitle")}
-                </p>
-                <p className="text-[10px] font-bold text-[var(--text-primary)]">
-                  {selectedIsDefaultFor.length > 0
-                    ? selectedIsDefaultFor.join(", ")
-                    : t("engineering.permissions.defaultForNone")}
-                </p>
+              {/* Rôles attribués — lecture seule, édition via la modale "Modifier" */}
+              <div className="ios-card !p-5 border-[var(--border-primary)] space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                      {t("engineering.permissions.rolesAssignedTitle")}
+                    </p>
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
+                      {t("engineering.permissions.rolesAssignedHint")}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setDefaultRoleMsg("");
+                      setDefaultRoleErr("");
+                      setRemoveMsg("");
+                      setRemoveErr("");
+                      setRolesModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                  >
+                    <Pencil className="w-3 h-3" />{" "}
+                    {t("engineering.permissions.editRoles")}
+                  </button>
+                </div>
+                {selectedIsDefaultFor.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedIsDefaultFor.map((role) => (
+                      <span
+                        key={role}
+                        className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                      >
+                        {role.replace(/_/g, " ")}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                    {t("engineering.permissions.defaultForNone")}
+                  </p>
+                )}
                 {selectedIsDefaultFor.length > 0 && (
                   <>
                     <p className="text-[10px] font-bold text-amber-400">
@@ -1653,40 +1748,6 @@ function AccessProfilesView({ initialProfileId = null }) {
                       {t("engineering.permissions.profileChangeAffectsUsers")}
                     </p>
                   </>
-                )}
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    value={defaultRoleChoice}
-                    onChange={(e) => setDefaultRoleChoice(e.target.value)}
-                    aria-label={t("engineering.permissions.defaultForTitle")}
-                    className="bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
-                  >
-                    <option value="">
-                      {t("engineering.permissions.defaultForPick")}
-                    </option>
-                    {(allRoles || [])
-                      .filter((r) => !selectedIsDefaultFor.includes(r))
-                      .map((r) => (
-                        <option key={r} value={r}>
-                          {r.replace(/_/g, " ")}
-                        </option>
-                      ))}
-                  </select>
-                  <button
-                    onClick={assignRoleDefault}
-                    disabled={!defaultRoleChoice || defaultRoleBusy}
-                    className="px-3 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
-                  >
-                    {t("engineering.permissions.defaultForSet")}
-                  </button>
-                </div>
-                {defaultRoleMsg && (
-                  <p className="text-[10px] font-bold text-emerald-400">
-                    {defaultRoleMsg}
-                  </p>
-                )}
-                {defaultRoleErr && (
-                  <p className="text-[10px] font-bold text-red-400">{defaultRoleErr}</p>
                 )}
               </div>
 
@@ -1819,9 +1880,131 @@ function AccessProfilesView({ initialProfileId = null }) {
                 {t("engineering.permissions.selectProfilePrompt")}
               </p>
             </div>
-          )}
+      )}
+
+      {/* Assigned-roles modal — the roles list is read-only until Edit */}
+      {rolesModalOpen && selectedProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0"
+            style={{ background: "rgba(0,0,0,0.7)" }}
+            onClick={() => setRolesModalOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl"
+            style={{
+              background: "var(--surface-1)",
+              border: "1px solid var(--border-primary)",
+            }}
+          >
+            <h4
+              className="text-sm font-black uppercase tracking-tight"
+              style={{ color: "var(--text-primary)" }}
+            >
+              {t("engineering.permissions.rolesEditTitle")}
+            </h4>
+            <p
+              className="text-[10px] font-black uppercase tracking-widest mt-4"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {t("engineering.permissions.defaultForTitle")}
+            </p>
+
+            <div className="space-y-1.5 mt-2">
+              {selectedIsDefaultFor.length > 0 ? (
+                selectedIsDefaultFor.map((role) => (
+                  <div
+                    key={role}
+                    className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
+                    style={{ borderColor: "var(--border-primary)" }}
+                  >
+                    <span
+                      className="text-[10px] font-bold uppercase tracking-wide"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      {role.replace(/_/g, " ")}
+                    </span>
+                    <button
+                      onClick={() => removeRoleDefault(role)}
+                      disabled={removeBusy === role}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-500/10 text-[10px] font-bold text-red-400 uppercase tracking-widest hover:bg-red-500/20 transition-all disabled:opacity-40"
+                    >
+                      <Trash2 className="w-3 h-3" />{" "}
+                      {t("engineering.permissions.rolesRemove")}
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p
+                  className="text-[10px] font-bold"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  {t("engineering.permissions.defaultForNone")}
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 mt-4">
+              <select
+                value={defaultRoleChoice}
+                onChange={(e) => setDefaultRoleChoice(e.target.value)}
+                aria-label={t("engineering.permissions.defaultForTitle")}
+                className="bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+              >
+                <option value="">
+                  {t("engineering.permissions.defaultForPick")}
+                </option>
+                {(allRoles || [])
+                  .filter((r) => !selectedIsDefaultFor.includes(r))
+                  .map((r) => (
+                    <option key={r} value={r}>
+                      {r.replace(/_/g, " ")}
+                    </option>
+                  ))}
+              </select>
+              <button
+                onClick={assignRoleDefault}
+                disabled={!defaultRoleChoice || defaultRoleBusy}
+                className="px-3 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+              >
+                {t("engineering.permissions.rolesAdd")}
+              </button>
+            </div>
+
+            {defaultRoleMsg && (
+              <p className="text-[10px] font-bold text-emerald-400 mt-2">
+                {defaultRoleMsg}
+              </p>
+            )}
+            {defaultRoleErr && (
+              <p className="text-[10px] font-bold text-red-400 mt-2">
+                {defaultRoleErr}
+              </p>
+            )}
+            {removeMsg && (
+              <p className="text-[10px] font-bold text-emerald-400 mt-2">
+                {removeMsg}
+              </p>
+            )}
+            {removeErr && (
+              <p className="text-[10px] font-bold text-red-400 mt-2">
+                {removeErr}
+              </p>
+            )}
+
+            <div className="flex justify-end mt-5">
+              <button
+                onClick={() => setRolesModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
+              >
+                {t("engineering.permissions.close")}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Profile-safety confirmation for role-bound profiles */}
       {pendingSaveConfirm && (
