@@ -10,6 +10,8 @@
  *   - Scope is never encoded into capability names (displayed separately).
  */
 
+import { FEATURE_SUBSECTIONS } from "@/models/authorization/feature-subsections";
+
 /**
  * Feature registry rows in canonical order: each feature carries the modules
  * mapped to it (via moduleToFeature) plus any feature-level metadata.
@@ -100,6 +102,57 @@ export function groupModulesByFeature(modules, moduleToFeature, featureOrder) {
   }
 
   return sections;
+}
+
+/**
+ * Rows of the Access-Profile template for ONE feature.
+ *
+ * Rows are the dashboard sub-sections (FEATURE_SUBSECTIONS), in sidebar order,
+ * each resolved to the permission module that backs it; sub-sections without a
+ * module are informational. Any module of the feature that no sub-section names
+ * (facilitator, users) is appended so no capability is ever hidden.
+ *
+ * A module named by several sub-sections is editable ONCE (its first row); the
+ * later rows are informational aliases sharing the same stored capabilities.
+ *
+ * @param {string} feature
+ * @param {Object} availableModules  module → { name, capabilities: string[] }
+ * @param {Object} moduleToFeature   module → feature key
+ * @returns {Array<{id:string, labelKey:string|null, module:string|null,
+ *   moduleLabel:boolean, capabilities:string[], editable:boolean}>}
+ */
+export function buildSubsectionRows(feature, availableModules, moduleToFeature = {}) {
+  const modules = availableModules || {};
+  const rows = [];
+  const used = new Set();
+
+  for (const sub of FEATURE_SUBSECTIONS[feature] || []) {
+    const mod = sub.module && modules[sub.module] ? sub.module : null;
+    rows.push({
+      id: sub.id,
+      labelKey: sub.labelKey,
+      module: mod,
+      moduleLabel: false,
+      capabilities: mod ? modules[mod].capabilities || [] : [],
+      editable: Boolean(mod) && !used.has(mod),
+    });
+    if (mod) used.add(mod);
+  }
+
+  for (const mod of Object.keys(modules).sort()) {
+    if (moduleToFeature[mod] !== feature || used.has(mod)) continue;
+    rows.push({
+      id: mod,
+      labelKey: null,
+      module: mod,
+      moduleLabel: true,
+      capabilities: modules[mod].capabilities || [],
+      editable: true,
+    });
+    used.add(mod);
+  }
+
+  return rows;
 }
 
 /**

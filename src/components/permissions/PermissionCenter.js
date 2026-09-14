@@ -42,7 +42,7 @@ import { splitAuditReason } from "@/components/permissions/auditHelpers";
 import { deriveProfileBadges } from "@/components/permissions/profileBadges";
 import FeatureMatrixSection from "@/components/permissions/FeatureMatrixSection";
 import AdvancedCapabilities from "@/components/permissions/AdvancedCapabilities";
-import { groupModulesByFeature, toggleCapability, toggleFullCapabilities, filterSectionsByRoleEligibility, filterSectionsToCrudModules, crudCapabilities } from "@/components/permissions/matrixHelpers";
+import { groupModulesByFeature, buildSubsectionRows, toggleCapability, toggleFullCapabilities, filterSectionsByRoleEligibility, crudCapabilities } from "@/components/permissions/matrixHelpers";
 import { defer } from "@/components/permissions/effectUtils";
 
 const ACCESS_LEVEL_KEYS = {
@@ -1406,13 +1406,11 @@ function AccessProfilesView({ initialProfileId = null }) {
     eligibleSections.map((section) => section.feature),
   );
 
-  // The CRUD matrix only shows modules that carry CRUD capabilities. Modules
-  // whose powers are all non-CRUD (permissions, facilitator, bulk_upload) are
-  // served by the Advanced section instead.
-  const visibleSections = filterSectionsToCrudModules(
-    eligibleSections,
-    availableModules,
-  );
+  // Every module of every eligible feature is listed as a sub-section — INCLUDING
+  // modules whose capabilities are all non-CRUD (bulk_upload, permissions,
+  // facilitator): the feature must show its real sub-sections. Those capabilities
+  // are edited in the Advanced section below; the CRUD cells stay empty for them.
+  const visibleSections = eligibleSections;
 
   return (
     <div className="space-y-6">
@@ -1788,6 +1786,7 @@ function AccessProfilesView({ initialProfileId = null }) {
                   <FeatureMatrixSection
                     key={section.feature}
                     section={section}
+                    rows={buildSubsectionRows(section.feature, availableModules, moduleToFeature)}
                     availableModules={availableModules}
                     draftCaps={draftCaps}
                     savedCaps={savedCaps}

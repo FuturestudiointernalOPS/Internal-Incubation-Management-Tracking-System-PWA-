@@ -9,25 +9,26 @@ import {
 } from "@/components/permissions/matrixHelpers";
 
 /**
- * PHASE UI-6 + CRUD split — one FEATURE section of the CRUD matrix.
+ * PHASE UI-6 + dashboard sub-sections — one FEATURE section of the template.
  *
- * A feature is a sidebar-level section (communication, program_management, …);
- * its modules are the sub-sections shown in the left column. The header row is
- * the FIXED access-level ladder View · Edit · Create · Delete · Full.
+ * A feature is a sidebar-level section (CRM, Communication, …); its rows are
+ * the SAME sub-sections the sidebar shows (People, Membership, Timeline,
+ * Duplicates, Bulk Import, …), in the same order — see FEATURE_SUBSECTIONS.
  *
- * This table edits the CRUD ladder ONLY. Every non-CRUD capability (send,
- * moderate, publish, archive, grant, promote_super_admin, execute, …) lives in
- * the "Advanced" section (AdvancedCapabilities) — so it stays real and
- * enforceable, but never clutters this table.
+ * A sub-section backed by a permission module is editable through the fixed
+ * CRUD ladder View · Edit · Create · Delete · Full. A sub-section with no
+ * capability of its own (Membership, Timeline, …) is INFORMATIONAL: it is shown
+ * without checkboxes. Non-CRUD capabilities of a module (send, execute, grant,
+ * …) live in the "Advanced" section below.
  *
- * "Full" is scoped to the module's CRUD set: it can never grant a capability
- * this table does not show. That is what keeps hiding a capability from the
- * matrix from silently granting it.
+ * A module named by several sub-sections is editable once (its first row); the
+ * later rows are informational aliases. "Full" is scoped to the module's CRUD
+ * set, so it can never grant a capability this table does not show.
  *
- * Every cell is a CHECKBOX (no dropdown). View is the base capability —
- * checking any other CRUD capability also checks View, and clearing View clears
- * the module's other CRUD capabilities. The header checkbox applies a column to
- * every sub-section of the group at once (indeterminate when only some hold it).
+ * Every cell is a CHECKBOX (no dropdown). View is the base capability — checking
+ * any other CRUD capability also checks View, and clearing View clears the
+ * module's other CRUD capabilities. The header checkbox applies a column to
+ * every editable row of the group at once (indeterminate when only some hold it).
  *
  * Level numbers are preserved for the engine (view=1 … delete=4, Full=5).
  */
@@ -68,6 +69,7 @@ function MatrixCheckbox({
 
 export default function FeatureMatrixSection({
   section,
+  rows,
   availableModules,
   draftCaps,
   savedCaps,
@@ -75,15 +77,16 @@ export default function FeatureMatrixSection({
   onToggleFull,
 }) {
   const { t } = useI18n();
-  const { feature, modules, unmapped } = section;
+  const { feature, unmapped } = section;
 
-  const moduleCaps = (mod) => availableModules?.[mod]?.capabilities || [];
-  const crudCaps = (mod) => crudCapabilities(moduleCaps(mod));
-  const levelOf = (mod, cap) => Number(draftCaps?.[mod]?.[cap] ?? 0);
-  const isChecked = (mod, cap) => levelOf(mod, cap) > 0;
-  const isChanged = (mod, cap) =>
-    (draftCaps?.[mod]?.[cap] ?? 0) !== (savedCaps?.[mod]?.[cap] ?? 0);
-  const moduleFull = (mod) => isModuleFull(draftCaps, mod, crudCaps(mod));
+  const rowCaps = (row) => row.capabilities || [];
+  const rowCrud = (row) => crudCapabilities(rowCaps(row));
+  const isEditable = (row) => Boolean(row.editable);
+  const levelOf = (row, cap) => Number(draftCaps?.[row.module]?.[cap] ?? 0);
+  const isChecked = (row, cap) => levelOf(row, cap) > 0;
+  const isChanged = (row, cap) =>
+    (draftCaps?.[row.module]?.[cap] ?? 0) !== (savedCaps?.[row.module]?.[cap] ?? 0);
+  const rowFull = (row) => isModuleFull(draftCaps, row.module, rowCrud(row));
 
   const columns = buildSectionColumns();
 
@@ -93,8 +96,7 @@ export default function FeatureMatrixSection({
     return value && value !== key ? value : fallback;
   };
 
-  // Section title = the FEATURE (the group), or the module name when a module
-  // has no feature mapping of its own.
+  // Section title = the FEATURE (the dashboard section).
   const title = unmapped
     ? labelOr(
         `engineering.permissions.moduleLabels.${feature}`,
@@ -111,61 +113,71 @@ export default function FeatureMatrixSection({
       availableModules?.[mod]?.name || mod.replace(/_/g, " "),
     );
 
+  /** Label of a sub-section row (sub-section name, or the module name). */
+  const rowLabel = (row) => {
+    if (row.moduleLabel || !row.labelKey) return moduleLabel(row.module);
+    return labelOr(row.labelKey, row.module ? moduleLabel(row.module) : row.id);
+  };
+
   const columnLabel = (col) =>
     col.kind === "full"
       ? t(LEVEL_LABEL_KEYS.full)
       : t(LEVEL_LABEL_KEYS[col.capability]);
 
-  /** Applicable modules + checked/indeterminate state for a header column. */
-  const headerState = (col) => {
-    const applicable = modules.filter((mod) => {
-      const caps = crudCaps(mod);
+  /** Editable rows that carry a column's capability. */
+  const applicableRows = (col) =>
+    (rows || []).filter((row) => {
+      if (!isEditable(row)) return false;
+      const caps = rowCrud(row);
       return col.kind === "full" ? caps.length > 0 : caps.includes(col.capability);
     });
+
+  const headerState = (col) => {
+    const applicable = applicableRows(col);
     if (applicable.length === 0) {
       return { applicable, checked: false, indeterminate: false };
     }
-    const states = applicable.map((mod) =>
-      col.kind === "full" ? moduleFull(mod) : isChecked(mod, col.capability),
+    const states = applicable.map((row) =>
+      col.kind === "full" ? rowFull(row) : isChecked(row, col.capability),
     );
     const checked = states.every(Boolean);
     return { applicable, checked, indeterminate: states.some(Boolean) && !checked };
   };
 
   const onHeaderToggle = (col, next) => {
-    const { applicable } = headerState(col);
-    for (const mod of applicable) {
-      const caps = crudCaps(mod);
-      if (col.kind === "full") onToggleFull(mod, next, caps);
-      else onToggle(mod, col.capability, next, caps);
+    for (const row of applicableRows(col)) {
+      const caps = rowCrud(row);
+      if (col.kind === "full") onToggleFull(row.module, next, caps);
+      else onToggle(row.module, col.capability, next, caps);
     }
   };
 
-  const cellTitle = (mod, col) => `${moduleLabel(mod)} · ${columnLabel(col)}`;
+  const cellTitle = (row, col) => `${rowLabel(row)} · ${columnLabel(col)}`;
 
-  const sectionChanged = modules.some((mod) =>
-    crudCaps(mod).some((cap) => isChanged(mod, cap)),
+  const sectionChanged = (rows || []).some(
+    (row) => isEditable(row) && rowCrud(row).some((cap) => isChanged(row, cap)),
   );
 
-  /** A checkbox cell for one module + column, or the "not carried" placeholder. */
-  const renderCell = (mod, col) => {
-    const caps = crudCaps(mod);
+  /** A checkbox cell for one sub-section + column, or a placeholder. */
+  const renderCell = (row, col) => {
+    if (!isEditable(row)) return <Placeholder />;
+    const caps = rowCrud(row);
     if (col.kind === "full") {
       if (caps.length === 0) return <Placeholder />;
       return (
         <MatrixCheckbox
-          checked={moduleFull(mod)}
-          onChange={(next) => onToggleFull(mod, next, caps)}
-          title={cellTitle(mod, col)}
+          checked={rowFull(row)}
+          onChange={(next) => onToggleFull(row.module, next, caps)}
+          title={cellTitle(row, col)}
         />
       );
     }
     if (!caps.includes(col.capability)) return <Placeholder />;
     return (
       <MatrixCheckbox
-        checked={isChecked(mod, col.capability)}
-        onChange={(next) => onToggle(mod, col.capability, next, caps)}
-        title={cellTitle(mod, col)}
+        checked={isChecked(row, col.capability)}
+        onChange={(next) => onToggle(row.module, col.capability, next, caps)}
+        title={cellTitle(row, col)}
       />
     );
   };
@@ -217,17 +229,22 @@ export default function FeatureMatrixSection({
             </tr>
           </thead>
           <tbody>
-            {modules.map((mod) => (
+            {(rows || []).map((row) => (
               <tr
-                key={mod}
+                key={row.id}
                 className="border-b border-[var(--border-primary)]/50 last:border-b-0"
               >
                 <td className="px-4 py-2 text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide whitespace-nowrap">
-                  {moduleLabel(mod)}
+                  {rowLabel(row)}
+                  {!isEditable(row) && (
+                    <span className="ml-2 text-[9px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-70">
+                      {t("engineering.permissions.subsectionInfo")}
+                    </span>
+                  )}
                 </td>
                 {columns.map((col) => (
                   <td key={col.key} className="px-2 py-1.5 text-center">
-                    {renderCell(mod, col)}
+                    {renderCell(row, col)}
                   </td>
                 ))}
               </tr>
@@ -238,17 +255,21 @@ export default function FeatureMatrixSection({
 
       {/* Small screens: one card per sub-section, one checkbox per capability. */}
       <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
-        {modules.map((mod) => (
-          <div key={mod} className="p-3 space-y-2">
+        {(rows || []).map((row) => (
+          <div key={row.id} className="p-3 space-y-2">
             <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
-              {moduleLabel(mod)}
+              {rowLabel(row)}
+              {!isEditable(row) && (
+                <span className="ml-2 text-[9px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-70">
+                  {t("engineering.permissions.subsectionInfo")}
+                </span>
+              )}
             </p>
             <div className="space-y-1.5">
               {columns
                 .filter(
                   (col) =>
-                    col.kind === "full" ||
-                    crudCaps(mod).includes(col.capability),
+                    col.kind === "full" || rowCrud(row).includes(col.capability),
                 )
                 .map((col) => (
                   <label
@@ -258,7 +279,7 @@ export default function FeatureMatrixSection({
                     <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wide">
                       {columnLabel(col)}
                     </span>
-                    {renderCell(mod, col)}
+                    {renderCell(row, col)}
                   </label>
                 ))}
             </div>
