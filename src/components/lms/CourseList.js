@@ -13,6 +13,7 @@ import CourseThumb from "./CourseThumb";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/constants";
+import usePermissions from "@/lib/hooks/usePermissions";
 
 const STATUS_OPTIONS = [
   { value: "", label: "all" },
@@ -28,6 +29,10 @@ const STATUS_OPTIONS = [
 export default function CourseList({ basePath = "/admin/lms/courses" }) {
   const { t } = useI18n();
   const router = useRouter();
+  // UI gating only — the server re-checks every call (lms.create / lms.edit).
+  // Fails OPEN while the matrix loads, so no action flashes away.
+  const { can, loading: permsLoading } = usePermissions();
+  const allow = (cap) => (permsLoading ? true : can("lms", cap));
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -92,13 +97,15 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
         <h1 className="text-xl font-black uppercase tracking-tight" style={{ color: "var(--text-primary)" }}>
           {t("lms.courses.title")}
         </h1>
-        <AppButton
-          variant="primary"
-          icon={Plus}
-          onClick={() => router.push(`${basePath}/new`)}
-        >
-          {t("lms.courses.create")}
-        </AppButton>
+        {allow("create") && (
+          <AppButton
+            variant="primary"
+            icon={Plus}
+            onClick={() => router.push(`${basePath}/new`)}
+          >
+            {t("lms.courses.create")}
+          </AppButton>
+        )}
       </div>
 
       {/* Search + filter */}
@@ -150,7 +157,7 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
                 >
                   {t("common.clearFilter")}
                 </AppButton>
-              ) : (
+              ) : allow("create") ? (
                 <AppButton
                   variant="primary"
                   icon={Plus}
@@ -158,7 +165,7 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
                 >
                   {t("lms.courses.create")}
                 </AppButton>
-              )
+              ) : null
             }
           />
         </div>
@@ -203,7 +210,7 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
                 >
                   {t("lms.courses.open")}
                 </AppButton>
-                {course.status === "draft" && (
+                {allow("edit") && course.status === "draft" && (
                   <AppButton
                     variant="success"
                     size="sm"
@@ -214,7 +221,7 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
                     {t("lms.courses.publish")}
                   </AppButton>
                 )}
-                {course.status === "published" && (
+                {allow("edit") && course.status === "published" && (
                   <AppButton
                     variant="secondary"
                     size="sm"

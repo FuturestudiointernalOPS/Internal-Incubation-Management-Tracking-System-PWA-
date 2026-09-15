@@ -12,6 +12,7 @@ import CourseView from "./CourseView";
 import EnrollModal from "./EnrollModal";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import usePermissions from "@/lib/hooks/usePermissions";
 
 /**
  * Course workspace. Opening a course shows a READ-ONLY presentation: the first
@@ -26,6 +27,10 @@ import { useI18n } from "@/lib/i18n";
 export default function CourseEditor({ courseId, basePath = "/admin/lms/courses" }) {
   const { t } = useI18n();
   const router = useRouter();
+  // UI gating only — the server re-checks every call (lms.edit / lms.delete).
+  // Fails OPEN while the matrix loads, so no action flashes away.
+  const { can, loading: permsLoading } = usePermissions();
+  const allow = (cap) => (permsLoading ? true : can("lms", cap));
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -191,23 +196,27 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
             </>
           ) : (
             <>
-              <AppButton variant="primary" icon={Pencil} onClick={startEdit}>
-                {t("common.edit")}
-              </AppButton>
-              <AppButton variant="ghost" icon={Users} onClick={() => setEnrollOpen(true)}>
-                {t("lms.enroll.title")}
-              </AppButton>
-              {course.status === "draft" && (
+              {allow("edit") && (
+                <AppButton variant="primary" icon={Pencil} onClick={startEdit}>
+                  {t("common.edit")}
+                </AppButton>
+              )}
+              {allow("edit") && (
+                <AppButton variant="ghost" icon={Users} onClick={() => setEnrollOpen(true)}>
+                  {t("lms.enroll.title")}
+                </AppButton>
+              )}
+              {allow("edit") && course.status === "draft" && (
                 <AppButton variant="success" icon={Rocket} onClick={publish}>
                   {t("lms.courses.publish")}
                 </AppButton>
               )}
-              {course.status === "published" && (
+              {allow("edit") && course.status === "published" && (
                 <AppButton variant="secondary" icon={Archive} onClick={archive}>
                   {t("lms.courses.archive")}
                 </AppButton>
               )}
-              {course.status === "draft" && (
+              {allow("delete") && course.status === "draft" && (
                 <AppButton variant="danger" icon={Trash2} onClick={remove}>
                   {t("lms.courses.delete")}
                 </AppButton>
