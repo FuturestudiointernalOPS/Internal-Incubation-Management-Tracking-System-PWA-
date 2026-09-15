@@ -205,6 +205,33 @@ ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS archived_at TIMESTAM
 ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS archived_by TEXT;
 ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS source_template_type TEXT;
 ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS source_template_id TEXT;
+-- Session materials + the journeys/reports batch. `materials` holds
+-- [{path,name,size}]; the files live in the PRIVATE evidence bucket under a
+-- `sessions/` prefix and are signed on read.
+ALTER TABLE venture_sessions  ADD COLUMN IF NOT EXISTS materials JSONB;
+ALTER TABLE venture_notes     ADD COLUMN IF NOT EXISTS source_session_id INTEGER;
+ALTER TABLE venture_reports   ADD COLUMN IF NOT EXISTS journey_stage_id UUID;
+ALTER TABLE venture_reports   ADD COLUMN IF NOT EXISTS report_kind TEXT;
+```
+
+**`journey_stage_id` / `report_kind` are nullable on purpose.** Existing
+period-based reports keep NULL and are **never** back-filled by guessing from
+free text — a report without a Journey is honest; a mis-anchored one is not.
+
+**One data change happens on its own (no SQL to run here).** The Venture
+permission matrix seed is now corrected on boot: `coach × calendar × schedule`
+is set to FALSE **only where `updated_by IS NULL`** (i.e. the row still holds
+its seeded value). Until this batch nothing read that cell, so it was a promise
+the platform never kept; now the sessions route reads it, so left as-is it would
+have let Coaches book. A cell an administrator deliberately configured is never
+touched — if production shows a Coach who can still book, that is an explicit
+grant, not a failed deploy:
+
+```sql
+SELECT responsibility_code, area, action, allowed, updated_by
+FROM venture_permission_matrix
+WHERE area = 'calendar'
+ORDER BY responsibility_code;
 ```
 
 Plus the `CREATE TABLE IF NOT EXISTS` blocks for `venture_reports`,
@@ -258,7 +285,7 @@ Walk these as real accounts. "Tests pass" does not cover any of it.
 3. **Staff without an assignment** — must be refused *explicitly* (403 + `X-Authz-Decision`), never silently shown partial data.
 4. **Founder** — their own workspace; can submit a deliverable; **cannot** change the Venture's status.
 5. **Team member** (a `member`-role account with a `venture_members` row) — can open the Venture they were given; **cannot** edit.
-6. **Coach** (scoped to a milestone) — can review that deliverable; cannot see unrelated milestones or internal notes.
+6. **Coach** (scoped to a milestone) — can review that deliverable; cannot see unrelated milestones or internal notes; **can write the session Memo but CANNOT book, move, cancel or delete a session** (expect 403 with `missing: ventures.calendar.schedule`). If a Coach *can* book, the matrix cell was deliberately granted — check the query in §5 before calling it a failed deploy.
 7. **Program Manager** — course publish / enrol **(see D1)**.
 8. **Teacher** — the form-run review screen **(see D3)**.
 9. **Participant with a completed enrolment** — attach a file to an assignment and a message **(see D2)**.
@@ -336,5 +363,10 @@ node scripts/authz-venture-coverage.mjs
 |---|---|
 | `8c25bde5` | Undefined variables in the venture + responsibility routes: the status-assignment guard never ran (a founder could change their Venture's status), non-admin lifecycle transitions returned 500, and the responsibility base grant silently granted nothing |
 | `41704c45` | Deliverables no longer gate on a `milestones` capability module that does not exist; founder eligibility catch-up migration; `Venture Member` profile + `member` role mapping; `/api/upload` accepts Venture people; bulk import accepts the CRM create capability |
+| `a5b84d34` | Venture sessions gained documents (private bucket, signed on read) and ONE editable Memo; the Memo now travels with every session notice — founders, coach and Lead Managers. "Session note" is "Memo" in both locales |
+| *unpushed* `Ventures` | Journey-anchored reports (`journey_stage_id`, `report_kind`), the report composer with the journey-close prompt, and the Super Admin portfolio view at `/admin/journey-reports` |
+| *unpushed* `Ventures` | Breadcrumb defect: `CRUMB_PATH_MAP` listed `responses` twice and the later key won, so `/admin/reports/responses` rendered the **Forms** crumb. Fixed with a longest-path map (the app had "fixed" lint by deleting real cases before) |
+| *unpushed* `Ventures` | **Perm Phase 1** — `GET /api/ventures/[id]/my-access` reports what the gate will actually allow, sharing `resolveVentureScopedDecision` with the guard and pinned by a parity test |
+| *unpushed* `Ventures` | **Perm Phase 2 (slice 1)** — a Coach can no longer book, move, cancel or delete a session: `calendar.schedule` is the first matrix cell enforced. Verified defect, not a hypothetical: staff hold `ventures.edit`, a Coach holds an active assignment, so `venture_own` scope passed and the milestone gate was then WAIVED for them |
 
 **Still open in code:** §3 D1–D4.

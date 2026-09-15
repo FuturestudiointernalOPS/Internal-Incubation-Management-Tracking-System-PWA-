@@ -11,6 +11,8 @@ import {
 import { SESSION_MIN_LEAD_MINUTES, normalizeSessionMaterials } from "@/lib/ventureSessionRules";
 import { notifyVentureCoach, notifyVentureLeadManagers } from "@/lib/ventureNotify";
 import { isStaffActorForVenture } from "@/lib/ventureAuth";
+import { hasVentureCapability } from "@/lib/venturePermissions";
+import { resolveVentureCode } from "@/lib/ventureOperatingPlans";
 import { assertBookableMilestone } from "@/lib/ventureMilestoneEngine";
 import { signSessionMaterials } from "@/lib/ventureEvidence";
 
@@ -81,6 +83,57 @@ export const POST = createHandler(async (req, { params }) => {
   if (access.error) return access.error;
   const body = await req.json();
   const { action } = body;
+  const actor = access.session || req.session;
+
+  /**
+   * WHO MAY DEFINE THE CALENDAR.
+   *
+   * A delegated staff member may create, move or cancel a session only when
+   * their RESPONSIBILITY grants `calendar.schedule`: a Coach supports the Venture
+   * and attends sessions — they do not schedule them. Requiring a capability
+   * every staff member already holds would block nobody, which is why the answer
+   * comes from the permission matrix: the one place a responsibility differs.
+   *
+   * This is the only Venture permission matrix cell enforced anywhere today. It
+   * is readable back through GET /api/ventures/[id]/my-access, which reports
+   * exactly the cells wired here and no others — wire more, report more.
+   *
+   * Three deliberate exclusions:
+   *   - The Venture's OWN members are untouched. A founder books and manages
+   *     their own Venture's sessions; only the staff path is governed here.
+   *   - Global authority is read from the gate's verdict (`access.path`), never
+   *     re-derived from a role string: two derivations would drift.
+   *   - PARTICIPATION is not management. Writing the memo, recording attendance
+   *     and raising action items stay open — that is what a Coach is FOR.
+   *
+   * Returns a 403 response to send, or null to continue.
+   */
+  const sessionManagementDenial = async (staffActor) => {
+    if (!staffActor) return null;
+    if (access.path === "super-admin") return null;
+    // Assignments store the VNT code; the route may receive the UUID. Zeroing
+    // this conversion would deny every delegated manager on a UUID route.
+    const ventureCode = await resolveVentureCode(db, id);
+    const canSchedule = await hasVentureCapability(db, {
+      ventureId: ventureCode,
+      contactId: actor?.cid,
+      area: "calendar",
+      action: "schedule",
+    });
+    if (canSchedule) return null;
+    return NextResponse.json(
+      {
+        success: false,
+        error: "errors.insufficientPermissions",
+        missing: { capability: "ventures.calendar.schedule" },
+      },
+      { status: 403 },
+    );
+  };
+
+  /** The same check for the bare management actions below. */
+  const deniedSessionManagement = async () =>
+    sessionManagementDenial(await isStaffActorForVenture(db, id, actor));
 
   if (action === "create_session") {
     try {
@@ -121,7 +174,10 @@ export const POST = createHandler(async (req, { params }) => {
       // Future Studio staff plan ahead and may book against any milestone. The
       // refusal carries the reason (locked / already completed / a different
       // milestone is current), so the founder is never left guessing.
-      const staffActor = await isStaffActorForVenture(db, id, access.session || req.session);
+      const staffActor = await isStaffActorForVenture(db, id, actor);
+      const denied = await sessionManagementDenial(staffActor);
+      if (denied) return denied;
+
       if (!staffActor) {
         const vRow = await db
           .execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] })
@@ -279,6 +335,8 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   if (action === "update_session") {
+    const denied = await deniedSessionManagement();
+    if (denied) return denied;
     try {
       const before = await getSession(parseInt(body.session_id));
       await updateSession(parseInt(body.session_id), body.updates);
@@ -328,6 +386,8 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   if (action === "cancel_session") {
+    const denied = await deniedSessionManagement();
+    if (denied) return denied;
     const sess = await getSession(parseInt(body.session_id));
     await cancelSession(parseInt(body.session_id));
     if (sess) {
@@ -378,6 +438,8 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   if (action === "reschedule_session") {
+    const denied = await deniedSessionManagement();
+    if (denied) return denied;
     try {
       await rescheduleSession(parseInt(body.session_id), body.start_time, body.end_time);
       const sess = await getSession(parseInt(body.session_id));
@@ -432,6 +494,8 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   if (action === "delete_session") {
+    const denied = await deniedSessionManagement();
+    if (denied) return denied;
     await deleteSession(parseInt(body.session_id));
     return NextResponse.json({ success: true });
   }

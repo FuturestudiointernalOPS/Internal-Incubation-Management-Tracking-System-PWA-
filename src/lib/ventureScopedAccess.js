@@ -27,8 +27,75 @@ import { isWithinScope, resolveVentureScopeId } from "@/lib/authorization/scope"
  * GET /api/engineering/permissions/venture-strict-audit for the per-person
  * "who would lose access, and which key are they missing" report.
  *
+ * The DECISION and the HTTP SHAPE are split on purpose:
+ *
+ *   resolveVentureScopedDecision(...)   → the verdict (no HTTP)
+ *   requireVentureScopedAccess(...)     → the guard (verdict + response)
+ *
+ * GET /api/ventures/[id]/my-access reads the SAME verdict function, so the UI
+ * cannot be told something the gate would refuse. Keeping one implementation is
+ * the whole point: two would drift, and a UI that lies is worse than no UI.
+ *
  * Returns { session } on allow, or { error: NextResponse } on deny.
  */
+
+/**
+ * The verdict, with no HTTP attached.
+ *
+ * Returned decisions mirror the X-Authz-Decision header values exactly, so a
+ * caller can surface the same vocabulary the routes already emit:
+ *   unauthenticated | super-admin | capability+scope
+ *   capability-missing | out-of-scope
+ * (Throw rather than return for infrastructure failure — the callers below
+ * translate that into `system-failure`, so a broken resolver is never a silent
+ * allow.)
+ *
+ * The caller passes the session, so the read endpoint and the guard cannot
+ * disagree about WHO is asking.
+ */
+export async function resolveVentureScopedDecision({
+  session,
+  ventureId,
+  module,
+  capability,
+  minLevel = 1,
+}) {
+  if (!session) return { allowed: false, decision: "unauthenticated" };
+
+  // Super Admin — resolver semantics (no per-record scope).
+  const ctx = await getAuthorizationContext(session);
+  if (ctx?.isSuperAdmin) {
+    return { allowed: true, path: "super-admin", decision: "super-admin" };
+  }
+
+  // CAPABILITY — the resolver decides (eligibility, profile, grants…).
+  const capError = await requireAuthorization(module, capability, minLevel);
+  if (capError) {
+    return {
+      allowed: false,
+      decision: "capability-missing",
+      missing: { capability: `${module}.${capability}` },
+    };
+  }
+
+  // SCOPE — the record must actually be theirs (live assignment data).
+  const scopeId = await resolveVentureScopeId(ventureId);
+  const within =
+    Boolean(scopeId) &&
+    (await isWithinScope("venture_own", session.cid, scopeId, {
+      email: session.email,
+    }));
+  if (!within) {
+    return {
+      allowed: false,
+      decision: "out-of-scope",
+      missing: { capability: `${module}.${capability}`, scope: "venture_own" },
+    };
+  }
+
+  return { allowed: true, path: "capability+scope", decision: "capability+scope" };
+}
+
 export async function requireVentureScopedAccess({
   ventureId,
   module,
@@ -43,58 +110,59 @@ export async function requireVentureScopedAccess({
 
   try {
     const session = await getSession();
-    if (!session) {
-      return {
-        error: denied(
-          { success: false, error: "errors.authRequired" },
-          401,
-          "unauthenticated",
-        ),
-      };
+    const verdict = await resolveVentureScopedDecision({
+      session,
+      ventureId,
+      module,
+      capability,
+      minLevel,
+    });
+
+    if (verdict.allowed) return { session, path: verdict.path };
+
+    switch (verdict.decision) {
+      case "unauthenticated":
+        return {
+          error: denied(
+            { success: false, error: "errors.authRequired" },
+            401,
+            "unauthenticated",
+          ),
+        };
+      case "capability-missing":
+        return {
+          error: denied(
+            {
+              success: false,
+              error: "errors.insufficientPermissions",
+              missing: verdict.missing,
+            },
+            403,
+            "capability-missing",
+          ),
+        };
+      case "out-of-scope":
+        return {
+          error: denied(
+            {
+              success: false,
+              error: "errors.insufficientPermissions",
+              missing: verdict.missing,
+            },
+            403,
+            "out-of-scope",
+          ),
+        };
+      default:
+        // An unrecognised verdict is a bug, not a permission: fail closed.
+        return {
+          error: denied(
+            { success: false, error: "errors.authzSystemFailure" },
+            500,
+            "system-failure",
+          ),
+        };
     }
-
-    // Super Admin — resolver semantics (no per-record scope).
-    const ctx = await getAuthorizationContext(session);
-    if (ctx?.isSuperAdmin) return { session, path: "super-admin" };
-
-    // CAPABILITY — the resolver decides (eligibility, profile, grants…).
-    const capError = await requireAuthorization(module, capability, minLevel);
-    if (capError) {
-      return {
-        error: denied(
-          {
-            success: false,
-            error: "errors.insufficientPermissions",
-            missing: { capability: `${module}.${capability}` },
-          },
-          403,
-          "capability-missing",
-        ),
-      };
-    }
-
-    // SCOPE — the record must actually be theirs (live assignment data).
-    const scopeId = await resolveVentureScopeId(ventureId);
-    const within =
-      Boolean(scopeId) &&
-      (await isWithinScope("venture_own", session.cid, scopeId, {
-        email: session.email,
-      }));
-    if (!within) {
-      return {
-        error: denied(
-          {
-            success: false,
-            error: "errors.insufficientPermissions",
-            missing: { capability: `${module}.${capability}`, scope: "venture_own" },
-          },
-          403,
-          "out-of-scope",
-        ),
-      };
-    }
-
-    return { session, path: "capability+scope" };
   } catch (e) {
     console.error("[requireVentureScopedAccess] error:", e?.message);
     return {

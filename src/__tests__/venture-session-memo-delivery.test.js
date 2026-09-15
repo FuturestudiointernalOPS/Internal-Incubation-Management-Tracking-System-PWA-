@@ -38,8 +38,15 @@ jest.mock("@/lib/auth", () => ({
 
 jest.mock("@/lib/api/createHandler", () => ({ createHandler: (fn) => fn }));
 
+// The real guard returns { session, path } on allow — path is how a caller knows
+// it was let through as Super Admin. A bare { allowed: true } is not a shape the
+// gate ever produces, so the booking gate would read it as a delegated staff
+// member and refuse. Mirror the contract.
 jest.mock("@/lib/ventureScopedAccess", () => ({
-  requireVentureScopedAccess: jest.fn().mockResolvedValue({ allowed: true }),
+  requireVentureScopedAccess: jest.fn().mockResolvedValue({
+    session: { cid: "sa-1", name: "Super", role: "super_admin" },
+    path: "super-admin",
+  }),
 }));
 
 jest.mock("@/lib/ventureCoach", () => ({ resolveCoachContact: jest.fn().mockResolvedValue(null) }));
