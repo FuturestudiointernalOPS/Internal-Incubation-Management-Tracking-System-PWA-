@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { CheckCircle, AlertCircle, X, Info, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
@@ -13,19 +13,22 @@ import { useI18n } from "@/lib/i18n";
 export default function GlobalToast() {
   const { t } = useI18n();
   const [notifications, setNotifications] = useState([]);
+  // Monotonic toast id. `Date.now()` collides whenever two toasts are raised in
+  // the same millisecond (a burst of failures, or one handler firing twice in a
+  // tick), which made React see duplicate list keys and could drop or duplicate
+  // a toast.
+  const nextId = useRef(0);
 
   useEffect(() => {
     const handleNotify = (e) => {
       const { type = "info", message, duration = 4000 } = e.detail;
-      const id = Date.now();
+      const id = ++nextId.current;
 
       setNotifications((prev) => [...prev, { id, type, message }]);
 
-      const timer = setTimeout(() => {
+      setTimeout(() => {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
       }, duration);
-
-      return () => clearTimeout(timer);
     };
 
     window.addEventListener("impactos:notify", handleNotify);
