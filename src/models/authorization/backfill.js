@@ -59,6 +59,10 @@ export function ensureCapabilityBackfills() {
           runAuthzMigration("cap-backfill-programs", ensureProgramsBackfill),
           runAuthzMigration("cap-backfill-ventures", ensureVenturesBackfill),
           runAuthzMigration("cap-backfill-investor", ensureInvestorBackfill),
+          // LMS became a capability-grantable feature behind `lms.view` with a
+          // Program Manager surface — existing DBs need the PM grant (the seed
+          // only applies to profiles created after the change).
+          runAuthzMigration("cap-backfill-lms-view", ensureLmsViewBackfill),
           runAuthzMigration("lms-capability-retirement-v1", ensureLmsCapabilityRetirement),
           // One-time policy migrations — run once per database, then the
           // Permissions UI owns eligibility configuration (see migrations.js).
@@ -934,6 +938,62 @@ async function ensureLmsCapabilityRetirement() {
     });
   }
   return { success: true };
+}
+
+// ─── Phase 12b: LMS view for the Program Manager profile ─────────────────────
+// The LMS section was promoted to a capability-grantable feature: every course
+// and program-learning route is gated on `lms.view` (the PM surface lives at
+// /pm/lms/courses, and the program workspace renders a learning section per
+// session). `seedDefaultAccessProfiles` adds `lms: { view: 1 }` to the
+// "Program Manager" profile, but seeds only ever CREATE — a database seeded
+// before the promotion keeps a Program Manager profile with no `lms` row, so
+// every PM learning surface answers 403 for a capability the role is supposed
+// to hold. Reproduce the seed's grant (missing rows only; an administrator's
+// explicit configuration is never overwritten).
+const LMS_VIEW_BACKFILL = {
+  profiles: {
+    "Program Manager": [["lms", "view", 1]],
+  },
+  // Fallback for profile-less program managers (the resolver reads
+  // role_capabilities when no access profile resolves).
+  roles: {
+    program_manager: [["lms", "view", 1]],
+  },
+};
+
+// Exported for the migration tests (see authorization-resolver.test.js).
+export async function ensureLmsViewBackfill() {
+  await ensurePermissionsSchema();
+
+  for (const [profileName, rows] of Object.entries(LMS_VIEW_BACKFILL.profiles)) {
+    const profile =
+      (
+        await db.execute({
+          sql: "SELECT id FROM access_profiles WHERE name = ? AND is_active = 1",
+          args: [profileName],
+        })
+      ).rows[0] || null;
+    if (!profile) continue;
+    for (const [module, capability, level] of rows) {
+      await db.execute({
+        sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+              VALUES (?, ?, ?, ?)
+              ON CONFLICT (profile_id, module, capability) DO NOTHING`,
+        args: [profile.id, module, capability, level],
+      });
+    }
+  }
+
+  for (const [role, rows] of Object.entries(LMS_VIEW_BACKFILL.roles)) {
+    for (const [module, capability, level] of rows) {
+      await db.execute({
+        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
+              VALUES (?, ?, ?, ?)
+              ON CONFLICT (role, module, capability) DO NOTHING`,
+        args: [role, module, capability, level],
+      });
+    }
+  }
 }
 
 const MESSAGING_INTERNAL_ROLES = [
