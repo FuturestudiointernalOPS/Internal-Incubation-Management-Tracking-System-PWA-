@@ -33,6 +33,7 @@
       "week": "Week",
       "day": "Day"
     },
+    "daysUnit": "days",
     "days": {
       "sun": "Sun",
       "mon": "Mon",

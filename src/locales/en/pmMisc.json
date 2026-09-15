@@ -335,6 +335,7 @@
       "submissionStatusRevision": "Revision Requested",
       "submissionStatusFollowup": "Follow-up",
       "review": "Review",
+      "reviewDecided": "Review updated",
       "noSubmissions": "No submissions detected in this sector.",
       "viewSubmission": "View Submission",
       "noSubmissionFile": "No file attached to this submission.",

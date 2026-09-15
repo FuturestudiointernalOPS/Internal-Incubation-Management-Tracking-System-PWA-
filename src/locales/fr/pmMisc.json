@@ -335,6 +335,7 @@
       "submissionStatusRevision": "Révision demandée",
       "submissionStatusFollowup": "Suivi",
       "review": "Réviser",
+      "reviewDecided": "Révision mise à jour",
       "noSubmissions": "Aucune soumission détectée dans ce secteur.",
       "viewSubmission": "Voir la soumission",
       "noSubmissionFile": "Aucun fichier joint à cette soumission.",

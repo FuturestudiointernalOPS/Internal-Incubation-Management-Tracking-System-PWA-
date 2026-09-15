@@ -706,7 +706,7 @@ export default function CrmDetailPage({ params }) {
                           {item.progress?.status === "completed"
                             ? t("crm.people.completedStatus")
                             : item.progress?.status === "in_progress"
-                              ? t("status.in_progress")
+                              ? t("status.inProgress")
                               : t("crm.people.notStarted")}
                         </span>
                         {item.certificate && (

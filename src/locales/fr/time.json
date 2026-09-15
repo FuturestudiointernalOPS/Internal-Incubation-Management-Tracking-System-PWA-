@@ -33,6 +33,7 @@
       "week": "Semaine",
       "day": "Jour"
     },
+    "daysUnit": "jours",
     "days": {
       "sun": "Dim",
       "mon": "Lun",

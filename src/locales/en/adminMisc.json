@@ -807,6 +807,10 @@
       "reportTypeMonthly": "Monthly"
     },
     "platformImport": {
+      "stepUpload": "Upload",
+      "stepPreview": "Preview",
+      "stepImport": "Import",
+      "stepDone": "Done",
       "errorCsvOnly": "Only CSV and XLSX files are accepted.",
       "errorSelectFormAndFile": "Please select a form and upload a CSV or XLSX file.",
       "errorParseFailed": "Could not read this file. Please check the file format.",
