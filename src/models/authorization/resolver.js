@@ -33,6 +33,12 @@ import { getEffectiveGroupsForUser } from "./membership";
 
 const AUTHZ_CONTEXT_TTL_MS = 60000; // 60s context cache (egress-neutral; invalidated immediately on permission writes)
 const _authzContextCache = new Map();
+// Contexts currently being resolved, keyed like the cache. A page load issues
+// several authorized requests at once; on a cold cache they all miss the check
+// above and each would run the same ~6 resolution queries in parallel (observed
+// as a burst of identical slow queries). The first caller resolves; the others
+// await the same promise.
+const _authzContextInflight = new Map();
 
 let eligibilitySeeded = false;
 let eligibilitySeedPromise = null;
@@ -94,6 +100,30 @@ export function rowsToRestrictions(rows) {
     restrictions[r.module].add(r.capability);
   }
   return restrictions;
+}
+
+/**
+ * JSON projection of a restrictions map (`{module: Set(capability)}`).
+ *
+ * Restrictions are Sets because merge/authorize iterate them server-side, but a
+ * Set does not survive JSON (`JSON.stringify(new Set(["view"]))` is `{}`). A
+ * client reading the source layers over the wire would then see NO restriction
+ * at all and report a restricted capability as allowed. Project the Sets into
+ * the `{module: {capability: true}}` shape the client reads so the wire format
+ * and the runtime format agree. Tolerance for the object shape keeps the
+ * projection idempotent.
+ */
+export function restrictionsToJson(restrictions) {
+  const out = {};
+  for (const [module, capabilities] of Object.entries(restrictions || {})) {
+    out[module] = {};
+    const caps =
+      capabilities instanceof Set
+        ? capabilities
+        : Object.keys(capabilities || {});
+    for (const capability of caps) out[module][capability] = true;
+  }
+  return out;
 }
 
 /**
@@ -293,9 +323,24 @@ export async function getAuthorizationContext(user) {
   const key = `${user.cid}|${user.role || ""}`;
   const cached = _authzContextCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.ctx;
-  const ctx = await resolveAuthorizationContext(user);
-  _authzContextCache.set(key, { ctx, expires: Date.now() + AUTHZ_CONTEXT_TTL_MS });
-  return ctx;
+
+  // Share one resolution between callers that arrive before it completes.
+  const inflight = _authzContextInflight.get(key);
+  if (inflight) return inflight;
+
+  const pending = resolveAuthorizationContext(user)
+    .then((ctx) => {
+      _authzContextCache.set(key, { ctx, expires: Date.now() + AUTHZ_CONTEXT_TTL_MS });
+      return ctx;
+    })
+    .finally(() => {
+      if (_authzContextInflight.get(key) === pending) {
+        _authzContextInflight.delete(key);
+      }
+    });
+
+  _authzContextInflight.set(key, pending);
+  return pending;
 }
 
 /** Drop a user's cached context (call after grant/restrict/profile/role writes). */
@@ -303,6 +348,9 @@ export function invalidateAuthorizationContext(cid) {
   if (!cid) return;
   for (const key of _authzContextCache.keys()) {
     if (key.startsWith(`${cid}|`)) _authzContextCache.delete(key);
+  }
+  for (const key of _authzContextInflight.keys()) {
+    if (key.startsWith(`${cid}|`)) _authzContextInflight.delete(key);
   }
 }
 
@@ -313,6 +361,7 @@ export function invalidateAuthorizationContext(cid) {
  */
 export function invalidateAllAuthorizationContexts() {
   _authzContextCache.clear();
+  _authzContextInflight.clear();
 }
 
 // ─── Authorization decision ─────────────────────────────────────────────────

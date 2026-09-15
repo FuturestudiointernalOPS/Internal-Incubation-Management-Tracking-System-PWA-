@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuthorization } from "@/lib/authorization";
-import { resolveAuthorizationContext } from "@/models/authorization/resolver";
+import { resolveAuthorizationContext, restrictionsToJson } from "@/models/authorization/resolver";
 import { getContactContexts } from "@/models/authorization/contactContexts";
 import { getContactByCid } from "@/models/responsibilities";
 
@@ -71,7 +71,7 @@ export async function GET(req) {
         profile: ctx.baseCaps,
         groups: ctx.groupCaps,
         grants: ctx.grants,
-        restrictions: ctx.restrictions,
+        restrictions: restrictionsToJson(ctx.restrictions),
       },
       effective: ctx.effective,
       contexts: contextData.contexts,

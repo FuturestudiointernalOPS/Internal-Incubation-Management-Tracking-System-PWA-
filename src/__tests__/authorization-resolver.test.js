@@ -852,6 +852,68 @@ describe("lms module", () => {
     const ctx = staffCtx({ eligibility: { lms: true }, effective: {} });
     expect(authorize(ctx, "lms", "enroll")).toBe(false);
   });
+
+  test("program_manager is eligible for the lms feature (PM surface is reachable)", () => {
+    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.lms).toContain("program_manager");
+  });
+
+  // The seed grants lms.view to the Program Manager profile, but seeds never
+  // overwrite: a database seeded before the LMS promotion kept a PM profile
+  // with no lms row, so every PM learning surface answered 403. The backfill
+  // closes that gap for existing databases (missing rows only).
+  test("ensureLmsViewBackfill grants lms.view to the Program Manager profile + role fallback", async () => {
+    const dbMock = require("@/lib/db").default;
+    const { ensureLmsViewBackfill } = require("@/lib/authorization/backfill");
+    dbMock.execute.mockClear();
+    dbMock.execute.mockImplementation(async (query = {}) => {
+      const sql = typeof query === "string" ? query : query.sql || "";
+      if (sql.includes("FROM access_profiles")) return { rows: [{ id: 5 }] };
+      return { rows: [] };
+    });
+
+    await ensureLmsViewBackfill();
+
+    const calls = dbMock.execute.mock.calls.map((c) =>
+      typeof c[0] === "string" ? { sql: c[0], args: [] } : c[0],
+    );
+    const profileInserts = calls.filter((c) =>
+      c.sql.includes("INSERT INTO access_profile_capabilities"),
+    );
+    expect(profileInserts).toHaveLength(1);
+    expect(profileInserts[0].args).toEqual([5, "lms", "view", 1]);
+    expect(profileInserts[0].sql).toMatch(
+      /ON CONFLICT \(profile_id, module, capability\) DO NOTHING/,
+    );
+
+    const roleInserts = calls.filter((c) => c.sql.includes("INSERT INTO role_capabilities"));
+    expect(roleInserts).toHaveLength(1);
+    expect(roleInserts[0].args).toEqual(["program_manager", "lms", "view", 1]);
+
+    dbMock.execute.mockImplementation(async () => ({ rows: [] }));
+  });
+
+  test("ensureLmsViewBackfill never grants a write capability", async () => {
+    const dbMock = require("@/lib/db").default;
+    const { ensureLmsViewBackfill } = require("@/lib/authorization/backfill");
+    dbMock.execute.mockClear();
+    dbMock.execute.mockImplementation(async (query = {}) => {
+      const sql = typeof query === "string" ? query : query.sql || "";
+      if (sql.includes("FROM access_profiles")) return { rows: [{ id: 5 }] };
+      return { rows: [] };
+    });
+
+    await ensureLmsViewBackfill();
+
+    const granted = dbMock.execute.mock.calls
+      .map((c) => (typeof c[0] === "string" ? [] : c[0].args))
+      .filter((args) => Array.isArray(args) && args.includes("lms"))
+      .map((args) => args[args.indexOf("lms") + 1]);
+    expect(granted.length).toBeGreaterThan(0);
+    for (const capability of granted) expect(capability).toBe("view");
+
+    dbMock.execute.mockImplementation(async () => ({ rows: [] }));
+  });
 });
 
 // ─── Final eligibility policy (#3) — admin / participant / founder values ───
@@ -1184,5 +1246,50 @@ describe("org_membership capability (Phase 1 — protected groups)", () => {
     expect(authorize(manager, "org_membership", "view")).toBe(true);
     expect(authorize(capAssigner, "org_membership", "manage")).toBe(false);
     expect(authorize(capAssigner, "org_membership", "view")).toBe(false);
+  });
+});
+
+/**
+ * Restrictions must survive the server → client wire: the People matrix reads
+ * `sources.restrictions` from the user-context JSON, and a raw Set serializes
+ * to `{}` (which silently turned every restriction into "allowed").
+ */
+describe("restrictionsToJson (server → client wire format)", () => {
+  const { restrictionsToJson } = require("@/lib/authorization/resolver");
+  const { deriveUserCapState } = require("@/components/permissions/matrixHelpers");
+
+  test("projects Set-based restrictions into the JSON object shape", () => {
+    expect(
+      restrictionsToJson({ finance: new Set(["view", "create"]) }),
+    ).toEqual({ finance: { view: true, create: true } });
+  });
+
+  test("a restriction survives JSON.stringify → JSON.parse (the wire)", () => {
+    const wire = JSON.parse(
+      JSON.stringify(restrictionsToJson({ finance: new Set(["view"]) })),
+    );
+    expect(wire).toEqual({ finance: { view: true } });
+  });
+
+  test("empty and null maps project to {}", () => {
+    expect(restrictionsToJson({})).toEqual({});
+    expect(restrictionsToJson(null)).toEqual({});
+  });
+
+  test("the People helper reads the projected restriction (DENIED, not allowed)", () => {
+    const state = deriveUserCapState(
+      {
+        profile: { finance: { view: 1 } },
+        groups: {},
+        grants: {},
+        restrictions: JSON.parse(
+          JSON.stringify(restrictionsToJson({ finance: new Set(["view"]) })),
+        ),
+      },
+      "finance",
+      "view",
+    );
+    expect(state.restricted).toBe(true);
+    expect(state.effective).toBe(false);
   });
 });
