@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Shield,
   Search,
@@ -25,6 +25,7 @@ import {
 import AppPagination from "@/components/ui/AppPagination";
 import { useI18n } from "@/lib/i18n";
 import { capabilityLabel, CAPABILITY_CATALOG, moduleCapabilityParents } from "@/lib/authorization/capability-catalog";
+import { FEATURE_ORDER } from "@/models/authorization/eligibility-defaults";
 import { deriveMembershipStatus } from "@/lib/membership-ui";
 import {
   isResponsibilityBlockedForRole,
@@ -65,22 +66,6 @@ const ACCESS_COLORS = {
   4: "text-red-400",
   5: "text-purple-400",
 };
-
-// Module grouping
-const MODULE_CATEGORIES = [
-  {
-    label: "engineering.permissions.categoryContent",
-    modules: ["projects", "programs", "reports", "contacts"],
-  },
-  {
-    label: "engineering.permissions.categoryPeople",
-    modules: ["users", "messaging", "internal_comms", "forms", "runs"],
-  },
-  {
-    label: "engineering.permissions.categorySystem",
-    modules: ["permissions", "engineering", "finance", "settings"],
-  },
-];
 
 export default function PermissionManager({
   initialTab = "search",
@@ -127,6 +112,36 @@ export default function PermissionManager({
     } catch (e) {
       console.error("Failed to fetch modules", e);
     }
+  };
+
+  // SAME editable catalog as the Templates editor: PERMISSION_MODULES ∪ every
+  // non-locked catalog module. Both editors therefore expose the same modules
+  // (e.g. bulk_upload) and neither can silently hide one.
+  const availableModules = useMemo(() => buildEditableModules(modules), [modules]);
+
+  // Grouped by FUNCTIONALITY (the dashboard sections), exactly like Templates —
+  // not by a local hardcoded list. Unmapped modules (org_membership) and
+  // modules without a CRUD capability stay out of this grid; their non-CRUD
+  // capabilities live in the Advanced section below.
+  const moduleSections = useMemo(
+    () =>
+      groupModulesByFeature(availableModules, moduleToFeature, FEATURE_ORDER)
+        .filter((section) => !section.unmapped)
+        .map((section) => ({
+          ...section,
+          modules: section.modules.filter(
+            (m) => crudCapabilities(availableModules[m]?.capabilities || []).length > 0,
+          ),
+        }))
+        .filter((section) => section.modules.length > 0),
+    [availableModules, moduleToFeature],
+  );
+
+  // i18n with a real fallback: a missing key comes back as the key itself.
+  const featureLabel = (feature) => {
+    const key = `engineering.permissions.features.${feature}`;
+    const value = t(key);
+    return value && value !== key ? value : feature.replace(/_/g, " ");
   };
 
   // Effects live BELOW the loaders they call, so no variable is accessed
@@ -589,13 +604,13 @@ export default function PermissionManager({
                   </div>
                 ) : (
                   <div className="space-y-8">
-                    {MODULE_CATEGORIES.map((category) => (
-                      <div key={category.label} className="space-y-3">
+                    {moduleSections.map((section) => (
+                      <div key={section.feature} className="space-y-3">
                         <h3 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-50 pl-1">
-                          {t(category.label)}
+                          {featureLabel(section.feature)}
                         </h3>
-                        {category.modules.map((modKey) => {
-                          const mod = modules[modKey];
+                        {section.modules.map((modKey) => {
+                          const mod = availableModules[modKey];
                           if (!mod) return null;
                           // The CRUD grid edits CRUD only; the module's other
                           // capabilities live in the Advanced section below.
@@ -875,7 +890,7 @@ export default function PermissionManager({
                     {/* Non-CRUD capabilities (grant, promote_super_admin, send,
                         publish, execute…) — individual grants/restrictions. */}
                     <AdvancedCapabilities
-                      availableModules={modules}
+                      availableModules={availableModules}
                       moduleToFeature={moduleToFeature}
                       mode="individual"
                       stateOf={(module, capability) => ({
