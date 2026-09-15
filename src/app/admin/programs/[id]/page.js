@@ -271,17 +271,17 @@ export default function SuperAdminExecutiveView({ params }) {
                             rel="noreferrer"
                             className="flex items-center gap-1 text-[10px] font-bold text-white hover:text-blue-400 transition-colors uppercase"
                          >
-                            <ExternalLink className="w-3 h-3" /> {t("adminMisc.programDetail.openForm")}
+                            <ExternalLink className="w-3 h-3" /> {t("adminMisc.programs.openForm")}
                          </a>
                       </div>
                    ) : (
                       <div className="flex flex-col items-end gap-1">
-                         <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">{t("adminMisc.programDetail.noFormYet")}</p>
+                         <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">{t("adminMisc.programs.noFormYet")}</p>
                          <a
                             href="/platform/forms"
                             className="text-[10px] font-bold text-blue-400 hover:underline uppercase"
                          >
-                            {t("adminMisc.programDetail.goToCrmForms")}
+                            {t("adminMisc.programs.goToCrmForms")}
                          </a>
                       </div>
                    )}
