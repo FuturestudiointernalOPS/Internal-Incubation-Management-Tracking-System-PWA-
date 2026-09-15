@@ -7,6 +7,7 @@ import AppButton from "@/components/ui/AppButton";
 import CourseThumb from "./CourseThumb";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { usePermissions } from "@/lib/PermissionProvider";
 
 /**
  * PROGRAM LEARNING SECTION (Phase 6 — Program Manager experience)
@@ -17,7 +18,12 @@ import { useI18n } from "@/lib/i18n";
  * LMS remains the single source of truth; the participant surfaces read it.
  *
  * Authorization: the API requires lms.edit for mutations and lms.view for
- * reads. The `canEdit` prop only controls visibility; the server enforces.
+ * reads. The `canEdit` prop only says whether this viewer is allowed to manage
+ * the program at all; the LMS capabilities decide what of that is reachable, and
+ * the server enforces every call. Without the capability check a viewer who is
+ * not (or not yet) granted the LMS (a staff team member, or a Program Manager
+ * whose profile predates the LMS grant) fired one doomed request per session —
+ * and one error toast per session — against a 403.
  */
 export default function ProgramLearningSection({
   programId,
@@ -26,6 +32,15 @@ export default function ProgramLearningSection({
   canEdit = false,
 }) {
   const { t } = useI18n();
+  const { can, permissions, loading: permsLoading } = usePermissions();
+  // The shell resolves the capability matrix once per surface and shares it.
+  // Until it lands we know nothing about this viewer, so we neither fetch (a
+  // request that could only be refused) nor hide the section. A matrix cached
+  // on the shell's session counts as known, so this wait is paid once per
+  // session rather than on every navigation.
+  const matrixKnown = !permsLoading || permissions !== null;
+  const canViewLms = matrixKnown ? can("lms", "view") : null;
+  const canManageLms = canEdit && (matrixKnown ? can("lms", "edit") : null);
   const [requirements, setRequirements] = useState(null);
   const [summary, setSummary] = useState([]);
   const [showPicker, setShowPicker] = useState(false);
@@ -37,7 +52,7 @@ export default function ProgramLearningSection({
     const params = new URLSearchParams({ program_id: programId });
     if (weekNumber != null && weekNumber !== "") params.set("week_number", weekNumber);
     if (sessionId) params.set("session_id", sessionId);
-    if (canEdit) params.set("includeSummary", "1");
+    if (canManageLms) params.set("includeSummary", "1");
     try {
       const res = await fetch(`/api/lms/program-requirements?${params.toString()}`);
       const data = await res.json();
@@ -48,11 +63,13 @@ export default function ProgramLearningSection({
       notify("error", e.message || "lms.errors.loadFailed");
       setRequirements([]);
     }
-  }, [programId, weekNumber, sessionId, canEdit]);
+  }, [programId, weekNumber, sessionId, canManageLms]);
 
   useEffect(() => {
-    if (programId) fetchRequirements();
-  }, [programId, fetchRequirements]);
+    // Fetch only once the capability is confirmed: without it the call would be
+    // refused, and fetching before the matrix lands would fetch twice.
+    if (programId && canViewLms === true) fetchRequirements();
+  }, [programId, canViewLms, fetchRequirements]);
 
   const openPicker = async () => {
     setShowPicker(true);
@@ -129,6 +146,10 @@ export default function ProgramLearningSection({
     (c) => !(requirements || []).some((r) => String(r.course_id) === String(c.id)),
   );
 
+  // Not granted the LMS: the section has nothing to show and every call would
+  // be refused, so render nothing at all rather than an empty shell.
+  if (canViewLms === false) return null;
+
   return (
     <div className="space-y-4">
       {/* PHASE 4: LEARNING (LMS) */}
@@ -141,7 +162,7 @@ export default function ProgramLearningSection({
             {t("lms.programLearning.title")}
           </span>
         </div>
-        {canEdit && (
+        {canManageLms && (
           <button
             onClick={openPicker}
             className="text-[9px] font-black text-[var(--brand-orange)] uppercase hover:underline flex items-center gap-1"
@@ -202,7 +223,7 @@ export default function ProgramLearningSection({
                         {t(`lms.status.${req.course.status}`)}
                       </span>
                     )}
-                    {canEdit &&
+                    {canManageLms &&
                       summary.find((s) => String(s.requirement_id) === String(req.id)) &&
                       (() => {
                         const s = summary.find((x) => String(x.requirement_id) === String(req.id));
@@ -216,7 +237,7 @@ export default function ProgramLearningSection({
                   </div>
                 </div>
               </div>
-              {canEdit && (
+              {canManageLms && (
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => toggleRequired(req)}
