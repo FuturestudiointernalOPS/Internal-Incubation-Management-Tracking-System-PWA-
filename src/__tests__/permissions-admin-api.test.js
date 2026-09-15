@@ -11,6 +11,9 @@
 const mockExecutedQueries = [];
 // Rows affected by the role-default DELETE (0 = no matching mapping).
 let mockRoleDefaultRowsAffected = 1;
+// C2 — rows the template-impact probe returns (role defaults still granting a
+// feature's capabilities).
+let mockTemplateImpacts = [];
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
@@ -19,6 +22,9 @@ jest.mock("@/lib/db", () => ({
       mockExecutedQueries.push(String(sql));
       if (String(sql).includes("FROM access_profiles WHERE id")) {
         return { rows: [{ id: 99, name: "Some Profile" }] };
+      }
+      if (String(sql).includes("JOIN access_profile_capabilities")) {
+        return { rows: mockTemplateImpacts };
       }
       if (String(sql).includes("DELETE FROM role_access_profile_defaults")) {
         return { rows: [], rowsAffected: mockRoleDefaultRowsAffected };
@@ -56,6 +62,7 @@ jest.mock("@/lib/authorization", () => ({
   IDENTITY_TYPES: mockRealEligAdmin.IDENTITY_TYPES,
   ROLE_CATALOG: mockRealEligAdmin.ROLE_CATALOG,
   validateEligibilityChanges: mockRealEligAdmin.validateEligibilityChanges,
+  findTemplatesGrantingFeature: mockRealEligAdmin.findTemplatesGrantingFeature,
   MODULE_TO_FEATURE: mockRealEligibility.MODULE_TO_FEATURE,
 }));
 
@@ -73,6 +80,7 @@ beforeEach(() => {
   mockExecutedQueries.length = 0;
   mockAuthzDecision = null;
   mockRoleDefaultRowsAffected = 1;
+  mockTemplateImpacts = [];
   jest.clearAllMocks();
 });
 
@@ -137,6 +145,78 @@ describe("PUT /api/engineering/permissions/eligibility — write", () => {
       const res = await eligibilityRoute.PUT(jsonReq({ changes }));
       expect(res.status).toBe(400);
     }
+  });
+});
+
+describe("PUT eligibility — C2 template impact confirmation", () => {
+  const TEMPLATE_ROW = {
+    id: 7,
+    name: "Staff default",
+    module: "finance",
+    capability: "view",
+  };
+
+  test("a downgrade that strands template capabilities → 409, nothing persisted", async () => {
+    mockTemplateImpacts = [TEMPLATE_ROW];
+    const res = await eligibilityRoute.PUT(
+      jsonReq({ changes: [{ feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 0 }] }),
+    );
+    expect(res.status).toBe(409);
+    const d = await res.json();
+    expect(d.requiresConfirmation).toBe(true);
+    expect(d.impacts).toEqual([
+      {
+        role: "staff",
+        feature: "finance",
+        templates: [{ id: 7, name: "Staff default", capabilities: ["finance.view"] }],
+      },
+    ]);
+    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO feature_eligibility"))).toBe(false);
+    expect(mockExecutedQueries.some((q) => q.includes("DELETE FROM feature_eligibility"))).toBe(false);
+  });
+
+  test("unset (eligible=null) is also a downgrade and asks first", async () => {
+    mockTemplateImpacts = [TEMPLATE_ROW];
+    const res = await eligibilityRoute.PUT(
+      jsonReq({ changes: [{ feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: null }] }),
+    );
+    expect(res.status).toBe(409);
+  });
+
+  test("confirm:true applies the downgrade", async () => {
+    mockTemplateImpacts = [TEMPLATE_ROW];
+    const res = await eligibilityRoute.PUT(
+      jsonReq({
+        changes: [{ feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 0 }],
+        confirm: true,
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO feature_eligibility"))).toBe(true);
+  });
+
+  test("an upgrade (eligible=1) never asks for confirmation", async () => {
+    mockTemplateImpacts = [TEMPLATE_ROW];
+    const res = await eligibilityRoute.PUT(
+      jsonReq({ changes: [{ feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 1 }] }),
+    );
+    expect(res.status).toBe(200);
+  });
+
+  test("a downgrade with no impacted template applies directly", async () => {
+    mockTemplateImpacts = [];
+    const res = await eligibilityRoute.PUT(
+      jsonReq({ changes: [{ feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 0 }] }),
+    );
+    expect(res.status).toBe(200);
+  });
+
+  test("group downgrades are not template-bound — no confirmation", async () => {
+    mockTemplateImpacts = [TEMPLATE_ROW];
+    const res = await eligibilityRoute.PUT(
+      jsonReq({ changes: [{ feature_key: "finance", identity_type: "group", identity_value: "Future Studio", eligible: 0 }] }),
+    );
+    expect(res.status).toBe(200);
   });
 });
 

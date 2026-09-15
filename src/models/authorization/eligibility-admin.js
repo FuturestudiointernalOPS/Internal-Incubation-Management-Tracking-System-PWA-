@@ -220,3 +220,35 @@ export async function assertTemplateCapsEligible({ role, groups = [], profileId 
 
   return validateCapabilitiesWithinEligibility(caps, eligibility);
 }
+
+/**
+ * C2 — TEMPLATE IMPACT of an eligibility downgrade.
+ *
+ * Access-profile templates are role defaults: they store capabilities granted
+ * to every contact whose role resolves to the profile. Downgrading a role's
+ * eligibility for a feature does NOT touch those stored rows (nothing is ever
+ * deleted automatically), so this read-only probe reports which templates still
+ * grant capabilities of that feature. The eligibility write uses it to ask for
+ * an explicit confirmation before applying the downgrade.
+ *
+ * @param {string} roleName
+ * @param {string} featureKey
+ * @returns {Promise<{rows: Array<{id, name, module, capability}>}>}
+ */
+export async function findTemplatesGrantingFeature(roleName, featureKey) {
+  const modules = Object.entries(MODULE_TO_FEATURE)
+    .filter(([, feature]) => feature === featureKey)
+    .map(([module]) => module);
+  if (modules.length === 0) return { rows: [] };
+
+  const placeholders = modules.map(() => "?").join(",");
+  return db.execute({
+    sql: `SELECT DISTINCT ap.id, ap.name, apc.module, apc.capability
+          FROM role_access_profile_defaults rpd
+          JOIN access_profiles ap ON ap.id = rpd.access_profile_id
+          JOIN access_profile_capabilities apc ON apc.profile_id = ap.id
+          WHERE rpd.role_name = ? AND apc.module IN (${placeholders})
+          ORDER BY ap.name, apc.module, apc.capability`,
+    args: [roleName, ...modules],
+  });
+}
