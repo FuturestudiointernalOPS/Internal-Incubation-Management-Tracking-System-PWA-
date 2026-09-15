@@ -8,8 +8,11 @@ import {
   rescheduleSession, deleteSession, addSessionNote, recordAttendance,
   createActionItem, updateActionItem, getDeliverable,
 } from "@/lib/ventures";
-import { SESSION_MIN_LEAD_MINUTES } from "@/lib/ventureSessionRules";
+import { SESSION_MIN_LEAD_MINUTES, normalizeSessionMaterials } from "@/lib/ventureSessionRules";
 import { notifyVentureCoach, notifyVentureLeadManagers } from "@/lib/ventureNotify";
+import { isStaffActorForVenture } from "@/lib/ventureAuth";
+import { assertBookableMilestone } from "@/lib/ventureMilestoneEngine";
+import { signSessionMaterials } from "@/lib/ventureEvidence";
 
 // Venture-facing session changes notify founders (in-app + email). Sessions
 // created before the venture_facing flag existed (NULL) are treated as
@@ -60,7 +63,16 @@ export const GET = createHandler(async (req, { params }) => {
     startDate: s.get("start_date"), endDate: s.get("end_date"),
     status: s.get("status"), coachId: s.get("coach_id"), limit: s.get("limit"),
   });
-  return NextResponse.json({ success: true, sessions });
+  // Session materials are private: the row stores storage paths and a viewer who
+  // already passed this gate gets short-lived signed URLs — the same rule as
+  // deliverable evidence, so an attachment is never world-readable.
+  const signed = await Promise.all(
+    (sessions || []).map(async (session) => ({
+      ...session,
+      materials: await signSessionMaterials(session.materials),
+    })),
+  );
+  return NextResponse.json({ success: true, sessions: signed });
 });
 
 export const POST = createHandler(async (req, { params }) => {
@@ -95,6 +107,33 @@ export const POST = createHandler(async (req, { params }) => {
           { status: 400 },
         );
       }
+      // Documents the participants need for this session (a deck, a brief).
+      // Only paths issued by THIS Venture's session upload route are accepted.
+      const materials = normalizeSessionMaterials(body.materials);
+      if (materials === null) {
+        return NextResponse.json(
+          { success: false, error: "The session materials are invalid (up to 5 documents)." },
+          { status: 400 },
+        );
+      }
+      // WHO is booking decides which milestone may carry the session. The
+      // Venture books only against the one milestone the chain has released;
+      // Future Studio staff plan ahead and may book against any milestone. The
+      // refusal carries the reason (locked / already completed / a different
+      // milestone is current), so the founder is never left guessing.
+      const staffActor = await isStaffActorForVenture(db, id, access.session || req.session);
+      if (!staffActor) {
+        const vRow = await db
+          .execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] })
+          .catch(() => ({ rows: [] }));
+        const ventureDbId = vRow.rows?.[0]?.id || null;
+        const bookable = ventureDbId
+          ? await assertBookableMilestone(db, { dbId: ventureDbId, milestoneId: milestoneRef })
+          : { ok: false, reason: "This Venture could not be resolved, so the session was not booked." };
+        if (!bookable.ok) {
+          return NextResponse.json({ success: false, error: bookable.reason }, { status: 403 });
+        }
+      }
       // Optional: attach the session to one of the milestone's deliverables.
       let deliverableId = body.deliverable_id ? String(body.deliverable_id) : null;
       if (deliverableId) {
@@ -124,24 +163,17 @@ export const POST = createHandler(async (req, { params }) => {
         journeyStageId: body.journey_stage_id || null,
         milestoneRef,
         deliverableId,
+        materials,
         taskId: body.task_id ? parseInt(body.task_id) : null,
         coachContactId,
         createdBy: req.session?.cid,
       });
-      // The session note is filed on the milestone it was booked against, so
-      // internal notes live exactly where their work lives (never outside a
-      // milestone). Best-effort: a note failure never blocks the session.
-      if (milestoneRef) {
-        try {
-          const v = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
-          const code = v.rows?.[0]?.venture_id || id;
-          await db.execute({
-            sql: `INSERT INTO venture_notes (venture_id, author_cid, author_name, title, body, scope_ref_type, scope_ref_id)
-                  VALUES (?,?,?,?,?,?,?)`,
-            args: [code, req.session?.cid || null, req.session?.name || null, String(body.title || "").trim() || "Session", sessionNote, "milestone", milestoneRef],
-          });
-        } catch (_) {}
-      }
+      // ── Notices ─────────────────────────────────────────────────────────────
+      // The memo lives on the SESSION and nowhere else: it is the Venture-facing
+      // brief, and it travels with every notice below. The milestone record is
+      // the manager's own judgement, written deliberately — never a copy of it.
+      // ────────────────────────────────────────────────────────────────────────
+
       // Coach delivery (Phase 1): the coach is added to the session — the
       // platform tells them (in-app + email), regardless of venture_facing.
       if (coachContactId) {
@@ -153,10 +185,12 @@ export const POST = createHandler(async (req, { params }) => {
             await notifyVentureCoach(db, {
               dbId, coachContactId,
               title: "Session scheduled",
-              message: `You have been added to the Venture session "${body.title}"${when ? ` for ${when}` : ""}.`,
+              message: `You have been added to the Venture session "${body.title}"${when ? ` for ${when}` : ""}. Memo: ${sessionNote}`,
               emailSubject: "You have been added to a Venture session",
               emailLines: [
                 `Session "${body.title}" has been scheduled${when ? ` for ${when}` : ""}.`,
+                // The Memo is what the session is FOR — it travels with the notice.
+                `Memo: ${sessionNote}`,
                 body.preparation_notes ? `Preparation: ${body.preparation_notes}` : "",
                 body.meeting_link ? `Meeting link: ${body.meeting_link}` : "",
                 "Log in to ImpactOS to see the details in your calendar.",
@@ -167,7 +201,7 @@ export const POST = createHandler(async (req, { params }) => {
                 session_id: r.id || null,
               },
               templateKey: "venture.notif.sessionScheduled",
-              params: { title: body.title, when: when ? ` for ${when}` : "" },
+              params: { title: body.title, when: when ? ` for ${when}` : "", memo: sessionNote },
               dedupeKey: `session-scheduled:${r.id || ""}:coach`,
             });
           }
@@ -184,10 +218,12 @@ export const POST = createHandler(async (req, { params }) => {
             await notifyAndEmailVentureFounders(db, {
               dbId,
               title: "Session scheduled",
-              message: `A session "${body.title}" has been scheduled${when ? ` for ${when}` : ""}.`,
+              message: `A session "${body.title}" has been scheduled${when ? ` for ${when}` : ""}. Memo: ${sessionNote}`,
               emailSubject: "A session has been scheduled for your Venture",
               emailLines: [
                 `A session "${body.title}" has been scheduled${when ? ` for ${when}` : ""}.`,
+                // The Venture is TOLD what the session is for — that is the memo.
+                `Memo: ${sessionNote}`,
                 body.coach_name ? `With: ${body.coach_name}` : "",
                 body.preparation_notes ? `Preparation: ${body.preparation_notes}` : "",
                 "Log in to ImpactOS to see the details in your calendar.",
@@ -198,7 +234,7 @@ export const POST = createHandler(async (req, { params }) => {
                 session_id: r.id || null,
               },
               templateKey: "venture.notif.sessionScheduled",
-              params: { title: body.title, when: when ? ` for ${when}` : "" },
+              params: { title: body.title, when: when ? ` for ${when}` : "", memo: sessionNote },
               dedupeKey: `session-scheduled:${r.id || ""}`,
             });
           }
@@ -217,10 +253,11 @@ export const POST = createHandler(async (req, { params }) => {
           await notifyVentureLeadManagers(db, {
             dbId, ventureCode,
             title: "Session scheduled",
-            message: `You have been added to the Venture session "${body.title}"${when ? ` for ${when}` : ""}.`,
+            message: `You have been added to the Venture session "${body.title}"${when ? ` for ${when}` : ""}. Memo: ${sessionNote}`,
             emailSubject: "You have been added to a Venture session",
             emailLines: [
               `Session "${body.title}" has been scheduled${when ? ` for ${when}` : ""}.`,
+              `Memo: ${sessionNote}`,
               body.preparation_notes ? `Preparation: ${body.preparation_notes}` : "",
               body.meeting_link ? `Meeting link: ${body.meeting_link}` : "",
               "Log in to ImpactOS to see the details in your calendar.",
@@ -231,7 +268,7 @@ export const POST = createHandler(async (req, { params }) => {
               session_id: r.id || null,
             },
             templateKey: "venture.notif.sessionScheduled",
-            params: { title: body.title, when: when ? ` for ${when}` : "" },
+            params: { title: body.title, when: when ? ` for ${when}` : "", memo: sessionNote },
             dedupeKey: `session-scheduled:${r.id}`,
             excludeCids: [req.session?.cid, coachContactId].filter(Boolean),
           });
@@ -267,6 +304,27 @@ export const POST = createHandler(async (req, { params }) => {
       }
       return NextResponse.json({ success: true, session: sess });
     } catch (e) { return NextResponse.json({ success: false, error: e.message }, { status: 400 }); }
+  }
+
+  // ── The memo, edited in place ────────────────────────────────────────────
+  // A session has exactly ONE memo: the brief the Venture was told about. It
+  // lives on the session row and nowhere else, and editing it REPLACES the text
+  // (there is deliberately no "add another memo" — a session does not
+  // accumulate briefs). The milestone record is separate and stays the
+  // manager's own writing.
+  if (action === "update_session_note") {
+    const sessionId = parseInt(body.session_id);
+    const note = String(body.note || "").trim();
+    if (!sessionId) {
+      return NextResponse.json({ success: false, error: "session_id is required." }, { status: 400 });
+    }
+    if (!note) {
+      return NextResponse.json({ success: false, error: "A memo is required." }, { status: 400 });
+    }
+    const sess = await getSession(sessionId);
+    if (!sess) return NextResponse.json({ success: false, error: "Session not found." }, { status: 404 });
+    await updateSession(sessionId, { description: note });
+    return NextResponse.json({ success: true });
   }
 
   if (action === "cancel_session") {

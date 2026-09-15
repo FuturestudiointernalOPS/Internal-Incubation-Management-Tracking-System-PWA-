@@ -194,6 +194,98 @@ export async function releaseFirstMilestoneForStage(db, { dbId, stageId }) {
 }
 
 /**
+ * May a Venture-side actor book a session against this milestone?
+ *
+ * STRICTLY the Venture's CURRENT milestone — the single one the chain has
+ * released. The chain releases exactly one milestone per active Journey: the
+ * first non-archived, non-completed one by display order; everything after it
+ * stays 'locked' and is never shown to the Venture. Staff (Lead Manager, coach,
+ * Super Admin) are not restricted by this — they plan ahead.
+ *
+ * A refusal always carries a REASON the Venture can read, so nobody is left
+ * guessing why their booking was rejected: the reason names the actual state
+ * (locked / already completed / a different Journey is current) and, where it
+ * helps, the milestone that has to be finished first.
+ *
+ * Returns { ok: true, milestone } or { ok: false, reason }.
+ */
+export async function assertBookableMilestone(db, { dbId, milestoneId }) {
+  try {
+    const msRes = await db
+      .execute({
+        sql: `SELECT id, title, status, journey_stage_id, is_archived
+              FROM venture_milestones WHERE id::text = ? AND venture_id = ?`,
+        args: [String(milestoneId), dbId],
+      })
+      .catch(() =>
+        db.execute({
+          sql: `SELECT id, title, status, journey_stage_id
+                FROM venture_milestones WHERE id::text = ? AND venture_id = ?`,
+          args: [String(milestoneId), dbId],
+        }).catch(() => ({ rows: [] })),
+      );
+    const milestone = rowsOf(msRes)[0];
+    if (!milestone) {
+      return { ok: false, reason: "This milestone no longer exists for this Venture." };
+    }
+    if (milestone.is_archived === true) {
+      return { ok: false, reason: "This milestone has been archived, so it is no longer part of the Journey." };
+    }
+    if (isMilestoneComplete(milestone.status)) {
+      return { ok: false, reason: "This milestone is already completed." };
+    }
+    if (milestone.status === "locked") {
+      return { ok: false, reason: "This milestone is locked. It opens once the milestone before it is completed." };
+    }
+
+    // The milestone must belong to the Journey that is actually current.
+    const stageRes = await db
+      .execute({
+        sql: `SELECT id, name, status FROM venture_journey_stages
+              WHERE id = ? AND venture_id = ?`,
+        args: [String(milestone.journey_stage_id), dbId],
+      })
+      .catch(() => ({ rows: [] }));
+    const stage = rowsOf(stageRes)[0];
+    if (!stage) {
+      return { ok: false, reason: "This milestone is not part of a Journey, so no session can be booked against it." };
+    }
+    if (stage.status === "locked") {
+      return {
+        ok: false,
+        reason: `The Journey "${stage.name}" has not started yet. It opens once the previous Journey is completed.`,
+      };
+    }
+    if (stage.status !== "active") {
+      return { ok: false, reason: `The Journey "${stage.name}" is finished, so its milestones take no new sessions.` };
+    }
+
+    // ...and it must be the FIRST unfinished milestone of that Journey. Only one
+    // milestone is open at a time; the rest are hidden from the Venture.
+    const listRes = await db
+      .execute({
+        sql: `SELECT id, title, status FROM venture_milestones
+              WHERE venture_id = ? AND journey_stage_id = ? AND COALESCE(is_archived, FALSE) = FALSE
+              ORDER BY COALESCE(display_order, 0) ASC, created_at ASC`,
+        args: [dbId, String(milestone.journey_stage_id)],
+      })
+      .catch(() => ({ rows: [] }));
+    const current = rowsOf(listRes).find((m) => !isMilestoneComplete(m.status));
+    if (current && String(current.id) !== String(milestone.id)) {
+      return {
+        ok: false,
+        reason: `Your current milestone is "${current.title || "the open milestone"}". Finish it before booking against this one.`,
+      };
+    }
+
+    return { ok: true, milestone };
+  } catch (_) {
+    // Fail closed: an unresolvable chain is not a reason to allow the booking.
+    return { ok: false, reason: "Your milestone progression could not be verified, so the session was not booked." };
+  }
+}
+
+/**
  * Mark a milestone completed and unlock the next locked milestone in the
  * same stage. Returns { unlocked_milestone_id } (null when none follows).
  * Assumes the caller already verified completion authority.
@@ -230,4 +322,4 @@ export async function completeMilestoneAndUnlockNext(db, { dbId, milestoneId }) 
   return { unlocked_milestone_id: next.id };
 }
 
-export default { isMilestoneLeadAuthority, resolveVentureCode, canManageMilestones, computeInitialMilestoneStatus, releaseFirstMilestoneForStage, completeStageIfAllMilestonesDone, completeMilestoneAndUnlockNext };
+export default { isMilestoneLeadAuthority, resolveVentureCode, canManageMilestones, computeInitialMilestoneStatus, releaseFirstMilestoneForStage, completeStageIfAllMilestonesDone, completeMilestoneAndUnlockNext, assertBookableMilestone };

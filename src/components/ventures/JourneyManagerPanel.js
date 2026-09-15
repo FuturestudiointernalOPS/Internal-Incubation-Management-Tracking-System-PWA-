@@ -39,7 +39,7 @@ import {
 import ScopedNotes from "@/components/ventures/ScopedNotes";
 import AppModal from "@/components/ui/AppModal";
 import AppMenu from "@/components/ui/AppMenu";
-import { minSessionStartInput, isValidSessionStart } from "@/lib/ventureSessionRules";
+import { minSessionStartInput, isValidSessionStart, SESSION_MATERIALS_MAX, toDateInput, toTimeInput } from "@/lib/ventureSessionRules";
 
 /**
  * JourneyManagerPanel — staff instrument for a Venture's Journey.
@@ -126,6 +126,10 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [coachOptions, setCoachOptions] = useState([]);
   // Sessions already booked on this venture, listed inside their milestone.
   const [ventureSessions, setVentureSessions] = useState([]);
+  // The session's ONE note, edited in place (never appended to).
+  const [noteEditFor, setNoteEditFor] = useState(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
 
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -465,7 +469,7 @@ export default function JourneyManagerPanel({ ventureId }) {
     // Prefill the earliest bookable slot (30 minutes from now) — never an empty picker.
     // One instant drives both the floor and the prefill, so the prefilled slot is always valid.
     const min = minSessionStartInput();
-    setBookForm({ date: toDateInput(min), time: toTimeInput(min), min_time: toTimeInput(min), duration: "45", coach_id: "", title: ms.title || "", deliverable_id: "", note: "" });
+    setBookForm({ date: toDateInput(min), time: toTimeInput(min), min_time: toTimeInput(min), duration: "45", coach_id: "", title: ms.title || "", deliverable_id: "", note: "", files: [] });
     if (coachOptions.length === 0) {
       try {
         const res = await fetch(`/api/ventures/${ventureId}/coaches`);
@@ -480,7 +484,7 @@ export default function JourneyManagerPanel({ ventureId }) {
     if (!bookForm.date || !bookForm.time) return;
     // A session always carries its internal note — the record of why it exists.
     if (!bookForm.note.trim()) {
-      notify(t("venture.manager.sessionNoteRequired"), "error");
+      notify(t("venture.manager.memoRequired"), "error");
       return;
     }
     // One instant for the whole submit: the guard, the end-time maths and the payload.
@@ -493,6 +497,22 @@ export default function JourneyManagerPanel({ ventureId }) {
     }
     setBookSaving(true);
     try {
+      // Attach the documents first: each file goes to the Venture's session
+      // material route (private bucket) and only its path is stored, so the
+      // booking carries the deck the participants are meant to read.
+      const materials = [];
+      for (const file of bookForm.files || []) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("milestone_id", String(ms.id));
+        const upRes = await fetch(`/api/ventures/${ventureId}/sessions/upload`, { method: "POST", body: fd });
+        const up = await upRes.json().catch(() => ({}));
+        if (!up.success) {
+          notify(up.error || t("venture.manager.actionFailed"), "error");
+          return;
+        }
+        materials.push({ path: up.path, name: up.name, size: up.size });
+      }
       const minutes = Number(bookForm.duration) || 45;
       const end = new Date(start.getTime() + minutes * 60000);
       const coach = coachOptions.find((c) => String(c.coach_id) === String(bookForm.coach_id));
@@ -514,6 +534,7 @@ export default function JourneyManagerPanel({ ventureId }) {
           journey_stage_id: stage.id,
           milestone_ref: String(ms.id),
           deliverable_id: bookForm.deliverable_id || null,
+          materials,
         }),
       });
       const d = await res.json();
@@ -521,10 +542,7 @@ export default function JourneyManagerPanel({ ventureId }) {
         notify(t("venture.manager.sessionBooked"));
         setBookFor(null);
         // Surface the new session inside its milestone right away.
-        fetch(`/api/ventures/${ventureId}/sessions`)
-          .then((r) => r.json())
-          .then((sd) => { if (sd.success) setVentureSessions(sd.sessions || []); })
-          .catch(() => {});
+        reloadSessions();
       } else {
         notify(d.error || t("venture.manager.actionFailed"), "error");
       }
@@ -962,6 +980,40 @@ export default function JourneyManagerPanel({ ventureId }) {
   const SESSION_STATUSES = ["scheduled", "confirmed", "in_progress", "completed", "cancelled", "rescheduled", "no_show"];
   const sessionStatusKey = (s) => `venture.manager.sessionStatuses.${SESSION_STATUSES.includes(s) ? s : "scheduled"}`;
 
+  const reloadSessions = () =>
+    fetch(`/api/ventures/${ventureId}/sessions`)
+      .then((r) => r.json())
+      .then((sd) => { if (sd.success) setVentureSessions(sd.sessions || []); })
+      .catch(() => {});
+
+  /** Save the session's single note. The server rewrites the SAME record the
+   *  session was booked with — it never files a second note. */
+  const saveSessionNote = async (sessionId) => {
+    const note = noteDraft.trim();
+    if (!note) return;
+    setNoteSaving(true);
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/sessions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_session_note", session_id: sessionId, note }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        notify(t("venture.manager.memoSaved"));
+        setNoteEditFor(null);
+        setNoteDraft("");
+        reloadSessions();
+      } else {
+        notify(d.error || t("venture.manager.actionFailed"), "error");
+      }
+    } catch (_) {
+      notify(t("venture.manager.actionFailed"), "error");
+    } finally {
+      setNoteSaving(false);
+    }
+  };
+
   const stageNodeClass = (status) =>
     status === "completed"
       ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/40"
@@ -986,9 +1038,6 @@ export default function JourneyManagerPanel({ ventureId }) {
 
   const fmtDate = (iso) => (iso ? new Date(`${String(iso).slice(0, 10)}T00:00:00`).toLocaleDateString(lang) : "");
 
-  const pad2 = (n) => String(n).padStart(2, "0");
-  const toDateInput = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-  const toTimeInput = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
   // A textarea that grows with its content (paragraph note, never a scrollbar).
   const autoGrow = (e) => { const el = e.target; el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; };
 
@@ -1679,9 +1728,46 @@ export default function JourneyManagerPanel({ ventureId }) {
                                                 onInput={autoGrow}
                                                 rows={3}
                                                 required
-                                                placeholder={t("venture.manager.sessionNotePlaceholder")}
+                                                placeholder={t("venture.manager.memoPlaceholder")}
                                                 className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)] resize-none overflow-hidden min-h-[72px]"
                                               />
+                                              <div className="space-y-1">
+                                                <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
+                                                  {t("venture.manager.sessionMaterials")}
+                                                </p>
+                                                <input
+                                                  type="file"
+                                                  multiple
+                                                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                                                  onChange={(e) =>
+                                                    setBookForm({
+                                                      ...bookForm,
+                                                      files: Array.from(e.target.files || []).slice(0, SESSION_MATERIALS_MAX),
+                                                    })
+                                                  }
+                                                  className="w-full text-[10px] text-[var(--text-secondary)]"
+                                                />
+                                                {(bookForm.files || []).length > 0 && (
+                                                  <ul className="space-y-0.5">
+                                                    {bookForm.files.map((f, i) => (
+                                                      <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 text-[9px] text-[var(--text-secondary)]">
+                                                        <span className="truncate">{f.name}</span>
+                                                        <button
+                                                          type="button"
+                                                          aria-label={t("venture.manager.sessionMaterialsRemove")}
+                                                          onClick={() =>
+                                                            setBookForm({ ...bookForm, files: bookForm.files.filter((_, j) => j !== i) })
+                                                          }
+                                                          className="shrink-0 text-slate-500 hover:text-[var(--text-primary)]"
+                                                        >
+                                                          <X className="w-3 h-3" />
+                                                        </button>
+                                                      </li>
+                                                    ))}
+                                                  </ul>
+                                                )}
+                                                <p className="text-[9px] text-slate-500">{t("venture.manager.sessionMaterialsHint")}</p>
+                                              </div>
                                               <div className="space-y-1">
                                                 <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
                                                   {t("venture.manager.sessionDeliverable")}
@@ -1769,12 +1855,79 @@ export default function JourneyManagerPanel({ ventureId }) {
                                             {mine.map((s) => {
                                               const dv = dvList.find((d) => String(d.id) === String(s.deliverable_id));
                                               return (
-                                                <div key={s.id} className="flex flex-wrap items-center gap-2 text-[10px] text-[var(--text-secondary)]">
+                                                <div key={s.id} className="space-y-0.5">
+                                                  <div className="flex flex-wrap items-center gap-2 text-[10px] text-[var(--text-secondary)]">
                                                   <span className="font-bold text-[var(--text-primary)]">{new Date(s.start_time).toLocaleString(lang || undefined)}</span>
                                                   <span>{s.title}</span>
                                                   {s.coach_name && <span>· {s.coach_name}</span>}
                                                   {dv && <span>· {dv.title}</span>}
                                                   <span className="uppercase tracking-widest">{t(sessionStatusKey(s.status))}</span>
+                                                  {(s.materials || []).length > 0 && (
+                                                    <span className="flex flex-wrap items-center gap-1.5">
+                                                      {(s.materials || []).map((m, i) =>
+                                                        m.url ? (
+                                                          <a
+                                                            key={`${m.name}-${i}`}
+                                                            href={m.url}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="text-[var(--brand-orange)] hover:underline"
+                                                          >
+                                                            {m.name}
+                                                          </a>
+                                                        ) : (
+                                                          <span key={`${m.name}-${i}`} className="text-slate-500">{m.name}</span>
+                                                        ),
+                                                      )}
+                                                    </span>
+                                                  )}
+                                                  </div>
+                                                  {/* The session's ONE note — shown here and edited
+                                                      in place, never appended to. */}
+                                                  {noteEditFor === s.id ? (
+                                                    <div className="space-y-1 pt-0.5">
+                                                      <textarea
+                                                        value={noteDraft}
+                                                        onChange={(e) => setNoteDraft(e.target.value)}
+                                                        onInput={autoGrow}
+                                                        rows={2}
+                                                        className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-[11px] text-[var(--text-primary)] resize-none overflow-hidden min-h-[48px]"
+                                                      />
+                                                      <div className="flex justify-end gap-2">
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => { setNoteEditFor(null); setNoteDraft(""); }}
+                                                          className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500"
+                                                        >
+                                                          {t("common.cancel")}
+                                                        </button>
+                                                        <button
+                                                          type="button"
+                                                          disabled={noteSaving || !noteDraft.trim()}
+                                                          onClick={() => saveSessionNote(s.id)}
+                                                          className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-[var(--brand-orange)] text-black disabled:opacity-50"
+                                                        >
+                                                          {t("common.save")}
+                                                        </button>
+                                                      </div>
+                                                    </div>
+                                                  ) : (
+                                                    <div className="flex items-start gap-2">
+                                                      {s.description && (
+                                                        <p className="flex-1 min-w-0 text-[10px]" style={{ color: "var(--text-secondary)" }}>
+                                                          <span className="font-black uppercase tracking-widest mr-1.5">{t("venture.manager.memoLabel")}</span>
+                                                          <span className="whitespace-pre-wrap">{s.description}</span>
+                                                        </p>
+                                                      )}
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => { setNoteEditFor(s.id); setNoteDraft(s.description || ""); }}
+                                                        className="shrink-0 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]"
+                                                      >
+                                                        {t("venture.manager.editMemo")}
+                                                      </button>
+                                                    </div>
+                                                  )}
                                                 </div>
                                               );
                                             })}

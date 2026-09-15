@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, CalendarPlus, X, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import {
   milestoneStatusWord,
@@ -10,6 +10,13 @@ import {
   statusLabel,
   statusChipClass,
 } from "@/lib/ventureStatuses";
+import {
+  minSessionStartInput,
+  isValidSessionStart,
+  SESSION_MATERIALS_MAX,
+  toDateInput,
+  toTimeInput,
+} from "@/lib/ventureSessionRules";
 import { useVenture } from "../VentureContext";
 
 /* Journey Tab — the Venture journey as its operating workspace.
@@ -17,7 +24,7 @@ import { useVenture } from "../VentureContext";
    tasks. Founders can submit work (document URL + notes) on tasks; staff
    review each submission (approved / changes requested). */
 export function JourneyTab() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { journeyStages, cardStyle, params, notifyMsg, fetchJourney } = useVenture();
   const [openId, setOpenId] = useState(null);
   const [tasksByMilestone, setTasksByMilestone] = useState({});
@@ -27,6 +34,108 @@ export function JourneyTab() {
   // Deliverable evidence drafts per deliverable: { url, file }. Submitted by
   // the Venture (upload or link), then reviewed by the Lead Manager / coach.
   const [dvDrafts, setDvDrafts] = useState({});
+  // Sessions booked on this Venture, grouped by milestone — the milestone stays
+  // the home of its sessions, and each carries the documents it was booked with.
+  const [sessionsByMilestone, setSessionsByMilestone] = useState({});
+  const [bookFor, setBookFor] = useState(null);
+  const [bookForm, setBookForm] = useState({ date: "", time: "", min_time: "", duration: "45", note: "", files: [] });
+  const [bookSaving, setBookSaving] = useState(false);
+  // The session's ONE note, edited in place (never appended to).
+  const [noteEditFor, setNoteEditFor] = useState(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
+
+  const loadVentureSessions = async () => {
+    try {
+      const res = await fetch(`/api/ventures/${params.id}/sessions`);
+      const d = await res.json();
+      if (!d.success) return;
+      const grouped = {};
+      for (const s of d.sessions || []) {
+        if (s.status === "cancelled") continue;
+        const key = String(s.milestone_ref || "");
+        if (!key) continue;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(s);
+      }
+      setSessionsByMilestone(grouped);
+    } catch (_) {}
+  };
+
+  const openBooking = (m) => {
+    setBookFor(m.id);
+    // Same floor as every other booking form: now + 30 minutes, rounded up to a
+    // whole minute, so the prefilled slot can never be rejected by the server.
+    const min = minSessionStartInput();
+    setBookForm({ date: toDateInput(min), time: toTimeInput(min), min_time: toTimeInput(min), duration: "45", note: "", files: [] });
+  };
+
+  const bookSession = async (e, stage, m) => {
+    e.preventDefault();
+    if (!bookForm.date || !bookForm.time) return;
+    if (!bookForm.note.trim()) {
+      notifyMsg(t("venture.manager.memoRequired"));
+      return;
+    }
+    const start = new Date(`${bookForm.date}T${bookForm.time}:00`);
+    if (!isValidSessionStart(start)) {
+      const next = minSessionStartInput();
+      setBookForm((f) => ({ ...f, date: toDateInput(next), time: toTimeInput(next), min_time: toTimeInput(next) }));
+      notifyMsg(t("venture.manager.sessionTooSoon"));
+      return;
+    }
+    setBookSaving(true);
+    try {
+      // Attach the documents first: each file goes to the Venture's private
+      // session-material store and only its path travels with the booking.
+      const materials = [];
+      for (const file of bookForm.files || []) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("milestone_id", String(m.id));
+        const upRes = await fetch(`/api/ventures/${params.id}/sessions/upload`, { method: "POST", body: fd });
+        const up = await upRes.json().catch(() => ({}));
+        if (!up.success) {
+          notifyMsg(up.error || t("venture.manager.sessionBookFailed"));
+          return;
+        }
+        materials.push({ path: up.path, name: up.name, size: up.size });
+      }
+      const minutes = Number(bookForm.duration) || 45;
+      const end = new Date(start.getTime() + minutes * 60000);
+      const res = await fetch(`/api/ventures/${params.id}/sessions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_session",
+          title: m.title,
+          description: bookForm.note.trim(),
+          session_type: "coaching",
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          venture_facing: true,
+          journey_stage_id: stage.id,
+          milestone_ref: String(m.id),
+          materials,
+        }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        notifyMsg(t("venture.manager.sessionBooked"));
+        setBookFor(null);
+        await loadVentureSessions();
+      } else {
+        // The server refuses a booking against a milestone that is not the one
+        // currently open, and says WHY — show that reason verbatim.
+        notifyMsg(d.error || t("venture.manager.sessionBookFailed"));
+      }
+    } catch (_) {
+      notifyMsg(t("venture.manager.sessionBookFailed"));
+    } finally {
+      setBookSaving(false);
+    }
+  };
 
   const TASK_LABEL_KEYS = { review: "pendingReview", accepted: "approved", revision_requested: "revisionRequested" };
   const label = (s, map) => t(`venture.${map && map[s] ? map[s] : s}`);
@@ -40,12 +149,41 @@ export function JourneyTab() {
     } catch (_) {}
   };
 
+  /** Save the session's single note. The server rewrites the SAME record the
+   *  session was booked with — it never files a second note. */
+  const saveSessionNote = async (sessionId) => {
+    const note = noteDraft.trim();
+    if (!note) return;
+    setNoteSaving(true);
+    try {
+      const res = await fetch(`/api/ventures/${params.id}/sessions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_session_note", session_id: sessionId, note }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        notifyMsg(t("venture.manager.memoSaved"));
+        setNoteEditFor(null);
+        setNoteDraft("");
+        await loadVentureSessions();
+      } else {
+        notifyMsg(d.error || t("venture.manager.actionFailed"));
+      }
+    } catch (_) {
+      notifyMsg(t("venture.manager.actionFailed"));
+    } finally {
+      setNoteSaving(false);
+    }
+  };
+
   const openStage = async (stage) => {
     const next = openId === stage.id ? null : stage.id;
     setOpenId(next);
     setOpenTaskId(null);
     if (next && stage.status !== "locked" && stage.milestones) {
       stage.milestones.forEach((m) => loadMilestoneTasks(m.id));
+      loadVentureSessions();
     }
   };
 
@@ -211,6 +349,15 @@ export function JourneyTab() {
                         {stage.milestones.map((m) => {
                           const tasks = tasksByMilestone[m.id] || [];
                           const mWord = milestoneStatusWord(m.status);
+                          // STRICTLY the one milestone the Venture may book against:
+                          // the first unfinished milestone of the Journey that is
+                          // actually current. Locked milestones are already filtered
+                          // out by the journey API, so this is the only open one.
+                          const firstOpenId = (stage.milestones || []).find((x) => x.status !== "completed")?.id;
+                          const isCurrent =
+                            stage.status === "active" &&
+                            String(m.status) !== "completed" &&
+                            String(firstOpenId) === String(m.id);
                           return (
                             <div key={m.id} className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'rgb(255 255 255 / 0.1)' }}>
                               <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -278,6 +425,123 @@ export function JourneyTab() {
                                       </div>
                                     );
                                   })}
+                                </div>
+                              )}
+                              {/* The Venture books its own sessions — strictly against
+                                  the milestone that is currently open. */}
+                              {isCurrent && (
+                                <div className="space-y-1.5 pt-1">
+                                  {bookFor === m.id ? (
+                                    <form onSubmit={(e) => bookSession(e, stage, m)} className="rounded-lg border p-2.5 space-y-2" style={{ borderColor: 'rgb(255 255 255 / 0.08)' }}>
+                                      <p className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5" style={{ color: 'var(--brand-orange)' }}>
+                                        <CalendarPlus size={13} /> {t('venture.manager.bookSession')}
+                                      </p>
+                                      <textarea
+                                        value={bookForm.note}
+                                        onChange={(e) => setBookForm({ ...bookForm, note: e.target.value })}
+                                        rows={3}
+                                        required
+                                        placeholder={t('venture.manager.memoPlaceholder')}
+                                        className="w-full px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                      />
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <input type="date" required min={toDateInput(new Date())} value={bookForm.date} onChange={(e) => setBookForm({ ...bookForm, date: e.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
+                                        <input type="time" required min={bookForm.min_time || undefined} value={bookForm.time} onChange={(e) => setBookForm({ ...bookForm, time: e.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
+                                        <select value={bookForm.duration} onChange={(e) => setBookForm({ ...bookForm, duration: e.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]">
+                                          {["30", "45", "60", "90"].map((min) => (
+                                            <option key={min} value={min}>{t('venture.manager.minutes', { n: min })}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.sessionMaterials')}</p>
+                                        <input
+                                          type="file"
+                                          multiple
+                                          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                                          onChange={(e) => setBookForm({ ...bookForm, files: Array.from(e.target.files || []).slice(0, SESSION_MATERIALS_MAX) })}
+                                          className="w-full text-[10px]"
+                                          style={{ color: 'var(--text-secondary)' }}
+                                        />
+                                        {(bookForm.files || []).length > 0 && (
+                                          <ul className="space-y-0.5">
+                                            {bookForm.files.map((f, i) => (
+                                              <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+                                                <span className="truncate">{f.name}</span>
+                                                <button type="button" aria-label={t('venture.manager.sessionMaterialsRemove')} onClick={() => setBookForm({ ...bookForm, files: bookForm.files.filter((_, j) => j !== i) })} className="shrink-0">
+                                                  <X size={12} />
+                                                </button>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        )}
+                                        <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.sessionMaterialsHint')}</p>
+                                      </div>
+                                      <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.sessionLeadHint')}</p>
+                                      <div className="flex justify-end gap-2">
+                                        <button type="button" onClick={() => setBookFor(null)} className="px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest" style={{ borderColor: 'rgb(255 255 255 / 0.15)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
+                                        <button type="submit" disabled={bookSaving} className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-black flex items-center gap-1.5 disabled:opacity-50" style={{ backgroundColor: 'var(--brand-orange)' }}>
+                                          {bookSaving ? <Loader2 size={12} className="animate-spin" /> : <CalendarPlus size={12} />} {t('venture.manager.bookSession')}
+                                        </button>
+                                      </div>
+                                    </form>
+                                  ) : (
+                                    <button type="button" onClick={() => openBooking(m)} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-orange)' }}>
+                                      <CalendarPlus size={12} /> {t('venture.manager.bookSession')}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Sessions already booked on this milestone, with the
+                                  documents they were booked with. */}
+                              {(sessionsByMilestone[String(m.id)] || []).length > 0 && (
+                                <div className="space-y-1 pt-1">
+                                  <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.milestoneSessions', { n: (sessionsByMilestone[String(m.id)] || []).length })}</p>
+                                  {(sessionsByMilestone[String(m.id)] || []).map((s) => (
+                                    <div key={s.id} className="space-y-0.5">
+                                      <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                                        <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{new Date(s.start_time).toLocaleString(lang || undefined)}</span>
+                                        {' · '}{s.title}
+                                        {s.coach_name ? ` · ${s.coach_name}` : ''}
+                                        {(s.materials || []).map((mat, i) =>
+                                          mat.url ? (
+                                            <a key={`${mat.name}-${i}`} href={mat.url} target="_blank" rel="noreferrer" className="ml-2 font-bold" style={{ color: 'var(--brand-orange)' }}>{mat.name}</a>
+                                          ) : (
+                                            <span key={`${mat.name}-${i}`} className="ml-2">{mat.name}</span>
+                                          ),
+                                        )}
+                                      </div>
+                                      {/* The session's ONE note — shown here and edited in
+                                          place, never appended to. */}
+                                      {noteEditFor === s.id ? (
+                                        <div className="space-y-1">
+                                          <textarea
+                                            value={noteDraft}
+                                            onChange={(e) => setNoteDraft(e.target.value)}
+                                            rows={2}
+                                            className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-[11px] text-[var(--text-primary)]"
+                                          />
+                                          <div className="flex justify-end gap-2">
+                                            <button type="button" onClick={() => { setNoteEditFor(null); setNoteDraft(""); }} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border" style={{ borderColor: 'rgb(255 255 255 / 0.15)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
+                                            <button type="button" disabled={noteSaving || !noteDraft.trim()} onClick={() => saveSessionNote(s.id)} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg text-black disabled:opacity-50" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('common.save')}</button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-start gap-2">
+                                          {s.description && (
+                                            <p className="flex-1 min-w-0 text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+                                              <span className="font-black uppercase tracking-widest mr-1.5">{t('venture.manager.memoLabel')}</span>
+                                              <span className="whitespace-pre-wrap">{s.description}</span>
+                                            </p>
+                                          )}
+                                          <button type="button" onClick={() => { setNoteEditFor(s.id); setNoteDraft(s.description || ""); }} className="shrink-0 text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-orange)' }}>
+                                            {t('venture.manager.editMemo')}
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
                                 </div>
                               )}
                               {stage.status === 'locked' ? null : tasks.length === 0 && tasksByMilestone[m.id] !== undefined ? (

@@ -114,4 +114,30 @@ export async function evidenceDownloadUrl(value, expiresIn = EVIDENCE_URL_TTL_SE
   return signEvidencePath(raw, expiresIn);
 }
 
-export default { EVIDENCE_BUCKET, EVIDENCE_URL_TTL_SECONDS, isExternalEvidenceLink, evidenceStoragePath, signEvidencePath, evidenceDownloadUrl, isAllowedEvidenceDocument, EVIDENCE_DOCUMENT_ERROR, EVIDENCE_IMAGE_EXTENSIONS, EVIDENCE_IMAGE_MIME_TYPES, isAllowedEvidenceImage, EVIDENCE_IMAGE_ERROR };
+/**
+ * Sign a session's material list. Rows store [{path,name,size}] in the private
+ * bucket; a viewer who already passed a Venture access gate gets short-lived
+ * URLs, and anything that cannot be signed comes back with a null url so the UI
+ * can say so instead of rendering a dead link. Tolerates the JSON string form
+ * for databases that return jsonb unserialized.
+ */
+export async function signSessionMaterials(raw) {
+  let list = raw;
+  if (typeof list === "string") {
+    try {
+      list = JSON.parse(list);
+    } catch (_) {
+      return [];
+    }
+  }
+  if (!Array.isArray(list) || list.length === 0) return [];
+  return Promise.all(
+    list.map(async (item) => ({
+      name: String(item?.name || "file"),
+      size: Number.isFinite(Number(item?.size)) ? Number(item.size) : null,
+      url: await signEvidencePath(item?.path),
+    })),
+  );
+}
+
+export default { EVIDENCE_BUCKET, EVIDENCE_URL_TTL_SECONDS, isExternalEvidenceLink, evidenceStoragePath, signEvidencePath, evidenceDownloadUrl, isAllowedEvidenceDocument, EVIDENCE_DOCUMENT_ERROR, EVIDENCE_IMAGE_EXTENSIONS, EVIDENCE_IMAGE_MIME_TYPES, isAllowedEvidenceImage, EVIDENCE_IMAGE_ERROR, signSessionMaterials };

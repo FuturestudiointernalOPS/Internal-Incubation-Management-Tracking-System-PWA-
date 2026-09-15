@@ -93,3 +93,19 @@ CREATE TABLE IF NOT EXISTS venture_session_activity (
 
 CREATE INDEX IF NOT EXISTS idx_session_activity_session ON venture_session_activity(session_id);
 CREATE INDEX IF NOT EXISTS idx_session_activity_venture ON venture_session_activity(venture_id);
+
+-- =============================================================================
+-- LATER COLUMN ADDITIONS
+--
+-- Columns added after this file was written are applied idempotently by
+-- ensureVentureSchema() in src/lib/ventures.js (journey_stage_id, milestone_ref,
+-- task_id, preparation_notes, venture_facing, deliverable_id, coach_contact_id,
+-- materials, …). They are repeated here so a database provisioned only from the
+-- SQL files still ends up with the same shape.
+-- =============================================================================
+
+-- Documents the participants need for a session (a deck, a brief), attached
+-- while booking. Stored as [{path,name,size}]; the files live in the PRIVATE
+-- evidence bucket under a `sessions/` prefix and are signed on read, so only
+-- people with Venture access can open them.
+ALTER TABLE venture_sessions ADD COLUMN IF NOT EXISTS materials JSONB;
