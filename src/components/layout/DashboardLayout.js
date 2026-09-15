@@ -57,6 +57,7 @@ import {
   resolveSectionExpanded,
   nextExplicitState,
 } from "@/components/layout/sidebarMenu";
+import { PermissionProvider, usePermissions } from "@/lib/PermissionProvider";
 
 // LocalStorage keys that remember when the user last viewed a given page,
 // so sidebar badges only count items that arrived after that visit.
@@ -670,7 +671,7 @@ function shellRole(user, role) {
   return user.role || role || "admin";
 }
 
-export default function DashboardLayout({ children, role = "admin", modals, fullWidth = false }) {
+function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = false }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -920,9 +921,11 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   // null = unknown (show by default), false = hide "My Learning"
   const [hasLmsEnrollments, setHasLmsEnrollments] = useState(null);
 
-  // Effective capability matrix for sidebar visibility (the server remains
-  // authoritative). Declared before the fast-path effect that restores it.
-  const [effectiveCaps, setEffectiveCaps] = useState(null);
+  // Effective capability matrix for sidebar visibility, read ONCE for the whole
+  // surface from the shared permission context (the server remains
+  // authoritative). Every gated affordance under this shell reads the same
+  // value instead of firing its own request.
+  const { permissions: effectiveCaps } = usePermissions();
 
   // Fast path: restore the cached session synchronously before first paint so
   // navigating between pages doesn't flash an empty screen while initAuth()
@@ -935,9 +938,8 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     const s = getDashboardSession();
     if (s) {
       if (s.user) setUser(s.user);
-      // Restoring the capabilities too is what keeps the sidebar from flashing
-      // the fail-open role matrix on every remount.
-      if (s.capabilities) setEffectiveCaps(s.capabilities);
+      // The capabilities are restored by PermissionProvider (which mounts
+      // above this shell) — the sidebar reads them from that context.
       setAuthChecked(true);
       return;
     }
@@ -948,26 +950,6 @@ export default function DashboardLayout({ children, role = "admin", modals, full
         setAuthChecked(true);
       }
     } catch (_) {}
-  }, []);
-
-  // Load the current user's effective permissions once (resolver-cached
-  // server-side), then cache them on the dashboard session so the next remount
-  // paints the real access immediately.
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/me/permissions")
-      .then((r) => r.json())
-      .then((d) => {
-        if (!alive || !d.success) return;
-        const caps = d.effective || null;
-        setEffectiveCaps(caps);
-        const current = getDashboardSession() || {};
-        setDashboardSession({ ...current, capabilities: caps });
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
   }, []);
 
   // Load user from session API first, fallback to localStorage
@@ -2066,5 +2048,19 @@ export default function DashboardLayout({ children, role = "admin", modals, full
         </div>
       </div>
     </AppErrorBoundary>
+  );
+}
+
+/**
+ * The shell mounts its own permission provider: ONE capability read for the
+ * whole surface, shared by the sidebar (via usePermissions) and every gated
+ * affordance rendered underneath. Consumers outside a DashboardLayout keep
+ * working standalone (usePermissions falls back to its own read).
+ */
+export default function DashboardLayout(props) {
+  return (
+    <PermissionProvider>
+      <DashboardLayoutInner {...props} />
+    </PermissionProvider>
   );
 }
