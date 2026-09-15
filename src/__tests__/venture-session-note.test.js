@@ -78,6 +78,7 @@ jest.mock("@/lib/ventures", () => ({
 jest.mock("@/lib/ventureNotify", () => ({
   notifyVentureCoach: jest.fn().mockResolvedValue(true),
   notifyAndEmailVentureFounders: jest.fn().mockResolvedValue(true),
+  notifyVentureLeadManagers: jest.fn().mockResolvedValue(true),
 }));
 
 const VENTURE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";

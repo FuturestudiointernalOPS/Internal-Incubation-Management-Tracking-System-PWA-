@@ -72,9 +72,9 @@ export const CONTEXT_ROLE_SEED = [
   {
     context: "venture",
     role_key: "team_member",
-    profile_name: null,
+    profile_name: "Venture Member",
     notes:
-      "No team-member profile seeded yet — venture team membership (venture_members) has no profile mapping today; Phase 5 material.",
+      "Team members are members first (venture_members row), then given a team role — the Venture Member profile carries ventures.view; venture_own scope limits them to the Venture they were added to.",
   },
   {
     context: "lms",

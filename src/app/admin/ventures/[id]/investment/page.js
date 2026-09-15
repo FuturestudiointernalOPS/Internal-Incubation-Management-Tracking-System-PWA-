@@ -7,6 +7,7 @@ import {
   BookOpen, Briefcase, Shield, DollarSign, Rocket, Users, BarChart3, Lightbulb,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useI18n } from "@/lib/i18n";
 
 const CATEGORY_ICONS = {
   startup_profile: Briefcase, legal: Shield, financial: DollarSign, product: Rocket,
@@ -24,12 +25,15 @@ const CATEGORY_LABELS = {
 export default function VentureInvestmentPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { t } = useI18n();
   const [venture, setVenture] = useState(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [evaluating, setEvaluating] = useState(false);
+  const [roadmap, setRoadmap] = useState(null);
+  const [roadmapLoading, setRoadmapLoading] = useState(true);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); fetchRoadmap(); }, []);
 
   const fetchData = async (bypassCache = false) => {
     const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/investment`];
@@ -57,12 +61,23 @@ export default function VentureInvestmentPage() {
     } catch {} finally { setLoading(false); }
   };
 
+  // Roadmap-derived readiness (read-only, independent): the same live numbers
+  // the founder sees. Fail-soft — any error just leaves the derived block
+  // hidden, the recorded assessment below keeps working untouched.
+  const fetchRoadmap = async () => {
+    try {
+      const res = await fetch(`/api/ventures/${id}/investment-readiness`);
+      const d = await res.json();
+      if (d?.success && d.roadmap_readiness) setRoadmap(d.roadmap_readiness);
+    } catch {} finally { setRoadmapLoading(false); }
+  };
+
   const handleEvaluate = async () => {
     setEvaluating(true);
     try {
       const res = await fetch(`/api/ventures/${id}/investment`, { method: "POST" });
       const d = await res.json();
-      if (d.success) fetchData(true);
+      if (d.success) { fetchData(true); fetchRoadmap(); }
     } catch {} finally { setEvaluating(false); }
   };
 
@@ -81,6 +96,23 @@ export default function VentureInvestmentPage() {
   const recommendations = data?.recommendations || [];
   const history = data?.history || [];
   const overallScore = data?.assessment?.overall_score ?? data?.overall_score ?? 0;
+
+  // Same mapping as the founder-facing RoadmapReadinessCard (GrowthTabs.js):
+  // live components/counts straight from the readiness engine.
+  const rrComponents = roadmap?.components || {};
+  const rrCounts = roadmap?.counts || {};
+  const roadmapComponentRows = [
+    { key: "journeys", label: t("venture.manager.irJourneys"), pct: rrComponents.journeys },
+    { key: "milestones", label: t("venture.manager.irMilestones"), pct: rrComponents.milestones },
+    { key: "tasks", label: t("venture.manager.irTasks"), pct: rrComponents.tasks },
+    { key: "deliverables", label: t("venture.manager.irDeliverables"), pct: rrComponents.deliverables },
+  ];
+  const roadmapCountRows = [
+    { key: "journeys", label: t("venture.manager.irJourneys"), completed: rrCounts.journeys?.completed ?? 0, total: rrCounts.journeys?.total ?? 0 },
+    { key: "milestones", label: t("venture.manager.irMilestones"), completed: rrCounts.milestones?.completed ?? 0, total: rrCounts.milestones?.total ?? 0 },
+    { key: "tasks", label: t("venture.manager.irTasks"), completed: rrCounts.tasks?.completed ?? 0, total: rrCounts.tasks?.total ?? 0 },
+    { key: "deliverables", label: t("venture.manager.irDeliverables"), completed: rrCounts.deliverables?.approved ?? 0, total: rrCounts.deliverables?.reviewed ?? 0 },
+  ];
 
   return (
     <>
@@ -102,6 +134,60 @@ export default function VentureInvestmentPage() {
             {evaluating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             {evaluating ? "Evaluating..." : "Run Assessment"}
           </button>
+        </div>
+
+        {/* Roadmap readiness (derived) — the live numbers the Venture is
+            evaluated on. Rendered first, above the recorded assessment: if the
+            two disagree both are shown as-is, neither is reconciled. */}
+        {roadmap ? (
+          <div className="card">
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div className="min-w-0">
+                <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide flex items-center gap-2">
+                  <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("vadmin.investment.roadmapReadiness")}
+                </h3>
+                <p className="text-[10px] text-[var(--text-secondary)] mt-1">{t("venture.manager.irTrackedDesc")}</p>
+              </div>
+              <span className="text-3xl font-black text-[var(--brand-orange)] shrink-0">{roadmap.overall_percent}%</span>
+            </div>
+            {progressBar(roadmap.overall_percent)}
+            <div className="space-y-3 mt-4">
+              {roadmapComponentRows.map((row) => (
+                <div key={row.key}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">{row.label}</span>
+                    <span className="text-[10px] font-black text-[var(--text-primary)]">{row.pct == null ? "—" : `${row.pct}%`}</span>
+                  </div>
+                  {row.pct != null && progressBar(row.pct)}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
+              {roadmapCountRows.map((row) => (
+                <div key={row.key} className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">{row.label}</p>
+                  <p className="text-sm font-black text-[var(--text-primary)] mt-0.5">
+                    {row.completed}<span className="text-[var(--text-secondary)]">/{row.total}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : roadmapLoading ? (
+          <div className="card">
+            <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide flex items-center gap-2">
+              <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("vadmin.investment.roadmapReadiness")}
+            </h3>
+            <p className="text-[10px] text-[var(--text-secondary)] mt-2 flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t("common.loading")}
+            </p>
+          </div>
+        ) : null}
+
+        {/* Recorded assessment — the legacy manual evaluation, unchanged. */}
+        <div className="flex items-center gap-3">
+          <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("vadmin.investment.recordedAssessment")}</h2>
+          <div className="flex-1 h-px bg-[var(--border-primary)]" />
         </div>
 
         {/* Score Card */}

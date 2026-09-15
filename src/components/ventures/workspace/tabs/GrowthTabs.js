@@ -288,18 +288,18 @@ export function RoadmapReadinessCard() {
   const rr = investmentReadiness?.roadmap_readiness;
   if (!rr) return null;
   const rows = [
-    { key: 'journeys', label: t('venture.irJourneys'), pct: rr.components.journeys },
-    { key: 'milestones', label: t('venture.irMilestones'), pct: rr.components.milestones },
-    { key: 'tasks', label: t('venture.irTasks'), pct: rr.components.tasks },
-    { key: 'deliverables', label: t('venture.irDeliverables'), pct: rr.components.deliverables },
+    { key: 'journeys', label: t('venture.manager.irJourneys'), pct: rr.components.journeys },
+    { key: 'milestones', label: t('venture.manager.irMilestones'), pct: rr.components.milestones },
+    { key: 'tasks', label: t('venture.manager.irTasks'), pct: rr.components.tasks },
+    { key: 'deliverables', label: t('venture.manager.irDeliverables'), pct: rr.components.deliverables },
   ];
   return (
     <div className="rounded-xl p-5 border" style={cardStyle}>
       <div className="flex items-center justify-between mb-1">
-        <h3 className="font-semibold">{t('venture.irTracked')}</h3>
+        <h3 className="font-semibold">{t('venture.manager.irTracked')}</h3>
         <span className="text-2xl font-black" style={{ color: 'var(--brand-orange)' }}>{rr.overall_percent}%</span>
       </div>
-      <p className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>{t('venture.irTrackedDesc')}</p>
+      <p className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.irTrackedDesc')}</p>
       <div className="space-y-2">
         {rows.map((row) => (
           <div key={row.key}>
@@ -317,8 +317,8 @@ export function RoadmapReadinessCard() {
       </div>
       {rr.counts && (
         <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
-          <div><span className="font-bold">{rr.counts.milestones.completed}/{rr.counts.milestones.total}</span> {t('venture.irMilestonesDone')}</div>
-          <div><span className="font-bold">{rr.counts.tasks.completed}/{rr.counts.tasks.total}</span> {t('venture.irTasksDone')}</div>
+          <div><span className="font-bold">{rr.counts.milestones.completed}/{rr.counts.milestones.total}</span> {t('venture.manager.irMilestonesDone')}</div>
+          <div><span className="font-bold">{rr.counts.tasks.completed}/{rr.counts.tasks.total}</span> {t('venture.manager.irTasksDone')}</div>
         </div>
       )}
     </div>

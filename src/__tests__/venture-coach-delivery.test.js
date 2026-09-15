@@ -7,6 +7,10 @@
  *     matches degrade to null (no delivery, catalog fallback preserved)
  *   - notifyVentureCoach: writes an in-app notification with entity context +
  *     dedupe and emails the coach when resolvable; skips silently otherwise
+ *   - notifyVentureLeadManagers: delivers the same event to every ACTIVE
+ *     lead_manager assignment (in-app + email) with the role-suffixed dedupe
+ *     key, skips excluded cids (creator / coach) and degrades silently when
+ *     there is nobody to notify
  *   - GET /api/calendar?personal=1: scopes Venture events to the caller's
  *     assignments ∪ coach sessions; default mode unchanged
  */
@@ -14,7 +18,7 @@
 const executed = [];
 
 function makeFakeDb() {
-  const flags = { contactByCid: true, contactByEmail: true, catalogEmail: "sarah@future.studio", assignments: ["VNT-X"], coachSessions: [], inviteContact: null, inviteActivated: false, alreadyAssigned: false };
+  const flags = { contactByCid: true, contactByEmail: true, catalogEmail: "sarah@future.studio", assignments: ["VNT-X"], coachSessions: [], inviteContact: null, inviteActivated: false, alreadyAssigned: false, leadManagers: [] };
   const execute = jest.fn(async (arg) => {
     // Calendar makes one plain-string execute (ALTER TABLE …); normalize.
     const sql = typeof arg === "string" ? arg : arg?.sql;
@@ -32,6 +36,19 @@ function makeFakeDb() {
     }
     if (sql.includes("SELECT id FROM venture_staff_assignments") && sql.includes("status = 'active' LIMIT 1")) {
       return { rows: flags.alreadyAssigned ? [{ id: 5 }] : [] };
+    }
+    // notifyVentureLeadManagers — active lead_manager assignments (code-keyed)
+    if (sql.includes("FROM venture_staff_assignments") && sql.includes("responsibility_code = 'lead_manager'")) {
+      return { rows: (flags.leadManagers || []).map((m) => ({ staff_contact_id: m.cid })) };
+    }
+    // notifyVentureLeadManagers — Venture code fallback from the internal id
+    if (sql.includes("SELECT venture_id FROM ventures WHERE id = ?") && String(args[0] || "").includes("11111111-1111-4111-8111-111111111111")) {
+      return { rows: [{ venture_id: "VNT-X" }] };
+    }
+    // notifyVentureLeadManagers — lead manager contact lookup
+    if (sql.includes("SELECT cid, name, email FROM contacts WHERE cid = ?") && (flags.leadManagers || []).some((m) => m.cid === String(args[0]))) {
+      const m = (flags.leadManagers || []).find((x) => x.cid === String(args[0]));
+      return { rows: [{ cid: m.cid, name: m.name || null, email: m.email ?? null }] };
     }
     // resolveCoachContact — direct contact
     if (sql.includes("SELECT cid, name, email FROM contacts WHERE cid = ?")) {
@@ -97,7 +114,7 @@ jest.mock("@/lib/auth", () => ({
 const mockAuth = require("@/lib/auth");
 
 const { resolveCoachContact, inviteCoachByEmail } = require("@/lib/ventureCoach");
-const { notifyVentureCoach } = require("@/lib/ventureNotify");
+const { notifyVentureCoach, notifyVentureLeadManagers } = require("@/lib/ventureNotify");
 const { GET: calendarGET } = require("@/app/api/calendar/route");
 const { sendEmail, sendInviteEmail, sendLoginEmail } = require("@/lib/email");
 const readJson = async (res) => res.json();
@@ -115,6 +132,7 @@ beforeEach(() => {
   mockDb.flags.inviteContact = null;
   mockDb.flags.inviteActivated = false;
   mockDb.flags.alreadyAssigned = false;
+  mockDb.flags.leadManagers = [];
 });
 
 describe("resolveCoachContact — coach is a platform user (Future Studio staff or invited)", () => {
@@ -178,6 +196,83 @@ describe("notifyVentureCoach — automatic coach delivery (in-app + email)", () 
   test("no coach_contact_id → no-op", async () => {
     const out = await notifyVentureCoach(mockDb, { dbId: "x", coachContactId: null, title: "t", message: "m" });
     expect(out.skipped).toBe(true);
+  });
+});
+
+describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)", () => {
+  const VC = "11111111-1111-4111-8111-111111111111";
+
+  test("writes context notification with dedupe and emails every active lead manager", async () => {
+    mockDb.flags.leadManagers = [{ cid: "lm-1", name: "Lena", email: "lena@future.studio" }];
+    const out = await notifyVentureLeadManagers(mockDb, {
+      dbId: VC,
+      ventureCode: "VNT-X",
+      title: "Session scheduled",
+      message: "You have been added to a Venture session.",
+      emailSubject: "You have been added to a Venture session",
+      emailLines: ["Session on 10 September.", "Preparation: bring results."],
+      context: { journey_stage_id: "s1", milestone_id: "m1", session_id: 9 },
+      templateKey: "venture.notif.sessionScheduled",
+      params: { title: "Review" },
+      dedupeKey: "session-scheduled:9",
+    });
+    expect(out.sent).toBe(1);
+
+    // Assignments are resolved by Venture code — never by the internal UUID.
+    const lmQuery = executed.find((q) => q.sql.includes("FROM venture_staff_assignments") && q.sql.includes("responsibility_code = 'lead_manager'"));
+    expect(lmQuery).toBeDefined();
+    expect(lmQuery.args).toEqual(["VNT-X"]);
+
+    const notifInsert = executed.find((q) => q.sql.includes("INSERT INTO v2_notifications"));
+    expect(notifInsert).toBeDefined();
+    expect(notifInsert.args).toEqual(expect.arrayContaining(["lm-1", "venture.notif.sessionScheduled", "session-scheduled:9:lm"]));
+
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "lena@future.studio", subject: "You have been added to a Venture session" }),
+    );
+  });
+
+  test("excluded lead managers (creator / coach) get nothing", async () => {
+    mockDb.flags.leadManagers = [{ cid: "lm-1", name: "Lena", email: "lena@future.studio" }];
+    const out = await notifyVentureLeadManagers(mockDb, {
+      dbId: VC, ventureCode: "VNT-X", title: "t", message: "m", emailSubject: "s",
+      dedupeKey: "session-scheduled:9", excludeCids: ["lm-1"],
+    });
+    expect(out.sent).toBe(0);
+    expect(executed.find((q) => q.sql.includes("INSERT INTO v2_notifications"))).toBeUndefined();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  test("no active lead-manager assignment → nothing written, no throw", async () => {
+    const out = await notifyVentureLeadManagers(mockDb, {
+      dbId: VC, ventureCode: "VNT-X", title: "t", message: "m", emailSubject: "s",
+    });
+    expect(out.sent).toBe(0);
+    expect(executed.find((q) => q.sql.includes("INSERT INTO v2_notifications"))).toBeUndefined();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  test("lead manager without an email still gets the in-app notification", async () => {
+    mockDb.flags.leadManagers = [{ cid: "lm-1", name: "Lena", email: null }];
+    const out = await notifyVentureLeadManagers(mockDb, {
+      dbId: VC, ventureCode: "VNT-X", title: "t", message: "m", emailSubject: "s",
+    });
+    expect(out.sent).toBe(0);
+    const notifInsert = executed.find((q) => q.sql.includes("INSERT INTO v2_notifications"));
+    expect(notifInsert).toBeDefined();
+    expect(notifInsert.args).toContain("lm-1");
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  test("missing venture code is resolved from the internal id", async () => {
+    mockDb.flags.leadManagers = [{ cid: "lm-1", name: "Lena", email: null }];
+    const out = await notifyVentureLeadManagers(mockDb, {
+      dbId: VC, title: "t", message: "m", emailSubject: "s",
+    });
+    expect(out.sent).toBe(0);
+    const lmQuery = executed.find((q) => q.sql.includes("FROM venture_staff_assignments") && q.sql.includes("responsibility_code = 'lead_manager'"));
+    expect(lmQuery.args).toEqual(["VNT-X"]);
+    expect(executed.find((q) => q.sql.includes("INSERT INTO v2_notifications"))).toBeDefined();
   });
 });
 

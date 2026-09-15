@@ -154,6 +154,19 @@ export async function seedVenturesMemberEligibility() {
 }
 
 /**
+ * Catch-up for databases whose eligibility bootstrap already ran BEFORE
+ * `founder` was added to FEATURE_ELIGIBILITY_DEFAULTS.ventures. The bootstrap
+ * seed runs once per database, so an existing database never picks up a new
+ * default on its own — the same gap `seedVenturesMemberEligibility` closes for
+ * the member baseline. A founder is the Venture's own operator: without this
+ * row every venture route fails closed for them. Insert-only, own marker, so an
+ * administrator's decision is never overwritten.
+ */
+export async function seedVenturesFounderEligibility() {
+  return seedFeatureRows("ventures", ["founder"]);
+}
+
+/**
  * Pure eligibility evaluation over pre-loaded rows.
  *
  * @param {Array<{feature_key, eligible}>} rows

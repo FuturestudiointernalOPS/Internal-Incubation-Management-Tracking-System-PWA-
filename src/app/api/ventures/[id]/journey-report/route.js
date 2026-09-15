@@ -41,7 +41,7 @@ export async function GET(req, { params }) {
     const owners = [id, dbId].filter(Boolean);
     const ownersSql = OWNERS_IN(owners);
 
-    const [stagesRes, msRes, tasksRes, subRes, sessRes, supportRes] = await Promise.all([
+    const [stagesRes, msRes, tasksRes, subRes, sessRes, supportRes, delivRes] = await Promise.all([
       // Archived journeys (soft-deleted) are excluded from the operating
       // report. Guarded: a pre-migration database without the archive column
       // falls back to the plain stage read.
@@ -84,6 +84,15 @@ export async function GET(req, { params }) {
               FROM venture_staff_assignments WHERE venture_id = ? AND status = 'active'`,
         args: [id],
       }).catch(() => ({ rows: [] })),
+      // Deliverables the Venture has submitted and staff have not reviewed yet
+      // ('submitted' is the awaiting-review state — a review writes
+      // 'approved' / 'changes_requested'). Scoped to the Venture exactly like
+      // the task / milestone / session counts above.
+      db.execute({
+        sql: `SELECT status FROM venture_deliverables
+              WHERE venture_id ${ownersSql} AND status = 'submitted'`,
+        args: owners,
+      }).catch(() => ({ rows: [] })),
     ]);
 
     const stages = (stagesRes.rows || []).map((s) => {
@@ -121,6 +130,9 @@ export async function GET(req, { params }) {
       .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
       .slice(0, 50)
       .map((t) => ({ id: t.id, status: t.status, due_date: t.due_date }));
+
+    // Deliverables awaiting staff review — counted live, never stored.
+    const deliverablesAwaitingReview = (delivRes.rows || []).length;
 
     const reviewed = subRes.rows || [];
     const submissions = {
@@ -169,6 +181,7 @@ export async function GET(req, { params }) {
         },
         overdue,
         submissions,
+        deliverables_awaiting_review: deliverablesAwaitingReview,
         sessions,
         support,
       },

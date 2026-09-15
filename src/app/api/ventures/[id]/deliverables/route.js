@@ -19,6 +19,11 @@ import { listDeliverables, createDeliverable, updateDeliverable, getDeliverable 
  *                            submit  → the Venture side (Venture access)
  *                            review  → Lead Manager / Super Admin, or a staff
  *                                      member scoped to that milestone
+ *
+ * Capability layer: the `ventures` module. There is no `milestones` capability
+ * module in the catalog, so gating on one denies every non-Super-Admin actor
+ * before the authority check can run. The module check is deliberately coarse —
+ * canDefineDeliverables / canReviewDeliverable decide the real authority.
  */
 
 async function resolveDbId(id) {
@@ -54,7 +59,7 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const access = await requireVentureScopedAccess({ ventureId: id, module: "milestones", capability: "edit" });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
   if (access.error) return access.error;
   const { session } = access;
 
@@ -144,7 +149,10 @@ export const PATCH = createHandler(async (req, { params }) => {
 
   // ── review: Lead Manager / Super Admin, or a scoped staff member ─────────
   if (action === "review") {
-    const access = await requireVentureScopedAccess({ ventureId: id, module: "milestones", capability: "review" });
+    // `ventures.view` on purpose: a scoped coach may hold view without edit, and
+    // canReviewDeliverable below fails closed unless an assignment scope covers
+    // this milestone. Keep the capability coarse; the scope check is the gate.
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
     if (access.error) return access.error;
     const { session } = access;
 
@@ -197,7 +205,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   }
 
   // ── update: the definition, managers only ───────────────────────────────
-  const access = await requireVentureScopedAccess({ ventureId: id, module: "milestones", capability: "edit" });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
   if (access.error) return access.error;
   const { session } = access;
 

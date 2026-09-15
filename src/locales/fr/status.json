@@ -18,6 +18,11 @@
     "action": "ACTION",
     "overdue": "En retard",
     "onTrack": "Sur la bonne voie",
-    "atRisk": "À risque"
+    "atRisk": "À risque",
+    "locked": "Verrouillé",
+    "notStarted": "Non commencé",
+    "awaitingReview": "En attente de validation",
+    "changesRequested": "Modifications demandées",
+    "approved": "Approuvé"
   }
 }

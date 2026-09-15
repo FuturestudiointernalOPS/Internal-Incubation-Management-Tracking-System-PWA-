@@ -102,3 +102,79 @@ export async function notifyVentureCoach(db, { dbId, coachContactId, title, mess
     return { sent: 0 };
   }
 }
+
+/**
+ * Lead Manager delivery (A8): notify EVERY active Lead Manager of a Venture
+ * (venture_staff_assignments.responsibility_code = 'lead_manager') about a
+ * Venture session they are attached to — in-app + email, same channel as the
+ * coach. Lead Managers are internal staff, so delivery does not depend on the
+ * venture_facing flag. A recipient whose contact/email cannot be resolved still
+ * gets the in-app notification (only the email is skipped), and one failing
+ * recipient never stops the others.
+ *
+ * excludeCids: recipients to leave out — the actor who triggered the event and
+ * the session coach (both already notified by their own channel).
+ */
+export async function notifyVentureLeadManagers(db, { dbId, ventureCode, title, message, emailSubject, emailLines = [], context = {}, templateKey = null, params = null, dedupeKey = null, excludeCids = [] }) {
+  try {
+    // venture_staff_assignments is keyed on the Venture code (VNT-…). When the
+    // caller does not carry it, resolve it from the internal id the same way
+    // the founder helper does.
+    let code = ventureCode || null;
+    if (!code && dbId) {
+      const vRes = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [dbId] });
+      code = vRes.rows?.[0]?.venture_id || null;
+    }
+    if (!code) return { sent: 0, skipped: true };
+
+    const lmRes = await db.execute({
+      sql: `SELECT staff_contact_id FROM venture_staff_assignments
+            WHERE venture_id = ? AND responsibility_code = 'lead_manager' AND status = 'active'`,
+      args: [code],
+    });
+
+    const excluded = new Set((excludeCids || []).filter(Boolean).map((c) => String(c)));
+    const seen = new Set();
+    let sent = 0;
+
+    const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:24px">
+      ${(emailLines || []).map((l) => `<p style="margin:8px 0;color:#334155;font-size:15px;line-height:1.5">${l}</p>`).join("")}
+      <p style="margin:22px 0 0;color:#94a3b8;font-size:12px">ImpactOS · Future Studio</p>
+    </div>`;
+
+    for (const row of lmRes.rows || []) {
+      const cid = row?.staff_contact_id ? String(row.staff_contact_id) : null;
+      if (!cid || excluded.has(cid) || seen.has(cid)) continue;
+      seen.add(cid);
+      // Isolated per recipient: one bad row never blocks the rest.
+      try {
+        const cRes = await db.execute({
+          sql: "SELECT cid, name, email FROM contacts WHERE cid = ? AND (deleted = 0 OR deleted IS NULL) LIMIT 1",
+          args: [cid],
+        });
+        const contact = cRes.rows?.[0];
+        if (!contact) continue;
+
+        const { createVentureNotification } = await import("@/lib/ventures");
+        await createVentureNotification({
+          recipient_id: contact.cid,
+          title,
+          message,
+          context: { ...(context || {}), venture_id: dbId },
+          templateKey,
+          params,
+          // Role suffix keeps the Lead Manager copy distinct from the founder
+          // copy of the same event for a dual-role recipient.
+          dedupeKey: dedupeKey ? `${dedupeKey}:lm` : null,
+        });
+
+        if (!contact.email) continue;
+        const r = await sendEmail({ to: contact.email, subject: emailSubject, html });
+        if (r && r.success !== false) sent += 1;
+      } catch (_) {}
+    }
+    return { sent };
+  } catch (_) {
+    return { sent: 0 };
+  }
+}

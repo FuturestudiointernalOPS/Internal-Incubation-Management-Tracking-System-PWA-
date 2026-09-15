@@ -17,6 +17,7 @@ const mockProfileIds = {
   Instructor: 6,
   Mentor: 7,
   Founder: 8,
+  "Venture Member": 9,
 };
 const mockCapabilityInserts = [];
 
@@ -109,5 +110,22 @@ describe("Phase 5b — ventures capability grants", () => {
         .map((c) => c.profileId),
     );
     for (const holder of holders) expect(viewHolders.has(holder)).toBe(true);
+  });
+
+  test("Venture Member holds view ONLY — team members read, scope picks the venture", async () => {
+    await seedDefaultAccessProfiles();
+    const teamCaps = mockCapabilityInserts.filter(
+      (c) => c.profileId === mockProfileIds["Venture Member"],
+    );
+    // A team member is a member first (venture_members row), so they get the
+    // read side of their own venture and nothing more — never edit.
+    expect(teamCaps).toEqual([
+      {
+        profileId: mockProfileIds["Venture Member"],
+        module: "ventures",
+        capability: "view",
+        level: 1,
+      },
+    ]);
   });
 });

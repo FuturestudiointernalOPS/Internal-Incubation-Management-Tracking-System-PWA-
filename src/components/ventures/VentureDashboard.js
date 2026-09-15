@@ -663,6 +663,7 @@ function AttentionWidget({ id }) {
 
   const overdue = (data?.overdue || []).length;
   const awaitingReview = (data?.tasks_by_status || {}).review || 0;
+  const awaitingDeliverables = data?.deliverables_awaiting_review || 0;
   const upcomingSessions = data?.sessions?.upcoming || 0;
   const awaitingApproval = (data?.milestones_by_status || {}).under_review || 0;
   const stageTotal = data?.journey_progression?.total || 0;
@@ -672,6 +673,9 @@ function AttentionWidget({ id }) {
   const items = [
     { n: overdue, label: t("venture.attention.overdue") },
     { n: awaitingReview, label: t("venture.attention.awaitingReview") },
+    ...(awaitingDeliverables > 0
+      ? [{ n: awaitingDeliverables, label: t("venture.attention.awaitingDeliverables", { n: awaitingDeliverables }) }]
+      : []),
     { n: upcomingSessions, label: t("venture.attention.upcomingSessions") },
     { n: awaitingApproval, label: t("venture.attention.awaitingApproval") },
   ];

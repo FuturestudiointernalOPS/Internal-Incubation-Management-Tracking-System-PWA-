@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import {
+  milestoneStatusWord,
+  deliverableStatusWord,
+  statusWord,
+  statusLabel,
+  statusChipClass,
+} from "@/lib/ventureStatuses";
 import { useVenture } from "../VentureContext";
 
 /* Journey Tab — the Venture journey as its operating workspace.
@@ -22,7 +29,6 @@ export function JourneyTab() {
   const [dvDrafts, setDvDrafts] = useState({});
 
   const TASK_LABEL_KEYS = { review: "pendingReview", accepted: "approved", revision_requested: "revisionRequested" };
-  const MILESTONE_LABEL_KEYS = { not_started: "notStarted", in_progress: "inProgress", under_review: "pendingReview", changes_requested: "revisionRequested" };
   const label = (s, map) => t(`venture.${map && map[s] ? map[s] : s}`);
 
   const loadMilestoneTasks = async (mid) => {
@@ -87,19 +93,6 @@ export function JourneyTab() {
 
   // Deliverable evidence: the Venture submits a URL; the status chip then
   // reflects the review (submitted / approved / changes requested).
-  const dvStatus = (dv) => {
-    if (dv.approval_status === "approved" || dv.status === "completed" || dv.status === "approved") {
-      return { key: "approved", cls: "bg-green-500/15 text-green-400" };
-    }
-    if (dv.approval_status === "rejected") {
-      return { key: "changes_requested", cls: "bg-rose-500/15 text-rose-400" };
-    }
-    if (dv.status === "submitted") {
-      return { key: "submitted", cls: "bg-amber-500/15 text-amber-400" };
-    }
-    return { key: "pending", cls: "bg-white/10 text-slate-400" };
-  };
-
   const submitDeliverable = async (deliverableId) => {
     const draft = dvDrafts[deliverableId] || {};
     const file = draft.file || null;
@@ -142,13 +135,19 @@ export function JourneyTab() {
   const submissionChip = (taskId) => {
     const latest = subsByTask[taskId];
     if (latest === undefined || latest === null) return null;
-    if (latest.review_decision === "approved") {
-      return <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-green-500/15 text-green-400">{t("venture.approved")}</span>;
-    }
-    if (latest.review_decision === "changes_requested") {
-      return <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-amber-500/15 text-amber-400">{t("venture.revisionRequested")}</span>;
-    }
-    return <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-blue-500/15 text-blue-400">{t("venture.awaitingReview")}</span>;
+    // Review outcomes speak the same words as deliverables (Approved /
+    // Changes Requested / Awaiting Review) — one vocabulary per idea.
+    const w =
+      latest.review_decision === "approved"
+        ? statusWord("approved")
+        : latest.review_decision === "changes_requested"
+          ? statusWord("changes_requested")
+          : statusWord("awaiting_review");
+    return (
+      <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${statusChipClass(w)}`}>
+        {statusLabel(w, t)}
+      </span>
+    );
   };
 
   return (
@@ -211,12 +210,13 @@ export function JourneyTab() {
                       <div className="pt-2 space-y-3">
                         {stage.milestones.map((m) => {
                           const tasks = tasksByMilestone[m.id] || [];
+                          const mWord = milestoneStatusWord(m.status);
                           return (
                             <div key={m.id} className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'rgb(255 255 255 / 0.1)' }}>
                               <div className="flex items-center justify-between gap-2 flex-wrap">
                                 <p className="text-sm font-bold">{m.title}</p>
                                 <div className="flex items-center gap-2">
-                                  {m.status && <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${m.status === 'completed' ? 'bg-green-500/15 text-green-400' : m.status === 'in_progress' ? 'bg-blue-500/15 text-blue-400' : 'bg-white/10 text-slate-400'}`}>{label(m.status, MILESTONE_LABEL_KEYS)}</span>}
+                                  {m.status && <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${statusChipClass(mWord)}`}>{statusLabel(mWord, t)}</span>}
                                   {m.progress > 0 && <span className="text-[10px] font-bold" style={{ color: 'var(--brand-orange)' }}>{m.progress}%</span>}
                                 </div>
                               </div>
@@ -229,15 +229,17 @@ export function JourneyTab() {
                                     {t('venture.manager.deliverables')}
                                   </p>
                                   {(m.deliverables || []).map((dv) => {
-                                    const st = dvStatus(dv);
-                                    const canSubmit = stage.status === 'active' && st.key !== 'approved';
+                                    // ONE vocabulary, shared with the Venture Manager
+                                    // and Super Admin views (lib/ventureStatuses).
+                                    const st = deliverableStatusWord(dv);
+                                    const canSubmit = stage.status === 'active' && st.id !== 'approved';
                                     return (
                                       <div key={dv.id} className="rounded-lg border p-2.5 space-y-1.5" style={{ borderColor: 'rgb(255 255 255 / 0.08)' }}>
                                         <div className="flex items-center gap-2 flex-wrap">
                                           <span className="flex-1 min-w-0 text-xs font-medium truncate">{dv.title}</span>
                                           {dv.due_date && <span className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{new Date(dv.due_date).toLocaleDateString()}</span>}
-                                          <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded ${st.cls}`}>
-                                            {t(`venture.manager.deliverableStatuses.${st.key}`)}
+                                          <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded ${statusChipClass(st)}`}>
+                                            {statusLabel(st, t)}
                                           </span>
                                         </div>
                                         {dv.description && <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{dv.description}</p>}

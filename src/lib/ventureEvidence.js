@@ -43,6 +43,27 @@ export function isAllowedEvidenceDocument(file) {
 export const EVIDENCE_DOCUMENT_ERROR =
   "Only documents can be uploaded (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX) — or paste a URL instead.";
 
+// Verification documents additionally accept images (founder ID, scanned
+// registration cards). Deliverable evidence stays documents-only.
+export const EVIDENCE_IMAGE_EXTENSIONS = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|png|jpe?g)$/i;
+export const EVIDENCE_IMAGE_MIME_TYPES = [
+  ...EVIDENCE_DOCUMENT_MIME_TYPES,
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+];
+
+/** Document-or-image check, used only where images are allowed (verification). */
+export function isAllowedEvidenceImage(file) {
+  if (!file) return false;
+  const mimeOk = EVIDENCE_IMAGE_MIME_TYPES.includes(String(file.type || ""));
+  const extOk = EVIDENCE_IMAGE_EXTENSIONS.test(String(file.name || ""));
+  return mimeOk || extOk;
+}
+
+export const EVIDENCE_IMAGE_ERROR =
+  "Only documents or images can be uploaded (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, PNG, JPG, JPEG) — or paste a URL instead.";
+
 /** True when the stored value is an external link rather than a storage path. */
 export function isExternalEvidenceLink(value) {
   return /^https?:\/\//i.test(String(value || "").trim());
@@ -93,4 +114,4 @@ export async function evidenceDownloadUrl(value, expiresIn = EVIDENCE_URL_TTL_SE
   return signEvidencePath(raw, expiresIn);
 }
 
-export default { EVIDENCE_BUCKET, EVIDENCE_URL_TTL_SECONDS, isExternalEvidenceLink, evidenceStoragePath, signEvidencePath, evidenceDownloadUrl, isAllowedEvidenceDocument, EVIDENCE_DOCUMENT_ERROR };
+export default { EVIDENCE_BUCKET, EVIDENCE_URL_TTL_SECONDS, isExternalEvidenceLink, evidenceStoragePath, signEvidencePath, evidenceDownloadUrl, isAllowedEvidenceDocument, EVIDENCE_DOCUMENT_ERROR, EVIDENCE_IMAGE_EXTENSIONS, EVIDENCE_IMAGE_MIME_TYPES, isAllowedEvidenceImage, EVIDENCE_IMAGE_ERROR };

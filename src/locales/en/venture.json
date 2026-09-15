@@ -287,6 +287,15 @@
     "notReady": "Not Yet Ready",
     "documentsApproved": "documents approved",
     "investment": "Investment Readiness",
+    "verification": "Verification",
+    "verificationTab": {
+      "yourDocuments": "Your documents",
+      "missingDocuments": "No document uploaded yet",
+      "stillRequired": "Still required: {items}",
+      "noItems": "No verification items yet",
+      "deleteDocument": "Delete document",
+      "fromReviewer": "Review team"
+    },
     "edit": "Edit",
     "create": "Create",
     "unit": "Unit",
@@ -517,6 +526,7 @@
       "title": "Needs attention",
       "overdue": "Overdue tasks",
       "awaitingReview": "Awaiting review",
+      "awaitingDeliverables": "Deliverables to review",
       "upcomingSessions": "Upcoming sessions",
       "awaitingApproval": "Milestones to approve",
       "journeyProgress": "Journey progress",

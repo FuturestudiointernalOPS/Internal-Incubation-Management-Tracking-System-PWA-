@@ -268,6 +268,10 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(authBlocks(file)).toHaveLength(0);
     expect(src).toMatch(/getActiveParticipantEnrollments/);
     expect(src).toMatch(/\["super_admin", "staff", "program_manager", "team"\]\.includes\(role\)/);
+    // Venture people (founders AND team members) upload as part of their
+    // Venture workspace: membership is the qualification, resolved live.
+    expect(src).toMatch(/getContactContexts/);
+    expect(src).toMatch(/type === "venture"/);
   });
 
   test("phase 1.6: END STATE — no contextual-role requireAuth list remains anywhere in src/app/api", () => {

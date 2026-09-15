@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { hashToken } from "@/lib/token-hashing";
 import { isUnknownColumnError } from "@/lib/ventureInput";
+import { SESSION_MIN_LEAD_MINUTES } from "@/lib/ventureSessionRules";
 
 /**
  * VENTURE OS — Shared Business Logic
@@ -3448,6 +3449,18 @@ export async function cancelSession(sessionId) {
 export async function rescheduleSession(sessionId, newStartTime, newEndTime) {
   const s = await db.execute({ sql: "SELECT * FROM venture_sessions WHERE id = ?", args: [sessionId] });
   if (s.rows.length === 0) throw new Error("Session not found.");
+  // Vinance 3: the same scheduling floor that guards booking also guards a
+  // reschedule — a parseable window, an end after the start, and a start at
+  // least SESSION_MIN_LEAD_MINUTES ahead.
+  const startAt = new Date(newStartTime);
+  const endAt = new Date(newEndTime);
+  if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
+    throw new Error("A session date and time are required.");
+  }
+  if (startAt >= endAt) throw new Error("End time must be after start time.");
+  if (startAt.getTime() < Date.now() + SESSION_MIN_LEAD_MINUTES * 60 * 1000) {
+    throw new Error(`A session must start at least ${SESSION_MIN_LEAD_MINUTES} minutes from now.`);
+  }
   const c = await checkDoubleBooking({ ventureId: s.rows[0].venture_id, coachId: s.rows[0].coach_id, startTime: newStartTime, endTime: newEndTime, excludeSessionId: sessionId });
   if (c.conflict) throw new Error(c.message);
   await db.execute({ sql: "UPDATE venture_sessions SET start_time = ?, end_time = ?, status = 'rescheduled', updated_at = NOW() WHERE id = ?", args: [newStartTime, newEndTime, sessionId] });
