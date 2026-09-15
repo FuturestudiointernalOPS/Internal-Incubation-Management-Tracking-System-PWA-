@@ -88,6 +88,7 @@ const SEEDED_PROFILE_NAMES = [
   "Finance Assistant",
   "Mentor",
   "Founder",
+  "Venture Member",
 ];
 
 const putReq = (body) =>
@@ -127,8 +128,8 @@ describe("Phase 4 — seed catalogue integrity", () => {
 
   test("unmapped contextual roles stay visible as documented gaps", () => {
     const gaps = CONTEXT_ROLE_SEED.filter((r) => r.profile_name === null);
-    // Facilitator / team member / learner still have no seeded profile;
-    // each gap must carry an explanatory note instead of being hidden.
+    // Facilitator and learner still have no seeded profile; each gap must carry
+    // an explanatory note instead of being hidden.
     expect(gaps.length).toBeGreaterThan(0);
     for (const gap of gaps) expect(String(gap.notes).length).toBeGreaterThan(10);
     expect(gaps.some((g) => g.context === "venture" && g.role_key === "founder")).toBe(false);

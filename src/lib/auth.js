@@ -1340,6 +1340,17 @@ export async function seedDefaultAccessProfiles() {
           ventures: { view: 1, edit: 3 },
         },
       },
+      // Team members are Venture PEOPLE, not staff: they hold a
+      // venture_members row (member_type 'team_member') on a baseline Member
+      // identity, so they get the read side of their own Venture and nothing
+      // more. The venture_own scope is what confines them to the Venture they
+      // were actually added to.
+      "Venture Member": {
+        description: "Venture team member — read access to their own venture",
+        capabilities: {
+          ventures: { view: 1 },
+        },
+      },
     };
 
     // ── Create/update profiles and capabilities ──
@@ -1388,6 +1399,12 @@ export async function seedDefaultAccessProfiles() {
       // no role_capabilities('founder') seed, so this mapping only ADDS
       // ventures.view (it never narrows a legacy fallback).
       founder: "Founder",
+      // Venture team members are added as members FIRST (venture_members row),
+      // then given a team role — so the baseline `member` role is what has to
+      // carry the read capability. There is no role_capabilities('member')
+      // seed, so this mapping only ADDS ventures.view (it never narrows a
+      // legacy fallback). View only: scope still decides WHICH venture.
+      member: "Venture Member",
     };
 
     for (const [role, profileName] of Object.entries(roleDefaults)) {

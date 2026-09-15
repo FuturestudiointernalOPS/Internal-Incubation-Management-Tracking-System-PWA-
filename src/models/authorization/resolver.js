@@ -25,6 +25,7 @@ import {
   seedDefaultEligibility,
   seedLmsFeatureEligibility,
   seedVenturesMemberEligibility,
+  seedVenturesFounderEligibility,
   evaluateEligibility,
 } from "./eligibility";
 import { ensureCapabilityBackfills } from "./backfill";
@@ -61,6 +62,13 @@ function ensureEligibilitySeeded() {
         await runAuthzMigration(
           "eligibility-ventures-member-v1",
           seedVenturesMemberEligibility,
+        );
+        // Same gap for the founder baseline: `founder` was added to the ventures
+        // defaults after this database bootstrapped, so it needs its own
+        // catch-up (insert-only, separate marker).
+        await runAuthzMigration(
+          "eligibility-ventures-founder-v1",
+          seedVenturesFounderEligibility,
         );
         eligibilitySeeded = true;
       })().finally(() => {

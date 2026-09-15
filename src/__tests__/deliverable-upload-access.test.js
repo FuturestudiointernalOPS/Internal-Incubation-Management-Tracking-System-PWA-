@@ -53,7 +53,13 @@ describe("deliverable evidence upload access", () => {
     const src = read(ROUTE);
     expect(src).toContain("canDefineDeliverables");
     expect(src).toContain("canReviewDeliverable");
-    expect(src).toContain('capability: "review"');
+    // Every gate must name a module that exists in the capability catalog:
+    // `milestones` does not, and gating on it refuses every non-Super-Admin.
+    expect(src).not.toContain('module: "milestones"');
+    expect(src).toContain('module: "ventures"');
+    // Review is coarse at the capability layer on purpose — a scoped coach may
+    // hold view without edit — and canReviewDeliverable is the authority.
+    expect(src).toContain('capability: "view"');
   });
 
   test("evidence submissions are recorded on the deliverable (url + name)", () => {

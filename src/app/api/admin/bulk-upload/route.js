@@ -33,14 +33,16 @@ import {
 export async function POST(req) {
   try {
     await initDb();
-    // P1 gate migration: bulk imports are governed by their own module
-    // capability (bulk_upload.execute), not by permission-administration
-    // powers. Legacy holders of permissions.assign_capabilities were mapped
-    // additively on staging (before-image captured); production mapping is a
-    // documented rollout step before this deploys. The FUTURE STUDIO
+    // Bulk imports are allowed for anyone who works in CRM (product decision):
+    // either the dedicated bulk_upload.execute capability when it is granted,
+    // or the CRM module's create capability — importing contacts IS creating
+    // contacts. Super Admin bypasses the resolver entirely. The FUTURE STUDIO
     // protected-group boundary below remains an independent second gate.
-    const capError = await requireAuthorization("bulk_upload", "execute");
-    if (capError) return capError;
+    const ownCapError = await requireAuthorization("bulk_upload", "execute");
+    if (ownCapError) {
+      const crmCapError = await requireAuthorization("contacts", "create");
+      if (crmCapError) return crmCapError;
+    }
 
     const formData = await req.formData();
     const file = formData.get("file");

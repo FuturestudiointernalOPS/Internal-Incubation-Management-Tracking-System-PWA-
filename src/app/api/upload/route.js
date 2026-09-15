@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { createClient } from "@supabase/supabase-js";
 import { getActiveParticipantEnrollments } from "@/models/workspace";
+import { getContactContexts } from "@/models/authorization/contactContexts";
 
 // ── Server-side upload validation (mirrors src/lib/storage.js) ──
 const ALLOWED_MIME_TYPES = [
@@ -23,9 +24,10 @@ export async function POST(request) {
   try {
     // Phase 1.6 (C5a = A): authentication only here. Writes to the public
     // bucket are allowed for internal roles (SA/staff/PM), team-entity
-    // sessions (their own files) and verified participants/members holding an
-    // active program membership (self-service). Plain member accounts with no
-    // context cannot write to the public bucket.
+    // sessions (their own files), VENTURE PEOPLE (founders and team members —
+    // their Venture workspace needs attachments) and verified participants
+    // holding an active program membership (self-service). Plain member
+    // accounts with no context cannot write to the public bucket.
     const authError = await requireAuth();
     if (authError) return authError;
 
@@ -34,12 +36,19 @@ export async function POST(request) {
     const role = String(session?.role || "").toLowerCase();
     const internal = ["super_admin", "staff", "program_manager", "team"].includes(role);
     if (session && !internal) {
-      const enr = await getActiveParticipantEnrollments(session.cid);
-      if (enr.rows.length === 0) {
-        return NextResponse.json(
-          { success: false, error: "errors.insufficientPermissions" },
-          { status: 403 },
-        );
+      // Venture membership IS the qualification — there is no "venture" role to
+      // check, and a founder and a team member look the same here (a
+      // venture_members row). Resolved live, so a removed member loses it.
+      const { contexts } = await getContactContexts(session.cid, { email: session.email });
+      const isVenturePerson = (contexts || []).some((c) => c.type === "venture");
+      if (!isVenturePerson) {
+        const enr = await getActiveParticipantEnrollments(session.cid);
+        if (enr.rows.length === 0) {
+          return NextResponse.json(
+            { success: false, error: "errors.insufficientPermissions" },
+            { status: 403 },
+          );
+        }
       }
     }
 
