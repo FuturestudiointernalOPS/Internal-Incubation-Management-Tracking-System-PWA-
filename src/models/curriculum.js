@@ -405,7 +405,6 @@ export async function upsertWeeklyReport(
                    ?, ?,
                    ?, ?,
                    ?, ?, ?, ?,
-                   ?, ?,
                    ?, ?)
                   ON CONFLICT (program_id, week_number, teacher_id)
                   DO UPDATE SET
