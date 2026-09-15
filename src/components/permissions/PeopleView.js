@@ -146,6 +146,17 @@ export default function PeopleView({ person = null }) {
 
   const reasonFor = (state) => deriveDenialReason(state);
 
+  // Eligibility is the OUTER gate, mirroring authorize(): a feature-mapped
+  // module is allowed only when its feature is explicitly eligible. Super Admin
+  // bypasses eligibility entirely, and infra modules without a feature mapping
+  // are not eligibility-bound.
+  const eligibleFor = (module) => {
+    if (ctx?.isSuperAdmin) return true;
+    const feature = moduleToFeature[module];
+    if (!feature) return true;
+    return ctx?.eligibility?.[feature] === true;
+  };
+
   return (
     <div className="space-y-4">
       {/* Selected person */}
@@ -295,7 +306,7 @@ export default function PeopleView({ person = null }) {
                           <td colSpan={5} />
                         </tr>
                         {capsFor(m).map((cap) => {
-                          const s = deriveUserCapState(ctx.sources, m.module, cap);
+                          const s = deriveUserCapState(ctx.sources, m.module, cap, eligibleFor(m.module));
                           const reason = reasonFor(s);
                           return (
                             <tr
@@ -358,7 +369,7 @@ export default function PeopleView({ person = null }) {
                       </span>
                     </p>
                     {capsFor(m).map((cap) => {
-                      const s = deriveUserCapState(ctx.sources, m.module, cap);
+                      const s = deriveUserCapState(ctx.sources, m.module, cap, eligibleFor(m.module));
                       const reason = reasonFor(s);
                       return (
                         <button
