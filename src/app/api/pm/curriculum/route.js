@@ -429,7 +429,10 @@ export async function POST(req) {
   } catch (e) {
     console.error(e);
     return NextResponse.json(
-      { success: false, error: "Curriculum feature not available in this schema" },
+      {
+        success: false,
+        error: `Curriculum feature not available in this schema: ${e.message}`,
+      },
       { status: 501 },
     );
   }
@@ -551,7 +554,10 @@ export async function PUT(req) {
   } catch (e) {
     console.error(e);
     return NextResponse.json(
-      { success: false, error: "Curriculum feature not available in this schema" },
+      {
+        success: false,
+        error: `Curriculum feature not available in this schema: ${e.message}`,
+      },
       { status: 501 },
     );
   }
@@ -591,7 +597,10 @@ export async function DELETE(req) {
   } catch (e) {
     console.error(e);
     return NextResponse.json(
-      { success: false, error: "Curriculum feature not available in this schema" },
+      {
+        success: false,
+        error: `Curriculum feature not available in this schema: ${e.message}`,
+      },
       { status: 501 },
     );
   }
