@@ -61,7 +61,7 @@ export default function ReportResponses() {
   const [kpis, setKpis] = useState([]);
 
   const fetchData = useCallback(async (bypassCache = false) => {
-    const urls = ["/api/teacher/reports", "/api/pm/programs"];
+    const urls = ["/api/pm/reports", "/api/pm/programs"];
     const apply = (repData, progData) => {
       if (repData?.success) setReports(repData.reports || []);
       if (progData?.success) setPrograms(progData.programs || []);

@@ -74,7 +74,7 @@ export default function SuperAdminExecutiveView({ params }) {
   const fetchData = async (bypassCache = false) => {
     const urls = [
       `/api/pm/full-state?id=${id}`,
-      `/api/teacher/reports?program_id=${id}`,
+      `/api/pm/reports?program_id=${id}`,
       `/api/followups?program_id=${id}`,
       `/api/attendance?program_id=${id}`,
     ];
