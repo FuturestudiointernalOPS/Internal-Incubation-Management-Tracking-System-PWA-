@@ -14,6 +14,12 @@ const SESSION_DURATION_MS = SESSION_DURATION_HOURS * 60 * 60 * 1000;
 const REMEMBER_ME_DURATION_MS = REMEMBER_ME_DURATION_HOURS * 60 * 60 * 1000;
 const SESSION_CACHE_TTL = 15000; // 15s — a page's burst of getSession() calls hits the cache
 const _sessionCache = new Map();
+// Reads that are currently in flight, keyed by token. A page load fires several
+// requests at once, and on a cold cache they all miss `_sessionCache` in the
+// same instant — each would then issue the SAME session select in parallel
+// (observed as a burst of identical slow queries). The first caller performs the
+// read; the others await its result instead of duplicating it.
+const _sessionInflight = new Map();
 const _failureCache = new Map(); // Cache DB failures to avoid cascading timeouts
 const FAILURE_CACHE_TTL = 5000; // If DB fails, don't retry for 5s (avoids 30s lockouts on transient errors)
 
@@ -130,7 +136,7 @@ export async function getSession() {
       return null;
     }
 
-    // In-memory cache: avoid re-querying DB for the same token within 5s
+    // In-memory cache: avoid re-querying DB for the same token within the TTL
     const cacheKey = token;
     const cached = _sessionCache.get(cacheKey);
     if (cached && cached.expires > Date.now()) {
@@ -142,89 +148,23 @@ export async function getSession() {
       token.substring(0, 8) + "...",
     );
 
-    const tokenHash = hashToken(token);
+    // Share one read between callers that arrive before it resolves.
+    const inflight = _sessionInflight.get(cacheKey);
+    if (inflight) return inflight;
 
-    // Look up by token_hash FIRST so the unique partial index is used. The old
-    // `token_hash = ? OR token = ?` defeated the index → sequential scan (~1–2s).
-    // Legacy rows without a hash fall back to the plaintext token (PK-indexed).
-    let result = await db.execute({
-      sql: `SELECT s.*, c.name, c.email, c.status, c.group_name
-            FROM user_sessions s
-            LEFT JOIN contacts c ON s.user_cid = c.cid
-            WHERE s.expires_at > NOW() AND s.token_hash = ?`,
-      args: [tokenHash],
-    });
-    if (result.rows.length === 0) {
-      result = await db.execute({
-        sql: `SELECT s.*, c.name, c.email, c.status, c.group_name
-              FROM user_sessions s
-              LEFT JOIN contacts c ON s.user_cid = c.cid
-              WHERE s.expires_at > NOW() AND s.token = ?`,
-        args: [token],
+    const pending = readSessionFromToken(token)
+      .then((session) => {
+        if (session) cacheSession(cacheKey, session);
+        return session;
+      })
+      .finally(() => {
+        if (_sessionInflight.get(cacheKey) === pending) {
+          _sessionInflight.delete(cacheKey);
+        }
       });
-    }
 
-    if (result.rows.length === 0) {
-      console.log(
-        "[session] Token not in DB or expired — cookie token:",
-        token.substring(0, 8) + "...",
-      );
-      return null;
-    }
-
-    console.log("[session] Session FOUND in DB");
-
-    const session = result.rows[0];
-
-    // Lazily backfill the hash for legacy sessions stored before hashing was added.
-    if (session && !session.token_hash) {
-      db.execute({
-        sql: "UPDATE user_sessions SET token_hash = ? WHERE token = ?",
-        args: [tokenHash, token],
-      }).catch(() => {});
-    }
-
-    // Check user standing
-    const allowedStatuses = ["active", "approved"];
-    if (
-      session.status &&
-      !allowedStatuses.includes(session.status) &&
-      session.role !== "super_admin"
-    ) {
-      console.log(
-        "[session] User status rejected:",
-        session.status,
-        "role:",
-        session.role,
-      );
-      // NOTE: never destroy the session on the READ path — destroying here
-      // turns a bad status into a login loop (login creates a session, the
-      // next request deletes it). The session simply expires naturally.
-      _sessionCache.delete(token);
-      return null;
-    }
-
-    const result_session = {
-      cid: session.user_cid,
-      name: session.name,
-      email: session.email,
-      role: session.role,
-      group_name: session.group_name,
-      token: session.token,
-    };
-
-    // Cache the session for 5s
-    _sessionCache.set(token, {
-      session: result_session,
-      expires: Date.now() + SESSION_CACHE_TTL,
-    });
-    // Bounded session cache: evict the oldest entry when over the cap.
-    if (_sessionCache.size > SESSION_CACHE_MAX) {
-      const oldestKey = _sessionCache.keys().next().value;
-      if (oldestKey !== undefined) _sessionCache.delete(oldestKey);
-    }
-
-    return result_session;
+    _sessionInflight.set(cacheKey, pending);
+    return await pending;
   } catch (error) {
     console.error("Session validation error:", error.message);
     // Cache failure to prevent cascading timeouts (e.g., Supabase paused)
@@ -232,6 +172,99 @@ export async function getSession() {
     setTimeout(() => _failureCache.delete("db_down"), FAILURE_CACHE_TTL);
     return null;
   }
+}
+
+/** Store a resolved session in the bounded cache (evict oldest when over cap). */
+function cacheSession(token, session) {
+  _sessionCache.set(token, {
+    session,
+    expires: Date.now() + SESSION_CACHE_TTL,
+  });
+  if (_sessionCache.size > SESSION_CACHE_MAX) {
+    const oldestKey = _sessionCache.keys().next().value;
+    if (oldestKey !== undefined) _sessionCache.delete(oldestKey);
+  }
+}
+
+/**
+ * The actual session read: look the cookie token up (by hash first, then by
+ * plaintext for legacy rows), enforce user standing, and return the session
+ * shape — or null when the token is unknown, expired or rejected.
+ *
+ * Called at most once per token per in-flight window; the result is cached by
+ * the caller.
+ */
+async function readSessionFromToken(token) {
+  const tokenHash = hashToken(token);
+
+  // Look up by token_hash FIRST so the unique partial index is used. The old
+  // `token_hash = ? OR token = ?` defeated the index → sequential scan (~1–2s).
+  // Legacy rows without a hash fall back to the plaintext token (PK-indexed).
+  let result = await db.execute({
+    sql: `SELECT s.*, c.name, c.email, c.status, c.group_name
+          FROM user_sessions s
+          LEFT JOIN contacts c ON s.user_cid = c.cid
+          WHERE s.expires_at > NOW() AND s.token_hash = ?`,
+    args: [tokenHash],
+  });
+  if (result.rows.length === 0) {
+    result = await db.execute({
+      sql: `SELECT s.*, c.name, c.email, c.status, c.group_name
+            FROM user_sessions s
+            LEFT JOIN contacts c ON s.user_cid = c.cid
+            WHERE s.expires_at > NOW() AND s.token = ?`,
+      args: [token],
+    });
+  }
+
+  if (result.rows.length === 0) {
+    console.log(
+      "[session] Token not in DB or expired — cookie token:",
+      token.substring(0, 8) + "...",
+    );
+    return null;
+  }
+
+  console.log("[session] Session FOUND in DB");
+
+  const session = result.rows[0];
+
+  // Lazily backfill the hash for legacy sessions stored before hashing was added.
+  if (session && !session.token_hash) {
+    db.execute({
+      sql: "UPDATE user_sessions SET token_hash = ? WHERE token = ?",
+      args: [tokenHash, token],
+    }).catch(() => {});
+  }
+
+  // Check user standing
+  const allowedStatuses = ["active", "approved"];
+  if (
+    session.status &&
+    !allowedStatuses.includes(session.status) &&
+    session.role !== "super_admin"
+  ) {
+    console.log(
+      "[session] User status rejected:",
+      session.status,
+      "role:",
+      session.role,
+    );
+    // NOTE: never destroy the session on the READ path — destroying here turns
+    // a bad status into a login loop (login creates a session, the next request
+    // deletes it). The session simply expires naturally. A rejected session is
+    // never cached (this read completes before the caller caches it).
+    return null;
+  }
+
+  return {
+    cid: session.user_cid,
+    name: session.name,
+    email: session.email,
+    role: session.role,
+    group_name: session.group_name,
+    token: session.token,
+  };
 }
 
 /**
@@ -274,7 +307,10 @@ export async function destroySession() {
     const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
     if (token) {
-      _sessionCache.delete(token); // never serve a session we just destroyed
+      // Never serve a session we just destroyed — drop the cached copy AND any
+      // read that is still in flight (it must not re-cache the dead session).
+      _sessionCache.delete(token);
+      _sessionInflight.delete(token);
       const tokenHash = hashToken(token);
       await db.execute({
         sql: "DELETE FROM user_sessions WHERE token_hash = ? OR token = ?",

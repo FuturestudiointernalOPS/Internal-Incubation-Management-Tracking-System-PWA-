@@ -853,6 +853,48 @@ describe("lms module", () => {
     expect(authorize(ctx, "lms", "enroll")).toBe(false);
   });
 
+  // A page load issues several authorized requests at once; on a cold cache they
+  // all miss and would each run the same resolution queries in parallel.
+  test("concurrent readers of one user share ONE resolution", async () => {
+    const dbMock = require("@/lib/db").default;
+    const { getAuthorizationContext } = require("@/lib/authorization");
+    dbMock.execute.mockClear();
+
+    const user = { cid: "USER_SHARED_CONTEXT", role: "staff" };
+    const [a, b, c] = await Promise.all([
+      getAuthorizationContext(user),
+      getAuthorizationContext(user),
+      getAuthorizationContext(user),
+    ]);
+
+    expect(a).toBe(b);
+    expect(b).toBe(c);
+    const restrictionReads = dbMock.execute.mock.calls.filter((call) =>
+      /SELECT module, capability FROM user_capability_restrictions\s+WHERE user_cid/i.test(
+        typeof call[0] === "string" ? call[0] : call[0]?.sql || "",
+      ),
+    );
+    expect(restrictionReads).toHaveLength(1);
+  });
+
+  test("a context is reused from the cache, and invalidated on demand", async () => {
+    const dbMock = require("@/lib/db").default;
+    const { getAuthorizationContext, invalidateAuthorizationContext } = require("@/lib/authorization");
+
+    const user = { cid: "USER_CACHED_CONTEXT", role: "staff" };
+    const first = await getAuthorizationContext(user);
+
+    dbMock.execute.mockClear();
+    expect(await getAuthorizationContext(user)).toBe(first);
+    expect(dbMock.execute).not.toHaveBeenCalled();
+
+    // A permission write for that user must not keep serving the old answer.
+    invalidateAuthorizationContext(user.cid);
+    dbMock.execute.mockClear();
+    await getAuthorizationContext(user);
+    expect(dbMock.execute).toHaveBeenCalled();
+  });
+
   test("program_manager is eligible for the lms feature (PM surface is reachable)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.lms).toContain("program_manager");
