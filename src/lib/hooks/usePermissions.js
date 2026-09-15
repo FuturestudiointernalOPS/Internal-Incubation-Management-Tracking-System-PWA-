@@ -5,25 +5,33 @@ import { useState, useEffect, useCallback } from "react";
 /**
  * usePermissions — Client-side hook for unified role & permission checking.
  *
+ * Reads the CURRENT user's effective capabilities from /api/me/permissions —
+ * the same resolver output the sidebar uses, readable by ANY authenticated
+ * session (unlike /api/engineering/permissions, which requires
+ * permissions.view_matrix and is therefore admin-only).
+ *
  * Provides:
  *   - session      => { cid, name, email, role, group_name } | null
  *   - permissions  => { [module]: { [capability]: level } }   | null
  *   - responsibilities => [{ id, name, key, description, icon }]
+ *   - isSuperAdmin => boolean
  *   - loading      => boolean
  *   - error        => string | null
  *   - can(module, capability, minLevel?) => boolean
  *   - hasResponsibility(key)            => boolean
  *   - refresh()    => re-fetches everything
  *
+ * UI gating only: the server stays authoritative on every route.
+ *
  * Usage:
- *   const { session, can, loading } = usePermissions();
- *   if (can("engineering", "manage_tasks")) { ... }
- *   if (session?.role === "super_admin") { ... }
+ *   const { can, loading } = usePermissions();
+ *   if (can("lms", "edit")) { ... }   // hide a write affordance
  */
 export default function usePermissions() {
   const [session, setSession] = useState(null);
   const [permissions, setPermissions] = useState(null);
   const [responsibilities, setResponsibilities] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -39,13 +47,28 @@ export default function usePermissions() {
         setSession(null);
         setPermissions(null);
         setResponsibilities([]);
+        setIsSuperAdmin(false);
         return;
       }
 
       const user = sessionData.user;
       setSession(user);
 
-      // 2. Fetch responsibilities
+      // 2. Fetch the current user's effective capabilities (self-read).
+      try {
+        const permRes = await fetch("/api/me/permissions");
+        const permData = await permRes.json();
+        if (permData.success) {
+          setPermissions(permData.effective || null);
+          setIsSuperAdmin(Boolean(permData.isSuperAdmin));
+        } else {
+          setPermissions(null);
+        }
+      } catch {
+        setPermissions(null);
+      }
+
+      // 3. Fetch responsibilities
       try {
         const respRes = await fetch(
           `/api/responsibilities?user_cid=${user.cid}`,
@@ -56,19 +79,6 @@ export default function usePermissions() {
         }
       } catch {
         setResponsibilities([]);
-      }
-
-      // 3. Fetch permissions (V2 profile-based)
-      try {
-        const permRes = await fetch(
-          `/api/engineering/permissions?user_cid=${user.cid}`,
-        );
-        const permData = await permRes.json();
-        if (permData.success) {
-          setPermissions(permData.matrix || permData.permissions || null);
-        }
-      } catch {
-        setPermissions(null);
       }
     } catch (e) {
       setError(e.message);
@@ -83,18 +93,18 @@ export default function usePermissions() {
 
   /**
    * Check if the current user has a specific capability.
-   * Super admin always returns true unless explicitly restricted.
+   * A Super Admin returns true unless explicitly restricted (the resolver
+   * already baked that in: their effective matrix carries the restrictions).
    */
   const can = useCallback(
     (module, capability, minLevel = 1) => {
+      if (isSuperAdmin || session?.role === "super_admin") return true;
       if (!permissions) return false;
-      if (session?.role === "super_admin") return true;
       const modCaps = permissions[module];
       if (!modCaps) return false;
-      const level = modCaps[capability] || 0;
-      return level >= minLevel;
+      return Number(modCaps[capability] || 0) >= minLevel;
     },
-    [permissions, session],
+    [permissions, session, isSuperAdmin],
   );
 
   /**
@@ -111,6 +121,7 @@ export default function usePermissions() {
     session,
     permissions,
     responsibilities,
+    isSuperAdmin,
     loading,
     error,
     can,
