@@ -1751,7 +1751,7 @@ function AccessProfilesView({ initialProfileId = null }) {
                 )}
               </div>
 
-              <div className="sticky bottom-4 z-20 rounded-xl border border-[var(--border-primary)] bg-surface-1 p-3 space-y-2 shadow-lg">
+              <div className="rounded-xl border border-[var(--border-primary)] bg-surface-1 p-3 space-y-2 shadow-lg">
                 {impactTotal !== null && impactTotal > 0 && (
                   <p className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
                     {t("engineering.permissions.impactAffects", { total: impactTotal })}
