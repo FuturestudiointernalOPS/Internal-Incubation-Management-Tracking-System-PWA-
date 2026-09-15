@@ -586,6 +586,29 @@ export async function updateSessionExtraMaterials(extraMaterials, sessionId) {
   });
 }
 
+/**
+ * List weekly reports, newest first, optionally narrowed to one program and/or
+ * one week. The row shape is the stored `v2_weekly_reports` row (the
+ * `teacher_id` / `teacher_name` columns are storage and keep their names).
+ */
+export async function listWeeklyReports(programId, weekNumber) {
+  let sql = "SELECT * FROM v2_weekly_reports WHERE 1=1";
+  const args = [];
+
+  if (programId) {
+    sql += " AND program_id = ?";
+    args.push(programId);
+  }
+  if (weekNumber) {
+    sql += " AND week_number = ?";
+    args.push(parseInt(weekNumber));
+  }
+
+  sql += " ORDER BY created_at DESC";
+
+  return db.execute({ sql, args });
+}
+
 /** Upsert a weekly PM report keyed on (program_id, week_number, teacher_id). */
 export async function upsertWeeklyReport(
   programId,

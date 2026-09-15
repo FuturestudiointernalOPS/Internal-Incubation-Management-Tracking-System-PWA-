@@ -890,7 +890,7 @@ function ProgramWorkspace() {
         attachment_type: pmReportAttachments.type || null,
         attachment_url: pmReportAttachments.url || null,
       };
-      const res = await fetch("/api/pm/curriculum", {
+      const res = await fetch("/api/pm/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
