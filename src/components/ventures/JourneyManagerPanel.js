@@ -126,6 +126,14 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [coachOptions, setCoachOptions] = useState([]);
   // Sessions already booked on this venture, listed inside their milestone.
   const [ventureSessions, setVentureSessions] = useState([]);
+  // Journey reports, grouped by journey. A report BELONGS to a journey, so it is
+  // shown and written where the journey lives — never in a separate module.
+  const [reportsByStage, setReportsByStage] = useState({});
+  const [reportFor, setReportFor] = useState(null);
+  const [reportForm, setReportForm] = useState(null);
+  const [reportSaving, setReportSaving] = useState(false);
+  // Which report's content is open for reading (a report is written to be read).
+  const [reportOpenId, setReportOpenId] = useState(null);
   // The session's ONE note, edited in place (never appended to).
   const [noteEditFor, setNoteEditFor] = useState(null);
   const [noteDraft, setNoteDraft] = useState("");
@@ -161,6 +169,9 @@ export default function JourneyManagerPanel({ ventureId }) {
       .then((r) => r.json())
       .then((d) => { if (d.success) setVentureSessions(d.sessions || []); })
       .catch(() => {});
+    // Reports load independently too: a journey's report is owed whether or not
+    // anything else on this screen loaded.
+    loadReports();
   };
 
   useEffect(() => {
@@ -610,9 +621,11 @@ export default function JourneyManagerPanel({ ventureId }) {
       body: JSON.stringify(body),
     });
     const d = await res.json().catch(() => ({}));
-    if (d.success) return true;
+    // The payload matters, not just success: completing a milestone can CLOSE a
+    // journey, and the caller needs to know so it can ask for the closing report.
+    if (d.success) return d;
     notify(d.error || t("venture.manager.actionFailed"), "error");
-    return false;
+    return null;
   };
 
   const startMilestoneEdit = (ms) => {
@@ -934,6 +947,16 @@ export default function JourneyManagerPanel({ ventureId }) {
       if (ok) {
         notify(t("venture.manager.milestoneCompleted"));
         await load();
+        // Completing the LAST milestone of a journey closes it, and a closed
+        // journey is owed a report. The composer opens on that journey and the
+        // manager can simply dismiss it — that is what keeps the automatic close
+        // intact: the report is prompted, never required.
+        if (ok.journey_completed && ok.journey?.id) {
+          const closed = stages.find((s) => String(s.id) === String(ok.journey.id));
+          const name = ok.journey.name || closed?.name || "";
+          openReportComposer({ id: ok.journey.id, name }, "closing");
+          notify(t("venture.manager.journeyClosedWriteReport", { name }));
+        }
       }
       return;
     }
@@ -985,6 +1008,93 @@ export default function JourneyManagerPanel({ ventureId }) {
       .then((r) => r.json())
       .then((sd) => { if (sd.success) setVentureSessions(sd.sessions || []); })
       .catch(() => {});
+
+  const loadReports = () =>
+    fetch(`/api/ventures/${ventureId}/progress-reports`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.success) return;
+        const grouped = {};
+        for (const rep of d.reports || []) {
+          // Legacy period-based reports are not journey-anchored. They stay
+          // readable in history; they are simply not shown against a journey.
+          const key = String(rep.journey_stage_id || "");
+          if (!key) continue;
+          (grouped[key] ||= []).push(rep);
+        }
+        setReportsByStage(grouped);
+      })
+      .catch(() => {});
+
+  const reportStatusLabel = (status) =>
+    t(`venture.manager.reportStatuses.${["draft", "submitted", "reviewed", "archived"].includes(status) ? status : "draft"}`);
+
+  /** A textarea of bullet lines → the array the report stores (one per line). */
+  const linesToArray = (text) =>
+    String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);
+
+  const openReportComposer = (stage, kind = "progress") => {
+    setReportFor(stage.id);
+    setReportForm({
+      kind,
+      title: kind === "closing" ? t("venture.manager.closingReportTitle", { name: stage.name }) : "",
+      period: "",
+      summary: "",
+      completed: "",
+      outstanding: "",
+      support: "",
+      challenges: "",
+      recommendation: "",
+    });
+  };
+
+  /** Save the report this journey is owed, optionally submitting it to Super Admin. */
+  const saveReport = async (stage, submit) => {
+    const f = reportForm || {};
+    if (!String(f.title || "").trim()) {
+      notify(t("venture.manager.reportTitleRequired"), "error");
+      return;
+    }
+    setReportSaving(true);
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/progress-reports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: String(f.title).trim(),
+          journey_stage_id: stage.id,
+          report_kind: f.kind || "progress",
+          reporting_period: f.period || null,
+          summary: f.summary || null,
+          completed_items: linesToArray(f.completed),
+          outstanding_items: linesToArray(f.outstanding),
+          support_delivered: f.support || null,
+          challenges: f.challenges || null,
+          recommendation: f.recommendation || null,
+        }),
+      });
+      const d = await res.json();
+      if (!d.success) {
+        notify(d.error || t("venture.manager.actionFailed"), "error");
+        return;
+      }
+      if (submit) {
+        await fetch(`/api/ventures/${ventureId}/progress-reports`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: d.id, status: "submitted" }),
+        });
+      }
+      notify(t(submit ? "venture.manager.reportSubmitted" : "venture.manager.reportSaved"));
+      setReportFor(null);
+      setReportForm(null);
+      loadReports();
+    } catch (_) {
+      notify(t("venture.manager.actionFailed"), "error");
+    } finally {
+      setReportSaving(false);
+    }
+  };
 
   /** Save the session's single note. The server rewrites the SAME record the
    *  session was booked with — it never files a second note. */
@@ -1253,6 +1363,10 @@ export default function JourneyManagerPanel({ ventureId }) {
             const isDone = stage.status === "completed";
             const isActive = stage.status === "active";
             const isLocked = stage.status === "locked";
+            // A journey that has CLOSED without its closing report: the gap is
+            // shown in place and the button above writes exactly that report.
+            const closingMissing =
+              isDone && !(reportsByStage[String(stage.id)] || []).some((r) => r.report_kind === "closing");
             return (
               <div key={stage.id} className="relative pl-10">
                 {/* Timeline connector between stage nodes */}
@@ -1365,6 +1479,167 @@ export default function JourneyManagerPanel({ ventureId }) {
                           </div>
                         )}
                       </div>
+
+                      {/* The report this journey is owed. A report BELONGS to a
+                          journey, so it is written here — where the journey lives —
+                          and never in a separate module. */}
+                      {!stage.is_archived && (
+                        <div className="px-4 pb-3">
+                          <div className="rounded-xl border border-[var(--border-primary)] p-3 space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                {t("venture.manager.journeyReport")}
+                              </p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {(reportsByStage[String(stage.id)] || []).map((rep) => (
+                                    <button
+                                      key={rep.id}
+                                      type="button"
+                                      onClick={() => setReportOpenId(reportOpenId === rep.id ? null : rep.id)}
+                                      className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded transition-colors ${reportOpenId === rep.id ? "bg-[var(--brand-orange)]/20 text-[var(--brand-orange)]" : "bg-white/10 text-slate-400 hover:text-[var(--text-primary)]"}`}
+                                    >
+                                      {rep.report_kind === "closing" ? t("venture.manager.closingReport") : t("venture.manager.progressReport")} · {reportStatusLabel(rep.status)}
+                                    </button>
+                                  ))}
+                                  {reportFor !== stage.id && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openReportComposer(stage, closingMissing ? "closing" : "progress")}
+                                      className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]"
+                                    >
+                                      {closingMissing ? t("venture.manager.writeClosingReport") : t("venture.manager.writeReport")}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* The gap, visible in place: a journey that closed without its
+                                  closing report says so, and the button above writes that
+                                  report. Nothing is blocked; the omission is simply not silent. */}
+                              {closingMissing && (
+                                <p className="text-[10px] text-amber-400">{t("venture.manager.closingReportMissing")}</p>
+                              )}
+
+                              {/* Reading a report — what Super Admin comes here for. */}
+                              {(reportsByStage[String(stage.id)] || [])
+                                .filter((rep) => rep.id === reportOpenId)
+                                .map((rep) => (
+                                  <div key={`read-${rep.id}`} className="rounded-lg border border-[var(--border-primary)] p-2.5 space-y-1.5 text-[11px]">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <p className="font-bold text-[var(--text-primary)]">{rep.title}</p>
+                                      {rep.reporting_period && (
+                                        <span className="text-[9px] uppercase tracking-widest text-slate-500">
+                                          {t("venture.manager.reportPeriodLabel")}: {rep.reporting_period}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {rep.summary && <p className="text-[var(--text-secondary)] whitespace-pre-wrap">{rep.summary}</p>}
+                                    {[
+                                      ["completed_items", "reportCompleted"],
+                                      ["outstanding_items", "reportOutstanding"],
+                                    ].map(([field, key]) =>
+                                      Array.isArray(rep[field]) && rep[field].length > 0 ? (
+                                        <div key={field}>
+                                          <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t(`venture.manager.${key}`)}</p>
+                                          <ul className="list-disc pl-4 text-[var(--text-secondary)]">
+                                            {rep[field].map((it, i) => (<li key={i}>{it}</li>))}
+                                          </ul>
+                                        </div>
+                                      ) : null,
+                                    )}
+                                    {[
+                                      ["support_delivered", "reportSupport"],
+                                      ["challenges", "reportChallenges"],
+                                      ["recommendation", "reportRecommendation"],
+                                    ].map(([field, key]) =>
+                                      rep[field] ? (
+                                        <div key={field}>
+                                          <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t(`venture.manager.${key}`)}</p>
+                                          <p className="text-[var(--text-secondary)] whitespace-pre-wrap">{rep[field]}</p>
+                                        </div>
+                                      ) : null,
+                                    )}
+                                    {rep.submitted_at && (
+                                      <p className="text-[9px] text-slate-500">
+                                        {t("venture.manager.reportSubmittedOn", { date: new Date(rep.submitted_at).toLocaleDateString(lang) })}
+                                      </p>
+                                    )}
+                                  </div>
+                                ))}
+
+                            {reportFor === stage.id && reportForm && (
+                              <form onSubmit={(e) => { e.preventDefault(); saveReport(stage, false); }} className="space-y-2">
+                                {reportForm.kind === "closing" && (
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                                    {t("venture.manager.closingReport")}
+                                  </p>
+                                )}
+                                <div className="flex flex-wrap gap-2">
+                                  <input
+                                    value={reportForm.title}
+                                    onChange={(e) => setReportForm({ ...reportForm, title: e.target.value })}
+                                    required
+                                    placeholder={t("venture.manager.reportTitlePlaceholder")}
+                                    className="flex-1 min-w-[180px] px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                  />
+                                  <input
+                                    value={reportForm.period}
+                                    onChange={(e) => setReportForm({ ...reportForm, period: e.target.value })}
+                                    placeholder={t("venture.manager.reportPeriodPlaceholder")}
+                                    className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                                  />
+                                </div>
+                                {[
+                                  ["summary", "reportSummary"],
+                                  ["completed", "reportCompleted"],
+                                  ["outstanding", "reportOutstanding"],
+                                  ["support", "reportSupport"],
+                                  ["challenges", "reportChallenges"],
+                                  ["recommendation", "reportRecommendation"],
+                                ].map(([field, key]) => (
+                                  <label key={field} className="block space-y-1">
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">
+                                      {t(`venture.manager.${key}`)}
+                                    </span>
+                                    <textarea
+                                      value={reportForm[field]}
+                                      onChange={(e) => setReportForm({ ...reportForm, [field]: e.target.value })}
+                                      onInput={autoGrow}
+                                      rows={2}
+                                      placeholder={field === "completed" || field === "outstanding" ? t("venture.manager.reportOnePerLine") : undefined}
+                                      className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)] resize-none overflow-hidden min-h-[44px]"
+                                    />
+                                  </label>
+                                ))}
+                                <div className="flex flex-wrap justify-end gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setReportFor(null); setReportForm(null); }}
+                                    className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500"
+                                  >
+                                    {t("common.cancel")}
+                                  </button>
+                                  <button
+                                    type="submit"
+                                    disabled={reportSaving}
+                                    className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border-primary)] text-[var(--text-primary)] disabled:opacity-50"
+                                  >
+                                    {t("venture.manager.saveDraft")}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={reportSaving}
+                                    onClick={() => saveReport(stage, true)}
+                                    className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-[var(--brand-orange)] text-black disabled:opacity-50"
+                                  >
+                                    {t("venture.manager.submitReport")}
+                                  </button>
+                                </div>
+                              </form>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       {(milestones.length > 0 || (milestoneAuthority && !stage.is_archived)) && (
                         <div className="px-4 pb-4 space-y-2">

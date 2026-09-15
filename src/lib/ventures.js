@@ -347,6 +347,15 @@ export async function ensureVentureSchema() {
     // Vinance 3 Phase 3 — typed Venture Progress Reports (Manager → Super Admin)
     "CREATE TABLE IF NOT EXISTS venture_reports (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, title TEXT NOT NULL, reporting_period TEXT, summary TEXT, current_journey TEXT, current_milestone TEXT, completed_items JSONB DEFAULT '[]'::jsonb, outstanding_items JSONB DEFAULT '[]'::jsonb, support_delivered TEXT, challenges TEXT, recommendation TEXT, status TEXT NOT NULL DEFAULT 'draft', created_by TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), submitted_at TIMESTAMPTZ)",
     "CREATE INDEX IF NOT EXISTS idx_venture_reports_venture ON venture_reports(venture_id, status)",
+    // A report BELONGS to a journey. The period-based report stays valid, but
+    // "every journey needs a report" needs a real reference — `current_journey`
+    // is free text and can never be queried. Existing rows keep this NULL and are
+    // never back-filled by guessing at their free text.
+    "ALTER TABLE venture_reports ADD COLUMN IF NOT EXISTS journey_stage_id UUID",
+    // 'progress' (interim, any time) or 'closing' (the journey's final report).
+    // A journey has at most ONE closing report; extra interim reports are
+    // allowed and LABELLED, never blocked.
+    "ALTER TABLE venture_reports ADD COLUMN IF NOT EXISTS report_kind TEXT",
     // Milestone & task archiving (soft delete). Archived rows stay in the
     // database forever (history preserved) but are hidden from default lists.
     "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE",

@@ -163,6 +163,9 @@ export const PATCH = createHandler(async (req, { params }) => {
 
   // Approval cascade (Phase 3): completing a milestone unlocks the next
   // locked milestone in the same Journey stage, then founders are notified.
+  // The Journey outcome is carried out of the block below so the caller can be
+  // TOLD a journey just closed — that is the moment its closing report is owed.
+  let journeyOutcome = null;
   if (completing) {
     const vRes = await db.execute({
       sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?",
@@ -198,6 +201,11 @@ export const PATCH = createHandler(async (req, { params }) => {
         cid: session.cid,
       });
       if (stageOutcome?.completed) {
+        journeyOutcome = {
+          id: m?.journey_stage_id ? String(m.journey_stage_id) : null,
+          name: stageOutcome.stage_name || null,
+          next_stage_id: stageOutcome.next_stage_id || null,
+        };
         try {
           const { addVentureHistory } = await import("@/lib/ventures");
           await addVentureHistory({
@@ -223,5 +231,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     }
   }
 
-  return NextResponse.json({ success: true });
+  // `journey_completed` is additive: a caller that ignores it behaves exactly as
+  // before, and the manager UI uses it to offer the journey's closing report.
+  return NextResponse.json({ success: true, journey_completed: Boolean(journeyOutcome), journey: journeyOutcome });
 });

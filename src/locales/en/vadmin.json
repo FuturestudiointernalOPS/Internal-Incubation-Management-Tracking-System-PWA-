@@ -1,5 +1,28 @@
 {
   "vadmin": {
+    "journeyReports": {
+      "title": "Journey Reports",
+      "subtitle": "Every report written against a Venture's journeys — and the journeys that closed without one.",
+      "filterAll": "All",
+      "filterSubmitted": "Awaiting review",
+      "filterDraft": "Drafts",
+      "filterReviewed": "Reviewed",
+      "missingTitle": "Journeys closed without a closing report: {n}",
+      "noReports": "No reports yet.",
+      "noJourney": "No journey",
+      "closingReport": "Closing report",
+      "interimReport": "Interim report",
+      "closedOn": "closed {date}",
+      "submittedOn": "submitted {date}",
+      "openJourney": "Open journey",
+      "loadFailed": "Reports could not be loaded.",
+      "statuses": {
+        "draft": "Draft",
+        "submitted": "Awaiting review",
+        "reviewed": "Reviewed",
+        "archived": "Archived"
+      }
+    },
     "admin": {
       "settingUpdated": "Setting updated",
       "featureEnabled": "Feature enabled",

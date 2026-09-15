@@ -3,16 +3,20 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction, resolveVentureCode } from "@/lib/ventureOperatingPlans";
 import { isStaffActorForVenture, roleIsPrivileged } from "@/lib/ventureAuth";
-import { createVentureReport, listVentureReports, getVentureReport, updateVentureReportStatus } from "@/lib/ventureReports";
+import { createVentureReport, listVentureReports, getVentureReport, updateVentureReportStatus, listJourneysMissingClosingReport } from "@/lib/ventureReports";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Venture Progress Reports (Vinance 3 — Phase 3, doc §14).
  *
- * GET  /api/ventures/[id]/progress-reports[?status=submitted&id=N]
+ * GET  /api/ventures/[id]/progress-reports[?status=submitted&id=N
+ *                                          &journey_stage_id=<uuid>&missing_reports=1]
  *      — read reports (staff with an active Venture assignment or global role)
- * POST { title, reporting_period, summary, … } — Manager composes a report
+ *        `missing_reports` answers a different question: which journeys have
+ *        CLOSED without their closing report.
+ * POST { title, journey_stage_id, report_kind: progress|closing, … }
+ *      — Manager composes a report
  * PATCH { id, status: draft|submitted|reviewed|archived } — submit/review
  *
  * Writes require `operating_plan` manage (Manager authority); reads are
@@ -45,7 +49,18 @@ export async function GET(req, { params }) {
       if (!report) return NextResponse.json({ success: false, error: "Report not found." }, { status: 404 });
       return NextResponse.json({ success: true, report });
     }
-    const reports = await listVentureReports(db, { code, status: s.get("status") || null });
+    // Super Admin's gap view: journeys that closed WITHOUT their closing report.
+    // Nothing is ever blocked on the report — the gap is simply visible.
+    if (s.get("missing_reports")) {
+      const journeys = await listJourneysMissingClosingReport(db, { code });
+      return NextResponse.json({ success: true, journeys_missing_report: journeys });
+    }
+
+    const reports = await listVentureReports(db, {
+      code,
+      status: s.get("status") || null,
+      journeyStageId: s.get("journey_stage_id") || null,
+    });
     return NextResponse.json({ success: true, reports });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
