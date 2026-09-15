@@ -12,7 +12,7 @@ import CourseView from "./CourseView";
 import EnrollModal from "./EnrollModal";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
-import usePermissions from "@/lib/hooks/usePermissions";
+import { usePermissions } from "@/lib/PermissionProvider";
 
 /**
  * Course workspace. Opening a course shows a READ-ONLY presentation: the first

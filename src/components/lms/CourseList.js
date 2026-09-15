@@ -13,7 +13,7 @@ import CourseThumb from "./CourseThumb";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/constants";
-import usePermissions from "@/lib/hooks/usePermissions";
+import { usePermissions } from "@/lib/PermissionProvider";
 
 const STATUS_OPTIONS = [
   { value: "", label: "all" },
