@@ -1475,6 +1475,21 @@ export async function ensureResponsibilitiesSchema() {
       await db.execute(`ALTER TABLE user_responsibilities ADD COLUMN IF NOT EXISTS assigned_by TEXT`);
       await db.execute(`ALTER TABLE user_responsibilities ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
       await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS user_responsibilities_user_cid_responsibility_id_key ON user_responsibilities (user_cid, responsibility_id)`);
+
+      // Grant ledger: records ONLY the capability grants a responsibility
+      // CREATED, so removing the responsibility revokes exactly those (never a
+      // pre-existing manual grant). See src/models/responsibilities.js.
+      await db.execute(`CREATE TABLE IF NOT EXISTS responsibility_capability_grants (
+        id SERIAL PRIMARY KEY,
+        user_cid TEXT NOT NULL,
+        responsibility_key TEXT NOT NULL,
+        module TEXT NOT NULL,
+        capability TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(user_cid, responsibility_key, module, capability)
+      )`);
+      await db.execute(`CREATE INDEX IF NOT EXISTS idx_resp_cap_grants_cid ON responsibility_capability_grants(user_cid)`);
+      await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS responsibility_capability_grants_key ON responsibility_capability_grants (user_cid, responsibility_key, module, capability)`);
       return true;
     })().catch((e) => {
       console.warn("[Auth] ensureResponsibilitiesSchema failed:", e.message);
