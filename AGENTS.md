@@ -5,6 +5,16 @@ If you are an AI agent: STOP and read this entire document before making any cha
 
 ---
 
+## Production test — what the phrase means
+
+When the user says **"production test"**, they mean **`docs/PRODUCTION_TEST.md`**:
+the pre-promotion checklist for branch **`G` → `main`**. Work it item by item and
+report a status for each one. It is *not* `npm test` and *not* `npm run build` —
+production and staging are **different databases**, so a green build never
+substitutes for it.
+
+---
+
 ## 1. Internationalization (i18n) — CRITICAL
 
 **Every user-visible string MUST use the `t()` function.** No exceptions.
@@ -241,3 +251,4 @@ edge-to-edge content, that behavior is pathname-based inside DashboardLayout.
 - [ ] If adding/editing a page: return only the page content — the section layout already renders `<DashboardLayout>` (see table above)
 - [ ] If adding/editing data access or SQL: put the query in `src/models/<domain>.js` (models only; never in routes/pages)
 - [ ] Run `npm run lint` (0 errors) and `npm run build` to verify zero errors
+- [ ] Promoting to production (branch `G` → `main`): run the **production test** — `docs/PRODUCTION_TEST.md`
