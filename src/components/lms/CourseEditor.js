@@ -23,7 +23,7 @@ import { useI18n } from "@/lib/i18n";
  * status actions). Server-side authorization is enforced by every API call
  * (lms.view / edit / publish / delete / enroll).
  */
-export default function CourseEditor({ courseId }) {
+export default function CourseEditor({ courseId, basePath = "/admin/lms/courses" }) {
   const { t } = useI18n();
   const router = useRouter();
   const [course, setCourse] = useState(null);
@@ -137,7 +137,7 @@ export default function CourseEditor({ courseId }) {
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.courses.deleted");
-      router.push("/admin/lms/courses");
+      router.push(basePath);
     } catch (e) {
       notify("error", e.message || "lms.errors.saveFailed");
     }
@@ -158,7 +158,7 @@ export default function CourseEditor({ courseId }) {
         <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
           {t(loadError || "lms.errors.loadFailedCourse")}
         </p>
-        <AppButton variant="secondary" onClick={() => router.push("/admin/lms/courses")}>
+        <AppButton variant="secondary" onClick={() => router.push(basePath)}>
           {t("lms.courses.backToCourses")}
         </AppButton>
       </div>
@@ -171,7 +171,7 @@ export default function CourseEditor({ courseId }) {
       <div className="flex flex-col gap-4">
         <button
           type="button"
-          onClick={() => router.push("/admin/lms/courses")}
+          onClick={() => router.push(basePath)}
           className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors self-start"
           style={{ color: "var(--text-tertiary)" }}
         >

@@ -251,6 +251,7 @@ export const ROLE_ACCESS = {
       programs: "/pm/programs",
       messages: "/pm/messages",
       internal_reports: "/staff/op-report",
+      lms_courses: "/pm/lms/courses",
     },
     icons: {},
   },
@@ -388,6 +389,11 @@ export const NAV_CAPABILITY_REQUIREMENTS = {
   security: { module: "settings", capability: "view" },
   programs: { module: "programs", capability: "view" },
   knowledge: { module: "knowledge", capability: "view" },
+  // LMS — course authoring. Admin-capable roles (super_admin, developer) open
+  // the /admin/lms pages directly; a role without a reachable non-admin landing
+  // still has the node DROPPED by the projection (no dead links), so this
+  // requirement never leaks an /admin link to a non-admin role.
+  lms: { module: "lms", capability: "view" },
   reports: { module: "reports", capability: "view" },
   ventures: { module: "ventures", capability: "view" },
   investors: { module: "investor", capability: "view" },
@@ -410,6 +416,7 @@ export const NON_ADMIN_HREF_FALLBACKS = {
   crm_membership: "/crm/membership",
   crm_timeline: "/crm/timeline",
   forms: "/platform",
+  lms_courses: "/pm/lms/courses",
 };
 
 /** Pure capability check against an effective matrix. */

@@ -25,7 +25,7 @@ const STATUS_OPTIONS = [
  * LMS course-management list: search, status filter, open / publish / archive.
  * Server-side authorization is enforced by every API call (lms.view / publish / edit).
  */
-export default function CourseList() {
+export default function CourseList({ basePath = "/admin/lms/courses" }) {
   const { t } = useI18n();
   const router = useRouter();
   const [courses, setCourses] = useState([]);
@@ -95,7 +95,7 @@ export default function CourseList() {
         <AppButton
           variant="primary"
           icon={Plus}
-          onClick={() => router.push("/admin/lms/courses/new")}
+          onClick={() => router.push(`${basePath}/new`)}
         >
           {t("lms.courses.create")}
         </AppButton>
@@ -154,7 +154,7 @@ export default function CourseList() {
                 <AppButton
                   variant="primary"
                   icon={Plus}
-                  onClick={() => router.push("/admin/lms/courses/new")}
+                  onClick={() => router.push(`${basePath}/new`)}
                 >
                   {t("lms.courses.create")}
                 </AppButton>
@@ -199,7 +199,7 @@ export default function CourseList() {
                   variant="secondary"
                   size="sm"
                   icon={Eye}
-                  onClick={() => router.push(`/admin/lms/courses/${course.id}`)}
+                  onClick={() => router.push(`${basePath}/${course.id}`)}
                 >
                   {t("lms.courses.open")}
                 </AppButton>

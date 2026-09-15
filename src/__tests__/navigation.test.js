@@ -433,7 +433,7 @@ describe("capability projection — buildAccessNav contract", () => {
     expect(nav.map((i) => i.href)).toEqual(["/admin", "/admin/projects", "/admin/reports"]);
   });
 
-  test("role-only sections (rituals, lms) are never granted by a capability", () => {
+  test("role-only sections (rituals) are never granted by a capability", () => {
     const everything = Object.fromEntries(
       Object.entries(NAV_CAPABILITY_REQUIREMENTS).map(([, req]) => [
         req.module,
@@ -442,7 +442,23 @@ describe("capability projection — buildAccessNav contract", () => {
     );
     const staff = ids(buildAccessNav("staff", everything));
     expect(staff).not.toContain("rituals");
-    expect(staff).not.toContain("lms");
+  });
+
+  test("lms is capability-grantable and lands on a reachable page per role", () => {
+    const everything = Object.fromEntries(
+      Object.entries(NAV_CAPABILITY_REQUIREMENTS).map(([, req]) => [
+        req.module,
+        { [req.capability]: 5 },
+      ]),
+    );
+    // Admin-capable role → keeps the admin landing.
+    const devLms = buildAccessNav("developer", everything).find((i) => i.id === "lms");
+    expect(devLms).toBeDefined();
+    expect(devLms.subItems[0].href).toBe("/admin/lms/courses");
+    // Program manager → the non-admin landing (never an /admin link).
+    const pmLms = buildAccessNav("program_manager", everything).find((i) => i.id === "lms");
+    expect(pmLms).toBeDefined();
+    expect(pmLms.subItems[0].href).toBe("/pm/lms/courses");
   });
 
   test("non-admin navigation never renders an /admin link", () => {
