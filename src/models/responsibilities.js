@@ -125,19 +125,38 @@ export async function getContactByCid(cid) {
 // ── Responsibility ↔ capability alignment (Option 1) ─────────────────────────
 
 /**
+ * Modules a responsibility owns that carry a base `view` capability.
+ *
+ * Modules come from the reverse of MODULE_TO_FEATURE (single source: a module
+ * whose feature equals the responsibility key). `locked` modules (duplicates)
+ * and modules with no `view` capability (facilitator) are excluded — they have
+ * no base to grant.
+ */
+function responsibilityViewModules(responsibilityKey) {
+  return Object.entries(MODULE_TO_FEATURE)
+    .filter(([, feature]) => feature === responsibilityKey)
+    .map(([module]) => module)
+    .filter(
+      (mod) =>
+        !CAPABILITY_CATALOG[mod]?.locked &&
+        Boolean(CAPABILITY_CATALOG[mod]?.capabilities?.view),
+    );
+}
+
+/**
  * Grant the base `view` capability of every module owned by the
  * responsibility's feature, so a responsibility is never a dead-end (sidebar
  * shows the area AND its pages can actually load).
  *
- * Modules come from the reverse of MODULE_TO_FEATURE (single source: a module
- * whose feature equals the responsibility key). Only modules exposing a
- * `view` capability are touched. Grants are additive and idempotent
- * (INSERT … ON CONFLICT DO NOTHING): an existing manual grant, restriction or
- * higher level is never overwritten, and removing the responsibility never
- * revokes them (they may be shared with an access profile).
+ * Grants are additive and idempotent (INSERT … ON CONFLICT DO NOTHING): an
+ * existing manual grant, restriction or higher level is never overwritten.
+ * Every grant THIS call creates is also recorded in
+ * `responsibility_capability_grants`, so unassigning the responsibility can
+ * revoke exactly what it created (a pre-existing manual grant is left
+ * untracked and therefore never revoked).
  *
- * Responsibilities whose feature owns no module (none today) grant nothing
- * here — their pages rely on manual grants/profiles.
+ * Responsibilities whose feature owns no module (e.g. org_membership) grant
+ * nothing here — their pages rely on manual grants/profiles.
  *
  * @returns {Promise<string[]>} granted `<module>.view` entries (informational).
  */
@@ -145,25 +164,96 @@ export async function grantResponsibilityBaseAccess({ userCid, responsibilityKey
   const granted = [];
   if (!userCid || !responsibilityKey) return granted;
 
-  const modules = Object.entries(MODULE_TO_FEATURE)
-    .filter(([, feature]) => feature === responsibilityKey)
-    .map(([module]) => module);
-
-  for (const mod of modules) {
-    // P1 catalog truth: modules marked `locked` (e.g. duplicates — super-admin
-    // role-locked until a later phase opens them) never enter responsibility
-    // base grants. The catalog is the single source for this decision.
-    if (CAPABILITY_CATALOG[mod]?.locked) continue;
-    if (!CAPABILITY_CATALOG[mod]?.capabilities?.view) continue;
-    await db.execute({
+  for (const mod of responsibilityViewModules(responsibilityKey)) {
+    // RETURNING tells us whether THIS call created the grant. A capability the
+    // user already held (manual grant, another responsibility) returns no row,
+    // so it is neither reported nor tracked — and never revoked later.
+    const res = await db.execute({
       sql: `INSERT INTO user_capabilities (user_cid, module, capability, access_level, granted_by)
             VALUES (?, ?, 'view', 1, ?)
-            ON CONFLICT (user_cid, module, capability) DO NOTHING`,
+            ON CONFLICT (user_cid, module, capability) DO NOTHING
+            RETURNING module`,
       args: [userCid, mod, grantedBy],
+    });
+    if (!(res.rows || []).length) continue;
+    await trackResponsibilityGrant({
+      userCid,
+      responsibilityKey,
+      module: mod,
+      capability: "view",
     });
     granted.push(`${mod}.view`);
   }
   return granted;
+}
+
+/** Record a capability a responsibility CREATE, so removal can revoke it. */
+export async function trackResponsibilityGrant({ userCid, responsibilityKey, module, capability }) {
+  return db.execute({
+    sql: `INSERT INTO responsibility_capability_grants (user_cid, responsibility_key, module, capability)
+          VALUES (?, ?, ?, ?)
+          ON CONFLICT (user_cid, responsibility_key, module, capability) DO NOTHING`,
+    args: [userCid, responsibilityKey, module, capability],
+  });
+}
+
+/** The capability grants a responsibility created for one user. */
+export async function listResponsibilityGrants(userCid, responsibilityKey) {
+  return db.execute({
+    sql: `SELECT module, capability FROM responsibility_capability_grants
+          WHERE user_cid = ? AND responsibility_key = ?`,
+    args: [userCid, responsibilityKey],
+  });
+}
+
+/**
+ * Revoke the base grants a responsibility CREATED for a user (its
+ * `responsibility_capability_grants` ledger).
+ *
+ * Only tracked grants are touched, and only at the base level (1) this
+ * responsibility set — a deliberately raised level is left alone. A capability
+ * another responsibility still tracks is kept. Rights coming from a profile or
+ * a group live in other tables and are unaffected.
+ *
+ * @returns {Promise<string[]>} revoked `<module>.<capability>` entries.
+ */
+export async function revokeResponsibilityBaseAccess({ userCid, responsibilityKey }) {
+  const revoked = [];
+  if (!userCid || !responsibilityKey) return revoked;
+
+  const tracked = await listResponsibilityGrants(userCid, responsibilityKey);
+  const mine = tracked.rows || [];
+
+  // Drop this responsibility's ledger FIRST, so the guard below only sees OTHER
+  // responsibilities that still hold the same capability.
+  await db.execute({
+    sql: `DELETE FROM responsibility_capability_grants
+          WHERE user_cid = ? AND responsibility_key = ?`,
+    args: [userCid, responsibilityKey],
+  });
+
+  for (const row of mine) {
+    const res = await db.execute({
+      sql: `DELETE FROM user_capabilities
+            WHERE user_cid = ? AND module = ? AND capability = ? AND access_level = 1
+              AND NOT EXISTS (
+                SELECT 1 FROM responsibility_capability_grants g
+                WHERE g.user_cid = ? AND g.module = ? AND g.capability = ?
+              )`,
+      args: [
+        userCid,
+        row.module,
+        row.capability,
+        userCid,
+        row.module,
+        row.capability,
+      ],
+    });
+    if (Number(res.rowsAffected ?? 0) > 0) {
+      revoked.push(`${row.module}.${row.capability}`);
+    }
+  }
+  return revoked;
 }
 
 // ── PUT /api/responsibilities/access ─────────────────────────────────────────

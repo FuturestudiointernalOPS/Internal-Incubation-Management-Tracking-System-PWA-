@@ -51,12 +51,18 @@ export function ensureCapabilityBackfills() {
           runAuthzMigration("cap-backfill-knowledge", ensureKnowledgeBackfill),
           runAuthzMigration("cap-backfill-reports", ensureReportsBackfill),
           runAuthzMigration("cap-backfill-announcements", ensureAnnouncementsBackfill),
+          runAuthzMigration("cap-backfill-forms", ensureFormsBackfill),
+          runAuthzMigration("cap-backfill-runs", ensureRunsBackfill),
           runAuthzMigration("cap-backfill-projects", ensureProjectsBackfill),
           runAuthzMigration("cap-backfill-tasks", ensureTasksBackfill),
           runAuthzMigration("cap-backfill-engineering", ensureEngineeringBackfill),
           runAuthzMigration("cap-backfill-programs", ensureProgramsBackfill),
           runAuthzMigration("cap-backfill-ventures", ensureVenturesBackfill),
           runAuthzMigration("cap-backfill-investor", ensureInvestorBackfill),
+          // LMS became a capability-grantable feature behind `lms.view` with a
+          // Program Manager surface — existing DBs need the PM grant (the seed
+          // only applies to profiles created after the change).
+          runAuthzMigration("cap-backfill-lms-view", ensureLmsViewBackfill),
           runAuthzMigration("lms-capability-retirement-v1", ensureLmsCapabilityRetirement),
           // One-time policy migrations — run once per database, then the
           // Permissions UI owns eligibility configuration (see migrations.js).
@@ -280,6 +286,113 @@ async function ensureAnnouncementsBackfill() {
   }
 
   for (const [role, rows] of Object.entries(ANNOUNCEMENTS_BACKFILL.roles)) {
+    for (const [module, capability, level] of rows) {
+      await db.execute({
+        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
+              VALUES (?, ?, ?, ?)
+              ON CONFLICT (role, module, capability) DO NOTHING`,
+        args: [role, module, capability, level],
+      });
+    }
+  }
+}
+
+// ─── Communication: Forms module ─────────────────────────────────────────────
+// The Forms builder (/platform/forms, /api/platform/forms) was guarded by a
+// legacy role allowlist: reads allowed super_admin / admin / staff, writes
+// super_admin / admin. The module is now capability-gated
+// (forms.view/create/edit/delete) so it is configurable from the Permissions
+// template. This backfill reproduces the READ population only — writes stay
+// Super-Admin-by-default (SA bypasses) and become grantable per template,
+// matching the legacy gate once admin normalizes to staff at login.
+const FORMS_BACKFILL = {
+  profiles: {
+    "Staff Default": [["forms", "view", 1]],
+  },
+  roles: {
+    staff: [["forms", "view", 1]],
+  },
+};
+
+async function ensureFormsBackfill() {
+  await ensurePermissionsSchema();
+
+  for (const [profileName, rows] of Object.entries(FORMS_BACKFILL.profiles)) {
+    const profile =
+      (
+        await db.execute({
+          sql: "SELECT id FROM access_profiles WHERE name = ? AND is_active = 1",
+          args: [profileName],
+        })
+      ).rows[0] || null;
+    if (!profile) continue;
+    for (const [module, capability, level] of rows) {
+      await db.execute({
+        sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+              VALUES (?, ?, ?, ?)
+              ON CONFLICT (profile_id, module, capability) DO NOTHING`,
+        args: [profile.id, module, capability, level],
+      });
+    }
+  }
+
+  for (const [role, rows] of Object.entries(FORMS_BACKFILL.roles)) {
+    for (const [module, capability, level] of rows) {
+      await db.execute({
+        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
+              VALUES (?, ?, ?, ?)
+              ON CONFLICT (role, module, capability) DO NOTHING`,
+        args: [role, module, capability, level],
+      });
+    }
+  }
+}
+
+// ─── Communication: Runs module ──────────────────────────────────────────────
+// Runs were gated by a legacy role allowlist on GET
+// (super_admin / admin / staff / program_manager) while the sidebar hard-coded
+// `platform-runs` to super_admin — the mismatch behind "communication users".
+// The module is now capability-gated (runs.view/create/edit/delete). This
+// backfill reproduces the legacy READ population so the sidebar and the API
+// finally agree; writes stay Super-Admin-by-default (SA bypass) and become
+// grantable per template. Program-manager write actions (assign / unassign /
+// send messages) were only reachable from a page PMs could not open, so no
+// reachable workflow changes — grant runs.edit explicitly to restore them.
+const RUNS_BACKFILL = {
+  profiles: {
+    "Staff Default": [["runs", "view", 1]],
+    "Program Manager": [["runs", "view", 1]],
+  },
+  roles: {
+    staff: [["runs", "view", 1]],
+    program_manager: [["runs", "view", 1]],
+    admin: [["runs", "view", 1]],
+  },
+};
+
+async function ensureRunsBackfill() {
+  await ensurePermissionsSchema();
+
+  for (const [profileName, rows] of Object.entries(RUNS_BACKFILL.profiles)) {
+    const profile =
+      (
+        await db.execute({
+          sql: "SELECT id FROM access_profiles WHERE name = ? AND is_active = 1",
+          args: [profileName],
+        })
+      ).rows[0] || null;
+    if (!profile) continue;
+    for (const [module, capability, level] of rows) {
+      await db.execute({
+        sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+              VALUES (?, ?, ?, ?)
+              ON CONFLICT (profile_id, module, capability) DO NOTHING`,
+        args: [profile.id, module, capability, level],
+      });
+    }
+  }
+
+  for (const [role, rows] of Object.entries(RUNS_BACKFILL.roles)) {
     for (const [module, capability, level] of rows) {
       await db.execute({
         sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
@@ -825,6 +938,62 @@ async function ensureLmsCapabilityRetirement() {
     });
   }
   return { success: true };
+}
+
+// ─── Phase 12b: LMS view for the Program Manager profile ─────────────────────
+// The LMS section was promoted to a capability-grantable feature: every course
+// and program-learning route is gated on `lms.view` (the PM surface lives at
+// /pm/lms/courses, and the program workspace renders a learning section per
+// session). `seedDefaultAccessProfiles` adds `lms: { view: 1 }` to the
+// "Program Manager" profile, but seeds only ever CREATE — a database seeded
+// before the promotion keeps a Program Manager profile with no `lms` row, so
+// every PM learning surface answers 403 for a capability the role is supposed
+// to hold. Reproduce the seed's grant (missing rows only; an administrator's
+// explicit configuration is never overwritten).
+const LMS_VIEW_BACKFILL = {
+  profiles: {
+    "Program Manager": [["lms", "view", 1]],
+  },
+  // Fallback for profile-less program managers (the resolver reads
+  // role_capabilities when no access profile resolves).
+  roles: {
+    program_manager: [["lms", "view", 1]],
+  },
+};
+
+// Exported for the migration tests (see authorization-resolver.test.js).
+export async function ensureLmsViewBackfill() {
+  await ensurePermissionsSchema();
+
+  for (const [profileName, rows] of Object.entries(LMS_VIEW_BACKFILL.profiles)) {
+    const profile =
+      (
+        await db.execute({
+          sql: "SELECT id FROM access_profiles WHERE name = ? AND is_active = 1",
+          args: [profileName],
+        })
+      ).rows[0] || null;
+    if (!profile) continue;
+    for (const [module, capability, level] of rows) {
+      await db.execute({
+        sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+              VALUES (?, ?, ?, ?)
+              ON CONFLICT (profile_id, module, capability) DO NOTHING`,
+        args: [profile.id, module, capability, level],
+      });
+    }
+  }
+
+  for (const [role, rows] of Object.entries(LMS_VIEW_BACKFILL.roles)) {
+    for (const [module, capability, level] of rows) {
+      await db.execute({
+        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
+              VALUES (?, ?, ?, ?)
+              ON CONFLICT (role, module, capability) DO NOTHING`,
+        args: [role, module, capability, level],
+      });
+    }
+  }
 }
 
 const MESSAGING_INTERNAL_ROLES = [

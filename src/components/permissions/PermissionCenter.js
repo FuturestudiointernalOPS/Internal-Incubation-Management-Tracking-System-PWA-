@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Shield,
   Search,
@@ -21,10 +21,13 @@ import {
   EyeOff,
   Award,
   Pencil,
+  Ban,
+  RotateCcw,
 } from "lucide-react";
 import AppPagination from "@/components/ui/AppPagination";
 import { useI18n } from "@/lib/i18n";
 import { capabilityLabel, CAPABILITY_CATALOG, moduleCapabilityParents } from "@/lib/authorization/capability-catalog";
+import { FEATURE_ORDER } from "@/models/authorization/eligibility-defaults";
 import { deriveMembershipStatus } from "@/lib/membership-ui";
 import {
   isResponsibilityBlockedForRole,
@@ -42,7 +45,7 @@ import { splitAuditReason } from "@/components/permissions/auditHelpers";
 import { deriveProfileBadges } from "@/components/permissions/profileBadges";
 import FeatureMatrixSection from "@/components/permissions/FeatureMatrixSection";
 import AdvancedCapabilities from "@/components/permissions/AdvancedCapabilities";
-import { groupModulesByFeature, buildSubsectionRows, toggleCapability, toggleFullCapabilities, filterSectionsByRoleEligibility, crudCapabilities } from "@/components/permissions/matrixHelpers";
+import { groupModulesByFeature, buildSubsectionRows, toggleCapability, toggleFullCapabilities, filterSectionsByRoleEligibility, crudCapabilities, CRUD_CAPABILITIES, collectHiddenStoredCaps, eligibleFeaturesForPerson, isPersonEligibleForFeature } from "@/components/permissions/matrixHelpers";
 import { defer } from "@/components/permissions/effectUtils";
 
 const ACCESS_LEVEL_KEYS = {
@@ -57,30 +60,23 @@ const ACCESS_SHORT = { 0: "—", 1: "V", 2: "C", 3: "E", 4: "D", 5: "All" };
 
 const LEVELS_ORDER = [0, 1, 2, 3, 4, 5];
 
-const ACCESS_COLORS = {
-  0: "text-slate-500",
-  1: "text-blue-400",
-  2: "text-emerald-400",
-  3: "text-amber-400",
-  4: "text-red-400",
-  5: "text-purple-400",
+// Person screen — level chips share the TEMPLATE matrix's visual language
+// (View / Create / Edit / Delete / Full), so both screens read the same way.
+// An active chip is coloured by level for a PERSONAL grant and neutral for an
+// inherited right; the origin dot carries the same information.
+const LEVEL_CHIP_BASE =
+  "h-7 w-7 rounded-lg border-2 text-[10px] font-black flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 disabled:cursor-default";
+const LEVEL_CHIP_ACTIVE = {
+  1: "bg-blue-500/15 border-blue-500/40 text-blue-400",
+  2: "bg-emerald-500/15 border-emerald-500/40 text-emerald-400",
+  3: "bg-amber-500/15 border-amber-500/40 text-amber-400",
+  4: "bg-red-500/15 border-red-500/40 text-red-400",
+  5: "bg-purple-500/15 border-purple-500/40 text-purple-400",
 };
-
-// Module grouping
-const MODULE_CATEGORIES = [
-  {
-    label: "engineering.permissions.categoryContent",
-    modules: ["projects", "programs", "reports", "contacts"],
-  },
-  {
-    label: "engineering.permissions.categoryPeople",
-    modules: ["users", "messaging", "internal_comms"],
-  },
-  {
-    label: "engineering.permissions.categorySystem",
-    modules: ["permissions", "engineering", "finance", "settings"],
-  },
-];
+const LEVEL_CHIP_INHERITED =
+  "bg-slate-500/20 border-slate-500/40 text-slate-300";
+const LEVEL_CHIP_IDLE =
+  "border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] opacity-50 hover:opacity-100 hover:border-[var(--brand-orange)]/50 hover:text-[var(--brand-orange)]";
 
 export default function PermissionManager({
   initialTab = "search",
@@ -127,6 +123,37 @@ export default function PermissionManager({
     } catch (e) {
       console.error("Failed to fetch modules", e);
     }
+  };
+
+  // SAME editable catalog as the Templates editor: PERMISSION_MODULES ∪ every
+  // non-locked catalog module. Both editors therefore expose the same modules
+  // (e.g. bulk_upload) and neither can silently hide one.
+  const availableModules = useMemo(() => buildEditableModules(modules), [modules]);
+
+  // Grouped by FUNCTIONALITY (the dashboard sections), exactly like Templates —
+  // not by a local hardcoded list. Unmapped modules (org_membership) and
+  // modules without a CRUD capability stay out of this grid; their non-CRUD
+  // capabilities live in the Advanced section below. The eligibility ceiling is
+  // applied further down (it needs the resolved person context).
+  const allModuleSections = useMemo(
+    () =>
+      groupModulesByFeature(availableModules, moduleToFeature, FEATURE_ORDER)
+        .filter((section) => !section.unmapped)
+        .map((section) => ({
+          ...section,
+          modules: section.modules.filter(
+            (m) => crudCapabilities(availableModules[m]?.capabilities || []).length > 0,
+          ),
+        }))
+        .filter((section) => section.modules.length > 0),
+    [availableModules, moduleToFeature],
+  );
+
+  // i18n with a real fallback: a missing key comes back as the key itself.
+  const featureLabel = (feature) => {
+    const key = `engineering.permissions.features.${feature}`;
+    const value = t(key);
+    return value && value !== key ? value : feature.replace(/_/g, " ");
   };
 
   // Effects live BELOW the loaders they call, so no variable is accessed
@@ -233,6 +260,56 @@ export default function PermissionManager({
       return "granted";
     return "inherited";
   };
+
+  // Person screen — BOTH blocks only offer what this person can actually be
+  // granted: the features they are eligible for, PLUS any feature or right
+  // where a personal exception already exists (so it stays visible and can be
+  // undone). A missing eligibility map hides nothing at all.
+  const eligibilityMap = userPerms?.explanation?.eligibility || null;
+  const featureMap = userPerms?.moduleToFeature || moduleToFeature || {};
+
+  // "module.capability" keys that hold a personal grant or block, split so each
+  // block retains exactly what it can act on.
+  const exceptionSpecialCaps = new Set();
+  const exceptionCrudCaps = new Set();
+  for (const [mod, def] of Object.entries(availableModules)) {
+    for (const capability of def.capabilities || []) {
+      if (getOrigin(mod, capability) === "inherited") continue;
+      const key = `${mod}.${capability}`;
+      if (CRUD_CAPABILITIES.includes(capability)) exceptionCrudCaps.add(key);
+      else exceptionSpecialCaps.add(key);
+    }
+  }
+  const exceptionModules = [
+    ...new Set(
+      [...exceptionSpecialCaps].map((key) => key.slice(0, key.indexOf("."))),
+    ),
+  ];
+
+  const personFeatures =
+    eligibleFeaturesForPerson(eligibilityMap, featureMap, exceptionModules) ??
+    // Unknown eligibility → treat every feature as available (hide nothing),
+    // while still passing a set so the block never shows non-section parts.
+    new Set(Object.values(featureMap));
+
+  // Basic-rights grid: a section is listed when the person is eligible for it,
+  // or when it still carries an exception worth undoing. Nothing else.
+  const moduleSections = allModuleSections
+    .map((section) => ({
+      ...section,
+      modules: section.modules.filter((m) => {
+        if (!eligibilityMap) return true; // unknown → hide nothing
+        if (isPersonEligibleForFeature(eligibilityMap, section.feature)) {
+          return true;
+        }
+        return crudCapabilities(availableModules[m]?.capabilities || []).some(
+          (cap) => exceptionCrudCaps.has(`${m}.${cap}`),
+        );
+      }),
+    }))
+    .filter((section) => section.modules.length > 0);
+
+  const hiddenSectionCount = allModuleSections.length - moduleSections.length;
 
   const handleQuickAction = async (action, module, capability, level) => {
     setActionMsg("");
@@ -568,6 +645,16 @@ export default function PermissionManager({
                   </span>
                 </div>
 
+                <p className="text-[10px] font-medium text-[var(--text-secondary)]">
+                  {t("engineering.permissions.personRightsHint")}
+                </p>
+
+                {hiddenSectionCount > 0 && (
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] opacity-80">
+                    {t("engineering.permissions.personHiddenSectionsNote")}
+                  </p>
+                )}
+
                 {/* Access explanation — who has access and why */}
                 {userPerms.explanation && (
                   <AccessExplanationPanel
@@ -589,13 +676,13 @@ export default function PermissionManager({
                   </div>
                 ) : (
                   <div className="space-y-8">
-                    {MODULE_CATEGORIES.map((category) => (
-                      <div key={category.label} className="space-y-3">
+                    {moduleSections.map((section) => (
+                      <div key={section.feature} className="space-y-3">
                         <h3 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-50 pl-1">
-                          {t(category.label)}
+                          {featureLabel(section.feature)}
                         </h3>
-                        {category.modules.map((modKey) => {
-                          const mod = modules[modKey];
+                        {section.modules.map((modKey) => {
+                          const mod = availableModules[modKey];
                           if (!mod) return null;
                           // The CRUD grid edits CRUD only; the module's other
                           // capabilities live in the Advanced section below.
@@ -638,24 +725,10 @@ export default function PermissionManager({
                                   <table className="w-full border-collapse">
                                     <thead>
                                       <tr className="border-b border-[var(--border-primary)]">
-                                        <th className="text-left px-5 py-3 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest w-40">
+                                        <th className="text-left px-5 py-3 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                                           {t("engineering.permissions.capability")}
                                         </th>
-                                        {LEVELS_ORDER.map((level) => (
-                                          <th
-                                            key={level}
-                                            className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-widest whitespace-nowrap"
-                                            style={{
-                                              color:
-                                                level === 0
-                                                  ? "var(--text-secondary)"
-                                                  : ACCESS_COLORS[level],
-                                            }}
-                                          >
-                                            {t(ACCESS_LEVEL_KEYS[level])}
-                                          </th>
-                                        ))}
-                                        <th className="px-3 py-3 text-center text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest w-24">
+                                        <th className="px-5 py-3 text-right text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                                           {t("engineering.permissions.actions")}
                                         </th>
                                       </tr>
@@ -673,7 +746,7 @@ export default function PermissionManager({
                                           >
                                             {/* Capability name */}
                                             <td className="px-5 py-3">
-                                              <div className="flex items-center gap-2">
+                                              <div className="flex flex-wrap items-center gap-2">
                                                 {origin === "granted" && (
                                                   <span
                                                     className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"
@@ -695,169 +768,143 @@ export default function PermissionManager({
                                                 <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                                                   {capabilityLabel(modKey, cap)}
                                                 </span>
+                                                {origin === "granted" && (
+                                                  <span className="shrink-0 px-1.5 py-0.5 rounded border border-emerald-400/30 bg-emerald-400/10 text-[9px] font-black uppercase tracking-widest text-emerald-400">
+                                                    {t("engineering.permissions.legendIndividualGrant")}
+                                                  </span>
+                                                )}
+                                                {origin === "restricted" && (
+                                                  <span className="shrink-0 px-1.5 py-0.5 rounded border border-red-500/40 bg-red-500/10 text-[9px] font-black uppercase tracking-widest text-red-400">
+                                                    {t("engineering.permissions.restricted")}
+                                                  </span>
+                                                )}
                                               </div>
                                             </td>
 
-                                            {/* Access level radio cells */}
-                                            {LEVELS_ORDER.map((level) => {
-                                              const isActive =
-                                                effectiveLevel === level;
-                                              const isClickable =
-                                                level !== effectiveLevel;
-                                              return (
-                                                <td
-                                                  key={level}
-                                                  className={`px-3 py-3 text-center ${isClickable ? "cursor-pointer" : ""}`}
-                                                  onClick={() => {
-                                                    if (
-                                                      origin === "restricted"
-                                                    ) {
+                                            {/* Controls — the level chips use the same
+                                                visual language as the template matrix:
+                                                pick a level to grant it personally, block
+                                                a right the person would otherwise inherit,
+                                                or restore it. */}
+                                            <td className="px-5 py-3">
+                                              {origin === "restricted" ? (
+                                                <div className="flex flex-wrap items-center justify-end gap-2">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
                                                       handleQuickAction(
                                                         "unrestrict",
                                                         modKey,
                                                         cap,
-                                                      );
-                                                    } else if (
-                                                      level === 0 &&
-                                                      effectiveLevel > 0
-                                                    ) {
-                                                      handleQuickAction(
-                                                        "restrict",
-                                                        modKey,
-                                                        cap,
-                                                        0,
-                                                      );
-                                                    } else if (level > 0) {
-                                                      handleQuickAction(
-                                                        "grant",
-                                                        modKey,
-                                                        cap,
-                                                        level,
-                                                      );
+                                                      )
                                                     }
-                                                  }}
-                                                >
-                                                  {origin === "restricted" &&
-                                                  level === 0 ? (
-                                                    <div
-                                                      className="w-6 h-6 rounded-lg bg-red-500/20 border border-red-500/40 flex items-center justify-center mx-auto cursor-pointer hover:bg-red-500/30 transition-all"
-                                                      title={t("engineering.permissions.titleRestrictedClick")}
-                                                    >
-                                                      <X className="w-3 h-3 text-red-400" />
-                                                    </div>
-                                                  ) : isActive &&
-                                                    origin === "granted" ? (
-                                                    <div className="w-6 h-6 rounded-lg bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center mx-auto">
-                                                      <span className="text-[10px] font-bold text-emerald-400">
-                                                        {ACCESS_SHORT[level]}
-                                                      </span>
-                                                    </div>
-                                                  ) : isActive &&
-                                                    origin === "inherited" ? (
-                                                    <div className="w-6 h-6 rounded-lg bg-slate-500/20 border border-slate-500/40 flex items-center justify-center mx-auto">
-                                                      <span className="text-[10px] font-bold text-slate-400">
-                                                        {ACCESS_SHORT[level]}
-                                                      </span>
-                                                    </div>
-                                                  ) : isActive ? (
-                                                    <div
-                                                      className="w-6 h-6 rounded-lg border-2 flex items-center justify-center mx-auto"
-                                                      style={{
-                                                        borderColor:
-                                                          ACCESS_COLORS[level],
-                                                        background: `${ACCESS_COLORS[level]}15`,
-                                                      }}
-                                                    >
-                                                      <span
-                                                        className="text-[10px] font-bold"
-                                                        style={{
-                                                          color:
-                                                            ACCESS_COLORS[
-                                                              level
-                                                            ],
-                                                        }}
+                                                    title={t("engineering.permissions.titleRemoveRestriction")}
+                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-[9px] font-black uppercase tracking-widest text-emerald-400 hover:bg-emerald-500/20 transition-all"
+                                                  >
+                                                    <RotateCcw className="w-3 h-3" />
+                                                    {t("engineering.permissions.restore")}
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      setWhyTarget({ module: modKey, capability: cap })
+                                                    }
+                                                    className="p-1.5 rounded-lg hover:bg-blue-500/10 transition-all"
+                                                    title={t("engineering.permissions.whyAccess")}
+                                                  >
+                                                    <Info className="w-3 h-3 text-blue-400" />
+                                                  </button>
+                                                </div>
+                                              ) : (
+                                                <div className="flex flex-wrap items-center justify-end gap-1.5">
+                                                  {LEVELS_ORDER.filter(
+                                                    (level) => level > 0,
+                                                  ).map((level) => {
+                                                    const isActive =
+                                                      effectiveLevel === level;
+                                                    return (
+                                                      <button
+                                                        key={level}
+                                                        type="button"
+                                                        disabled={isActive}
+                                                        aria-pressed={isActive}
+                                                        onClick={() =>
+                                                          handleQuickAction(
+                                                            "grant",
+                                                            modKey,
+                                                            cap,
+                                                            level,
+                                                          )
+                                                        }
+                                                        title={t(
+                                                          "engineering.permissions.titleSetTo",
+                                                          {
+                                                            level: t(
+                                                              ACCESS_LEVEL_KEYS[level],
+                                                            ),
+                                                          },
+                                                        )}
+                                                        className={`${LEVEL_CHIP_BASE} ${
+                                                          isActive
+                                                            ? origin === "granted"
+                                                              ? LEVEL_CHIP_ACTIVE[level]
+                                                              : LEVEL_CHIP_INHERITED
+                                                            : LEVEL_CHIP_IDLE
+                                                        }`}
                                                       >
                                                         {ACCESS_SHORT[level]}
-                                                      </span>
-                                                    </div>
-                                                  ) : level === 0 ? (
+                                                      </button>
+                                                    );
+                                                  })}
+
+                                                  {effectiveLevel > 0 && (
                                                     <button
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
+                                                      type="button"
+                                                      onClick={() =>
                                                         handleQuickAction(
                                                           "restrict",
                                                           modKey,
                                                           cap,
                                                           0,
-                                                        );
-                                                      }}
-                                                      className="w-6 h-6 rounded-lg border border-dashed border-slate-600/30 flex items-center justify-center mx-auto hover:border-red-400/40 hover:bg-red-500/5 transition-all opacity-0 group-hover:opacity-100 hover:opacity-100"
+                                                        )
+                                                      }
                                                       title={t("engineering.permissions.titleRestrict")}
+                                                      className="ml-1 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:border-red-400/50 hover:text-red-400 transition-all"
                                                     >
-                                                      <X className="w-2.5 h-2.5 text-slate-600" />
-                                                    </button>
-                                                  ) : (
-                                                    <button
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleQuickAction(
-                                                          "grant",
-                                                          modKey,
-                                                          cap,
-                                                          level,
-                                                        );
-                                                      }}
-                                                      className="w-6 h-6 rounded-lg border border-dashed border-slate-600/30 flex items-center justify-center mx-auto hover:border-emerald-400/40 hover:bg-emerald-500/5 transition-all opacity-0 group-hover:opacity-100 hover:opacity-100"
-                                                      title={t("engineering.permissions.titleSetTo", { level: t(ACCESS_LEVEL_KEYS[level]) })}
-                                                    >
-                                                      <Plus className="w-2.5 h-2.5 text-slate-600" />
+                                                      <Ban className="w-3 h-3" />
+                                                      {t("engineering.permissions.block")}
                                                     </button>
                                                   )}
-                                                </td>
-                                              );
-                                            })}
 
-                                            {/* Actions column */}
-                                            <td className="px-3 py-3 text-center">
-                                              <div className="flex items-center justify-center gap-1">
-                                                <button
-                                                  onClick={() => setWhyTarget({ module: modKey, capability: cap })}
-                                                  className="p-1.5 rounded-lg hover:bg-blue-500/10 transition-all"
-                                                  title={t("engineering.permissions.whyAccess")}
-                                                >
-                                                  <Info className="w-3 h-3 text-blue-400" />
-                                                </button>
-                                                {origin === "granted" && (
+                                                  {origin === "granted" && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        handleQuickAction(
+                                                          "revoke",
+                                                          modKey,
+                                                          cap,
+                                                        )
+                                                      }
+                                                      title={t("engineering.permissions.titleRevokeGrant")}
+                                                      className="p-1.5 rounded-lg hover:bg-red-500/10 transition-all"
+                                                    >
+                                                      <Trash2 className="w-3 h-3 text-red-400" />
+                                                    </button>
+                                                  )}
+
                                                   <button
+                                                    type="button"
                                                     onClick={() =>
-                                                      handleQuickAction(
-                                                        "revoke",
-                                                        modKey,
-                                                        cap,
-                                                      )
+                                                      setWhyTarget({ module: modKey, capability: cap })
                                                     }
-                                                    className="p-1.5 rounded-lg hover:bg-red-500/10 transition-all"
-                                                    title={t("engineering.permissions.titleRevokeGrant")}
+                                                    className="p-1.5 rounded-lg hover:bg-blue-500/10 transition-all"
+                                                    title={t("engineering.permissions.whyAccess")}
                                                   >
-                                                    <Trash2 className="w-3 h-3 text-red-400" />
+                                                    <Info className="w-3 h-3 text-blue-400" />
                                                   </button>
-                                                )}
-                                                {origin === "restricted" && (
-                                                  <button
-                                                    onClick={() =>
-                                                      handleQuickAction(
-                                                        "unrestrict",
-                                                        modKey,
-                                                        cap,
-                                                      )
-                                                    }
-                                                    className="p-1.5 rounded-lg hover:bg-emerald-500/10 transition-all"
-                                                    title={t("engineering.permissions.titleRemoveRestriction")}
-                                                  >
-                                                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                                  </button>
-                                                )}
-                                              </div>
+                                                </div>
+                                              )}
                                             </td>
                                           </tr>
                                         );
@@ -875,8 +922,10 @@ export default function PermissionManager({
                     {/* Non-CRUD capabilities (grant, promote_super_admin, send,
                         publish, execute…) — individual grants/restrictions. */}
                     <AdvancedCapabilities
-                      availableModules={modules}
+                      availableModules={availableModules}
                       moduleToFeature={moduleToFeature}
+                      visibleFeatures={personFeatures}
+                      retainedCaps={exceptionSpecialCaps}
                       mode="individual"
                       stateOf={(module, capability) => ({
                         level: getEffectiveLevel(module, capability),
@@ -969,6 +1018,12 @@ function AccessProfilesView({ initialProfileId = null }) {
   const [defaultRoleMsg, setDefaultRoleMsg] = useState("");
   const [defaultRoleErr, setDefaultRoleErr] = useState("");
   const [defaultRoleBusy, setDefaultRoleBusy] = useState(false);
+  // Assigned-roles editor: the roles list is read-only by default (chips), and
+  // the modal holds the add/remove controls.
+  const [rolesModalOpen, setRolesModalOpen] = useState(false);
+  const [removeBusy, setRemoveBusy] = useState("");
+  const [removeMsg, setRemoveMsg] = useState("");
+  const [removeErr, setRemoveErr] = useState("");
 
   const fetchProfiles = useCallback(async (bypassCache = false) => {
     const urls = [
@@ -1053,6 +1108,36 @@ function AccessProfilesView({ initialProfileId = null }) {
     }
   };
 
+  // Picker → selection + deep link. `replaceState` keeps the URL shareable
+  // (?profile=<id>) without importing next/navigation into this file.
+  const handleProfilePick = (e) => {
+    const id = e.target.value;
+    if (!id) {
+      setSelectedProfile(null);
+      setProfileCaps([]);
+      setSavedCaps({});
+      setDraftCaps({});
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("profile");
+        window.history.replaceState({}, "", url);
+      } catch {
+        /* history unavailable — ignore */
+      }
+      return;
+    }
+    const profile = profiles.find((p) => String(p.id) === String(id));
+    if (!profile) return;
+    selectProfile(profile);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("profile", id);
+      window.history.replaceState({}, "", url);
+    } catch {
+      /* history unavailable — ignore */
+    }
+  };
+
   // UI-2c — deep-link / rail preselection: ?profile=<id> (or the rail) selects
   // a profile as soon as the list is available. Never auto-selects without a
   // requested id (the screen keeps its explicit "select a profile" state).
@@ -1114,6 +1199,13 @@ function AccessProfilesView({ initialProfileId = null }) {
         setShowCreateForm(false);
         setNewProfile({ name: "", description: "" });
         fetchProfiles(true);
+        // Auto-select the profile just created (the route returns its id).
+        selectProfile({
+          id: data.profileId,
+          name: newProfile.name.trim(),
+          description: newProfile.description,
+          is_active: 1,
+        });
       } else {
         setActionError(t((data.error || t("engineering.permissions.failedToCreate")) || "") || (data.error || t("engineering.permissions.failedToCreate")));
       }
@@ -1227,6 +1319,35 @@ function AccessProfilesView({ initialProfileId = null }) {
     }
   };
 
+  // Remove a role's default profile mapping (the role falls back to legacy
+  // role_capabilities until another default is set).
+  const removeRoleDefault = async (role) => {
+    if (!selectedProfile?.id) return;
+    setRemoveBusy(role);
+    setRemoveMsg("");
+    setRemoveErr("");
+    try {
+      const res = await fetch(
+        `/api/access-profiles/role-defaults?role_name=${encodeURIComponent(role)}&profile_id=${encodeURIComponent(selectedProfile.id)}`,
+        { method: "DELETE" },
+      );
+      const data = await res.json();
+      if (data.success) {
+        setRemoveMsg(t("engineering.permissions.rolesRemoved"));
+        fetchProfiles(true);
+      } else {
+        setRemoveErr(
+          t((data.error || t("engineering.permissions.failedToRemoveDefault")) || "") ||
+            (data.error || t("engineering.permissions.failedToRemoveDefault")),
+        );
+      }
+    } catch {
+      setRemoveErr(t("engineering.permissions.networkError"));
+    } finally {
+      setRemoveBusy("");
+    }
+  };
+
   // ── Draft-based matrix editing: changes are staged, then saved explicitly. ──
   const defaultRolesFor = (profileId) =>
     Object.entries(roleDefaults)
@@ -1308,11 +1429,25 @@ function AccessProfilesView({ initialProfileId = null }) {
     setDraftCaps(JSON.parse(JSON.stringify(savedCaps)));
   };
 
-  // Lazy: availableModules is defined later in the component body.
+  // Lazy: availableModules is defined later in the component body. The union
+  // with the draft/saved modules matters for C1: a stored module the matrix
+  // cannot show (ineligible feature, or a module no longer in the registry) is
+  // exactly the one the "Remove" action clears, and that change must enable
+  // Save.
   const computeChanges = () => {
+    const modKeys = new Set([
+      ...Object.keys(availableModules),
+      ...Object.keys(draftCaps || {}),
+      ...Object.keys(savedCaps || {}),
+    ]);
     let count = 0;
-    for (const [modKey, mod] of Object.entries(availableModules)) {
-      for (const cap of mod.capabilities) {
+    for (const modKey of modKeys) {
+      const caps = new Set([
+        ...(availableModules[modKey]?.capabilities || []),
+        ...Object.keys(draftCaps?.[modKey] || {}),
+        ...Object.keys(savedCaps?.[modKey] || {}),
+      ]);
+      for (const cap of caps) {
         if (isChanged(modKey, cap)) count += 1;
       }
     }
@@ -1412,6 +1547,37 @@ function AccessProfilesView({ initialProfileId = null }) {
   // are edited in the Advanced section below; the CRUD cells stay empty for them.
   const visibleSections = eligibleSections;
 
+  // C1 — modules the matrix above can edit. Anything STORED outside this set is
+  // invisible to the editor (ineligible feature, or module without a dashboard
+  // section) yet still granted AND still validated on save, so it must stay
+  // visible and removable instead of silently blocking the save.
+  const editableModules = new Set(
+    visibleSections.flatMap((section) => section.modules),
+  );
+  // Capability granularity: a module can be editable while one of its
+  // capabilities is no longer offered (retired), so the hidden set is computed
+  // per capability, not per module.
+  const editableCaps = {};
+  for (const moduleKey of editableModules) {
+    editableCaps[moduleKey] = availableModules[moduleKey]?.capabilities || [];
+  }
+  const hiddenStoredCaps = collectHiddenStoredCaps(savedCaps, editableCaps);
+
+  // C1 — drop the stored capabilities the matrix above does not offer. Staged
+  // like every other edit: the review bar + Save still apply, so it can be
+  // discarded. Capability-level, so an offered capability of the same module is
+  // never collateral damage.
+  const clearHiddenCaps = (entry) => {
+    setActionError("");
+    setDraftCaps((prev) => {
+      const next = { ...prev, [entry.module]: { ...(prev[entry.module] || {}) } };
+      for (const capability of entry.capabilities) {
+        next[entry.module][capability] = 0;
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-6">
       {actionMsg && (
@@ -1425,22 +1591,20 @@ function AccessProfilesView({ initialProfileId = null }) {
         </div>
       )}
 
-      <div className="lg:grid lg:grid-cols-[300px_1fr] lg:gap-6 space-y-6 lg:space-y-0">
-        {/* LEFT — Access Profiles list (master) */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-bold text-[var(--text-secondary)]">
-              {t("engineering.permissions.profilesIntro")}
-            </p>
-            <button
-              onClick={() => setShowCreateForm(!showCreateForm)}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all shrink-0"
-            >
-              <Plus className="w-3 h-3" /> {t("engineering.permissions.newProfile")}
-            </button>
-          </div>
+      {/* Header aligné : descriptif à gauche, bouton "Nouveau profil" à droite */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <p className="text-xs font-bold text-[var(--text-secondary)] max-w-3xl">
+          {t("engineering.permissions.profilesIntro")}
+        </p>
+        <button
+          onClick={() => setShowCreateForm(!showCreateForm)}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all shrink-0 self-start"
+        >
+          <Plus className="w-3 h-3" /> {t("engineering.permissions.newProfile")}
+        </button>
+      </div>
 
-          {showCreateForm && (
+      {showCreateForm && (
             <div className="ios-card !p-5 border-[var(--border-primary)] space-y-4">
               <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
                 {t("engineering.permissions.newAccessProfile")}
@@ -1484,90 +1648,39 @@ function AccessProfilesView({ initialProfileId = null }) {
             </div>
           )}
 
-          {profiles.length === 0 ? (
-            <div className="py-10 text-center opacity-40">
-              <Layers className="w-12 h-12 text-slate-500 mx-auto mb-3" />
-              <p className="text-sm font-black text-[var(--text-primary)] uppercase">
-                {t("engineering.permissions.noAccessProfiles")}
-              </p>
-              <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-1">
-                {t("engineering.permissions.noAccessProfilesHint")}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2 lg:max-h-[75vh] lg:overflow-y-auto pr-1">
-              {profiles.map((profile) => {
-                const isDefaultFor = defaultRolesFor(profile.id);
-                const isSelected = selectedProfile?.id === profile.id;
-                return (
-                  <div
-                    key={profile.id}
-                    className={`ios-card !p-0 border overflow-hidden transition-all ${isSelected ? "border-[var(--brand-orange)]/60" : "border-[var(--border-primary)]"} ${!profile.is_active ? "opacity-50" : ""}`}
-                  >
-                    <div className="p-3 flex items-center justify-between gap-2">
-                      <button
-                        onClick={() => selectProfile(profile)}
-                        className="flex-1 text-left min-w-0"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Layers className={`w-3.5 h-3.5 shrink-0 ${isSelected ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`} />
-                          <div className="min-w-0">
-                            <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate">
-                              {profile.name}
-                            </p>
-                            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                              <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                                {t("engineering.permissions.capabilitiesCount", { count: profile.capability_count || 0 })}
-                              </span>
-                              {deriveProfileBadges(profile, isDefaultFor).map((badge) => (
-                                <span
-                                  key={badge}
-                                  title={badge === "roleDefault" ? isDefaultFor.join(", ") : undefined}
-                                >
-                                  <Badge variant={badge === "roleDefault" ? "verified" : "locked"}>
-                                    {t(`engineering.permissions.profileBadge_${badge}`)}
-                                  </Badge>
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-                      <div className="flex items-center gap-0.5 shrink-0">
-                        <button
-                          onClick={() => duplicateProfile(profile)}
-                          title={t("engineering.permissions.duplicateProfileTitle")}
-                          className="p-1.5 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => toggleProfileActive(profile)}
-                          title={
-                            profile.is_active
-                              ? t("engineering.permissions.disableProfile")
-                              : t("engineering.permissions.enableProfile")
-                          }
-                          className="p-1.5 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                        >
-                          {profile.is_active ? (
-                            <Eye className="w-3.5 h-3.5" />
-                          ) : (
-                            <EyeOff className="w-3.5 h-3.5 text-slate-400" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+      {/* Champ déroulant des profils — remplace l'ancienne liste latérale */}
+      <div className="ios-card !p-5 border-[var(--border-primary)] space-y-2">
+        <label
+          htmlFor="access-profile-picker"
+          className="block text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]"
+        >
+          {t("engineering.permissions.profilePickerLabel")}
+        </label>
+        <select
+          id="access-profile-picker"
+          value={selectedProfile ? String(selectedProfile.id) : ""}
+          onChange={handleProfilePick}
+          className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+        >
+          <option value="">{t("engineering.permissions.selectProfileOption")}</option>
+          {profiles.map((profile) => (
+            <option key={profile.id} value={profile.id}>
+              {profile.name}
+              {!profile.is_active
+                ? ` — ${t("engineering.permissions.disabled")}`
+                : ""}
+            </option>
+          ))}
+        </select>
+        <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+          {profiles.length === 0
+            ? t("engineering.permissions.noAccessProfilesHint")
+            : t("engineering.permissions.profilePickerHint")}
+        </p>
+      </div>
 
-        {/* RIGHT — selected profile details (detail) */}
-        <div className="space-y-6 min-w-0">
-          {selectedProfile ? (
+      {/* Détail — affiché en dessous, seulement si un profil est sélectionné */}
+      {selectedProfile ? (
             <>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -1618,30 +1731,106 @@ function AccessProfilesView({ initialProfileId = null }) {
                       {selectedProfile.description}
                     </p>
                   )}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                      {t("engineering.permissions.capabilitiesCount", {
+                        count: selectedProfile.capability_count || 0,
+                      })}
+                    </span>
+                    {deriveProfileBadges(selectedProfile, selectedIsDefaultFor).map((badge) => (
+                      <span
+                        key={badge}
+                        title={
+                          badge === "roleDefault"
+                            ? selectedIsDefaultFor.join(", ")
+                            : undefined
+                        }
+                      >
+                        <Badge variant={badge === "roleDefault" ? "verified" : "locked"}>
+                          {t(`engineering.permissions.profileBadge_${badge}`)}
+                        </Badge>
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <span
-                  className={`text-[10px] font-bold px-2 py-1 rounded shrink-0 ${
-                    selectedProfile.is_active
-                      ? "bg-emerald-500/10 text-emerald-400"
-                      : "bg-red-500/10 text-red-400"
-                  }`}
-                >
-                  {selectedProfile.is_active
-                    ? t("engineering.permissions.active")
-                    : t("engineering.permissions.disabled")}
-                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span
+                    className={`text-[10px] font-bold px-2 py-1 rounded ${
+                      selectedProfile.is_active
+                        ? "bg-emerald-500/10 text-emerald-400"
+                        : "bg-red-500/10 text-red-400"
+                    }`}
+                  >
+                    {selectedProfile.is_active
+                      ? t("engineering.permissions.active")
+                      : t("engineering.permissions.disabled")}
+                  </span>
+                  <button
+                    onClick={() => duplicateProfile(selectedProfile)}
+                    title={t("engineering.permissions.duplicateProfileTitle")}
+                    className="p-1.5 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => toggleProfileActive(selectedProfile)}
+                    title={
+                      selectedProfile.is_active
+                        ? t("engineering.permissions.disableProfile")
+                        : t("engineering.permissions.enableProfile")
+                    }
+                    className="p-1.5 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  >
+                    {selectedProfile.is_active ? (
+                      <Eye className="w-3.5 h-3.5" />
+                    ) : (
+                      <EyeOff className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
               </div>
 
-              {/* Default for — which kinds of person receive this template. */}
-              <div className="rounded-xl border border-[var(--border-primary)] bg-secondary/40 p-3 space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("engineering.permissions.defaultForTitle")}
-                </p>
-                <p className="text-[10px] font-bold text-[var(--text-primary)]">
-                  {selectedIsDefaultFor.length > 0
-                    ? selectedIsDefaultFor.join(", ")
-                    : t("engineering.permissions.defaultForNone")}
-                </p>
+              {/* Rôles attribués — lecture seule, édition via la modale "Modifier" */}
+              <div className="ios-card !p-5 border-[var(--border-primary)] space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                      {t("engineering.permissions.rolesAssignedTitle")}
+                    </p>
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
+                      {t("engineering.permissions.rolesAssignedHint")}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setDefaultRoleMsg("");
+                      setDefaultRoleErr("");
+                      setRemoveMsg("");
+                      setRemoveErr("");
+                      setRolesModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                  >
+                    <Pencil className="w-3 h-3" />{" "}
+                    {t("engineering.permissions.editRoles")}
+                  </button>
+                </div>
+                {selectedIsDefaultFor.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedIsDefaultFor.map((role) => (
+                      <span
+                        key={role}
+                        className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                      >
+                        {role.replace(/_/g, " ")}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                    {t("engineering.permissions.defaultForNone")}
+                  </p>
+                )}
                 {selectedIsDefaultFor.length > 0 && (
                   <>
                     <p className="text-[10px] font-bold text-amber-400">
@@ -1654,43 +1843,9 @@ function AccessProfilesView({ initialProfileId = null }) {
                     </p>
                   </>
                 )}
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    value={defaultRoleChoice}
-                    onChange={(e) => setDefaultRoleChoice(e.target.value)}
-                    aria-label={t("engineering.permissions.defaultForTitle")}
-                    className="bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
-                  >
-                    <option value="">
-                      {t("engineering.permissions.defaultForPick")}
-                    </option>
-                    {(allRoles || [])
-                      .filter((r) => !selectedIsDefaultFor.includes(r))
-                      .map((r) => (
-                        <option key={r} value={r}>
-                          {r.replace(/_/g, " ")}
-                        </option>
-                      ))}
-                  </select>
-                  <button
-                    onClick={assignRoleDefault}
-                    disabled={!defaultRoleChoice || defaultRoleBusy}
-                    className="px-3 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
-                  >
-                    {t("engineering.permissions.defaultForSet")}
-                  </button>
-                </div>
-                {defaultRoleMsg && (
-                  <p className="text-[10px] font-bold text-emerald-400">
-                    {defaultRoleMsg}
-                  </p>
-                )}
-                {defaultRoleErr && (
-                  <p className="text-[10px] font-bold text-red-400">{defaultRoleErr}</p>
-                )}
               </div>
 
-              <div className="sticky bottom-4 z-20 rounded-xl border border-[var(--border-primary)] bg-surface-1 p-3 space-y-2 shadow-lg">
+              <div className="rounded-xl border border-[var(--border-primary)] bg-surface-1 p-3 space-y-2 shadow-lg">
                 {impactTotal !== null && impactTotal > 0 && (
                   <p className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
                     {t("engineering.permissions.impactAffects", { total: impactTotal })}
@@ -1808,6 +1963,49 @@ function AccessProfilesView({ initialProfileId = null }) {
                 })}
                 onToggle={toggleDraftCap}
               />
+
+              {/* C1 — capabilities still STORED but not shown in the matrix
+                  above (their feature is no longer eligible for the template's
+                  roles, or the module has no dashboard section). They are still
+                  granted to everyone who inherits the profile, so the screen
+                  never hides them: it lists them and lets the admin remove
+                  them, which is what unblocks the save. */}
+              {hiddenStoredCaps.length > 0 && (
+                <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-400">
+                      {t("engineering.permissions.hiddenStoredTitle")}
+                    </p>
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                      {t("engineering.permissions.hiddenStoredHint")}
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    {hiddenStoredCaps.map((entry) => (
+                      <div
+                        key={entry.module}
+                        className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
+                        style={{ borderColor: "var(--border-primary)" }}
+                      >
+                        <span className="min-w-0 text-[10px] text-[var(--text-primary)]">
+                          <span className="font-black uppercase tracking-wide">
+                            {entry.module.replace(/_/g, " ")}
+                          </span>
+                          <span className="ml-2 font-medium text-[var(--text-secondary)] opacity-70">
+                            {entry.capabilities.join(", ")}
+                          </span>
+                        </span>
+                        <button
+                          onClick={() => clearHiddenCaps(entry)}
+                          className="shrink-0 px-2 py-1 rounded-lg bg-red-500/10 text-[10px] font-bold text-red-400 uppercase tracking-widest hover:bg-red-500/20 transition-all"
+                        >
+                          {t("engineering.permissions.hiddenStoredRemove")}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="ios-card !p-10 border border-[var(--border-primary)] flex flex-col items-center justify-center text-center opacity-60 space-y-2">
@@ -1819,9 +2017,131 @@ function AccessProfilesView({ initialProfileId = null }) {
                 {t("engineering.permissions.selectProfilePrompt")}
               </p>
             </div>
-          )}
+      )}
+
+      {/* Assigned-roles modal — the roles list is read-only until Edit */}
+      {rolesModalOpen && selectedProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0"
+            style={{ background: "rgba(0,0,0,0.7)" }}
+            onClick={() => setRolesModalOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl"
+            style={{
+              background: "var(--surface-1)",
+              border: "1px solid var(--border-primary)",
+            }}
+          >
+            <h4
+              className="text-sm font-black uppercase tracking-tight"
+              style={{ color: "var(--text-primary)" }}
+            >
+              {t("engineering.permissions.rolesEditTitle")}
+            </h4>
+            <p
+              className="text-[10px] font-black uppercase tracking-widest mt-4"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {t("engineering.permissions.defaultForTitle")}
+            </p>
+
+            <div className="space-y-1.5 mt-2">
+              {selectedIsDefaultFor.length > 0 ? (
+                selectedIsDefaultFor.map((role) => (
+                  <div
+                    key={role}
+                    className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
+                    style={{ borderColor: "var(--border-primary)" }}
+                  >
+                    <span
+                      className="text-[10px] font-bold uppercase tracking-wide"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      {role.replace(/_/g, " ")}
+                    </span>
+                    <button
+                      onClick={() => removeRoleDefault(role)}
+                      disabled={removeBusy === role}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-500/10 text-[10px] font-bold text-red-400 uppercase tracking-widest hover:bg-red-500/20 transition-all disabled:opacity-40"
+                    >
+                      <Trash2 className="w-3 h-3" />{" "}
+                      {t("engineering.permissions.rolesRemove")}
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p
+                  className="text-[10px] font-bold"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  {t("engineering.permissions.defaultForNone")}
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 mt-4">
+              <select
+                value={defaultRoleChoice}
+                onChange={(e) => setDefaultRoleChoice(e.target.value)}
+                aria-label={t("engineering.permissions.defaultForTitle")}
+                className="bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+              >
+                <option value="">
+                  {t("engineering.permissions.defaultForPick")}
+                </option>
+                {(allRoles || [])
+                  .filter((r) => !selectedIsDefaultFor.includes(r))
+                  .map((r) => (
+                    <option key={r} value={r}>
+                      {r.replace(/_/g, " ")}
+                    </option>
+                  ))}
+              </select>
+              <button
+                onClick={assignRoleDefault}
+                disabled={!defaultRoleChoice || defaultRoleBusy}
+                className="px-3 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+              >
+                {t("engineering.permissions.rolesAdd")}
+              </button>
+            </div>
+
+            {defaultRoleMsg && (
+              <p className="text-[10px] font-bold text-emerald-400 mt-2">
+                {defaultRoleMsg}
+              </p>
+            )}
+            {defaultRoleErr && (
+              <p className="text-[10px] font-bold text-red-400 mt-2">
+                {defaultRoleErr}
+              </p>
+            )}
+            {removeMsg && (
+              <p className="text-[10px] font-bold text-emerald-400 mt-2">
+                {removeMsg}
+              </p>
+            )}
+            {removeErr && (
+              <p className="text-[10px] font-bold text-red-400 mt-2">
+                {removeErr}
+              </p>
+            )}
+
+            <div className="flex justify-end mt-5">
+              <button
+                onClick={() => setRolesModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
+              >
+                {t("engineering.permissions.close")}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Profile-safety confirmation for role-bound profiles */}
       {pendingSaveConfirm && (
@@ -2476,6 +2796,8 @@ function EligibilityView() {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [viewMode, setViewMode] = useState("identity"); // identity | matrix
+  // C2 — impacted templates reported by a 409 before a downgrade is applied.
+  const [pendingImpacts, setPendingImpacts] = useState(null);
 
   const load = useCallback(async (bypassCache = false) => {
     const url = "/api/engineering/permissions/eligibility";
@@ -2560,9 +2882,10 @@ function EligibilityView() {
     setDraft((prev) => ({ ...prev, [featureKey]: value }));
   };
 
-  const save = async () => {
+  const save = async (confirmed = false) => {
     if (!selected || !hasChanges) return;
     setSaving(true);
+    setErr("");
     const changes = [];
     for (const f of data.features || []) {
       const cur = currentRows[f] ?? null;
@@ -2580,17 +2903,23 @@ function EligibilityView() {
       const res = await fetch("/api/engineering/permissions/eligibility", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ changes }),
+        body: JSON.stringify({ changes, confirm: confirmed }),
       });
       const d = await res.json();
       if (d.success) {
         setData((prev) => ({ ...prev, rows: d.rows }));
+        setPendingImpacts(null);
         setMsg(t("engineering.permissions.eligibilitySaved"));
         setTimeout(() => setMsg(""), 2500);
+      } else if (res.status === 409 && d.requiresConfirmation) {
+        // C2 — the downgrade would strand capabilities that role-default
+        // templates still grant. Nothing was persisted: show the impact and let
+        // the admin confirm explicitly.
+        setPendingImpacts(d.impacts || []);
       } else if (res.status === 403) {
         setErr(t("engineering.permissions.eligibilityNoPermission"));
       } else {
-        setErr(t("engineering.permissions.eligibilitySaveFailed"));
+        setErr(t(d.error || "engineering.permissions.eligibilitySaveFailed"));
       }
     } catch {
       setErr(t("engineering.permissions.networkError"));
@@ -2862,7 +3191,7 @@ function EligibilityView() {
                   </span>
                 )}
                 <button
-                  onClick={save}
+                  onClick={() => save()}
                   disabled={!canConfigure || !hasChanges || saving}
                   className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest transition-all disabled:opacity-40"
                 >
@@ -2932,6 +3261,90 @@ function EligibilityView() {
           <p className="text-[10px] font-black text-[var(--text-primary)] uppercase">
             {t("engineering.permissions.eligibilityNoIdentity")}
           </p>
+        </div>
+      )}
+
+      {/* C2 — confirmation before an eligibility downgrade strands capabilities
+          that role-default templates still grant. Nothing was deleted. */}
+      {pendingImpacts && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0"
+            style={{ background: "rgba(0,0,0,0.7)" }}
+            onClick={() => setPendingImpacts(null)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl max-h-[80vh] overflow-y-auto"
+            style={{
+              background: "var(--surface-1)",
+              border: "1px solid var(--border-primary)",
+            }}
+          >
+            <h4
+              className="text-sm font-black uppercase tracking-tight"
+              style={{ color: "var(--text-primary)" }}
+            >
+              {t("engineering.permissions.eligibilityImpactTitle")}
+            </h4>
+            <p
+              className="text-[10px] font-bold mt-2"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {t("engineering.permissions.eligibilityImpactHint")}
+            </p>
+            <div className="space-y-3 mt-4">
+              {pendingImpacts.map((impact) => (
+                <div
+                  key={`${impact.role}:${impact.feature}`}
+                  className="rounded-lg border p-3 space-y-1.5"
+                  style={{ borderColor: "var(--border-primary)" }}
+                >
+                  <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-primary)]">
+                    {t("engineering.permissions.eligibilityImpactIdentity", {
+                      role: impact.role,
+                      feature: impact.feature,
+                    })}
+                  </p>
+                  {impact.templates.map((tpl) => (
+                    <div
+                      key={tpl.id}
+                      className="flex items-start justify-between gap-3"
+                    >
+                      <span
+                        className="text-[10px] font-bold"
+                        style={{ color: "var(--text-primary)" }}
+                      >
+                        {tpl.name}
+                      </span>
+                      <span
+                        className="text-[10px] font-mono text-right break-words"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        {tpl.capabilities.join(", ")}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => setPendingImpacts(null)}
+                className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
+              >
+                {t("engineering.permissions.cancel")}
+              </button>
+              <button
+                onClick={() => save(true)}
+                disabled={saving}
+                className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-40"
+              >
+                {t("engineering.permissions.eligibilityImpactConfirm")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

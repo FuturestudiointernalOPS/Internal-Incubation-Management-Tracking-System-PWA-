@@ -12,6 +12,7 @@ import {
   ELIGIBILITY_IDENTITY_GROUPS,
   MODULE_TO_FEATURE,
   validateEligibilityChanges,
+  findTemplatesGrantingFeature,
 } from "@/lib/authorization";
 import {
   listFeatureEligibilityRows,
@@ -121,6 +122,48 @@ export async function PUT(req) {
         },
         { status: 400 },
       );
+    }
+
+    // C2 — an eligibility DOWNGRADE (0 or unset) can strand capabilities that
+    // role-default TEMPLATES still grant. Nothing is deleted automatically: the
+    // first attempt reports the impacted templates and asks for an explicit
+    // confirmation (`confirm: true`), so the admin decides knowingly.
+    const downgrades = normalized.filter(
+      (c) => c.identity_type === "role" && c.eligible !== 1,
+    );
+    if (downgrades.length > 0 && body?.confirm !== true) {
+      const impacts = [];
+      for (const c of downgrades) {
+        const impactRes = await findTemplatesGrantingFeature(
+          c.identity_value,
+          c.feature_key,
+        );
+        const byTemplate = new Map();
+        for (const r of impactRes.rows || []) {
+          if (!byTemplate.has(r.id)) {
+            byTemplate.set(r.id, { id: r.id, name: r.name, capabilities: [] });
+          }
+          byTemplate.get(r.id).capabilities.push(`${r.module}.${r.capability}`);
+        }
+        if (byTemplate.size > 0) {
+          impacts.push({
+            role: c.identity_value,
+            feature: c.feature_key,
+            templates: [...byTemplate.values()],
+          });
+        }
+      }
+      if (impacts.length > 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "errors.eligibilityImpactsTemplates",
+            requiresConfirmation: true,
+            impacts,
+          },
+          { status: 409 },
+        );
+      }
     }
 
     for (const c of normalized) {

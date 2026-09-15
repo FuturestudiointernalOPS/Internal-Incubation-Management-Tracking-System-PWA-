@@ -12,6 +12,7 @@ import CourseView from "./CourseView";
 import EnrollModal from "./EnrollModal";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { usePermissions } from "@/lib/PermissionProvider";
 
 /**
  * Course workspace. Opening a course shows a READ-ONLY presentation: the first
@@ -23,9 +24,13 @@ import { useI18n } from "@/lib/i18n";
  * status actions). Server-side authorization is enforced by every API call
  * (lms.view / edit / publish / delete / enroll).
  */
-export default function CourseEditor({ courseId }) {
+export default function CourseEditor({ courseId, basePath = "/admin/lms/courses" }) {
   const { t } = useI18n();
   const router = useRouter();
+  // UI gating only — the server re-checks every call (lms.edit / lms.delete).
+  // Fails OPEN while the matrix loads, so no action flashes away.
+  const { can, loading: permsLoading } = usePermissions();
+  const allow = (cap) => (permsLoading ? true : can("lms", cap));
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -137,7 +142,7 @@ export default function CourseEditor({ courseId }) {
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.courses.deleted");
-      router.push("/admin/lms/courses");
+      router.push(basePath);
     } catch (e) {
       notify("error", e.message || "lms.errors.saveFailed");
     }
@@ -158,7 +163,7 @@ export default function CourseEditor({ courseId }) {
         <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
           {t(loadError || "lms.errors.loadFailedCourse")}
         </p>
-        <AppButton variant="secondary" onClick={() => router.push("/admin/lms/courses")}>
+        <AppButton variant="secondary" onClick={() => router.push(basePath)}>
           {t("lms.courses.backToCourses")}
         </AppButton>
       </div>
@@ -171,7 +176,7 @@ export default function CourseEditor({ courseId }) {
       <div className="flex flex-col gap-4">
         <button
           type="button"
-          onClick={() => router.push("/admin/lms/courses")}
+          onClick={() => router.push(basePath)}
           className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors self-start"
           style={{ color: "var(--text-tertiary)" }}
         >
@@ -191,23 +196,27 @@ export default function CourseEditor({ courseId }) {
             </>
           ) : (
             <>
-              <AppButton variant="primary" icon={Pencil} onClick={startEdit}>
-                {t("common.edit")}
-              </AppButton>
-              <AppButton variant="ghost" icon={Users} onClick={() => setEnrollOpen(true)}>
-                {t("lms.enroll.title")}
-              </AppButton>
-              {course.status === "draft" && (
+              {allow("edit") && (
+                <AppButton variant="primary" icon={Pencil} onClick={startEdit}>
+                  {t("common.edit")}
+                </AppButton>
+              )}
+              {allow("edit") && (
+                <AppButton variant="ghost" icon={Users} onClick={() => setEnrollOpen(true)}>
+                  {t("lms.enroll.title")}
+                </AppButton>
+              )}
+              {allow("edit") && course.status === "draft" && (
                 <AppButton variant="success" icon={Rocket} onClick={publish}>
                   {t("lms.courses.publish")}
                 </AppButton>
               )}
-              {course.status === "published" && (
+              {allow("edit") && course.status === "published" && (
                 <AppButton variant="secondary" icon={Archive} onClick={archive}>
                   {t("lms.courses.archive")}
                 </AppButton>
               )}
-              {course.status === "draft" && (
+              {allow("delete") && course.status === "draft" && (
                 <AppButton variant="danger" icon={Trash2} onClick={remove}>
                   {t("lms.courses.delete")}
                 </AppButton>

@@ -238,7 +238,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(model).toMatch(/SELECT DISTINCT venture_id FROM investment_pipeline WHERE investor_id/);
   });
 
-  test("phase 1.6: AI + review actions — bare auth + management-only role check (no teacher)", () => {
+  test("phase 1.6: AI + review actions — bare auth + management-only gate (no teacher)", () => {
     const files = [
       "src/app/api/platform/ai/route.js",
       "src/app/api/platform/ai/analyze/route.js",
@@ -250,9 +250,14 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
       for (const l of authBlocks(file)) expect(containsContextual(l)).toBe(false);
       expect(src).toMatch(/\["super_admin", "admin", "program_manager"\]\.includes/);
     }
-    // form-runs: the two consequential actions are management-checked.
+    // form-runs: the two consequential actions (review + result emails) are now
+    // governed by the `runs.edit` capability — the resolver replaces the inline
+    // management role check, and the legacy list must be gone for good.
     const fr = fs.readFileSync(path.join(ROOT, "src/app/api/platform/form-runs/route.js"), "utf8");
-    expect(fr.match(/\["super_admin", "admin", "program_manager"\]\.includes/g) || []).toHaveLength(2);
+    expect(
+      (fr.match(/requireAuthorization\("runs", "edit"\)/g) || []).length,
+    ).toBeGreaterThanOrEqual(2);
+    expect(fr).not.toMatch(/\["super_admin", "admin", "program_manager"\]\.includes/);
     expect(fr).not.toMatch(/requireAuth\(\[\s*"super_admin", "admin", "program_manager", "teacher"/);
   });
 

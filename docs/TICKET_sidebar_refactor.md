@@ -1,5 +1,11 @@
 # Developer Ticket: Super Admin Sidebar Refactor
 
+> **OBSOLETE (2026-09-14) — kept for historical context only.** This ticket targets
+> `NAVIGATION_MATRIX` inside `DashboardLayout.js`, which no longer exists. Navigation is
+> now defined once in `src/lib/masterNavigation.js` (`MASTER_NAVIGATION` structure +
+> `ROLE_ACCESS` masks) and built per user by `buildAccessNav(role, capabilities)`. Do not
+> apply the instructions below.
+
 ## File to Modify
 `src/components/layout/DashboardLayout.js` — the `NAVIGATION_MATRIX.super_admin` array only.
 

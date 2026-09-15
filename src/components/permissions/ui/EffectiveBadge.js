@@ -12,6 +12,7 @@ import { useI18n } from "@/lib/i18n";
  * @param {{effective: boolean, reason?: "restriction"|"no-source"|null}} props
  */
 const REASON_KEYS = {
+  "not-eligible": "engineering.permissions.effectiveReasonNotEligible",
   restriction: "engineering.permissions.effectiveReasonRestriction",
   "no-source": "engineering.permissions.effectiveReasonNoSource",
 };

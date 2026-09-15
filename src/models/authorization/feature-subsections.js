@@ -35,7 +35,8 @@ export const FEATURE_SUBSECTIONS = {
   communication: [
     { id: "messages", labelKey: "navigation.messages", module: "messaging" },
     { id: "announcements", labelKey: "navigation.announcements", module: "internal_comms" },
-    { id: "forms", labelKey: "navigation.forms" },
+    { id: "forms", labelKey: "navigation.forms", module: "forms" },
+    { id: "runs", labelKey: "platformMisc.nav.runs", module: "runs" },
     { id: "groups", labelKey: "navigation.groups" },
   ],
   programs: [

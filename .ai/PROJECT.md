@@ -29,7 +29,7 @@
 
 **No centralized middleware.** Auth is enforced per-page/per-route via `requireAuth()`, `requireSession()`, and `requireCapability()` in `src/lib/auth.js`. Each role's top-level `layout.js` exports `dynamic = "force-dynamic"` to disable static caching for authenticated pages.
 
-Sidebar navigation and role→route resolution live in `src/components/layout/DashboardLayout.js` (`NAVIGATION_MATRIX`).
+Sidebar navigation is defined once in `src/lib/masterNavigation.js` (`MASTER_NAVIGATION` structure + `ROLE_ACCESS` masks) and built for the connected user by `buildAccessNav(role, capabilities)`; `src/components/layout/DashboardLayout.js` only renders it. The section layout's `role` prop is a pre-session fallback — the effective role is always the session user's (`contacts.role`), never the visited page.
 
 ### 2.2 Auth model
 

@@ -67,7 +67,7 @@ Seeded staging users — **staging only, never use these against production**. A
 | 9 | `investor` | `investor@impactos.staging` |
 | 10 | `mentor` | `mentor@impactos.staging` |
 
-> Note: `admin`, `investor`, and `mentor` (#8–10) don't currently appear in the role-checking logic (`src/lib/auth.js`, `DashboardLayout.js`'s `NAVIGATION_MATRIX`) — only the six roles above are wired up. These three are seeded ahead of planned features.
+> Note: `admin`, `investor`, and `mentor` (#8–10) are seeded but have no dedicated dashboard: `/admin` admits only `super_admin`/`developer`, and there is no `/mentor` surface. `investor` has its own `/investor` portal, and all three resolve to an access profile in `src/lib/auth.js` (`seedDefaultAccessProfiles`). Sidebar masks live in `src/lib/masterNavigation.js` (`ROLE_ACCESS`).
 
 ---
 

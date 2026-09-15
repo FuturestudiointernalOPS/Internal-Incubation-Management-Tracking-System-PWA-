@@ -16,6 +16,7 @@ import {
   getContactName,
   getResponsibilityName,
   grantResponsibilityBaseAccess,
+  revokeResponsibilityBaseAccess,
 } from "@/models/responsibilities";
 
 /**
@@ -105,18 +106,39 @@ export async function PUT(req) {
         );
       }
 
+      // Symmetric with the assign path: revoke exactly the base grants THIS
+      // responsibility created (its ledger), so removing a responsibility no
+      // longer leaves its area silently reachable. Best-effort — a failure only
+      // leaves the grants in place, as before.
+      const responsibilityKey = resp.rows[0]?.key || null;
+      let revokedModules = [];
+      if (responsibilityKey) {
+        try {
+          revokedModules = await revokeResponsibilityBaseAccess({
+            userCid: user_cid,
+            responsibilityKey,
+          });
+        } catch (revokeErr) {
+          console.error("[Responsibilities Assign] base access revoke failed:", revokeErr.message);
+        }
+      }
+
+      const revokeNote = revokedModules.length
+        ? `. Base access revoked: ${revokedModules.join(", ")}`
+        : "";
+
       await logPermissionAudit({
         actorCid: session?.cid,
         actorName: session?.name,
         targetCid: user_cid,
         targetName,
         action: "responsibility_removed",
-        details: `Removed responsibility: ${respName}`,
+        details: `Removed responsibility: ${respName}${revokeNote}`,
       });
 
       return NextResponse.json({
         success: true,
-        message: `Removed "${respName}" from ${targetName}`,
+        message: `Removed "${respName}" from ${targetName}${revokeNote}`,
       });
     }
 

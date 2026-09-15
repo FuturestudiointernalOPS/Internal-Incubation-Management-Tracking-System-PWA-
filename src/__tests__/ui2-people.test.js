@@ -67,6 +67,18 @@ describe("UI-2b — denial reasons", () => {
     expect(deriveDenialReason(null)).toBeNull(); // null = "not applicable"
     expect(deriveDenialReason({ effective: false, restricted: false })).toBe("no-source");
   });
+
+  test("an ineligible feature is 'not-eligible', not a generic deny", () => {
+    const state = deriveUserCapState(
+      sources({ profile: { contacts: { view: 1 } } }),
+      "contacts",
+      "view",
+      false,
+    );
+    expect(state.profile).toBe(true);
+    expect(state.effective).toBe(false);
+    expect(deriveDenialReason(state)).toBe("not-eligible");
+  });
 });
 
 describe("UI-2b — screen wiring", () => {
@@ -94,6 +106,28 @@ describe("UI-2b — screen wiring", () => {
     // One picker in the whole flow: the editor no longer fetches a user list.
     const editor = read("src/components/permissions/PermissionCenter.js");
     expect(editor).not.toContain("fetchAllUsers");
+  });
+
+  test("the individual editor only offers what the person can be granted", () => {
+    const editor = read("src/components/permissions/PermissionCenter.js");
+    // The individual Advanced block is ceiling-limited like the template's, so
+    // it never offers a right the person cannot receive, nor the bucket of
+    // parts that have no dashboard section.
+    expect(editor).toContain("visibleFeatures={personFeatures}");
+    expect(editor).toContain("retainedCaps={exceptionSpecialCaps}");
+    expect(editor).toContain("explanation?.eligibility");
+    // Same ceiling on the basic-rights grid, at section level.
+    expect(editor).toContain(
+      "isPersonEligibleForFeature(eligibilityMap, section.feature)",
+    );
+  });
+
+  test("a person's rights are level chips with explicit controls, not a level spreadsheet", () => {
+    const editor = read("src/components/permissions/PermissionCenter.js");
+    expect(editor).toContain("LEVEL_CHIP_ACTIVE");
+    expect(editor).toContain('t("engineering.permissions.block")');
+    expect(editor).toContain('t("engineering.permissions.restore")');
+    expect(editor).toContain('t("engineering.permissions.personRightsHint")');
   });
 
   test("the view uses the real endpoints and shared primitives", () => {
@@ -132,6 +166,7 @@ describe("UI-2b — screen wiring", () => {
       "engineering.permissions.effectiveAllowed",
       "engineering.permissions.effectiveDenied",
       "engineering.permissions.effectiveReasonRestriction",
+      "engineering.permissions.effectiveReasonNotEligible",
       "engineering.permissions.effectiveReasonNoSource",
     ];
     for (const key of keys) {

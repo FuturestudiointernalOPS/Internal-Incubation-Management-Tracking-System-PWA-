@@ -50,6 +50,7 @@ export default function AdvancedCapabilities({
   availableModules,
   moduleToFeature = {},
   visibleFeatures = null,
+  retainedCaps = null,
   mode = "profile",
   stateOf,
   onToggle,
@@ -65,24 +66,32 @@ export default function AdvancedCapabilities({
     return value && value !== key ? value : fallback;
   };
 
+  /**
+   * Non-CRUD capabilities this block may render for a module. When
+   * `visibleFeatures` is set (the strict ceiling), only that feature's
+   * capabilities pass — except the ones listed in `retainedCaps`
+   * (`"module.capability"`), which stay visible so an existing personal
+   * exception can still be reviewed and undone.
+   */
   const advancedCapsOf = (module) =>
-    (availableModules?.[module]?.capabilities || []).filter(
-      (capability) => !CRUD_CAPABILITIES.includes(capability),
-    );
+    (availableModules?.[module]?.capabilities || []).filter((capability) => {
+      if (CRUD_CAPABILITIES.includes(capability)) return false;
+      if (!visibleFeatures) return true;
+      const feature = moduleToFeature[module];
+      if (feature && visibleFeatures.has(feature)) return true;
+      return Boolean(retainedCaps?.has?.(`${module}.${capability}`));
+    });
 
   // Feature → modules → non-CRUD capabilities, in the catalog's module order.
   const groups = [];
   const byFeature = new Map();
   for (const [module, def] of Object.entries(availableModules || {})) {
+    const feature = moduleToFeature[module] || null;
+    // Strict mode (both editors pass visibleFeatures): a module with no feature
+    // is not a dashboard section and never enters this block.
+    if (visibleFeatures && !feature) continue;
     const caps = advancedCapsOf(module);
     if (caps.length === 0) continue;
-    const feature = moduleToFeature[module] || null;
-    // Strict mode (the profile template passes visibleFeatures): only the
-    // features the roles are eligible for — and NEVER the "unmapped" bucket,
-    // which is not a feature/section (e.g. org_membership).
-    if (visibleFeatures) {
-      if (!feature || !visibleFeatures.has(feature)) continue;
-    }
     const key = feature || "unmapped";
     if (!byFeature.has(key)) {
       const group = { feature: key, modules: [] };

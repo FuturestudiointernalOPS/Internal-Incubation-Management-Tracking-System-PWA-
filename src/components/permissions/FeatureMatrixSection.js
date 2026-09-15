@@ -1,9 +1,11 @@
 "use client";
 
 import React from "react";
+import { Plus } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import {
   buildSectionColumns,
+  capabilityLevel,
   crudCapabilities,
   isModuleFull,
 } from "@/components/permissions/matrixHelpers";
@@ -18,17 +20,19 @@ import {
  * A sub-section backed by a permission module is editable through the fixed
  * CRUD ladder View · Edit · Create · Delete · Full. A sub-section with no
  * capability of its own (Membership, Timeline, …) is INFORMATIONAL: it is shown
- * without checkboxes. Non-CRUD capabilities of a module (send, execute, grant,
+ * with no level cell. Non-CRUD capabilities of a module (send, execute, grant,
  * …) live in the "Advanced" section below.
  *
  * A module named by several sub-sections is editable once (its first row); the
  * later rows are informational aliases. "Full" is scoped to the module's CRUD
  * set, so it can never grant a capability this table does not show.
  *
- * Every cell is a CHECKBOX (no dropdown). View is the base capability — checking
- * any other CRUD capability also checks View, and clearing View clears the
- * module's other CRUD capabilities. The header checkbox applies a column to
- * every editable row of the group at once (indeterminate when only some hold it).
+ * Every editable cell is a LEVEL CHIP — the same control the People screen uses
+ * for a person's permission detail: a rounded-square button showing V/C/E/D/All,
+ * coloured by the stored level. View is the base capability — granting any other
+ * CRUD capability also grants View, and clearing View clears the module's other
+ * CRUD capabilities. The header chip applies a column to every editable row of
+ * the group at once (indeterminate when only some hold it).
  *
  * Level numbers are preserved for the engine (view=1 … delete=4, Full=5).
  */
@@ -41,29 +45,59 @@ const LEVEL_LABEL_KEYS = {
   full: "engineering.permissions.accessLevelFull",
 };
 
-/** Tri-state checkbox (native indeterminate is only reachable through a ref). */
-function MatrixCheckbox({
+/** Level → chip colours (Tailwind classes only, no hex) + short code. */
+const LEVEL_CHIP_STYLES = {
+  1: { code: "V", className: "bg-blue-500/15 border-blue-500/40 text-blue-400" },
+  2: {
+    code: "C",
+    className: "bg-emerald-500/15 border-emerald-500/40 text-emerald-400",
+  },
+  3: { code: "E", className: "bg-amber-500/15 border-amber-500/40 text-amber-400" },
+  4: { code: "D", className: "bg-red-500/15 border-red-500/40 text-red-400" },
+  5: {
+    code: "All",
+    className: "bg-purple-500/15 border-purple-500/40 text-purple-400",
+  },
+};
+
+const LEVEL_CHIP_BASE =
+  "h-7 w-7 rounded-lg border-2 flex items-center justify-center mx-auto text-[10px] font-black transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 disabled:opacity-25 disabled:cursor-not-allowed";
+
+const LEVEL_CHIP_OFF =
+  "border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] opacity-40 hover:opacity-100 hover:border-[var(--brand-orange)]/50 hover:text-[var(--brand-orange)]";
+
+/**
+ * One level chip. Checked shows the level code (V/C/E/D/All) coloured by level;
+ * unchecked shows a plus, or a dash when the group is partially held. Unknown
+ * levels fall back to level 1.
+ */
+function MatrixCell({
+  level = 1,
   checked,
   indeterminate = false,
   disabled = false,
   onChange,
   title,
 }) {
-  const ref = React.useRef(null);
-  React.useEffect(() => {
-    if (ref.current) ref.current.indeterminate = !checked && indeterminate;
-  }, [checked, indeterminate]);
+  const style = LEVEL_CHIP_STYLES[level] || LEVEL_CHIP_STYLES[1];
   return (
-    <input
-      ref={ref}
-      type="checkbox"
-      checked={checked}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.checked)}
-      title={title}
+    <button
+      type="button"
+      aria-pressed={checked}
       aria-label={title}
-      className="h-4 w-4 rounded border-[var(--border-primary)] accent-[var(--brand-orange)] cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
-    />
+      title={title}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`${LEVEL_CHIP_BASE} ${checked ? style.className : LEVEL_CHIP_OFF}`}
+    >
+      {checked ? (
+        style.code
+      ) : indeterminate ? (
+        <span>–</span>
+      ) : (
+        <Plus className="w-3 h-3" />
+      )}
+    </button>
   );
 }
 
@@ -158,14 +192,15 @@ export default function FeatureMatrixSection({
     (row) => isEditable(row) && rowCrud(row).some((cap) => isChanged(row, cap)),
   );
 
-  /** A checkbox cell for one sub-section + column, or a placeholder. */
+  /** A level-chip cell for one sub-section + column, or a placeholder. */
   const renderCell = (row, col) => {
     if (!isEditable(row)) return <Placeholder />;
     const caps = rowCrud(row);
     if (col.kind === "full") {
       if (caps.length === 0) return <Placeholder />;
       return (
-        <MatrixCheckbox
+        <MatrixCell
+          level={5}
           checked={rowFull(row)}
           onChange={(next) => onToggleFull(row.module, next, caps)}
           title={cellTitle(row, col)}
@@ -174,7 +209,8 @@ export default function FeatureMatrixSection({
     }
     if (!caps.includes(col.capability)) return <Placeholder />;
     return (
-      <MatrixCheckbox
+      <MatrixCell
+        level={levelOf(row, col.capability)}
         checked={isChecked(row, col.capability)}
         onChange={(next) => onToggle(row.module, col.capability, next, caps)}
         title={cellTitle(row, col)}
@@ -195,7 +231,7 @@ export default function FeatureMatrixSection({
         )}
       </div>
 
-      {/* Desktop: sub-sections are rows, access-level columns are checkboxes. */}
+      {/* Desktop: sub-sections are rows, access-level columns are level chips. */}
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-left min-w-[480px]">
           <thead>
@@ -215,7 +251,10 @@ export default function FeatureMatrixSection({
                       <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                         {columnLabel(col)}
                       </span>
-                      <MatrixCheckbox
+                      <MatrixCell
+                        level={
+                          col.kind === "full" ? 5 : capabilityLevel(col.capability)
+                        }
                         checked={state.checked}
                         indeterminate={state.indeterminate}
                         disabled={disabled}
@@ -253,7 +292,7 @@ export default function FeatureMatrixSection({
         </table>
       </div>
 
-      {/* Small screens: one card per sub-section, one checkbox per capability. */}
+      {/* Small screens: one card per sub-section, one chip per capability. */}
       <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
         {(rows || []).map((row) => (
           <div key={row.id} className="p-3 space-y-2">
@@ -272,15 +311,15 @@ export default function FeatureMatrixSection({
                     col.kind === "full" || rowCrud(row).includes(col.capability),
                 )
                 .map((col) => (
-                  <label
+                  <div
                     key={col.key}
-                    className="flex items-center justify-between gap-2 cursor-pointer"
+                    className="flex items-center justify-between gap-2"
                   >
                     <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wide">
                       {columnLabel(col)}
                     </span>
                     {renderCell(row, col)}
-                  </label>
+                  </div>
                 ))}
             </div>
           </div>

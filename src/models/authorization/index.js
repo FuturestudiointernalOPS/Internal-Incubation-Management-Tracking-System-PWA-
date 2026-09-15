@@ -21,6 +21,7 @@ export {
   buildPermissionExplanation,
   rowsToCaps,
   rowsToRestrictions,
+  restrictionsToJson,
 } from "./resolver";
 
 export {
@@ -51,4 +52,5 @@ export {
   validateEligibilityChanges,
   validateCapabilitiesWithinEligibility,
   assertTemplateCapsEligible,
+  findTemplatesGrantingFeature,
 } from "./eligibility-admin";

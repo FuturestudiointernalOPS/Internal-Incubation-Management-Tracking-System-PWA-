@@ -49,6 +49,28 @@ export function cacheSet(url, data) {
   responseCache.set(url, { data, ts: Date.now() });
 }
 
+// ─── In-flight GET sharing ──────────────────────────────────────────────────
+// The cache above only helps AFTER a response arrives. Several components (the
+// shell's badge chain and the page body) ask for the same endpoint in the same
+// instant, all miss the empty cache, and each issues its own request — the log
+// showed the same read arriving three or four times per page load. Requests
+// already on the wire are shared here, so the second caller waits for the first
+// answer instead of duplicating it.
+const inflightFetches = new Map();
+
+/** GET + parse, sharing one request per URL with anyone asking at the same time. */
+export function fetchJsonShared(url) {
+  const existing = inflightFetches.get(url);
+  if (existing) return existing;
+  const pending = fetch(url)
+    .then((res) => res.json())
+    .finally(() => {
+      if (inflightFetches.get(url) === pending) inflightFetches.delete(url);
+    });
+  inflightFetches.set(url, pending);
+  return pending;
+}
+
 // ─── Shared SWR helpers (reused by DashboardLayout + page loaders) ───
 
 /**
@@ -57,8 +79,7 @@ export function cacheSet(url, data) {
  * resolves silently and leaves the cache untouched.
  */
 export function revalidateJson(url, apply) {
-  return fetch(url)
-    .then((res) => res.json())
+  return fetchJsonShared(url)
     .then((data) => {
       if (data && data.success) {
         cacheSet(url, data);
@@ -119,8 +140,7 @@ export function useApi(url, options = {}) {
     }
 
     try {
-      const res = await fetch(url);
-      const json = await res.json();
+      const json = await fetchJsonShared(url);
 
       // Discard stale responses
       if (fetchId !== fetchIdRef.current || !activeRef.current) return;
@@ -206,8 +226,7 @@ export function useApiMulti(endpoints, options = {}) {
           if (cached !== null) {
             return { key, value: transform ? transform(cached) : cached };
           }
-          const res = await fetch(url);
-          const json = await res.json();
+          const json = await fetchJsonShared(url);
           cacheSet(url, json);
           const value = transform ? transform(json) : json;
           return { key, value };

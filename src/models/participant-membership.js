@@ -58,10 +58,6 @@ export async function getParticipantProgramIds({ cid, email, contact = {} }) {
     return [];
   }
 
-  console.warn(
-    `[participant-membership] legacy fallback used for ${cid || email || "unknown"}`,
-  );
-
   const ids = new Set(splitLegacyProgramIds(contact.program_id));
 
   if (contact.group_name) {
@@ -95,6 +91,16 @@ export async function getParticipantProgramIds({ cid, email, contact = {} }) {
         if (r.program_id) ids.add(String(r.program_id).trim());
       });
     } catch (_) {}
+  }
+
+  // Warn only when the legacy sources actually produced a program: a caller
+  // with no legacy program at all is not an un-reconciled participant (staff,
+  // Program Managers and mentors resolve their program scope here too), so
+  // warning for them turned a reconciliation signal into per-request noise.
+  if (ids.size > 0) {
+    console.warn(
+      `[participant-membership] legacy fallback used for ${cid || email || "unknown"}`,
+    );
   }
 
   return Array.from(ids);

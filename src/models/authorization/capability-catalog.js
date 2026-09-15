@@ -84,6 +84,31 @@ export const CAPABILITY_CATALOG = {
       moderate: { label: "Moderate", risk: "high", description: "Edit/delete announcements" },
     },
   },
+  // Forms — the communication suite's form builder and its runs. It backs the
+  // "Forms" sub-section of the Communication feature and the /platform/forms
+  // and /api/platform/forms routes.
+  forms: {
+    name: "Forms",
+    risk: "medium",
+    capabilities: {
+      view: { label: "View", risk: "low", description: "See forms" },
+      create: { label: "Create", risk: "medium", description: "Create forms" },
+      edit: { label: "Edit", risk: "medium", description: "Edit forms and publish versions" },
+      delete: { label: "Delete", risk: "high", description: "Archive or permanently delete forms" },
+    },
+  },
+  // Runs — launch a form, collect and review its submissions. Backs the Runs
+  // sub-section of the Communication feature and /api/platform/form-runs.
+  runs: {
+    name: "Runs",
+    risk: "medium",
+    capabilities: {
+      view: { label: "View", risk: "low", description: "See runs, assignments and submissions" },
+      create: { label: "Create", risk: "medium", description: "Create, launch and change the status of runs" },
+      edit: { label: "Edit", risk: "high", description: "Assign people, review/decide and send run emails" },
+      delete: { label: "Delete", risk: "high", description: "Delete runs and submissions" },
+    },
+  },
   projects: {
     name: "Projects",
     risk: "medium",

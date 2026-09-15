@@ -47,7 +47,6 @@ import Link from "next/link";
 import GlobalToast from "@/components/ui/GlobalToast";
 import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
-import { resolveActiveSurface } from "@/lib/context";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
 import { fetchSwrJson } from "@/lib/hooks/useApi";
@@ -58,6 +57,7 @@ import {
   resolveSectionExpanded,
   nextExplicitState,
 } from "@/components/layout/sidebarMenu";
+import { PermissionProvider, usePermissions } from "@/lib/PermissionProvider";
 
 // LocalStorage keys that remember when the user last viewed a given page,
 // so sidebar badges only count items that arrived after that visit.
@@ -206,7 +206,6 @@ const CRUMB_PATH_MAP = {
   announcements: "navigation.announcements",
   programs: "navigation.programs",
   progress: "navigation.progress",
-  responses: "navigation.reportResponses",
   ventures: "navigation.ventures",
   investors: "navigation.investors",
   campaigns: "navigation.investorsCampaigns",
@@ -678,22 +677,17 @@ function attachIcons(items) {
   }));
 }
 
-// The sidebar follows the page context only for real WORK surfaces: a user
-// acting under another role (e.g. a staff member assigned as Program Manager)
-// sees that role's nav while on its pages. Workspaces owned by a dedicated
-// session role (crm, finance, investor, team) never override the connected
-// user's role — visiting /crm must not turn a staff member's sidebar into the
-// CRM workspace's flat menu.
-const HAT_SURFACES = new Set([
-  "program_manager",
-  "staff",
-  "teacher",
-  "facilitator",
-  "participant",
-  "developer",
-]);
+/**
+ * The role that drives the shell + sidebar. It is ALWAYS the connected user's
+ * session role; the section layout's `role` prop is only a pre-session
+ * fallback (before the cached/server session supplies `user.role`). The visited
+ * page never contributes a role — a staff member on /crm stays staff.
+ */
+function shellRole(user, role) {
+  return user.role || role || "admin";
+}
 
-export default function DashboardLayout({ children, role = "admin", modals, fullWidth = false }) {
+function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = false }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -943,9 +937,11 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   // null = unknown (show by default), false = hide "My Learning"
   const [hasLmsEnrollments, setHasLmsEnrollments] = useState(null);
 
-  // Effective capability matrix for sidebar visibility (the server remains
-  // authoritative). Declared before the fast-path effect that restores it.
-  const [effectiveCaps, setEffectiveCaps] = useState(null);
+  // Effective capability matrix for sidebar visibility, read ONCE for the whole
+  // surface from the shared permission context (the server remains
+  // authoritative). Every gated affordance under this shell reads the same
+  // value instead of firing its own request.
+  const { permissions: effectiveCaps } = usePermissions();
 
   // Fast path: restore the cached session synchronously before first paint so
   // navigating between pages doesn't flash an empty screen while initAuth()
@@ -958,9 +954,8 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     const s = getDashboardSession();
     if (s) {
       if (s.user) setUser(s.user);
-      // Restoring the capabilities too is what keeps the sidebar from flashing
-      // the fail-open role matrix on every remount.
-      if (s.capabilities) setEffectiveCaps(s.capabilities);
+      // The capabilities are restored by PermissionProvider (which mounts
+      // above this shell) — the sidebar reads them from that context.
       setAuthChecked(true);
       return;
     }
@@ -971,26 +966,6 @@ export default function DashboardLayout({ children, role = "admin", modals, full
         setAuthChecked(true);
       }
     } catch (_) {}
-  }, []);
-
-  // Load the current user's effective permissions once (resolver-cached
-  // server-side), then cache them on the dashboard session so the next remount
-  // paints the real access immediately.
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/me/permissions")
-      .then((r) => r.json())
-      .then((d) => {
-        if (!alive || !d.success) return;
-        const caps = d.effective || null;
-        setEffectiveCaps(caps);
-        const current = getDashboardSession() || {};
-        setDashboardSession({ ...current, capabilities: caps });
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
   }, []);
 
   // Load user from session API first, fallback to localStorage
@@ -1103,16 +1078,10 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     initAuth();
   }, []);
 
-  // Fetch PM programs when user changes or when the user is acting in the PM
-  // context (e.g. a staff member assigned as Program Manager on /pm/*).
+  // Fetch PM programs for program_manager / super_admin roles.
   useEffect(() => {
     if (!user.cid && !user.id) return;
-    const inPmContext = (pathname || "").startsWith("/pm");
-    if (
-      !inPmContext &&
-      user.role !== "program_manager" &&
-      user.role !== "super_admin"
-    ) {
+    if (user.role !== "program_manager" && user.role !== "super_admin") {
       return;
     }
     const url =
@@ -1125,7 +1094,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
         if (data.success) setPmPrograms(data.programs || []);
       })
       .catch((e) => console.error(e));
-  }, [user.role, user.cid, user.id, pathname]);
+  }, [user.role, user.cid, user.id]);
 
   // "My Learning" only appears once the participant has subscribed to a course
   // or been assigned one (admin/program enrollment). The flag is refreshed on
@@ -1134,9 +1103,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   // instead of flashing it off for learners who are enrolled.
   useEffect(() => {
     const sessionRole = user.role || role || "";
-    const participantNavActive =
-      resolveActiveSurface(pathname) === "participant" ||
-      sessionRole === "participant";
+    const participantNavActive = sessionRole === "participant";
     if (
       sessionRole === "super_admin" ||
       sessionRole === "developer" ||
@@ -1158,7 +1125,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     return () => {
       active = false;
     };
-  }, [user.role, user.cid, user.id, pathname, role]);
+  }, [user.role, user.cid, user.id, role]);
 
   // Unread counts per nav type — messages from actual unread count, others from notifications
   const unreadByType = useMemo(() => {
@@ -1241,17 +1208,9 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   const navItems = useMemo(() => {
     // The sidebar reflects the CONNECTED user: their role, and — via the
     // capability projection in buildAccessNav — everything their
-    // responsibilities actually grant them. The page context only contributes a
-    // hat for real work surfaces (see HAT_SURFACES); Super Admin and developer
-    // always keep their own.
-    const sessionRole = user.role || role || "admin";
-    const surface = resolveActiveSurface(pathname);
-    const activeRole =
-      sessionRole === "super_admin" || sessionRole === "developer"
-        ? sessionRole
-        : HAT_SURFACES.has(surface)
-          ? surface
-          : sessionRole;
+    // responsibilities actually grant them. It never changes with the page
+    // being viewed (see shellRole).
+    const activeRole = shellRole(user, role);
 
     // "My Learning" is hidden until the participant actually has a course
     // (self-subscribed, admin enrollment or program assignment). hasLmsEnrollments
@@ -1319,10 +1278,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       // ONE dashboard per surface: the calendar page. "member" is the
       // baseline identity, not a destination — a member (and a founder, and a
       // participant) all land on /participant and get their contexts as
-      // sidebar additions. Only the team surface has a different calendar
-      // page. Do NOT key this off sessionRole: a member sitting on
-      // /participant has activeRole "participant" but sessionRole "member",
-      // which silently sent the Dashboard link back to the /workspaces hub.
+      // sidebar additions. Only the team surface has a different calendar page.
       const dashboardHref = activeRole === "team" ? "/team" : "/participant";
       const items = [
         { id: "dashboard", name: "DASHBOARD", icon: LayoutDashboard, href: dashboardHref },
@@ -1416,7 +1372,6 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     user.groups,
     role,
     pmPrograms,
-    pathname,
     hasLmsEnrollments,
     effectiveCaps,
     ventureAssignCount,
@@ -1490,13 +1445,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     router.replace("/login");
   };
 
-  const resolvedSurface = resolveActiveSurface(pathname);
-  const activeRole =
-    user.role === "super_admin" || user.role === "developer"
-      ? user.role
-      : HAT_SURFACES.has(resolvedSurface)
-        ? resolvedSurface
-        : user.role || role || "admin";
+  const activeRole = shellRole(user, role);
   const commonProps = {
     collapsed,
     role: activeRole,
@@ -2115,5 +2064,19 @@ export default function DashboardLayout({ children, role = "admin", modals, full
         </div>
       </div>
     </AppErrorBoundary>
+  );
+}
+
+/**
+ * The shell mounts its own permission provider: ONE capability read for the
+ * whole surface, shared by the sidebar (via usePermissions) and every gated
+ * affordance rendered underneath. Consumers outside a DashboardLayout keep
+ * working standalone (usePermissions falls back to its own read).
+ */
+export default function DashboardLayout(props) {
+  return (
+    <PermissionProvider>
+      <DashboardLayoutInner {...props} />
+    </PermissionProvider>
   );
 }

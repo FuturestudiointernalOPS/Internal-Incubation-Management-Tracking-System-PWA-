@@ -9,6 +9,11 @@
  */
 
 const mockExecutedQueries = [];
+// Rows affected by the role-default DELETE (0 = no matching mapping).
+let mockRoleDefaultRowsAffected = 1;
+// C2 — rows the template-impact probe returns (role defaults still granting a
+// feature's capabilities).
+let mockTemplateImpacts = [];
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
@@ -17,6 +22,12 @@ jest.mock("@/lib/db", () => ({
       mockExecutedQueries.push(String(sql));
       if (String(sql).includes("FROM access_profiles WHERE id")) {
         return { rows: [{ id: 99, name: "Some Profile" }] };
+      }
+      if (String(sql).includes("JOIN access_profile_capabilities")) {
+        return { rows: mockTemplateImpacts };
+      }
+      if (String(sql).includes("DELETE FROM role_access_profile_defaults")) {
+        return { rows: [], rowsAffected: mockRoleDefaultRowsAffected };
       }
       return { rows: [] };
     }),
@@ -51,11 +62,13 @@ jest.mock("@/lib/authorization", () => ({
   IDENTITY_TYPES: mockRealEligAdmin.IDENTITY_TYPES,
   ROLE_CATALOG: mockRealEligAdmin.ROLE_CATALOG,
   validateEligibilityChanges: mockRealEligAdmin.validateEligibilityChanges,
+  findTemplatesGrantingFeature: mockRealEligAdmin.findTemplatesGrantingFeature,
   MODULE_TO_FEATURE: mockRealEligibility.MODULE_TO_FEATURE,
 }));
 
 const { requireAuthorization, invalidateAllAuthorizationContexts, assertTemplateCapsEligible, getAuthorizationContext } =
   require("@/lib/authorization");
+const { logPermissionAudit } = require("@/lib/auth");
 const eligibilityRoute = require("@/app/api/engineering/permissions/eligibility/route");
 const roleDefaultsRoute = require("@/app/api/access-profiles/role-defaults/route");
 const permissionsRoute = require("@/app/api/engineering/permissions/route");
@@ -66,6 +79,8 @@ const jsonReq = (body, method = "PUT", url = "http://localhost/api/x") =>
 beforeEach(() => {
   mockExecutedQueries.length = 0;
   mockAuthzDecision = null;
+  mockRoleDefaultRowsAffected = 1;
+  mockTemplateImpacts = [];
   jest.clearAllMocks();
 });
 
@@ -133,6 +148,78 @@ describe("PUT /api/engineering/permissions/eligibility — write", () => {
   });
 });
 
+describe("PUT eligibility — C2 template impact confirmation", () => {
+  const TEMPLATE_ROW = {
+    id: 7,
+    name: "Staff default",
+    module: "finance",
+    capability: "view",
+  };
+
+  test("a downgrade that strands template capabilities → 409, nothing persisted", async () => {
+    mockTemplateImpacts = [TEMPLATE_ROW];
+    const res = await eligibilityRoute.PUT(
+      jsonReq({ changes: [{ feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 0 }] }),
+    );
+    expect(res.status).toBe(409);
+    const d = await res.json();
+    expect(d.requiresConfirmation).toBe(true);
+    expect(d.impacts).toEqual([
+      {
+        role: "staff",
+        feature: "finance",
+        templates: [{ id: 7, name: "Staff default", capabilities: ["finance.view"] }],
+      },
+    ]);
+    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO feature_eligibility"))).toBe(false);
+    expect(mockExecutedQueries.some((q) => q.includes("DELETE FROM feature_eligibility"))).toBe(false);
+  });
+
+  test("unset (eligible=null) is also a downgrade and asks first", async () => {
+    mockTemplateImpacts = [TEMPLATE_ROW];
+    const res = await eligibilityRoute.PUT(
+      jsonReq({ changes: [{ feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: null }] }),
+    );
+    expect(res.status).toBe(409);
+  });
+
+  test("confirm:true applies the downgrade", async () => {
+    mockTemplateImpacts = [TEMPLATE_ROW];
+    const res = await eligibilityRoute.PUT(
+      jsonReq({
+        changes: [{ feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 0 }],
+        confirm: true,
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO feature_eligibility"))).toBe(true);
+  });
+
+  test("an upgrade (eligible=1) never asks for confirmation", async () => {
+    mockTemplateImpacts = [TEMPLATE_ROW];
+    const res = await eligibilityRoute.PUT(
+      jsonReq({ changes: [{ feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 1 }] }),
+    );
+    expect(res.status).toBe(200);
+  });
+
+  test("a downgrade with no impacted template applies directly", async () => {
+    mockTemplateImpacts = [];
+    const res = await eligibilityRoute.PUT(
+      jsonReq({ changes: [{ feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 0 }] }),
+    );
+    expect(res.status).toBe(200);
+  });
+
+  test("group downgrades are not template-bound — no confirmation", async () => {
+    mockTemplateImpacts = [TEMPLATE_ROW];
+    const res = await eligibilityRoute.PUT(
+      jsonReq({ changes: [{ feature_key: "finance", identity_type: "group", identity_value: "Future Studio", eligible: 0 }] }),
+    );
+    expect(res.status).toBe(200);
+  });
+});
+
 describe("PUT /api/access-profiles/role-defaults — eligibility boundary", () => {
   test("requires permissions.assign_capabilities", async () => {
     await roleDefaultsRoute.PUT(jsonReq({ role_name: "staff", profile_id: 2 }));
@@ -147,6 +234,67 @@ describe("PUT /api/access-profiles/role-defaults — eligibility boundary", () =
     const res = await roleDefaultsRoute.PUT(jsonReq({ role_name: "mentor", profile_id: 99 }));
     expect([400, 403]).toContain(res.status);
     expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO role_access_profile_defaults"))).toBe(false);
+  });
+});
+
+describe("DELETE /api/access-profiles/role-defaults — remove a role default", () => {
+  const delReq = (query) =>
+    new Request(`http://localhost/api/access-profiles/role-defaults?${query}`, {
+      method: "DELETE",
+    });
+  const deleteSql = () =>
+    mockExecutedQueries.find((q) =>
+      q.includes("DELETE FROM role_access_profile_defaults"),
+    );
+
+  test("requires permissions.assign_capabilities (no removal when unauthorized)", async () => {
+    mockAuthzDecision = new Response(JSON.stringify({ success: false, error: "x" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await roleDefaultsRoute.DELETE(delReq("role_name=staff&profile_id=2"));
+    expect(requireAuthorization).toHaveBeenCalledWith("permissions", "assign_capabilities");
+    expect(res.status).toBe(403);
+    expect(deleteSql()).toBeUndefined();
+  });
+
+  test("removes the mapping, scoped to role_name AND profile_id", async () => {
+    const res = await roleDefaultsRoute.DELETE(delReq("role_name=staff&profile_id=2"));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ success: true, removed: 1 });
+    // The DELETE is scoped, so a stale UI can never drop another profile's default.
+    expect(deleteSql()).toContain("role_name = ?");
+    expect(deleteSql()).toContain("access_profile_id = ?");
+  });
+
+  test("a real removal is audited and invalidates the authorization cache", async () => {
+    await roleDefaultsRoute.DELETE(delReq("role_name=staff&profile_id=2"));
+    expect(logPermissionAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "role_default_changed",
+        targetName: "role:staff",
+      }),
+    );
+    expect(invalidateAllAuthorizationContexts).toHaveBeenCalled();
+  });
+
+  test("no matching mapping → success but no audit and no cache invalidation", async () => {
+    mockRoleDefaultRowsAffected = 0;
+    const res = await roleDefaultsRoute.DELETE(delReq("role_name=ghost&profile_id=2"));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ success: true, removed: 0 });
+    expect(logPermissionAudit).not.toHaveBeenCalled();
+    expect(invalidateAllAuthorizationContexts).not.toHaveBeenCalled();
+  });
+
+  test("missing role_name or profile_id → 400 with no query", async () => {
+    for (const query of ["role_name=staff", "profile_id=2", ""]) {
+      const res = await roleDefaultsRoute.DELETE(delReq(query));
+      expect(res.status).toBe(400);
+    }
+    expect(deleteSql()).toBeUndefined();
   });
 });
 
