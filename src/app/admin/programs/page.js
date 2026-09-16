@@ -398,26 +398,57 @@ export default function ProgramManagement() {
     }
   };
 
-  // Pre-fetch form run URLs for assigned groups when edit modal opens
+  // Pre-fetch form run URLs for assigned groups when the edit modal opens.
+  // Keyed on the list of ids rather than on the array identity, so ticking one
+  // segment no longer refires one request per assigned group; and the map is
+  // rebuilt in a single pass, so a link belonging to a de-selected group can no
+  // longer linger and be sent to participants. A failed lookup keeps the link we
+  // already had rather than dropping a valid one.
+  const assignedSegmentKey = (editingProgram?.assigned_segments || [])
+    .filter(Boolean)
+    .join("|");
   useEffect(() => {
-    if (!editingProgram?.assigned_segments || editingProgram.assigned_segments.length === 0) {
+    const gids = assignedSegmentKey ? assignedSegmentKey.split("|") : [];
+    if (gids.length === 0) {
       setGroupRegLinks({});
       return;
     }
-    const gids = editingProgram.assigned_segments;
-    gids.forEach((gid) => {
-      if (!gid) return;
-      fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(gid)}`)
-        .then((r) => r.json())
-        .then((d) => {
-          if (d.success && d.runs && d.runs.length > 0) {
-            const run = d.runs.find((x) => x.status === "active" && x.public_slug);
-            if (run) setGroupRegLinks((prev) => ({ ...prev, [gid]: `${window.location.origin}/s/${run.public_slug}` }));
-          }
-        })
-        .catch(() => {});
+    let cancelled = false;
+    Promise.all(
+      gids.map(async (gid) => {
+        try {
+          const res = await fetch(
+            `/api/platform/form-runs?group_id=${encodeURIComponent(gid)}`,
+          );
+          const d = await res.json();
+          const run =
+            d.success && d.runs
+              ? d.runs.find((x) => x.status === "active" && x.public_slug)
+              : null;
+          return {
+            gid,
+            ok: true,
+            url: run ? `${window.location.origin}/s/${run.public_slug}` : null,
+          };
+        } catch (_) {
+          return { gid, ok: false, url: null };
+        }
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      setGroupRegLinks((prev) => {
+        const next = {};
+        for (const { gid, ok, url } of results) {
+          if (url) next[gid] = url;
+          else if (!ok && prev[gid]) next[gid] = prev[gid];
+        }
+        return next;
+      });
     });
-  }, [editingProgram?.assigned_segments]);
+    return () => {
+      cancelled = true;
+    };
+  }, [assignedSegmentKey]);
 
   // Fetch the Form Run assigned directly to this PROGRAM (target_type = "program").
   // This is the canonical participant intake link, distinct from group-level links.

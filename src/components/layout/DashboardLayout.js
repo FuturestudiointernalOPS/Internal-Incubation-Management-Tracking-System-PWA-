@@ -673,8 +673,8 @@ function attachIcons(items) {
  * fallback (before the cached/server session supplies `user.role`). The visited
  * page never contributes a role — a staff member on /crm stays staff.
  */
-function shellRole(user, role) {
-  return user.role || role || "admin";
+function shellRole(userRole, role) {
+  return userRole || role || "admin";
 }
 
 function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = false }) {
@@ -1200,7 +1200,7 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
     // capability projection in buildAccessNav — everything their
     // responsibilities actually grant them. It never changes with the page
     // being viewed (see shellRole).
-    const activeRole = shellRole(user, role);
+    const activeRole = shellRole(user.role, role);
 
     // "My Learning" is hidden until the participant actually has a course
     // (self-subscribed, admin enrollment or program assignment). hasLmsEnrollments
@@ -1365,6 +1365,7 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
     hasLmsEnrollments,
     effectiveCaps,
     ventureAssignCount,
+    relationships,
   ]);
 
   // Active navigation path — the current page plus every ancestor node id.
@@ -1435,7 +1436,7 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
     router.replace("/login");
   };
 
-  const activeRole = shellRole(user, role);
+  const activeRole = shellRole(user?.role, role);
   const commonProps = {
     collapsed,
     role: activeRole,

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
+import { Suspense, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Search, Eye, FileText, Filter, X, ArrowLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -124,13 +124,18 @@ function ResponsesContent() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Apply form_id from URL param after forms load
+  // Apply form_id from the shared link once its value changes, after the forms
+  // have loaded. The value already applied is remembered in a ref: keying this
+  // on "selectedFormId is empty" would re-apply the link's parameter the moment
+  // the user clears the filter, which makes the reset control a no-op.
+  const appliedFormParamRef = useRef(null);
   useEffect(() => {
-    if (formParam && forms.length > 0 && !selectedFormId) {
-      const match = forms.find(f => String(f.id) === String(formParam));
-      if (match) setSelectedFormId(String(match.id));
-    }
-  }, [formParam, forms, selectedFormId]);
+    if (!formParam || forms.length === 0) return;
+    if (appliedFormParamRef.current === formParam) return;
+    appliedFormParamRef.current = formParam;
+    const match = forms.find(f => String(f.id) === String(formParam));
+    if (match) setSelectedFormId(String(match.id));
+  }, [formParam, forms]);
 
   // Load form fields when a form is selected
   useEffect(() => {

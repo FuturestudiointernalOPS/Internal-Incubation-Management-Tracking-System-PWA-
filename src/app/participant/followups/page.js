@@ -6,15 +6,9 @@ import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function ParticipantFollowupsPage() {
-  const [user, setUser] = useState({});
   const [followups, setFollowups] = useState([]);
   const [loading, setLoading] = useState(true);
   const { t } = useI18n();
-
-  useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(stored);
-  }, []);
 
   const fetchFollowups = useCallback(async (bypassCache = false) => {
     const url = "/api/participant/followups";
@@ -44,8 +38,11 @@ export default function ParticipantFollowupsPage() {
   }, []);
 
   useEffect(() => {
-    if (user.cid || user.id) fetchFollowups();
-  }, [user, fetchFollowups]);
+    // Not gated on the cached user: /api/participant/followups resolves the
+    // participant from the session, so an empty or evicted cache must not block
+    // the load and leave the page on its spinner forever.
+    fetchFollowups();
+  }, [fetchFollowups]);
 
   const statusStyles = {
     scheduled: "bg-amber-500/10 text-amber-400 border-amber-500/20",

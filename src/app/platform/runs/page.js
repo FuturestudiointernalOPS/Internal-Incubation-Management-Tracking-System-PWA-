@@ -576,9 +576,6 @@ export default function FormRunsPage() {
 
   useEffect(() => { fetchRuns(); fetchForms(); fetchContacts(); fetchGroups(); fetchPrograms(); fetchDashboardStats(); }, [fetchRuns]);
 
-  // Reset to the first page whenever the run status filter changes.
-  useEffect(() => { setPage(1); }, [statusFilter]);
-
   const openRun = useCallback(async (run, opts = {}) => {
     if (!opts.keepTab) {
       setDetailTab("overview");
@@ -4181,7 +4178,10 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
       </div>
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 max-w-sm"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" /><input type="text" placeholder={t("platformMisc.runs.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" /></div>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]">
+        {/* Changing the filter resets the page here, in the event that causes it:
+            an effect would first fire the fetch with the new filter and the old
+            page, then fire it again after the reset. */}
+        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]">
           <option value="all">{t("platformMisc.runs.allStatus")}</option><option value="draft">{t("platformMisc.runs.statusDraft")}</option><option value="scheduled">{t("platformMisc.runs.statusScheduled")}</option><option value="active">{t("platformMisc.runs.statusActive")}</option><option value="closed">{t("platformMisc.runs.statusClosed")}</option><option value="cancelled">{t("platformMisc.runs.statusCancelled")}</option><option value="archived">{t("platformMisc.runs.statusArchived")}</option>
         </select>
       </div>

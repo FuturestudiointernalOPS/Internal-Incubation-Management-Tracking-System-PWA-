@@ -320,7 +320,10 @@ export default function NewProgram() {
       return;
     }
 
-    // Calculate duration_weeks from dates for backward compatibility
+    // Calculate duration_weeks from dates for backward compatibility. Kept in a
+    // local because the POST body below reads it, and writing it back into
+    // `program` would mutate state React owns.
+    let durationWeeks = program.duration_weeks;
     if (program.start_date && program.end_date) {
       if (!validateDates(program.start_date, program.end_date)) {
         return;
@@ -328,13 +331,14 @@ export default function NewProgram() {
       const start = new Date(program.start_date);
       const end = new Date(program.end_date);
       const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-      program.duration_weeks = Math.max(1, Math.ceil(diffDays / 7));
+      durationWeeks = Math.max(1, Math.ceil(diffDays / 7));
     }
 
     setIsDeploying(true);
     try {
       // Create contact group first if a group name was provided
       let groupId = existingGroupId || program.assigned_segments?.[0];
+      let assignedSegments = program.assigned_segments;
       if (!groupId && newGroup.name?.trim()) {
         const groupRes = await fetch("/api/families", {
           method: "POST",
@@ -349,7 +353,7 @@ export default function NewProgram() {
         const groupData = await groupRes.json();
         if (groupData.success) {
           groupId = groupData.group?.id || groupData.id;
-          program.assigned_segments = [groupId];
+          assignedSegments = [groupId];
         }
       }
 
@@ -372,12 +376,12 @@ export default function NewProgram() {
           language: program.language || "en",
           start_date: program.start_date,
           end_date: program.end_date,
-          duration_weeks: program.duration_weeks,
+          duration_weeks: durationWeeks,
           assigned_pm_id: program.assigned_pm_id,
           assigned_assistant_id: program.assigned_assistant_id || null,
           note_id: program.note_id || null,
           materials: program.materials,
-          assigned_segments: existingGroupId ? [existingGroupId] : program.assigned_segments,
+          assigned_segments: existingGroupId ? [existingGroupId] : assignedSegments,
           kpis: kpisList,
         }),
       });

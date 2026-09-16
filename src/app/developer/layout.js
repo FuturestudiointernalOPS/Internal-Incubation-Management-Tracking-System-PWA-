@@ -43,12 +43,27 @@ export default function DeveloperLayout({ children }) {
 
   useEffect(() => {
     async function checkAccess() {
+      let answered = false;
       try {
         // Try session API first
         const res = await fetch("/api/auth/session");
         const data = await res.json();
+        answered = true;
         if (data.authenticated && data.user) {
           const role = data.user.role;
+
+          // The cached copy restored above is only a first-paint shortcut. Now
+          // that the server has answered it is the authority, so refresh the
+          // cache with what it says.
+          try {
+            const cached = JSON.parse(localStorage.getItem("user") || "null");
+            if (cached) {
+              localStorage.setItem(
+                "user",
+                JSON.stringify({ ...cached, ...data.user }),
+              );
+            }
+          } catch (_) {}
 
           // Check group membership for interns
           let userGroups = [];
@@ -82,6 +97,14 @@ export default function DeveloperLayout({ children }) {
           return;
         }
       } catch (_) {}
+
+      if (answered) {
+        // Definitively no valid session: drop the cached copy so the fallback
+        // below cannot resurrect this shell from stale storage.
+        try {
+          localStorage.removeItem("user");
+        } catch (_) {}
+      }
 
       // Fallback: check localStorage
       try {

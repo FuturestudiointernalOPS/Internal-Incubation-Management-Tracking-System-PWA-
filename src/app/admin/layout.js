@@ -39,11 +39,26 @@ export default function AdminLayout({ children }) {
 
   useEffect(() => {
     async function checkAccess() {
+      let answered = false;
       try {
         // Try session API first
         const res = await fetch("/api/auth/session");
         const data = await res.json();
+        answered = true;
         if (data.authenticated && data.user) {
+          // The cached copy restored above is only a first-paint shortcut. Now
+          // that the server has answered it is the authority, so refresh the
+          // cache with what it says: otherwise a role changed server-side keeps
+          // resurrecting this shell from stale storage on the next visit.
+          try {
+            const cached = JSON.parse(localStorage.getItem("user") || "null");
+            if (cached) {
+              localStorage.setItem(
+                "user",
+                JSON.stringify({ ...cached, ...data.user }),
+              );
+            }
+          } catch (_) {}
           const role = data.user.role;
           if (role === "super_admin" || role === "developer") {
             setSessionRole(role);
@@ -60,6 +75,14 @@ export default function AdminLayout({ children }) {
           return;
         }
       } catch (_) {}
+
+      if (answered) {
+        // Definitively no valid session: drop the cached copy so the optimistic
+        // fast-path can never paint this shell again.
+        try {
+          localStorage.removeItem("user");
+        } catch (_) {}
+      }
 
       router.replace("/login");
     }

@@ -20,9 +20,14 @@ import { useI18n } from "@/lib/i18n";
  *   contextLabel  — display label (e.g., "Future Studio Staff", "Venture: AcmeCorp")
  *   contextId     — the ID of the context entity (venture_id, program_id, or null for staff)
  */
+// Module-level so the default prop keeps a stable identity: an object literal in
+// the parameter list is recreated on every render and, once it reaches a
+// useCallback dependency, refetches in a loop.
+const DEFAULT_CONTEXT = { context_type: "staff", context_id: null };
+
 export default function UnifiedOperationsView({
   user,
-  context = { context_type: "staff", context_id: null },
+  context = DEFAULT_CONTEXT,
   contextLabel = "Internal Operations",
 }) {
   const { t } = useI18n();
@@ -36,12 +41,16 @@ export default function UnifiedOperationsView({
   const [creating, setCreating] = useState(false);
   const [toast, setToast] = useState(null);
 
+  // Hoisted so the loader's identity changes only when the id does: `user` is a
+  // fresh object on every render of the parent.
+  const cid = user?.cid;
+
   const fetchStandup = useCallback(async () => {
-    if (!user?.cid) return;
+    if (!cid) return;
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        user_id: user.cid,
+        user_id: cid,
         week: weekInfo.week,
         year: weekInfo.year,
         context_type: context.context_type,
@@ -61,7 +70,7 @@ export default function UnifiedOperationsView({
     } finally {
       setLoading(false);
     }
-  }, [user?.cid, weekInfo.week, weekInfo.year, context]);
+  }, [cid, weekInfo.week, weekInfo.year, context]);
 
   useEffect(() => {
     fetchStandup();

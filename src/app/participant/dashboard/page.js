@@ -24,18 +24,12 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
  * calendar with upcoming events, action center, and notifications.
  */
 export default function ParticipantDashboard() {
-  const [user, setUser] = useState({});
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [actionCenter, setActionCenter] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
   const [primaryProgram, setPrimaryProgram] = useState(null);
   const [loading, setLoading] = useState(true);
   const { t } = useI18n();
-
-  useEffect(() => {
-    const sessionUser = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(sessionUser);
-  }, []);
 
   // Fetch data from the home API
   useEffect(() => {
@@ -67,8 +61,11 @@ export default function ParticipantDashboard() {
         setLoading(false);
       }
     }
-    if (user.cid || user.id) fetchData();
-  }, [user]);
+    // Not gated on the cached user: /api/participant/home resolves the
+    // participant from the session, so an empty or evicted cache must not leave
+    // this page on its spinner forever.
+    fetchData();
+  }, []);
 
   return (
     <>

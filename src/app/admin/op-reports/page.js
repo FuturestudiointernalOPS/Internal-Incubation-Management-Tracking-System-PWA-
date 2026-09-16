@@ -173,7 +173,7 @@ export default function AdminOpReports() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filterWorkspace]);
 
   useEffect(() => {
     fetchData();

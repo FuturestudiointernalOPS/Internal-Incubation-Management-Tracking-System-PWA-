@@ -1,30 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Briefcase, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function ParticipantVentures() {
-  const [user, setUser] = useState({});
   const [ventures, setVentures] = useState([]);
   const [loading, setLoading] = useState(true);
   const { t } = useI18n();
   const router = useRouter();
 
-  useEffect(() => {
-    const sessionUser = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(sessionUser);
-  }, []);
-
-  useEffect(() => {
-    if (!user.cid) return;
-    loadVentures();
-  }, [user]);
-
-  async function loadVentures(bypassCache = false) {
-    const url = `/api/ventures?contact_id=${user.cid}`;
+  const loadVentures = useCallback(async (bypassCache = false) => {
+    // Scoping is resolved server-side from the session; the cached cid below is
+    // only a filter hint for global roles. It is read here rather than kept in
+    // state so the loader keeps a stable identity, and so the page still loads
+    // when the cache is empty instead of sitting on its spinner forever.
+    let cid = "";
+    try {
+      cid = JSON.parse(localStorage.getItem("user") || "{}").cid || "";
+    } catch (_) {}
+    const url = cid ? `/api/ventures?contact_id=${cid}` : "/api/ventures";
     const apply = (data) => {
       if (data.success) setVentures(data.ventures);
     };
@@ -48,7 +45,11 @@ export default function ParticipantVentures() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    loadVentures();
+  }, [loadVentures]);
 
   // Phase 2 pipeline: Venture creation goes through the Venture Application
   // Form/Run. This button opens the configured Venture Run.
