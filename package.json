@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "test": "jest --runInBand",
     "i18n:parity": "node scripts/i18n-parity.mjs",
+    "db:align": "node scripts/db-audit/apply-align-migration.mjs",
     "verify:alignment": "node scripts/verify-feature-alignment.mjs",
     "sync-finance": "node scripts/sync-finance.js --syncAll"
   },

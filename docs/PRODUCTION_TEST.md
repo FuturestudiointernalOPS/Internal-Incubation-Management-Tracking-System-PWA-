@@ -219,6 +219,25 @@ SELECT data_type FROM information_schema.columns
 WHERE table_name = 'venture_milestones' AND column_name = 'id';
 ```
 
+### Program tables — align the schema with the code
+
+The program tables (weekly reports, sessions, requirements, submissions,
+programs) drift the same way, and the app's migration runner plus its on-demand
+self-healing **do not cover every column**. `migrations/align_schema_with_code.sql`
+is the authoritative list; each statement is idempotent. The one genuine gap is
+`v2_document_requirements.due_date` — nothing else ever adds it, so creating a
+session that carries requirements **500s** until it exists.
+
+```bash
+node scripts/db-audit/apply-align-migration.mjs           # dry run — prints every statement, connects to nothing
+node scripts/db-audit/apply-align-migration.mjs --apply   # execute — per-statement OK/ERR, never aborts midway
+```
+
+Then confirm: re-run the **section 8** queries in that `.sql` file by hand. Every
+missing-column query must come back empty, and the unique key
+`idx_v2_weekly_reports_week_key` must exist — without it no weekly report can be
+saved.
+
 ---
 
 ## 6. Environment and infrastructure
