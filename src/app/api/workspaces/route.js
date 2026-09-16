@@ -42,19 +42,53 @@ export async function GET(req) {
 
     const session = await getSession();
 
-    // 1. Program staff assignments (facilitator / staff / ...)
-    const staffRes = await getStaffAssignmentsForUser(
-      session.cid,
-      session.email || session.cid,
-    );
+    // ── Wave 1: every read that needs only the session identity ─────────────
+    // These ten reads are independent (only the user's id/email is required).
+    // They used to be awaited one after another — twelve round trips (~1.6s in
+    // the observed environment) before the hub could render. allSettled keeps
+    // the original fail-open behaviour: a missing table or a failing read
+    // contributes an empty list instead of breaking the endpoint.
+    const [
+      staffSettled,
+      partSettled,
+      contactRolesSettled,
+      membershipsSettled,
+      activeGroupsSettled,
+      historySettled,
+      responsibilitiesSettled,
+      venturesSettled,
+      learningSettled,
+      storedRoleSettled,
+    ] = await Promise.allSettled([
+      getStaffAssignmentsForUser(session.cid, session.email || session.cid),
+      getActiveParticipantEnrollments(session.cid),
+      getProgramAssignmentsFromContactRoles(session.cid),
+      getParticipantProgramMemberships(session.cid),
+      getEffectiveGroupsForUser(session.cid),
+      getInactiveGroupMembershipHistory(session.cid),
+      getActiveResponsibilitiesForUser(session.cid),
+      getActiveVentureMembershipsForContact(session.cid),
+      learnerHasEnrollments(session.cid),
+      getContactStoredRole(session.cid),
+    ]);
 
+    /** Rows of a settled read, or an empty list when it failed. */
+    const rowsOf = (settled) =>
+      settled.status === "fulfilled" ? settled.value.rows || [] : [];
+    /** The value of a settled read, or `fallback` when it failed. */
+    const valueOf = (settled, fallback) =>
+      settled.status === "fulfilled" ? settled.value : fallback;
+
+    const staffRows = rowsOf(staffSettled);
+    const partRows = rowsOf(partSettled);
+
+    // 1. Program staff assignments (facilitator / staff / ...)
     // 2. Participant enrollments (excluded when already a staff member there)
-    const staffProgramIds = new Set(staffRes.rows.map((r) => r.program_id));
-    const partRes = await getActiveParticipantEnrollments(session.cid);
+    const staffProgramIds = new Set(staffRows.map((r) => r.program_id));
 
     const workspaces = [];
 
-    for (const r of staffRes.rows) {
+    for (const r of staffRows) {
       const role = String(r.role || "staff").toLowerCase();
       workspaces.push({
         type: "program",
@@ -65,7 +99,7 @@ export async function GET(req) {
       });
     }
 
-    for (const r of partRes.rows) {
+    for (const r of partRows) {
       if (staffProgramIds.has(r.program_id)) continue;
       workspaces.push({
         type: "program",
@@ -92,8 +126,8 @@ export async function GET(req) {
     // 1. Generalized program assignments (contact_roles) + legacy rows that
     //    have no current contact_roles mirror (deduplicated, no duplication).
     try {
-      const crRes = await getProgramAssignmentsFromContactRoles(session.cid);
-      contexts.program_assignments = crRes.rows.map((r) => {
+      const crRows = rowsOf(contactRolesSettled);
+      contexts.program_assignments = crRows.map((r) => {
         const roleKey = String(r.role || "staff").toLowerCase();
         return {
           ...r,
@@ -106,11 +140,11 @@ export async function GET(req) {
         };
       });
       const mirroredKeys = new Set(
-        crRes.rows
+        crRows
           .filter((r) => r.is_current)
           .map((r) => `${r.program_id}|${String(r.role).toLowerCase()}`),
       );
-      const legacyOnly = staffRes.rows.filter(
+      const legacyOnly = staffRows.filter(
         (r) =>
           !mirroredKeys.has(`${r.program_id}|${String(r.role).toLowerCase()}`),
       );
@@ -139,8 +173,7 @@ export async function GET(req) {
 
     // 2. All participant memberships with lifecycle status (incl. completed).
     try {
-      const ppRes = await getParticipantProgramMemberships(session.cid);
-      contexts.program_participations = ppRes.rows.map((r) => {
+      contexts.program_participations = rowsOf(membershipsSettled).map((r) => {
         const completed =
           String(r.status || "").toLowerCase() === "completed" ||
           !!r.completed_at ||
@@ -158,10 +191,15 @@ export async function GET(req) {
     //    expired/ended memberships move to contexts.org_history; the person,
     //    account and history stay, only active authorization stops).
     try {
-      const activeGroups = await getEffectiveGroupsForUser(session.cid);
+      const activeGroups = valueOf(activeGroupsSettled, []);
       let orgRows = [];
       if (activeGroups.length > 0) {
-        const ugRes = await getUserGroupMembershipsByNames(session.cid, activeGroups);
+        // Wave 2: this read needs the group names resolved above. It is the
+        // only read in the endpoint that depends on another one.
+        const ugRes = await getUserGroupMembershipsByNames(
+          session.cid,
+          activeGroups,
+        );
         orgRows = ugRes.rows;
       }
       contexts.org_memberships = orgRows.map((g) => {
@@ -171,14 +209,13 @@ export async function GET(req) {
           href: isIntern ? "/developer" : roleHomeHref(session.role) || "/workspaces",
         };
       });
-      const pastRes = await getInactiveGroupMembershipHistory(session.cid);
-      contexts.org_history = pastRes.rows;
+      const pastRes = rowsOf(historySettled);
+      contexts.org_history = pastRes;
     } catch (_) {}
 
     // 4. Responsibilities.
     try {
-      const respRes = await getActiveResponsibilitiesForUser(session.cid);
-      contexts.responsibilities = respRes.rows.map((r) => ({
+      contexts.responsibilities = rowsOf(responsibilitiesSettled).map((r) => ({
         ...r,
         href: String(r.key || "").toLowerCase().includes("finance")
           ? "/finance"
@@ -192,8 +229,7 @@ export async function GET(req) {
 
     // 5. Venture memberships.
     try {
-      const vmRes = await getActiveVentureMembershipsForContact(session.cid);
-      contexts.venture_memberships = vmRes.rows.map((r) => ({
+      contexts.venture_memberships = rowsOf(venturesSettled).map((r) => ({
         ...r,
         href: `/participant/ventures/${r.venture_id}`,
       }));
@@ -203,26 +239,21 @@ export async function GET(req) {
     //    user holds a non-suspended enrollment (same rule as the My Learning
     //    nav gate). Learner access itself is always enforced server-side by
     //    the LMS routes from lms_enrollments.
-    try {
-      const enrolled = await learnerHasEnrollments(session.cid);
-      contexts.learning = enrolled
-        ? { enrolled: true, href: "/participant/learning" }
-        : { enrolled: false };
-    } catch (_) {
-      contexts.learning = { enrolled: false };
-    }
+    contexts.learning = valueOf(learningSettled, false)
+      ? { enrolled: true, href: "/participant/learning" }
+      : { enrolled: false };
 
     // ── Phase I3: BASELINE ECHO (informational) ────────────────────────────
     // contacts.role is the raw stored role (baseline identity OR legacy
     // contextual value). session.role is what today's gates see (identical to
     // baseline_role unless the I2 legacy-role derivation is enabled, in which
     // case a stored "member" may be surfaced as participant/founder).
+    // Read fresh (not taken from the 15s session cache) so the identity chip
+    // always reflects the stored value.
     let baselineRole = session.role;
-    try {
-      const stored = await getContactStoredRole(session.cid);
-      const raw = stored?.rows?.[0]?.role;
-      if (raw) baselineRole = String(raw).toLowerCase();
-    } catch (_) {}
+    const storedRows = rowsOf(storedRoleSettled);
+    const raw = storedRows[0]?.role;
+    if (raw) baselineRole = String(raw).toLowerCase();
     const derivedRole =
       isBaselineIdentity(baselineRole) &&
       baselineRole === "member" &&
