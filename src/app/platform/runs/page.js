@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { usePermissions } from "@/lib/PermissionProvider";
 
 /**
  * PLATFORM FORM RUNS — Launch, assign, collect, review
@@ -331,6 +332,13 @@ function MiniCalendar({ value, onChange, onClose }) {
 
 export default function FormRunsPage() {
   const { t } = useI18n();
+  // The AI evaluation controls follow `runs.review` — the same capability the
+  // server enforces on POST /api/platform/ai/evaluate-submission. Holding it is
+  // what lets a reviewer run (and re-run) the evaluation, which can auto-approve
+  // an applicant. Watching batch PROGRESS only needs runs.view, so the progress
+  // panel stays visible to everyone who can open the run.
+  const { can } = usePermissions();
+  const canReview = can("runs", "review");
   const [runs, setRuns] = useState([]);
   const [forms, setForms] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -763,6 +771,7 @@ export default function FormRunsPage() {
 
   // Manual Re-evaluate: the ONE deliberate exception to skip-already-evaluated
   const handleReevaluate = async () => {
+    if (!canReview) return;
     if (!reviewing) return;
     setSaving(true);
     try {
@@ -1029,6 +1038,9 @@ export default function FormRunsPage() {
   };
 
   const handleBatchEvaluate = async (retryOnly = false) => {
+    // Belt and braces: the control is not rendered without the capability, and
+    // the server refuses the call too.
+    if (!canReview) return;
     if (!selectedRun?.form_id) return notify(t("platformMisc.runs.noFormLinked"));
     const formId = selectedRun.form_id;
 
@@ -2158,11 +2170,12 @@ export default function FormRunsPage() {
                 </span>
               ) : (
                 <>
-                  {evalProgress && evalProgress.failed > 0 && (
+                  {canReview && evalProgress && evalProgress.failed > 0 && (
                     <button onClick={() => handleBatchEvaluate(true)} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20 flex items-center gap-1">
                       <RotateCcw className="w-3 h-3" /> {t("platformMisc.runs.retryFailed", { count: evalProgress.failed })}
                     </button>
                   )}
+                  {canReview && (
                   <button
                     onClick={() => handleBatchEvaluate(false)}
                     className="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 flex items-center gap-1"
@@ -2174,6 +2187,7 @@ export default function FormRunsPage() {
                       ? t("platformMisc.runs.continueEvaluation")
                       : t("platformMisc.runs.evaluateAll")}
                   </button>
+                  )}
                 </>
               )}
             </div>
@@ -4062,6 +4076,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
               {/* Sticky Footer */}
               <div className="flex gap-3 px-6 py-4 border-t border-[var(--border-primary)] bg-secondary shrink-0">
                 <button onClick={() => setShowReview(false)} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button>
+                {canReview && (
                 <button
                   onClick={handleReevaluate}
                   disabled={saving}
@@ -4070,6 +4085,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 >
                   <Sparkles className="w-3 h-3" /> {t("platformMisc.runs.reevaluate")}
                 </button>
+                )}
                 <button onClick={handleReview} disabled={saving} className="flex-1 btn btn-primary">{saving ? t("platformMisc.runs.saving") : t("platformMisc.runs.submitReview")}</button>
               </div>
             </div>

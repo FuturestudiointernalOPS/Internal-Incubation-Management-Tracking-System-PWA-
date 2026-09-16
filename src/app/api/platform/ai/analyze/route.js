@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { summarizeSubmission, analyzeSubmission } from "@/lib/platform/integrations";
 import {
   getFormForAiAnalysis,
@@ -22,19 +23,12 @@ import {
 export async function POST(req) {
   try {
     await initDb();
-    // Phase 1.6 (C5b = A): AI analysis is management-only (SA/admin/PM) —
-    // same rule as /api/platform/ai. Assignment-verified program staff can be
-    // admitted later via a capability seam once run->program resolution lands.
-    const authError = await requireAuth();
-    if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
-    if (session && !["super_admin", "admin", "program_manager"].includes(session.role)) {
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
-    }
+    // Advisory read of one submission (summary, flags, score). The result is
+    // explicitly advisory — a human decision stays final — so it is gated on
+    // the `runs.view` capability rather than a role name. The role list that
+    // stood here could not be satisfied by any grant or assignment.
+    const capError = await requireAuthorization("runs", "view");
+    if (capError) return capError;
 
     const { submission_id, mode } = await req.json();
     if (!submission_id) {

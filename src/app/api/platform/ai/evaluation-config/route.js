@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import {
   deleteEvaluationFrameworkByFormId,
   getEvaluationFrameworkByFormId,
@@ -41,8 +41,11 @@ export async function GET(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "admin"]);
-    if (authError) return authError;
+    // Storing the evaluation framework on a form is an edit of that form, so
+    // it follows the Forms capability instead of a hardcoded role list (which
+    // named the retired `admin` role and could not be granted to anyone).
+    const capError = await requireAuthorization("forms", "edit");
+    if (capError) return capError;
 
     const { form_id, framework, source_document } = await req.json();
     if (!form_id || !framework) {
@@ -60,8 +63,10 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "admin"]);
-    if (authError) return authError;
+    // Same capability as the PUT: removing a form's evaluation framework is an
+    // edit of that form.
+    const capError = await requireAuthorization("forms", "edit");
+    if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
     const formId = searchParams.get("form_id");

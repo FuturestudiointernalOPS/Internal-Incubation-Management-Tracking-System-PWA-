@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { generateFramework } from "@/lib/platform/ai/framework";
 
 /**
@@ -10,8 +10,12 @@ import { generateFramework } from "@/lib/platform/ai/framework";
 export async function POST(req) {
   try {
     console.log("[AI Framework] Request received");
-    const authError = await requireAuth(["super_admin", "admin"]);
-    if (authError) return authError;
+    // Producing a rubric is used from the evaluation panel of an EXISTING form
+    // and lands as a saved framework on it, so it is an edit of that form —
+    // matching the control's own gate in the Forms builder. A role list could
+    // not be granted to anyone.
+    const capError = await requireAuthorization("forms", "edit");
+    if (capError) return capError;
 
     const { text } = await req.json();
     if (!text || !text.trim()) {

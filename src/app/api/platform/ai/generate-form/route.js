@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { generateForm } from "@/lib/platform/ai/generate";
 
 /**
@@ -10,8 +10,10 @@ import { generateForm } from "@/lib/platform/ai/generate";
 export async function POST(req) {
   try {
     console.log("[AI GenerateForm] Request received");
-    const authError = await requireAuth(["super_admin", "admin"]);
-    if (authError) return authError;
+    // Authoring a form from a document is the Forms create capability, so it is
+    // configurable instead of pinned to a retired role name.
+    const capError = await requireAuthorization("forms", "create");
+    if (capError) return capError;
 
     const { text } = await req.json();
     if (!text || !text.trim()) {
