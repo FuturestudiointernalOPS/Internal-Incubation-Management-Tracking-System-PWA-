@@ -423,6 +423,7 @@
       "liveCheckListFailed": "Liste des personnes indisponible — saisissez un CID.",
       "peopleHint": "Que peut faire cette personne — et pourquoi ? Choisissez une personne pour voir chaque capacité décomposée par source (Profil | Groupe | Octroi | Restriction), le résultat effectif avec son motif, et ce que le moteur de portée résout actuellement — puis modifiez ses accès dans le panneau ci-dessous.",
       "peopleSelectPrompt": "Sélectionnez une personne pour voir ses accès.",
+      "peopleGrantNotEligible": "Non éligible",
       "peopleListFailed": "Impossible de charger la liste des personnes.",
       "peopleListEmpty": "Aucune personne à afficher.",
       "peopleContextsTitle": "Contextes — ce dont cette personne fait partie",

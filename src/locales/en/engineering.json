@@ -423,6 +423,7 @@
       "liveCheckListFailed": "People list unavailable — type a CID instead.",
       "peopleHint": "What can this person do — and why? Pick a person to see every capability decomposed into its sources (Profile | Group | Grant | Restriction), the effective result with its reason, and what the Scope Engine currently resolves — then change their access in the panel below.",
       "peopleSelectPrompt": "Select a person to see their access.",
+      "peopleGrantNotEligible": "Not eligible",
       "peopleListFailed": "Could not load the people list.",
       "peopleListEmpty": "No people to show.",
       "peopleContextsTitle": "Contexts — what this person is part of",

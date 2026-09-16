@@ -47,36 +47,17 @@ import FeatureMatrixSection from "@/components/permissions/FeatureMatrixSection"
 import AdvancedCapabilities from "@/components/permissions/AdvancedCapabilities";
 import { groupModulesByFeature, buildSubsectionRows, toggleCapability, toggleFullCapabilities, filterSectionsByRoleEligibility, crudCapabilities, CRUD_CAPABILITIES, collectHiddenStoredCaps, eligibleFeaturesForPerson, isPersonEligibleForFeature } from "@/components/permissions/matrixHelpers";
 import { defer } from "@/components/permissions/effectUtils";
-
-const ACCESS_LEVEL_KEYS = {
-  0: "engineering.permissions.accessLevelNone",
-  1: "engineering.permissions.accessLevelView",
-  2: "engineering.permissions.accessLevelCreate",
-  3: "engineering.permissions.accessLevelEdit",
-  4: "engineering.permissions.accessLevelDelete",
-  5: "engineering.permissions.accessLevelFull",
-};
-const ACCESS_SHORT = { 0: "—", 1: "V", 2: "C", 3: "E", 4: "D", 5: "All" };
-
-const LEVELS_ORDER = [0, 1, 2, 3, 4, 5];
-
-// Person screen — level chips share the TEMPLATE matrix's visual language
-// (View / Create / Edit / Delete / Full), so both screens read the same way.
-// An active chip is coloured by level for a PERSONAL grant and neutral for an
-// inherited right; the origin dot carries the same information.
-const LEVEL_CHIP_BASE =
-  "h-7 w-7 rounded-lg border-2 text-[10px] font-black flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 disabled:cursor-default";
-const LEVEL_CHIP_ACTIVE = {
-  1: "bg-blue-500/15 border-blue-500/40 text-blue-400",
-  2: "bg-emerald-500/15 border-emerald-500/40 text-emerald-400",
-  3: "bg-amber-500/15 border-amber-500/40 text-amber-400",
-  4: "bg-red-500/15 border-red-500/40 text-red-400",
-  5: "bg-purple-500/15 border-purple-500/40 text-purple-400",
-};
-const LEVEL_CHIP_INHERITED =
-  "bg-slate-500/20 border-slate-500/40 text-slate-300";
-const LEVEL_CHIP_IDLE =
-  "border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] opacity-50 hover:opacity-100 hover:border-[var(--brand-orange)]/50 hover:text-[var(--brand-orange)]";
+// Person-screen level chips — shared with PeopleView so both screens offer the
+// same editable affordance for the same value (see ./levelChips).
+import {
+  ACCESS_LEVEL_KEYS,
+  ACCESS_SHORT,
+  LEVELS_ORDER,
+  LEVEL_CHIP_ACTIVE,
+  LEVEL_CHIP_BASE,
+  LEVEL_CHIP_IDLE,
+  LEVEL_CHIP_INHERITED,
+} from "@/components/permissions/levelChips";
 
 export default function PermissionManager({
   initialTab = "search",
