@@ -1,6 +1,6 @@
 -- =============================================================================
--- VENTURE SCHEMA ALIGN — give a database that has never run the Venture paths
--- the tables and columns the code already reads and writes.
+-- VENTURE SCHEMA ALIGN (SQL-EDITOR EDITION) — give a database that has never
+-- run the Venture paths the tables and columns the code already reads and writes.
 -- =============================================================================
 -- WHY THIS FILE EXISTS
 --   Verified read-only against production: 29 of the 67 tables the code needs
@@ -14,40 +14,39 @@
 --   * ADDITIVE ONLY. Every statement is CREATE TABLE IF NOT EXISTS,
 --     ALTER TABLE ... ADD COLUMN IF NOT EXISTS, CREATE INDEX IF NOT EXISTS,
 --     ALTER COLUMN ... DROP NOT NULL (relaxes a constraint — it can never
---     reject a value that used to be accepted), or an INSERT ... WHERE NOT
---     EXISTS seed that inserts ONLY when that exact row is absent.
+--     reject a value that used to be accepted, and it is guarded here anyway),
+--     or an INSERT ... WHERE NOT EXISTS seed that inserts ONLY when that exact
+--     row is absent.
 --   * There is no DROP, no TRUNCATE, no DELETE, no UPDATE, and nothing is ever
 --     renamed. A column this file does not know about is left exactly as it is.
 --   * Running it twice changes nothing the second time.
+--   * It runs as ONE BATCH in the SQL editor, so nothing in it may be allowed to
+--     fail: every statement whose target may be absent is wrapped in a guard.
 --
--- CONTRACT (same as migrations/align_schema_with_code.sql, so the same
--- one-statement-per-line transport works):
---   * ONE STATEMENT PER LINE, each terminated by ';'
---   * a trailing '--' comment after the ';' is allowed and expected
---   * never a ';' inside a string literal
---   * never a statement split across two lines
---   * every statement is idempotent, so the whole file is safe to re-run
---   * every line starting with '--' is never executed
+-- SUPABASE SQL-EDITOR EDITION — PASTE THIS INSTEAD OF HAVING TO EDIT ANYTHING
+--   This file is venture_schema_align.sql with the abort-prone statements already
+--   wrapped in their guards. Nothing has to be deleted by hand, and there is no
+--   longer any statement that can fail on a database whose shape differs from
+--   staging's. Paste the whole file in one go.
 --
--- EXPECTED, HARMLESS FAILURES
---   Some ALTERs target legacy tables that may be absent on your database
---   (venture_history, venture_activity_log, venture_kpi_definitions,
---   user_sessions, v2_teams). If the table is absent the statement reports ERR
---   and the run CONTINUES. That is intended, not a problem.
+-- WHY IT DIFFERS FROM venture_schema_align.sql
+--   The node runner (scripts/db-audit/apply-schema-file.mjs) collects a failure
+--   and carries on. The Supabase SQL editor does NOT: it sends the paste as ONE
+--   batch, so the FIRST error aborts everything after it and rolls the batch back.
+--   Six statements here target tables that may be absent on this database
+--   (v2_teams, platform_form_submissions, venture_kpi_definitions, venture_history,
+--   venture_activity_log, user_sessions) and two relax a NOT NULL on a column that
+--   may not exist (venture_founders.contact_id, ventures.name). Every one of them
+--   would have taken the rest of the file down with it.
+--   Here they are guarded instead: to_regclass() for a possibly-absent TABLE,
+--   an EXCEPTION WHEN undefined_column handler for a possibly-absent COLUMN.
+--   A guarded statement is a NO-OP when its target is absent, so the whole file
+--   applies in one paste and is safe to re-run.
 --
--- PASTING INTO THE SUPABASE SQL EDITOR? DO NOT USE THIS FILE AS-IS.
---   The editor sends one batch and aborts on the first error, so those failures
---   are NOT harmless there — the first one rolls back everything after it. Use
---     migrations/venture_schema_align_supabase_paste.sql
---   instead: same statements, same end state, but every abort-prone one is
---   already guarded, so there is nothing to delete or edit by hand.
---   This file plus migrations/venture_schema_align_legacy_guards.sql stay the
---   route for the node runner, which continues past a failure.
---
--- RUN IT (dry run first — it prints every statement and connects to nothing)
---   node scripts/db-audit/apply-schema-file.mjs migrations/venture_schema_align.sql
---   node scripts/db-audit/apply-schema-file.mjs migrations/venture_schema_align.sql --apply
---   Then run the section 8 verification queries by hand.
+--   The one-statement-per-line contract of the original file does NOT hold here,
+--   because the guards are DO $$ ... $$ blocks. Use THIS file in the SQL editor,
+--   and venture_schema_align.sql + venture_schema_align_legacy_guards.sql with the
+--   node runner. Both routes reach the same end state.
 -- =============================================================================
 
 
@@ -56,23 +55,35 @@
 -- =============================================================================
 -- Coaches first: venture_sessions holds a foreign key to venture_coaches(id),
 -- so creating sessions before coaches would fail on that reference.
+--
+-- NO FOREIGN KEY ON venture_id FOR THESE SIX TABLES: venture_coach_assignments,
+-- venture_coach_activity, venture_tasks, venture_task_activity, venture_sessions,
+-- venture_session_activity. That is not an oversight — it is how staging has them,
+-- and it is required: the code resolves the Venture's INTERNAL id
+-- (resolveVentureInternalId -> ventures.id) and writes THAT into these columns,
+-- while ventures(venture_id) holds the VNT- code. On staging ventures.id is an
+-- unconstrained TEXT value here, so it stores fine. An FK to ventures(venture_id)
+-- would reject every such write with 23503 on a database whose ventures.id is an
+-- integer — the journey and task-creation paths would break on the first request.
+-- The other venture_id columns below DO keep their FK: those paths resolve the
+-- VNT- code first (see resolveCode() in the notes/plans routes).
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS venture_coaches (id SERIAL PRIMARY KEY, coach_type TEXT NOT NULL DEFAULT 'coach', full_name TEXT NOT NULL, photo_url TEXT, email TEXT NOT NULL UNIQUE, phone TEXT, organization TEXT, biography TEXT, years_experience INTEGER, areas_of_expertise JSONB DEFAULT '[]'::jsonb, industries JSONB DEFAULT '[]'::jsonb, languages JSONB DEFAULT '[]'::jsonb, availability TEXT DEFAULT 'available', timezone TEXT DEFAULT 'UTC', linkedin_url TEXT, website_url TEXT, status TEXT DEFAULT 'active', created_by TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
 CREATE INDEX IF NOT EXISTS idx_venture_coaches_type ON venture_coaches(coach_type);
 CREATE INDEX IF NOT EXISTS idx_venture_coaches_status ON venture_coaches(status);
 CREATE INDEX IF NOT EXISTS idx_venture_coaches_email ON venture_coaches(email);
-CREATE TABLE IF NOT EXISTS venture_coach_assignments (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, coach_id INTEGER NOT NULL REFERENCES venture_coaches(id) ON DELETE CASCADE, coach_type TEXT NOT NULL, is_primary BOOLEAN DEFAULT FALSE, status TEXT DEFAULT 'active', assigned_by TEXT, assignment_date TIMESTAMP DEFAULT NOW(), notes TEXT, UNIQUE(venture_id, coach_id));
+CREATE TABLE IF NOT EXISTS venture_coach_assignments (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL, coach_id INTEGER NOT NULL REFERENCES venture_coaches(id) ON DELETE CASCADE, coach_type TEXT NOT NULL, is_primary BOOLEAN DEFAULT FALSE, status TEXT DEFAULT 'active', assigned_by TEXT, assignment_date TIMESTAMP DEFAULT NOW(), notes TEXT, UNIQUE(venture_id, coach_id));
 CREATE INDEX IF NOT EXISTS idx_coach_assignments_venture ON venture_coach_assignments(venture_id);
 CREATE INDEX IF NOT EXISTS idx_coach_assignments_coach ON venture_coach_assignments(coach_id);
 CREATE TABLE IF NOT EXISTS venture_coach_availability (id SERIAL PRIMARY KEY, coach_id INTEGER NOT NULL REFERENCES venture_coaches(id) ON DELETE CASCADE, day_of_week INTEGER, start_time TIME, end_time TIME, date DATE, is_available BOOLEAN DEFAULT TRUE, note TEXT, UNIQUE(coach_id, date, day_of_week, start_time));
 CREATE INDEX IF NOT EXISTS idx_coach_availability_coach ON venture_coach_availability(coach_id);
-CREATE TABLE IF NOT EXISTS venture_coach_activity (id SERIAL PRIMARY KEY, coach_id INTEGER REFERENCES venture_coaches(id) ON DELETE SET NULL, venture_id TEXT REFERENCES ventures(venture_id) ON DELETE CASCADE, action TEXT NOT NULL, actor_cid TEXT, details JSONB DEFAULT '{}'::jsonb, created_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS venture_coach_activity (id SERIAL PRIMARY KEY, coach_id INTEGER REFERENCES venture_coaches(id) ON DELETE SET NULL, venture_id TEXT, action TEXT NOT NULL, actor_cid TEXT, details JSONB DEFAULT '{}'::jsonb, created_at TIMESTAMP DEFAULT NOW());
 CREATE INDEX IF NOT EXISTS idx_coach_activity_coach ON venture_coach_activity(coach_id);
 CREATE INDEX IF NOT EXISTS idx_coach_activity_venture ON venture_coach_activity(venture_id);
 
 -- Tasks and their children. venture_tasks must exist before task_submissions,
 -- task_comments, task_attachments and task_activity can reference it.
-CREATE TABLE IF NOT EXISTS venture_tasks (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, milestone_id INTEGER REFERENCES venture_milestones(id) ON DELETE SET NULL, title TEXT NOT NULL, description TEXT, status TEXT NOT NULL DEFAULT 'backlog', priority TEXT NOT NULL DEFAULT 'medium', due_date TIMESTAMP, estimated_hours DECIMAL(8,2), actual_hours DECIMAL(8,2), assigned_cid TEXT, assigned_name TEXT, reporter_cid TEXT, reporter_name TEXT, labels JSONB DEFAULT '[]'::jsonb, checklist JSONB DEFAULT '[]'::jsonb, display_order INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS venture_tasks (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL, milestone_id INTEGER REFERENCES venture_milestones(id) ON DELETE SET NULL, title TEXT NOT NULL, description TEXT, status TEXT NOT NULL DEFAULT 'backlog', priority TEXT NOT NULL DEFAULT 'medium', due_date TIMESTAMP, estimated_hours DECIMAL(8,2), actual_hours DECIMAL(8,2), assigned_cid TEXT, assigned_name TEXT, reporter_cid TEXT, reporter_name TEXT, labels JSONB DEFAULT '[]'::jsonb, checklist JSONB DEFAULT '[]'::jsonb, display_order INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
 CREATE INDEX IF NOT EXISTS idx_venture_tasks_venture_id ON venture_tasks(venture_id);
 CREATE INDEX IF NOT EXISTS idx_venture_tasks_milestone_id ON venture_tasks(milestone_id);
 CREATE INDEX IF NOT EXISTS idx_venture_tasks_status ON venture_tasks(status);
@@ -81,12 +92,12 @@ CREATE TABLE IF NOT EXISTS venture_task_comments (id SERIAL PRIMARY KEY, task_id
 CREATE INDEX IF NOT EXISTS idx_task_comments_task_id ON venture_task_comments(task_id);
 CREATE TABLE IF NOT EXISTS venture_task_attachments (id SERIAL PRIMARY KEY, task_id INTEGER NOT NULL REFERENCES venture_tasks(id) ON DELETE CASCADE, file_name TEXT NOT NULL, file_size BIGINT, file_type TEXT, file_url TEXT NOT NULL, uploaded_by TEXT, uploaded_at TIMESTAMP DEFAULT NOW());
 CREATE INDEX IF NOT EXISTS idx_task_attachments_task_id ON venture_task_attachments(task_id);
-CREATE TABLE IF NOT EXISTS venture_task_activity (id SERIAL PRIMARY KEY, task_id INTEGER NOT NULL REFERENCES venture_tasks(id) ON DELETE CASCADE, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, action TEXT NOT NULL, actor_cid TEXT, actor_name TEXT, details JSONB DEFAULT '{}'::jsonb, created_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS venture_task_activity (id SERIAL PRIMARY KEY, task_id INTEGER NOT NULL REFERENCES venture_tasks(id) ON DELETE CASCADE, venture_id TEXT NOT NULL, action TEXT NOT NULL, actor_cid TEXT, actor_name TEXT, details JSONB DEFAULT '{}'::jsonb, created_at TIMESTAMP DEFAULT NOW());
 CREATE INDEX IF NOT EXISTS idx_task_activity_task_id ON venture_task_activity(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_activity_venture_id ON venture_task_activity(venture_id);
 
 -- Sessions and their children.
-CREATE TABLE IF NOT EXISTS venture_sessions (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, session_type TEXT NOT NULL DEFAULT 'coaching', coach_id INTEGER REFERENCES venture_coaches(id) ON DELETE SET NULL, coach_name TEXT, founder_cid TEXT, founder_name TEXT, start_time TIMESTAMP NOT NULL, end_time TIMESTAMP NOT NULL, timezone TEXT DEFAULT 'UTC', location TEXT, meeting_link TEXT, status TEXT DEFAULT 'scheduled', agenda TEXT, recording_url TEXT, created_by TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS venture_sessions (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL, title TEXT NOT NULL, description TEXT, session_type TEXT NOT NULL DEFAULT 'coaching', coach_id INTEGER REFERENCES venture_coaches(id) ON DELETE SET NULL, coach_name TEXT, founder_cid TEXT, founder_name TEXT, start_time TIMESTAMP NOT NULL, end_time TIMESTAMP NOT NULL, timezone TEXT DEFAULT 'UTC', location TEXT, meeting_link TEXT, status TEXT DEFAULT 'scheduled', agenda TEXT, recording_url TEXT, created_by TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
 CREATE INDEX IF NOT EXISTS idx_sessions_venture ON venture_sessions(venture_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_coach ON venture_sessions(coach_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_status ON venture_sessions(status);
@@ -97,7 +108,7 @@ CREATE TABLE IF NOT EXISTS venture_session_attendance (id SERIAL PRIMARY KEY, se
 CREATE INDEX IF NOT EXISTS idx_session_attendance_session ON venture_session_attendance(session_id);
 CREATE TABLE IF NOT EXISTS venture_session_action_items (id SERIAL PRIMARY KEY, session_id INTEGER NOT NULL REFERENCES venture_sessions(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, owner_cid TEXT, owner_name TEXT, priority TEXT DEFAULT 'medium', due_date TIMESTAMP, status TEXT DEFAULT 'pending', completed_at TIMESTAMP, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
 CREATE INDEX IF NOT EXISTS idx_session_action_items_session ON venture_session_action_items(session_id);
-CREATE TABLE IF NOT EXISTS venture_session_activity (id SERIAL PRIMARY KEY, session_id INTEGER NOT NULL REFERENCES venture_sessions(id) ON DELETE CASCADE, venture_id TEXT REFERENCES ventures(venture_id) ON DELETE CASCADE, action TEXT NOT NULL, actor_cid TEXT, actor_name TEXT, details JSONB DEFAULT '{}'::jsonb, created_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS venture_session_activity (id SERIAL PRIMARY KEY, session_id INTEGER NOT NULL REFERENCES venture_sessions(id) ON DELETE CASCADE, venture_id TEXT, action TEXT NOT NULL, actor_cid TEXT, actor_name TEXT, details JSONB DEFAULT '{}'::jsonb, created_at TIMESTAMP DEFAULT NOW());
 CREATE INDEX IF NOT EXISTS idx_session_activity_session ON venture_session_activity(session_id);
 CREATE INDEX IF NOT EXISTS idx_session_activity_venture ON venture_session_activity(venture_id);
 
@@ -306,7 +317,16 @@ ALTER TABLE ventures ADD COLUMN IF NOT EXISTS branding JSONB;
 ALTER TABLE ventures ADD COLUMN IF NOT EXISTS language TEXT;
 ALTER TABLE ventures ADD COLUMN IF NOT EXISTS sector TEXT;
 ALTER TABLE ventures ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT FALSE;
-ALTER TABLE ventures ALTER COLUMN name DROP NOT NULL;
+-- Legacy NOT NULL relaxations, GUARDED BY COLUMN (not by table): the failure mode
+-- here is a missing COLUMN on a table that EXISTS. ADD COLUMN IF NOT EXISTS never
+-- errors on a missing column; ALTER COLUMN ... DROP NOT NULL does, and production's
+-- venture_founders predates contact_id. Both relaxations are guarded the same way.
+DO $$ BEGIN
+  ALTER TABLE ventures ALTER COLUMN name DROP NOT NULL;
+EXCEPTION WHEN undefined_column THEN NULL;
+          WHEN undefined_table THEN NULL;
+END $$;
+
 ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS title TEXT;
 ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS invitation_token TEXT;
@@ -322,7 +342,12 @@ ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS is_owner BOOLEAN DEFAULT F
 ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMP;
 ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS suspended_by TEXT;
 ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS invitation_expires_at TIMESTAMP;
-ALTER TABLE venture_founders ALTER COLUMN contact_id DROP NOT NULL;
+DO $$ BEGIN
+  ALTER TABLE venture_founders ALTER COLUMN contact_id DROP NOT NULL;
+EXCEPTION WHEN undefined_column THEN NULL;
+          WHEN undefined_table THEN NULL;
+END $$;
+
 ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS joined_at TIMESTAMP DEFAULT NOW();
 ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS contact_id TEXT;
 ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS member_type TEXT DEFAULT 'team_member';
@@ -368,10 +393,21 @@ ALTER TABLE venture_notes ADD COLUMN IF NOT EXISTS attachments JSONB;
 ALTER TABLE venture_reports ADD COLUMN IF NOT EXISTS journey_stage_id UUID;
 ALTER TABLE venture_reports ADD COLUMN IF NOT EXISTS report_kind TEXT;
 ALTER TABLE venture_responsibilities ADD COLUMN IF NOT EXISTS created_by TEXT;
-ALTER TABLE v2_teams ADD COLUMN IF NOT EXISTS venture_id TEXT;
-ALTER TABLE v2_teams ADD COLUMN IF NOT EXISTS promoted_at TIMESTAMP;
-ALTER TABLE platform_form_submissions ADD COLUMN IF NOT EXISTS invitation_id INTEGER;
-CREATE INDEX IF NOT EXISTS idx_form_submissions_invitation ON platform_form_submissions(invitation_id);
+-- Team promotion, GUARDED BY TABLE.
+DO $$ BEGIN
+  IF to_regclass('public.v2_teams') IS NOT NULL THEN
+    ALTER TABLE v2_teams ADD COLUMN IF NOT EXISTS venture_id TEXT;
+    ALTER TABLE v2_teams ADD COLUMN IF NOT EXISTS promoted_at TIMESTAMP;
+  END IF;
+END $$;
+
+-- Form submission to invitation link, GUARDED BY TABLE.
+DO $$ BEGIN
+  IF to_regclass('public.platform_form_submissions') IS NOT NULL THEN
+    ALTER TABLE platform_form_submissions ADD COLUMN IF NOT EXISTS invitation_id INTEGER;
+    CREATE INDEX IF NOT EXISTS idx_form_submissions_invitation ON platform_form_submissions(invitation_id);
+  END IF;
+END $$;
 
 -- Notification entity context (drill-down) plus the template/seen/dedupe fields.
 -- All nullable by design, so legacy rows and existing consumers are untouched.
@@ -387,38 +423,96 @@ ALTER TABLE v2_notifications ADD COLUMN IF NOT EXISTS seen_at TIMESTAMPTZ;
 ALTER TABLE v2_notifications ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_notif_dedupe ON v2_notifications(recipient_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
 
--- KPI library extension (formula / frequency / measurement)
-ALTER TABLE venture_kpi_definitions ADD COLUMN IF NOT EXISTS formula TEXT;
-ALTER TABLE venture_kpi_definitions ADD COLUMN IF NOT EXISTS frequency TEXT;
-ALTER TABLE venture_kpi_definitions ADD COLUMN IF NOT EXISTS measurement_method TEXT;
-ALTER TABLE venture_kpi_definitions ADD COLUMN IF NOT EXISTS default_target NUMERIC;
+-- KPI library extension (formula / frequency / measurement), GUARDED BY TABLE.
+DO $$ BEGIN
+  IF to_regclass('public.venture_kpi_definitions') IS NOT NULL THEN
+    ALTER TABLE venture_kpi_definitions ADD COLUMN IF NOT EXISTS formula TEXT;
+    ALTER TABLE venture_kpi_definitions ADD COLUMN IF NOT EXISTS frequency TEXT;
+    ALTER TABLE venture_kpi_definitions ADD COLUMN IF NOT EXISTS measurement_method TEXT;
+    ALTER TABLE venture_kpi_definitions ADD COLUMN IF NOT EXISTS default_target NUMERIC;
+  END IF;
+END $$;
 
--- Legacy tables. These three may be absent on your database; if so the
--- statements report ERR and the run continues. That is expected.
-ALTER TABLE venture_history ADD COLUMN IF NOT EXISTS metadata JSONB;
-ALTER TABLE venture_history ADD COLUMN IF NOT EXISTS created_by TEXT;
-ALTER TABLE venture_activity_log ADD COLUMN IF NOT EXISTS actor_cid TEXT;
-ALTER TABLE venture_activity_log ADD COLUMN IF NOT EXISTS actor_name TEXT;
-ALTER TABLE venture_activity_log ADD COLUMN IF NOT EXISTS details JSONB;
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS device TEXT;
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS browser TEXT;
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS os TEXT;
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS ip_address TEXT;
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS country TEXT;
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS last_activity TIMESTAMP;
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS logout_time TIMESTAMP;
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS session_status TEXT DEFAULT 'active';
-ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS token_hash TEXT;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_user_sessions_token_hash ON user_sessions(token_hash) WHERE token_hash IS NOT NULL;
+-- Legacy tables. Absent on some databases; guarded so their absence is a no-op
+-- instead of an abort that would take the rest of the paste with it.
+DO $$ BEGIN
+  IF to_regclass('public.venture_history') IS NOT NULL THEN
+    ALTER TABLE venture_history ADD COLUMN IF NOT EXISTS metadata JSONB;
+    ALTER TABLE venture_history ADD COLUMN IF NOT EXISTS created_by TEXT;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF to_regclass('public.venture_activity_log') IS NOT NULL THEN
+    ALTER TABLE venture_activity_log ADD COLUMN IF NOT EXISTS actor_cid TEXT;
+    ALTER TABLE venture_activity_log ADD COLUMN IF NOT EXISTS actor_name TEXT;
+    ALTER TABLE venture_activity_log ADD COLUMN IF NOT EXISTS details JSONB;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF to_regclass('public.user_sessions') IS NOT NULL THEN
+    ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS device TEXT;
+    ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS browser TEXT;
+    ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS os TEXT;
+    ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS ip_address TEXT;
+    ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS country TEXT;
+    ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS last_activity TIMESTAMP;
+    ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS logout_time TIMESTAMP;
+    ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS session_status TEXT DEFAULT 'active';
+    ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS token_hash TEXT;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_user_sessions_token_hash ON user_sessions(token_hash) WHERE token_hash IS NOT NULL;
+  END IF;
+-- If production already had token_hash populated with duplicates, the UNIQUE index
+-- is the one guarded-statement that can still fail on its own data. Swallow it:
+-- the columns above roll back with it (they are telemetry, nothing depends on them)
+-- and the rest of the paste still applies.
+EXCEPTION WHEN unique_violation THEN NULL;
+END $$;
 
 -- =============================================================================
--- SECTION 8 — JOURNEY STAGES (the parent of a milestone)
+-- SECTION 8 — JOURNEY STAGES (the parent of a milestone) and the facilitator
+-- playbook, which shares its key shape.
 -- =============================================================================
--- venture_id is UUID here: it references the INTERNAL ventures(id). Most other
--- Venture tables key on the TEXT ventures(venture_id) instead — both exist and
--- the code is written for the difference.
+-- These two are the ONLY tables in this file whose venture_id references the
+-- INTERNAL ventures(id); every other Venture table keys on the TEXT
+-- ventures(venture_id) code. ventures.id is NOT the same type on every database:
+--   uuid    -> the Venture-OS foundation shape. venture_id follows it, with the
+--              FK to ventures(id) and ON DELETE CASCADE.
+--   integer -> the legacy shape (src/migrations/010_ventures.sql: id SERIAL,
+--              venture_id TEXT UNIQUE). A uuid column CANNOT reference it:
+--              42804 foreign key constraint cannot be implemented,
+--              key columns "venture_id" and "id" ... uuid and integer.
+--              So venture_id is TEXT here, with NO foreign key.
+-- The code is written for the difference: it resolves ventures.id into this
+-- column and always reads it back as `venture_id = ?`, and TEXT accepts both an
+-- integer and a UUID, so it is the one type that works on either database.
+-- Creating the tables here also turns the runtime self-healers in
+-- src/lib/ventureJourneys.js, src/models/ventureJourney.js and
+-- ensurePlaybookTable() into no-ops instead of silent failures.
 -- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS venture_journey_stages (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), venture_id UUID NOT NULL REFERENCES ventures(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT, objective TEXT, target_date DATE, stage_order INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'locked', completed_at TIMESTAMPTZ, approved_by TEXT REFERENCES contacts(cid), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(venture_id, stage_order));
+DO $$
+DECLARE id_type text;
+BEGIN
+  SELECT data_type INTO id_type FROM information_schema.columns
+   WHERE table_schema = 'public' AND table_name = 'ventures' AND column_name = 'id';
+
+  IF to_regclass('public.venture_journey_stages') IS NULL THEN
+    IF id_type = 'uuid' THEN
+      EXECUTE 'CREATE TABLE venture_journey_stages (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), venture_id UUID NOT NULL REFERENCES ventures(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT, objective TEXT, target_date DATE, stage_order INTEGER NOT NULL, status TEXT NOT NULL DEFAULT ''locked'', completed_at TIMESTAMPTZ, approved_by TEXT REFERENCES contacts(cid), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(venture_id, stage_order))';
+    ELSE
+      EXECUTE 'CREATE TABLE venture_journey_stages (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), venture_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT, objective TEXT, target_date DATE, stage_order INTEGER NOT NULL, status TEXT NOT NULL DEFAULT ''locked'', completed_at TIMESTAMPTZ, approved_by TEXT REFERENCES contacts(cid), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(venture_id, stage_order))';
+    END IF;
+  END IF;
+
+  IF to_regclass('public.venture_facilitator_playbook') IS NULL THEN
+    IF id_type = 'uuid' THEN
+      EXECUTE 'CREATE TABLE venture_facilitator_playbook (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), venture_id UUID NOT NULL REFERENCES ventures(id) ON DELETE CASCADE, stage_order INTEGER NOT NULL, stage_name TEXT NOT NULL, objective TEXT, expected_outcome TEXT, questions TEXT, evidence TEXT, documents TEXT, mistakes TEXT, approval_criteria TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(venture_id, stage_order))';
+    ELSE
+      EXECUTE 'CREATE TABLE venture_facilitator_playbook (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), venture_id TEXT NOT NULL, stage_order INTEGER NOT NULL, stage_name TEXT NOT NULL, objective TEXT, expected_outcome TEXT, questions TEXT, evidence TEXT, documents TEXT, mistakes TEXT, approval_criteria TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(venture_id, stage_order))';
+    END IF;
+  END IF;
+END $$;
 ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS objective TEXT;
 ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS target_date DATE;
 ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE;
