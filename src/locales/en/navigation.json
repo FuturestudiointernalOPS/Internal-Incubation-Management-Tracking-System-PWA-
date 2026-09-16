@@ -22,6 +22,8 @@
     "profile": "Profile",
     "logout": "Logout",
     "mainOperations": "Main Operations",
+    "collapseSidebar": "Collapse the navigation",
+    "expandSidebar": "Expand the navigation",
     "userProtocol": "User Protocol",
     "intelFeed": "Intelligence Feed",
     "noNewIntel": "No new intelligence",

@@ -22,6 +22,8 @@
     "profile": "Profil",
     "logout": "Déconnexion",
     "mainOperations": "Opérations principales",
+    "collapseSidebar": "Réduire la navigation",
+    "expandSidebar": "Déployer la navigation",
     "userProtocol": "Protocole utilisateur",
     "intelFeed": "Flux de renseignements",
     "noNewIntel": "Aucun nouveau renseignement",
