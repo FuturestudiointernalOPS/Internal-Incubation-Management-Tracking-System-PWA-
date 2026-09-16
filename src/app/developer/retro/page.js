@@ -15,7 +15,6 @@ import { useI18n } from "@/lib/i18n";
 
 export default function DeveloperRetro() {
   const { t } = useI18n();
-  const [, setUserRole] = useState("developer");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
@@ -35,13 +34,6 @@ export default function DeveloperRetro() {
   const [retroNotes, setRetroNotes] = useState("");
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("user");
-      if (saved) {
-        const u = JSON.parse(saved);
-        setUserRole(u.role || "developer");
-      }
-    } catch (_) {}
     const now = new Date();
     setWeekInfo({ week: getWeekNumber(now), year: now.getFullYear() });
   }, []);

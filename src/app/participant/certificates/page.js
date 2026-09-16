@@ -11,7 +11,6 @@ import { Award, Loader2 } from "lucide-react";
  */
 export default function ParticipantCertificatesPage() {
   const { t } = useI18n();
-  const [, setUser] = useState(null);
   const [certificates, setCertificates] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -42,8 +41,6 @@ export default function ParticipantCertificatesPage() {
   };
 
   useEffect(() => {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(u);
     loadCertificates();
   }, []);
 

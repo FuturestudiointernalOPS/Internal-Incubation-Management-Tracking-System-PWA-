@@ -131,18 +131,6 @@ export default function ErrorLogsView({
   const [copied, setCopied] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState({});
   const [actionLoading, setActionLoading] = useState(false);
-  const [, setDashboardRole] = useState(role);
-
-  // Read user role from localStorage so DashboardLayout gets the right role
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("user");
-      if (saved) {
-        const u = JSON.parse(saved);
-        setDashboardRole(u.role || role);
-      }
-    } catch (_) {}
-  }, [role]);
 
   const fetchErrors = useCallback(async () => {
     setLoading(true);

@@ -82,7 +82,6 @@ function ContactsPageContent() {
   const [selectedGroup, setSelectedGroup] = useState("All Contacts");
   const [selectedTeamTab, setSelectedTeamTab] = useState("All Teams");
   const [copiedGroup, setCopiedGroup] = useState(null);
-  const [, setCurrentUser] = useState(null);
 
   // Modals
   const [showManualModal, setShowManualModal] = useState(false);
@@ -124,17 +123,6 @@ function ContactsPageContent() {
       setSelectedGroup(normalized);
     }
   }, [roleParam]);
-
-  useEffect(() => {
-    try {
-      const userStr = localStorage.getItem("user");
-      if (userStr) {
-        setCurrentUser(JSON.parse(userStr));
-      }
-    } catch {
-      // ignore parse error
-    }
-  }, []);
 
   useEffect(() => {
     setSelectedTeamTab("All Teams");

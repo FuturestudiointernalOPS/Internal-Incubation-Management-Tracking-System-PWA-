@@ -7,19 +7,8 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function DeveloperNotifications() {
   const { t } = useI18n();
-  const [, setUserRole] = useState("developer");
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("user");
-      if (saved) {
-        const u = JSON.parse(saved);
-        setUserRole(u.role || "developer");
-      }
-    } catch (_) {}
-  }, []);
 
   useEffect(() => {
     const fetchNotifications = async (bypassCache = false) => {

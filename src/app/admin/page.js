@@ -203,7 +203,6 @@ export default function AdminDashboard() {
     totalUsers: 0,
   });
   const [staffReports, setStaffReports] = useState([]);
-  const [, setBlockerTypes] = useState([]);
   const [processingId, setProcessingId] = useState(null);
   const [expandedSections, setExpandedSections] = useState({});
   const router = useRouter();
@@ -252,7 +251,6 @@ export default function AdminDashboard() {
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [, setDashboardLoading] = useState(true);
   const [assignments, setAssignments] = useState([]);
   const [assignmentsLoading] = useState(false);
   const [activeBlockers, setActiveBlockers] = useState([]);
@@ -352,11 +350,6 @@ export default function AdminDashboard() {
             blockerAgg[formatLabel(type)] =
               (blockerAgg[formatLabel(type)] || 0) + 1;
           });
-        setBlockerTypes(
-          Object.entries(blockerAgg)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 6),
-        );
       }
       if (kpiData.success) {
         setKpiSummary(kpiData.programs || []);
@@ -386,7 +379,6 @@ export default function AdminDashboard() {
 
   // Fetch tasks for calendar (super_admin sees all, others see own)
   const fetchWidgetData = useCallback(async () => {
-    setDashboardLoading(true);
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       const userId = user.cid || user.id;
@@ -417,7 +409,6 @@ export default function AdminDashboard() {
       const cached = urls.map((u) => cacheGet(u));
       if (cached.every((c) => c !== null)) {
         apply(cached[0], cached[1], cached[2]);
-        setDashboardLoading(false);
       }
 
       const responses = await Promise.all(urls.map((u) => fetch(u)));
@@ -426,8 +417,6 @@ export default function AdminDashboard() {
       apply(jsons[0], jsons[1], jsons[2]);
     } catch (e) {
       console.error("Widget data fetch error:", e);
-    } finally {
-      setDashboardLoading(false);
     }
   }, []);
 

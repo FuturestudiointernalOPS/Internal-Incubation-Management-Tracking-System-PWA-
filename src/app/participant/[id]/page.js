@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import { use } from "react";
 import ProgramDetail from "@/components/dashboard/ProgramDetail";
 
 /**
@@ -12,13 +12,6 @@ import ProgramDetail from "@/components/dashboard/ProgramDetail";
 export default function ParticipantProgramDetailPage({ params }) {
   const unwrapped = use(params);
   const programId = unwrapped.id;
-  const [, setUser] = useState(null);
-
-  useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(storedUser);
-  }, []);
-
   return (
     <>
       <div className="p-6">

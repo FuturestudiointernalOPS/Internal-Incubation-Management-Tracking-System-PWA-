@@ -17,7 +17,6 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function AssignedTasks() {
   const { t } = useI18n();
-  const [, setUserRole] = useState("developer");
   const [user, setUser] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [pendingAssignments, setPendingAssignments] = useState([]);
@@ -30,7 +29,6 @@ export default function AssignedTasks() {
       if (saved) {
         const u = JSON.parse(saved);
         setUser(u);
-        setUserRole(u.role || "developer");
       }
     } catch (_) {}
   }, []);

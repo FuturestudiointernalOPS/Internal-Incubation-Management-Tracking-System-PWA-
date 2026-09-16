@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import AssignmentsView from "@/components/dashboard/AssignmentsView";
 
 /**
@@ -10,13 +9,6 @@ import AssignmentsView from "@/components/dashboard/AssignmentsView";
  * with submission, status tracking, and filtering.
  */
 export default function ParticipantAssignmentsPage() {
-  const [, setUser] = useState({});
-
-  useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(stored);
-  }, []);
-
   return (
     <>
       <div className="p-6">

@@ -13,19 +13,8 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 export default function MyTasks() {
   const _router = useRouter();
   const { t } = useI18n();
-  const [, setUserRole] = useState("developer");
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("user");
-      if (saved) {
-        const u = JSON.parse(saved);
-        setUserRole(u.role || "developer");
-      }
-    } catch (_) {}
-  }, []);
 
   const fetchTasks = useCallback(async (bypassCache = false) => {
     setLoading(true);

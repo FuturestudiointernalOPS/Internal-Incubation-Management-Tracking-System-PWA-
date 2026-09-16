@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, Suspense } from "react";
 import "./globals.css";
 import { I18nProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/lib/ThemeProvider";
@@ -8,12 +8,6 @@ import NavHistoryTracker from "@/components/NavHistoryTracker";
 import NavigationLoader from "@/components/ui/NavigationLoader";
 
 export default function RootLayout({ children }) {
-  const [, setThemeReady] = useState(false);
-
-  useEffect(() => {
-    setThemeReady(true);
-  }, []);
-
   // Global error capture — reports uncaught errors to /api/errors
   useEffect(() => {
     const handler = (event) => {

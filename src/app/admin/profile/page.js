@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import ProfileView from "@/components/dashboard/ProfileView";
 
 /**
@@ -11,15 +10,6 @@ import ProfileView from "@/components/dashboard/ProfileView";
  * and adapts its display accordingly.
  */
 export default function AdminProfilePage() {
-  const [, setRole] = useState("super_admin");
-
-  useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem("user") || "{}");
-      if (stored.role) setRole(stored.role);
-    } catch (_) {}
-  }, []);
-
   return (
     <>
       <div className="p-6 max-w-5xl mx-auto">
