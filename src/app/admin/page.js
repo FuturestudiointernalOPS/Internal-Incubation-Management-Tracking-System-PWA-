@@ -7,7 +7,6 @@ import {
   ListTodo,
   Users,
   Rocket,
-  Activity,
   Sparkles,
   Zap,
   ChevronLeft,
@@ -24,7 +23,6 @@ import {
   Calendar,
   Shield,
   TrendingUp,
-  User,
   X,
   ChevronDown,
   ChevronUp,
@@ -32,22 +30,11 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import TaskDetailModal from "@/components/ui/TaskDetailModal";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 function cn(...classes) {
   return classes.filter(Boolean).join(" ");
-}
-
-function getWeekNumber(date) {
-  const d = new Date(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
-  );
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
 
 function formatDate(year, month, day) {
@@ -120,27 +107,6 @@ const STATUS_CONFIG = {
     bg: "bg-indigo-500/10",
     dot: "bg-indigo-400",
   },
-};
-
-const ICONS = {
-  Layers,
-  Users,
-  Rocket,
-  Activity,
-  Sparkles,
-  Zap,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Target,
-  Loader2,
-  Briefcase,
-  Clock,
-  AlertTriangle,
-  CheckCircle2,
-  BarChart3,
-  FileText,
-  Calendar,
 };
 
 const StatCard = ({
@@ -237,7 +203,7 @@ export default function AdminDashboard() {
     totalUsers: 0,
   });
   const [staffReports, setStaffReports] = useState([]);
-  const [blockerTypes, setBlockerTypes] = useState([]);
+  const [, setBlockerTypes] = useState([]);
   const [processingId, setProcessingId] = useState(null);
   const [expandedSections, setExpandedSections] = useState({});
   const router = useRouter();
@@ -286,11 +252,10 @@ export default function AdminDashboard() {
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [, setDashboardLoading] = useState(true);
   const [assignments, setAssignments] = useState([]);
-  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
+  const [assignmentsLoading] = useState(false);
   const [activeBlockers, setActiveBlockers] = useState([]);
-  const [blockersLoading, setBlockersLoading] = useState(false);
   const [resolvingBlocker, setResolvingBlocker] = useState(null);
   const [kpiSummary, setKpiSummary] = useState([]);
   
@@ -1143,7 +1108,7 @@ export default function AdminDashboard() {
               value={stats.totalStaff}
               icon={Rocket}
               color="text-emerald-500"
-              subtitle={t("admin.sectionSubtitles.teachersAndStaff")}
+              subtitle={t("admin.sectionSubtitles.adminsAndStaff")}
               onClick={() => router.push("/admin/communications/contacts")}
               loading={loading}
             />
@@ -1216,7 +1181,7 @@ export default function AdminDashboard() {
                 {loading ? (
                   <TableSkeleton rows={3} />
                 ) : activePrograms.length > 0 ? (
-                  activePrograms.map((prog, i) => (
+                  activePrograms.map((prog, _i) => (
                     <div
                       key={prog.id}
                       onClick={() => router.push(`/admin/programs/${prog.id}`)}

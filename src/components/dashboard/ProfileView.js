@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   User,
   Mail,
@@ -17,7 +17,6 @@ import {
   ExternalLink,
   Building2,
   Globe,
-  Lightbulb,
   Shield,
   Camera,
   Clock,
@@ -109,7 +108,7 @@ function HistoryGroup({ title, rows, roleLabel, activeLabel, completedLabel }) {
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ProfileView() {
   const { t, switchLang, lang } = useI18n();
-  const [user, setUser] = useState(null);
+  const [, setUser] = useState(null);
   const [contact, setContact] = useState(null);
   const [programs, setPrograms] = useState([]);
   const [submissions, setSubmissions] = useState([]);
@@ -120,7 +119,6 @@ export default function ProfileView() {
   const [editedName, setEditedName] = useState("");
   const [history, setHistory] = useState([]);
   const [timeline, setTimeline] = useState([]);
-  const [editedAlternativeEmail, setEditedAlternativeEmail] = useState("");
   const [editedAlternativePhone, setEditedAlternativePhone] = useState("");
   const [editedPhone, setEditedPhone] = useState("");
   const [editedLanguage, setEditedLanguage] = useState("en");
@@ -284,7 +282,7 @@ export default function ProfileView() {
           if (grpData.success && grpData.groups?.length > 0) {
             setGroupInfo(grpData.groups[0]);
           }
-        } catch (e) {
+        } catch {
           /* ignore */
         }
       }
@@ -342,7 +340,7 @@ export default function ProfileView() {
             (data.error || t("adminMisc.profile.saveFailed")),
         });
       }
-    } catch (e) {
+    } catch {
       setSaveMessage({ type: "error", text: t("adminMisc.profile.networkError") });
     }
     setSaving(false);

@@ -102,7 +102,7 @@ export function StandupsTab() {
           </div>
         )}
         {standups.length === 0 ? (<div className="rounded-xl p-6 border text-center" style={{ ...cardStyle, color: 'var(--text-secondary)' }}>{t('venture.noEvents')}</div>) :
-          standups.map(s => { const now = new Date(s.year, 0, 1); const linkedTasks = tasks.filter(tk => { if (!tk.created_at) return false; const d = new Date(tk.created_at); const soy = new Date(d.getFullYear(), 0, 1); const w = Math.ceil((((d - soy) / 86400000) + soy.getDay() + 1) / 7); return w === s.week_number && d.getFullYear() === s.year; }); return (<div key={s.id} className="rounded-xl p-4 border" style={cardStyle}>
+          standups.map(s => { const linkedTasks = tasks.filter(tk => { if (!tk.created_at) return false; const d = new Date(tk.created_at); const soy = new Date(d.getFullYear(), 0, 1); const w = Math.ceil((((d - soy) / 86400000) + soy.getDay() + 1) / 7); return w === s.week_number && d.getFullYear() === s.year; }); return (<div key={s.id} className="rounded-xl p-4 border" style={cardStyle}>
             <p className="font-semibold">Week {s.week_number}, {s.year}</p>
             {s.top_priorities && <div className="mt-2"><span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t('venture.topPriorities')}:</span><p className="text-sm">{s.top_priorities}</p></div>}
             {s.expected_deliverables && <div className="mt-2"><span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t('venture.expectedDeliverables')}:</span><p className="text-sm">{s.expected_deliverables}</p></div>}

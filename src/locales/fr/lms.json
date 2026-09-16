@@ -36,6 +36,7 @@
       "review": "Revoir le cours",
       "courseCompleted": "Cours terminé",
       "completedLessons": "{completed} leçons terminées sur {total}",
+      "progress": "Progression",
       "notStarted": "Non commencé",
       "inProgress": "En cours",
       "completed": "Terminé",

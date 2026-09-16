@@ -41,7 +41,6 @@ if (fs.existsSync(envPath)) {
 
 const PROG_ID = "P-2026-DEMO";
 const PROG_NAME = "Digital Skills Accelerator";
-const PM_ID = "PM-001";
 
 const STAFF = [
   {
@@ -134,7 +133,7 @@ async function seed() {
         sql: "INSERT INTO contacts (cid, name, email, role, group_name, status, deleted) VALUES (?, ?, ?, ?, ?, 'approved', 0)",
         args: [s.cid, s.name, s.email, s.role, "Future Studio"],
       });
-    } catch (e) {
+    } catch {
       /* ignore duplicates */
     }
   }
@@ -144,7 +143,7 @@ async function seed() {
         sql: "INSERT INTO contacts (cid, name, email, role, group_name, status, program_id, program_name, deleted) VALUES (?, ?, ?, 'participant', ?, 'approved', ?, ?, 0)",
         args: [p.cid, p.name, p.email, p.group, PROG_ID, PROG_NAME],
       });
-    } catch (e) {
+    } catch {
       /* ignore */
     }
   }
@@ -178,7 +177,7 @@ async function seed() {
         sql: "INSERT INTO v2_participants (program_id, name, email, phone, screening_status) VALUES (?, ?, ?, ?, 'approved')",
         args: [PROG_ID, p.name, p.email, "+2335000000"],
       });
-    } catch (e) {
+    } catch {
       /* ignore */
     }
   }
@@ -231,7 +230,7 @@ async function seed() {
           w <= 3 ? 1 : 0,
         ],
       });
-    } catch (e) {
+    } catch {
       /* ignore */
     }
 
@@ -257,7 +256,7 @@ async function seed() {
               ).toISOString(),
             ],
           });
-        } catch (e) {
+        } catch {
           /* ignore */
         }
       }
@@ -289,7 +288,6 @@ async function seed() {
   for (let w = 1; w <= 4; w++) {
     const weekStatus = w <= 3 ? "successful" : "partially_completed";
     const weekRating = w <= 3 ? "good" : "fair";
-    const healthStatus = w <= 3 ? "stable" : "at_risk";
     try {
       await db.execute({
         sql: `INSERT INTO v2_weekly_reports
@@ -371,7 +369,7 @@ async function seed() {
             new Date(2026, 4, 5 + (w - 1) * 7).toISOString().split("T")[0],
           ],
         });
-      } catch (e) {
+      } catch {
         /* ignore */
       }
     }

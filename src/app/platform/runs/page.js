@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
-  Play, Plus, Search, Loader2, X, Send, Clock, Users, CheckCircle2,
+  Play, Plus, Search, Loader2, X, Send, Users, CheckCircle2,
   XCircle, FileText, RotateCcw, Eye, MessageSquare, Filter,
   ArrowLeft, Settings, Link2, Trash2, AlertTriangle, BarChart3,
-  History, Calendar, Hash, Globe, EyeOff, ShieldAlert, PauseCircle,
-  StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info, Sparkles, Mail, Key, LogIn, Download,
+  History, Calendar, Hash, EyeOff, PauseCircle,
+  StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, Info, Sparkles, Mail, Key, LogIn, Download,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
@@ -360,8 +360,6 @@ export default function FormRunsPage() {
   const [createData, setCreateData] = useState({ form_id: "", name: "", description: "", opens_at: "", closes_at: "", group_id: "" });
   const [saving, setSaving] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false); // 'opens' | 'closes' | null
-  const [showOpensCal, setShowOpensCal] = useState(false);
-  const [showClosesCal, setShowClosesCal] = useState(false);
 
   // Inline group creation (from run create modal + assign modal)
   const [showInlineGroup, setShowInlineGroup] = useState(false);
@@ -4321,7 +4319,7 @@ function SubmissionTimeline({ submission, onClose }) {
   const { t } = useI18n();
   const [timeline, setTimeline] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [scoringData, setScoringData] = useState(null);
+  const [, setScoringData] = useState(null);
 
   const subData = submission.data || {};
   const scores = subData._scores;

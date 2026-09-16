@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useI18n } from "@/lib/i18n";
 import {
-  BarChart3,
   Search,
   Filter,
   Users,
@@ -16,8 +15,6 @@ import {
   Eye,
   Shield,
   RefreshCw,
-  ChevronDown,
-  ChevronUp,
   Send,
   Loader2,
 } from "lucide-react";
@@ -102,7 +99,6 @@ export default function AdminTasks() {
   const [filterProject, setFilterProject] = useState("All Projects");
   const [sortBy, setSortBy] = useState("newest");
   const [viewingTask, setViewingTask] = useState(null);
-  const [showSortMenu, setShowSortMenu] = useState(false);
   const [allUsers, setAllUsers] = useState([]);
   const [comments, setComments] = useState([]);
   const [commentInput, setCommentInput] = useState("");

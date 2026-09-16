@@ -36,16 +36,13 @@ const { getSession } = require("@/lib/auth");
 
 const {
   issueCertificate,
-  getCertificatesForLearner,
   getLearnerCertificate,
-  getCertificatePublic,
   revokeCertificate,
 } = require("@/lib/lms/certificates");
 const {
   completeLesson,
   submitAssessment,
   getLearnerCourses,
-  getLearnerCourse,
 } = require("@/lib/lms/learning");
 const { buildCertificatePdf } = require("@/lib/lms/certificate-pdf");
 

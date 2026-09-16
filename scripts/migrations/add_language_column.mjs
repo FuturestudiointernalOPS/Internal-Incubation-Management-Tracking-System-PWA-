@@ -45,7 +45,7 @@ async function migrate() {
     });
     console.log("  ✅ language column added to contacts table");
     console.log("\n✅ Migration complete.");
-  } catch (e) {
+  } catch {
     // ALTER TABLE ADD COLUMN IF NOT EXISTS may not be supported in all Postgres versions
     try {
       await db.execute({

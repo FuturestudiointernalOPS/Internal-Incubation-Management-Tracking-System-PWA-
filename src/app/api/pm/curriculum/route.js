@@ -276,7 +276,7 @@ export async function POST(req) {
       try {
         const cnt = await countActiveParticipantsForProgram(program_id);
         sent = cnt.rows[0]?.cnt || 0;
-      } catch (e) {
+      } catch {
         sent = 112;
       }
       return NextResponse.json({ success: true, sent });
@@ -313,7 +313,7 @@ export async function POST(req) {
         const raw = currentRes.rows[0]?.extra_materials;
         materials =
           typeof raw === "string" ? JSON.parse(raw || "[]") : raw || [];
-      } catch (e) {
+      } catch {
         materials = [];
       }
 
@@ -330,7 +330,6 @@ export async function POST(req) {
 
     if (action === "submit_pm_report") {
       const {
-        session_id,
         week_number,
         summary,
         status,
@@ -429,7 +428,10 @@ export async function POST(req) {
   } catch (e) {
     console.error(e);
     return NextResponse.json(
-      { success: false, error: "Curriculum feature not available in this schema" },
+      {
+        success: false,
+        error: `Curriculum feature not available in this schema: ${e.message}`,
+      },
       { status: 501 },
     );
   }
@@ -551,7 +553,10 @@ export async function PUT(req) {
   } catch (e) {
     console.error(e);
     return NextResponse.json(
-      { success: false, error: "Curriculum feature not available in this schema" },
+      {
+        success: false,
+        error: `Curriculum feature not available in this schema: ${e.message}`,
+      },
       { status: 501 },
     );
   }
@@ -591,7 +596,10 @@ export async function DELETE(req) {
   } catch (e) {
     console.error(e);
     return NextResponse.json(
-      { success: false, error: "Curriculum feature not available in this schema" },
+      {
+        success: false,
+        error: `Curriculum feature not available in this schema: ${e.message}`,
+      },
       { status: 501 },
     );
   }

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
   Clock, TrendingUp, DollarSign, Target, XCircle, Download,
-  FileText, Loader2, Building2, ArrowLeft, CheckCircle2,
+  FileText, Loader2, Building2, ArrowLeft,
 } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";

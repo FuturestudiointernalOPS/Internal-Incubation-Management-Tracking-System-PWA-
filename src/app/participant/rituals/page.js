@@ -9,7 +9,7 @@ import RitualsView from "@/components/dashboard/RitualsView";
  * Standups, check-ins, retrospectives, and reflections.
  */
 export default function ParticipantRitualsPage() {
-  const [user, setUser] = useState({});
+  const [, setUser] = useState({});
 
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("user") || "{}");

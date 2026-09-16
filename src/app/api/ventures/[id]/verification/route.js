@@ -11,7 +11,6 @@ import {
   deleteVerificationDocument,
   addVerificationComment,
   canSubmitVerification,
-  canManageVerification,
 } from "@/lib/ventures";
 
 /**

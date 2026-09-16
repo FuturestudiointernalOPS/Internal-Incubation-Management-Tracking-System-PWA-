@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TrendingUp, DollarSign, Users, Building2, Target, BarChart3, Megaphone, Activity, Briefcase, Loader2 } from "lucide-react";
+import { TrendingUp, DollarSign, Users, Target, BarChart3, Megaphone, Activity, Briefcase, Loader2 } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";

@@ -36,6 +36,7 @@
       "review": "Review Course",
       "courseCompleted": "Course completed",
       "completedLessons": "{completed} of {total} lessons completed",
+      "progress": "Progress",
       "notStarted": "Not started",
       "inProgress": "In progress",
       "completed": "Completed",

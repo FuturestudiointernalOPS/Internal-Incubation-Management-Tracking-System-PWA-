@@ -10,7 +10,6 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 const ROLE_LABELS = {
   participant: "crm.roles.participant",
   staff: "crm.roles.staff",
-  teacher: "crm.roles.teacher",
   investor: "crm.roles.investor",
   finance: "crm.roles.finance",
   developer: "crm.roles.developer",
@@ -25,7 +24,6 @@ export default function CrmDashboardPage() {
   const goBack = useSafeBack("/admin");
   const [stats, setStats] = useState(null);
   const [recentContacts, setRecentContacts] = useState([]);
-  const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

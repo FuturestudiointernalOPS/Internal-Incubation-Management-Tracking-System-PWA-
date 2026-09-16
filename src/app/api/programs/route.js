@@ -219,7 +219,6 @@ export async function PUT(req) {
     // assigned_segments is an array of family/group IDs to link to this program.
     if (Array.isArray(data.assigned_segments)) {
       const programId = data.id;
-      const programName = data.name;
 
       // 1. Un-assign families no longer in the list
       if (data.assigned_segments.length > 0) {

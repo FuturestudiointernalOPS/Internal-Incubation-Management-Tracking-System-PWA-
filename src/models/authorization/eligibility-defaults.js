@@ -40,7 +40,6 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "super_admin",
     "staff",
     "program_manager",
-    "teacher",
     "developer",
   ],
   // Communication — messaging, announcements, forms
@@ -48,11 +47,10 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "super_admin",
     "staff",
     "program_manager",
-    "teacher",
     "developer",
   ],
   // Programs — programs, participants, submissions (facilitator module)
-  programs: ["super_admin", "staff", "program_manager", "teacher", "participant"],
+  programs: ["super_admin", "staff", "program_manager", "participant"],
   // Ventures — incubated businesses (founder eligible for own-venture access).
   ventures: [
     "super_admin",
@@ -71,7 +69,6 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "super_admin",
     "staff",
     "program_manager",
-    "teacher",
     "developer",
     "team",
   ],
@@ -80,7 +77,6 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "super_admin",
     "staff",
     "program_manager",
-    "teacher",
     "developer",
   ],
   // Knowledge — knowledge base

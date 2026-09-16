@@ -38,7 +38,6 @@ export async function GET(req) {
     const report_type = searchParams.get("type");
     const week_number = searchParams.get("week");
     const year = searchParams.get("year");
-    const role = searchParams.get("role");
     const workspace = searchParams.get("workspace");
     const context_type = searchParams.get("context_type");
     const context_id = searchParams.get("context_id");

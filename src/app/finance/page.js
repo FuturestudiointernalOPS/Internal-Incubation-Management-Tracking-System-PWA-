@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Send, DollarSign, Calendar, Building2, FileText, CheckCircle } from "lucide-react";
+import { Send, DollarSign, CheckCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
@@ -80,7 +80,7 @@ export default function FinanceEntryPage() {
       } else {
         setError(t(data.error || "Submission failed.") || data.error || "Submission failed.");
       }
-    } catch (e) {
+    } catch {
       setError("Network error.");
     } finally {
       setSubmitting(false);

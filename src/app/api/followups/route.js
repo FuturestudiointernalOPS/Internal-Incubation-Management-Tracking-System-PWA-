@@ -53,7 +53,7 @@ async function getFacilitatorScopeGuard(req, programId) {
  */
 
 export const GET = createHandler(
-  { roles: ["staff", "super_admin", "teacher", "program_manager", "facilitator", "participant"] },
+  { roles: ["staff", "super_admin", "program_manager", "facilitator", "participant"] },
   async (req) => {
     await ensureFollowupSchema();
     const session = await getSession();
@@ -77,7 +77,7 @@ export const GET = createHandler(
 );
 
 export const POST = createHandler(
-  { roles: ["staff", "super_admin", "teacher", "program_manager", "facilitator"] },
+  { roles: ["staff", "super_admin", "program_manager", "facilitator"] },
   async (req) => {
     await ensureFollowupSchema();
     const session = await getSession();
@@ -167,7 +167,7 @@ export const POST = createHandler(
 );
 
 export const PATCH = createHandler(
-  { roles: ["staff", "super_admin", "teacher", "program_manager", "facilitator"] },
+  { roles: ["staff", "super_admin", "program_manager", "facilitator"] },
   async (req) => {
     const { id, status, notes, meeting_link, scheduled_at } = await req.json();
 

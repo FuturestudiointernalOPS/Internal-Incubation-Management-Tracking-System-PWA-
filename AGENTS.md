@@ -70,7 +70,6 @@ substitutes for it.
 | `time.months.*` | `en/time.json` | Month names (january, february, etc.) |
 | `time.days.*` | `en/time.json` | Day abbreviations (sun, mon, tue, etc.) |
 | `errors.*` | `en/errors.json` | Error messages |
-| `teacher.*` | `en/teacher.json` | Teacher dashboard labels |
 | `pm.*` | `en/pm.json` | Program manager labels |
 | `participant.*` | `en/participant.json` | Participant labels |
 
@@ -93,7 +92,6 @@ src/locales/
 │   ├── auth.json
 │   ├── navigation.json
 │   ├── errors.json
-│   ├── teacher.json
 │   ├── pm.json
 │   └── participant.json
 └── fr/
@@ -176,7 +174,6 @@ src/
 │   │   └── ...
 │   ├── staff/            ← Staff routes
 │   ├── pm/               ← Program Manager routes
-│   ├── teacher/          ← Teacher routes
 │   ├── participant/      ← Participant routes
 │   └── api/              ← API routes (thin controllers, ~300 handlers)
 ├── components/
@@ -224,7 +221,6 @@ no re-fetch of the auth/badge chain on every link click):
 | `/admin/*` | `src/app/admin/layout.js` | `super_admin` \| `developer` (from session) |
 | `/staff/*` | `src/app/staff/layout.js` | `staff` |
 | `/pm/*` | `src/app/pm/layout.js` | `program_manager` |
-| `/teacher/*` | `src/app/teacher/layout.js` | `teacher` |
 | `/participant/*` | `src/app/participant/layout.js` | `participant` |
 | `/developer/*` | `src/app/developer/layout.js` | `developer` \| `super_admin` |
 | `/facilitator/*` | `src/app/facilitator/layout.js` | `facilitator` |

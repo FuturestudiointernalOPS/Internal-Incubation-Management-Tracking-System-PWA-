@@ -60,7 +60,6 @@ export const GET = createHandler(async (req) => {
     "super_admin",
     "staff",
     "program_manager",
-    "teacher",
     "developer",
   ];
   if (
@@ -123,7 +122,6 @@ export const POST = createHandler(async (req) => {
     "super_admin",
     "staff",
     "program_manager",
-    "teacher",
     "developer",
   ];
   if (
@@ -216,7 +214,6 @@ export const DELETE = createHandler(async (req) => {
   }
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
-  const user_id = searchParams.get("user_id"); // kept for backward compatibility, ignored
 
   if (!id) {
     return NextResponse.json(

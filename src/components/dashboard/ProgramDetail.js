@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   ArrowLeft,
-  Calendar,
   BookOpen,
   Target,
   CheckCircle2,
@@ -12,24 +11,18 @@ import {
   FileText,
   Clock,
   ExternalLink,
-  Zap,
   AlertCircle,
   Users,
   Layers,
-  Loader2,
   ChevronDown,
   RefreshCw,
   Video,
-  Download,
   File,
   Link,
-  Bookmark,
   BarChart3,
   User,
-  Mail,
   X,
   Upload,
-  Send,
   GraduationCap,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -72,7 +65,7 @@ function StatusBadge({ status }) {
 }
 
 // ─── Week Card (simplified) ────────────────────────────────────────
-function WeekCard({ week, isExpanded, onToggle, programId, onSubmit, t }) {
+function WeekCard({ week, isExpanded, onToggle, onSubmit, t }) {
   const completedCount = week.deliverables.filter(
     (d) => d.submission?.status === "approved",
   ).length;
@@ -691,7 +684,7 @@ export default function ProgramDetail({ programId }) {
       const result = await res.json();
       if (result.success) cacheSet(url, result);
       apply(result);
-    } catch (e) {
+    } catch {
       if (!painted) setError(t("errors.networkError"));
     } finally {
       setLoading(false);
@@ -748,8 +741,6 @@ export default function ProgramDetail({ programId }) {
     program,
     curriculum,
     resources,
-    submissions,
-    attendance,
     kpis,
     followups,
   } = data;

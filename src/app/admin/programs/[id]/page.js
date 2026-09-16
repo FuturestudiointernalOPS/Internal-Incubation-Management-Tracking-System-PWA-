@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use } from 'react';
 import { 
   Activity, Briefcase, ChevronRight, BookOpen, 
-  Target, Users, Layers, MessageSquare, Clock, CheckCircle2, AlertCircle, Send,
+  Target, Users, Layers, MessageSquare, Clock, CheckCircle2, AlertCircle,
   Link as LinkIcon, Trash2,
   ExternalLink
 } from 'lucide-react';
@@ -15,7 +15,7 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 export default function SuperAdminExecutiveView({ params }) {
   const unwrappedParams = use(params);
   const { id } = unwrappedParams;
-  const router = useRouter();
+  const _router = useRouter();
   const { t } = useI18n();
 
   const [program, setProgram] = useState(null);
@@ -74,7 +74,7 @@ export default function SuperAdminExecutiveView({ params }) {
   const fetchData = async (bypassCache = false) => {
     const urls = [
       `/api/pm/full-state?id=${id}`,
-      `/api/teacher/reports?program_id=${id}`,
+      `/api/pm/reports?program_id=${id}`,
       `/api/followups?program_id=${id}`,
       `/api/attendance?program_id=${id}`,
     ];
@@ -271,17 +271,17 @@ export default function SuperAdminExecutiveView({ params }) {
                             rel="noreferrer"
                             className="flex items-center gap-1 text-[10px] font-bold text-white hover:text-blue-400 transition-colors uppercase"
                          >
-                            <ExternalLink className="w-3 h-3" /> {t("adminMisc.programDetail.openForm")}
+                            <ExternalLink className="w-3 h-3" /> {t("adminMisc.programs.openForm")}
                          </a>
                       </div>
                    ) : (
                       <div className="flex flex-col items-end gap-1">
-                         <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">{t("adminMisc.programDetail.noFormYet")}</p>
+                         <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">{t("adminMisc.programs.noFormYet")}</p>
                          <a
                             href="/platform/forms"
                             className="text-[10px] font-bold text-blue-400 hover:underline uppercase"
                          >
-                            {t("adminMisc.programDetail.goToCrmForms")}
+                            {t("adminMisc.programs.goToCrmForms")}
                          </a>
                       </div>
                    )}

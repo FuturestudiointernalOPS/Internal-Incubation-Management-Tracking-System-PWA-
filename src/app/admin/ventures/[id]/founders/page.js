@@ -7,14 +7,12 @@ import {
   User,
   Mail,
   Phone,
-  Shield,
   Crown,
   Loader2,
   CheckCircle2,
   AlertCircle,
   AlertTriangle,
   X,
-  Plus,
   Trash2,
   Ban,
   RefreshCw,
@@ -23,7 +21,6 @@ import {
   Send,
   UserPlus,
   MoreVertical,
-  Edit3,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
@@ -73,7 +70,7 @@ export default function VentureFoundersPage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: "", name: "", role: "co-founder" });
   const [inviting, setInviting] = useState(false);
-  const [inviteResult, setInviteResult] = useState(null);
+  const [, setInviteResult] = useState(null);
 
   // Transfer ownership modal
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -171,14 +168,14 @@ export default function VentureFoundersPage() {
       } else {
         notify(t((data.error || t("vadmin.founders.inviteFailed")) || "") || (data.error || t("vadmin.founders.inviteFailed")), "error");
       }
-    } catch (e) {
+    } catch {
       notify(t("vadmin.founders.networkError"), "error");
     } finally {
       setInviting(false);
     }
   };
 
-  const handleTransferOwnership = async () => {
+  const _handleTransferOwnership = async () => {
     if (!transferTarget) return;
 
     setTransferring(true);
@@ -200,7 +197,7 @@ export default function VentureFoundersPage() {
         notify(t((data.error || t("vadmin.founders.transferFailed")) || "") || (data.error || t("vadmin.founders.transferFailed")), "error");
         setConfirmAction(null);
       }
-    } catch (e) {
+    } catch {
       notify(t("vadmin.founders.networkError"), "error");
     } finally {
       setTransferring(false);
@@ -286,8 +283,6 @@ export default function VentureFoundersPage() {
   const getRoleColor = (role) => {
     return ROLE_COLORS[role] || "text-blue-400 bg-blue-500/10 border-blue-500/20";
   };
-
-  const currentUserId = founders.find((f) => f.is_owner)?.id;
 
   const filteredFounders = founders.filter((f) => {
     if (!searchQuery) return true;

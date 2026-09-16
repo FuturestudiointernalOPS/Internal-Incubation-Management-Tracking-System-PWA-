@@ -50,7 +50,7 @@ for (const file of [".env.local", ".env.audit-staging"]) {
 const { initDb } = await import("../src/lib/db.js");
 const { rowsToCaps, rowsToRestrictions, mergeEffectiveCapabilities } =
   await import("../src/lib/authorization/index.js");
-const { MODULE_TO_FEATURE, FEATURE_ELIGIBILITY_DEFAULTS, evaluateEligibility } =
+const { MODULE_TO_FEATURE } =
   await import("../src/lib/authorization/eligibility.js");
 const { PERMISSION_MODULES } = await import("../src/lib/auth.js");
 
@@ -63,7 +63,7 @@ const PROPOSED_TEMPLATE = {
 const db = await initDb();
 const q = async (sql, args = []) => (await db.execute({ sql, args })).rows;
 
-const [contacts, staffUsers, grants, restrictions, profiles, roleDefaults, profileCaps, eligRows] =
+const [, staffUsers, grants, restrictions, profiles, roleDefaults, profileCaps, eligRows] =
   await Promise.all([
     q("SELECT cid, access_profile_id, group_name, role FROM contacts"),
     q("SELECT cid, name, email, role, group_name FROM contacts WHERE role = 'staff' AND deleted_at IS NULL ORDER BY name"),
@@ -75,7 +75,6 @@ const [contacts, staffUsers, grants, restrictions, profiles, roleDefaults, profi
     q("SELECT feature_key, identity_type, identity_value, eligible FROM feature_eligibility"),
   ]);
 
-const staffCids = new Set(staffUsers.map((u) => u.cid));
 const grantsBy = (cid) => grants.filter((g) => g.user_cid === cid);
 const restrictsBy = (cid) => restrictions.filter((r) => r.user_cid === cid);
 const profileById = (id) => profiles.find((p) => p.id === id);

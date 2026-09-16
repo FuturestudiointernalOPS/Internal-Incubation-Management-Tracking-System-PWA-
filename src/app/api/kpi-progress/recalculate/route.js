@@ -3,7 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 export const POST = createHandler(
-  { roles: ["staff", "super_admin", "program_manager", "teacher"] },
+  { roles: ["staff", "super_admin", "program_manager"] },
   async (req) => {
     const { program_id } = await req.json();
     if (!program_id)

@@ -244,7 +244,7 @@ export async function listProgramsByManagementFilters({
   // facilitator assignment, and returns an empty list for everyone else.
   if (
     session?.role &&
-    !["super_admin", "program_manager", "teacher", "staff"].includes(session.role)
+    !["super_admin", "program_manager", "staff"].includes(session.role)
   ) {
     baseQuery +=
       " AND p.id IN (SELECT program_id FROM v2_program_staff WHERE (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(?)) AND role = 'facilitator')";

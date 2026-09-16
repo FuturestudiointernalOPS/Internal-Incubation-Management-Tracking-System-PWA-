@@ -152,7 +152,7 @@ export async function GET() {
       report.error = classifyError(e);
       return NextResponse.json({ success: false, report });
     }
-  } catch (error) {
+  } catch {
     console.error("[gmail-v1-test] Unexpected error");
     return NextResponse.json(
       {

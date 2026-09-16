@@ -15,7 +15,7 @@ import {
  * List all ventures with summary counts.
  */
 export const GET = createHandler(
-  { roles: ["super_admin", "staff", "program_manager", "participant", "founder", "teacher", "developer"] },
+  { roles: ["super_admin", "staff", "program_manager", "participant", "founder", "developer"] },
   async (req) => {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
@@ -27,7 +27,7 @@ export const GET = createHandler(
     //  - GLOBAL roles (super_admin/developer/admin) may list every Venture.
     //  - Delegated staff/program_manager see Ventures they are ASSIGNED to
     //    or MEMBERS of — never the whole directory.
-    //  - Other roles (participant/founder/teacher/member) see only their own
+    //  - Other roles (participant/founder/member) see only their own
     //    ventures via membership.
     let effectiveContactId = contactId;
     let assignedStaffId = null;

@@ -261,7 +261,7 @@ export async function getContactsForSuperAdmin(roleFilter, statusFilter, groupFi
   return db.execute({ sql, args });
 }
 
-/** Directory for staff/teachers (active only; PMs also see pending). */
+/** Directory for staff (active only; PMs also see pending). */
 export async function getContactsForStaff(role, groupFilter) {
   const statusClause =
     role === "program_manager" ? "status IN ('active', 'pending')" : "status = 'active'";

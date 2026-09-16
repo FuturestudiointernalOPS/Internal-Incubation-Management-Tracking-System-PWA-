@@ -96,7 +96,7 @@ export default function OperatingPlanPanel({ ventureId }) {
       } else {
         notify(d.error || "Apply failed.", "error");
       }
-    } catch (err) {
+    } catch {
       notify("Apply failed.", "error");
     } finally {
       setSavingTpl(false);
@@ -136,7 +136,7 @@ export default function OperatingPlanPanel({ ventureId }) {
       } else {
         notify(d.error || "Create failed.", "error");
       }
-    } catch (err) {
+    } catch {
       notify("Create failed.", "error");
     } finally {
       setSavingPlan(false);

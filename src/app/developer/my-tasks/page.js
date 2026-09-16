@@ -5,22 +5,15 @@ import { useRouter } from "next/navigation";
 import {
   CheckSquare,
   ChevronRight,
-  Search,
   RefreshCw,
-  Plus,
-  Calendar,
-  User,
-  AlertTriangle,
-  Clock,
-  Filter,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function MyTasks() {
-  const router = useRouter();
+  const _router = useRouter();
   const { t } = useI18n();
-  const [userRole, setUserRole] = useState("developer");
+  const [, setUserRole] = useState("developer");
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 

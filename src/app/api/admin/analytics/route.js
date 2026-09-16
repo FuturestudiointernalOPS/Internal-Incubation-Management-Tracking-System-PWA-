@@ -17,7 +17,7 @@ import {
  * Returns high-level execution analytics for the Super Admin dashboard.
  * Aggregates task, blocker, standup, retro, and project stats.
  */
-export async function GET(req) {
+export async function GET(_req) {
   try {
     await initDb();
     const authError = await requireAuth(["super_admin"]);

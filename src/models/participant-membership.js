@@ -58,40 +58,49 @@ export async function getParticipantProgramIds({ cid, email, contact = {} }) {
     return [];
   }
 
+  // The legacy sources are three independent lookups. They used to run one
+  // after another purely because the results were merged in order — three
+  // round trips (~400ms on the current link) where one wave is enough. Each
+  // lookup keeps its own failure guard, so a missing table still cannot take
+  // the others down with it.
+  const [familyRes, programNameRes, intakeRes] = await Promise.all([
+    contact.group_name
+      ? db
+          .execute({
+            sql: "SELECT program_id FROM families WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND program_id IS NOT NULL",
+            args: [contact.group_name],
+          })
+          .catch(() => null)
+      : null,
+    contact.group_name
+      ? db
+          .execute({
+            sql: "SELECT id FROM v2_programs WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
+            args: [contact.group_name],
+          })
+          .catch(() => null)
+      : null,
+    email
+      ? db
+          .execute({
+            sql: "SELECT program_id FROM v2_participants WHERE LOWER(email) = LOWER(?)",
+            args: [email],
+          })
+          .catch(() => null)
+      : null,
+  ]);
+
   const ids = new Set(splitLegacyProgramIds(contact.program_id));
 
-  if (contact.group_name) {
-    try {
-      const famRes = await db.execute({
-        sql: "SELECT program_id FROM families WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND program_id IS NOT NULL",
-        args: [contact.group_name],
-      });
-      famRes.rows.forEach((r) => {
-        if (r.program_id) ids.add(String(r.program_id).trim());
-      });
-    } catch (_) {}
-    try {
-      const grpRes = await db.execute({
-        sql: "SELECT id FROM v2_programs WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
-        args: [contact.group_name],
-      });
-      grpRes.rows.forEach((r) => {
-        if (r.id) ids.add(String(r.id).trim());
-      });
-    } catch (_) {}
-  }
-
-  if (email) {
-    try {
-      const vpRes = await db.execute({
-        sql: "SELECT program_id FROM v2_participants WHERE LOWER(email) = LOWER(?)",
-        args: [email],
-      });
-      vpRes.rows.forEach((r) => {
-        if (r.program_id) ids.add(String(r.program_id).trim());
-      });
-    } catch (_) {}
-  }
+  (familyRes?.rows || []).forEach((r) => {
+    if (r.program_id) ids.add(String(r.program_id).trim());
+  });
+  (programNameRes?.rows || []).forEach((r) => {
+    if (r.id) ids.add(String(r.id).trim());
+  });
+  (intakeRes?.rows || []).forEach((r) => {
+    if (r.program_id) ids.add(String(r.program_id).trim());
+  });
 
   // Warn only when the legacy sources actually produced a program: a caller
   // with no legacy program at all is not an un-reconciled participant (staff,

@@ -1473,7 +1473,7 @@ export default function ProgramManagement() {
                             : editingProgram.assigned_assistant_id
                                 .split(",")
                                 .filter(Boolean);
-                        } catch (e) {
+                        } catch {
                           assistantIds = editingProgram.assigned_assistant_id
                             .split(",")
                             .filter(Boolean);
@@ -1910,9 +1910,6 @@ export default function ProgramManagement() {
                             <option value="program_manager">
                               {t("adminMisc.programs.roleProgramManager")}
                             </option>
-                            <option value="teacher">
-                              {t("adminMisc.programs.roleTeacher")}
-                            </option>
                             <option value="mentor">
                               {t("adminMisc.programs.roleMentor")}
                             </option>
@@ -2158,7 +2155,6 @@ export default function ProgramManagement() {
                       <option value="participant">{t("adminMisc.programs.roleParticipant")}</option>
                       <option value="staff">{t("adminMisc.programs.roleStaff")}</option>
                       <option value="program_manager">{t("adminMisc.programs.roleProgramManager")}</option>
-                      <option value="teacher">{t("adminMisc.programs.roleTeacherAssistant")}</option>
                       <option value="mentor">{t("adminMisc.programs.roleMentor")}</option>
                       <option value="investor">{t("adminMisc.programs.roleInvestor")}</option>
                       <option value="founder">{t("adminMisc.programs.roleFounder")}</option>

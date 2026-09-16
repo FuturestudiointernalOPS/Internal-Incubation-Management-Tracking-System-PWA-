@@ -35,7 +35,7 @@ for (const file of [".env.staging", ".env.audit-staging"]) {
 
 const { initDb } = await import("../src/lib/db.js");
 const { getAuthorizationContext } = await import("../src/lib/authorization/index.js");
-const { getSession } = await import("../src/lib/auth.js");
+await import("../src/lib/auth.js");
 
 const db = await initDb();
 const q = async (sql) => (await db.execute({ sql, args: [] })).rows;

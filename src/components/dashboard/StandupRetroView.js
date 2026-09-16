@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Calendar, Trophy, Send, ChevronLeft, ChevronRight, ChevronDown,
-  CheckCircle2, Clock, AlertTriangle, User, Paperclip,
+  CheckCircle2, AlertTriangle, User, Paperclip,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
@@ -239,7 +239,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
   const [retroForm, setRetroForm] = useState({ wentWell: "", wentWrong: "", improve: "" });
   const [showNewTask, setShowNewTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [creatingTask, setCreatingTask] = useState(false);
+  const [, setCreatingTask] = useState(false);
   const [allStaff, setAllStaff] = useState([]);
 
   const ctx = context || { context_type: "staff", context_id: null };
@@ -313,7 +313,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       const data = await res.json();
       if (!data.success) setToast({ type: "error", msg: t((data.error || t("staffMisc.standupRetro.assignmentFailed")) || "") || (data.error || t("staffMisc.standupRetro.assignmentFailed")) });
       else { setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, assigned_to: assigneeId } : t)); setToast({ type: "success", msg: t("staffMisc.standupRetro.assigned") }); }
-    } catch (e) { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); }
+    } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); }
   };
 
   const handleAddBlocker = async (taskId, blockerTitle) => {
@@ -322,21 +322,21 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       const data = await res.json();
       if (!data.success) setToast({ type: "error", msg: t((data.error || t("staffMisc.standupRetro.blockerFailed")) || "") || (data.error || t("staffMisc.standupRetro.blockerFailed")) });
       else { setToast({ type: "success", msg: t("staffMisc.standupRetro.blockerAdded") }); fetchData(true); }
-    } catch (e) { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); }
+    } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); }
   };
 
   const handleSetDueDate = async (taskId, date) => {
     try {
       await fetch("/api/tasks", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: taskId, end_date: date, user_id: user.cid }) });
       setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, end_date: date } : t));
-    } catch (e) { /* silent */ }
+    } catch { /* silent */ }
   };
 
   const handleStatusChange = async (taskId, newStatus) => {
     try {
       await fetch("/api/tasks", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: taskId, status: newStatus, user_id: user.cid }) });
       setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus } : t));
-    } catch (e) { setToast({ type: "error", msg: t("staffMisc.standupRetro.failedToUpdateTask") }); }
+    } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.failedToUpdateTask") }); }
   };
 
   const handleCreateTask = async (e) => {
@@ -348,7 +348,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       const data = await res.json();
       if (data.success) { setNewTaskTitle(""); setShowNewTask(false); fetchData(true); }
       else setToast({ type: "error", msg: t((data.error || t("staffMisc.standupRetro.failed")) || "") || (data.error || t("staffMisc.standupRetro.failed")) });
-    } catch (e) { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); } finally { setCreatingTask(false); }
+    } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); } finally { setCreatingTask(false); }
   };
 
   const handleArchive = (taskId) => handleStatusChange(taskId, "archived");
@@ -356,7 +356,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
     try {
       await fetch(`/api/tasks?id=${taskId}&user_id=${user.cid}`, { method: "DELETE" });
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
-    } catch (e) { setToast({ type: "error", msg: t("staffMisc.standupRetro.failedToDelete") }); }
+    } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.failedToDelete") }); }
   };
 
   const submitStandup = async (e) => {

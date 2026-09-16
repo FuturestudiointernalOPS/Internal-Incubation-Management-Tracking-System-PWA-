@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Loader2, AlertCircle, CheckCircle2, AlertTriangle, Calendar, Clock,
-  Flag, BarChart3, Layers, ChevronRight, RefreshCw, Target, Route,
+  ArrowLeft, Loader2, AlertCircle, CheckCircle2, Calendar, Clock,
+  Flag, BarChart3, RefreshCw, Target, Route,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
@@ -115,7 +115,6 @@ export default function VentureTimelinePage() {
   );
 
   const rows = data?.rows || [];
-  const deps = data?.dependencies || [];
   const overdue = data?.overdue || [];
 
   // Calculate date range for Gantt

@@ -10,13 +10,11 @@ import {
   BarChart3,
   GitBranch,
   Settings,
-  ChevronDown,
   LogOut,
   User,
   Menu,
   X,
   Blocks,
-  Activity,
   Upload,
   ArrowLeft,
 } from "lucide-react";

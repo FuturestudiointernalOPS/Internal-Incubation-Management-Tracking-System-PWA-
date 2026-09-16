@@ -95,7 +95,7 @@ export default function VentureNotesPanel({ ventureId }) {
       } else {
         notify(d.error || t("venture.notesPanel.saveFailed"), "error");
       }
-    } catch (err) {
+    } catch {
       notify(t("venture.notesPanel.saveFailed"), "error");
     } finally {
       setSaving(false);

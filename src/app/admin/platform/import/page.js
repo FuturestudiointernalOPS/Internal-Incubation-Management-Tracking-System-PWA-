@@ -108,7 +108,7 @@ export default function ImportPage() {
 
   // Import result state
   const [importResult, setImportResult] = useState(null);
-  const [importProgress, setImportProgress] = useState(0);
+  const [, setImportProgress] = useState(0);
 
   const fileInputRef = useRef(null);
 
@@ -218,7 +218,7 @@ export default function ImportPage() {
       } else {
         setError(t((data.error || t("adminMisc.platformImport.errorPreviewFailed")) || "") || (data.error || t("adminMisc.platformImport.errorPreviewFailed")));
       }
-    } catch (err) {
+    } catch {
       setError(t("adminMisc.platformImport.errorNetwork"));
     } finally {
       setLoading(false);
@@ -274,7 +274,7 @@ export default function ImportPage() {
           }),
         });
         data = await res.json();
-      } catch (err) {
+      } catch {
         setError(
           t("adminMisc.platformImport.errorNetworkDuringImport") +
             " " +

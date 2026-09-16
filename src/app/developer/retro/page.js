@@ -15,7 +15,7 @@ import { useI18n } from "@/lib/i18n";
 
 export default function DeveloperRetro() {
   const { t } = useI18n();
-  const [userRole, setUserRole] = useState("developer");
+  const [, setUserRole] = useState("developer");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
@@ -106,7 +106,7 @@ export default function DeveloperRetro() {
         setRetroNotes("");
         setTimeout(() => setSubmitted(false), 3000);
       } else setError(t((d.error || t("developerMisc.retro.submitFailed")) || "") || (d.error || t("developerMisc.retro.submitFailed")));
-    } catch (e) {
+    } catch {
       setError(t("developerMisc.retro.networkError"));
     } finally {
       setSubmitting(false);

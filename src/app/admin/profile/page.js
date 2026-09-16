@@ -11,7 +11,7 @@ import ProfileView from "@/components/dashboard/ProfileView";
  * and adapts its display accordingly.
  */
 export default function AdminProfilePage() {
-  const [role, setRole] = useState("super_admin");
+  const [, setRole] = useState("super_admin");
 
   useEffect(() => {
     try {

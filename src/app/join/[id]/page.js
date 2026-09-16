@@ -9,7 +9,7 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 export default function JoinGroupPage() {
   const { t } = useI18n();
   const params = useParams();
-  const router = useRouter();
+  const _router = useRouter();
   const id = params?.id;
 
   const [group, setGroup] = useState(null);
@@ -76,7 +76,7 @@ export default function JoinGroupPage() {
           if (formData.success) cacheSet(formUrl, formData);
           applyForm(formData);
         }
-      } catch (e) {
+      } catch {
         if (!painted) setError(t("rootMisc.join.failedToLoad"));
       } finally {
         setLoading(false);
@@ -124,7 +124,7 @@ export default function JoinGroupPage() {
       }
 
       setSubmitted(true);
-    } catch (e) {
+    } catch {
       setError(t("rootMisc.join.submissionFailed"));
     }
     setSubmitting(false);

@@ -21,7 +21,7 @@ import {
  */
 
 export const GET = createHandler(
-  { roles: ["staff", "super_admin", "teacher", "program_manager"] },
+  { roles: ["staff", "super_admin", "program_manager"] },
   async (req) => {
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
@@ -96,7 +96,7 @@ export const GET = createHandler(
 );
 
 export const PUT = createHandler(
-  { roles: ["staff", "super_admin", "teacher", "program_manager"] },
+  { roles: ["staff", "super_admin", "program_manager"] },
   async (req) => {
     const { program_id, submission_id, score, evaluation_data } =
       await req.json();

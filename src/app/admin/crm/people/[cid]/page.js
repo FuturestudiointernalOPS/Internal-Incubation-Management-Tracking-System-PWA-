@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { User, Clock, FileText, Briefcase, Rocket, MessageSquare, Upload, Plus, ArrowLeft, Check, X, Send, Mail, GraduationCap, Building2 } from "lucide-react";
+import { User, Clock, FileText, Briefcase, Rocket, Upload, Plus, ArrowLeft, Send, Mail, GraduationCap, Building2 } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
@@ -23,7 +23,6 @@ const MODULE_COLORS = {
 const ROLE_LABELS = {
   participant: "crm.roles.participant",
   staff: "crm.roles.staff",
-  teacher: "crm.roles.teacher",
   investor: "crm.roles.investor",
   finance: "crm.roles.finance",
   developer: "crm.roles.developer",
@@ -59,7 +58,7 @@ const MODULE_LABELS = {
 
 export default function CrmDetailPage({ params }) {
   const { cid } = use(params);
-  const router = useRouter();
+  const _router = useRouter();
   const { t, lang } = useI18n();
   const goBack = useSafeBack("/admin/crm");
 
@@ -229,7 +228,7 @@ export default function CrmDetailPage({ params }) {
       } else {
         setInviteMessage({ type: "error", text: data.error || "Failed to send invitation" });
       }
-    } catch (e) {
+    } catch {
       setInviteMessage({ type: "error", text: "Error sending invitation" });
     }
     setInviting(false);
@@ -706,7 +705,7 @@ export default function CrmDetailPage({ params }) {
                           {item.progress?.status === "completed"
                             ? t("crm.people.completedStatus")
                             : item.progress?.status === "in_progress"
-                              ? t("status.in_progress")
+                              ? t("status.inProgress")
                               : t("crm.people.notStarted")}
                         </span>
                         {item.certificate && (

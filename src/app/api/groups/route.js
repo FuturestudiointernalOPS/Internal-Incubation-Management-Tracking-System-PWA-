@@ -50,7 +50,7 @@ export async function POST(req) {
     if (capError) return capError;
 
     const body = await req.json();
-    const { program_id, name, type, description, default_role } = body;
+    const { program_id, name, type, description } = body;
 
     if (!name) {
       return NextResponse.json(

@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, requireProgramFacilitator, hasProgramManagementAccess, isAssignedPmForProgram } from "@/lib/auth";
-import { recalculateKpiProgress } from "@/lib/kpi-progress";
+import { refreshKpiProgressIfStale } from "@/lib/kpi-progress";
 import {
   getAssistantContactsByCids,
   getPersistedKpiProgress,
@@ -24,7 +24,7 @@ export async function GET(req) {
     const progId = sp.get("id");
 
     // Facilitators must be assigned to this program before seeing its data.
-    // Bypass for: super_admin, program_manager, teacher (hasProgramManagementAccess)
+    // Bypass for: super_admin, program_manager (hasProgramManagementAccess)
     // AND for any staff member who is the explicitly assigned PM of this program.
     if (progId) {
       const session = await getSession();
@@ -86,7 +86,7 @@ export async function GET(req) {
         ) {
           try {
             program.note_files = JSON.parse(program.note_files);
-          } catch (e) {
+          } catch {
             let value = program.note_files;
             let parsed = false;
             for (let i = 0; i < 3; i++) {
@@ -147,7 +147,7 @@ export async function GET(req) {
 
         program.completion_index =
           totalPoints > 0 ? (completedPoints / totalPoints) * 100.0 : 0;
-      } catch (e) {
+      } catch {
         program.materials = [];
         program.knowledge_assets = [];
         program.completion_index = 0;
@@ -187,7 +187,7 @@ export async function GET(req) {
             new Map(merged.map((item) => [item.cid, item])).values(),
           );
         }
-      } catch (e) {}
+      } catch {}
     }
 
     // --- MERGE PARTICIPANTS (always) ---
@@ -328,8 +328,11 @@ export async function GET(req) {
             };
           });
 
-          // Fire-and-forget: persist this calculation for next time
-          recalculateKpiProgress(id).catch(() => {});
+          // Refresh the persisted calculation for next time — but not on every
+          // view: a page load must not systematically trigger a write-heavy
+          // recalculation. Recent persisted progress is reused; approvals and
+          // requirement edits recalculate immediately through their own routes.
+          refreshKpiProgressIfStale(id).catch(() => {});
         }
       } catch (e) {
         console.warn(

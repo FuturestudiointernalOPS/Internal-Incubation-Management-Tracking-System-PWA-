@@ -101,19 +101,6 @@ const WINS = [
   ["Smooth onboarding process", "Build time reduced by 40%"],
 ];
 
-const CHALLENGES = [
-  ["Cross-team communication delays", "Shifting priorities mid-week"],
-  [
-    "Unexpected dependency on legacy system",
-    "Environment configuration issues",
-  ],
-  ["Some students falling behind", "Limited time for 1:1s"],
-  ["Feedback loop too slow with engineering", "Design review bottlenecks"],
-  [
-    "Documentation gaps in existing codebase",
-    "Tooling setup took longer than expected",
-  ],
-];
 
 const BLOCKERS = [
   "Waiting on legal review",

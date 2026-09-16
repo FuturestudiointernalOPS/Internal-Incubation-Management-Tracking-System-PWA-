@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react";
 import {
-  Briefcase, TrendingUp, Star, Eye, BarChart3, Users,
-  Building2, Clock, ArrowRight, Loader2, Search, Filter,
-  Bookmark, BookmarkCheck, Target, DollarSign, SlidersHorizontal,
-  X, ChevronLeft, ExternalLink, GitCompare, Check, Send,
+  Eye, BarChart3, Users,
+  Building2, ArrowRight, Loader2, Search,
+  Bookmark, BookmarkCheck, Target, SlidersHorizontal,
+  X, GitCompare, Send,
   Megaphone, Calendar,
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
@@ -261,7 +260,7 @@ export default function InvestorDashboard() {
     ? pipeline
     : pipeline.filter(p => p.stage === stageFilter);
 
-  const filteredRecommendations = recommendations.filter(r =>
+  const _filteredRecommendations = recommendations.filter(r =>
     !search || r.name?.toLowerCase().includes(search.toLowerCase()) ||
     r.industry?.toLowerCase().includes(search.toLowerCase())
   );

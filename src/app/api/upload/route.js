@@ -94,7 +94,7 @@ export async function POST(request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const fileName = `team-uploads/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
 
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from("submissions")
       .upload(fileName, buffer, {
         contentType: file.type,
@@ -120,7 +120,7 @@ export async function POST(request) {
           .getPublicUrl(fileName).data.publicUrl;
 
         return NextResponse.json({ success: true, url: publicUrl });
-      } catch (createErr) {
+      } catch {
         return NextResponse.json(
           {
             success: false,

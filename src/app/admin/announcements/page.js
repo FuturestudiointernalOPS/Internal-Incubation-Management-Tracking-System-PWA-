@@ -10,7 +10,6 @@ import {
   Pin,
   PinOff,
   Archive,
-  Trash2,
   Loader2,
   ChevronDown,
   Send,

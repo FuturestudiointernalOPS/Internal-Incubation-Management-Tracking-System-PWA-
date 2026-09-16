@@ -1,7 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
-import { recalculateKpiProgress } from "@/lib/kpi-progress";
 import { getLocalToday } from "@/lib/constants";
 import {
   addAttendanceDateColumn,
@@ -21,7 +20,7 @@ export async function POST(req) {
   try {
     await initDb();
     // Phase I5: assignment is the security decision. The old role pre-filter
-    // (staff/PM/teacher/facilitator) blocked members who legitimately hold a
+    // (staff/PM/facilitator) blocked members who legitimately hold a
     // program assignment — the assignment + attendance.record capability
     // check below authorizes them; everyone unassigned is denied there.
     const authError = await requireAuth();

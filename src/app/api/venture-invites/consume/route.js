@@ -9,7 +9,7 @@ import { initDb } from "@/lib/db";
 //
 // Retired. Venture registration now flows through the official Venture
 // intake form/run: Form → Run → Submission → Review → Approval → Venture.
-export async function POST(req) {
+export async function POST(_req) {
   try {
     await initDb();
     return NextResponse.json(

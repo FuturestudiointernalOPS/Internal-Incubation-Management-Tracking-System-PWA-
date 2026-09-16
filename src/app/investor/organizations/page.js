@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
   Building2, Users, Plus, Loader2, ArrowLeft, Globe,
-  Save, UserPlus, Crown, Shield, Mail, X,
+  Save, Crown, Shield, X,
 } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";

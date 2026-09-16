@@ -401,7 +401,7 @@ export async function sendLoginEmail({ to, name, role, template, templateVars, p
 /**
  * Send a welcome email after activation
  */
-export async function sendWelcomeEmail({ to, name, role, language }) {
+export async function sendWelcomeEmail({ to, name, language }) {
   // Never render placeholder identities (UNKNOWN / Anonymous / empty) when a
   // resolved name is unavailable — use a neutral greeting instead.
   const displayName = isGenericName(name) ? "there" : (name || "there").trim();

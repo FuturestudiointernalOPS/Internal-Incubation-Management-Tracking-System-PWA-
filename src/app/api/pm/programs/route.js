@@ -349,7 +349,7 @@ export async function PUT(req) {
     // below (resolver + eligibility). Authentication only here.
     const authError = await requireAuth();
     if (authError) return authError;
-    // Phase 2 (legacy cleanup): no more staff/teacher/admin compatibility
+    // Phase 2 (legacy cleanup): no more staff/admin compatibility
     // bypass — program editing requires the programs.edit capability through
     // the resolver (eligibility boundary included). PMs hold it via their
     // profile; plain staff without it are denied (intended model).

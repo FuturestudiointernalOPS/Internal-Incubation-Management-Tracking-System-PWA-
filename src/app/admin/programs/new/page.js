@@ -5,22 +5,17 @@ import {
   Zap,
   ArrowLeft,
   Shield,
-  User,
   Users,
   BookOpen,
   Plus,
   X,
   Loader2,
   Target,
-  Calendar,
-  Briefcase,
   CheckCircle2,
   AlertCircle,
-  Info,
   FileText,
   Upload,
   Trash2,
-  File,
 } from "lucide-react";
 import { uploadFile } from "@/lib/storage";
 import { useRouter } from "next/navigation";
@@ -110,7 +105,7 @@ export default function NewProgram() {
 
   const [isCreatingKB, setIsCreatingKB] = useState(false);
   const [newKB, setNewKB] = useState({ title: "", description: "", files: [] });
-  const [createdKB, setCreatedKB] = useState(null);
+  const [, setCreatedKB] = useState(null);
   const [kpisList, setKpisList] = useState([]);
   const [kpiInput, setKpiInput] = useState({ title: "", target_value: 100 });
   const [templates, setTemplates] = useState([]);

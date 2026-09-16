@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Search, FileText, Upload,
-  Share2, Clock, Eye, Download, History, Trash2, Copy, Link as LinkIcon,
+  ArrowLeft, Loader2, X, Search, FileText, Upload,
+  Share2, Eye, Download, History, Trash2, Link as LinkIcon,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 

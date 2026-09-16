@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from "react
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Users,
-  Briefcase,
   Activity,
   CheckCircle2,
   ChevronRight,
@@ -12,13 +11,10 @@ import {
   FileText,
   Mail,
   MessageCircle,
-  MoreVertical,
   Plus,
-  Search,
   Shield,
   Target,
   Zap,
-  Rocket,
   Clock,
   AlertCircle,
   Trash2,
@@ -85,12 +81,12 @@ function ProgramWorkspace() {
     staff_id: "",
   });
   const [kpis, setKpis] = useState([]);
-  const [events, setEvents] = useState([]);
+  const [, setEvents] = useState([]);
   const [assignedStaff, setAssignedStaff] = useState([]);
   const [facilitators, setFacilitators] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [toast] = useState(null);
   const toggleKpi = (type, kpiId) => {
     if (type === "session") {
       setNewSession((prev) => {
@@ -166,12 +162,12 @@ function ProgramWorkspace() {
         new Map(allAvailable.map((s) => [s.cid, s])).values(),
       );
       return unique.filter((s) => approvedIds.includes(s.cid) && s.role !== "investor");
-    } catch (e) {
+    } catch {
       return [];
     }
   }, [program?.assigned_assistant_id, staffList, assignedStaff]);
 
-  // Oversight candidates = assigned program staff (staff/teacher/assistant)
+  // Oversight candidates = assigned program staff (staff/assistant)
   // + program facilitators. Deduped by cid so the same person appears once.
   const oversightCandidates = React.useMemo(() => {
     const merged = [...assignedStaff, ...facilitators];
@@ -185,10 +181,6 @@ function ProgramWorkspace() {
   const [selectedExistingTeamId, setSelectedExistingTeamId] = useState("");
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showStaffModal, setShowStaffModal] = useState(false);
-  const [showMaterialModal, setShowMaterialModal] = useState(false);
-  const [materialSessionId, setMaterialSessionId] = useState(null);
-  const [materialName, setMaterialName] = useState("");
-  const [materialUrl, setMaterialUrl] = useState("");
 
   const [showRequirementModal, setShowRequirementModal] = useState(false);
   const [showKPIModal, setShowKPIModal] = useState(false);
@@ -269,10 +261,6 @@ function ProgramWorkspace() {
     type: "text",
     content: "",
     name: "",
-  });
-  const [newRequirementLink, setNewRequirementLink] = useState({
-    type: "text",
-    content: "",
   });
   const [newRequirement, setNewRequirement] = useState({
     title: "",
@@ -375,7 +363,7 @@ function ProgramWorkspace() {
         notify(t("pmMisc.workspace.saved"));
         fetchProgramData(true);
       } else notify(t((data.error || t("pmMisc.workspace.saveFailed")) || "") || (data.error || t("pmMisc.workspace.saveFailed")), "error");
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
@@ -443,7 +431,7 @@ function ProgramWorkspace() {
         setActiveTab("teams");
         setActiveSubTab("groups");
       } else notify(t((data.error || t("pmMisc.workspace.operationFailed")) || "") || (data.error || t("pmMisc.workspace.operationFailed")), "error");
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
@@ -469,7 +457,7 @@ function ProgramWorkspace() {
       } else {
         notify(t((data.error || t("pmMisc.workspace.moveParticipantFailed")) || "") || (data.error || t("pmMisc.workspace.moveParticipantFailed")), "error");
       }
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
@@ -509,7 +497,7 @@ function ProgramWorkspace() {
       } else {
         notify(t((data.error || t("pmMisc.workspace.facilitatorUpdateFailed")) || "") || (data.error || t("pmMisc.workspace.facilitatorUpdateFailed")), "error");
       }
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
@@ -537,7 +525,7 @@ function ProgramWorkspace() {
       } else {
         notify(t((data.error || t("pmMisc.workspace.removeMemberFailed")) || "") || (data.error || t("pmMisc.workspace.removeMemberFailed")), "error");
       }
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
@@ -639,7 +627,7 @@ function ProgramWorkspace() {
         });
         fetchProgramData(true);
       } else notify(t((data.error || t("pmMisc.workspace.addFailed")) || "") || (data.error || t("pmMisc.workspace.addFailed")), "error");
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
@@ -696,7 +684,7 @@ function ProgramWorkspace() {
         });
         fetchProgramData(true);
       } else notify(t((data.error || t("pmMisc.workspace.failed")) || "") || (data.error || t("pmMisc.workspace.failed")), "error");
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
@@ -730,7 +718,7 @@ function ProgramWorkspace() {
         setSessions(previousSessions);
         notify(t("pmMisc.workspace.statusUpdateFailed"), "error");
       }
-    } catch (e) {
+    } catch {
       setSessions(previousSessions);
       notify(t("pmMisc.workspace.statusUpdateFailed"), "error");
     }
@@ -802,7 +790,7 @@ function ProgramWorkspace() {
           notify(t((data.error || t("pmMisc.workspace.fieldSyncFailed")) || "") || (data.error || t("pmMisc.workspace.fieldSyncFailed")), "error");
         }
       }
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.fieldSyncFailed"), "error");
     }
   };
@@ -890,7 +878,7 @@ function ProgramWorkspace() {
         attachment_type: pmReportAttachments.type || null,
         attachment_url: pmReportAttachments.url || null,
       };
-      const res = await fetch("/api/pm/curriculum", {
+      const res = await fetch("/api/pm/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -929,7 +917,7 @@ function ProgramWorkspace() {
         });
         fetchProgramData(true);
       } else notify(t((data.error || t("pmMisc.workspace.failed")) || "") || (data.error || t("pmMisc.workspace.failed")), "error");
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
@@ -956,14 +944,14 @@ function ProgramWorkspace() {
         setNewKPI({ title: "" });
         fetchProgramData(true);
       } else notify(t((data.error || t("pmMisc.workspace.failed")) || "") || (data.error || t("pmMisc.workspace.failed")), "error");
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const removeKPI = (kpiId) => {
+  const _removeKPI = (kpiId) => {
     if (user.role !== "super_admin") {
       notify(t("pmMisc.workspace.superAdminKpiRemoveOnly"), "error");
       return;
@@ -983,7 +971,7 @@ function ProgramWorkspace() {
       });
       notify(t("pmMisc.workspace.kpiRemoved"));
       fetchProgramData(true);
-    } catch (e) { }
+    } catch { }
   };
 
   const assignStaff = async () => {
@@ -1002,7 +990,7 @@ function ProgramWorkspace() {
         setNewStaff({ staff_id: "", role: "staff" });
         fetchProgramData(true);
       } else notify(t((data.error || t("pmMisc.workspace.assignmentFailed")) || "") || (data.error || t("pmMisc.workspace.assignmentFailed")), "error");
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
@@ -1028,7 +1016,7 @@ function ProgramWorkspace() {
         notify(t("pmMisc.workspace.personnelRemoved"));
         fetchProgramData(true);
       }
-    } catch (e) { }
+    } catch { }
   };
 
   const deleteTeam = (teamId) => {
@@ -1050,7 +1038,7 @@ function ProgramWorkspace() {
         notify(t("pmMisc.workspace.groupDecommissioned"));
         fetchProgramData(true);
       }
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.removeGroupFailed"), "error");
     }
   };
@@ -1079,7 +1067,7 @@ function ProgramWorkspace() {
       });
       notify(t("pmMisc.workspace.sessionArchived"));
       fetchProgramData(true);
-    } catch (e) { }
+    } catch { }
   };
 
   const handleReviewSubmission = async () => {
@@ -1105,7 +1093,7 @@ function ProgramWorkspace() {
         setFollowupTime("");
         fetchProgramData(true);
       } else notify(t((data.error || t("pmMisc.workspace.gradeFailed")) || "") || (data.error || t("pmMisc.workspace.gradeFailed")), "error");
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
@@ -1138,7 +1126,7 @@ function ProgramWorkspace() {
       } else {
         notify(data.error || t("pmMisc.workspace.gradeFailed"), "error");
       }
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
@@ -1168,7 +1156,7 @@ function ProgramWorkspace() {
       } else {
         notify(data.error || t("pmMisc.workspace.gradeFailed"), "error");
       }
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
@@ -1230,7 +1218,7 @@ function ProgramWorkspace() {
       } else {
         notify(data.error || "Failed to update review", "error");
       }
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     }
   };
@@ -1272,7 +1260,7 @@ function ProgramWorkspace() {
         setFollowupTime("");
         fetchProgramData(true);
       } else notify(t((data.error || t("pmMisc.workspace.followupScheduleFailed")) || "") || (data.error || t("pmMisc.workspace.followupScheduleFailed")), "error");
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
@@ -1329,7 +1317,7 @@ function ProgramWorkspace() {
       } else {
         notify(t("pmMisc.workspace.syncFailed"), "error");
       }
-    } catch (e) {
+    } catch {
       notify(t("pmMisc.workspace.syncFailed"), "error");
     } finally {
       setIsSaving(false);
@@ -1436,15 +1424,15 @@ function ProgramWorkspace() {
     },
     { id: "curriculum", name: t("pmMisc.workspace.tabCurriculum"), icon: FileText },
     { id: "attendance", name: t("pmMisc.workspace.tabAttendance"), icon: CheckCircle2 },
-    { id: "reports", name: t("pmMisc.workspace.tabReports"), icon: BarChart3, roles: ["super_admin", "program_manager", "staff", "teacher"] },
-    { id: "reviews", name: t("pmMisc.workspace.tabReviews"), icon: MessageCircle, roles: ["super_admin", "program_manager", "staff", "teacher"] },
+    { id: "reports", name: t("pmMisc.workspace.tabReports"), icon: BarChart3, roles: ["super_admin", "program_manager", "staff"] },
+    { id: "reviews", name: t("pmMisc.workspace.tabReviews"), icon: MessageCircle, roles: ["super_admin", "program_manager", "staff"] },
     { id: "participants", name: t("pmMisc.workspace.tabParticipants"), icon: Users },
     { id: "submissions", name: t("pmMisc.workspace.tabSubmissions"), icon: Activity },
     {
       id: "facilitators",
       name: t("pmMisc.workspace.tabFacilitators"),
       icon: UserPlus,
-      roles: ["super_admin", "program_manager", "staff", "teacher"],
+      roles: ["super_admin", "program_manager", "staff"],
     },
   ];
 
@@ -2219,7 +2207,7 @@ function ProgramWorkspace() {
                                         {k.title}
                                       </span>
                                     ));
-                                } catch (e) {
+                                } catch {
                                   return null;
                                 }
                               })()}
@@ -2464,7 +2452,7 @@ function ProgramWorkspace() {
                                       isSelected = Array.isArray(ids)
                                         ? ids.includes(stringId)
                                         : session.handler_id === stringId;
-                                    } catch (e) {
+                                    } catch {
                                       isSelected = session.handler_id === stringId;
                                     }
                                     return (
@@ -2486,7 +2474,7 @@ function ProgramWorkspace() {
                                                 currentIds = session.handler_id
                                                   ? [session.handler_id]
                                                   : [];
-                                            } catch (err) {
+                                            } catch {
                                               currentIds = session.handler_id
                                                 ? [session.handler_id]
                                                 : [];
@@ -2730,7 +2718,7 @@ function ProgramWorkspace() {
                                               } else {
                                                 notify(t("pmMisc.workspace.reminderFailed"));
                                               }
-                                            } catch (e) {
+                                            } catch {
                                               notify(t("pmMisc.workspace.reminderError"));
                                             }
                                           }}
@@ -2894,7 +2882,7 @@ function ProgramWorkspace() {
                                       (i) => i && i !== "[]" && i !== "",
                                     )
                                     : [parsed];
-                                } catch (e) {
+                                } catch {
                                   materials = raw === "[]" ? [] : [raw];
                                 }
                               } else {
@@ -2915,7 +2903,7 @@ function ProgramWorkspace() {
                                   if (typeof p === "string") p = JSON.parse(p);
                                   if (Array.isArray(p)) item = p[0];
                                   else item = p;
-                                } catch (e) { }
+                                } catch { }
                               }
                               if (Array.isArray(item)) item = item[0];
                               if (item && typeof item === "object") {
@@ -3480,7 +3468,7 @@ function ProgramWorkspace() {
                             headers.forEach((h, i) => doc.text(String(h), 10 + i * 35, y));
                             y += 5;
                             // Data rows (max 40 rows per page)
-                            data.slice(0, 80).forEach((row, ri) => {
+                            data.slice(0, 80).forEach((row, _ri) => {
                               if (y > 180) { doc.addPage(); y = 15; }
                               headers.forEach((h, i) => {
                                 const val = String(row[h] ?? "").substring(0, 20);
@@ -3501,7 +3489,7 @@ function ProgramWorkspace() {
                           URL.revokeObjectURL(url);
                         }
                         notify(t("pmMisc.workspace.exported", { label }));
-                      } catch (e) {
+                      } catch {
                         notify(t("pmMisc.workspace.exportFailed"), "error");
                       }
                     }}
@@ -3974,6 +3962,10 @@ function ProgramWorkspace() {
                     <option value="">{t("pmMisc.workspace.noStaffAssignedOptional")}</option>
                     {oversightCandidates.map((s) => (
                       <option key={s.cid ?? s.email ?? s.id} value={s.cid}>
+                        {/* Backward compatibility for legacy rows: an assignment
+                            saved before the teacher persona was retired may still
+                            carry that stored role, so label it as an instructor on
+                            purpose instead of falling through to the raw value. */}
                         {s.name} ({s.role === "teacher" ? t("pmMisc.workspace.instructor") : s.role}
                         )
                       </option>
@@ -4167,7 +4159,7 @@ function ProgramWorkspace() {
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    {t("pmMisc.workspace.assignTeachers")}
+                    {t("pmMisc.workspace.assignHandlers")}
                   </label>
                   <div className="grid grid-cols-2 gap-1.5 max-h-[120px] overflow-y-auto p-1 custom-scrollbar">
                     {programTeamMembers.map((staff) => {
@@ -6767,7 +6759,7 @@ function ProgramWorkspace() {
                           } else {
                             notify(t((data.error || t("pmMisc.workspace.approvalFailed")) || "") || (data.error || t("pmMisc.workspace.approvalFailed")), "error");
                           }
-                        } catch (e) {
+                        } catch {
                           notify(t("pmMisc.workspace.networkError"), "error");
                         }
                       }}
@@ -6814,7 +6806,7 @@ function ProgramWorkspace() {
                           } else {
                             notify(t((data.error || t("pmMisc.workspace.promotionFailed")) || "") || (data.error || t("pmMisc.workspace.promotionFailed")), "error");
                           }
-                        } catch (e) {
+                        } catch {
                           notify(t("pmMisc.workspace.networkError"), "error");
                         }
                       }}

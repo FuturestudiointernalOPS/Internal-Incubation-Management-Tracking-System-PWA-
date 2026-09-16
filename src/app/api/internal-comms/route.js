@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
+import { getParticipantProgramIds } from "@/models/participant-membership";
 import {
   createMessage,
   ensureMessagesAttachmentNameColumn,
@@ -135,46 +136,57 @@ async function resolveUserMessageScope(session) {
     isFutureStudioStaff: false,
   };
 
-  let contact = {};
-  try {
-    const cRes = await getContactMessageScopeById(cid);
-    if (cRes.rows.length > 0) contact = cRes.rows[0];
-  } catch (_) {}
+  // ── Wave 1: everything that needs only the session identity ──────────────
+  // The contact row, the user's group names and the three "programs this person
+  // is attached to" lookups are independent of each other. They used to run one
+  // after another — five round trips (~700ms) before a single message could be
+  // selected. allSettled keeps the original failure behaviour: a failing lookup
+  // contributes nothing instead of breaking the inbox.
+  const [contactRes, userGroupsRes, assignedRes, staffRes, teamRes] =
+    await Promise.allSettled([
+      getContactMessageScopeById(cid),
+      getUserGroupNamesByCid(cid),
+      getProgramIdsAssignedToUser(cid),
+      getProgramIdsForProgramStaff(cid, email),
+      getProgramIdsForTeamHandler(cid),
+    ]);
+
+  const contact =
+    contactRes.status === "fulfilled" ? contactRes.value.rows[0] || {} : {};
 
   const groupNames = new Set();
   if (contact.group_name) groupNames.add(String(contact.group_name).trim());
-  try {
-    const ug = await getUserGroupNamesByCid(cid);
-    ug.rows.forEach((r) => {
+  if (userGroupsRes.status === "fulfilled") {
+    userGroupsRes.value.rows.forEach((r) => {
       if (r.group_name) groupNames.add(String(r.group_name).trim());
     });
-  } catch (_) {}
+  }
 
   scope.isFutureStudioStaff =
     String(contact.group_name || "").toUpperCase() === "FUTURE STUDIO" ||
     ["staff", "developer", "intern", "admin"].includes(contact.role);
 
-  // Families whose name matches one of the user's group names
-  if (groupNames.size > 0) {
-    try {
-      const famRes = await findFamiliesByMatchingGroupNames(
-        Array.from(groupNames),
-      );
-      famRes.rows.forEach((r) => {
-        scope.groupIds.add(String(r.id));
-        if (r.program_id) scope.programIds.add(String(r.program_id));
-      });
-    } catch (_) {}
+  // ── Wave 2: the two lookups that need wave 1 ──────────────────────────────
+  // Families whose name matches one of the user's group names, and the
+  // participant_programs membership (authoritative, with its legacy fallback).
+  const [famRes, participantProgramIds] = await Promise.all([
+    groupNames.size > 0
+      ? findFamiliesByMatchingGroupNames(Array.from(groupNames)).catch(() => null)
+      : Promise.resolve(null),
+    getParticipantProgramIds({ cid, email, contact }).catch(() => null),
+  ]);
+
+  if (famRes) {
+    famRes.rows.forEach((r) => {
+      scope.groupIds.add(String(r.id));
+      if (r.program_id) scope.programIds.add(String(r.program_id));
+    });
   }
 
-  // Program ids: participant_programs (authoritative) + contact + assignments
-  try {
-    const { getParticipantProgramIds } = await import(
-      "@/lib/participant-membership"
-    );
-    const pp = await getParticipantProgramIds({ cid, email, contact });
-    pp.forEach((id) => scope.programIds.add(String(id)));
-  } catch (_) {}
+  (participantProgramIds || []).forEach((id) =>
+    scope.programIds.add(String(id)),
+  );
+
   if (contact.program_id) {
     String(contact.program_id)
       .split(",")
@@ -182,20 +194,17 @@ async function resolveUserMessageScope(session) {
         if (id.trim()) scope.programIds.add(String(id.trim()));
       });
   }
-  try {
-    const progRes = await getProgramIdsAssignedToUser(cid);
-    progRes.rows.forEach((r) => scope.programIds.add(String(r.id)));
-  } catch (_) {}
-  try {
-    const staffRes = await getProgramIdsForProgramStaff(cid, email);
-    staffRes.rows.forEach((r) => scope.programIds.add(String(r.id)));
-  } catch (_) {}
-  try {
-    const teamRes = await getProgramIdsForTeamHandler(cid);
-    teamRes.rows.forEach((r) => scope.programIds.add(String(r.id)));
-  } catch (_) {}
+  if (assignedRes.status === "fulfilled") {
+    assignedRes.value.rows.forEach((r) => scope.programIds.add(String(r.id)));
+  }
+  if (staffRes.status === "fulfilled") {
+    staffRes.value.rows.forEach((r) => scope.programIds.add(String(r.id)));
+  }
+  if (teamRes.status === "fulfilled") {
+    teamRes.value.rows.forEach((r) => scope.programIds.add(String(r.id)));
+  }
 
-  // Families linked to those programs
+  // ── Wave 3: families linked to the programs resolved above ───────────────
   if (scope.programIds.size > 0) {
     try {
       const famRes = await findFamilyIdsByProgramIds(

@@ -12,7 +12,7 @@ import { getSession } from "@/lib/auth";
  * admin console instead and receive an empty list here.
  */
 export const GET = createHandler(
-  { roles: ["staff", "program_manager", "super_admin", "developer", "admin", "teacher"] },
+  { roles: ["staff", "program_manager", "super_admin", "developer", "admin"] },
   async (req) => {
     await initDb();
     const session = await getSession();

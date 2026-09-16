@@ -21,7 +21,6 @@ export const dynamic = "force-dynamic";
 const ROLE_LABELS = {
   participant: "crm.roles.participant",
   staff: "crm.roles.staff",
-  teacher: "crm.roles.teacher",
   investor: "crm.roles.investor",
   finance: "crm.roles.finance",
   developer: "crm.roles.developer",

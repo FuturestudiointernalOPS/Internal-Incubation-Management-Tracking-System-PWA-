@@ -19,7 +19,7 @@ export const prefetchData = async (url, cacheKey) => {
         localStorage.setItem(`impactos_cache_${cacheKey}`, JSON.stringify(data));
       }
     }
-  } catch (e) {
+  } catch {
     console.warn(`[Prefetch] Acceleration failed for ${url}`);
   }
 };

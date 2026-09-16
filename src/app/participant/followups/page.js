@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Calendar, Clock, ExternalLink, RefreshCw, Video, MessageSquare, CheckCircle2, XCircle } from "lucide-react";
+import { Calendar, Clock, ExternalLink, Video, MessageSquare } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 

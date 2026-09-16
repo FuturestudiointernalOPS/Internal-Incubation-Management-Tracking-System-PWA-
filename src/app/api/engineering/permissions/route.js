@@ -7,7 +7,6 @@ import {
   getUserGroups,
   getUserEffectiveProfile,
   logPermissionAudit,
-  seedDefaultRoleCapabilities,
   ensureResponsibilitiesSchema,
   ensurePermissionsSchema,
   seedDefaultResponsibilities,

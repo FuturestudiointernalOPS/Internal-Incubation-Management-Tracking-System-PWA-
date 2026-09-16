@@ -84,12 +84,12 @@ jest.mock("@/lib/api/createHandler", () => {
     __esModule: true,
     default: actualModule.default,
     createHandler: jest.fn().mockImplementation((optionsOrHandler, maybeHandler) => {
-      let options = {};
+      let _options = {};
       let handler;
       if (typeof optionsOrHandler === "function") {
         handler = optionsOrHandler;
       } else {
-        options = optionsOrHandler;
+        _options = optionsOrHandler;
         handler = maybeHandler;
       }
 
@@ -108,7 +108,6 @@ jest.mock("@/lib/api/createHandler", () => {
 });
 
 import db from "@/lib/db";
-import { sendInviteEmail } from "@/lib/email";
 
 // We need to import the route handlers via dynamic import since they're Next.js API routes
 describe("Venture API Integration Tests", () => {

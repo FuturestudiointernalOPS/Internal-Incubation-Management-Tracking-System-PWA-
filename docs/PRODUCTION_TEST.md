@@ -85,7 +85,7 @@ These are product calls, not defects. Do not guess them.
 |---|---|---|---|
 | D1 | Should Program Managers keep **publishing courses / enrolling** people? (`lms.publish`/`enroll`/`assign` were retired in favour of `lms.edit`, which no seeded profile holds) | grant `lms.edit` to the Program Manager profile | **OPEN** |
 | D2 | Do **alumni / completed participants** keep the ability to attach files? | `/api/upload` predicate | **OPEN** (Venture people were added; alumni question remains) |
-| D3 | Should **teachers** keep review authority on form runs? (`action=review` is now SA/admin/PM) | `form-runs` route | **OPEN** |
+| D3 | Should the retired **teacher** role keep review authority on form runs? (`action=review` is now SA/admin/PM) | `form-runs` route | **CLOSED** — the teacher persona was removed from the product (owner decision), so there is no role left to grant |
 | D4 | Is the **Venture Application form** flagged `settings.venture_application = true` on production? Without it, approving an application creates nothing, while direct API creation is retired (410) | `platform_forms` row | **VERIFY** |
 
 ---
@@ -246,6 +246,25 @@ SELECT data_type FROM information_schema.columns
 WHERE table_name = 'venture_milestones' AND column_name = 'id';
 ```
 
+### Program tables — align the schema with the code
+
+The program tables (weekly reports, sessions, requirements, submissions,
+programs) drift the same way, and the app's migration runner plus its on-demand
+self-healing **do not cover every column**. `migrations/align_schema_with_code.sql`
+is the authoritative list; each statement is idempotent. The one genuine gap is
+`v2_document_requirements.due_date` — nothing else ever adds it, so creating a
+session that carries requirements **500s** until it exists.
+
+```bash
+node scripts/db-audit/apply-align-migration.mjs           # dry run — prints every statement, connects to nothing
+node scripts/db-audit/apply-align-migration.mjs --apply   # execute — per-statement OK/ERR, never aborts midway
+```
+
+Then confirm: re-run the **section 8** queries in that `.sql` file by hand. Every
+missing-column query must come back empty, and the unique key
+`idx_v2_weekly_reports_week_key` must exist — without it no weekly report can be
+saved.
+
 ---
 
 ## 6. Environment and infrastructure
@@ -287,12 +306,11 @@ Walk these as real accounts. "Tests pass" does not cover any of it.
 5. **Team member** (a `member`-role account with a `venture_members` row) — can open the Venture they were given; **cannot** edit.
 6. **Coach** (scoped to a milestone) — can review that deliverable; cannot see unrelated milestones or internal notes; **can write the session Memo but CANNOT book, move, cancel or delete a session** (expect 403 with `missing: ventures.calendar.schedule`). If a Coach *can* book, the matrix cell was deliberately granted — check the query in §5 before calling it a failed deploy.
 7. **Program Manager** — course publish / enrol **(see D1)**.
-8. **Teacher** — the form-run review screen **(see D3)**.
-9. **Participant with a completed enrolment** — attach a file to an assignment and a message **(see D2)**.
-10. **Venture creation end-to-end** — approve one application; confirm the Venture appears **(see D4)**.
-11. **CRM holder** — bulk contact import.
-12. **A stale cached page** — hard-refresh off, click around: an old client talking to the new API is the most common "it broke after deploy" report.
-13. **A removed Venture member** — confirm they lose access immediately.
+8. **Participant with a completed enrolment** — attach a file to an assignment and a message **(see D2)**.
+9. **Venture creation end-to-end** — approve one application; confirm the Venture appears **(see D4)**.
+10. **CRM holder** — bulk contact import.
+11. **A stale cached page** — hard-refresh off, click around: an old client talking to the new API is the most common "it broke after deploy" report.
+12. **A removed Venture member** — confirm they lose access immediately.
 
 ---
 

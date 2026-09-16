@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
-import { BarChart3, TrendingUp, Users, Target, Activity, CheckCircle2 } from "lucide-react";
+import { BarChart3, Users, Target, Activity, CheckCircle2 } from "lucide-react";
 
 export default function AdminMetricsDashboard() {
   const { t } = useI18n();

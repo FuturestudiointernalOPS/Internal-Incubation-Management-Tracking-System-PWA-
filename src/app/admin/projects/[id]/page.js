@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   ArrowLeft,
   Briefcase,
-  CheckCircle2,
   AlertTriangle,
   Clock,
   ListTodo,
@@ -12,7 +11,6 @@ import {
   Users,
   Target,
   Activity,
-  ChevronRight,
   Calendar,
   User,
   MessageSquare,
@@ -21,7 +19,6 @@ import {
   Send,
   FileText,
   UserPlus,
-  Plus,
   Rocket,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
@@ -54,35 +51,6 @@ const STATUS_BG = {
   Archived: "bg-slate-500/10",
 };
 
-const TASK_STATUS_COLORS = {
-  completed: "text-emerald-500",
-  in_progress: "text-blue-500",
-  blocked: "text-rose-500",
-  carried_over: "text-amber-500",
-  pending: "text-slate-500",
-};
-
-const TASK_STATUS_BG = {
-  completed: "bg-emerald-500/10",
-  in_progress: "bg-blue-500/10",
-  blocked: "bg-rose-500/10",
-  carried_over: "bg-amber-500/10",
-  pending: "bg-slate-500/10",
-};
-
-function getWeekNumber(date) {
-  const d = new Date(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
-  );
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return {
-    week: Math.ceil(((d - yearStart) / 86400000 + 1) / 7),
-    year: d.getUTCFullYear(),
-  };
-}
-
 export default function ProjectDetail() {
   const router = useRouter();
   const params = useParams();
@@ -91,7 +59,7 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
-  const [taskFilter, setTaskFilter] = useState("all");
+  const [taskFilter] = useState("all");
   const [blockerFilter, setBlockerFilter] = useState("all");
   const [updates, setUpdates] = useState([]);
   const [updatesLoading, setUpdatesLoading] = useState(false);
@@ -107,19 +75,6 @@ export default function ProjectDetail() {
   const [allStaff, setAllStaff] = useState([]);
   const [approvalRequests, setApprovalRequests] = useState([]);
   const [approvalsLoading, setApprovalsLoading] = useState(false);
-  const [showNewTaskForm, setShowNewTaskForm] = useState(false);
-  const [newTaskForm, setNewTaskForm] = useState({
-    title: "",
-    description: "",
-    assigned_to: "",
-    start_date: "",
-    start_time: "",
-    end_date: "",
-    end_time: "",
-  });
-  const [creatingTask, setCreatingTask] = useState(false);
-  const [expandedProjectTasks, setExpandedProjectTasks] = useState({});
-  const [parentForSubTask, setParentForSubTask] = useState(null);
   const [userRole, setUserRole] = useState("super_admin");
   const [discussions, setDiscussions] = useState([]);
   const [discussionsLoading, setDiscussionsLoading] = useState(false);
@@ -136,7 +91,9 @@ export default function ProjectDetail() {
     } catch (_) {}
   }, []);
 
-  const handleTaskStatusChange = async (taskId, newStatus) => {
+  // Kept (unused) so the effect-invoked fetchers keep their non-effect call site;
+  // removing it changes how the react-hooks compiler rules treat fetchProject.
+  const _handleTaskStatusChange = async (taskId, newStatus) => {
     try {
       await fetch("/api/tasks", {
         method: "PUT",
@@ -400,7 +357,7 @@ export default function ProjectDetail() {
     }
   };
 
-  const filteredTasks = React.useMemo(() => {
+  const _filteredTasks = React.useMemo(() => {
     if (!project?.tasks) return [];
     if (taskFilter === "all") return project.tasks;
     return project.tasks.filter((t) => t.status === taskFilter);
@@ -501,7 +458,6 @@ export default function ProjectDetail() {
                   super_admin: "/admin/projects",
                   staff: "/staff/projects",
                   program_manager: "/staff/projects",
-                  teacher: "/staff/projects",
                 };
                 router.push(roleMap[userRole] || "/admin/projects");
               }}

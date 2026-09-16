@@ -10,12 +10,8 @@ import React, {
 import {
   Send,
   MessageSquare,
-  Search,
-  Users,
-  Briefcase,
   User,
   X,
-  Check,
   ListTodo,
   Shield,
   ChevronUp,
@@ -137,7 +133,6 @@ export default function TaskManager({
   }, [weekInfo]);
 
   const [tasks, setTasks] = useState([]);
-  const [expandedTasks, setExpandedTasks] = useState({});
   const [updatingTasks, setUpdatingTasks] = useState({});
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [pendingParentTaskId, setPendingParentTaskId] = useState(null);
@@ -151,7 +146,6 @@ export default function TaskManager({
   const [subTaskLink, setSubTaskLink] = useState("");
   const [subTaskSuccess, setSubTaskSuccess] = useState("");
   const [availableCategories, setAvailableCategories] = useState([]);
-  const [priorityFilter, setPriorityFilter] = useState("all");
   const [editTaskModal, setEditTaskModal] = useState(null); // task object or null
   const [editForm, setEditForm] = useState({
     name: "",
@@ -862,7 +856,6 @@ export default function TaskManager({
   // Track task index for numbering in standup mode
   let taskIndex = 0;
   const renderTaskRow = (task, isSub = false) => {
-    const isExpanded = expandedTasks[task.id];
     const cfg = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
     const isUpdating = updatingTasks[task.id];
 
@@ -1105,7 +1098,7 @@ export default function TaskManager({
                       } else {
                         notify('error', t(data.error || "Failed to archive task.") || data.error || "Failed to archive task.");
                       }
-                    } catch (e) {
+                    } catch {
                       notify('error', "Network error while archiving task.");
                     }
                   },
@@ -1134,7 +1127,7 @@ export default function TaskManager({
                   } else {
                     notify('error', t(data.error || "Failed to duplicate task.") || data.error || "Failed to duplicate task.");
                   }
-                } catch (e) {
+                } catch {
                   notify('error', "Network error while duplicating task.");
                 }
               }}
@@ -1172,7 +1165,7 @@ export default function TaskManager({
                             } else {
                               notify('error', t(data.error || "Failed to archive task.") || data.error || "Failed to archive task.");
                             }
-                          } catch (e) {
+                          } catch {
                             notify('error', "Network error while archiving task.");
                           }
                         },
@@ -1206,7 +1199,7 @@ export default function TaskManager({
                                 "Cannot delete this task. It may be locked (older than 12 hours).",
                             );
                           }
-                        } catch (e) {
+                        } catch {
                           notify('error', "Network error while deleting task.");
                         }
                       },
@@ -1841,7 +1834,7 @@ export default function TaskManager({
                                         "Cannot delete this subtask. It may be older than 12 hours.",
                                     );
                                   }
-                                } catch (e) {
+                                } catch {
                                   notify('error', "Network error while deleting subtask.");
                                 }
                               },

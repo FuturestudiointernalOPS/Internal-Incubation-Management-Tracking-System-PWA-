@@ -27,7 +27,6 @@ const ROLE_LABEL_KEY = {
   participant: "roleParticipant",
   staff: "roleStaff",
   program_manager: "roleProgramManager",
-  teacher: "roleTeacher",
   finance: "roleFinance",
   intern: "roleIntern",
 };

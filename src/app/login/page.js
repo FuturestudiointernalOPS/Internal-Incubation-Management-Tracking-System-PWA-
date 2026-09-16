@@ -2,16 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Shield,
-  Lock,
-  ArrowRight,
-  Zap,
   Eye,
   EyeOff,
   AlertCircle,
   Globe,
   Wrench,
-  Users,
   ChevronDown,
   LogIn,
 } from "lucide-react";
@@ -127,7 +122,7 @@ export default function LoginPage() {
         );
         setImpersonateLoading(false);
       }
-    } catch (err) {
+    } catch {
       setImpersonateError("Network error.");
       setImpersonateLoading(false);
     }
@@ -173,9 +168,7 @@ export default function LoginPage() {
                     ? "/admin/profile"
                     : r === "program_manager"
                       ? "/pm/profile"
-                      : r === "teacher"
-                        ? "/teacher/profile"
-                        : r === "facilitator"
+                      : r === "facilitator"
                           ? "/facilitator/profile"
                           : r === "developer"
                             ? "/developer/profile"
@@ -197,7 +190,7 @@ export default function LoginPage() {
         );
         setLoading(false);
       }
-    } catch (err) {
+    } catch {
       setErrorMsg(t("auth.login.networkError"));
       setLoading(false);
     }

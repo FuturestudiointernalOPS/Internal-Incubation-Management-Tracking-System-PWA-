@@ -4,7 +4,6 @@ import {
   getActiveSessions,
   revokeSession,
   revokeUserSessions,
-  logAuditEvent,
 } from "@/lib/ventures";
 
 export const GET = createHandler(

@@ -1,18 +1,20 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { RefreshCw, Search } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { defer, settled } from "./effectUtils";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 /**
- * PHASE UI-3e / UI-4a — the one person picker.
+ * PHASE UI-3e / UI-4a / UI-7 — the one person picker, as a dropdown.
  *
- * Individual Access is a single screen (picker + the selected person's panels),
- * so the searchable list lives here instead of inside each lens: the write lens
- * and the read lens both receive the person this picks.
+ * Individual Access is a single stacked screen (picker + the selected person's
+ * panels), so the picker owns the whole width instead of sitting in a narrow
+ * side column: the details below it are the point of the screen, and a column
+ * claimed a third of it. This mirrors the Templates screen, which selects its
+ * profile the same way, so the two doors read alike.
  *
  * Source of truth: /api/contacts — the same directory the Job-shortcuts screen
  * uses. It used to call /api/responsibilities/assign without a `user_cid`, and
@@ -20,14 +22,12 @@ import { Skeleton } from "@/components/ui/Skeleton";
  * empty and the search box looked broken.
  *
  * Failure is stated, never silent: a refused or failed fetch shows the reason
- * with a Retry, and an empty result says whether the directory is empty or the
- * search simply matched nothing. The `?cid=` deep link still preselects, which
- * is what the Membership Control Center links rely on.
+ * with a Retry, and an empty directory says so. The `?cid=` deep link still
+ * preselects, which is what the Membership Control Center links rely on.
  */
 export default function PersonPicker({ selectedCid = null, onSelect }) {
   const { t } = useI18n();
   const [users, setUsers] = useState([]);
-  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
@@ -82,28 +82,41 @@ export default function PersonPicker({ selectedCid = null, onSelect }) {
     if (hit) defer(() => onSelect(hit));
   }, [users, onSelect]);
 
-  const filtered = users.filter(
-    (u) =>
-      !query.trim() ||
-      (u.name || "").toLowerCase().includes(query.toLowerCase()) ||
-      (u.email || "").toLowerCase().includes(query.toLowerCase()) ||
-      (u.cid || "").toLowerCase().includes(query.toLowerCase()),
+  // The select shows a person only once the list can name them: a ?cid= deep
+  // link paints before the directory arrives.
+  const selectedInList = users.some(
+    (u) => String(u.cid) === String(selectedCid),
   );
 
+  // Status is data, not copy: translate it when a label exists, otherwise show
+  // the stored value. Active people say nothing (they are the norm).
+  const statusLabel = (u) => {
+    if (!u.status || u.status === "active") return "";
+    const key = `status.${u.status}`;
+    const value = t(key);
+    return value === key ? u.status : value;
+  };
+
   return (
-    <div className="space-y-2">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t("engineering.permissions.searchPlaceholder")}
-          className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40 font-bold text-xs"
-        />
+    <div className="ios-card !p-5 border-[var(--border-primary)] space-y-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <label
+          htmlFor="permission-person-picker"
+          className="block text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]"
+        >
+          {t("engineering.permissions.personPickerLabel")}
+        </label>
+        {!loading && !err && (
+          <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+            {t("engineering.permissions.personPickerCount", {
+              count: users.length,
+            })}
+          </span>
+        )}
       </div>
 
       {loading ? (
-        <Skeleton className="h-40" />
+        <Skeleton className="h-11" />
       ) : err ? (
         <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3 space-y-2">
           <p className="text-[10px] font-black uppercase tracking-widest text-red-400">
@@ -125,34 +138,33 @@ export default function PersonPicker({ selectedCid = null, onSelect }) {
           </button>
         </div>
       ) : (
-        <div className="max-h-72 overflow-y-auto rounded-xl border border-[var(--border-primary)] divide-y divide-[var(--border-primary)]">
-          {filtered.slice(0, 50).map((u) => (
-            <button
-              key={u.cid}
-              onClick={() => onSelect && onSelect(u)}
-              className={`w-full text-left px-3 py-2 transition-colors ${
-                String(selectedCid) === String(u.cid)
-                  ? "bg-[var(--brand-orange)]/10"
-                  : "hover:bg-secondary/60"
-              }`}
-            >
-              <span className="block text-xs font-bold text-[var(--text-primary)]">
-                {u.name || u.cid}
-              </span>
-              <span className="block text-[10px] text-[var(--text-secondary)]">
-                {u.email || u.cid}
-              </span>
-            </button>
+        <select
+          id="permission-person-picker"
+          value={selectedInList ? String(selectedCid) : ""}
+          onChange={(e) => {
+            const hit = users.find((u) => String(u.cid) === e.target.value);
+            if (hit && onSelect) onSelect(hit);
+          }}
+          className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+        >
+          <option value="">
+            {t("engineering.permissions.personPickerPlaceholder")}
+          </option>
+          {users.map((u) => (
+            <option key={u.cid} value={u.cid}>
+              {u.name || u.cid}
+              {u.email ? ` — ${u.email}` : ""}
+              {statusLabel(u) ? ` · ${statusLabel(u)}` : ""}
+            </option>
           ))}
-          {filtered.length === 0 && (
-            <p className="px-3 py-4 text-xs font-bold text-[var(--text-secondary)]">
-              {users.length === 0
-                ? t("engineering.permissions.peopleListEmpty")
-                : t("common.noResults")}
-            </p>
-          )}
-        </div>
+        </select>
       )}
+
+      <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+        {!loading && !err && users.length === 0
+          ? t("engineering.permissions.peopleListEmpty")
+          : t("engineering.permissions.personPickerHint")}
+      </p>
     </div>
   );
 }

@@ -29,7 +29,7 @@ async function run() {
           console.log(`  ${p.id.substring(0,8)}... CORRUPTED — resetting to []`);
           await client.query("UPDATE v2_programs SET materials = '[]' WHERE id = $1", [p.id]);
         }
-      } catch (e) {
+      } catch {
         console.log(`  ${p.id.substring(0,8)}... ERROR — resetting to []`);
         await client.query("UPDATE v2_programs SET materials = '[]' WHERE id = $1", [p.id]);
       }

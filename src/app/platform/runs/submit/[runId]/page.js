@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Loader2, Send, Save, ArrowLeft, CheckCircle2, AlertTriangle,
-  FileText, Clock, User, Info, ChevronDown, ChevronUp, Star, X,
+  FileText, Clock, Info, ChevronDown, ChevronUp, Star,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
@@ -12,27 +12,6 @@ import AppPhoneInput from "@/components/ui/AppPhoneInput";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
-
-const FIELD_TYPES = {
-  text: "text",
-  textarea: "textarea",
-  number: "number",
-  email: "email",
-  phone: "tel",
-  date: "date",
-  time: "time",
-  select: "select",
-  radio: "radio",
-  checkbox: "checkbox",
-  multiselect: "multiselect",
-  file: "file",
-  url: "url",
-  rating: "rating",
-  currency: "number",
-  signature: "signature",
-  richtext: "richtext",
-  hidden: "hidden",
-};
 
 export default function SubmitFormPage() {
   const params = useParams();

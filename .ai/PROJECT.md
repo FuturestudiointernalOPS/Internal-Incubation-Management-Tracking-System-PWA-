@@ -20,7 +20,6 @@
 | `/admin` | `super_admin` | Full platform: programs, projects, staff, reports, intelligence, finance, permissions |
 | `/pm` | `program_manager` | Scoped to assigned programs/projects |
 | `/staff` | `staff` | Weekly op-report submission, own tasks/blockers |
-| `/teacher` | `teacher` | Teaching dashboard |
 | `/participant` | `participant` | Participant-facing views, program enrollment, rituals, progress |
 | `/developer` | `developer` / `intern` | Internal engineering dashboard |
 | `/investor` | `investor` | Investor portal (in development) |

@@ -396,7 +396,7 @@ export default function LearnerPlayer({ courseId, lessonId }) {
 }
 
 /** Course structure panel with lesson states + assessment links. */
-function CourseContent({ data, courseId, currentLessonId, onSelect, onOpenAssessment }) {
+function CourseContent({ data, currentLessonId, onSelect, onOpenAssessment }) {
   const { t } = useI18n();
   return (
     <div className="rounded-xl border overflow-hidden" style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}>

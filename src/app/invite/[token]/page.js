@@ -32,7 +32,7 @@ export default function InviteAcceptPage({ params }) {
       } else {
         setError(t((data.error || t("rootMisc.invite.invalidOrExpiredInvite")) || "") || (data.error || t("rootMisc.invite.invalidOrExpiredInvite")));
       }
-    } catch (e) {
+    } catch {
       setError(t("rootMisc.invite.failedToValidate"));
     } finally {
       setLoading(false);
@@ -55,7 +55,7 @@ export default function InviteAcceptPage({ params }) {
       } else {
         setError(t((data.error || t("rootMisc.invite.registrationFailed")) || "") || (data.error || t("rootMisc.invite.registrationFailed")));
       }
-    } catch (e) {
+    } catch {
       setError(t("rootMisc.invite.networkError"));
     } finally {
       setSubmitting(false);

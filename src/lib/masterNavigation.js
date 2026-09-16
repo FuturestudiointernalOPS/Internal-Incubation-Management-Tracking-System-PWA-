@@ -270,16 +270,6 @@ export const ROLE_ACCESS = {
     icons: {},
   },
 
-  teacher: {
-    top: ["dashboard", "communication", "programs"],
-    children: {
-      communication: ["groups"],
-      programs: ["all_programs"],
-    },
-    hrefs: { dashboard: "/teacher", all_programs: "/pm/programs" },
-    icons: {},
-  },
-
   facilitator: {
     top: ["dashboard", "my_programs", "reviews", "profile"],
     children: {},

@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  Library, Upload, Eye, FileText, Plus, X, 
-  BookOpen, Clock, Loader2, Trash2, Edit3, 
-  Archive, RotateCcw, Search, Paperclip, ChevronRight, 
-  ExternalLink, Shield, Download, FileCheck, Files, CheckCircle2, AlertCircle
+  Library, Upload, Plus, X, 
+  BookOpen, Loader2, Trash2, Edit3, 
+  Archive, RotateCcw, Search, Paperclip, 
+  FileCheck, Files, CheckCircle2, AlertCircle
 } from 'lucide-react';
-import { CardSkeleton, TableSkeleton } from '@/components/ui/Skeleton';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 import { uploadFile } from '@/lib/storage';
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
@@ -177,7 +177,7 @@ export default function KnowledgeBank() {
         setEditingNote(null);
         fetchNotes(true);
       }
-    } catch (e) {
+    } catch {
       notify('error', t("adminMisc.knowledge.updateFailed"));
     } finally {
       setIsSaving(false);
@@ -196,7 +196,7 @@ export default function KnowledgeBank() {
         if (viewingNote?.id === id) setViewingNote(null);
         fetchNotes(true);
       }
-    } catch (e) {
+    } catch {
       notify('error', t("adminMisc.knowledge.syncFailure"));
     }
   };
@@ -213,7 +213,7 @@ export default function KnowledgeBank() {
         if (viewingNote?.id === id) setViewingNote(null);
         fetchNotes(true);
       }
-    } catch (e) {
+    } catch {
       notify('error', t("adminMisc.knowledge.deletionFailed"));
     }
   };

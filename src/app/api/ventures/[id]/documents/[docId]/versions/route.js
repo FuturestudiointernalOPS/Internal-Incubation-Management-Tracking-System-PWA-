@@ -8,7 +8,7 @@ import {
   getDocumentMaxVersion, insertDocumentVersion, updateDocumentVersionPointer,
 } from "@/models/ventureAssets";
 
-const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher", "developer"];
+const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin", "developer"];
 
 export async function GET(req, { params }) {
   try {

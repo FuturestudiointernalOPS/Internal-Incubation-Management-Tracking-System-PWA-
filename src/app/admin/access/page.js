@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   Search,
@@ -8,7 +8,6 @@ import {
   Shield,
   ChevronRight,
   X,
-  Loader2,
   Layers,
   Award,
   CheckCircle2,
@@ -217,7 +216,7 @@ export default function UserAccessSummary() {
             (data.error || t("adminMisc.access.supervisorError")),
         );
       }
-    } catch (e) {
+    } catch {
       setSupervisorError(t("adminMisc.access.supervisorError"));
     } finally {
       setSavingSupervisor(false);
@@ -247,15 +246,11 @@ export default function UserAccessSummary() {
             (data.error || t("adminMisc.access.supervisorError")),
         );
       }
-    } catch (e) {
+    } catch {
       setSupervisorError(t("adminMisc.access.supervisorError"));
     } finally {
       setSavingSupervisor(false);
     }
-  };
-
-  const getEffectiveLevel = (module, capability) => {
-    return userData?.effectivePermissions?.[module]?.[capability] ?? 0;
   };
 
   // Pagination

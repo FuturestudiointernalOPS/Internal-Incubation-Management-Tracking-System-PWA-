@@ -12,12 +12,6 @@ export async function fetchWorkbook() {
   return cachedWorkbook;
 }
 
-function getWorkbook() {
-  if (!cachedWorkbook)
-    throw new Error("Workbook not loaded. Call fetchWorkbook() first.");
-  return cachedWorkbook;
-}
-
 export async function getSheetData(sheetName) {
   const workbook = await fetchWorkbook();
   const sheet = workbook.Sheets[sheetName];
@@ -113,7 +107,6 @@ export async function getMonthlyTrend(project) {
       : "Réalisations mensuelles";
 
   const rows = await getSheetData(sheetName);
-  const months = rows[2] || [];
   const dataRows = rows.slice(3).filter((r) => r.some((c) => c !== ""));
 
   const monthNames = [

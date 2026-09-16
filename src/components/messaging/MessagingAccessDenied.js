@@ -6,7 +6,7 @@ import { Lock } from "lucide-react";
 /**
  * Server-side rendered denial screen for messaging pages.
  * Shown when a user who is not eligible for internal Messaging reaches a
- * messages URL directly (e.g. /participant/messages, /teacher/messages).
+ * messages URL directly (e.g. /participant/messages).
  * No messaging content or data is ever rendered for ineligible users.
  */
 export default function MessagingAccessDenied() {

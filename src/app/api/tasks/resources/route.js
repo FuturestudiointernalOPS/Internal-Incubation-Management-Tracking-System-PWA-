@@ -40,7 +40,6 @@ export const POST = createHandler(async (req) => {
     "super_admin",
     "staff",
     "program_manager",
-    "teacher",
     "developer",
   ];
   if (
@@ -111,7 +110,6 @@ export const DELETE = createHandler(async (req) => {
     "super_admin",
     "staff",
     "program_manager",
-    "teacher",
     "developer",
   ];
   if (

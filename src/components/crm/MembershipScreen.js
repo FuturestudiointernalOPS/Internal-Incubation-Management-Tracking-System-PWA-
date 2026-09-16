@@ -422,7 +422,7 @@ export default function MembershipScreen({
                           <Badge label={statusKey(derived)} style={STATUS_STYLE[derived] || STATUS_STYLE.active} />
                           {derived === "expiringSoon" && (
                             <p className="text-[10px] mt-1" style={{ color: "#F59E0B" }}>
-                              {EXPIRING_SOON_DAYS} {t("time.days")}
+                              {EXPIRING_SOON_DAYS} {t("time.daysUnit")}
                             </p>
                           )}
                         </td>

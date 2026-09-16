@@ -42,7 +42,7 @@ export const IDENTITY_TYPES = ["role", "group"];
  * The agreed eligibility-matrix identities — the ONLY identities the
  * Permission UI shows/configures, split into baseline identities and context
  * roles (see BASELINE_IDENTITIES / CONTEXT_ROLES below). Functions (developer,
- * teacher, program_manager, intern, ...) are deliberately NOT eligibility
+ * program_manager, intern, ...) are deliberately NOT eligibility
  * identities — they are profiles/assignments layered on Staff. ROLE_CATALOG
  * remains the full technical catalog (used by the gate-validation tests); this
  * list is the UI-facing subset.
@@ -76,7 +76,7 @@ export const CONTEXT_ROLES = [
 
 /**
  * The agreed eligibility-matrix identities — the ONLY values the Permission UI
- * shows/configures. Functions (developer, teacher, program_manager, intern…)
+ * shows/configures. Functions (developer, program_manager, intern…)
  * are deliberately NOT here: they are profiles/assignments layered on Staff.
  * ROLE_CATALOG remains the full technical catalog (gate validation).
  */
@@ -99,7 +99,6 @@ export const ROLE_CATALOG = [
     "super_admin",
     "staff",
     "program_manager",
-    "teacher",
     "developer",
     "facilitator",
     "participant",

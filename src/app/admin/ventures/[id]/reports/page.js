@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Loader2, AlertCircle, CheckCircle2, AlertTriangle, Download,
-  BarChart3, RefreshCw, TrendingUp, Clock, Users, Target, Activity, Route,
+  ArrowLeft, Loader2, Download,
+  BarChart3, RefreshCw, TrendingUp, Users, Target, Activity, Route,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
@@ -138,7 +138,6 @@ export default function VentureReportsPage() {
 
   const kpis = data?.kpis || {};
   const charts = data?.charts || {};
-  const summary = data?.summary || {};
 
   return (
     <>

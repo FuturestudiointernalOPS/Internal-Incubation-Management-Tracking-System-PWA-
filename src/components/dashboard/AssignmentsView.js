@@ -5,13 +5,11 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import {
   FileText,
   CheckCircle2,
-  Clock,
   AlertCircle,
   ExternalLink,
   Send,
   X,
   RefreshCw,
-  BookOpen,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
@@ -99,7 +97,7 @@ export default function AssignmentsView() {
       const data = await res.json();
       if (data.success) cacheSet(url, data);
       apply(data);
-    } catch (e) {
+    } catch {
       if (!painted) setError("Network error");
     } finally {
       setLoading(false);
@@ -173,7 +171,7 @@ export default function AssignmentsView() {
           text: data.error || t("participantMisc.assignments.submitError"),
         });
       }
-    } catch (e) {
+    } catch {
       setFeedback({
         type: "error",
         text: t("participantMisc.assignments.submitError"),

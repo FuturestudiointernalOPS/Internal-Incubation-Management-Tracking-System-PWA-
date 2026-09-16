@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Building2, Shield, Loader2, Users, Target, MessageSquare, X, UserPlus } from "lucide-react";
+import { Shield, Loader2, Users, Target, MessageSquare, X, UserPlus } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";

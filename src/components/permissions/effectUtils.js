@@ -29,3 +29,38 @@ export function defer(fn) {
 export function settled(value) {
   return Promise.resolve(value);
 }
+
+/**
+ * Guard for a request whose answer may arrive after the user moved on.
+ *
+ * Selecting person A then person B issues two requests, and the network is free
+ * to answer B first and A second. Without a guard, A's late answer paints A's
+ * access under B's name: data belonging to someone else, presented as B's.
+ *
+ *   const guard = useRef(null);
+ *   if (!guard.current) guard.current = createLatestGuard();
+ *   const token = guard.current.begin();
+ *   const data = await fetchJson(url);
+ *   if (!guard.current.isCurrent(token)) return; // a newer selection won
+ *
+ * Every caller of the SAME guard shares one line of succession, so a background
+ * refresh is also invalidated by a new selection.
+ */
+export function createLatestGuard() {
+  let latest = 0;
+  return {
+    /** Take a token for a new request (invalidates everything in flight). */
+    begin() {
+      latest += 1;
+      return latest;
+    },
+    /** May this answer still be applied? */
+    isCurrent(token) {
+      return token === latest;
+    },
+    /** Invalidate what is in flight without starting a request. */
+    cancel() {
+      latest += 1;
+    },
+  };
+}

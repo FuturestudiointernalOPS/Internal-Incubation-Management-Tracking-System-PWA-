@@ -12,7 +12,7 @@ import ProgramDetail from "@/components/dashboard/ProgramDetail";
 export default function ParticipantProgramDetailPage({ params }) {
   const unwrapped = use(params);
   const programId = unwrapped.id;
-  const [user, setUser] = useState(null);
+  const [, setUser] = useState(null);
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user") || "{}");

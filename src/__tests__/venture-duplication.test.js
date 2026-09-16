@@ -298,7 +298,6 @@ describe("POST /milestones/duplicate", () => {
       expect(ins.args[1]).toBe(msInserts[0].args[0]); // bound to the copy (milestone_id)
     }
     const childInsert = taskInserts.find((t) => t.args[2] === "Interview customers");
-    const parentInsert = taskInserts.find((t) => t.args[2] === "Define the problem");
     expect(childInsert.args[11]).toBe("copy-1"); // re-parented inside the copy
   });
 

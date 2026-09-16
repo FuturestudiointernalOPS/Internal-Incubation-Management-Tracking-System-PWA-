@@ -18,7 +18,7 @@ import {
  * POST /api/pm/programs/templates?action=apply  — Create program from template
  */
 
-export async function GET(req) {
+export async function GET(_req) {
   try {
     await initDb();
     const authError = await requireAuth(["staff", "super_admin"]);

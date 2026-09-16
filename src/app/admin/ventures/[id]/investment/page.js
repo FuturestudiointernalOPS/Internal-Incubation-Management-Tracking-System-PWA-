@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Loader2, CheckCircle2, AlertCircle, TrendingUp, Target, RefreshCw,
+  ArrowLeft, Loader2, TrendingUp, Target, RefreshCw,
   BookOpen, Briefcase, Shield, DollarSign, Rocket, Users, BarChart3, Lightbulb,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";

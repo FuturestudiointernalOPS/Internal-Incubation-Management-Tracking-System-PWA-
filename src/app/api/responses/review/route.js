@@ -16,7 +16,7 @@ const RETIRED_RESPONSE = NextResponse.json(
 );
 
 export const POST = createHandler(
-  { roles: ["super_admin", "staff", "teacher"] },
+  { roles: ["super_admin", "staff"] },
   async (req) => {
     if (RETIRED) return RETIRED_RESPONSE;
     const { response_id, cid } = await req.json();
@@ -28,14 +28,14 @@ export const POST = createHandler(
 
     try {
       await resolveFormResponseMatch({ responseId: response_id, cid });
-    } catch (e) {
+    } catch {
       // form_responses schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
     }
 
     let responseData;
     try {
       responseData = await getFormResponseById(response_id);
-    } catch (e) {
+    } catch {
       // form_responses schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
       responseData = { rows: [] };
     }

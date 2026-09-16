@@ -69,7 +69,7 @@ for (const env of ENVS) {
   }
   // 3. Staff Default — add (upsert)
   for (const [m, c, lvl] of STAFF_ADD) {
-    const r = await pool.query(
+    await pool.query(
       `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
        VALUES ($1,$2,$3,$4)
        ON CONFLICT (profile_id, module, capability) DO UPDATE SET access_level = EXCLUDED.access_level`,

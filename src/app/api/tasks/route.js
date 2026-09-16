@@ -142,7 +142,6 @@ export async function GET(req) {
       "super_admin",
       "staff",
       "program_manager",
-      "teacher",
       "developer",
     ];
     const notStaffSide = !staffSide.includes(session.role);
@@ -156,7 +155,6 @@ export async function GET(req) {
     const status = searchParams.get("status");
     const week_number = searchParams.get("week");
     const year = searchParams.get("year");
-    const role = searchParams.get("role");
     const id = searchParams.get("id");
     const sort = searchParams.get("sort");
     const limit = searchParams.get("limit");
@@ -279,7 +277,7 @@ export async function GET(req) {
           subtasksByTask[pid].push(s);
           allTaskIds.push(s.id);
         }
-      } catch (e) {
+      } catch {
         // parent_task_id column may not exist yet
       }
 
@@ -299,7 +297,7 @@ export async function GET(req) {
             uploaded_by: r.uploaded_by,
           });
         }
-      } catch (e) {
+      } catch {
         // task_resources table may not exist yet in some environments
       }
 
@@ -309,7 +307,7 @@ export async function GET(req) {
         for (const c of commentRes.rows || []) {
           commentCountByTask[c.task_id] = parseInt(c.cnt) || 0;
         }
-      } catch (e) {
+      } catch {
         // v2_task_comments table may not exist yet in some environments
       }
     }
@@ -389,7 +387,6 @@ export async function POST(req) {
         "super_admin",
         "staff",
         "program_manager",
-        "teacher",
         "developer",
         "team",
       ].includes(session.role)

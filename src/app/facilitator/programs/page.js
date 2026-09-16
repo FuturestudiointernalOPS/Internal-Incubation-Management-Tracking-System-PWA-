@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  * Lists the programs this facilitator is assigned to, with program details.
  */
 export default function FacilitatorPrograms() {
-  const { t } = useI18n();
+  useI18n();
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
 

@@ -75,7 +75,7 @@ export async function POST(req) {
       await ensureFamilyDescriptionColumn();
       await ensureFamilyFormIdColumn();
       await ensureFamilyDefaultRoleColumn();
-    } catch (e) {}
+    } catch {}
 
     if (!name)
       return NextResponse.json({ success: false, error: "Name is required" }, { status: 400 });

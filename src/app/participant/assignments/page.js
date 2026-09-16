@@ -10,7 +10,7 @@ import AssignmentsView from "@/components/dashboard/AssignmentsView";
  * with submission, status tracking, and filtering.
  */
 export default function ParticipantAssignmentsPage() {
-  const [user, setUser] = useState({});
+  const [, setUser] = useState({});
 
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("user") || "{}");

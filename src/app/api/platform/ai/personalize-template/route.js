@@ -93,8 +93,6 @@ export async function POST(req) {
       );
     }
 
-    const formName = (body.form_name || "application").substring(0, 200);
-    const organization = (body.organization || "Future Studio").substring(0, 100);
     const requestedLanguage = (body.language || "English").substring(0, 30);
 
     // ── Draft resolution ──

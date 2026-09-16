@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { getAuthorizationContext, requireAuthorization } from "@/lib/authorization";
 import { isWithinScope, resolveVentureScopeId } from "@/lib/authorization/scope";
@@ -10,7 +10,6 @@ import {
   updateVenture,
   logVentureActivity,
   addVentureHistory,
-  createVentureNotification,
 } from "@/lib/ventures";
 
 /**
@@ -138,7 +137,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     }
 
     // Update the venture
-    const result = await updateVenture(id, body);
+    await updateVenture(id, body);
 
     // Log activity
     const changedFields = Object.keys(body).filter(

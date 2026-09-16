@@ -12,33 +12,24 @@ import {
   Calendar,
   User,
   MessageSquare,
-  Settings,
   LogOut,
   Bell,
-  Search,
   ChevronRight,
   ChevronDown,
   TrendingUp,
   FileText,
   ShieldCheck,
-  Activity,
   Menu,
-  X,
-  Zap,
   Rocket,
-  Trash2,
   Send,
   Library,
   Globe,
   BarChart3,
-  UploadCloud,
   ListTodo,
   ClipboardList,
   Wrench,
   CheckSquare,
   Megaphone,
-  HeartPulse,
-  Blocks,
   Clock,
   GraduationCap,
 } from "lucide-react";
@@ -316,7 +307,6 @@ function getActivePathIds(navItems, pathname) {
 const SidebarContent = ({
   collapsed,
   role,
-  user,
   navItems,
   openMenus,
   toggleMenu,
@@ -330,7 +320,7 @@ const SidebarContent = ({
   hasCommunicationActivity,
 }) => {
   const { switchLang } = useI18n();
-  const profileHref = `/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : role === "facilitator" ? "facilitator" : role === "developer" || role === "intern" ? "developer" : role === "investor" ? "investor" : "participant"}/profile`;
+  const profileHref = `/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "facilitator" ? "facilitator" : role === "developer" || role === "intern" ? "developer" : role === "investor" ? "investor" : "participant"}/profile`;
 
   const [flyout, setFlyout] = useState(null); // { id, top } — collapsed-rail flyout
   const flyoutTimer = useRef(null);
@@ -688,7 +678,7 @@ function shellRole(user, role) {
 }
 
 function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = false }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -1064,7 +1054,7 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
             setDashboardSession({ user: JSON.parse(savedUser) });
           }
         }
-      } catch (e) {
+      } catch {
         // Network error — fallback to localStorage
         const savedUser = localStorage.getItem("user");
         if (savedUser) {
@@ -1620,8 +1610,6 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
                                   role === "developer"
                                 )
                                   router.push("/staff/messages");
-                                else if (role === "teacher")
-                                  router.push("/teacher/messages");
                                 else if (role === "program_manager")
                                   router.push("/pm/messages");
                                 else if (role === "participant")

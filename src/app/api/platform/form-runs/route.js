@@ -43,8 +43,7 @@ import {
   getContactsByLowerEmails,
   getPasswordTokensByContactCids,
   getSubmissionsBySubmitterId,
-  countFormRuns,
-  listFormRuns,
+  listFormRunsPage,
   getDecisionEmailSubmissionById,
   getFieldLabelsByRunId,
   getContactNameEmailByCid,
@@ -662,12 +661,12 @@ export async function GET(req) {
     const perPage = Math.max(1, parseInt(searchParams.get("per_page")) || 50);
     const offset = (page - 1) * perPage;
 
-    const countRes = await countFormRuns({ groupId, programId, formId, status });
-    const total = parseInt(countRes.rows[0]?.total) || 0;
+    // One round trip: the page carries the matching total as a window column
+    // (see listFormRunsPage). This used to be a count query followed by a page
+    // query over the same filtered set, awaited one after the other.
+    const result = await listFormRunsPage({ groupId, programId, formId, status, perPage, offset });
 
-    const result = await listFormRuns({ groupId, programId, formId, status, perPage, offset });
-
-    return NextResponse.json({ success: true, runs: result.rows, total, page, per_page: perPage });
+    return NextResponse.json({ success: true, runs: result.rows, total: result.total, page, per_page: perPage });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -2037,7 +2036,7 @@ export async function POST(req) {
         try {
           await addPublicSlugColumnIfMissing();
           await updatePublicSlugRetryAfterAlterById(slug, id);
-        } catch (e) {
+        } catch {
           return NextResponse.json({ success: false, error: "Could not rotate the share link" }, { status: 500 });
         }
       }

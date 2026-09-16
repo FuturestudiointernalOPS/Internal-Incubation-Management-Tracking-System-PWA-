@@ -21,7 +21,7 @@ export class CalendarProvider {
    * @param {string[]} [event.attendees] - email addresses
    * @returns {Promise<{ success: boolean, externalId: string, url: string }>}
    */
-  async createEvent(event) {
+  async createEvent(_event) {
     throw new Error("Not implemented");
   }
 
@@ -30,7 +30,7 @@ export class CalendarProvider {
    * @param {string} externalId - ID from the external calendar
    * @param {Object} updates - same shape as createEvent fields
    */
-  async updateEvent(externalId, updates) {
+  async updateEvent(_externalId, _updates) {
     throw new Error("Not implemented");
   }
 
@@ -38,7 +38,7 @@ export class CalendarProvider {
    * Delete an event
    * @param {string} externalId
    */
-  async deleteEvent(externalId) {
+  async deleteEvent(_externalId) {
     throw new Error("Not implemented");
   }
 

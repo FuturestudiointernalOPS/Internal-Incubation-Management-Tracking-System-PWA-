@@ -828,10 +828,10 @@ export async function countParticipantContacts() {
   );
 }
 
-/** Count of staff contacts (admin, staff, teacher roles). */
+/** Count of staff contacts (admin, staff roles). */
 export async function countStaffContacts() {
   return db.execute(
-    "SELECT COUNT(*) as count FROM contacts WHERE role IN ('admin', 'staff', 'teacher')",
+    "SELECT COUNT(*) as count FROM contacts WHERE role IN ('admin', 'staff')",
   );
 }
 

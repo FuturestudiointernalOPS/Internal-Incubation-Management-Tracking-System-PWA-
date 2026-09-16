@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Plus, Send, CheckCircle, Search, Rocket, X, Users, Loader2, List, Trash2, Calendar, MailOpen, Clock, Settings2, ArrowRight, Save, ChevronRight, Power, ArrowLeft } from 'lucide-react';
+import { Plus, Send, CheckCircle, Search, Rocket, X, Loader2, Trash2, Settings2, ArrowRight, Save, ChevronRight, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { cacheGet, cacheSet } from '@/lib/hooks/useApi';
 import { useI18n } from '@/lib/i18n';
@@ -205,7 +205,7 @@ export default function CampaignsPage() {
            detail: { type: 'success', message: t('crm.campaigns.launched') } 
         }));
       }
-    } catch (err) { 
+    } catch { 
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
            detail: { type: 'error', message: t('crm.campaigns.launchFailed') } 
         }));

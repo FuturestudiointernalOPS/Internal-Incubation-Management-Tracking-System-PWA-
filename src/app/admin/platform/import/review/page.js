@@ -24,7 +24,7 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 function ImportReviewContent() {
   const { t } = useI18n();
-  const router = useRouter();
+  const _router = useRouter();
   const searchParams = useSearchParams();
   const [flags, setFlags] = useState([]);
   const [loading, setLoading] = useState(true);

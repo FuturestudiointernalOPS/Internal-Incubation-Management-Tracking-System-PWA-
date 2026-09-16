@@ -171,7 +171,6 @@
     },
     "roles": {
       "groupLeader": "Group Leader",
-      "teacher": "Teacher",
       "staff": "Staff"
     }
   }

@@ -3,18 +3,13 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import {
-  getVentureIdByCodeForTransition, getVentureCodeByIdForTransition,
+  getVentureCodeByIdForTransition,
   getVentureIdByCodeForTransitionStatus, getDocumentForTransition,
   isFounderForDocumentTransition, updateDocumentStatusForTransition,
 } from "@/models/ventureAssets";
 
-const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher", "developer"];
+const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin", "developer"];
 const PRIVILEGED = ["staff", "program_manager", "super_admin", "developer"];
-
-async function resolveVentureDbId(ventureId) {
-  const r = await getVentureIdByCodeForTransition(ventureId);
-  return r.rows?.[0]?.id || null;
-}
 
 // venture_members stores venture_id as the VNT code (TEXT) — resolve the code from a UUID if needed
 async function resolveVentureCode(idOrCode) {

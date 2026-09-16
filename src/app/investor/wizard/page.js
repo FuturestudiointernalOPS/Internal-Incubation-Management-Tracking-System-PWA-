@@ -5,7 +5,7 @@ import {
   Building2, Mail, Lock, User, Globe, Link, CheckCircle2, Loader2, ArrowLeft,
   ArrowRight, Target, DollarSign, MapPin, TrendingUp, FileText,
 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 
 const STEPS = [

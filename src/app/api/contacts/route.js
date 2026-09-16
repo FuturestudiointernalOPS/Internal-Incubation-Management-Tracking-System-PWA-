@@ -39,7 +39,7 @@ export const dynamic = "force-dynamic";
 /**
  * Generates an invite token and sends activation email. Non-blocking.
  */
-async function fireInvite(cid, name, email, role, groupId) {
+async function fireInvite(cid, name, email, role, _groupId) {
   try {
     await ensureTokenHashColumns();
     const token = uuidv4();
@@ -318,7 +318,7 @@ export async function PUT(req) {
     const match = await updateContactFields(fieldsToUpdate, args);
 
     // Sync participant_programs if program_ids array is provided
-    const NON_PARTICIPANT_ROLES = ["facilitator", "teacher", "staff", "admin", "developer", "super_admin", "investor", "founder", "program_manager"];
+    const NON_PARTICIPANT_ROLES = ["facilitator", "staff", "admin", "developer", "super_admin", "investor", "founder", "program_manager"];
     const isRolePromotion = data.role && NON_PARTICIPANT_ROLES.includes(data.role);
 
     if (isRolePromotion) {
@@ -468,7 +468,7 @@ export async function GET(req) {
     } else if (session.role === "super_admin") {
       result = await getContactsForSuperAdmin(roleFilter, statusFilter, groupFilter);
     } else {
-      // Staff/PM/teacher (with contacts.view): active contacts only, with the
+      // Staff/PM (with contacts.view): active contacts only, with the
       // role-appropriate status window (PMs also see pending contacts so they
       // can find unapproved people and assign them as facilitators).
       result = await getContactsForStaff(session.role, groupFilter);
@@ -489,7 +489,7 @@ export async function GET(req) {
       } catch (_) {}
     }
     const contacts = (await attachInvitationStatus(rows)).map(
-      ({ password, ...safeContact }) => ({
+      ({ password: _password, ...safeContact }) => ({
         ...safeContact,
         // Derived flags: a participant enrollment OR the legacy role value.
         is_participant:

@@ -34,7 +34,6 @@ export async function GET(req) {
       "super_admin",
       "staff",
       "program_manager",
-      "teacher",
       "developer",
     ];
     let assignee_id = searchParams.get("assignee_id");

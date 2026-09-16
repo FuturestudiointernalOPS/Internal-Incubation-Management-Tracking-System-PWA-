@@ -131,7 +131,7 @@ export function I18nProvider({ children }) {
         user.language = newLang;
         localStorage.setItem("user", JSON.stringify(user));
       }
-    } catch (e) {
+    } catch {
       // Silent fail — localStorage preference is still saved
     }
 
@@ -152,7 +152,7 @@ export function I18nProvider({ children }) {
           }).catch(() => {});
         }
       }
-    } catch (e) {
+    } catch {
       // Silent fail — localStorage preference is still saved
     }
   }, []);
@@ -172,7 +172,7 @@ export function I18nProvider({ children }) {
           localStorage.setItem("impactos_lang", user.language);
         }
       }
-    } catch (e) {
+    } catch {
       // Silent fail
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

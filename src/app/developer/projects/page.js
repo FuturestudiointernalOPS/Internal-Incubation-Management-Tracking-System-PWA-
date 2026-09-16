@@ -5,18 +5,16 @@ import { useRouter } from "next/navigation";
 import {
   Briefcase,
   ChevronRight,
-  RefreshCw,
   Users,
-  CheckCircle2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function DeveloperProjects() {
-  const router = useRouter();
+  const _router = useRouter();
   const { t } = useI18n();
-  const [userRole, setUserRole] = useState("developer");
-  const [user, setUser] = useState(null);
+  const [, setUserRole] = useState("developer");
+  const [, setUser] = useState(null);
   const [projects, setProjects] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +56,7 @@ export default function DeveloperProjects() {
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || t("developerMisc.projects.failedToRespond")) || "") || (data.error || t("developerMisc.projects.failedToRespond")) } }));
       }
-    } catch (e) {
+    } catch {
       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t("developerMisc.projects.networkError") } }));
     } finally {
       setResponding(null);

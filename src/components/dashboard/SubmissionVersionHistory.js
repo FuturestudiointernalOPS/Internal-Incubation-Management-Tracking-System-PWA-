@@ -4,17 +4,13 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   FileText,
   ExternalLink,
-  Clock,
-  CheckCircle2,
   XCircle,
   RefreshCw,
   AlertCircle,
   ChevronDown,
   ChevronRight,
   Send,
-  Eye,
   MessageSquare,
-  CalendarDays,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
@@ -69,7 +65,7 @@ function StatusBadge({ status }) {
   );
 }
 
-function VersionTimeline({ versions, onRefresh }) {
+function VersionTimeline({ versions }) {
   const { t } = useI18n();
   const [expandedVersion, setExpandedVersion] = useState(null);
 
@@ -272,7 +268,7 @@ export default function SubmissionVersionHistory({
         const key = getServerErrorKey(data.error);
         setError(key ? t(key) : data.error || t("participant.failedToLoad"));
       }
-    } catch (e) {
+    } catch {
       setError(t("errors.networkError"));
     } finally {
       setLoading(false);

@@ -618,7 +618,7 @@ async function insertAttemptTransaction(userCid, assessmentId, result, passed, s
 
 // ─── Admin enrollment enabler ──────────────────────────────────────────────
 
-export async function enrollLearner({ courseId, userCid, userEmail, source, assignedBy }) {
+export async function enrollLearner({ courseId, userCid, userEmail, source }) {
   const course = await getCourse(courseId);
   if (!course) throw new LmsError("lms.errors.courseNotFound", 404);
 

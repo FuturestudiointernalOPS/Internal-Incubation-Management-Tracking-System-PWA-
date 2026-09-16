@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 
 /**
  * Audit Logger Utility

@@ -32,7 +32,7 @@ const VENTURE_PARAM = "VNT-P2TEST";
 const DB_ID = "11111111-1111-1111-1111-111111111111";
 
 function fakeExecute() {
-  db.execute.mockImplementation(async ({ sql, args = [] }) => {
+  db.execute.mockImplementation(async ({ sql, args: _args = [] }) => {
     if (sql.includes("SELECT id FROM ventures WHERE venture_id = ?")) {
       return { rows: [{ id: DB_ID }] };
     }
@@ -123,7 +123,7 @@ describe("POST submit", () => {
 describe("POST review", () => {
   it("denies founders", async () => {
     setSession("founder", "F-1");
-    db.execute.mockImplementation(async ({ sql, args = [] }) => {
+    db.execute.mockImplementation(async ({ sql, args: _args = [] }) => {
       if (sql.includes("SELECT id FROM ventures WHERE venture_id = ?")) return { rows: [{ id: DB_ID }] };
       if (sql.includes("SELECT * FROM venture_tasks WHERE id = ?")) return { rows: [{ id: 42, venture_id: DB_ID }] };
       if (sql.includes("SELECT * FROM venture_task_submissions WHERE id = ? AND task_id = ?")) return { rows: [{ id: 9, task_id: 42 }] };
@@ -142,7 +142,7 @@ describe("POST review", () => {
 
   it("lets staff approve and marks the task accepted", async () => {
     setSession("super_admin", "SA-1");
-    db.execute.mockImplementation(async ({ sql, args = [] }) => {
+    db.execute.mockImplementation(async ({ sql, args: _args = [] }) => {
       if (sql.includes("SELECT id FROM ventures WHERE venture_id = ?")) return { rows: [{ id: DB_ID }] };
       if (sql.includes("SELECT * FROM venture_tasks WHERE id = ?")) return { rows: [{ id: 42, venture_id: DB_ID }] };
       if (sql.includes("SELECT * FROM venture_task_submissions WHERE id = ? AND task_id = ?")) return { rows: [{ id: 9, task_id: 42 }] };

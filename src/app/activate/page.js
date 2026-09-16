@@ -72,7 +72,7 @@ export default function ActivatePage() {
       } else {
         setError(t((data.error || t("rootMisc.activate.activationFailed")) || "") || (data.error || t("rootMisc.activate.activationFailed")));
       }
-    } catch (e) {
+    } catch {
       setError(t("rootMisc.activate.networkError"));
     }
     setSubmitting(false);

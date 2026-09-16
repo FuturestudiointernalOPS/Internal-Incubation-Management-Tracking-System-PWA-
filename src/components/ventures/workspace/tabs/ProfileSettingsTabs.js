@@ -130,7 +130,7 @@ export function ProfileTab() {
 /* Settings Tab */
 export function SettingsTab() {
   const { t } = useI18n();
-  const { form, setForm, saving, handleSave, optionLists, inputStyle, cardStyle } = useVenture();
+  const { form, setForm, saving, handleSave, inputStyle, cardStyle } = useVenture();
   return (
     <form onSubmit={handleSave} className="space-y-6">
       <div className="rounded-xl p-6 space-y-4 border" style={cardStyle}>

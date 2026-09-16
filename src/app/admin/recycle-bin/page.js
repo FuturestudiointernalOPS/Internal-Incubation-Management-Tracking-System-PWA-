@@ -60,7 +60,7 @@ export default function RecycleBinPage() {
       } else {
         setMsg({ type: 'error', text: t((data.error || t('adminMisc.recycleBin.restoreFailed')) || "") || (data.error || t('adminMisc.recycleBin.restoreFailed')) });
       }
-    } catch (e) {
+    } catch {
       setMsg({ type: 'error', text: t('adminMisc.recycleBin.networkError') });
     } finally {
       setProcessing(null);
@@ -78,7 +78,7 @@ export default function RecycleBinPage() {
       } else {
         setMsg({ type: 'error', text: t((data.error || t('adminMisc.recycleBin.deleteFailed')) || "") || (data.error || t('adminMisc.recycleBin.deleteFailed')) });
       }
-    } catch (e) {
+    } catch {
       setMsg({ type: 'error', text: t('adminMisc.recycleBin.networkError') });
     } finally {
       setProcessing(null);

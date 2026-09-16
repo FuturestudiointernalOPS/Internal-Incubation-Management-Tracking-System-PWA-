@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  * Returns persisted KPI progress for a program.
  */
 export const GET = createHandler(
-  { roles: ['staff', 'super_admin', 'program_manager', 'teacher'] },
+  { roles: ['staff', 'super_admin', 'program_manager'] },
   async (req) => {
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
@@ -32,7 +32,7 @@ export const GET = createHandler(
     try {
       const progressRes = await getKpiProgressByProgramId(programId);
       progressEntries = progressRes.rows || [];
-    } catch (e) {
+    } catch {
       // kpi_progress schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 11
       return NextResponse.json({
         success: true,

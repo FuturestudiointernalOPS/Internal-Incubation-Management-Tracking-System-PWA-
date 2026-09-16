@@ -107,7 +107,7 @@ await check("staff role default = Staff Default profile",
    WHERE rpd.role_name='staff' AND ap.name='Staff Default' AND ap.is_active=1`, [{ n: 1 }]);
 await check("Staff Default profile capability count = 11 (Option B)",
   "SELECT COUNT(*)::int AS n FROM access_profile_capabilities apc JOIN access_profiles ap ON ap.id=apc.profile_id WHERE ap.name='Staff Default'", [{ n: 11 }]);
-const profCaps = await q("Staff Default profile capabilities (informational)",
+await q("Staff Default profile capabilities (informational)",
   "SELECT apc.module, apc.capability, apc.access_level FROM access_profile_capabilities apc JOIN access_profiles ap ON ap.id=apc.profile_id WHERE ap.name='Staff Default' ORDER BY apc.module, apc.capability");
 
 console.log(`\n${failures === 0 ? "VERDICT: ALL CHECKS PASSED — deployment is healthy." : `VERDICT: ${failures} CHECK(S) FAILED — investigate.`}`);

@@ -7,11 +7,7 @@ import {
   Plus,
   Search,
   ChevronRight,
-  Users,
-  Clock,
-  TrendingUp,
   Loader2,
-  ExternalLink,
   Link2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -99,7 +95,7 @@ export default function VenturesPage() {
         })
       );
       if (d.success) fetchVentures(true);
-    } catch (e) {
+    } catch {
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
           detail: { type: "error", message: t("vadmin.list.approveFailed"), duration: 4000 },
@@ -171,7 +167,7 @@ export default function VenturesPage() {
                       })
                     );
                   }
-                } catch (e) {
+                } catch {
                   window.dispatchEvent(
                     new CustomEvent("impactos:notify", {
                       detail: {
@@ -205,7 +201,7 @@ export default function VenturesPage() {
                       })
                     );
                   }
-                } catch (e) {
+                } catch {
                   window.dispatchEvent(
                     new CustomEvent("impactos:notify", {
                       detail: {

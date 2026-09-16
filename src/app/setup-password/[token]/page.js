@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
-  Lock, Shield, Eye, EyeOff, CheckCircle, AlertCircle,
+  Shield, Eye, EyeOff, CheckCircle, AlertCircle,
   ArrowRight, Loader2
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -38,7 +38,7 @@ export default function SetupPasswordPage({ params }) {
         } else {
           setState("expired");
         }
-      } catch (err) {
+      } catch {
         setState("expired");
         setError(t("rootMisc.setupPassword.errorValidateFailed"));
       }
@@ -80,7 +80,7 @@ export default function SetupPasswordPage({ params }) {
         setError(t((data.error || t("rootMisc.setupPassword.errorSetFailed")) || "") || (data.error || t("rootMisc.setupPassword.errorSetFailed")));
         setSubmitting(false);
       }
-    } catch (err) {
+    } catch {
       setError(t("rootMisc.setupPassword.errorNetwork"));
       setSubmitting(false);
     }

@@ -220,7 +220,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       } else {
         notify(d.error || t("venture.manager.addFailed"), "error");
       }
-    } catch (err) {
+    } catch {
       notify(t("venture.manager.addFailed"), "error");
     } finally {
       setSaving(false);
@@ -257,7 +257,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       } else {
         notify(d.error || t("venture.manager.duplicateStageFailed"), "error");
       }
-    } catch (e) {
+    } catch {
       notify(t("venture.manager.duplicateStageFailed"), "error");
     } finally {
       setDupBusy(null);
@@ -308,7 +308,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       } else {
         notify(d.error || t("venture.manager.applyFailed"), "error");
       }
-    } catch (err) {
+    } catch {
       notify(t("venture.manager.applyFailed"), "error");
     } finally {
       setSavingTpl(false);
@@ -334,7 +334,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       } else {
         notify(d.error || t("venture.manager.saveTemplateFailed"), "error");
       }
-    } catch (err) {
+    } catch {
       notify(t("venture.manager.saveTemplateFailed"), "error");
     } finally {
       setSavingSave(false);

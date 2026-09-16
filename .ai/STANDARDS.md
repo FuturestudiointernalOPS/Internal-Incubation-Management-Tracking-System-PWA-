@@ -34,7 +34,7 @@
 - **Every user-visible string MUST use the `t()` function.** No exceptions. No hardcoded English.
 - New strings require entries in BOTH `src/locales/en/` and `src/locales/fr/` with mirrored key structure.
 - English is the source of truth; missing French key → shows English value (graceful fallback).
-- Use existing key namespaces before creating new ones: `common.*`, `auth.*`, `navigation.*`, `admin.*`, `reports.*`, `staff.*`, `status.*`, `time.*`, `errors.*`, `teacher.*`, `pm.*`, `participant.*`.
+- Use existing key namespaces before creating new ones: `common.*`, `auth.*`, `navigation.*`, `admin.*`, `reports.*`, `staff.*`, `status.*`, `time.*`, `errors.*`, `pm.*`, `participant.*`.
 - See `AGENTS.md` for the full namespace table and file structure.
 
 ## 5. Design System & Styling
@@ -77,7 +77,7 @@
 
 ## 9. Pages & Rendering
 
-- Every authenticated role dashboard layout (`admin/layout.js`, `staff/layout.js`, `pm/layout.js`, `teacher/layout.js`, `participant/layout.js`, `developer/layout.js`) MUST export `dynamic = "force-dynamic"`. Never remove this.
+- Every authenticated role dashboard layout (`admin/layout.js`, `staff/layout.js`, `pm/layout.js`, `participant/layout.js`, `developer/layout.js`) MUST export `dynamic = "force-dynamic"`. Never remove this.
 - New pages outside these layouts that use client hooks (`useI18n()`, `useTheme()`, `useRouter()`, `localStorage`) must also export `dynamic = "force-dynamic"`.
 - Public pages (login, register, forgot-password, invite, activate, setup-password) do NOT need `force-dynamic`.
 

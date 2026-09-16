@@ -2,27 +2,18 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Users,
-  Briefcase,
-  CheckCircle2,
   Clock,
-  MessageSquare,
   Star,
   ArrowRight,
-  Shield,
-  Search,
-  Filter,
   Activity,
-  Target,
 } from "lucide-react";
-import { motion } from "framer-motion";
 import StandupRetroView from "@/components/dashboard/StandupRetroView";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function StaffDashboard() {
   const { t } = useI18n();
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [, setIsLoaded] = useState(false);
   const [user, setUser] = useState({});
   const [assignments, setAssignments] = useState([]);
   const [pendingSubmissions, setPendingSubmissions] = useState([]);

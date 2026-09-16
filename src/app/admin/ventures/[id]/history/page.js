@@ -25,7 +25,7 @@ export default function VentureHistoryPage() {
         const d = await res.json();
         if (d.success) setData(d);
         else setError(d.error || "Failed to load history.");
-      } catch (e) {
+      } catch {
         setError("Failed to load history.");
       } finally {
         setLoading(false);

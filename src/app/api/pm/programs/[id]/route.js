@@ -13,7 +13,7 @@ export const GET = createHandler(
   // programs.view — default or individually granted — may view program
   // detail; everyone else is denied by the resolver, not by a hard-coded
   // role list).
-  { roles: ["super_admin", "program_manager", "staff", "teacher"] },
+  { roles: ["super_admin", "program_manager", "staff"] },
   async (req, { params }) => {
     const capError = await requireAuthorization("programs", "view");
     if (capError) return capError;

@@ -141,12 +141,11 @@ async function ensureKnowledgeBackfill() {
 // Route allowlists (verified):
 //   op-reports/standups/retros submit → INTERNAL_OPS_ROLES
 //     (super_admin, staff, program_manager, admin, developer)
-//   run-export → super_admin, admin, program_manager, staff, teacher
+//   run-export → super_admin, admin, program_manager, staff
 //
 // Backfill reproduces that access through the capability layer:
 //   - developer gets reports.create (Developer profile already had view)
 //   - staff gets reports.export (Staff Default profile already had view/create)
-//   - teacher gets reports.export (Instructor profile had no reports caps)
 //   - program_manager needs nothing (Program Manager profile already has
 //     view/create/export)
 //   - admin inherits export via the shared Staff Default profile — safe,
@@ -165,7 +164,6 @@ const REPORTS_CAP_BACKFILL = {
   roles: {
     developer: [["reports", "create", 2]],
     staff: [["reports", "export", 3]],
-    teacher: [["reports", "export", 3]],
   },
 };
 
@@ -406,14 +404,14 @@ async function ensureRunsBackfill() {
 
 // ─── Phase 6: Projects ──────────────────────────────────────────────────────
 // Migrated routes (role-gated writes; scoped-guard reads stay as-is):
-//   projects POST          → projects.create   (SA, staff, PM, teacher, developer)
-//   projects DELETE        → projects.delete   (SA, staff, PM, teacher)
-//   projects/members POST  → projects.edit     (SA, staff, PM, teacher)
-//   projects/members DELETE → projects.edit    (SA, staff, PM, teacher)
+//   projects POST          → projects.create   (SA, staff, PM, developer)
+//   projects DELETE        → projects.delete   (SA, staff, PM)
+//   projects/members POST  → projects.edit     (SA, staff, PM)
+//   projects/members DELETE → projects.edit    (SA, staff, PM)
 //
 // Backfills reproduce the route populations through the capability layer:
-//   - program_manager + teacher need create/edit/delete (their profiles only
-//     have projects.view)
+//   - program_manager needs create/edit/delete (its profile only
+//     has projects.view)
 //   - staff needs delete (Staff Default already has view/create/edit)
 //   - admin inherits Staff Default delete but is NOT eligible for
 //     operations → no access change
@@ -442,11 +440,6 @@ const PROJECTS_BACKFILL = {
   },
   roles: {
     program_manager: [
-      ["projects", "create", 2],
-      ["projects", "edit", 3],
-      ["projects", "delete", 4],
-    ],
-    teacher: [
       ["projects", "create", 2],
       ["projects", "edit", 3],
       ["projects", "delete", 4],
@@ -658,20 +651,20 @@ async function ensureEngineeringBackfill() {
 }
 
 // ─── Phase 9: Programs (pm/* writes) ────────────────────────────────────────
-// Migrated routes — the V2-wired pm writes, with the legacy staff/teacher
-// bypass REMOVED and replaced by an explicit capability (the roadmap's
+// Migrated routes — the V2-wired pm writes, with the legacy staff bypass
+// REMOVED and replaced by an explicit capability (the roadmap's
 // "give those roles an explicit capability instead of the implicit bypass"):
 //   pm/curriculum POST/PUT/DELETE → programs.edit
 //   pm/teams POST/PATCH/DELETE    → programs.edit
 //   pm/export GET                 → reports.export (Phase 3 backfill already
-//                                    covers staff/teacher export)
+//                                    covers staff export)
 //   pm/programs DELETE            → programs.delete (no backfill: nobody but
 //                                    SA holds delete — same as today's V2)
 //
-// Backfills: staff + teacher get programs.edit (Staff Default + Instructor
-// profiles and role_capabilities). Program Manager already holds edit via its
+// Backfills: staff gets programs.edit (Staff Default profile and
+// role_capabilities). Program Manager already holds edit via its
 // profile. Zero gains: the only routes enforcing programs.edit are these,
-// where staff/teacher were already allowed via the bypass.
+// where staff were already allowed via the bypass.
 //
 // Deliberately NOT migrated (documented): pm/programs POST + templates POST
 // (migrating would let PMs — who hold programs.create via profile — create
@@ -688,7 +681,6 @@ const PROGRAMS_BACKFILL = {
   },
   roles: {
     staff: [["programs", "edit", 3]],
-    teacher: [["programs", "edit", 3]],
   },
 };
 
@@ -743,7 +735,7 @@ async function ensureProgramsBackfill() {
 // Deliberately NOT migrated: the ~55 membership-scoped sub-routes
 // (requireVentureAccess — founders and venture members working in their own
 // venture workspace) and the broad read allowlists (participant/founder/
-// teacher/developer). Capability cannot express per-venture membership; the
+// developer). Capability cannot express per-venture membership; the
 // scoped guard is the real gate there, exactly like projects GET/PUT and the
 // facilitator routes.
 
@@ -905,8 +897,8 @@ async function ensureInvestorBackfill() {
 // ─── Messaging: FINAL MVP POLICY (internal-only) ────────────────────────────
 // Decision: Messaging is a Future Studio internal-operations feature.
 // Only the internal staff roles keep it: super_admin, staff, program_manager,
-// developer. Teacher (external "Active Teammate"), participant, founder and
-// member are REMOVED from messaging eligibility.
+// developer. Participant, founder and member are REMOVED from messaging
+// eligibility.
 //
 // This is a configuration change (DELETE of eligibility rows) — messaging
 // conversation DATA is untouched. Enforcement is server-side:
@@ -1079,7 +1071,6 @@ const COMMUNICATION_ELIGIBLE_ROLES = [
   "super_admin",
   "staff",
   "program_manager",
-  "teacher",
   "developer",
 ];
 

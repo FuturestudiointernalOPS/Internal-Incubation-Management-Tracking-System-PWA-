@@ -30,9 +30,6 @@ const CONTEXTUAL = [
   "team",
 ];
 
-/** Global baselines + staff-family (safe in allowlists). */
-const GLOBAL = ["super_admin", "admin", "staff", "developer", "member"];
-
 function walk(dir, out = []) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, e.name);

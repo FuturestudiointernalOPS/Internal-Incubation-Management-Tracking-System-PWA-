@@ -292,9 +292,13 @@ export async function getSubmissionsBySubmitterId(submitterId) {
   return db.execute({ sql: "SELECT ps.*, pfr.name as run_name, pfr.status as run_status FROM platform_form_submissions ps JOIN platform_form_runs pfr ON ps.run_id = pfr.id WHERE ps.submitter_id = ? ORDER BY ps.updated_at DESC", args: [submitterId] });
 }
 
-/** Count of runs matching the list filters (paginated run list). */
-export async function countFormRuns({ groupId, programId, formId, status }) {
-  const baseFrom = `FROM platform_form_runs r
+// ── Paginated run list: one filter definition, one page query ───────────────
+// The count and the page used to be two statements walking the same filtered
+// set, awaited one after the other — two round trips (~260ms on the current
+// link) for what is a single question. The filter is now built once and the
+// page query carries the total as a window column.
+
+const RUN_LIST_FROM = `FROM platform_form_runs r
       JOIN platform_forms f ON r.form_id = f.id
       LEFT JOIN LATERAL (
         SELECT a.target_id
@@ -302,6 +306,9 @@ export async function countFormRuns({ groupId, programId, formId, status }) {
         WHERE a.run_id = r.id AND a.target_type = 'group'
         LIMIT 1
       ) ga ON true`;
+
+/** The WHERE clause + args shared by the count and the page query. */
+function buildRunListFilter({ groupId, programId, formId, status }) {
   const conditions = [];
   const args = [];
 
@@ -321,46 +328,73 @@ export async function countFormRuns({ groupId, programId, formId, status }) {
     conditions.push("r.status IS DISTINCT FROM 'archived'");
   }
 
-  const whereClause = conditions.length ? " WHERE " + conditions.join(" AND ") : "";
+  return {
+    whereClause: conditions.length ? " WHERE " + conditions.join(" AND ") : "",
+    args,
+  };
+}
 
-  return db.execute({ sql: `SELECT COUNT(*) AS total ${baseFrom}${whereClause}`, args });
+/** Count of runs matching the list filters (paginated run list). */
+export async function countFormRuns({ groupId, programId, formId, status }) {
+  const { whereClause, args } = buildRunListFilter({
+    groupId,
+    programId,
+    formId,
+    status,
+  });
+  return db.execute({
+    sql: `SELECT COUNT(*) AS total ${RUN_LIST_FROM}${whereClause}`,
+    args,
+  });
 }
 
 /** Page of runs matching the list filters (paginated run list). */
 export async function listFormRuns({ groupId, programId, formId, status, perPage, offset }) {
-  const baseFrom = `FROM platform_form_runs r
-      JOIN platform_forms f ON r.form_id = f.id
-      LEFT JOIN LATERAL (
-        SELECT a.target_id
-        FROM platform_form_run_assignments a
-        WHERE a.run_id = r.id AND a.target_type = 'group'
-        LIMIT 1
-      ) ga ON true`;
-  const conditions = [];
-  const args = [];
-
-  if (groupId) {
-    conditions.push("EXISTS (SELECT 1 FROM platform_form_run_assignments ga2 WHERE ga2.run_id = r.id AND ga2.target_type = 'group' AND ga2.target_id = ?)");
-    args.push(groupId);
-  }
-  if (programId) {
-    conditions.push("EXISTS (SELECT 1 FROM platform_form_run_assignments pa WHERE pa.run_id = r.id AND pa.target_type = 'program' AND pa.target_id = ?)");
-    args.push(programId);
-  }
-  if (formId) { conditions.push("r.form_id = ?"); args.push(parseInt(formId)); }
-  if (status && status !== "all") {
-    conditions.push("r.status = ?");
-    args.push(status);
-  } else {
-    conditions.push("r.status IS DISTINCT FROM 'archived'");
-  }
-
-  const whereClause = conditions.length ? " WHERE " + conditions.join(" AND ") : "";
-
+  const { whereClause, args } = buildRunListFilter({
+    groupId,
+    programId,
+    formId,
+    status,
+  });
   return db.execute({
-    sql: `SELECT r.*, f.name as form_name, ga.target_id as group_target_id ${baseFrom}${whereClause} ORDER BY r.updated_at DESC LIMIT ? OFFSET ?`,
+    sql: `SELECT r.*, f.name as form_name, ga.target_id as group_target_id ${RUN_LIST_FROM}${whereClause} ORDER BY r.updated_at DESC LIMIT ? OFFSET ?`,
     args: [...args, perPage, offset],
   });
+}
+
+/**
+ * One page of runs AND the total of the same filtered set, in ONE round trip.
+ *
+ * The total rides along as a window column, so the filtered rows are scanned
+ * once instead of twice. A window count is only visible on the rows that come
+ * back, so two cases need attention:
+ *   - an empty page at offset 0 means the filtered set is genuinely empty → 0,
+ *   - an empty page further in means the caller asked past the end → the total
+ *     is fetched separately (rare, and only on a page that shows nothing).
+ * The helper column is stripped from the rows, so the response shape is
+ * unchanged.
+ */
+export async function listFormRunsPage({ groupId, programId, formId, status, perPage, offset }) {
+  const { whereClause, args } = buildRunListFilter({
+    groupId,
+    programId,
+    formId,
+    status,
+  });
+
+  const res = await db.execute({
+    sql: `SELECT r.*, f.name as form_name, ga.target_id as group_target_id, COUNT(*) OVER () AS total_count ${RUN_LIST_FROM}${whereClause} ORDER BY r.updated_at DESC LIMIT ? OFFSET ?`,
+    args: [...args, perPage, offset],
+  });
+
+  const rows = (res.rows || []).map(({ total_count: _totalCount, ...row }) => row);
+  if ((res.rows || []).length > 0) {
+    return { rows, total: parseInt(res.rows[0].total_count) || 0 };
+  }
+  if (offset === 0) return { rows, total: 0 };
+
+  const countRes = await countFormRuns({ groupId, programId, formId, status });
+  return { rows, total: parseInt(countRes.rows[0]?.total) || 0 };
 }
 
 // ── Decision-email helper queries (sendDecisionEmailForSubmission) ───────────

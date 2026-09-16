@@ -23,7 +23,7 @@ export async function POST(req) {
   try {
     await initDb();
     const body = await req.json();
-    const { slug, data, section, email } = body;
+    const { slug, data, email } = body;
 
     if (!slug || !data) {
       return NextResponse.json({ success: false, error: "slug and data required" }, { status: 400 });

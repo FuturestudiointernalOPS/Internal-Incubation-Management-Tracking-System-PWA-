@@ -4,10 +4,11 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Calendar, Clock, User,
-  Video, MapPin, BookOpen, MessageCircle, Target, Trash2, Edit3,
+  Video, MapPin, BookOpen, Target,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { stageStatusWord, statusLabel } from "@/lib/ventureStatuses";
 
 const SESSION_TYPE_CFG = {
   coaching: { label: "vadmin.sessions.coaching", color: "bg-blue-500/10 text-blue-400" },
@@ -116,10 +117,9 @@ export default function VentureSessionsPage() {
     } catch {}
   };
 
-  const stageStatusLabel = (status) =>
-    status === "completed" ? t("vadmin.journey.statusCompleted")
-    : status === "active" ? t("vadmin.journey.statusActive")
-    : t("vadmin.journey.statusLocked");
+  // Journey stage wording — ONE vocabulary, shared with the admin timeline, the
+  // Venture Manager panel and the founder's journey tab (lib/ventureStatuses).
+  const stageStatusLabel = (status) => statusLabel(stageStatusWord(status), t);
 
   const openCreateModal = () => {
     // Fresh journey context each time (options may have changed since last open).

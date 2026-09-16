@@ -116,7 +116,6 @@ function FieldChip({ label, value }) {
 // ─── Main Component ───
 export default function ErrorLogsView({
   role = "developer",
-  activeTab = "error_logs",
 }) {
   const { t } = useI18n();
   const isAdmin = role === "super_admin" || role === "admin";
@@ -132,7 +131,7 @@ export default function ErrorLogsView({
   const [copied, setCopied] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState({});
   const [actionLoading, setActionLoading] = useState(false);
-  const [dashboardRole, setDashboardRole] = useState(role);
+  const [, setDashboardRole] = useState(role);
 
   // Read user role from localStorage so DashboardLayout gets the right role
   useEffect(() => {

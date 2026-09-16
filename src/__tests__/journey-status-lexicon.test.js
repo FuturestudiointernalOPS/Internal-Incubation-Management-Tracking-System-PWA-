@@ -24,7 +24,6 @@ const {
   STATUS_WORD_IDS,
   STATUS_TONE_CLASSES,
   statusWord,
-  storedStatusWord,
   stageStatusWord,
   milestoneStatusWord,
   deliverableStatusWord,
@@ -41,6 +40,7 @@ const FOUNDER = "src/components/ventures/workspace/tabs/JourneyPlaybookTabs.js";
 const MANAGER = "src/components/ventures/JourneyManagerPanel.js";
 const ADMIN_TIMELINE = "src/app/admin/ventures/[id]/timeline/page.js";
 const ADMIN_REPORTS = "src/app/admin/ventures/[id]/reports/page.js";
+const ADMIN_SESSIONS = "src/app/admin/ventures/[id]/sessions/page.js";
 
 describe("the vocabulary — every word exists in both languages", () => {
   test("the ladder is the seven agreed words", () => {
@@ -194,8 +194,8 @@ describe("every surface reads the one source", () => {
     expect(src).not.toContain("deliverableStatuses");
   });
 
-  test("the Super Admin timeline and reports delegate too", () => {
-    for (const file of [ADMIN_TIMELINE, ADMIN_REPORTS]) {
+  test("the Super Admin timeline, reports and session scheduling delegate too", () => {
+    for (const file of [ADMIN_TIMELINE, ADMIN_REPORTS, ADMIN_SESSIONS]) {
       const src = read(file);
       expect(src).toContain('from "@/lib/ventureStatuses"');
       expect(src).toContain("stageStatusWord");

@@ -277,7 +277,7 @@ export async function createAssignment(db, { ventureId, staffContactId, responsi
   return { success: true, id: r.lastInsertRowid ?? null };
 }
 
-export async function removeAssignment(db, { id, actorCid = null }) {
+export async function removeAssignment(db, { id }) {
   await db.execute({
     sql: "UPDATE venture_staff_assignments SET status = 'removed', removed_at = NOW() WHERE id = ? AND status = 'active'",
     args: [id],

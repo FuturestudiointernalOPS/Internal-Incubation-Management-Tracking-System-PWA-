@@ -6,7 +6,6 @@ import {
   RefreshCw,
   Search,
   Wrench,
-  ChevronRight,
   Loader2,
   X,
   Calendar,
@@ -146,7 +145,7 @@ export default function EngineeringTasks() {
       } else {
         setFormError(t((data.error || t("engineering.tasks.createFailed")) || "") || (data.error || t("engineering.tasks.createFailed")));
       }
-    } catch (e) {
+    } catch {
       setFormError(t("engineering.tasks.networkError"));
     } finally {
       setFormCreating(false);

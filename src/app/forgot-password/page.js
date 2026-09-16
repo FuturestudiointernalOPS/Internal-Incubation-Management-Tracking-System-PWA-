@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Lock, Mail, ArrowRight, CheckCircle, AlertCircle,
   Loader2, ArrowLeft
@@ -38,7 +38,7 @@ export default function ForgotPasswordPage() {
           t(data.error || "Failed to send reset email.") || data.error || "Failed to send reset email.",
         );
       }
-    } catch (err) {
+    } catch {
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);

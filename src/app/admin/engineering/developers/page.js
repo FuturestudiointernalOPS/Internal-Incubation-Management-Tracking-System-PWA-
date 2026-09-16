@@ -5,22 +5,17 @@ import { useRouter } from "next/navigation";
 import {
   Users,
   RefreshCw,
-  UserPlus,
   ShieldCheck,
-  ArrowRight,
-  ChevronRight,
   Search,
-  Loader2,
   CheckCircle2,
   X,
-  AlertTriangle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function DevelopersPage() {
   const { t } = useI18n();
-  const router = useRouter();
+  const _router = useRouter();
   const [developers, setDevelopers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -88,7 +83,7 @@ export default function DevelopersPage() {
       } else {
         setActionMsg(t((data.error || t("engineering.developers.promoteFailed")) || "") || (data.error || t("engineering.developers.promoteFailed")));
       }
-    } catch (e) {
+    } catch {
       setActionMsg(t("engineering.developers.networkError"));
     } finally {
       setActionLoading(false);

@@ -6,7 +6,6 @@ import {
   FileText,
   Calendar,
   Upload,
-  Link as LinkIcon,
   Clock,
   CheckCircle2,
   AlertCircle,
@@ -16,10 +15,8 @@ import {
   BarChart3,
   BookOpen,
   Activity,
-  MessageSquare,
   ChevronRight,
   Globe,
-  Eye,
   Download,
   Plus,
   Trash2,
@@ -32,14 +29,11 @@ import {
   Star,
   X,
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import AppTabs from "@/components/ui/AppTabs";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
-import AppBadge from "@/components/ui/AppBadge";
 import AppStatusBadge from "@/components/ui/AppStatusBadge";
-import AppEmptyState from "@/components/ui/AppEmptyState";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
@@ -59,7 +53,6 @@ export default function TeamDashboardPage({ params }) {
   const [members, setMembers] = useState([]);
   const [deliverables, setDeliverables] = useState([]);
   const [submissions, setSubmissions] = useState({});
-  const [files, setFiles] = useState([]);
   const [upcomingDeadlines, setUpcomingDeadlines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -69,7 +62,7 @@ export default function TeamDashboardPage({ params }) {
   const [submitLink, setSubmitLink] = useState("");
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState(null);
-  const [retryCount, setRetryCount] = useState(0);
+  const [retryCount] = useState(0);
 
   // Task 4.5 — Team Workspace state
   const [tasks, setTasks] = useState([]);
@@ -909,7 +902,7 @@ export default function TeamDashboardPage({ params }) {
               : deliverables.map((d) => {
                   const sub = getSubmissionStatus(d.id);
                   const statusKey = sub?.status || "pending";
-                  const colors =
+                  const _colors =
                     statusColors[statusKey] || statusColors.pending;
                   const isOverdue =
                     !sub && d.due_date && new Date(d.due_date) < new Date();
@@ -1006,12 +999,11 @@ export default function TeamDashboardPage({ params }) {
 
                         {/* Action */}
                         <div className="shrink-0 flex items-center gap-2">
-                          {/* Instructor review button */}
+                          {/* Review button */}
                           {[
                             "staff",
                             "super_admin",
                             "program_manager",
-                            "teacher",
                           ].includes(userRole) &&
                             sub && (
                               <AppButton

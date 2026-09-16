@@ -100,7 +100,7 @@
 - View card with week badge, program name, reception score, Eye button
 - Open detail modal with 7 sections: Weekly Overview, Assignment Tracking, Participation, Delivery Feedback, Issues, Next Week Planning, Weekly Notes
 - Export PDF via `window.print()`
-**Relationships:** Data from `/api/teacher/reports`, `/api/pm/programs`
+**Relationships:** Data from `/api/pm/reports`, `/api/pm/programs`
 **Known Issues:** Not specified.
 
 ---
@@ -416,5 +416,4 @@
 | admin | 5 | DASHBOARD, TEAM SETTINGS, PROJECTS, ACTIVITY LOGS, REPORTS |
 | program_manager | 5 | DASHBOARD, PROGRAMS, COMMUNICATION, PROGRESS HUB, REPORTS |
 | staff | 2 | DASHBOARD, REPORTS |
-| teacher | 5 | DASHBOARD, PROGRAMS, SESSIONS, SUBMISSIONS, REPORTS |
 | participant | 1 | PROJECTS |

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import {
   isGlobalRole,
@@ -33,7 +33,7 @@ import {
  * CLOSED (403) so a bug can never over-grant review authority.
  */
 
-const REVIEWER_ROLES = ["staff", "program_manager", "super_admin", "developer", "teacher"];
+const REVIEWER_ROLES = ["staff", "program_manager", "super_admin", "developer"];
 
 async function resolveVentureDbId(ventureId) {
   const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });

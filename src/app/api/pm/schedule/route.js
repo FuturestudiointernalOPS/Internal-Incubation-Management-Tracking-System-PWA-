@@ -4,8 +4,8 @@ import { getSession } from "@/lib/auth";
 import { getOwnSchedule, getSuperAdminSchedule } from "@/models/programWorkspace";
 
 export const GET = createHandler(
-  { roles: ["staff", "super_admin", "program_manager", "teacher"] },
-  async (req) => {
+  { roles: ["staff", "super_admin", "program_manager"] },
+  async (_req) => {
     try {
       const session = await getSession();
 

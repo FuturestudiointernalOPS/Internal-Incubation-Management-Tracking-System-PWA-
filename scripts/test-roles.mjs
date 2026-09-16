@@ -21,7 +21,6 @@ check("empty role → participant", resolveDefaultRole("") === "participant");
 check("no program fallback is NOT staff", resolveDefaultRole(undefined) !== "staff");
 check("explicit staff preserved", resolveDefaultRole("staff") === "staff");
 check("explicit program_manager preserved", resolveDefaultRole("program_manager") === "program_manager");
-check("explicit teacher preserved", resolveDefaultRole("teacher") === "teacher");
 check("explicit admin preserved", resolveDefaultRole("admin") === "admin");
 check("explicit participant preserved", resolveDefaultRole("participant") === "participant");
 check("unknown role → participant", resolveDefaultRole("something_else") === "participant");

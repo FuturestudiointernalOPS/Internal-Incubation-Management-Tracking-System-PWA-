@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -22,16 +22,11 @@ import {
   BookOpen,
   TrendingUp,
   Activity,
-  Briefcase,
   Building2,
   User,
-  Clock,
   ChevronRight,
-  Plus,
-  Mail,
   Crown,
   Ban,
-  Send,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
@@ -135,7 +130,7 @@ export default function VentureDashboard({ id, embedded = false }) {
       const data = await res.json();
       if (data.success) cacheSet(url, data);
       apply(data);
-    } catch (e) {
+    } catch {
       if (!painted) setError(t("vadmin.dashboard.loadFailed"));
     }
   };
@@ -179,7 +174,7 @@ export default function VentureDashboard({ id, embedded = false }) {
       const data = await res.json();
       if (data.success) cacheSet(url, data);
       apply(data);
-    } catch (e) {
+    } catch {
       if (!painted) setError(t("vadmin.dashboard.loadFailed"));
     } finally {
       setLoading(false);

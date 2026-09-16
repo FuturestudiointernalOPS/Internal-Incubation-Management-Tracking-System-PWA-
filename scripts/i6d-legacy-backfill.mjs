@@ -59,7 +59,6 @@ try {
     console.log(`candidates: ${cand.rowCount} contextual-role rows`);
     for (const r of cand.rows) console.log(`  [${r.role}] ${r.cid}  ${r.name} <${r.email}> (${r.status || "?"})`);
     if (cand.rowCount > 0) {
-      const ph = cand.rows.map((_, i) => `$${i + 1}`).join(",");
       console.log("\nwould run:");
       console.log(`  UPDATE contacts SET role = 'member' WHERE role IN (${CONTEXTUAL_TO_MEMBER.map((r) => `'${r}'`).join(", ")});`);
       console.log("  (only the role column; sessions re-derive at next login)");

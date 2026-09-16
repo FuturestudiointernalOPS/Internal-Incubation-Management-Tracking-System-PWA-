@@ -50,7 +50,7 @@ export default function ReviewPage() {
   const [sections, setSections] = useState([]);
   const [fields, setFields] = useState([]);
   const [evaluation, setEvaluation] = useState(null);
-  const [evalHistory, setEvalHistory] = useState([]);
+  const [, setEvalHistory] = useState([]);
   const [timeline, setTimeline] = useState([]);
   const [saving, setSaving] = useState(false);
   const [notif, setNotif] = useState(null);

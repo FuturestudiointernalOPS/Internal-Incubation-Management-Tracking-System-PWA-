@@ -11,6 +11,94 @@ let pgPool = null;
 let poolErrorCount = 0;
 const MAX_POOL_ERRORS = 5;
 
+/**
+ * RUNTIME SCHEMA MAINTENANCE — executed at most ONCE per process.
+ *
+ * The codebase has ~40 `ensure*`/`self-heal` helpers that keep older databases
+ * usable: they create a table, add a column, create an index. Each one is a real
+ * database round trip (~130ms on the current link), and because most of them
+ * were never memoised they ran on EVERY request that touched their read path —
+ * a read endpoint paying several schema statements before it could answer.
+ *
+ * Every statement they issue is written to be a no-op when the object already
+ * exists (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE … ADD COLUMN IF NOT EXISTS`,
+ * `CREATE [UNIQUE] INDEX IF NOT EXISTS`, `DROP … IF EXISTS`). This engine-level
+ * guard removes the repetition without touching any of those helpers: the first
+ * caller in a process performs the statement, every later caller is answered
+ * locally. Correctness is unchanged — the statement has the same effect the
+ * second time (none), so skipping it cannot alter the schema or the data.
+ *
+ * Scope is deliberately narrow. A statement is only treated this way when it is
+ * provably a no-op when repeated:
+ *   - the patterns below, and
+ *   - NOT a data statement (INSERT/UPDATE/DELETE/SELECT are never skipped), and
+ *   - NOT inside `db.transaction()` (that path never reaches this guard).
+ *
+ * Deployments that migrate the database themselves (see src/migrations/*.sql)
+ * can remove the first-run cost entirely with `SKIP_RUNTIME_SCHEMA_MAINTENANCE=true`
+ * — see the note in that branch.
+ */
+const MAINTENANCE_DDL_PATTERNS = [
+  /^\s*create\s+table\s+if\s+not\s+exists\b/i,
+  /^\s*create\s+(?:unique\s+)?index\s+if\s+not\s+exists\b/i,
+  /^\s*alter\s+table\s+[^\s;]+\s+add\s+column\s+if\s+not\s+exists\b/i,
+  /^\s*alter\s+table\s+[^\s;]+\s+drop\s+constraint\s+if\s+exists\b/i,
+  /^\s*alter\s+table\s+[^\s;]+\s+alter\s+column\s+[^\s;]+\s+drop\s+not\s+null\b/i,
+  /^\s*drop\s+index\s+if\s+exists\b/i,
+];
+
+/** Strip leading SQL comments so the patterns match the actual statement. */
+const stripLeadingComments = (sql) =>
+  String(sql).replace(/^\s*(?:--[^\n]*\n|\/\*[\s\S]*?\*\/\s*)*/g, "");
+
+const isMaintenanceDdl = (sql) => {
+  const bare = stripLeadingComments(sql);
+  return MAINTENANCE_DDL_PATTERNS.some((re) => re.test(bare));
+};
+
+const SKIP_RUNTIME_SCHEMA_MAINTENANCE =
+  process.env.SKIP_RUNTIME_SCHEMA_MAINTENANCE === "true";
+
+/** Statements already applied by this process (normalised SQL → true). */
+const appliedMaintenanceDdl = new Set();
+
+/** The "maintenance disabled" warning is worth printing once, not per query. */
+let skipFlagLogged = false;
+
+/**
+ * Lightweight process counters, so the cost of a change can be measured
+ * instead of guessed (see `scripts/db-roundtrip-report.mjs`):
+ *   queries     — statements actually sent to the database
+ *   skippedDdl  — maintenance statements answered locally instead of sent
+ *   ddl         — maintenance statements that were sent
+ *   dbMs        — accumulated time spent inside the database
+ *   slow        — statements above the forensic slow threshold
+ */
+const metrics = {
+  queries: 0,
+  skippedDdl: 0,
+  ddl: 0,
+  dbMs: 0,
+  slow: 0,
+  reset() {
+    this.queries = 0;
+    this.skippedDdl = 0;
+    this.ddl = 0;
+    this.dbMs = 0;
+    this.slow = 0;
+  },
+};
+
+export const getDbMetrics = () => ({
+  queries: metrics.queries,
+  skippedDdl: metrics.skippedDdl,
+  ddl: metrics.ddl,
+  dbMs: metrics.dbMs,
+  slow: metrics.slow,
+});
+
+export const resetDbMetrics = () => metrics.reset();
+
 // Minimum elapsed time before a FULL pool teardown is allowed after the
 // previous one. Prevents a burst of transient errors from repeatedly dropping
 // every socket (a cascade that itself thrashes Supabase). Bounded recovery:
@@ -93,7 +181,7 @@ const getPool = () => {
     });
 
     // Remove idle connections more aggressively to avoid stale sockets
-    pgPool.on("remove", (client) => {
+    pgPool.on("remove", (_client) => {
       // Connection was removed from pool — normal lifecycle
     });
 
@@ -129,10 +217,43 @@ const execute = async (queryObj) => {
     // Handle datetime('now') -> NOW()
     pgSql = pgSql.replace(/datetime\(['"]now['"]\)/gi, "NOW()");
 
+    // ── Runtime schema maintenance: at most once per process ────────────────
+    // Must run before the statement is sent: this branch can only answer
+    // "already done" for a statement that has already succeeded here.
+    if (isMaintenanceDdl(sql)) {
+      if (SKIP_RUNTIME_SCHEMA_MAINTENANCE || appliedMaintenanceDdl.has(pgSql)) {
+        metrics.skippedDdl++;
+        if (SKIP_RUNTIME_SCHEMA_MAINTENANCE && !skipFlagLogged) {
+          skipFlagLogged = true;
+          console.warn(
+            " forensics | SKIP_RUNTIME_SCHEMA_MAINTENANCE=true — runtime schema " +
+              "statements are NOT sent. The database must already be migrated " +
+              "(see src/migrations and scripts/db-audit/apply-migrations.mjs).",
+          );
+        }
+        return {
+          rows: [],
+          columns: [],
+          rowsAffected: 0,
+          lastInsertRowid: null,
+        };
+      }
+      metrics.ddl++;
+      console.log(
+        ` forensics | schema maintenance (once per process): ${pgSql.substring(0, 80)}...`,
+      );
+    }
+
     const result = await pool.query(pgSql, args);
     const duration = Date.now() - start;
 
+    metrics.queries++;
+    metrics.dbMs += duration;
+
+    if (isMaintenanceDdl(sql)) appliedMaintenanceDdl.add(pgSql);
+
     if (duration > 1000) {
+      metrics.slow++;
       console.warn(
         ` forensics | SLOW QUERY (${duration}ms): ${pgSql.substring(0, 100)}...`,
       );

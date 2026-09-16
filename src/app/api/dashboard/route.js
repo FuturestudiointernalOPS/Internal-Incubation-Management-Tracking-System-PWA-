@@ -70,7 +70,6 @@ export async function GET(req) {
     }
 
     const todayStr = new Date().toISOString().split("T")[0];
-    const isAdmin = role === "super_admin" || role === "admin";
 
     // ─────────────────────────────────────────────
     // PHASE 1: All independent queries in parallel

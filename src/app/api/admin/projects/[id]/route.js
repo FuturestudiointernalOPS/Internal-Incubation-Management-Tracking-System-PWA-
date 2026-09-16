@@ -88,13 +88,13 @@ export async function GET(req, { params }) {
       for (const r of blockerRes.rows || []) {
         const id = String(r.task_id);
         if (!blockersByTask[id]) blockersByTask[id] = [];
-        const { task_id, ...rest } = r;
+        const { task_id: _task_id, ...rest } = r;
         blockersByTask[id].push(rest);
       }
       for (const r of subtaskRes.rows || []) {
         const id = String(r.task_id);
         if (!subtasksByTask[id]) subtasksByTask[id] = [];
-        const { task_id, ...rest } = r;
+        const { task_id: _task_id, ...rest } = r;
         subtasksByTask[id].push(rest);
       }
     }

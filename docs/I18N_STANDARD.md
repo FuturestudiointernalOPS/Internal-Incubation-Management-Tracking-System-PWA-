@@ -59,7 +59,7 @@ Worst offenders: `pm/programs/[id]/page.js` (~180), `platform/runs` (~90), `plat
 
 ### 3.2 Non-admin pages + components — ~725 findings
 
-Same categories across `staff`, `pm`, `teacher`, `participant`, `developer`, `investor`, `platform` root, root pages and `src/components`. Recently-wired components still have leftovers: `UnifiedDashboard`, `UnifiedOperationsView`, `StandupRetroView`, `ParticipantDashboardHome`, `ProgramDetail`, `ProgressView`, `RitualsView`, `AssignmentsView`, `SubmissionVersionHistory`, `MessagingChat` (3), `TaskDetailModal`, `TaskManager`.
+Same categories across `staff`, `pm`, `participant`, `developer`, `investor`, `platform` root, root pages and `src/components`. Recently-wired components still have leftovers: `UnifiedDashboard`, `UnifiedOperationsView`, `StandupRetroView`, `ParticipantDashboardHome`, `ProgramDetail`, `ProgressView`, `RitualsView`, `AssignmentsView`, `SubmissionVersionHistory`, `MessagingChat` (3), `TaskDetailModal`, `TaskManager`.
 
 ### 3.3 API routes (`src/app/api/**/route.js`, 304 files, 148 with findings) — ~330 error strings
 
@@ -114,7 +114,6 @@ time.months.january
 | `time` | `time.json` | Time labels + `months.*` (12), `days.*` (7), `calendar.*` |
 | `errors` | `errors.json` | Error messages |
 | `staff` | `staff.json` | Staff dashboard, op-report labels, categories |
-| `teacher` | `teacher.json` | Teacher dashboard labels |
 | `pm` | `pm.json` | Program manager labels |
 | `participant` | `participant.json` | Participant labels |
 | `team` | `team.json` | Team workspace: overview, deliverables, files, calendar |
@@ -310,7 +309,7 @@ Never translate inside `alert()` flows that compare the string afterward; treat 
 2. **`src/lib/locales.js` missing `team` namespace** — `team.json` exists in EN+FR (fully translated, 60 keys) but was never imported; `team.*` keys silently never load. Add the 4 registration lines (§5.3). *(FIXED on branch `Abel` — verified.)*
 3. **`DashboardLayout.js` literals** — `Main Operations` (L134) and `User Protocol` (L241) headers render raw; keys `navigation.mainOperations` / `navigation.userProtocol` exist in both languages, so only the JSX needs `{t(...)}`. *(FIXED on branch `Abel` — verified.)*
 4. **`platform/scores/page.js` merge conflicts** — 5 unresolved `<<<<<<<` blocks (exportCSV, dual-range slider, statThreshold label, selectAllPending count, noRespondents). Must be resolved toward the `t()` side before wiring continues. *(FIXED on branch `Abel` — verified.)*
-5. **Breadcrumb literals** — `DashboardLayout.js` renders `ImpactOS` and `Dashboard` literally (path-derived label, `teacher`→`Instructor` replacement) with no `navigation.*` keys. *(FIXED on branch `Abel` — breadcrumb literals wired via `navigation.impactOs`, `navigation.instructor`, `navigation.dashboard`; unknown path segments pass through unchanged.)*
+5. **Breadcrumb literals** — `DashboardLayout.js` renders `ImpactOS` and `Dashboard` literally (path-derived label with a hardcoded `Instructor` replacement) with no `navigation.*` keys. *(FIXED on branch `Abel` — breadcrumb literals wired via `navigation.impactOs`, `navigation.instructor`, `navigation.dashboard`; unknown path segments pass through unchanged.)*
 6. **Staging/impersonation banner** — hardcoded English (`STAGING ENVIRONMENT — Impersonating: ...`). *(FIXED on branch `Abel` — banner wired via `navigation.stagingBannerTitle`/`navigation.stagingBannerDesc` with {name}/{role} params.)*
 7. **`admin/system/page.js` raw values** — `environment`, `component`, `status` render verbatim (icons/colors are mapped, labels are not). Apply the §6.4 lookup-map pattern. *(FIXED on branch `Abel` — COMPONENT_LABELS / STATUS_LABELS / ENV_LABELS / SEVERITY_LABELS / JOB_STATUS_LABELS / REPORT_TYPE_LABELS lookup maps added; `adminMisc.system.{components,statuses,environments,severities,jobStatuses,reportTypes}.*` keys in EN+FR; unknown DB values still fall back to raw.)*
 8. **`investor.json` unwrapped** — legacy root-level keys used by `t("pipeline")`-style calls; conformance to the §4.2 convention requires updating investor call sites.

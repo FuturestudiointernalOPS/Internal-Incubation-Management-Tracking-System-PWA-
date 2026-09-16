@@ -30,7 +30,7 @@ export async function GET(req) {
         { status: 401 },
       );
     if (
-      !["super_admin", "staff", "program_manager", "teacher"].includes(session.role) &&
+      !["super_admin", "staff", "program_manager"].includes(session.role) &&
       String(session.email || "").toLowerCase() !== String(email || "").trim().toLowerCase()
     ) {
       return NextResponse.json(
@@ -59,7 +59,6 @@ export async function GET(req) {
       docRes,
       folRes,
       teamRes,
-      familyRes,
     ] = await Promise.all([
       getFullStateProgramByName(groupName),
       getFullStateSubmissionsByParticipant(cid),

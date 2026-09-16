@@ -12,8 +12,8 @@ import {
   isFounderForDocumentStatusTransition, updateDocumentApprovalStatus,
 } from "@/models/ventureAssets";
 
-const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
-const ALLOWED = ["participant","founder","staff","program_manager","super_admin","teacher"];
+const ROLES = ["participant","founder","staff","program_manager","super_admin","developer"];
+const ALLOWED = ["participant","founder","staff","program_manager","super_admin"];
 const PRIVILEGED = ["staff","program_manager","super_admin","developer"];
 
 async function resolveVentureDbId(ventureId) {

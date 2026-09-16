@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import {
-  Shield, Loader2, ArrowLeft, Building2, User, Mail, Globe, Link,
-  Target, DollarSign, MapPin, FileText, CheckCircle2, XCircle, MessageSquare,
-  TrendingUp, Clock,
+  Shield, Loader2, ArrowLeft, Building2, Globe, Link,
+  Target, FileText, CheckCircle2, XCircle, MessageSquare,
+  Clock,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";

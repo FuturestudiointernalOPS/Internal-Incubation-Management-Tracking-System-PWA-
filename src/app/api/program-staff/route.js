@@ -55,14 +55,17 @@ export const POST = createHandler(ROLE, async (req) => {
   const res = await upsertProgramStaffAssignment(
     program_id,
     staff_id,
-    role || "teacher",
+    // Default to "staff", not a manager-type or facilitator role: this endpoint
+    // grants permissions only to facilitators, so any other role receives an
+    // empty set and must stay at that least privilege.
+    role || "staff",
     JSON.stringify(finalPermissions),
   );
 
   // Mirror into the generalized assignment record (additive, idempotent).
   const actor = await getSession();
   await insertGeneralizedProgramAssignment(
-    roleLower || "teacher",
+    roleLower || "staff",
     String(program_id),
     JSON.stringify(finalPermissions),
     actor?.cid || "system",
@@ -110,7 +113,7 @@ export const PUT = createHandler(ROLE, async (req) => {
     const cidRes = await getContactCidForProgramRoleMirror(assignment.staff_id);
     const contactCid = cidRes.rows[0]?.cid;
     if (contactCid) {
-      const finalRole = assignment.role || "teacher";
+      const finalRole = assignment.role || "staff"; // same least-privilege default as POST
       const finalPerms = JSON.stringify(assignment.permissions || {});
       const mirrorUpdate = await updateMirroredProgramContactRole(
         finalRole,

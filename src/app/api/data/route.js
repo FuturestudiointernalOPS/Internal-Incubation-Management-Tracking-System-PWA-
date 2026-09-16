@@ -19,7 +19,7 @@ export async function GET() {
     if (authError) return authError;
     const db = getDb();
     return Response.json(db);
-  } catch (error) {
+  } catch {
     return Response.json({ error: "Failed to read DB" }, { status: 500 });
   }
 }
@@ -45,7 +45,7 @@ export async function POST(request) {
     saveDb(db);
 
     return Response.json(newItem);
-  } catch (error) {
+  } catch {
     return Response.json({ error: "Failed to update DB" }, { status: 500 });
   }
 }

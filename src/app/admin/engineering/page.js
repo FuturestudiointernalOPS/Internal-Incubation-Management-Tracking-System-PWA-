@@ -8,17 +8,10 @@ import {
   Bug,
   Clock,
   AlertTriangle,
-  CheckCircle2,
-  Activity,
-  ArrowRight,
   ListTodo,
   UserPlus,
-  AlertCircle,
-  ChevronDown,
   ChevronRight,
-  Search,
   RefreshCw,
-  Calendar,
   BarChart3,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -39,7 +32,7 @@ export default function EngineeringOperations() {
   const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [, setActiveTab] = useState("overview");
 
   const fetchDashboard = useCallback(async (bypassCache = false) => {
     const url = "/api/engineering/dashboard";

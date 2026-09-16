@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ClipboardList, Loader2, ChevronRight } from "lucide-react";
+import { ClipboardList, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";

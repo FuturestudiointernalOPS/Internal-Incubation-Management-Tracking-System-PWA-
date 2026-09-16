@@ -9,7 +9,7 @@ export const IMPACT_CACHE = {
       const item = localStorage.getItem(`impactos_cache_${key}`);
       if (!item) return null;
       return JSON.parse(item);
-    } catch (e) {
+    } catch {
       return null;
     }
   },

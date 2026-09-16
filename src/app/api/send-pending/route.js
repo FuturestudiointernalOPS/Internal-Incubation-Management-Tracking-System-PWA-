@@ -36,7 +36,7 @@ export async function GET() {
         formUrl = row.form_id
           ? `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/form/${row.form_id}?cid=${row.contact_cid}`
           : "";
-      } catch (e) {
+      } catch {
         // form_id may not exist in this schema, see SCHEMA_DRIFT_AUDIT.md cluster 13
         formUrl = "";
       }

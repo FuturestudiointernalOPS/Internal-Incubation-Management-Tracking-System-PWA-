@@ -15,7 +15,7 @@ import {
 /**
  * Auto-categorize an error based on its properties.
  */
-function categorizeError({ message, status_code, method, endpoint, stack }) {
+function categorizeError({ message, status_code, endpoint }) {
   const msg = (message || "").toLowerCase();
   const ep = (endpoint || "").toLowerCase();
 

@@ -288,7 +288,7 @@ export async function PATCH(req) {
           `,
             isHtml: true,
           });
-        } catch (e) {}
+        } catch {}
       }
     }
 
@@ -309,7 +309,7 @@ export async function DELETE(req) {
     const { id } = await req.json();
     await deleteTeam(id);
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false }, { status: 500 });
   }
 }

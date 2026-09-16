@@ -101,12 +101,10 @@ export async function POST(req) {
       (user.group_name || "").toUpperCase() === "FUTURE STUDIO"
     ) {
       // Internal Future Studio staff keep their identity — being assigned as
-      // a program assistant / team handler must NOT turn them into a teacher.
+      // a program assistant / team handler must NOT change their identity.
       finalRole = "staff";
     } else if (user.role === "facilitator") {
       finalRole = "facilitator";
-    } else if (user.role === "teacher") {
-      finalRole = "teacher";
     } else if (user.role === "participant") {
       finalRole = "participant";
     }
@@ -144,7 +142,6 @@ export async function POST(req) {
     if (finalRole === "super_admin") target = "/admin";
     else if (finalRole === "program_manager") target = "/pm";
     else if (finalRole === "staff") target = "/staff";
-    else if (finalRole === "teacher") target = "/teacher";
     else if (finalRole === "developer") target = "/developer";
     else if (finalRole === "investor") target = "/investor/dashboard";
     else if (finalRole === "founder") {
@@ -209,7 +206,6 @@ export async function GET() {
       else if (user.role === "developer") displayRole = "developer";
       else if (user.role === "investor") displayRole = "investor";
       else if (user.role === "founder") displayRole = "founder";
-      else if (user.role === "teacher") displayRole = "teacher";
       else if (
         user.role === "staff" ||
         user.role === "project_manager" ||

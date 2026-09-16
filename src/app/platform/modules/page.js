@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { getRegisteredModules } from "@/lib/platform/registry";
 import { useI18n } from "@/lib/i18n";
 import {
-  LayoutDashboard,
   FolderKanban,
   FileText,
   BarChart3,

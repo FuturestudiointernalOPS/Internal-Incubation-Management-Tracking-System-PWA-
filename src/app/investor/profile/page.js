@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import {
-  User, Building2, Globe, Link, Camera, Save, Loader2,
-  Briefcase, Target, DollarSign, MapPin, TrendingUp, ArrowLeft,
+  User, Building2, Globe, Link, Save, Loader2,
+  Target, DollarSign, MapPin, TrendingUp, ArrowLeft,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";

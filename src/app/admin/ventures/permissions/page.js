@@ -96,7 +96,7 @@ export default function GlobalVenturePermissionsPage() {
       } else {
         notify(d.error || "Update failed.", "error");
       }
-    } catch (e) {
+    } catch {
       notify("Update failed.", "error");
     }
   };
@@ -122,7 +122,7 @@ export default function GlobalVenturePermissionsPage() {
       } else {
         notify(d.error || "Create failed.", "error");
       }
-    } catch (err) {
+    } catch {
       notify("Create failed.", "error");
     } finally {
       setSavingResp(false);
