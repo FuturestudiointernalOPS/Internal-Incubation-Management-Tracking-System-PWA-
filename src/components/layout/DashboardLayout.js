@@ -6,6 +6,8 @@ import {
   Sun,
   Moon,
   Monitor,
+  ChevronsLeft,
+  ChevronsRight,
   Users,
   LayoutDashboard,
   Briefcase,
@@ -306,6 +308,7 @@ function getActivePathIds(navItems, pathname) {
 
 const SidebarContent = ({
   collapsed,
+  setCollapsed,
   role,
   navItems,
   openMenus,
@@ -517,15 +520,17 @@ const SidebarContent = ({
   };
   return (
     <>
-      <div className="flex items-center gap-4 px-3 mb-14 mt-4">
+      <div
+        className={`px-3 mb-14 mt-4 ${
+          collapsed ? "flex flex-col items-center gap-3" : "flex items-center gap-4"
+        }`}
+      >
         {collapsed ? (
-          <div className="w-10 h-10 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <img
-              src="/brand/icon_orange.png"
-              alt="FS"
-              className="w-8 h-8 object-contain"
-            />
-          </div>
+          <img
+            src="/icon-192x192.png"
+            alt="Future Studio"
+            className="w-8 h-8 object-contain"
+          />
         ) : (
           <img
             src="/brand/logo_full.png"
@@ -533,6 +538,27 @@ const SidebarContent = ({
             className="h-8 object-contain animate-in fade-in"
           />
         )}
+        {/* The rail can always be reopened, so the control is present in both
+            widths: beside the logo when open, under the mark when collapsed. */}
+        <button
+          type="button"
+          onClick={() => setCollapsed((v) => !v)}
+          aria-label={t(
+            collapsed ? "navigation.expandSidebar" : "navigation.collapseSidebar",
+          )}
+          title={t(
+            collapsed ? "navigation.expandSidebar" : "navigation.collapseSidebar",
+          )}
+          className={`w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-colors ${
+            collapsed ? "" : "ml-auto"
+          }`}
+        >
+          {collapsed ? (
+            <ChevronsRight className="w-4 h-4" />
+          ) : (
+            <ChevronsLeft className="w-4 h-4" />
+          )}
+        </button>
       </div>
 
       {!collapsed && (
@@ -677,8 +703,13 @@ function shellRole(userRole, role) {
   return userRole || role || "admin";
 }
 
+// Roles whose shell is a PERSONAL surface (a person, not a staff function).
+// Their sidebar is relationship-driven and their learning door is derived from
+// an actual course enrollment, never from the role string.
+const PERSONAL_ROLES = ["member", "founder", "participant", "team"];
+
 function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = false }) {
-  const [collapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -924,7 +955,9 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
   const [user, setUser] = useState({});
   const [authChecked, setAuthChecked] = useState(false);
   const [pmPrograms, setPmPrograms] = useState([]);
-  // null = unknown (show by default), false = hide "My Learning"
+  // Whether the connected person holds at least one usable course enrollment.
+  // true = show the "My Learning" door; false/null = hidden (known to be
+  // false, or the server has not answered yet).
   const [hasLmsEnrollments, setHasLmsEnrollments] = useState(null);
 
   // Effective capability matrix for sidebar visibility, read ONCE for the whole
@@ -1086,20 +1119,16 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
       .catch((e) => console.error(e));
   }, [user.role, user.cid, user.id]);
 
-  // "My Learning" only appears once the participant has subscribed to a course
-  // or been assigned one (admin/program enrollment). The flag is refreshed on
-  // every navigation inside the participant context so the entry appears as
-  // soon as an enrollment exists. null (unknown) keeps the entry visible
-  // instead of flashing it off for learners who are enrolled.
+  // "My Learning" only appears once the learner actually holds a course
+  // (self-subscribed, admin enrollment or program assignment). The shell asks
+  // on every PERSONAL surface — not only for the `participant` role — because a
+  // course subscriber belongs to no program, so the relationship-driven sidebar
+  // would leave them with a dashboard-only menu. Staff-side surfaces open the
+  // course library from their capabilities instead (buildAccessNav).
   useEffect(() => {
-    const sessionRole = user.role || role || "";
-    const participantNavActive = sessionRole === "participant";
-    if (
-      sessionRole === "super_admin" ||
-      sessionRole === "developer" ||
-      !participantNavActive
-    ) {
-      setHasLmsEnrollments(null);
+    const sessionRole = shellRole(user.role, role);
+    if (!PERSONAL_ROLES.includes(sessionRole)) {
+      setHasLmsEnrollments(false);
       return;
     }
     let active = true;
@@ -1115,7 +1144,11 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
     return () => {
       active = false;
     };
-  }, [user.role, user.cid, user.id, role]);
+    // `pathname` re-runs the check on every navigation inside the shell: the
+    // door then opens as soon as an enrollment exists (e.g. right after
+    // subscribing to a course from another page), and a failed request heals
+    // on the next click instead of staying hidden.
+  }, [user.role, user.cid, user.id, role, pathname]);
 
   // Unread counts per nav type — messages from actual unread count, others from notifications
   const unreadByType = useMemo(() => {
@@ -1202,14 +1235,6 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
     // being viewed (see shellRole).
     const activeRole = shellRole(user.role, role);
 
-    // "My Learning" is hidden until the participant actually has a course
-    // (self-subscribed, admin enrollment or program assignment). hasLmsEnrollments
-    // is null while unknown, so the entry never flickers off for enrolled users.
-    const hideMyLearning =
-      activeRole === "participant" && hasLmsEnrollments === false;
-    const gateMyLearning = (items) =>
-      hideMyLearning ? items.filter((i) => i.id !== "learning") : items;
-
     // Check if user belongs to Future Studio Interns group
     const userGroups = user.groups || [];
     const isIntern = userGroups.some(
@@ -1256,9 +1281,9 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
     }
 
     // Personal roles: sidebar is relationship-driven (Phase 1). A person with
-    // no program and no venture sees only Dashboard; programs/certificates
-    // appear only for participants, ventures only for venture members.
-    const PERSONAL_ROLES = ["member", "founder", "participant", "team"];
+    // no program and no venture sees only Dashboard; the learner door appears
+    // from an actual course enrollment, programs/certificates only for program
+    // participants, ventures only for venture members.
     if (PERSONAL_ROLES.includes(activeRole)) {
       const rel = relationships || {
         isProgramParticipant: false,
@@ -1273,6 +1298,17 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
       const items = [
         { id: "dashboard", name: "DASHBOARD", icon: LayoutDashboard, href: dashboardHref },
       ];
+      // The learner door. It opens from an actual enrollment — the LMS decides
+      // access server-side — never from belonging to a program: someone who
+      // subscribed to a course on the website holds no program and no venture.
+      if (hasLmsEnrollments === true) {
+        items.push({
+          id: "learning",
+          name: "MY LEARNING",
+          icon: GraduationCap,
+          href: "/participant/learning",
+        });
+      }
       if (rel.isProgramParticipant) {
         items.push({ id: "programs", name: "MY PROGRAMS", icon: Briefcase, href: "/participant/dashboard" });
         items.push({ id: "certificates", name: "MY CERTIFICATES", icon: FileText, href: "/participant/certificates" });
@@ -1355,8 +1391,9 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
       }
     }
 
-    // "My Learning" is hidden for participants who have no course enrollment.
-    return gateMyLearning(withVentureConsole(items));
+    // Staff-side surfaces keep their capability-projected doors; the learner
+    // door is added inside the personal branch above.
+    return withVentureConsole(items);
   }, [
     user.role,
     user.groups,
@@ -1439,6 +1476,7 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
   const activeRole = shellRole(user?.role, role);
   const commonProps = {
     collapsed,
+    setCollapsed,
     role: activeRole,
     user,
     navItems,

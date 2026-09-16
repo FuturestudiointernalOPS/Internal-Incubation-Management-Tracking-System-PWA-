@@ -68,6 +68,20 @@ describe("sidebar additions — the doors live in the sidebar", () => {
     expect(src).toContain('name: "MY VENTURES", icon: Rocket, href: "/participant/ventures"');
   });
 
+  test("the learning door opens for anyone who actually holds a course", () => {
+    // A course subscriber (self-enrollment from the website) belongs to no
+    // program and no venture, so the door cannot hang off isProgramParticipant:
+    // it is added inside the personal branch from a CONFIRMED enrollment, so a
+    // learner is never left with a dashboard-only sidebar.
+    expect(src).toContain("hasLmsEnrollments === true");
+    expect(src).toContain('id: "learning"');
+    expect(src).toContain('href: "/participant/learning"');
+    // The enrollment check runs on every PERSONAL surface — keying it off one
+    // role label is what hid the door from every learner.
+    expect(src).toContain("PERSONAL_ROLES.includes(sessionRole)");
+    expect(src).not.toContain('sessionRole === "participant"');
+  });
+
   test("the founder surface orders its doors like the founder nav contract", () => {
     // The founder contract is Dashboard → Programs → Ventures → Timeline.
     // The personal sidebar must agree, so a founder's venture door is not
