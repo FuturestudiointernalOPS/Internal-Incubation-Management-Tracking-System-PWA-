@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { Search, ShieldCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { defer, settled } from "./effectUtils";
@@ -23,9 +23,24 @@ import { SCOPE_POLICIES, SCOPE_POLICY_KEYS } from "@/lib/authorization/scope-cat
  *
  * Editing access stays in the Individual Access screen (unchanged); this
  * screen links to it and never invents a verdict the server did not return.
+ *
+ * UI-7 (ergonomics): the whole width is available (the picker is a dropdown
+ * above), each section header states the four rights it carries — View,
+ * Create, Edit, Delete — and the list can be narrowed to a capability or to
+ * what the person actually holds, so the table answers a question instead of
+ * forcing a scroll.
  */
 
 const LAYERS = ["profile", "groups", "grants", "restrictions"];
+
+/** The four rights a section can carry, in the product's own order. */
+const CRUD_RIGHTS = ["view", "create", "edit", "delete"];
+const RIGHT_LABEL_KEYS = {
+  view: "engineering.permissions.accessLevelView",
+  create: "engineering.permissions.accessLevelCreate",
+  edit: "engineering.permissions.accessLevelEdit",
+  delete: "engineering.permissions.accessLevelDelete",
+};
 
 function SourceGlyph({ on, kind }) {
   if (!on) {
@@ -48,6 +63,8 @@ export default function PeopleView({ person = null }) {
   const [err, setErr] = useState("");
   const [scope, setScope] = useState([]);
   const [why, setWhy] = useState(null);
+  const [query, setQuery] = useState("");
+  const [onlyGranted, setOnlyGranted] = useState(false);
 
   const loadCatalog = useCallback(async () => {
     try {
@@ -157,259 +174,394 @@ export default function PeopleView({ person = null }) {
     return ctx?.eligibility?.[feature] === true;
   };
 
+  // The person's panel is a long list on a real account, so let the admin ask a
+  // question of it: filter by capability or section, or hide everything the
+  // person does not actually hold. Plain derivation (no memo) — the list is
+  // small and the helpers depend on the resolved context.
+  const needle = query.trim().toLowerCase();
+  const visibleModules = !ctx
+    ? []
+    : modules
+        .map((m) => {
+          const allCaps = capsFor(m);
+          return {
+            ...m,
+            // The section's own right set, kept whole: the header summary must
+            // describe the section, not the current filter.
+            allCaps,
+            caps: allCaps.filter((cap) => {
+              const state = deriveUserCapState(
+                ctx.sources,
+                m.module,
+                cap,
+                eligibleFor(m.module),
+              );
+              if (onlyGranted && !state.effective) return false;
+              if (!needle) return true;
+              return (
+                `${m.module}.${cap}`.toLowerCase().includes(needle) ||
+                (m.feature || "").toLowerCase().includes(needle)
+              );
+            }),
+          };
+        })
+        .filter((m) => m.caps.length > 0);
+
+  /** One section header summary: which of the four rights are held. */
+  const rightStates = (m) =>
+    CRUD_RIGHTS.map((cap) => {
+      const offered = (m.allCaps || m.caps).includes(cap);
+      const held =
+        offered &&
+        deriveUserCapState(
+          ctx.sources,
+          m.module,
+          cap,
+          eligibleFor(m.module),
+        ).effective;
+      return { cap, offered, held };
+    });
+
   return (
     <div className="space-y-4">
-      {/* Selected person */}
-      <div className="space-y-3">
-          {!selected && (
-            <p className="text-xs font-bold text-[var(--text-secondary)]">
-              {t("engineering.permissions.peopleSelectPrompt")}
-            </p>
-          )}
-          {err && <p className="text-xs font-bold text-red-500">{err}</p>}
-          {loadingCtx && (
-            <div className="space-y-2">
-              <Skeleton className="h-10" />
-              <Skeleton className="h-40" />
-            </div>
-          )}
-          {selected && !loadingCtx && ctx && (
-            <>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-black text-[var(--text-primary)]">
-                  {selected.name || selected.cid}
-                </span>
-                <Badge variant="neutral">
-                  <ShieldCheck className="w-3 h-3" /> {ctx.role}
-                </Badge>
-                {ctx.isSuperAdmin && (
-                  <Badge variant="pending">
-                    {t("engineering.permissions.superAdminBypass")}
-                  </Badge>
-                )}
-                {ctx.profile?.profileName && (
-                  <Badge variant="neutral">
-                    {ctx.profile.profileName} ({ctx.profile.profileSource})
-                  </Badge>
-                )}
-                {(ctx.groups || []).map((g) => (
-                  <Badge key={g} variant="neutral">
-                    {g}
-                  </Badge>
-                ))}
-              </div>
+      {!selected && (
+        <p className="text-xs font-bold text-[var(--text-secondary)]">
+          {t("engineering.permissions.peopleSelectPrompt")}
+        </p>
+      )}
+      {err && <p className="text-xs font-bold text-red-500">{err}</p>}
+      {loadingCtx && (
+        <div className="space-y-2">
+          <Skeleton className="h-10" />
+          <Skeleton className="h-40" />
+        </div>
+      )}
+      {selected && !loadingCtx && ctx && (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-black text-[var(--text-primary)]">
+              {selected.name || selected.cid}
+            </span>
+            <Badge variant="neutral">
+              <ShieldCheck className="w-3 h-3" /> {ctx.role}
+            </Badge>
+            {ctx.isSuperAdmin && (
+              <Badge variant="pending">
+                {t("engineering.permissions.superAdminBypass")}
+              </Badge>
+            )}
+            {ctx.profile?.profileName && (
+              <Badge variant="neutral">
+                {ctx.profile.profileName} ({ctx.profile.profileSource})
+              </Badge>
+            )}
+            {(ctx.groups || []).map((g) => (
+              <Badge key={g} variant="neutral">
+                {g}
+              </Badge>
+            ))}
+          </div>
 
-              {/* Contextual relationships (UI-4c) — additive, per context, and
-                  read from the same assignment data the scope predicates use.
-                  This is why a participant is a participant: the identity above
-                  stays Member. */}
-              <div className="rounded-xl border border-[var(--border-primary)] bg-secondary/40 p-3 space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("engineering.permissions.peopleContextsTitle")}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {(ctx.contexts || []).map((c) => (
-                    <span
-                      key={`${c.type}:${c.id}`}
-                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)]"
-                    >
-                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t(`engineering.permissions.contextKind_${c.type}`)}
-                      </span>
-                      <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                        {c.label}
-                      </span>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
-                        {String(c.role).replace(/_/g, " ")}
-                      </span>
-                      <span className="text-[9px] font-mono text-[var(--text-secondary)] opacity-70">
-                        {c.scopePolicy}
-                      </span>
-                      {!c.scopeImplemented && (
-                        <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
-                          {t("engineering.permissions.contextPending")}
-                        </span>
-                      )}
+          {/* Contexts and scope share a row from lg up: two short panels,
+              half the vertical space. */}
+          <div className="grid gap-3 lg:grid-cols-2">
+            {/* Contextual relationships (UI-4c) — additive, per context, and
+                read from the same assignment data the scope predicates use.
+                This is why a participant is a participant: the identity above
+                stays Member. */}
+            <div className="rounded-xl border border-[var(--border-primary)] bg-secondary/40 p-3 space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                {t("engineering.permissions.peopleContextsTitle")}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {(ctx.contexts || []).map((c) => (
+                  <span
+                    key={`${c.type}:${c.id}`}
+                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)]"
+                  >
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                      {t(`engineering.permissions.contextKind_${c.type}`)}
                     </span>
-                  ))}
-                  {(ctx.contexts || []).length === 0 && (
-                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                      {t("engineering.permissions.peopleContextsNone")}
+                    <span className="text-[10px] font-bold text-[var(--text-primary)]">
+                      {c.label}
                     </span>
-                  )}
-                </div>
-                {(ctx.contextsUnavailable || []).length > 0 && (
-                  <p className="text-[10px] font-bold text-amber-400">
-                    {t("engineering.permissions.peopleContextsPartial", {
-                      kinds: (ctx.contextsUnavailable || []).join(", "),
-                    })}
-                  </p>
-                )}
-                <p className="text-[10px] font-bold text-[var(--text-secondary)] opacity-70">
-                  {t("engineering.permissions.peopleContextsNote")}
-                </p>
-              </div>
-
-              {/* Scope panel — what the engine resolves today (read-only) */}
-              <div className="rounded-xl border border-[var(--border-primary)] bg-secondary/40 p-3 space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("engineering.permissions.peopleScopeTitle")}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {scope.map((s) => (
-                    <span
-                      key={s.policy}
-                      className="px-2 py-0.5 rounded-md bg-primary border border-[var(--border-primary)] text-[10px] font-mono text-[var(--text-secondary)]"
-                    >
-                      {s.policy} · {s.count === null ? "—" : s.count}
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                      {String(c.role).replace(/_/g, " ")}
                     </span>
-                  ))}
-                  {scope.length === 0 && (
-                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                      {t("engineering.permissions.peopleScopeEmpty")}
+                    <span className="text-[9px] font-mono text-[var(--text-secondary)] opacity-70">
+                      {c.scopePolicy}
                     </span>
-                  )}
-                </div>
-                <p className="text-[10px] font-bold text-[var(--text-secondary)] opacity-70">
-                  {t("engineering.permissions.peopleScopeNote")}
-                </p>
-              </div>
-
-              {/* Sources matrix */}
-              <div
-                tabIndex={0}
-                role="region"
-                aria-label={t("engineering.permissions.peopleTableAria")}
-                className="hidden md:block overflow-x-auto rounded-xl border border-[var(--border-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
-              >
-                <table className="w-full text-left border-collapse min-w-[720px]">
-                  <thead>
-                    <tr className="border-b border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                      <th className="p-3">{t("engineering.permissions.userMatrixCapability")}</th>
-                      <th className="p-3 text-center">{t("engineering.permissions.userMatrixProfile")}</th>
-                      <th className="p-3 text-center">{t("engineering.permissions.userMatrixGroup")}</th>
-                      <th className="p-3 text-center">{t("engineering.permissions.userMatrixGrant")}</th>
-                      <th className="p-3 text-center">{t("engineering.permissions.userMatrixRestriction")}</th>
-                      <th className="p-3 text-center">{t("engineering.permissions.userMatrixEffective")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {modules.map((m) => (
-                      <React.Fragment key={m.module}>
-                        <tr className="bg-secondary/60 border-b border-[var(--border-primary)]">
-                          <td className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                            {m.module.replace(/_/g, " ")}
-                            <span className="ml-2 text-[9px] font-bold normal-case tracking-normal text-[var(--text-secondary)] opacity-70">
-                              {m.feature.replace(/_/g, " ")}
-                            </span>
-                          </td>
-                          <td colSpan={5} />
-                        </tr>
-                        {capsFor(m).map((cap) => {
-                          const s = deriveUserCapState(ctx.sources, m.module, cap, eligibleFor(m.module));
-                          const reason = reasonFor(s);
-                          return (
-                            <tr
-                              key={`${m.module}.${cap}`}
-                              onClick={() => setWhy({ module: m.module, cap, state: s, reason })}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  setWhy({ module: m.module, cap, state: s, reason });
-                                }
-                              }}
-                              tabIndex={0}
-                              aria-label={t("engineering.permissions.peopleRowAria", {
-                                capability: `${m.module}.${cap}`,
-                              })}
-                              className="border-b border-[var(--border-primary)]/40 cursor-pointer hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-orange)]/60"
-                            >
-                              <td className="px-3 py-1.5 text-xs font-bold text-[var(--text-primary)]">
-                                {m.module}.{cap}
-                              </td>
-                              <td className="text-center">
-                                <SourceGlyph on={s.profile} kind="profile" />
-                              </td>
-                              <td className="text-center">
-                                <SourceGlyph on={s.group} kind="groups" />
-                              </td>
-                              <td className="text-center">
-                                <SourceGlyph on={s.grant} kind="grants" />
-                              </td>
-                              <td className="text-center">
-                                <SourceGlyph on={s.restricted} kind="restrictions" />
-                              </td>
-                              <td className="p-1.5 text-center">
-                                <EffectiveBadge effective={s.effective} reason={reason} />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </React.Fragment>
-                    ))}
-                    {modules.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="p-6 text-center text-xs font-bold text-[var(--text-secondary)]">
-                          {t("engineering.permissions.userMatrixEmpty")}
-                        </td>
-                      </tr>
+                    {!c.scopeImplemented && (
+                      <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
+                        {t("engineering.permissions.contextPending")}
+                      </span>
                     )}
-                  </tbody>
-                </table>
+                  </span>
+                ))}
+                {(ctx.contexts || []).length === 0 && (
+                  <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                    {t("engineering.permissions.peopleContextsNone")}
+                  </span>
+                )}
               </div>
+              {(ctx.contextsUnavailable || []).length > 0 && (
+                <p className="text-[10px] font-bold text-amber-400">
+                  {t("engineering.permissions.peopleContextsPartial", {
+                    kinds: (ctx.contextsUnavailable || []).join(", "),
+                  })}
+                </p>
+              )}
+              <p className="text-[10px] font-bold text-[var(--text-secondary)] opacity-70">
+                {t("engineering.permissions.peopleContextsNote")}
+              </p>
+            </div>
 
-              {/* Small screens: the same rows as cards (no data hidden) */}
-              <div className="md:hidden space-y-3">
-                {modules.map((m) => (
-                  <div key={m.module} className="space-y-1.5">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                      {m.module.replace(/_/g, " ")}
-                      <span className="ml-2 font-bold normal-case tracking-normal text-[var(--text-secondary)] opacity-70">
-                        {m.feature.replace(/_/g, " ")}
-                      </span>
-                    </p>
-                    {capsFor(m).map((cap) => {
-                      const s = deriveUserCapState(ctx.sources, m.module, cap, eligibleFor(m.module));
-                      const reason = reasonFor(s);
-                      return (
-                        <button
-                          key={`${m.module}.${cap}`}
-                          onClick={() => setWhy({ module: m.module, cap, state: s, reason })}
-                          className="w-full text-left rounded-xl border border-[var(--border-primary)] bg-secondary/30 p-3 space-y-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
-                        >
-                          <span className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-bold text-[var(--text-primary)]">
-                              {m.module}.{cap}
-                            </span>
-                            <EffectiveBadge effective={s.effective} reason={reason} />
+            {/* Scope panel — what the engine resolves today (read-only) */}
+            <div className="rounded-xl border border-[var(--border-primary)] bg-secondary/40 p-3 space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                {t("engineering.permissions.peopleScopeTitle")}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {scope.map((s) => (
+                  <span
+                    key={s.policy}
+                    className="px-2 py-0.5 rounded-md bg-primary border border-[var(--border-primary)] text-[10px] font-mono text-[var(--text-secondary)]"
+                  >
+                    {s.policy} · {s.count === null ? "—" : s.count}
+                  </span>
+                ))}
+                {scope.length === 0 && (
+                  <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                    {t("engineering.permissions.peopleScopeEmpty")}
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] font-bold text-[var(--text-secondary)] opacity-70">
+                {t("engineering.permissions.peopleScopeNote")}
+              </p>
+            </div>
+          </div>
+
+          {/* Sources matrix — one card, filtered, with the four rights of a
+              section stated on its own header row. */}
+          <div className="rounded-xl border border-[var(--border-primary)] bg-secondary/20 overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 border-b border-[var(--border-primary)]">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                {t("engineering.permissions.peopleMatrixTitle")}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    aria-label={t("engineering.permissions.peopleMatrixFilterPlaceholder")}
+                    placeholder={t(
+                      "engineering.permissions.peopleMatrixFilterPlaceholder",
+                    )}
+                    className="w-48 sm:w-64 bg-primary border border-[var(--border-primary)] rounded-lg pl-8 pr-3 py-2 text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+                  />
+                </div>
+                <button
+                  type="button"
+                  aria-pressed={onlyGranted}
+                  onClick={() => setOnlyGranted((v) => !v)}
+                  className={`px-3 py-2 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 ${
+                    onlyGranted
+                      ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                      : "border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  }`}
+                >
+                  {t("engineering.permissions.peopleMatrixOnlyGranted")}
+                </button>
+              </div>
+            </div>
+
+            <p className="px-3 pt-2 text-[10px] font-bold text-[var(--text-secondary)] opacity-70">
+              {t("engineering.permissions.peopleMatrixLegend")}
+            </p>
+
+            <div
+              tabIndex={0}
+              role="region"
+              aria-label={t("engineering.permissions.peopleTableAria")}
+              className="hidden md:block overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-orange)]/60"
+            >
+              <table className="w-full text-left border-collapse min-w-[760px]">
+                <thead>
+                  <tr className="border-b border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                    <th className="p-3">{t("engineering.permissions.userMatrixCapability")}</th>
+                    <th className="p-3 text-center w-24">{t("engineering.permissions.userMatrixProfile")}</th>
+                    <th className="p-3 text-center w-24">{t("engineering.permissions.userMatrixGroup")}</th>
+                    <th className="p-3 text-center w-24">{t("engineering.permissions.userMatrixGrant")}</th>
+                    <th className="p-3 text-center w-24">{t("engineering.permissions.userMatrixRestriction")}</th>
+                    <th className="p-3 text-center w-32">{t("engineering.permissions.userMatrixEffective")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleModules.map((m) => (
+                    <React.Fragment key={m.module}>
+                      <tr className="bg-secondary/60 border-b border-[var(--border-primary)]">
+                        <td className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                          {m.module.replace(/_/g, " ")}
+                          <span className="ml-2 text-[9px] font-bold normal-case tracking-normal text-[var(--text-secondary)] opacity-70">
+                            {m.feature.replace(/_/g, " ")}
                           </span>
-                          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-bold text-[var(--text-secondary)]">
-                            {[
-                              { label: t("engineering.permissions.userMatrixProfile"), on: s.profile, kind: "profile" },
-                              { label: t("engineering.permissions.userMatrixGroup"), on: s.group, kind: "groups" },
-                              { label: t("engineering.permissions.userMatrixGrant"), on: s.grant, kind: "grants" },
-                              { label: t("engineering.permissions.userMatrixRestriction"), on: s.restricted, kind: "restrictions" },
-                            ].map((src) => (
-                              <span key={src.label} className="inline-flex items-center gap-1">
-                                {src.label}
-                                <SourceGlyph on={src.on} kind={src.kind} />
+                        </td>
+                        <td colSpan={5} className="px-3 py-2">
+                          <span className="flex flex-wrap items-center justify-end gap-1.5">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-70">
+                              {t("engineering.permissions.peopleMatrixRightsTitle")}
+                            </span>
+                            {rightStates(m).map((r) => (
+                              <span
+                                key={r.cap}
+                                title={
+                                  r.held
+                                    ? t("engineering.permissions.peopleMatrixRightHeld")
+                                    : r.offered
+                                      ? t("engineering.permissions.peopleMatrixRightNotHeld")
+                                      : t("engineering.permissions.peopleMatrixRightNotOffered")
+                                }
+                                className={`px-1.5 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest ${
+                                  r.held
+                                    ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                                    : r.offered
+                                      ? "border-[var(--border-primary)] text-[var(--text-secondary)] opacity-60"
+                                      : "border-[var(--border-primary)] text-[var(--text-secondary)] opacity-25"
+                                }`}
+                              >
+                                {t(RIGHT_LABEL_KEYS[r.cap])}
                               </span>
                             ))}
                           </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
-                {modules.length === 0 && (
-                  <p className="rounded-xl border border-[var(--border-primary)] p-6 text-center text-xs font-bold text-[var(--text-secondary)]">
-                    {t("engineering.permissions.userMatrixEmpty")}
+                        </td>
+                      </tr>
+                      {m.caps.map((cap) => {
+                        const s = deriveUserCapState(ctx.sources, m.module, cap, eligibleFor(m.module));
+                        const reason = reasonFor(s);
+                        return (
+                          <tr
+                            key={`${m.module}.${cap}`}
+                            onClick={() => setWhy({ module: m.module, cap, state: s, reason })}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setWhy({ module: m.module, cap, state: s, reason });
+                              }
+                            }}
+                            tabIndex={0}
+                            aria-label={t("engineering.permissions.peopleRowAria", {
+                              capability: `${m.module}.${cap}`,
+                            })}
+                            className="border-b border-[var(--border-primary)]/40 cursor-pointer hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-orange)]/60"
+                          >
+                            <td className="px-3 py-1.5 text-xs font-bold text-[var(--text-primary)]">
+                              {m.module}.{cap}
+                            </td>
+                            <td className="text-center">
+                              <SourceGlyph on={s.profile} kind="profile" />
+                            </td>
+                            <td className="text-center">
+                              <SourceGlyph on={s.group} kind="groups" />
+                            </td>
+                            <td className="text-center">
+                              <SourceGlyph on={s.grant} kind="grants" />
+                            </td>
+                            <td className="text-center">
+                              <SourceGlyph on={s.restricted} kind="restrictions" />
+                            </td>
+                            <td className="p-1.5 text-center">
+                              <EffectiveBadge effective={s.effective} reason={reason} />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
+                  {visibleModules.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-6 text-center text-xs font-bold text-[var(--text-secondary)]">
+                        {modules.length === 0
+                          ? t("engineering.permissions.userMatrixEmpty")
+                          : t("engineering.permissions.peopleMatrixFiltered")}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Small screens: the same rows as cards (no data hidden) */}
+            <div className="md:hidden space-y-3 p-3">
+              {visibleModules.map((m) => (
+                <div key={m.module} className="space-y-1.5">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                    {m.module.replace(/_/g, " ")}
+                    <span className="ml-2 font-bold normal-case tracking-normal text-[var(--text-secondary)] opacity-70">
+                      {m.feature.replace(/_/g, " ")}
+                    </span>
                   </p>
-                )}
-              </div>
-            </>
-          )}
-      </div>
+                  <span className="flex flex-wrap items-center gap-1.5 pb-1">
+                    {rightStates(m).map((r) => (
+                      <span
+                        key={r.cap}
+                        className={`px-1.5 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest ${
+                          r.held
+                            ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                            : r.offered
+                              ? "border-[var(--border-primary)] text-[var(--text-secondary)] opacity-60"
+                              : "border-[var(--border-primary)] text-[var(--text-secondary)] opacity-25"
+                        }`}
+                      >
+                        {t(RIGHT_LABEL_KEYS[r.cap])}
+                      </span>
+                    ))}
+                  </span>
+                  {m.caps.map((cap) => {
+                    const s = deriveUserCapState(ctx.sources, m.module, cap, eligibleFor(m.module));
+                    const reason = reasonFor(s);
+                    return (
+                      <button
+                        key={`${m.module}.${cap}`}
+                        onClick={() => setWhy({ module: m.module, cap, state: s, reason })}
+                        className="w-full text-left rounded-xl border border-[var(--border-primary)] bg-secondary/30 p-3 space-y-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-[var(--text-primary)]">
+                            {m.module}.{cap}
+                          </span>
+                          <EffectiveBadge effective={s.effective} reason={reason} />
+                        </span>
+                        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-bold text-[var(--text-secondary)]">
+                          {[
+                            { label: t("engineering.permissions.userMatrixProfile"), on: s.profile, kind: "profile" },
+                            { label: t("engineering.permissions.userMatrixGroup"), on: s.group, kind: "groups" },
+                            { label: t("engineering.permissions.userMatrixGrant"), on: s.grant, kind: "grants" },
+                            { label: t("engineering.permissions.userMatrixRestriction"), on: s.restricted, kind: "restrictions" },
+                          ].map((src) => (
+                            <span key={src.label} className="inline-flex items-center gap-1">
+                              {src.label}
+                              <SourceGlyph on={src.on} kind={src.kind} />
+                            </span>
+                          ))}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+              {visibleModules.length === 0 && (
+                <p className="rounded-xl border border-[var(--border-primary)] p-6 text-center text-xs font-bold text-[var(--text-secondary)]">
+                  {modules.length === 0
+                    ? t("engineering.permissions.userMatrixEmpty")
+                    : t("engineering.permissions.peopleMatrixFiltered")}
+                </p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Why drawer */}
       {why && (

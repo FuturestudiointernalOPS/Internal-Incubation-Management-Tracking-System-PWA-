@@ -22,6 +22,10 @@ import PermissionManager from "./PermissionCenter";
  * The selection lives in `?cid=`, so it is shareable, survives a reload, and
  * keeps the Membership Control Center's "View Effective Access" deep links
  * working unchanged.
+ *
+ * UI-7: stacked instead of two columns. The picker is a dropdown on its own
+ * row, so the person's panels — the reason the screen exists — get the full
+ * width instead of two thirds of it.
  */
 export default function IndividualAccessScreen() {
   const { t } = useI18n();
@@ -57,22 +61,20 @@ export default function IndividualAccessScreen() {
         {t("engineering.permissions.peopleHint")}
       </p>
 
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-4">
-        <PersonPicker selectedCid={person?.cid} onSelect={pick} />
+      <PersonPicker selectedCid={person?.cid} onSelect={pick} />
 
-        <div className="space-y-4">
-          {person ? (
-            <>
-              <PeopleView person={person} />
-              <PermissionManager cid={person.cid} initialTab="search" />
-            </>
-          ) : (
-            <p className="text-xs font-bold text-[var(--text-secondary)]">
-              {t("engineering.permissions.peopleSelectPrompt")}
-            </p>
-          )}
+      {person ? (
+        <div className="space-y-6">
+          <PeopleView person={person} />
+          <PermissionManager cid={person.cid} initialTab="search" />
         </div>
-      </div>
+      ) : (
+        <div className="ios-card !p-6 border-[var(--border-primary)] text-center">
+          <p className="text-xs font-bold text-[var(--text-secondary)]">
+            {t("engineering.permissions.peopleSelectPrompt")}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
