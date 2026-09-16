@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, TrendingUp, Target, RefreshCw,
@@ -33,7 +33,7 @@ export default function VentureInvestmentPage() {
   const [roadmap, setRoadmap] = useState(null);
   const [roadmapLoading, setRoadmapLoading] = useState(true);
 
-  const fetchData = async (bypassCache = false) => {
+  const fetchData = useCallback(async (bypassCache = false) => {
     const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/investment`];
     const apply = (v, i) => {
       if (v.success) setVenture(v.venture);
@@ -57,20 +57,20 @@ export default function VentureInvestmentPage() {
       if (i.success) cacheSet(urls[1], i);
       apply(v, i);
     } catch {} finally { setLoading(false); }
-  };
+  }, [id]);
 
   // Roadmap-derived readiness (read-only, independent): the same live numbers
   // the founder sees. Fail-soft — any error just leaves the derived block
   // hidden, the recorded assessment below keeps working untouched.
-  const fetchRoadmap = async () => {
+  const fetchRoadmap = useCallback(async () => {
     try {
       const res = await fetch(`/api/ventures/${id}/investment-readiness`);
       const d = await res.json();
       if (d?.success && d.roadmap_readiness) setRoadmap(d.roadmap_readiness);
     } catch {} finally { setRoadmapLoading(false); }
-  };
+  }, [id]);
 
-  useEffect(() => { fetchData(); fetchRoadmap(); }, []);
+  useEffect(() => { fetchData(); fetchRoadmap(); }, [fetchData, fetchRoadmap]);
 
   const handleEvaluate = async () => {
     setEvaluating(true);

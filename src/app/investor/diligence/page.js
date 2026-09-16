@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useCallback } from "react";
 import {
   ArrowLeft, Loader2, Building2, FileText, Send, Plus,
   MessageSquare, CheckCircle2, ClipboardList,
@@ -53,7 +53,7 @@ function DueDiligenceContent() {
   const [showRiskForm, setShowRiskForm] = useState(false);
   const [riskForm, setRiskForm] = useState({ risk_category:"market", risk_description:"", severity:"medium", mitigation:"", status:"open" });
 
-  const fetchData = async (bypassCache = false) => {
+  const fetchData = useCallback(async (bypassCache = false) => {
     setLoading(true);
     try {
       const url = `/api/investor/diligence?pipeline_id=${pipelineId}`;
@@ -98,11 +98,11 @@ function DueDiligenceContent() {
       } catch (_) {}
     } catch (_) {}
     setLoading(false);
-  };
+  }, [pipelineId]);
 
   useEffect(() => {
     if (pipelineId) fetchData();
-  }, [pipelineId]);
+  }, [pipelineId, fetchData]);
 
   const createWorkspace = async () => {
     try {

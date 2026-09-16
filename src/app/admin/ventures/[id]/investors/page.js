@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, X, Plus, Search, RefreshCw,
@@ -24,7 +24,7 @@ export default function VentureInvestorsPage() {
   const [invForm, setInvForm] = useState({ name: "", email: "", organization: "", industries: "", preferred_stage: "" });
   const [saving, setSaving] = useState(false);
 
-  const fetchAll = async (bypassCache = false) => {
+  const fetchAll = useCallback(async (bypassCache = false) => {
     const urls = [
       `/api/ventures/${id}`,
       `/api/ventures/${id}/investors?type=matches`,
@@ -64,9 +64,9 @@ export default function VentureInvestorsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const handleGenerate = async () => {
     setGenerating(true);

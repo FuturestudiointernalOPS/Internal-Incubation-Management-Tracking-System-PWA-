@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -101,7 +101,7 @@ export default function VentureDashboard({ id, embedded = false }) {
   // Individual widget states
   const [widgetStates, setWidgetStates] = useState({});
 
-  const fetchVenture = async (bypassCache = false) => {
+  const fetchVenture = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${id}`;
     const apply = (data) => {
       if (data.success) setVenture(data.venture);
@@ -126,7 +126,7 @@ export default function VentureDashboard({ id, embedded = false }) {
     } catch {
       if (!painted) setError(t("vadmin.dashboard.loadFailed"));
     }
-  };
+  }, [id, t]);
 
   const isWidgetEmpty = (key, data) => {
     if (!data) return true;
@@ -139,7 +139,7 @@ export default function VentureDashboard({ id, embedded = false }) {
     return false;
   };
 
-  const fetchDashboard = async (bypassCache = false) => {
+  const fetchDashboard = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${id}/dashboard`;
     const apply = (data) => {
       if (!data.success) {
@@ -183,14 +183,14 @@ export default function VentureDashboard({ id, embedded = false }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, t]);
 
   useEffect(() => {
     // The hub page already fetches the venture record for its own header; only
     // the standalone route needs this component to fetch it too.
     if (!embedded) fetchVenture();
     fetchDashboard();
-  }, [refreshKey, embedded, id]);
+  }, [refreshKey, embedded, id, fetchVenture, fetchDashboard]);
 
   const refreshWidget = (key) => {
     setWidgetStates((prev) => ({ ...prev, [key]: { ...prev[key], loading: true, error: null } }));

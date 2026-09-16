@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Loader2, Send, CheckCircle2, AlertTriangle, Clock, Globe, Mail } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -90,7 +90,7 @@ export default function PublicSubmitPage() {
     setTranslating(false);
   };
 
-  const loadRun = async (bypassCache = false) => {
+  const loadRun = useCallback(async (bypassCache = false) => {
     const url = `/api/s/public-run?slug=${runId}`;
     const apply = (data) => {
       if (!data || !data.success) return;
@@ -158,9 +158,9 @@ export default function PublicSubmitPage() {
       if (!painted) setError(t(e.message || "") || e.message);
     }
     setLoading(false);
-  };
+  }, [runId, t, switchLang]);
 
-  useEffect(() => { loadRun(); }, []);
+  useEffect(() => { loadRun(); }, [loadRun]);
 
   // Auto-save currentSection to localStorage
   useEffect(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   ChevronLeft,
   Search,
@@ -68,7 +68,7 @@ export function FacilitatorsPanel({ programId }) {
   const [participants, setParticipants] = useState([]);
   const [conflictError, setConflictError] = useState(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const progRes = await fetch(`/api/pm/programs/${id}`);
       const progData = await progRes.json();
@@ -89,7 +89,7 @@ export function FacilitatorsPanel({ programId }) {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     load();
@@ -105,7 +105,7 @@ export function FacilitatorsPanel({ programId }) {
       .then((r) => r.json())
       .then((d) => setParticipants(d.success ? d.participants || [] : []))
       .catch(() => setParticipants([]));
-  }, [id]);
+  }, [id, load]);
 
   const notify = (type, message) =>
     window.dispatchEvent(

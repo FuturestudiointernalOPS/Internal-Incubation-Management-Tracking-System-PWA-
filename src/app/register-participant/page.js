@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, CheckCircle, AlertCircle, Users, ArrowRight } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
@@ -24,7 +24,7 @@ export default function RegisterParticipantPage() {
   const [error, setError] = useState('');
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
 
-  const fetchGroup = async (bypassCache = false) => {
+  const fetchGroup = useCallback(async (bypassCache = false) => {
     const url = `/api/public/group-info?id=${groupId}`;
     // This endpoint signals success by the presence of `group` (no `success` flag).
     const apply = (data) => {
@@ -74,7 +74,7 @@ export default function RegisterParticipantPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [groupId, t]);
 
   useEffect(() => {
     if (groupId) {
@@ -84,7 +84,7 @@ export default function RegisterParticipantPage() {
       setError(t('rootMisc.registerParticipant.noGroupId'));
       setLoading(false);
     }
-  }, [groupId]);
+  }, [groupId, t, fetchGroup]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Trash2, Mail,
@@ -30,7 +30,7 @@ export default function VentureCoachesPage() {
   // Create coach form
   const [cForm, setCForm] = useState({ full_name: "", email: "", coach_type: "coach", phone: "", organization: "", biography: "" });
 
-  const fetchAll = async (bypassCache = false) => {
+  const fetchAll = useCallback(async (bypassCache = false) => {
     const urls = [
       `/api/ventures/${id}`,
       `/api/ventures/${id}/coaches`,
@@ -70,9 +70,9 @@ export default function VentureCoachesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const notify = (msg, type = "success") => {
     setToast({ msg, type }); setTimeout(() => setToast(null), 4000);

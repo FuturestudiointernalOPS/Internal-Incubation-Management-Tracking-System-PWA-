@@ -19,10 +19,12 @@ export default function StaffDashboard() {
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
   const [upcomingTasks, setUpcomingTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
+  // Snapshot the clock once per render — reading it mid-render is impure.
+  const [now] = useState(() => Date.now());
 
   const timeAgo = (dateStr) => {
     if (!dateStr) return "";
-    const diff = Date.now() - new Date(dateStr).getTime();
+    const diff = now - new Date(dateStr).getTime();
     if (isNaN(diff) || diff < 0) return "";
     const mins = Math.max(1, Math.floor(diff / 60000));
     if (mins < 60) return `${mins}m ago`;

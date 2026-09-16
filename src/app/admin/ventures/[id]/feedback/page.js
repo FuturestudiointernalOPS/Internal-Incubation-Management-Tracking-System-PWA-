@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, Star, MessageCircle, TrendingUp, Users,
@@ -21,7 +21,7 @@ export default function VentureFeedbackPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
 
-  const fetchAll = async (bypassCache = false) => {
+  const fetchAll = useCallback(async (bypassCache = false) => {
     const urls = [
       `/api/ventures/${id}`,
       `/api/ventures/${id}/feedback`,
@@ -60,9 +60,9 @@ export default function VentureFeedbackPage() {
       if (ft.success) cacheSet(urls[5], ft);
       apply(v, f, ca, aa, ss, ft);
     } catch {} finally { setLoading(false); }
-  };
+  }, [id]);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const renderStars = (rating) => (
     <div className="flex gap-0.5">

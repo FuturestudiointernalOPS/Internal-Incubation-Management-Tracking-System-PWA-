@@ -253,6 +253,8 @@ function StaffOpReport() {
   const draftTimerRef = useRef(null);
   // Draft recovery banner state
   const [draftAvailable, setDraftAvailable] = useState(false);
+  // Snapshot the clock once per render — reading it mid-render is impure.
+  const [now] = useState(() => Date.now());
 
   // Build a localStorage key for the current user + current week
   const getDraftKey = useCallback(() => {
@@ -352,12 +354,14 @@ function StaffOpReport() {
     setSummaryCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const userCid = user?.cid;
+
   const fetchSummaryData = useCallback(async () => {
-    if (!user?.cid) return;
+    if (!userCid) return;
     const urls = [
-      `/api/tasks?user_id=${user.cid}&week=${weekInfo.week}&year=${weekInfo.year}&sort=oldest`,
-      `/api/blockers?user_id=${user.cid}`,
-      `/api/projects/assignments?user_cid=${user.cid}`,
+      `/api/tasks?user_id=${userCid}&week=${weekInfo.week}&year=${weekInfo.year}&sort=oldest`,
+      `/api/blockers?user_id=${userCid}`,
+      `/api/projects/assignments?user_cid=${userCid}`,
     ];
     const apply = (tData, bData, pData) => {
       if (tData?.success) setSummaryTasks(tData.tasks || []);
@@ -385,13 +389,13 @@ function StaffOpReport() {
     } finally {
       setSummaryLoading(false);
     }
-  }, [user?.cid, weekInfo.week, weekInfo.year]);
+  }, [userCid, weekInfo.week, weekInfo.year]);
 
   useEffect(() => {
-    if (reportType === "summary" && user?.cid) {
+    if (reportType === "summary" && userCid) {
       fetchSummaryData();
     }
-  }, [reportType, fetchSummaryData]);
+  }, [reportType, userCid, fetchSummaryData]);
 
   const notify = (msg, type = "success") => {
     setToast({ msg, type });
@@ -3186,7 +3190,7 @@ function StaffOpReport() {
                                       .filter((b) => b.status === "active")
                                       .map((b) => {
                                         const weeksOpen = Math.floor(
-                                          (Date.now() -
+                                          (now -
                                             new Date(b.created_at).getTime()) /
                                             (7 * 24 * 60 * 60 * 1000),
                                         );

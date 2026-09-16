@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Plus, Loader2, CheckCircle2, AlertCircle, X,
@@ -59,7 +59,7 @@ export default function VentureTasksPage() {
   // Search
   const [search, setSearch] = useState("");
 
-  const fetchData = async (bypassCache = false) => {
+  const fetchData = useCallback(async (bypassCache = false) => {
     // include_archived=1: archived (soft-deleted) tasks are rendered in their
     // own view — the page splits active vs archived client-side.
     const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/tasks?include_archived=1`];
@@ -95,9 +95,9 @@ export default function VentureTasksPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const notify = (msg, type = "success") => {
     setToast({ msg, type }); setTimeout(() => setToast(null), 4000);

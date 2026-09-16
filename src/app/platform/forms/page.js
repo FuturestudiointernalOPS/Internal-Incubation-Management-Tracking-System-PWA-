@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import NextLink from "next/link";
 import {
@@ -96,6 +96,11 @@ export default function PlatformForms() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("published");
   const [notification, setNotification] = useState(null);
+  // Snapshot the clock once per render — reading it mid-render is impure.
+  const [now] = useState(() => Date.now());
+  // Monotonic sequence for temp ids: the clock snapshot above is fixed for this
+  // component's lifetime, so uniqueness comes from the counter.
+  const tempIdSeq = useRef(0);
 
   // Builder state
   const [editingForm, setEditingForm] = useState(null);
@@ -206,7 +211,7 @@ export default function PlatformForms() {
 
   useEffect(() => { fetchForms(); fetchCollections(); }, [fetchForms, fetchCollections]);
 
-  const genTempId = () => `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const genTempId = () => `tmp-${now}-${++tempIdSeq.current}`;
 
   const openBuilder = async (form) => {
     setEditingForm(form);

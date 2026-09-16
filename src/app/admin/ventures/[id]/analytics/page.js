@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, Download, FileText, BarChart3, Eye, Download as DownloadIcon,
@@ -30,7 +30,7 @@ export default function VentureAnalyticsPage() {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = async (bypassCache = false) => {
+  const fetchData = useCallback(async (bypassCache = false) => {
     const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/analytics`];
     const apply = (v, a) => {
       if (v.success) setVenture(v.venture);
@@ -53,9 +53,9 @@ export default function VentureAnalyticsPage() {
       if (a.success) cacheSet(urls[1], a);
       apply(v, a);
     } catch {} finally { setLoading(false); }
-  };
+  }, [id]);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleExport = async () => {
     const res = await fetch(`/api/ventures/${id}/analytics?type=export&format=csv`);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -89,7 +89,7 @@ export default function VentureFoundersPage() {
   // Menu
   const [openMenuId, setOpenMenuId] = useState(null);
 
-  const fetchData = async (bypassCache = false) => {
+  const fetchData = useCallback(async (bypassCache = false) => {
     const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/founders`];
     const apply = (ventureData, foundersData) => {
       if (!ventureData.success) {
@@ -133,11 +133,11 @@ export default function VentureFoundersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, t]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const notify = (message, type = "success") => {
     setToast({ message, type });

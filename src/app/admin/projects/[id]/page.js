@@ -363,11 +363,12 @@ export default function ProjectDetail() {
     return project.tasks.filter((t) => t.status === taskFilter);
   }, [project?.tasks, taskFilter]);
 
+  const projectBlockers = project?.blockers;
   const filteredBlockers = React.useMemo(() => {
-    if (!project?.blockers) return [];
-    if (blockerFilter === "all") return project.blockers;
-    return project.blockers.filter((b) => b.status === blockerFilter);
-  }, [project?.blockers, blockerFilter]);
+    if (!projectBlockers) return [];
+    if (blockerFilter === "all") return projectBlockers;
+    return projectBlockers.filter((b) => b.status === blockerFilter);
+  }, [projectBlockers, blockerFilter]);
 
   const activeBlockersCount = React.useMemo(() => {
     return (project?.blockers || []).filter((b) => b.status === "active")

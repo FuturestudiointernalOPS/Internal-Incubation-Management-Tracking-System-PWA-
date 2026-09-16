@@ -1529,6 +1529,8 @@ function MonthlyBreakdown({ reports }) {
 
 function TrendsDashboard({ allReports }) {
   const { t } = useI18n();
+  // Snapshot the clock once per render — reading it mid-render is impure.
+  const [now] = useState(() => Date.now());
   // Monthly report volume
   const monthlyData = useMemo(() => {
     const groups = {};
@@ -1690,7 +1692,7 @@ function TrendsDashboard({ allReports }) {
                   </div>
                 </div>
                 <span
-                  className={`w-2 h-2 rounded-full ${new Date(s.latest) > new Date(Date.now() - 7 * 86400000) ? "bg-emerald-500" : "bg-amber-500"}`}
+                  className={`w-2 h-2 rounded-full ${new Date(s.latest) > new Date(now - 7 * 86400000) ? "bg-emerald-500" : "bg-amber-500"}`}
                 />
               </div>
             ))}

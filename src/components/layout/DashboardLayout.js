@@ -1099,7 +1099,15 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
       }
     }
     initAuth();
-  }, []);
+    // All five are stable callbacks (empty dependency arrays), so naming them
+    // here does not re-run the bootstrap; without them the analyser cannot tell.
+  }, [
+    fetchAnnouncements,
+    fetchPendingAssignments,
+    fetchPendingInvites,
+    fetchPendingUsersCount,
+    fetchUnreadMessageCount,
+  ]);
 
   // Fetch PM programs for program_manager / super_admin roles.
   useEffect(() => {

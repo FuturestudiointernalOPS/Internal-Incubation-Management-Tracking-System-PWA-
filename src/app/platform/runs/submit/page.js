@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Loader2, FileText, Send, Clock,
@@ -34,7 +34,7 @@ export default function MySubmissionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const loadSubmissions = async (bypassCache = false) => {
+  const loadSubmissions = useCallback(async (bypassCache = false) => {
     setLoading(true);
     const url = "/api/platform/form-runs?my_submissions=true";
     const apply = (data) => {
@@ -64,11 +64,11 @@ export default function MySubmissionsPage() {
       if (!painted) setError(t(err.message || "") || err.message);
     }
     setLoading(false);
-  };
+  }, [t]);
 
   useEffect(() => {
     loadSubmissions();
-  }, []);
+  }, [loadSubmissions]);
 
   return (
     <div className="min-h-screen">

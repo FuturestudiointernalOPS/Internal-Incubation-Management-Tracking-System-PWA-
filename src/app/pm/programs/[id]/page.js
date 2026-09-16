@@ -141,10 +141,11 @@ function ProgramWorkspace() {
   }, [id, families]);
 
   // Compute program team members from Super Admin's approved list (assigned_assistant_id)
+  const assignedAssistantId = program?.assigned_assistant_id;
   const programTeamMembers = React.useMemo(() => {
-    if (!program?.assigned_assistant_id) return [];
+    if (!assignedAssistantId) return [];
     try {
-      const raw = program.assigned_assistant_id;
+      const raw = assignedAssistantId;
       let approvedIds = [];
       // Handle both JSON array string and single CID string
       if (typeof raw === "string") {
@@ -165,7 +166,7 @@ function ProgramWorkspace() {
     } catch {
       return [];
     }
-  }, [program?.assigned_assistant_id, staffList, assignedStaff]);
+  }, [assignedAssistantId, staffList, assignedStaff]);
 
   // Oversight candidates = assigned program staff (staff/assistant)
   // + program facilitators. Deduped by cid so the same person appears once.

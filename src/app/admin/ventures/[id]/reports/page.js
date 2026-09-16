@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, Download,
@@ -28,7 +28,7 @@ export default function VentureReportsPage() {
   const [tasks, setTasks] = useState([]);
   const [team, setTeam] = useState([]);
 
-  const fetchData = async (bypassCache = false) => {
+  const fetchData = useCallback(async (bypassCache = false) => {
     const urls = [
       `/api/ventures/${id}`,
       `/api/ventures/${id}/reports?type=analytics`,
@@ -80,9 +80,9 @@ export default function VentureReportsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  const fetchJourneyReport = async () => {
+  const fetchJourneyReport = useCallback(async () => {
     setJrLoading(true);
     try {
       const res = await fetch(`/api/ventures/${id}/journey-report`);
@@ -91,9 +91,9 @@ export default function VentureReportsPage() {
       else setJrError(true);
     } catch { setJrError(true); }
     finally { setJrLoading(false); }
-  };
+  }, [id]);
 
-  useEffect(() => { fetchData(); fetchJourneyReport(); }, []);
+  useEffect(() => { fetchData(); fetchJourneyReport(); }, [fetchData, fetchJourneyReport]);
 
   const handleExport = async (format) => {
     try {

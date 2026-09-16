@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Search, BookOpen, Bookmark,
@@ -40,7 +40,7 @@ export default function VentureKnowledgePage() {
   // Create form
   const [crForm, setCrForm] = useState({ title: "", description: "", resource_type: "article", category_id: "", url: "", tags: "" });
 
-  const fetchAll = async (bypassCache = false) => {
+  const fetchAll = useCallback(async (bypassCache = false) => {
     const urls = [
       `/api/ventures/${id}`,
       `/api/ventures/${id}/knowledge`,
@@ -84,9 +84,9 @@ export default function VentureKnowledgePage() {
       if (paths.success) cacheSet(urls[6], paths);
       apply(v, r, c, b, rec, lp, paths);
     } catch {} finally { setLoading(false); }
-  };
+  }, [id]);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 4000); };
 

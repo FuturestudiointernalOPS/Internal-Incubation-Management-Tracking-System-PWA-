@@ -112,7 +112,7 @@ export default function DeveloperProjects() {
       }
     };
     fetchProjects();
-  }, []);
+  }, [fetchInvitations]);
 
   return (
     <>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Rocket,
@@ -50,7 +50,7 @@ export default function EditVenturePage({ params }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  const fetchVenture = async (bypassCache = false) => {
+  const fetchVenture = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${id}`;
     const apply = (data) => {
       if (!data.success) {
@@ -89,11 +89,11 @@ export default function EditVenturePage({ params }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, t]);
 
   useEffect(() => {
     if (id) fetchVenture();
-  }, [id]);
+  }, [fetchVenture, id]);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));

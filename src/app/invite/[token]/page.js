@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Loader2, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
@@ -19,7 +19,7 @@ export default function InviteAcceptPage({ params }) {
   const [success, setSuccess] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
 
-  const fetchInvite = async () => {
+  const fetchInvite = useCallback(async () => {
     try {
       const res = await fetch(`/api/invites/${token}`);
       const data = await res.json();
@@ -33,11 +33,11 @@ export default function InviteAcceptPage({ params }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, t]);
 
   useEffect(() => {
     fetchInvite();
-  }, [token]);
+  }, [fetchInvite]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

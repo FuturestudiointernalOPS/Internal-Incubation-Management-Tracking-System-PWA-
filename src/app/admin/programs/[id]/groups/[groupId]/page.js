@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, use, useCallback } from 'react';
 import { 
   ChevronLeft, Save, Layers, Rocket,
   Shield,
@@ -20,7 +20,7 @@ export default function GroupWorkspaceV2({ params }) {
   const [group, setGroup] = useState(null);
   const [, setLoading] = useState(false);
 
-  const fetchGroup = async (bypassCache = false) => {
+  const fetchGroup = useCallback(async (bypassCache = false) => {
     const url = `/api/v2/groups?program_id=${programId}`;
     const apply = (data) => {
       const match = data.groups.find(g => String(g.id) === String(groupId));
@@ -45,11 +45,11 @@ export default function GroupWorkspaceV2({ params }) {
     } catch (e) {
       if (!painted) console.error(e);
     }
-  };
+  }, [programId, groupId]);
 
   useEffect(() => {
     fetchGroup();
-  }, [groupId]);
+  }, [fetchGroup]);
 
   const handleUpdate = async () => {
     setLoading(true);

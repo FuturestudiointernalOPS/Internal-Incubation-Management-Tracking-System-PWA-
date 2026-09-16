@@ -1809,14 +1809,14 @@ export default function FormRunsPage() {
     return map;
   }, [emailLog]);
 
-  const hasActivationEmailSent = (id) => {
+  const hasActivationEmailSent = useCallback((id) => {
     // Full-history truth from the API enrichment (sent rows only) takes
     // priority; the client email log carries only the latest row per type.
     const s = submissions.find((x) => x.id === id);
     if (s?.activation_history?.first_sent_at) return true;
     const rows = activationLogBySubmission.get(id) || [];
     return rows.some((r) => r.status === "sent");
-  };
+  }, [submissions, activationLogBySubmission]);
 
   // FIRST send: approved + activation email never sent yet
   const eligibleSendActivationIds = useMemo(() => {
@@ -1825,7 +1825,7 @@ export default function FormRunsPage() {
       if (!s || String(s.status || "").toLowerCase() !== "approved") return false;
       return !hasActivationEmailSent(id);
     });
-  }, [selectedIds, submissions, activationLogBySubmission]);
+  }, [selectedIds, submissions, hasActivationEmailSent]);
 
   // RESEND: approved + activation email already sent at least once
   const eligibleResendActivationIds = useMemo(() => {
@@ -1834,7 +1834,7 @@ export default function FormRunsPage() {
       if (!s || String(s.status || "").toLowerCase() !== "approved") return false;
       return hasActivationEmailSent(id);
     });
-  }, [selectedIds, submissions, activationLogBySubmission]);
+  }, [selectedIds, submissions, hasActivationEmailSent]);
 
   const openActivationConfirm = (forceResend = false) => {
     setBulkMenuOpen(false);
@@ -4335,6 +4335,9 @@ function SubmissionTimeline({ submission, onClose }) {
 
   const subData = submission.data || {};
   const scores = subData._scores;
+  // Narrowed to a primitive so the effect below depends on "has inline scores"
+  // rather than on the (re-created) object itself.
+  const hasScores = Boolean(scores);
 
   useEffect(() => {
     async function load() {
@@ -4345,7 +4348,7 @@ function SubmissionTimeline({ submission, onClose }) {
       } catch (_) {}
 
       // Fetch scoring breakdown if not already in submission data
-      if (scores) {
+      if (hasScores) {
         try {
           const scoringRes = await fetch(`/api/platform/form-runs?scoring=${submission.id}`);
           const scoringJson = await scoringRes.json();
@@ -4355,7 +4358,7 @@ function SubmissionTimeline({ submission, onClose }) {
       setLoading(false);
     }
     load();
-  }, [submission.id]);
+  }, [submission.id, hasScores]);
 
   const getScoreColor = (val) =>
     val >= 80 ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/30" :

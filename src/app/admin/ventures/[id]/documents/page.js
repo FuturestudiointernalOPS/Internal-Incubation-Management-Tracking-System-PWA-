@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, X, Search, FileText, Upload,
@@ -44,7 +44,7 @@ export default function VentureDataRoomPage() {
   // Share form
   const [shareForm, setShareForm] = useState({ email: "", name: "", access_type: "read", expires_in_hours: "72" });
 
-  const fetchAll = async (bypassCache = false) => {
+  const fetchAll = useCallback(async (bypassCache = false) => {
     const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/documents`];
     const apply = (v, d) => {
       if (v.success) setVenture(v.venture);
@@ -68,9 +68,9 @@ export default function VentureDataRoomPage() {
       if (d.success) cacheSet(urls[1], d);
       apply(v, d);
     } catch {} finally { setLoading(false); }
-  };
+  }, [id]);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const loadDetail = async (docId, bypassCache = false) => {
     const urls = [

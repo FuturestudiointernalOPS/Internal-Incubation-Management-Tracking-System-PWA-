@@ -243,10 +243,11 @@ export default function StandupRetroView({ user, context, contextLabel }) {
   const [allStaff, setAllStaff] = useState([]);
 
   const ctx = context || { context_type: "staff", context_id: null };
+  const userCid = user?.cid;
 
   const fetchData = useCallback(async (bypassCache = false) => {
-    if (!user?.cid) { setLoading(false); return; }
-    const params = new URLSearchParams({ user_id: user.cid, week: week.week, year: week.year, context_type: ctx.context_type });
+    if (!userCid) { setLoading(false); return; }
+    const params = new URLSearchParams({ user_id: userCid, week: week.week, year: week.year, context_type: ctx.context_type });
     if (ctx.context_id) params.set("context_id", ctx.context_id);
     const url = `/api/standups/current?${params}`;
 
@@ -282,7 +283,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
         apply(data);
       }
     } catch (e) { console.error(e); } finally { setLoading(false); }
-  }, [user?.cid, week.week, week.year, ctx.context_type, ctx.context_id]);
+  }, [userCid, week.week, week.year, ctx.context_type, ctx.context_id]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

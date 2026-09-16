@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, use, useCallback } from 'react';
 import { 
   Activity, Briefcase, ChevronRight, BookOpen, 
   Target, Users, Layers, MessageSquare, Clock, CheckCircle2, AlertCircle,
@@ -36,6 +36,8 @@ export default function SuperAdminExecutiveView({ params }) {
   const [kpiForm, setKpiForm] = useState({ title: '', target_value: '' });
   // Assigned registration form (public link) - resolved from the Form assigned to the program group
   const [regForm, setRegForm] = useState(null);
+  // Snapshot the clock once per render — reading it mid-render is impure.
+  const [nowMs] = useState(() => Date.now());
 
   useEffect(() => {
     // Prefer the Form Run assigned directly to the Program (target_type = "program");
@@ -67,7 +69,7 @@ export default function SuperAdminExecutiveView({ params }) {
      
   }, [program?.id, program?.assigned_segments]);
 
-  const fetchData = async (bypassCache = false) => {
+  const fetchData = useCallback(async (bypassCache = false) => {
     const urls = [
       `/api/pm/full-state?id=${id}`,
       `/api/pm/reports?program_id=${id}`,
@@ -123,11 +125,11 @@ export default function SuperAdminExecutiveView({ params }) {
       if (!painted) console.error(e);
       setIsLoaded(true);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchData();
-  }, [id]);
+  }, [fetchData]);
 
   const handleAddFollowup = async (wn, sid = null) => {
     if (!newFollowup.comment.trim()) return;
@@ -202,7 +204,6 @@ export default function SuperAdminExecutiveView({ params }) {
 
   // ── Completion rate: based on program duration (elapsed weeks ÷ total weeks) ──
   // Robust start date: explicit start_date → created_at → first session → first submission.
-  const nowMs = Date.now();
   const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
   const startMs = program.start_date
     ? new Date(`${program.start_date}T00:00:00`).getTime()

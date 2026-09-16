@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Loader2, Send, Save, ArrowLeft, CheckCircle2, AlertTriangle,
@@ -40,7 +40,7 @@ export default function SubmitFormPage() {
 
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
-  const loadRun = async (bypassCache = false) => {
+  const loadRun = useCallback(async (bypassCache = false) => {
     setLoading(true);
     setError(null);
     const mainUrl = `/api/platform/form-runs?id=${runId}&participant=true`;
@@ -101,11 +101,11 @@ export default function SubmitFormPage() {
       if (!painted) setError(t(err.message || "") || err.message);
     }
     setLoading(false);
-  };
+  }, [runId, t]);
 
   useEffect(() => {
     loadRun();
-  }, [runId]);
+  }, [loadRun]);
 
   const updateField = (fieldId, value) => {
     setFormData((prev) => ({ ...prev, [fieldId]: value }));

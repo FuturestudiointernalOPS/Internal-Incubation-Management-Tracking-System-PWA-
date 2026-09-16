@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, use } from "react";
+import React, { useState, useEffect, useRef, use, useCallback } from "react";
 import {
   ChevronLeft,
   Users,
@@ -67,7 +67,7 @@ export default function FacilitatorProgram({ params }) {
     return Math.min(Math.max(Math.floor(diffDays / 7) + 1, 1), max);
   };
 
-  const load = async (bypassCache = false) => {
+  const load = useCallback(async (bypassCache = false) => {
     const urls = [
       `/api/pm/full-state?id=${id}`,
       `/api/participants?program_id=${id}`,
@@ -129,11 +129,11 @@ export default function FacilitatorProgram({ params }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, attendanceDate]);
 
   useEffect(() => {
     load();
-  }, [id]);
+  }, [load]);
 
   const notify = (type, message) =>
     window.dispatchEvent(

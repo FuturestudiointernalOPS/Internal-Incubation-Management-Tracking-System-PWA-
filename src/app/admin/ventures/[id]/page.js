@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Rocket,
@@ -119,7 +119,7 @@ export default function VentureDetailPage({ params }) {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
 
-  const fetchVenture = async (bypassCache = false) => {
+  const fetchVenture = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${id}`;
     const apply = (data) => {
       if (!data.success) {
@@ -152,11 +152,11 @@ export default function VentureDetailPage({ params }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, t]);
 
   useEffect(() => {
     if (id) fetchVenture();
-  }, [id]);
+  }, [fetchVenture, id]);
 
   const getStageConfig = (stage) => STAGE_CONFIG[stage] || STAGE_CONFIG.idea;
   const getActivityIcon = (action) => ACTIVITY_ICONS[action] || Activity;

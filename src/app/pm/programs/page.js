@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Users,
@@ -44,7 +44,7 @@ export default function PMProgramsRegistry() {
   const [, setTasksLoading] = useState(true);
   const { t } = useI18n();
 
-  const fetchMyPrograms = async (bypassCache = false) => {
+  const fetchMyPrograms = useCallback(async (bypassCache = false) => {
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       const identifier = user.cid || user.id;
@@ -83,9 +83,9 @@ export default function PMProgramsRegistry() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
 
-  const fetchMyTasks = async (bypassCache = false) => {
+  const fetchMyTasks = useCallback(async (bypassCache = false) => {
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       const identifier = user.cid || user.id;
@@ -112,12 +112,12 @@ export default function PMProgramsRegistry() {
     } finally {
       setTasksLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchMyPrograms();
     fetchMyTasks();
-  }, [activeTab]);
+  }, [activeTab, fetchMyPrograms, fetchMyTasks]);
 
   const filtered = programs.filter(
     (p) =>

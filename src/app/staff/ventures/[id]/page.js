@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { ArrowLeft, Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote } from "lucide-react";
@@ -56,14 +56,14 @@ export default function StaffVentureWorkspace() {
   const [activeTab, setActiveTab] = useState("overview");
 
   // Attention: submissions awaiting this staff member's review (Coach view).
-  const loadReviewQueue = async () => {
+  const loadReviewQueue = useCallback(async () => {
     try {
       const res = await fetch(`/api/ventures/${id}/submissions/review-queue`);
       const d = await res.json();
       if (d.success) setReviewQueue(d.items || []);
     } catch (_) {}
     finally { setQueueLoading(false); }
-  };
+  }, [id]);
 
   const decideSubmission = async (item, decision) => {
     const comment =
@@ -120,7 +120,7 @@ export default function StaffVentureWorkspace() {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, loadReviewQueue]);
 
   // Coach tint: the viewer's contact id (localStorage fallback first, then the
   // authoritative session endpoint) decides which sessions show "Coached by you".

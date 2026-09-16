@@ -91,7 +91,7 @@ export default function PermissionManager({
   const [assignErr, setAssignErr] = useState("");
   const [assignBusy, setAssignBusy] = useState(false);
 
-  const fetchModules = async () => {
+  const fetchModules = useCallback(async () => {
     setModulesError("");
     try {
       const res = await fetch("/api/engineering/permissions");
@@ -108,7 +108,7 @@ export default function PermissionManager({
         e?.message || t("engineering.permissions.catalogLoadFailed"),
       );
     }
-  };
+  }, [t]);
 
   // SAME editable catalog as the Templates editor: PERMISSION_MODULES ∪ every
   // non-locked catalog module. Both editors therefore expose the same modules
@@ -145,7 +145,7 @@ export default function PermissionManager({
   // before its declaration (react-hooks/immutability).
   useEffect(() => {
     defer(() => fetchModules());
-  }, []);
+  }, [fetchModules]);
 
   // One line of succession for every read of the selected person's access: a
   // late answer from the person you just left must never paint their rights

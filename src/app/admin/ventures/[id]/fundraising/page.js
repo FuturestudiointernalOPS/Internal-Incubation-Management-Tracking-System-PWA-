@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, CheckCircle2, X, Plus, Target, Calendar,
@@ -40,7 +40,7 @@ export default function VentureFundraisingPage() {
   const [noteText, setNoteText] = useState("");
   const [activityForm, setActivityForm] = useState({ activity_type: "email", title: "" });
 
-  const fetchAll = async (bypassCache = false) => {
+  const fetchAll = useCallback(async (bypassCache = false) => {
     const urls = [
       `/api/ventures/${id}`,
       `/api/ventures/${id}/fundraising`,
@@ -80,9 +80,9 @@ export default function VentureFundraisingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const loadDetail = async (oppId, bypassCache = false) => {
     const url = `/api/ventures/${id}/fundraising?type=detail&opportunity_id=${oppId}`;

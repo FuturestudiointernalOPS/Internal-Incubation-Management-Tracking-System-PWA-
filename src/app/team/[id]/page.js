@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use, useCallback } from "react";
 import {
   Users,
   FileText,
@@ -95,7 +95,7 @@ export default function TeamDashboardPage({ params }) {
     } catch (_) {}
   };
 
-  const fetchTeamData = async (bypassCache = false) => {
+  const fetchTeamData = useCallback(async (bypassCache = false) => {
     const url = `/api/teams?program_id=all&team_id=${teamId}`;
     const apply = (teamData, progData, delData, subData) => {
       if (teamData?.success && teamData.teams) {
@@ -237,15 +237,15 @@ export default function TeamDashboardPage({ params }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [teamId]);
 
   useEffect(() => {
     fetchTeamData();
     fetchUserRole();
-  }, [teamId, retryCount]);
+  }, [teamId, retryCount, fetchTeamData]);
 
   // — Fetch team tasks —
-  const fetchTasks = async (bypassCache = false) => {
+  const fetchTasks = useCallback(async (bypassCache = false) => {
     const url = `/api/team-tasks?team_id=${teamId}`;
     const apply = (data) => {
       if (data.success) setTasks(data.tasks || []);
@@ -270,11 +270,11 @@ export default function TeamDashboardPage({ params }) {
       }
     } catch (_) {}
     setTasksLoading(false);
-  };
+  }, [teamId]);
 
   useEffect(() => {
     if (teamId && activeTab === "tasks") fetchTasks();
-  }, [teamId, activeTab]);
+  }, [teamId, activeTab, fetchTasks]);
 
   // — File upload handler —
   const handleFileUpload = async (e) => {

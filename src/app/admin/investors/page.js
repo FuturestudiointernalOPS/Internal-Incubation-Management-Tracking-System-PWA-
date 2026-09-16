@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Building2, CheckCircle2, XCircle,
   Search, Loader2, Clock, Ban, Check, Link,
@@ -41,7 +41,7 @@ export default function AdminInvestorsPage() {
   const [copied, setCopied] = useState(false);
   const { t } = useI18n();
 
-  const fetchInvestors = async (bypassCache = false) => {
+  const fetchInvestors = useCallback(async (bypassCache = false) => {
     setLoading(true);
     try {
       const url = `/api/investor/approval?status=${statusFilter}${search ? `&search=${encodeURIComponent(search)}` : ""}`;
@@ -66,9 +66,9 @@ export default function AdminInvestorsPage() {
       }
     } catch (_) {}
     setLoading(false);
-  };
+  }, [statusFilter, search]);
 
-  useEffect(() => { fetchInvestors(); }, [statusFilter]);
+  useEffect(() => { fetchInvestors(); }, [fetchInvestors]);
 
   const handleAction = async (profileId, action) => {
     setActing(profileId);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AlertTriangle, Check, ArrowRight, RefreshCw, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
@@ -22,12 +22,12 @@ export default function DuplicatesPage() {
   const [preview, setPreview] = useState(null);
   const [notification, setNotification] = useState(null);
 
-  function notify(msg, type) {
+  const notify = useCallback((msg, type) => {
     setNotification({ msg, type });
     setTimeout(() => setNotification(null), 4000);
-  }
+  }, []);
 
-  async function fetchFlags(bypassCache = false) {
+  const fetchFlags = useCallback(async (bypassCache = false) => {
     const url = "/api/contacts/duplicates";
     let painted = false;
     const apply = (data) => {
@@ -61,9 +61,9 @@ export default function DuplicatesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [notify, t]);
 
-  useEffect(() => { fetchFlags(); }, []);
+  useEffect(() => { fetchFlags(); }, [fetchFlags]);
 
   async function handleDismiss(flagId) {
     try {

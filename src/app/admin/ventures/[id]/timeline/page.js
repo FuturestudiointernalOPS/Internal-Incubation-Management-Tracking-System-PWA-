@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, AlertCircle, CheckCircle2, Calendar, Clock,
@@ -41,6 +41,8 @@ export default function VentureTimelinePage() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("gantt"); // gantt | timeline | progress
   const [zoom, setZoom] = useState("week"); // day | week | month
+  // Snapshot the clock once per render — reading it mid-render is impure.
+  const [now] = useState(() => Date.now());
 
   // Roadmap view state — the journey report is fetched on demand only, never
   // as part of the `view=` requests above (see the effect below fetchAll).
@@ -48,7 +50,7 @@ export default function VentureTimelinePage() {
   const [journeyLoading, setJourneyLoading] = useState(false);
   const roadmapRequested = useRef(false);
 
-  const fetchAll = async (bypassCache = false) => {
+  const fetchAll = useCallback(async (bypassCache = false) => {
     const urls = [
       `/api/ventures/${id}`,
       `/api/ventures/${id}/timeline?view=gantt`,
@@ -83,15 +85,15 @@ export default function VentureTimelinePage() {
       if (d.success) cacheSet(urls[3], d);
       apply(v, t, p, d);
     } catch {} finally { setLoading(false); }
-  };
+  }, [id]);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // Roadmap view only: the journey report loads when the view is selected, and
   // again on a later visit (the ref clears once another view is active). It is
   // deliberately independent of the `view=` fetches above, so the three
   // existing views are never affected — a failure degrades to the empty state.
-  const fetchJourneyReport = async () => {
+  const fetchJourneyReport = useCallback(async () => {
     setJourneyLoading(true);
     try {
       const res = await fetch(`/api/ventures/${id}/journey-report`);
@@ -99,14 +101,14 @@ export default function VentureTimelinePage() {
       setJourneyReport(d.success ? d.journey_report || null : null);
     } catch { setJourneyReport(null); }
     finally { setJourneyLoading(false); }
-  };
+  }, [id]);
 
   useEffect(() => {
     if (view !== "roadmap") { roadmapRequested.current = false; return; }
     if (roadmapRequested.current) return;
     roadmapRequested.current = true;
     fetchJourneyReport();
-  }, [view]);
+  }, [fetchJourneyReport, view]);
 
   if (loading) return (
     <>
@@ -123,7 +125,7 @@ export default function VentureTimelinePage() {
     if (r.start_date) { const d = new Date(r.start_date).getTime(); if (d < minDate) minDate = d; }
     if (r.end_date) { const d = new Date(r.end_date).getTime(); if (d > maxDate) maxDate = d; }
   }
-  if (!isFinite(minDate)) minDate = Date.now();
+  if (!isFinite(minDate)) minDate = now;
   if (maxDate < 0 || !isFinite(maxDate)) maxDate = minDate + 30 * 86400000;
   const rangeMs = maxDate - minDate;
   const rangeDays = Math.max(rangeMs / 86400000, 14);

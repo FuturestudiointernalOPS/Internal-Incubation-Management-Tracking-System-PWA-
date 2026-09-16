@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useRouter, useParams } from "next/navigation";
@@ -155,13 +155,7 @@ export default function VentureDetail() {
     setUser(u);
   }, []);
 
-  // Load venture
-  useEffect(() => {
-    if (!params.id) return;
-    fetchVenture();
-  }, [params.id]);
-
-  async function fetchVenture(bypassCache = false) {
+  const fetchVenture = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${params.id}`;
     const apply = (d) => {
       if (!d.success) return;
@@ -207,7 +201,13 @@ export default function VentureDetail() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [params.id]);
+
+  // Load venture
+  useEffect(() => {
+    if (!params.id) return;
+    fetchVenture();
+  }, [params.id, fetchVenture]);
 
   // Navigate top-level sections. Re-entering Journey resets to the milestone
   // timeline so the primary tab always behaves predictably.
@@ -217,84 +217,64 @@ export default function VentureDetail() {
     if (sec === "journey") setJourneySub("timeline");
   }
 
-  // Load data for the active section. The Dashboard is the Venture overview
-  // (upcoming events + current Journey position); Journey loads its milestone
-  // timeline plus whichever Venture tool is open under it.
-  useEffect(() => {
-    if (!params.id || !venture) return;
-    if (activeTab === "team") loadMembers();
-    if (activeTab === "dashboard") { loadMembers(); loadDashboard(); fetchProgress(); fetchCalendar(); fetchJourney(); }
-    if (activeTab === "kpis") { fetchKpis(); fetchKpiDefinitions(); }
-    if (activeTab === "investment") fetchInvestmentReadiness();
-    if (activeTab === "journey") {
-      fetchJourney();
-      if (journeySub === "businessModel") fetchBm();
-      if (journeySub === "discovery") fetchInterviews();
-      if (journeySub === "validation") fetchValidations();
-      if (journeySub === "pmf") fetchPmf();
-      if (journeySub === "milestones") fetchMilestones();
-      if (journeySub === "documents") fetchDocuments();
-    }
-  }, [activeTab, journeySub, venture, params.id]);
-
-  async function loadMembers(bypassCache = false) {
+  const loadMembers = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${params.id}/members`;
     const apply = (d) => { if (d.success) setMembers(d.members); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const res = await fetch(url); const d = await res.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch (e) { console.error(e); }
-  }
+  }, [params.id]);
 
-  async function loadDashboard(bypassCache = false) {
+  const loadDashboard = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${params.id}/dashboard`;
     const apply = (d) => { if (d.success) setDashboardData(d.dashboard); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const res = await fetch(url); const d = await res.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch (e) { console.error(e); }
-  }
+  }, [params.id]);
 
-  async function fetchBm(bypassCache = false) {
+  const fetchBm = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${params.id}/business-model`;
     const apply = (d) => { if (d.success) setBmData(d.business_model); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
-  }
-  async function fetchInterviews(bypassCache = false) {
+  }, [params.id]);
+  const fetchInterviews = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${params.id}/interviews`;
     const apply = (d) => { if (d.success) setInterviews(d.interviews); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
-  }
-  async function fetchValidations(bypassCache = false) {
+  }, [params.id]);
+  const fetchValidations = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${params.id}/validations`;
     const apply = (d) => { if (d.success) setValidations(d.validations); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
-  }
-  async function fetchPmf(bypassCache = false) {
+  }, [params.id]);
+  const fetchPmf = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${params.id}/pmf`;
     const apply = (d) => { if (d.success) setAssessments(d.assessments); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
-  }
-  async function fetchMilestones(bypassCache = false) {
+  }, [params.id]);
+  const fetchMilestones = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${params.id}/milestones`;
     const apply = (d) => { if (d.success) setMilestones(d.milestones); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
-  }
+  }, [params.id]);
   async function fetchActionPlans(bypassCache = false) {
     const url = `/api/ventures/${params.id}/action-plans`;
     const apply = (d) => { if (d.success) setActionPlans(d.action_plans); };
@@ -335,14 +315,14 @@ export default function VentureDetail() {
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
   }
-  async function fetchCalendar(bypassCache = false) {
+  const fetchCalendar = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${params.id}/calendar`;
     const apply = (d) => { if (d.success) setCalendarEvents(d.events || []); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
-  }
+  }, [params.id]);
   async function handleTaskStatusChange(taskId, newStatus) {
     try {
       const r = await fetch(`/api/ventures/${params.id}/tasks?id=${taskId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
@@ -350,20 +330,20 @@ export default function VentureDetail() {
       if (d.success) { fetchTasks(true); fetchProgress(true); }
     } catch {}
   }
-  async function fetchProgress(bypassCache = false) {
+  const fetchProgress = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${params.id}/progress`;
     const apply = (d) => { if (d.success) setProgressData(d.progress); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
-  }
-  async function fetchDocuments(search, cat, bypassCache = false) {
+  }, [params.id]);
+  const fetchDocuments = useCallback(async (search, cat, bypassCache = false) => {
     try { const p = new URLSearchParams(); if (search||documentSearch) p.set('search', search||documentSearch); if (cat||documentCategory) p.set('category', cat||documentCategory);
     const url = `/api/ventures/${params.id}/documents?${p.toString()}`; const apply = (d) => { if (d.success) setDocuments(d.documents || []); };
     if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
     const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d); } catch{}
-  }
+  }, [params.id, documentSearch, documentCategory]);
   async function fetchAdvisors(bypassCache = false) {
     const url = `/api/ventures/${params.id}/advisors`;
     const apply = (d) => { if (d.success) setAdvisors(d.advisors || []); };
@@ -380,22 +360,22 @@ export default function VentureDetail() {
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
   }
-  async function fetchKpis(bypassCache = false) {
+  const fetchKpis = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${params.id}/kpis`;
     const apply = (d) => { if (d.success) setKpis(d.kpis || []); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
-  }
-  async function fetchKpiDefinitions(bypassCache = false) {
+  }, [params.id]);
+  const fetchKpiDefinitions = useCallback(async (bypassCache = false) => {
     const url = `/api/venture-kpi-definitions`;
     const apply = (d) => { if (d.success) setKpiDefinitions(d.kpi_definitions || []); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
-  }
+  }, []);
   async function handleResolveBlocker(blockerId) {
     await fetch(`/api/ventures/${params.id}/blockers`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ blocker_id: blockerId, action: "resolve" }) });
     fetchBlockers(true);
@@ -455,14 +435,14 @@ export default function VentureDetail() {
     await fetch(`/api/ventures/${params.id}/documents/${docId}/permissions`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ role_scope, access_level }) });
     handlePermissions(docId);
   }
-  async function fetchJourney(bypassCache = false) {
+  const fetchJourney = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${params.id}/journey`;
     const apply = (d) => { if (d.success) setJourneyStages(d.stages || []); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
-  }
+  }, [params.id]);
   async function fetchPlaybook(bypassCache = false) {
     const url = `/api/ventures/${params.id}/playbook`;
     const apply = (d) => { if (d.success) setPlaybookEntries(d.playbook || []); };
@@ -471,7 +451,7 @@ export default function VentureDetail() {
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
   }
-  async function fetchInvestmentReadiness(bypassCache = false) {
+  const fetchInvestmentReadiness = useCallback(async (bypassCache = false) => {
     const url = `/api/ventures/${params.id}/investment-readiness`;
     // Keep the legacy payload flat for existing consumers and ADD the
     // roadmap engine data (Vinance 3 Phase 2 — "what am I evaluated on").
@@ -482,7 +462,36 @@ export default function VentureDetail() {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
-  }
+  }, [params.id]);
+
+  // Load data for the active section. The Dashboard is the Venture overview
+  // (upcoming events + current Journey position); Journey loads its milestone
+  // timeline plus whichever Venture tool is open under it.
+  // The section loaders are declared above this effect so they can be named as
+  // dependencies (they are memoised, so the effect only re-runs when the route
+  // parameter, the active section, or the loaded Venture actually changes).
+  useEffect(() => {
+    if (!params.id || !venture) return;
+    if (activeTab === "team") loadMembers();
+    if (activeTab === "dashboard") { loadMembers(); loadDashboard(); fetchProgress(); fetchCalendar(); fetchJourney(); }
+    if (activeTab === "kpis") { fetchKpis(); fetchKpiDefinitions(); }
+    if (activeTab === "investment") fetchInvestmentReadiness();
+    if (activeTab === "journey") {
+      fetchJourney();
+      if (journeySub === "businessModel") fetchBm();
+      if (journeySub === "discovery") fetchInterviews();
+      if (journeySub === "validation") fetchValidations();
+      if (journeySub === "pmf") fetchPmf();
+      if (journeySub === "milestones") fetchMilestones();
+      if (journeySub === "documents") fetchDocuments();
+    }
+  }, [
+    activeTab, journeySub, venture, params.id,
+    loadMembers, loadDashboard, fetchProgress, fetchCalendar, fetchJourney,
+    fetchKpis, fetchKpiDefinitions, fetchInvestmentReadiness, fetchBm,
+    fetchInterviews, fetchValidations, fetchPmf, fetchMilestones, fetchDocuments,
+  ]);
+
   async function handleUpdateKpi(assignmentId, current_value) {
     await fetch(`/api/ventures/${params.id}/kpis`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: assignmentId, current_value }) });
     fetchKpis(true);
