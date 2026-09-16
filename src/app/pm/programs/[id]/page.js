@@ -3974,6 +3974,10 @@ function ProgramWorkspace() {
                     <option value="">{t("pmMisc.workspace.noStaffAssignedOptional")}</option>
                     {oversightCandidates.map((s) => (
                       <option key={s.cid ?? s.email ?? s.id} value={s.cid}>
+                        {/* Backward compatibility for legacy rows: an assignment
+                            saved before the teacher persona was retired may still
+                            carry that stored role, so label it as an instructor on
+                            purpose instead of falling through to the raw value. */}
                         {s.name} ({s.role === "teacher" ? t("pmMisc.workspace.instructor") : s.role}
                         )
                       </option>

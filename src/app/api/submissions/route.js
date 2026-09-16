@@ -318,7 +318,10 @@ export async function PATCH(req) {
     //     staff are exempt.
     const roleCamp = (role) => {
       if (role === "facilitator") return "facilitator";
-      if (role === "program_manager" || role === "teacher") return "management";
+      if (role === "program_manager") return "management";
+      // The retired teacher role is deliberately absent. A live session role can
+      // no longer hold it, and a historical grading row that stored it simply
+      // resolves to no camp — an inert lock, exactly like staff and super_admin.
       return null; // super_admin / staff → not locked
     };
     const FINAL_STATUSES = ["approved", "rejected"];
