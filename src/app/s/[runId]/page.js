@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
+import Image from "next/image";
 import { Loader2, Send, CheckCircle2, AlertTriangle, Clock, Globe, Mail } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import AppPhoneInput from "@/components/ui/AppPhoneInput";
@@ -342,7 +343,7 @@ export default function PublicSubmitPage() {
         <div className="max-w-2xl mx-auto p-6 space-y-8">
           {/* Branding */}
           <div className="flex flex-col items-center">
-            <img src="/brand/logo_full.png" alt="Future Studio" className="h-12 object-contain mb-0" />
+            <Image src="/brand/logo_full.png" alt="Future Studio" width={1018} height={1024} className="h-12 w-auto object-contain mb-0" />
           </div>
 
           <div className="text-center max-w-md mx-auto space-y-6">
@@ -389,7 +390,7 @@ export default function PublicSubmitPage() {
       <div className="max-w-2xl mx-auto p-6 space-y-8">
         {/* Branding */}
         <div className="flex flex-col items-center">
-          <img src="/brand/logo_full.png" alt="Future Studio" className="h-12 object-contain mb-0" />
+          <Image src="/brand/logo_full.png" alt="Future Studio" width={1018} height={1024} className="h-12 w-auto object-contain mb-0" />
         </div>
 
         {/* Language Selector */}

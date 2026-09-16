@@ -29,7 +29,13 @@ export default function CourseThumb({
     );
   }
    
+  // Author-provided thumbnails point at arbitrary hosts, so this one cannot be
+  // routed through the image optimiser: there is no fixed domain to allow and
+  // the caller's own referrer and loading attributes are load-bearing. Kept as a
+  // plain image deliberately, the same call already made in the other course
+  // and lesson screens.
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
       alt={alt}

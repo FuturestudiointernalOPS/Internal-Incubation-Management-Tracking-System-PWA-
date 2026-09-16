@@ -7,6 +7,7 @@ import {
   Loader2, ArrowLeft
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useI18n } from "@/lib/i18n";
 
 export default function ForgotPasswordPage() {
@@ -84,10 +85,12 @@ export default function ForgotPasswordPage() {
         className="w-full max-w-[420px] space-y-8"
       >
         <div className="flex flex-col items-center text-center space-y-4">
-          <img
+          <Image
             src="/brand/logo_full.png"
             alt="Future Studio"
-            className="h-16 object-contain"
+            width={1018}
+            height={1024}
+            className="h-16 w-auto object-contain"
           />
           <div className="w-14 h-14 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center border border-[var(--brand-orange)]/20">
             <Lock className="w-7 h-7 text-[var(--brand-orange)]" />

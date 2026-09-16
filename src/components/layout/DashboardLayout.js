@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import GlobalToast from "@/components/ui/GlobalToast";
 import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
@@ -526,16 +527,20 @@ const SidebarContent = ({
         }`}
       >
         {collapsed ? (
-          <img
+          <Image
             src="/icon-192x192.png"
             alt="Future Studio"
+            width={192}
+            height={192}
             className="w-8 h-8 object-contain"
           />
         ) : (
-          <img
+          <Image
             src="/brand/logo_full.png"
             alt="Future Studio"
-            className="h-8 object-contain animate-in fade-in"
+            width={1018}
+            height={1024}
+            className="h-8 w-auto object-contain animate-in fade-in"
           />
         )}
         {/* The rail can always be reopened, so the control is present in both

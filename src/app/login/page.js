@@ -11,6 +11,7 @@ import {
   LogIn,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useI18n, SUPPORTED_LANGUAGES } from "@/lib/i18n";
 import { roleHomeHref } from "@/lib/platform/roles";
 
@@ -200,10 +201,12 @@ export default function LoginPage() {
     <div className="min-h-screen bg-primary flex items-center justify-center p-6 text-[var(--text-primary)]">
       <div className="w-full max-w-[400px] space-y-8 animate-in">
         <div className="flex flex-col items-center text-center space-y-4">
-          <img
+          <Image
             src="/brand/logo_full.png"
             alt="Future Studio"
-            className="h-20 object-contain animate-in fade-in zoom-in duration-700 mb-2"
+            width={1018}
+            height={1024}
+            className="h-20 w-auto object-contain animate-in fade-in zoom-in duration-700 mb-2"
           />
           <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em] mt-1">
             {t("auth.login.title")}
