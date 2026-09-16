@@ -578,6 +578,7 @@
       "kpiRequired": "Au moins un KPI doit être assigné.",
       "added": "Ajouté",
       "addFailed": "Échec de l'ajout.",
+      "resourcesNotSaved": "{count} ressource(s) de séance n'ont pas pu être enregistrées — ouvrez la séance pour les ajouter à nouveau.",
       "kpiLinkRequired": "Veuillez lier au moins un KPI. Les paramètres de notation sont dérivés des KPI liés.",
       "failed": "Échec.",
       "statusUpdatedTo": "Statut mis à jour : {status}",
