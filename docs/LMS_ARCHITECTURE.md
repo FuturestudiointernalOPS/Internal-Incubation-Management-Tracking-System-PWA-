@@ -376,7 +376,14 @@ never exposed to learners; archived courses remain accessible to enrolled learne
 
 - **"My Learning" visibility**: the sidebar entry only appears once the learner has at least one
   usable enrollment (source `self`, `admin`, `program` or `purchase`; `suspended` rows do not
-  count). The shell polls `/api/lms/my-learning?exists=1` inside the participant context.
+  count). The shell asks `/api/lms/my-learning?exists=1` on **every personal surface**
+  (`member`, `founder`, `participant`, `team`) and re-asks on each navigation inside the shell,
+  so the door opens as soon as an enrollment exists.
+  The door is deliberately **not** keyed off a role or off program participation: a subscriber
+  coming from the public catalogue holds an `lms_enrollments` row and belongs to no program, so a
+  role/relationship-derived menu left them with a dashboard-only sidebar (fixed — the entry is
+  added inside the personal branch from the confirmed `exists=1` answer). The header context
+  switcher (`/api/workspaces` → `contexts.learning`) is the second, equivalent door.
 
 ### Progress
 
