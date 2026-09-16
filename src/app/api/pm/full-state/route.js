@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, requireProgramFacilitator, hasProgramManagementAccess, isAssignedPmForProgram } from "@/lib/auth";
-import { recalculateKpiProgress } from "@/lib/kpi-progress";
+import { refreshKpiProgressIfStale } from "@/lib/kpi-progress";
 import {
   getAssistantContactsByCids,
   getPersistedKpiProgress,
@@ -328,8 +328,11 @@ export async function GET(req) {
             };
           });
 
-          // Fire-and-forget: persist this calculation for next time
-          recalculateKpiProgress(id).catch(() => {});
+          // Refresh the persisted calculation for next time — but not on every
+          // view: a page load must not systematically trigger a write-heavy
+          // recalculation. Recent persisted progress is reused; approvals and
+          // requirement edits recalculate immediately through their own routes.
+          refreshKpiProgressIfStale(id).catch(() => {});
         }
       } catch (e) {
         console.warn(

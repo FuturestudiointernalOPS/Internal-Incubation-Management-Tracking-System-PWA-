@@ -113,29 +113,40 @@ export async function recalculateKpiProgress(programId, participantId) {
         );
       } catch (_) {}
 
-      for (const r of results) {
+      // ONE multi-row upsert instead of one statement per indicator. The values
+      // are still computed per indicator above, so the "never downgrade to 0"
+      // rule is unchanged; only the number of round trips changes (N → 1).
+      const cacheArgs = [];
+      const values = results.map((r) => {
         const prev = prevRates.get(String(r.kpi_id)) || 0;
         const rate = r.completion_rate > 0 || prev <= 0 ? r.completion_rate : prev;
+        cacheArgs.push(
+          String(programId),
+          String(r.kpi_id),
+          r.title.substring(0, 255),
+          rate,
+          totalParticipants,
+          r.approved_count,
+        );
+        return "(?, ?, ?, ?, ?, ?, NOW())";
+      });
+
+      if (values.length > 0) {
         try {
           await db.execute({
             sql: `INSERT INTO kpi_progress (program_id, kpi_id, kpi_name, completion_rate, participant_count, approved_count, calculated_at)
-                  VALUES (?, ?, ?, ?, ?, ?, NOW())
+                  VALUES ${values.join(", ")}
                   ON CONFLICT (program_id, kpi_id) DO UPDATE SET
                   kpi_name = EXCLUDED.kpi_name,
                   completion_rate = EXCLUDED.completion_rate,
                   participant_count = EXCLUDED.participant_count,
                   approved_count = EXCLUDED.approved_count,
                   calculated_at = NOW()`,
-            args: [
-              String(programId),
-              String(r.kpi_id),
-              r.title.substring(0, 255),
-              rate,
-              totalParticipants,
-              r.approved_count,
-            ],
+            args: cacheArgs,
           });
         } catch (e) {
+          // The cache write is best-effort: the freshly computed values are still
+          // returned to the caller (the original behaviour, kept deliberately).
           console.warn("kpi_progress cache write:", e.message);
         }
       }
@@ -145,6 +156,49 @@ export async function recalculateKpiProgress(programId, participantId) {
   } catch (e) {
     console.error("recalculateKpiProgress error:", e.message);
     return [];
+  }
+}
+
+/**
+ * How long a persisted KPI progress may be reused before it is recalculated.
+ *
+ * Approvals and requirement edits recalculate immediately (their routes call
+ * recalculateKpiProgress directly) — this window only covers the read path,
+ * where a page view used to trigger a full recalculation and its writes every
+ * single time.
+ */
+export const KPI_PROGRESS_MAX_AGE_MS = 5 * 60 * 1000;
+
+/**
+ * Recalculate ONLY when the persisted progress is older than `maxAgeMs`.
+ *
+ * A page load must not systematically trigger a write-heavy recalculation: this
+ * asks one cheap question first (when was this program last calculated?) and
+ * returns without touching anything when the answer is recent. Anything that
+ * changes the numbers itself recalculates directly, so the window only bounds
+ * how long an unnoticed background change can go unrefreshed.
+ *
+ * @returns {{ skipped: boolean, entries?: Array, calculatedAt?: string|null }}
+ */
+export async function refreshKpiProgressIfStale(
+  programId,
+  maxAgeMs = KPI_PROGRESS_MAX_AGE_MS,
+) {
+  try {
+    const lastRes = await db.execute({
+      sql: "SELECT MAX(calculated_at) AS last FROM kpi_progress WHERE program_id = ?",
+      args: [String(programId)],
+    });
+    const last = lastRes.rows?.[0]?.last || null;
+    const lastMs = last ? new Date(last).getTime() : 0;
+    if (lastMs && Date.now() - lastMs < maxAgeMs) {
+      return { skipped: true, calculatedAt: last };
+    }
+    const entries = await recalculateKpiProgress(programId);
+    return { skipped: false, entries, calculatedAt: last };
+  } catch (e) {
+    console.warn("refreshKpiProgressIfStale:", e.message);
+    return { skipped: true, calculatedAt: null };
   }
 }
 
