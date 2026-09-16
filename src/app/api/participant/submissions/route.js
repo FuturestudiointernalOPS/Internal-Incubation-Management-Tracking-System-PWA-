@@ -19,7 +19,7 @@ export const GET = createHandler(async (req) => {
       { success: false, error: "Authentication required." },
       { status: 401 },
     );
-  const privileged = ["staff", "super_admin", "program_manager", "teacher", "facilitator"];
+  const privileged = ["staff", "super_admin", "program_manager", "facilitator"];
   if (!privileged.includes(session.role)) {
     if (participantId && String(participantId) !== String(session.cid)) {
       return NextResponse.json(
@@ -51,7 +51,7 @@ export const POST = createHandler(async (req) => {
       { success: false, error: "Authentication required." },
       { status: 401 },
     );
-  const privileged = ["staff", "super_admin", "program_manager", "teacher"];
+  const privileged = ["staff", "super_admin", "program_manager"];
   if (!privileged.includes(session.role)) {
     if (participant_id && String(participant_id) !== String(session.cid)) {
       return NextResponse.json(
@@ -70,7 +70,7 @@ export const POST = createHandler(async (req) => {
 
   // View-only gate (Phase 2C): participants/teams cannot submit into a
   // completed program (person-level completion or program-level). Staff / PM /
-  // teacher / super_admin manage regardless of program status.
+  // super_admin manage regardless of program status.
   if (program_id && !privileged.includes(session.role)) {
     try {
       const pCheck = await getSubmissionProgramCompletionStatus(session.cid, program_id);

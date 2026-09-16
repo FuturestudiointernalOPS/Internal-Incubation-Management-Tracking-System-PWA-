@@ -80,7 +80,7 @@ export async function GET() {
       // Capability module → feature key, so the UI can filter which modules
       // are relevant for a role based on its eligibility.
       moduleToFeature: MODULE_TO_FEATURE,
-      // Agreed eligibility identities only (functions like developer/teacher/
+      // Agreed eligibility identities only (functions like developer/
       // program_manager are not eligibility identities). ROLE_CATALOG stays
       // the full technical catalog for gate validation.
       roles: ELIGIBILITY_IDENTITIES,

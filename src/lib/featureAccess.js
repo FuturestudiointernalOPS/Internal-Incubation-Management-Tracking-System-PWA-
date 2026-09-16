@@ -40,7 +40,6 @@ export const ALL_FEATURE_ROLES = [
   "super_admin",
   "staff",
   "program_manager",
-  "teacher",
   "developer",
   "facilitator",
   "participant",

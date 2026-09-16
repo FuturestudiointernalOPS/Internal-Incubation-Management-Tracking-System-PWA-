@@ -1006,12 +1006,11 @@ export default function TeamDashboardPage({ params }) {
 
                         {/* Action */}
                         <div className="shrink-0 flex items-center gap-2">
-                          {/* Instructor review button */}
+                          {/* Review button */}
                           {[
                             "staff",
                             "super_admin",
                             "program_manager",
-                            "teacher",
                           ].includes(userRole) &&
                             sub && (
                               <AppButton

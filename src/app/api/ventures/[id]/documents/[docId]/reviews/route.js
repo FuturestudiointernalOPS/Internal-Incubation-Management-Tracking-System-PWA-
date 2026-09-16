@@ -9,9 +9,9 @@ import {
 } from "@/models/ventureAssets";
 import { notifyVentureFounders } from "@/lib/ventures";
 
-const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher", "developer"];
+const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin", "developer"];
 // Reviewers stand-in until Track 5's venture_advisors ships. TODO Track 5: scope to actual assigned advisor.
-const REVIEWER_ROLES = ["staff", "program_manager", "super_admin", "teacher", "developer"];
+const REVIEWER_ROLES = ["staff", "program_manager", "super_admin", "developer"];
 
 export async function GET(req, { params }) {
   try {

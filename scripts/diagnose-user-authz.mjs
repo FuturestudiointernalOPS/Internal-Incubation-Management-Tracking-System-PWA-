@@ -200,9 +200,9 @@ console.log(`GET  /api/contacts/search       contacts.view    → ${check("conta
 console.log(`POST /api/announcements         internal_comms.create_announcements → ${check("internal_comms", "create_announcements")}`);
 console.log(`POST /api/op-reports            reports.create   → ${check("reports", "create")}`);
 
-// participants route simulation: staff/teacher/facilitator go through the
+// participants route simulation: staff/facilitator go through the
 // assignment gate which requires facilitator-module participants.view
-if (!["super_admin", "program_manager", "teacher"].includes(role)) {
+if (!["super_admin", "program_manager"].includes(role)) {
   console.log(`GET  /api/participants (assignment path) facilitator.participants.view → ${check("facilitator", "participants.view")}`);
 } else {
   console.log(`GET  /api/participants → management role path (no assignment gate)`);

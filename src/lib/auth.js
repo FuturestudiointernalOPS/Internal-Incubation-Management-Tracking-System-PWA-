@@ -629,7 +629,7 @@ export async function logPermissionAudit({
 //     (families.lead_facilitator_id)
 // =============================================================================
 
-const FACILITATOR_BYPASS_ROLES = ["super_admin", "program_manager", "teacher"];
+const FACILITATOR_BYPASS_ROLES = ["super_admin", "program_manager"];
 
 // NOTE: this list MUST stay aligned with hasProgramManagementAccess() below.
 // "staff" is deliberately NOT included: staff program-delivery access is
@@ -643,7 +643,7 @@ const FACILITATOR_BYPASS_ROLES = ["super_admin", "program_manager", "teacher"];
  * per-program facilitator assignment check on shared program-data APIs.
  */
 export function hasProgramManagementAccess(role) {
-  return ["super_admin", "program_manager", "teacher"].includes(role);
+  return ["super_admin", "program_manager"].includes(role);
 }
 
 /**
@@ -882,8 +882,8 @@ export async function getFacilitatorTeamScope(programId, facilitatorCid) {
 /**
  * Guard: requires the session user to hold a facilitator assignment for the
  * program. The assignment is the source of truth — the legacy global
- * 'facilitator' role is no longer checked here. Super admin / staff / PM /
- * teacher keep their existing bypass access.
+ * 'facilitator' role is no longer checked here. Super admin / staff / PM
+ * keep their existing bypass access.
  */
 export async function requireProgramFacilitator(programId) {
   try {
@@ -1429,7 +1429,6 @@ export async function seedDefaultAccessProfiles() {
       participant: "Participant Default",
       developer: "Developer",
       program_manager: "Program Manager",
-      teacher: "Instructor",
       admin: "Staff Default",
       investor: "Mentor",
       mentor: "Mentor",

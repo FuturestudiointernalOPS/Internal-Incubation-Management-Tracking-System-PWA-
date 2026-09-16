@@ -292,7 +292,7 @@ describe("reports module (Phase 3)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
     const reports = FEATURE_ELIGIBILITY_DEFAULTS.reports;
     expect(reports).toEqual(
-      expect.arrayContaining(["super_admin", "staff", "program_manager", "teacher", "developer"]),
+      expect.arrayContaining(["super_admin", "staff", "program_manager", "developer"]),
     );
     expect(reports).not.toContain("admin");
   });
@@ -308,15 +308,15 @@ describe("reports module (Phase 3)", () => {
     expect(authorize(ctx, "reports", "export")).toBe(false); // no export for developer
   });
 
-  test("teacher with reports.export is allowed on run-export only", () => {
+  test("a grant of reports.export alone allows run-export only", () => {
     const ctx = staffCtx({
-      role: "teacher",
+      role: "facilitator",
       isSuperAdmin: false,
       eligibility: { reports: true },
       effective: { reports: { view: 1, export: 3 } },
     });
     expect(authorize(ctx, "reports", "export")).toBe(true);
-    expect(authorize(ctx, "reports", "create")).toBe(false); // teacher must NOT gain submit
+    expect(authorize(ctx, "reports", "create")).toBe(false); // export must NOT imply submit
   });
 });
 
@@ -331,7 +331,7 @@ describe("contacts module (Phase 4)", () => {
   test("crm eligibility defaults are internal identities only (participant/founder removed by policy #3)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).toEqual(
-      expect.arrayContaining(["super_admin", "staff", "program_manager", "teacher", "developer"]),
+      expect.arrayContaining(["super_admin", "staff", "program_manager", "developer"]),
     );
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("participant");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("founder");
@@ -388,7 +388,6 @@ describe("communication feature (Messages + Announcements)", () => {
       "super_admin",
       "staff",
       "program_manager",
-      "teacher",
       "developer",
     ]);
     expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).not.toContain("admin");
@@ -397,20 +396,20 @@ describe("communication feature (Messages + Announcements)", () => {
     expect(FEATURE_ELIGIBILITY_DEFAULTS.internal_comms).toBeUndefined();
   });
 
-  test("staff with announcement caps can post; teacher without caps cannot", () => {
+  test("staff with announcement caps can post; an eligible role without caps cannot", () => {
     const staff = staffCtx({
       eligibility: { communication: true },
       effective: { internal_comms: { view: 1, create_announcements: 2, moderate: 3 } },
     });
-    const teacher = staffCtx({
-      role: "teacher",
+    const facilitator = staffCtx({
+      role: "facilitator",
       isSuperAdmin: false,
       eligibility: { communication: true },
       effective: { internal_comms: { view: 1 } }, // eligible but no announcement caps
     });
     expect(authorize(staff, "internal_comms", "create_announcements")).toBe(true);
     expect(authorize(staff, "internal_comms", "moderate")).toBe(true);
-    expect(authorize(teacher, "internal_comms", "create_announcements")).toBe(false);
+    expect(authorize(facilitator, "internal_comms", "create_announcements")).toBe(false);
   });
 });
 
@@ -551,19 +550,12 @@ describe("programs module (Phase 9)", () => {
     expect(MODULE_TO_FEATURE.programs).toBe("programs");
   });
 
-  test("staff/teacher with backfilled programs.edit are allowed (bypass replaced)", () => {
+  test("staff with backfilled programs.edit are allowed (bypass replaced)", () => {
     const staff = staffCtx({
       eligibility: { programs: true },
       effective: { programs: { view: 1, edit: 3 } },
     });
-    const teacher = staffCtx({
-      role: "teacher",
-      isSuperAdmin: false,
-      eligibility: { programs: true },
-      effective: { programs: { view: 1, edit: 3 } },
-    });
     expect(authorize(staff, "programs", "edit")).toBe(true);
-    expect(authorize(teacher, "programs", "edit")).toBe(true);
   });
 
   test("staff WITHOUT backfilled delete is denied on program deletion (SA-only preserved)", () => {
@@ -709,32 +701,31 @@ describe("investor module (Phase 11)", () => {
 // ─── messaging module (consolidated under the communication feature) ────────
 
 describe("messaging module (communication feature)", () => {
-  test("messaging eligibility now rides the communication feature (teacher eligible per PO)", () => {
+  test("messaging eligibility now rides the communication feature (internal roles per PO)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).toEqual([
       "super_admin",
       "staff",
       "program_manager",
-      "teacher",
       "developer",
     ]);
   });
 
-  test("participant/teacher are denied messaging when not eligible despite profile caps", () => {
+  test("participant/facilitator are denied messaging when not eligible despite profile caps", () => {
     const participant = staffCtx({
       role: "participant",
       isSuperAdmin: false,
       eligibility: { communication: false },
       effective: { messaging: { view: 1, send: 2 } }, // profile caps but ineligible
     });
-    const teacher = staffCtx({
-      role: "teacher",
+    const facilitator = staffCtx({
+      role: "facilitator",
       isSuperAdmin: false,
       eligibility: { communication: false },
       effective: { messaging: { view: 1, send: 2 } },
     });
     expect(authorize(participant, "messaging", "view")).toBe(false);
-    expect(authorize(teacher, "messaging", "send")).toBe(false);
+    expect(authorize(facilitator, "messaging", "send")).toBe(false);
   });
 
   test("internal staff with messaging caps are allowed", () => {

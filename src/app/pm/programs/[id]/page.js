@@ -171,7 +171,7 @@ function ProgramWorkspace() {
     }
   }, [program?.assigned_assistant_id, staffList, assignedStaff]);
 
-  // Oversight candidates = assigned program staff (staff/teacher/assistant)
+  // Oversight candidates = assigned program staff (staff/assistant)
   // + program facilitators. Deduped by cid so the same person appears once.
   const oversightCandidates = React.useMemo(() => {
     const merged = [...assignedStaff, ...facilitators];
@@ -1436,15 +1436,15 @@ function ProgramWorkspace() {
     },
     { id: "curriculum", name: t("pmMisc.workspace.tabCurriculum"), icon: FileText },
     { id: "attendance", name: t("pmMisc.workspace.tabAttendance"), icon: CheckCircle2 },
-    { id: "reports", name: t("pmMisc.workspace.tabReports"), icon: BarChart3, roles: ["super_admin", "program_manager", "staff", "teacher"] },
-    { id: "reviews", name: t("pmMisc.workspace.tabReviews"), icon: MessageCircle, roles: ["super_admin", "program_manager", "staff", "teacher"] },
+    { id: "reports", name: t("pmMisc.workspace.tabReports"), icon: BarChart3, roles: ["super_admin", "program_manager", "staff"] },
+    { id: "reviews", name: t("pmMisc.workspace.tabReviews"), icon: MessageCircle, roles: ["super_admin", "program_manager", "staff"] },
     { id: "participants", name: t("pmMisc.workspace.tabParticipants"), icon: Users },
     { id: "submissions", name: t("pmMisc.workspace.tabSubmissions"), icon: Activity },
     {
       id: "facilitators",
       name: t("pmMisc.workspace.tabFacilitators"),
       icon: UserPlus,
-      roles: ["super_admin", "program_manager", "staff", "teacher"],
+      roles: ["super_admin", "program_manager", "staff"],
     },
   ];
 
@@ -4167,7 +4167,7 @@ function ProgramWorkspace() {
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    {t("pmMisc.workspace.assignTeachers")}
+                    {t("pmMisc.workspace.assignHandlers")}
                   </label>
                   <div className="grid grid-cols-2 gap-1.5 max-h-[120px] overflow-y-auto p-1 custom-scrollbar">
                     {programTeamMembers.map((staff) => {

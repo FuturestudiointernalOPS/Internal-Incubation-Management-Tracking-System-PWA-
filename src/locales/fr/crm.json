@@ -434,7 +434,6 @@
     "roles": {
       "participant": "Participant",
       "staff": "Personnel",
-      "teacher": "Enseignant",
       "investor": "Investisseur",
       "finance": "Finance",
       "developer": "Développeur",

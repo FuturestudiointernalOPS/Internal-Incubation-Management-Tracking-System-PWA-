@@ -172,7 +172,6 @@ const ROLE_HIERARCHY = {
   team_lead: 2,
   staff: 1,
   developer: 1,
-  teacher: 1,
 };
 
 function hasMinRole(userRole, minRole) {

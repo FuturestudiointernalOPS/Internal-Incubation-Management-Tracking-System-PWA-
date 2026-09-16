@@ -23,7 +23,6 @@ const MODULE_COLORS = {
 const ROLE_LABELS = {
   participant: "crm.roles.participant",
   staff: "crm.roles.staff",
-  teacher: "crm.roles.teacher",
   investor: "crm.roles.investor",
   finance: "crm.roles.finance",
   developer: "crm.roles.developer",

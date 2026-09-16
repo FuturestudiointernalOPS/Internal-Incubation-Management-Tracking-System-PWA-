@@ -75,7 +75,6 @@ export default function DeveloperLayout({ children }) {
           const redirectMap = {
             staff: "/staff",
             program_manager: "/pm",
-            teacher: "/teacher",
             participant: "/participant",
           };
           const dest = redirectMap[role] || "/login";
@@ -103,7 +102,6 @@ export default function DeveloperLayout({ children }) {
           const redirectMap = {
             staff: "/staff",
             program_manager: "/pm",
-            teacher: "/teacher",
             participant: "/participant",
           };
           const dest = redirectMap[u.role] || "/login";

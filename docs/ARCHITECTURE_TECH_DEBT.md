@@ -23,7 +23,6 @@ src/
 │   ├── developer/    (7 fichiers)
 │   ├── pm/           (5 fichiers, dont 1 monstre de 5001 lignes)
 │   ├── staff/        (5 fichiers, dont 1 de 3579 lignes)
-│   ├── teacher/      (5 fichiers)
 │   └── ...
 ├── components/
 │   ├── dashboard/    (8 fichiers, 4 > 500 lignes)

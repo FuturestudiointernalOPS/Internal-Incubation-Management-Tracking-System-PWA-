@@ -27,7 +27,6 @@ export const GET = createHandler(async (req) => {
     "super_admin",
     "staff",
     "program_manager",
-    "teacher",
     "developer",
   ];
   let user_id = searchParams.get("user_id");

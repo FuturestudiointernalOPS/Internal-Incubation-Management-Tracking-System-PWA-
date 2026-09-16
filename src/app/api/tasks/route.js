@@ -142,7 +142,6 @@ export async function GET(req) {
       "super_admin",
       "staff",
       "program_manager",
-      "teacher",
       "developer",
     ];
     const notStaffSide = !staffSide.includes(session.role);
@@ -389,7 +388,6 @@ export async function POST(req) {
         "super_admin",
         "staff",
         "program_manager",
-        "teacher",
         "developer",
         "team",
       ].includes(session.role)

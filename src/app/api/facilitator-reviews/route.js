@@ -33,7 +33,7 @@ import {
 export async function GET(req) {
   try {
     await initDb();
-    // Phase I5: the role pre-filter (facilitator/teacher/…) blocked members
+    // Phase I5: the role pre-filter (facilitator/…) blocked members
     // with a legitimate program assignment. Any authenticated session may
     // reach the assignment gates below; only assigned facilitators (or
     // management roles) pass them.

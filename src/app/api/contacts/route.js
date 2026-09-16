@@ -318,7 +318,7 @@ export async function PUT(req) {
     const match = await updateContactFields(fieldsToUpdate, args);
 
     // Sync participant_programs if program_ids array is provided
-    const NON_PARTICIPANT_ROLES = ["facilitator", "teacher", "staff", "admin", "developer", "super_admin", "investor", "founder", "program_manager"];
+    const NON_PARTICIPANT_ROLES = ["facilitator", "staff", "admin", "developer", "super_admin", "investor", "founder", "program_manager"];
     const isRolePromotion = data.role && NON_PARTICIPANT_ROLES.includes(data.role);
 
     if (isRolePromotion) {
@@ -468,7 +468,7 @@ export async function GET(req) {
     } else if (session.role === "super_admin") {
       result = await getContactsForSuperAdmin(roleFilter, statusFilter, groupFilter);
     } else {
-      // Staff/PM/teacher (with contacts.view): active contacts only, with the
+      // Staff/PM (with contacts.view): active contacts only, with the
       // role-appropriate status window (PMs also see pending contacts so they
       // can find unapproved people and assign them as facilitators).
       result = await getContactsForStaff(session.role, groupFilter);

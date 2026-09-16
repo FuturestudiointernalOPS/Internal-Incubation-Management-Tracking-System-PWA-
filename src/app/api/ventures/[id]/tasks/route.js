@@ -111,7 +111,7 @@ export const PATCH = createHandler(async (req, { params }) => {
 
   // Handle task reviews (Phase 5 — Future Studio staff accept/reject/revision)
   if (action === "add_review") {
-    const reviewerRoles = ["staff", "program_manager", "super_admin", "developer", "teacher"];
+    const reviewerRoles = ["staff", "program_manager", "super_admin", "developer"];
     if (!reviewerRoles.includes(session?.role)) {
       return NextResponse.json({ success: false, error: "Only Future Studio staff can review tasks." }, { status: 403 });
     }

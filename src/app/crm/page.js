@@ -30,11 +30,9 @@ export default function CrmWorkspace() {
           const href =
             role === "program_manager"
               ? "/pm/messages"
-              : role === "teacher"
-                ? "/teacher/messages"
-                : role === "super_admin" || role === "developer"
-                  ? "/admin/internal-comms"
-                  : "/staff/messages";
+              : role === "super_admin" || role === "developer"
+                ? "/admin/internal-comms"
+                : "/staff/messages";
           setMessagesHref(href);
         }
       })

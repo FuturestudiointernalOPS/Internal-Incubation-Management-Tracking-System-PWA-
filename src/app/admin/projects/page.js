@@ -410,7 +410,6 @@ export default function AdminProjects() {
                   developer: "/developer",
                   staff: "/staff",
                   program_manager: "/pm",
-                  teacher: "/teacher",
                   participant: "/participant",
                 };
                 router.push(destMap[role] || "/admin");

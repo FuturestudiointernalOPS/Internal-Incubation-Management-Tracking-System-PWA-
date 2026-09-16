@@ -44,9 +44,6 @@ describe("resolveEffectiveRole — FUTURE STUDIO group = internal staff", () => 
       resolveEffectiveRole({ role: "facilitator", groups: [INTERNAL_GROUP] }),
     ).toBe("staff");
     expect(
-      resolveEffectiveRole({ role: "teacher", groups: [INTERNAL_GROUP] }),
-    ).toBe("staff");
-    expect(
       resolveEffectiveRole({ role: "", groups: [INTERNAL_GROUP] }),
     ).toBe("staff");
     // case-insensitive + raw group_name compat fallback
@@ -74,7 +71,6 @@ describe("resolveEffectiveRole — FUTURE STUDIO group = internal staff", () => 
     expect(resolveEffectiveRole({ role: "participant" })).toBe("participant");
     expect(resolveEffectiveRole({ role: "member" })).toBe("member");
     expect(resolveEffectiveRole({ role: "facilitator" })).toBe("facilitator");
-    expect(resolveEffectiveRole({ role: "teacher" })).toBe("teacher");
   });
 
   test("unknown or missing role outside the group defaults to participant", () => {

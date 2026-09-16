@@ -39,7 +39,6 @@ export async function GET(req) {
       "super_admin",
       "staff",
       "program_manager",
-      "teacher",
       "developer",
     ];
     if (!staffSide.includes(session.role)) {

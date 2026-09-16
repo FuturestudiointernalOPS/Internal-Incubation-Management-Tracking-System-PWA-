@@ -314,7 +314,7 @@ const SidebarContent = ({
   hasCommunicationActivity,
 }) => {
   const { switchLang } = useI18n();
-  const profileHref = `/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : role === "facilitator" ? "facilitator" : role === "developer" || role === "intern" ? "developer" : role === "investor" ? "investor" : "participant"}/profile`;
+  const profileHref = `/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "facilitator" ? "facilitator" : role === "developer" || role === "intern" ? "developer" : role === "investor" ? "investor" : "participant"}/profile`;
 
   const [flyout, setFlyout] = useState(null); // { id, top } — collapsed-rail flyout
   const flyoutTimer = useRef(null);
@@ -1604,8 +1604,6 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
                                   role === "developer"
                                 )
                                   router.push("/staff/messages");
-                                else if (role === "teacher")
-                                  router.push("/teacher/messages");
                                 else if (role === "program_manager")
                                   router.push("/pm/messages");
                                 else if (role === "participant")

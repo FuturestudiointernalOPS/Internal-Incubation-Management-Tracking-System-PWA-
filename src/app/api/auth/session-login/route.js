@@ -156,14 +156,12 @@ export async function POST(req) {
         user.group_name?.toUpperCase() === "FUTURE STUDIO"
       ) {
         // Internal Future Studio staff keep their identity — being assigned as
-        // a program assistant / team handler must NOT turn them into a teacher.
+        // a program assistant / team handler must NOT change their identity.
         finalRole = "staff";
       } else if (user.role === "facilitator") {
         // Explicit facilitator role; program-scoped access is still resolved
         // per assignment by the facilitator workspace and its guards.
         finalRole = "facilitator";
-      } else if (user.role === "teacher") {
-        finalRole = "teacher";
       } else if (user.role === "member") {
         // Neutral "member" means a person exists on the platform but has no
         // global role yet. Preserve it — never collapse it into participant.

@@ -52,7 +52,6 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
     role === "staff" &&
     String(groupName || "").toUpperCase() === "FUTURE STUDIO";
   const isPM = role === "program_manager";
-  const isTeacher = role === "teacher";
   const isParticipant = role === "participant";
 
   // Send modes available
@@ -60,7 +59,6 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
   if (isSA) sendModes.push("group", "program", "broadcast");
   if (isStaffFutureStudio) sendModes.push("group");
   if (isPM) sendModes.push("group", "program");
-  if (isTeacher) sendModes.push("group", "program");
 
   // Contact filter: returns true if the user can message this contact
   function canMessage(contact, allContacts) {
@@ -96,13 +94,6 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
       return false;
     }
 
-    // Teacher: contacts in programs they teach
-    if (isTeacher && userProgramIds.length > 0) {
-      if (contact.program_id && userProgramIds.includes(contact.program_id))
-        return true;
-      return false;
-    }
-
     // Participant: only contacts linked to their specific program
     if (isParticipant) {
       // Other participants with same group_name (case-insensitive — group
@@ -113,7 +104,7 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
           String(groupName || "").toUpperCase()
       )
         return true;
-      // Staff/PM/teachers assigned to this participant's program
+      // Staff/PM assigned to this participant's program
       if (contact.role !== "participant" && userProgramIds.length > 0) {
         // Contact is the assigned PM for participant's program
         const isAssignedPm = userProgramIds.some((pid) => {
@@ -204,25 +195,6 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
       return groups;
     }
 
-    // Teacher sees families linked to programs they teach
-    if (isTeacher && userProgramIds.length > 0) {
-      allFamilies.forEach((f) => {
-        if (
-          !f.is_archived &&
-          f.program_id &&
-          userProgramIds.includes(f.program_id)
-        ) {
-          groups.push({
-            id: f.id,
-            name: f.name,
-            type: "family",
-            programId: f.program_id,
-          });
-        }
-      });
-      return groups;
-    }
-
     return groups;
   }
 
@@ -230,9 +202,6 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
   function getAvailablePrograms(allPrograms) {
     if (isSA) return allPrograms.filter((p) => !p.is_archived);
     if (isPM && userProgramIds.length > 0) {
-      return allPrograms.filter((p) => userProgramIds.includes(p.id));
-    }
-    if (isTeacher && userProgramIds.length > 0) {
       return allPrograms.filter((p) => userProgramIds.includes(p.id));
     }
     return [];
@@ -306,23 +275,6 @@ export default function MessagingChat({ role = "super_admin" }) {
       // Find programs where this user is the assigned PM
       return allPrograms
         .filter((p) => String(p.assigned_pm_id) === String(uid))
-        .map((p) => p.id);
-    }
-    if (role === "teacher") {
-      // Teachers don't have assigned_pm_id, they come from v2_program_staff
-      // We'll use allPrograms and check via assigned_assistant_id or just allow
-      // the teacher to see programs they're linked to
-      return allPrograms
-        .filter((p) => {
-          if (String(p.assigned_pm_id) === String(uid)) return true;
-          if (p.assigned_assistant_id) {
-            try {
-              const ids = JSON.parse(p.assigned_assistant_id);
-              if (Array.isArray(ids) && ids.includes(uid)) return true;
-            } catch {}
-          }
-          return false;
-        })
         .map((p) => p.id);
     }
     if (role === "participant") {

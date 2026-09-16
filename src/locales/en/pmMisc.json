@@ -364,7 +364,7 @@
       "initializeGroup": "Initialize Group",
       "newSessionTitle": "New Session",
       "sessionTitlePlaceholder": "e.g. Orientation Week",
-      "assignTeachers": "Assign Teachers (click to toggle)",
+      "assignHandlers": "Assign Handlers (click to toggle)",
       "noStaffAssignedHint": "No staff assigned. Add them in the Participants tab.",
       "sessionNotes": "Session Notes (shown to participants)",
       "sessionNotesPlaceholder": "e.g. Please review Chapter 3 before class...",

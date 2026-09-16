@@ -42,7 +42,7 @@ export async function GET(req) {
 
     const session = await getSession();
 
-    // 1. Program staff assignments (facilitator / staff / teacher / ...)
+    // 1. Program staff assignments (facilitator / staff / ...)
     const staffRes = await getStaffAssignmentsForUser(
       session.cid,
       session.email || session.cid,

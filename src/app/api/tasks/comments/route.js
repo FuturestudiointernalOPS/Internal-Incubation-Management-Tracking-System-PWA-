@@ -60,7 +60,6 @@ export const GET = createHandler(async (req) => {
     "super_admin",
     "staff",
     "program_manager",
-    "teacher",
     "developer",
   ];
   if (
@@ -123,7 +122,6 @@ export const POST = createHandler(async (req) => {
     "super_admin",
     "staff",
     "program_manager",
-    "teacher",
     "developer",
   ];
   if (

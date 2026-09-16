@@ -169,20 +169,6 @@ const FIXTURE = {
     },
   ],
 
-  teacher: [
-    { id: "dashboard", href: "/teacher", subItems: null },
-    {
-      id: "communication",
-      href: null,
-      subItems: [{ id: "groups", href: "/pm/communications/contacts", subItems: null }],
-    },
-    {
-      id: "programs",
-      href: null,
-      subItems: [{ id: "all_programs", href: "/pm/programs", subItems: null }],
-    },
-  ],
-
   facilitator: [
     { id: "dashboard", href: "/facilitator", subItems: null },
     { id: "my_programs", href: "/facilitator/programs", subItems: null },
@@ -470,7 +456,7 @@ describe("capability projection — buildAccessNav contract", () => {
       projects: { view: 1 },
       finance: { view: 1 },
     };
-    for (const role of ["staff", "program_manager", "teacher"]) {
+    for (const role of ["staff", "program_manager", "facilitator"]) {
       for (const item of collect(buildAccessNav(role, caps))) {
         if (item.href) expect(item.href.startsWith("/admin")).toBe(false);
       }

@@ -73,7 +73,7 @@ export async function getProgramFullStateData(id) {
     },
     {
       name: "staffList",
-      sql: "SELECT cid, name, email, phone, role FROM contacts WHERE role IN ('teacher', 'staff', 'admin') AND deleted = 0",
+      sql: "SELECT cid, name, email, phone, role FROM contacts WHERE role IN ('staff', 'admin') AND deleted = 0",
       args: [],
     },
     {

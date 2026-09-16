@@ -17,7 +17,7 @@ import {
   getVentureProfileFields,
 } from "@/models/ventureWorkspace";
 
-const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
+const ROLES = ["participant","founder","staff","program_manager","super_admin","developer"];
 
 async function resolveVentureDbId(ventureId) {
   const r = await getVentureDbIdForProgress(ventureId);

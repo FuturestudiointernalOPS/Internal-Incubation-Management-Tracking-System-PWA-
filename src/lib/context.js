@@ -39,7 +39,6 @@ export function contextRoleLabelKey({ kind, row = {} }) {
     participant: "roleParticipant",
     staff: "roleStaff",
     program_manager: "roleProgramManager",
-    teacher: "roleTeacher",
     finance: "roleFinance",
     intern: "roleIntern",
   };

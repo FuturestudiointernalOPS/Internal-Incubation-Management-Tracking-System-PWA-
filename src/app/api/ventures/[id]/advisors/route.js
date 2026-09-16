@@ -7,8 +7,8 @@ import {
   removeVentureAdvisor, clearVenturePrimaryAdvisor, setVenturePrimaryAdvisor,
 } from "@/models/ventureAssets";
 
-const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
-const ALLOWED = ["participant","founder","staff","program_manager","super_admin","teacher"];
+const ROLES = ["participant","founder","staff","program_manager","super_admin","developer"];
+const ALLOWED = ["participant","founder","staff","program_manager","super_admin"];
 
 async function resolveVentureDbId(ventureId) {
   const r = await getVentureIdByCodeForAdvisors(ventureId);

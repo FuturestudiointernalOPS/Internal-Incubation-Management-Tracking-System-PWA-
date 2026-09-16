@@ -38,7 +38,6 @@ function bareAuthCount(file) {
 
 const CONTEXTUAL_ROLES = [
   "facilitator",
-  "teacher",
   "participant",
   "founder",
   "investor",
@@ -181,36 +180,6 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(src).toMatch(/teamId = ownTeamId/);
   });
 
-  test("phase 1.4: teacher reports V1+V2 — bare + self-service policy (assignment gate + self bind)", () => {
-    for (const file of [
-      "src/app/api/teacher/reports/route.js",
-      "src/app/api/v2/teacher/reports/route.js",
-    ]) {
-      const src = fs.readFileSync(path.join(ROOT, file), "utf8");
-      expect(bareAuthCount(file)).toBe(2); // GET + POST
-      expect(authBlocks(file)).toHaveLength(0);
-      expect(src).toMatch(/requireAssignmentAccess/);
-      expect(src).toMatch(/body\.teacher_id = session\.cid/);
-    }
-  });
-
-  test("phase 1.4: v2/teacher/fulfillment GET — bare + assignment gate", () => {
-    const file = "src/app/api/v2/teacher/fulfillment/route.js";
-    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
-    expect(bareAuthCount(file)).toBe(1);
-    expect(authBlocks(file)).toHaveLength(0);
-    expect(src).toMatch(/requireAssignmentAccess/);
-  });
-
-  test("phase 1.4: v2/teacher/full-state GET — bare + session-bound cid (SA-only inspection)", () => {
-    const file = "src/app/api/v2/teacher/full-state/route.js";
-    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
-    expect(bareAuthCount(file)).toBe(1);
-    expect(authBlocks(file)).toHaveLength(0);
-    expect(src).toMatch(/session\?\.role !== "super_admin"/);
-    expect(src).toMatch(/cid = session\.cid/);
-  });
-
   test("phase 1.5: investor pipeline GET — bare + own-scope binding for non-management", () => {
     const file = "src/app/api/investor/pipeline/route.js";
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
@@ -283,7 +252,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
       }
       return out;
     };
-    const CONTEXTUAL = ["facilitator", "teacher", "participant", "founder", "investor", "team"];
+    const CONTEXTUAL = ["facilitator", "participant", "founder", "investor", "team"];
     const offenders = [];
     for (const f of walk(path.join(ROOT, "src/app/api"))) {
       const src = fs.readFileSync(f, "utf8");

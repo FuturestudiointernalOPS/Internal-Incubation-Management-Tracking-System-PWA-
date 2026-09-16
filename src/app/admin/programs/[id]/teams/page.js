@@ -92,8 +92,7 @@ export default function TeamManagementPage({ params }) {
             (c.role === "super_admin" ||
               c.role === "program_manager" ||
               c.role === "admin" ||
-              c.role === "staff" ||
-              c.role === "teacher"),
+              c.role === "staff"),
         );
         setStaff(staffList);
       }

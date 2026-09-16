@@ -24,7 +24,7 @@ export async function GET(req) {
     const progId = sp.get("id");
 
     // Facilitators must be assigned to this program before seeing its data.
-    // Bypass for: super_admin, program_manager, teacher (hasProgramManagementAccess)
+    // Bypass for: super_admin, program_manager (hasProgramManagementAccess)
     // AND for any staff member who is the explicitly assigned PM of this program.
     if (progId) {
       const session = await getSession();

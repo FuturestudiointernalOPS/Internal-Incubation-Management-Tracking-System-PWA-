@@ -42,7 +42,7 @@ async function assertPmScope(programId) {
     );
   }
   if (session.role === "super_admin") return null;
-  if (["program_manager", "teacher"].includes(session.role)) return null;
+  if (session.role === "program_manager") return null;
   if (session.role === "staff") {
     const isPm = await isAssignedPmForProgram(programId, session.cid);
     if (isPm) return null;

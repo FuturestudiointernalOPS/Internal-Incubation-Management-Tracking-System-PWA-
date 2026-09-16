@@ -20,7 +20,7 @@ No `middleware.js` at the project root — auth is enforced per-page/per-route v
 
 ## Permissions
 
-Beyond role (`super_admin`/`program_manager`/`staff`/`teacher`/`participant`/`developer`), there's a finer-grained capability system in `src/lib/auth.js`:
+Beyond role (`super_admin`/`program_manager`/`staff`/`participant`/`developer`), there's a finer-grained capability system in `src/lib/auth.js`:
 
 - `PERMISSION_MODULES` — named permission domains (e.g. finance, reports).
 - `ACCESS_LEVELS` — graded access (none → full) per module.
@@ -43,7 +43,6 @@ This is why some routes check role AND capability — role gets you in the door,
 | `super_admin` | `admin/` | Full platform: programs, projects, staff, intelligence (in progress), op-reports |
 | `program_manager` | `pm/` | Scoped to assigned programs/projects |
 | `staff` | `staff/` | Weekly op-report submission, own tasks/blockers |
-| `teacher` | `teacher/` | Teaching dashboard |
 | `participant` | `participant/` | Participant-facing views, also `register-participant/`, `participant/` signup flows |
 | `developer` / `intern` | `developer/` | Internal engineering dashboard |
 

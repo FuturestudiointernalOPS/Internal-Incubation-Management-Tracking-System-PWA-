@@ -4,7 +4,7 @@
  * Single source of truth for the default role. A user with no Program
  * assignment and no explicit privileged role is a PARTICIPANT — never Staff.
  *
- * Staff/program-manager/teacher/admin/etc. are only applied when explicitly
+ * Staff/program-manager/admin/etc. are only applied when explicitly
  * assigned (e.g. a group's configured default_role, or an admin action).
  */
 
@@ -15,7 +15,6 @@ export const PRIVILEGED_ROLES = new Set([
   "admin",
   "staff",
   "program_manager",
-  "teacher",
   "developer",
   "investor",
   "founder",
@@ -58,16 +57,16 @@ export const INTERNAL_GROUP = "FUTURE STUDIO";
  *   4. An ACTIVE FUTURE STUDIO membership ⇒ staff  (the rule). Expired or
  *      ended memberships must NOT produce staff — the caller passes the
  *      EFFECTIVE (active, unexpired) group list from the membership layer.
- *   5. All other identities (participant, member, facilitator, teacher, ...)
+ *   5. All other identities (participant, member, facilitator, ...)
  *      keep their role; unknown/empty roles default to participant.
  *
  * Known conflicts (deliberate, per policy):
  *   - A participant with an active FUTURE STUDIO membership is resolved as
  *     staff at login (their participant identity is overridden; enrollments
  *     stay visible via the Workspaces hub).
- *   - A facilitator/teacher with an active FUTURE STUDIO membership is
+ *   - A facilitator with an active FUTURE STUDIO membership is
  *     resolved as staff. If an external facilitator must keep their
- *     facilitator identity even inside the group, move facilitator/teacher
+ *     facilitator identity even inside the group, move facilitator
  *     before the group rule.
  *   - The rule applies at login (session snapshot). Membership changes
  *     mid-session take effect on the next login.
@@ -106,7 +105,7 @@ export function resolveEffectiveRole({
   if (isInternal) return "staff";
 
   // Explicit identities are preserved outside the group.
-  if (["participant", "member", "facilitator", "teacher"].includes(r)) return r;
+  if (["participant", "member", "facilitator"].includes(r)) return r;
   return DEFAULT_ROLE; // unknown / no role → participant (legacy default)
 }
 
@@ -122,7 +121,6 @@ export const ROLE_HOME = {
   super_admin: "/admin",
   program_manager: "/pm",
   staff: "/staff",
-  teacher: "/teacher",
   facilitator: "/facilitator",
   developer: "/developer",
   participant: "/participant",
@@ -144,7 +142,6 @@ export function roleHomeHref(role) {
  * their own weekly operational reports (standups / retros).
  *
  * External roles are deliberately excluded:
- *   - teacher      → external "Active Teammate" (program assistant / team handler)
  *   - facilitator  → external, program-scoped
  *   - participant / member / founder / investor / mentor / finance
  */

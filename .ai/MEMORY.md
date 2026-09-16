@@ -7,7 +7,7 @@
 
 - **Custom cookie-session auth over Supabase Auth** — `impactos_session` cookie, `user_sessions` table, 24h expiry. Supabase is used for storage and admin operations, not the primary login flow. No `middleware.js` — auth enforced per-page via `requireAuth()` / `requireSession()`.
 - **No centralized middleware** — intentional choice: every page/route enforces its own auth. Trade-off: ~30 API routes lack auth, 39 use `requireAuth(null)` (no role gate). Middleware is a known remediation task (see ARCHITECTURE_TECH_DEBT.md Wave 1).
-- **Role + capability dual auth** — roles (`super_admin`, `program_manager`, `staff`, `teacher`, `participant`, `developer`) get you in the door; capabilities (per-module ACCESS_LEVELS from NONE to FULL) decide what you can do. V2 access profiles layer adds group-based overrides.
+- **Role + capability dual auth** — roles (`super_admin`, `program_manager`, `staff`, `participant`, `developer`) get you in the door; capabilities (per-module ACCESS_LEVELS from NONE to FULL) decide what you can do. V2 access profiles layer adds group-based overrides.
 - **5 Pillar architecture** — Operations OS, Program OS, Venture OS, Investor OS, Ecosystem OS. Each pillar builds on the previous; none ships until its foundation is stable.
 - **CSS variable theming over Tailwind dark mode** — `data-theme` attribute on `<html>`, CSS custom properties, NO `dark:` variants. Theme managed by `ThemeProvider` + `localStorage`. This avoids OS-level dark mode conflicts.
 - **Custom i18n engine** — not `next-intl` or similar. `t()` function with deep key resolution, English fallback, French mandatory. Locale files split by feature area under `src/locales/en/` and `src/locales/fr/` with mirrored key structure.
@@ -16,14 +16,14 @@
 
 ## Reusable Facts
 
-- **Roles:** `super_admin` | `program_manager` | `staff` | `teacher` | `participant` | `developer` | `investor` | `mentor`. Investor and mentor are seeded but not yet wired into role-checking logic.
+- **Roles:** `super_admin` | `program_manager` | `staff` | `participant` | `developer` | `investor` | `mentor`. Investor and mentor are seeded but not yet wired into role-checking logic. The `teacher` persona was removed from the product (owner decision); its route segment, API surface and locale namespaces are gone.
 - **Session cookie:** `impactos_session`, constant `SESSION_COOKIE_NAME` in `src/lib/auth.js`. 24h default, extendable via "remember me" flag.
 - **Task statuses:** `pending | in_progress | completed | blocked | cancelled`. Enforced by `STATUS_CONFIG` in `src/lib/constants.js`.
 - **Task priorities:** `Critical | High | Medium | Low`.
 - **Blocker severity:** `critical | high | medium | low`. Color-coded via `SEVERITY_COLORS`.
 - **Standup/retro cycle:** one user = one weekly standup. Monday: system checks for existing, prompts creation if missing. End of week: retro reconciles all tasks → mark completed or raise blocker.
 - **Project task correlation:** any task linked to a project automatically contributes to that project's reports and progress calculations.
-- **i18n key namespaces:** `common.*` (generic UI), `auth.*`, `navigation.*`, `admin.*`, `reports.*`, `staff.*`, `status.*`, `time.*`, `errors.*`, `teacher.*`, `pm.*`, `participant.*`. See `AGENTS.md` for the full table.
+- **i18n key namespaces:** `common.*` (generic UI), `auth.*`, `navigation.*`, `admin.*`, `reports.*`, `staff.*`, `status.*`, `time.*`, `errors.*`, `pm.*`, `participant.*`. See `AGENTS.md` for the full table.
 - **Design tokens (CSS vars):** `--bg-primary`, `--surface-1/2/3`, `--text-primary/secondary/tertiary`, `--border-primary/secondary`, `--brand-orange: #FF6600`, `--brand-blue: #0066FF`. Never hardcode hex colors in JSX.
 - **Status colors (semantic, not themed):** `text-emerald-500` (success), `text-rose-500` (danger), `text-amber-500` (warning), `text-indigo-500` (info).
 - **DB `uuid` generation:** uses `gen_random_uuid()` via pgcrypto extension.

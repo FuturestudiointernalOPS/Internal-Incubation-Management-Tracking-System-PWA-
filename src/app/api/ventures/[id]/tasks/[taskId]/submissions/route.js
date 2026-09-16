@@ -33,7 +33,7 @@ import {
  * CLOSED (403) so a bug can never over-grant review authority.
  */
 
-const REVIEWER_ROLES = ["staff", "program_manager", "super_admin", "developer", "teacher"];
+const REVIEWER_ROLES = ["staff", "program_manager", "super_admin", "developer"];
 
 async function resolveVentureDbId(ventureId) {
   const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });

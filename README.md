@@ -37,14 +37,13 @@ Internal incubation management & tracking system for FutureStudio: programs, pro
 
 ## Roles
 
-The app serves six roles, each with its own dashboard under `src/app/`:
+The app serves five roles, each with its own dashboard under `src/app/`:
 
 | Role | Route prefix | Default Profile | Description |
 |---|---|---|---|
 | `super_admin` | `/admin` | Super Admin Default | Full platform control — programs, projects, staff, reports, intelligence |
 | `program_manager` | `/pm` | Program Manager | Manages assigned programs/projects, reviews staff reports |
 | `staff` | `/staff` | Staff Default | Submits weekly op-reports, tracks tasks/blockers |
-| `teacher` | `/teacher` | Instructor | Teaching-specific dashboard |
 | `participant` | `/participant` | Participant Default | Program participant view |
 | `developer` / `intern` | `/developer` | Developer | Internal engineering dashboard |
 
@@ -62,12 +61,11 @@ Seeded staging users — **staging only, never use these against production**. A
 | 4 | `developer` | `developer@impactos.staging` |
 | 5 | `participant` | `participant@impactos.staging` |
 | 6 | `program_manager` | `pm@impactos.staging` |
-| 7 | `teacher` | `teacher@impactos.staging` |
-| 8 | `admin` | `admin@impactos.staging` |
-| 9 | `investor` | `investor@impactos.staging` |
-| 10 | `mentor` | `mentor@impactos.staging` |
+| 7 | `admin` | `admin@impactos.staging` |
+| 8 | `investor` | `investor@impactos.staging` |
+| 9 | `mentor` | `mentor@impactos.staging` |
 
-> Note: `admin`, `investor`, and `mentor` (#8–10) are seeded but have no dedicated dashboard: `/admin` admits only `super_admin`/`developer`, and there is no `/mentor` surface. `investor` has its own `/investor` portal, and all three resolve to an access profile in `src/lib/auth.js` (`seedDefaultAccessProfiles`). Sidebar masks live in `src/lib/masterNavigation.js` (`ROLE_ACCESS`).
+> Note: `admin`, `investor`, and `mentor` (#7–9) are seeded but have no dedicated dashboard: `/admin` admits only `super_admin`/`developer`, and there is no `/mentor` surface. `investor` has its own `/investor` portal, and all three resolve to an access profile in `src/lib/auth.js` (`seedDefaultAccessProfiles`). Sidebar masks live in `src/lib/masterNavigation.js` (`ROLE_ACCESS`).
 
 ---
 
@@ -125,7 +123,7 @@ dev  →  merge into main  →  push main (triggers production deploy)
 
 ```
 src/
-  app/            Next.js App Router — pages per role (admin/, staff/, pm/, teacher/, participant/, developer/)
+  app/            Next.js App Router — pages per role (admin/, staff/, pm/, participant/, developer/)
     api/          148 API route handlers, grouped by domain (see docs/API.md)
   components/
     layout/       DashboardLayout, sidebar, navigation matrix

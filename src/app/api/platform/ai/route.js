@@ -16,7 +16,7 @@ export async function POST(req) {
 
     // Phase 1.6 (C5b = A): AI analysis is management-only (SA/admin/PM). The
     // request carries opaque submission/form objects with no program context,
-    // so no assignment can be verified — the legacy teacher entry is dropped
+    // so no assignment can be verified — the legacy entry is dropped
     // rather than trusted (zero holders on staging). Seam for later: a
     // canOperateAiReview() capability may admit assignment-verified program
     // staff once run->program resolution exists on this path.

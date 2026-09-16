@@ -84,7 +84,6 @@ describe("Phase 9 — model consistency", () => {
         "security_officer",
         "staff",
         "super_admin",
-        "teacher",
         "team",
         // "investor" was removed from every requireAuth list in phases
         // 6A/1.5 — investor access is now own-scoped (profile/pipeline) or
@@ -126,7 +125,7 @@ describe("Responsibility Access — roles are bounded by feature eligibility", (
   const rows = [
     { identity_type: "role", identity_value: "super_admin", feature_key: "crm", eligible: 1 },
     { identity_type: "role", identity_value: "staff", feature_key: "crm", eligible: 1 },
-    { identity_type: "role", identity_value: "teacher", feature_key: "crm", eligible: 1 },
+    { identity_type: "role", identity_value: "facilitator", feature_key: "crm", eligible: 1 },
     { identity_type: "role", identity_value: "mentor", feature_key: "crm", eligible: 0 },
     { identity_type: "group", identity_value: "FUTURE STUDIO", feature_key: "crm", eligible: 1 },
   ];
@@ -135,7 +134,7 @@ describe("Responsibility Access — roles are bounded by feature eligibility", (
     expect(eligibleRolesForFeature(rows, "crm")).toEqual([
       "super_admin",
       "staff",
-      "teacher",
+      "facilitator",
     ]);
   });
 

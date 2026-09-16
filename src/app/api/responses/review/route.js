@@ -16,7 +16,7 @@ const RETIRED_RESPONSE = NextResponse.json(
 );
 
 export const POST = createHandler(
-  { roles: ["super_admin", "staff", "teacher"] },
+  { roles: ["super_admin", "staff"] },
   async (req) => {
     if (RETIRED) return RETIRED_RESPONSE;
     const { response_id, cid } = await req.json();

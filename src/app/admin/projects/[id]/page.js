@@ -501,7 +501,6 @@ export default function ProjectDetail() {
                   super_admin: "/admin/projects",
                   staff: "/staff/projects",
                   program_manager: "/staff/projects",
-                  teacher: "/staff/projects",
                 };
                 router.push(roleMap[userRole] || "/admin/projects");
               }}

@@ -1143,7 +1143,7 @@ export default function AdminDashboard() {
               value={stats.totalStaff}
               icon={Rocket}
               color="text-emerald-500"
-              subtitle={t("admin.sectionSubtitles.teachersAndStaff")}
+              subtitle={t("admin.sectionSubtitles.adminsAndStaff")}
               onClick={() => router.push("/admin/communications/contacts")}
               loading={loading}
             />

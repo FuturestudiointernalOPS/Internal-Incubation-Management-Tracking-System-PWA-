@@ -9,7 +9,7 @@ import { useI18n } from "@/lib/i18n";
 // participants and investors are never offered for Venture assignments here.
 const STAFF_ROLES = new Set([
   "super_admin", "developer", "admin", "staff", "program_manager",
-  "teacher", "facilitator", "finance", "crm", "team",
+  "facilitator", "finance", "crm", "team",
 ]);
 
 /**

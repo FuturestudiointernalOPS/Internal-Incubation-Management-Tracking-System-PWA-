@@ -24,7 +24,6 @@ import enReports from "@/locales/en/reports.json";
 import enStatus from "@/locales/en/status.json";
 import enErrors from "@/locales/en/errors.json";
 import enStaff from "@/locales/en/staff.json";
-import enTeacher from "@/locales/en/teacher.json";
 import enPm from "@/locales/en/pm.json";
 import enParticipant from "@/locales/en/participant.json";
 import enTime from "@/locales/en/time.json";
@@ -47,7 +46,6 @@ import enInvestorMisc from "@/locales/en/investorMisc.json";
 import enParticipantMisc from "@/locales/en/participantMisc.json";
 import enStaffMisc from "@/locales/en/staffMisc.json";
 import enRootMisc from "@/locales/en/rootMisc.json";
-import enTeacherMisc from "@/locales/en/teacherMisc.json";
 import enLms from "@/locales/en/lms.json";
 import enMembership from "@/locales/en/membership.json";
 
@@ -59,7 +57,6 @@ import frReports from "@/locales/fr/reports.json";
 import frStatus from "@/locales/fr/status.json";
 import frErrors from "@/locales/fr/errors.json";
 import frStaff from "@/locales/fr/staff.json";
-import frTeacher from "@/locales/fr/teacher.json";
 import frPm from "@/locales/fr/pm.json";
 import frParticipant from "@/locales/fr/participant.json";
 import frTime from "@/locales/fr/time.json";
@@ -82,7 +79,6 @@ import frInvestorMisc from "@/locales/fr/investorMisc.json";
 import frParticipantMisc from "@/locales/fr/participantMisc.json";
 import frStaffMisc from "@/locales/fr/staffMisc.json";
 import frRootMisc from "@/locales/fr/rootMisc.json";
-import frTeacherMisc from "@/locales/fr/teacherMisc.json";
 import frLms from "@/locales/fr/lms.json";
 import frMembership from "@/locales/fr/membership.json";
 
@@ -125,7 +121,6 @@ const EN = [
   enStatus,
   enErrors,
   enStaff,
-  enTeacher,
   enPm,
   enParticipant,
   enTime,
@@ -148,7 +143,6 @@ const EN = [
   enParticipantMisc,
   enStaffMisc,
   enRootMisc,
-  enTeacherMisc,
   enLms,
   enMembership,
 ].reduce((acc, mod) => deepMerge(acc, mod), {});
@@ -162,7 +156,6 @@ const FR = [
   frStatus,
   frErrors,
   frStaff,
-  frTeacher,
   frPm,
   frParticipant,
   frTime,
@@ -185,7 +178,6 @@ const FR = [
   frParticipantMisc,
   frStaffMisc,
   frRootMisc,
-  frTeacherMisc,
   frLms,
   frMembership,
 ].reduce((acc, mod) => deepMerge(acc, mod), {});
