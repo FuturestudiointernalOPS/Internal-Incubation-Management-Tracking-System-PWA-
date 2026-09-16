@@ -20,10 +20,6 @@ export default function GroupWorkspaceV2({ params }) {
   const [group, setGroup] = useState(null);
   const [, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchGroup();
-  }, [groupId]);
-
   const fetchGroup = async (bypassCache = false) => {
     const url = `/api/v2/groups?program_id=${programId}`;
     const apply = (data) => {
@@ -50,6 +46,10 @@ export default function GroupWorkspaceV2({ params }) {
       if (!painted) console.error(e);
     }
   };
+
+  useEffect(() => {
+    fetchGroup();
+  }, [groupId]);
 
   const handleUpdate = async () => {
     setLoading(true);

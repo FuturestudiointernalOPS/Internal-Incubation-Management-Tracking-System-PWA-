@@ -30,12 +30,6 @@ export default function VentureCoachesPage() {
   // Create coach form
   const [cForm, setCForm] = useState({ full_name: "", email: "", coach_type: "coach", phone: "", organization: "", biography: "" });
 
-  useEffect(() => { fetchAll(); }, []);
-
-  const notify = (msg, type = "success") => {
-    setToast({ msg, type }); setTimeout(() => setToast(null), 4000);
-  };
-
   const fetchAll = async (bypassCache = false) => {
     const urls = [
       `/api/ventures/${id}`,
@@ -76,6 +70,12 @@ export default function VentureCoachesPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => { fetchAll(); }, []);
+
+  const notify = (msg, type = "success") => {
+    setToast({ msg, type }); setTimeout(() => setToast(null), 4000);
   };
 
   // Re-fetch assignments using the assignments endpoint from lib

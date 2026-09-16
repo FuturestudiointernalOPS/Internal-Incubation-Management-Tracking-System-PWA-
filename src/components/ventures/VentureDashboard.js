@@ -101,13 +101,6 @@ export default function VentureDashboard({ id, embedded = false }) {
   // Individual widget states
   const [widgetStates, setWidgetStates] = useState({});
 
-  useEffect(() => {
-    // The hub page already fetches the venture record for its own header; only
-    // the standalone route needs this component to fetch it too.
-    if (!embedded) fetchVenture();
-    fetchDashboard();
-  }, [refreshKey, embedded, id]);
-
   const fetchVenture = async (bypassCache = false) => {
     const url = `/api/ventures/${id}`;
     const apply = (data) => {
@@ -133,6 +126,17 @@ export default function VentureDashboard({ id, embedded = false }) {
     } catch {
       if (!painted) setError(t("vadmin.dashboard.loadFailed"));
     }
+  };
+
+  const isWidgetEmpty = (key, data) => {
+    if (!data) return true;
+    if (Array.isArray(data)) return data.length === 0;
+    if (typeof data === "object") {
+      if (data.recent && Array.isArray(data.recent)) return data.recent.length === 0 && !data.unread;
+      if (data.items && Array.isArray(data.items)) return data.items.length === 0;
+      return Object.keys(data).length === 0;
+    }
+    return false;
   };
 
   const fetchDashboard = async (bypassCache = false) => {
@@ -181,16 +185,12 @@ export default function VentureDashboard({ id, embedded = false }) {
     }
   };
 
-  const isWidgetEmpty = (key, data) => {
-    if (!data) return true;
-    if (Array.isArray(data)) return data.length === 0;
-    if (typeof data === "object") {
-      if (data.recent && Array.isArray(data.recent)) return data.recent.length === 0 && !data.unread;
-      if (data.items && Array.isArray(data.items)) return data.items.length === 0;
-      return Object.keys(data).length === 0;
-    }
-    return false;
-  };
+  useEffect(() => {
+    // The hub page already fetches the venture record for its own header; only
+    // the standalone route needs this component to fetch it too.
+    if (!embedded) fetchVenture();
+    fetchDashboard();
+  }, [refreshKey, embedded, id]);
 
   const refreshWidget = (key) => {
     setWidgetStates((prev) => ({ ...prev, [key]: { ...prev[key], loading: true, error: null } }));

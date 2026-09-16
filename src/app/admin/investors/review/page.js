@@ -21,8 +21,6 @@ export default function InvestorReviewPage() {
   const [reviewNotes, setReviewNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { fetchInvestors(); }, []);
-
   const fetchInvestors = async (bypassCache = false) => {
     setLoading(true);
     try {
@@ -49,6 +47,8 @@ export default function InvestorReviewPage() {
     } catch (_) {}
     setLoading(false);
   };
+
+  useEffect(() => { fetchInvestors(); }, []);
 
   const fetchDetail = async (inv) => {
     setSelected(inv);

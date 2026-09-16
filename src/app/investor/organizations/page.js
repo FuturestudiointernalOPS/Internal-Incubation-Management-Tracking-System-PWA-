@@ -29,8 +29,6 @@ export default function InvestorOrganizationsPage() {
   const [orgMembers, setOrgMembers] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  useEffect(() => { fetchOrgs(); }, []);
-
   const fetchOrgs = async (bypassCache = false) => {
     setLoading(true);
     try {
@@ -57,6 +55,8 @@ export default function InvestorOrganizationsPage() {
     } catch (_) {}
     setLoading(false);
   };
+
+  useEffect(() => { fetchOrgs(); }, []);
 
   const fetchOrgDetail = async (orgId, bypassCache = false) => {
     setDetailLoading(true);

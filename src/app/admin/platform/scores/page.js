@@ -61,10 +61,6 @@ export default function ScoresPage() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  useEffect(() => {
-    fetchForms();
-  }, []);
-
   const fetchForms = async (bypassCache = false) => {
     const url = "/api/platform/forms?status=all";
     const apply = (d) => {
@@ -85,6 +81,10 @@ export default function ScoresPage() {
       }
     } catch (_) {}
   };
+
+  useEffect(() => {
+    fetchForms();
+  }, []);
 
   const fetchRuns = async (formId) => {
     try {

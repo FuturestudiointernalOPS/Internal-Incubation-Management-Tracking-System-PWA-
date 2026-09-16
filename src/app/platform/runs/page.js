@@ -395,6 +395,74 @@ export default function FormRunsPage() {
   // Operational dashboard
   const [dashboardStats, setDashboardStats] = useState(null);
 
+  // AI Evaluation progress state (Phase 4 client-driven batching)
+  const [evalProgress, setEvalProgress] = useState(null); // { total, evaluated, failed, remaining, percent, running, batch }
+  const [evalStats, setEvalStats] = useState(null); // { approvals, emails }
+  const [evaluations, setEvaluations] = useState([]); // AI evaluation rows for the open run
+  const [emailLog, setEmailLog] = useState([]); // email delivery log for the open run
+  const [runTemplates, setRunTemplates] = useState({}); // run-level email template overrides
+  const [runFormSettings, setRunFormSettings] = useState({}); // form settings (for template fallback + AI base)
+  const [runTplSaving, setRunTplSaving] = useState(false);
+  const [runPersonalizing, setRunPersonalizing] = useState(null); // template key while AI writes
+
+  // Run-scoped respondent search + filters (operate only on THIS run's submissions)
+  const [respSearch, setRespSearch] = useState("");
+  const [scoreOp, setScoreOp] = useState(""); // "" | "eq" | "gte" | "gt" | "lte" | "lt" | "between"
+  const [scoreVal, setScoreVal] = useState("");
+  const [scoreVal2, setScoreVal2] = useState("");
+  const [fieldFilters, setFieldFilters] = useState({}); // field label → option value
+  const [approvalEmailFilter, setApprovalEmailFilter] = useState("");
+  const [activationEmailFilter, setActivationEmailFilter] = useState("");
+  const [reviewFilter, setReviewFilter] = useState("");
+  const [accountStatusFilter, setAccountStatusFilter] = useState("");
+  const [fieldLabels, setFieldLabels] = useState({}); // field id → label (from the run's form)
+  const [filterableFields, setFilterableFields] = useState([]); // form fields that carry options
+  const [respPage, setRespPage] = useState(1); // respondent table pagination
+  const [showDuplicates, setShowDuplicates] = useState(false); // duplicates-only view
+  const [filterPickerOpen, setFilterPickerOpen] = useState(false); // Add Filter dropdown
+  const [filterPickerMode, setFilterPickerMode] = useState(null); // null | "score" | { type: "field", label }
+  const filterRowRef = useRef(null); // closes the picker when clicking outside
+  const [selectedIds, setSelectedIds] = useState([]); // bulk-selected respondent ids
+  const [bulkMenuOpen, setBulkMenuOpen] = useState(false); // bulk Actions dropdown
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false); // confirm dialog
+  const [bulkProcessing, setBulkProcessing] = useState(false); // bulk op running
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 });
+  const [bulkSummary, setBulkSummary] = useState(null); // { approved, already_approved, failed[] }
+  const bulkAbortRef = useRef(false); // stops issuing new bulk batches when true
+  const [retrySelected, setRetrySelected] = useState([]); // "submissionId:emailType" keys
+  const [retryProcessing, setRetryProcessing] = useState(false);
+  const [retryProgress, setRetryProgress] = useState({ done: 0, total: 0 });
+  const [retrySummary, setRetrySummary] = useState(null); // { sent, already_sent, failed[] }
+  const retryAbortRef = useRef(false); // stops issuing new retry batches when true
+  const [activationConfirmOpen, setActivationConfirmOpen] = useState(false);
+  const [activationForceResend, setActivationForceResend] = useState(false);
+  const [activationProcessing, setActivationProcessing] = useState(false);
+  const [activationProgress, setActivationProgress] = useState({ done: 0, total: 0 });
+  // Bulk Send Result (response PDF email) — Actions menu
+  const [resultConfirmOpen, setResultConfirmOpen] = useState(false);
+  const [resultProcessing, setResultProcessing] = useState(false);
+  const [resultProgress, setResultProgress] = useState({ done: 0, total: 0 });
+
+  // Manual message composer (Room Overview → selected participants)
+  const [showMessageComposer, setShowMessageComposer] = useState(false);
+  const [messageSubject, setMessageSubject] = useState("");
+  const [messageBody, setMessageBody] = useState("");
+  const [messageSending, setMessageSending] = useState(false);
+  const [messageResult, setMessageResult] = useState(null); // { recipients, sent, failed }
+  const [messageSummary, setMessageSummary] = useState(null); // { title, sent, skipped }
+  const [aiPersonalizing, setAiPersonalizing] = useState(false);
+
+  // Manual add respondent (super admin injects a test person into a run)
+  const [showManualAdd, setShowManualAdd] = useState(false);
+  const [manualAddName, setManualAddName] = useState("");
+  const [manualAddEmail, setManualAddEmail] = useState("");
+  const [manualAdding, setManualAdding] = useState(false);
+  // Manual message composer (Room Overview → selected participants)
+  // Export options (format + scope)
+  const [showExportOptions, setShowExportOptions] = useState(false);
+  const [exportFormat, setExportFormat] = useState("csv"); // csv | xlsx
+  const [exportScope, setExportScope] = useState("filtered"); // selected | filtered
+
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
   const fetchRuns = useCallback(async (bypassCache = false) => {
@@ -938,74 +1006,6 @@ export default function FormRunsPage() {
     } catch (_) {}
     setSaving(false);
   };
-
-  // AI Evaluation progress state (Phase 4 client-driven batching)
-  const [evalProgress, setEvalProgress] = useState(null); // { total, evaluated, failed, remaining, percent, running, batch }
-  const [evalStats, setEvalStats] = useState(null); // { approvals, emails }
-  const [evaluations, setEvaluations] = useState([]); // AI evaluation rows for the open run
-  const [emailLog, setEmailLog] = useState([]); // email delivery log for the open run
-  const [runTemplates, setRunTemplates] = useState({}); // run-level email template overrides
-  const [runFormSettings, setRunFormSettings] = useState({}); // form settings (for template fallback + AI base)
-  const [runTplSaving, setRunTplSaving] = useState(false);
-  const [runPersonalizing, setRunPersonalizing] = useState(null); // template key while AI writes
-
-  // Run-scoped respondent search + filters (operate only on THIS run's submissions)
-  const [respSearch, setRespSearch] = useState("");
-  const [scoreOp, setScoreOp] = useState(""); // "" | "eq" | "gte" | "gt" | "lte" | "lt" | "between"
-  const [scoreVal, setScoreVal] = useState("");
-  const [scoreVal2, setScoreVal2] = useState("");
-  const [fieldFilters, setFieldFilters] = useState({}); // field label → option value
-  const [approvalEmailFilter, setApprovalEmailFilter] = useState("");
-  const [activationEmailFilter, setActivationEmailFilter] = useState("");
-  const [reviewFilter, setReviewFilter] = useState("");
-  const [accountStatusFilter, setAccountStatusFilter] = useState("");
-  const [fieldLabels, setFieldLabels] = useState({}); // field id → label (from the run's form)
-  const [filterableFields, setFilterableFields] = useState([]); // form fields that carry options
-  const [respPage, setRespPage] = useState(1); // respondent table pagination
-  const [showDuplicates, setShowDuplicates] = useState(false); // duplicates-only view
-  const [filterPickerOpen, setFilterPickerOpen] = useState(false); // Add Filter dropdown
-  const [filterPickerMode, setFilterPickerMode] = useState(null); // null | "score" | { type: "field", label }
-  const filterRowRef = useRef(null); // closes the picker when clicking outside
-  const [selectedIds, setSelectedIds] = useState([]); // bulk-selected respondent ids
-  const [bulkMenuOpen, setBulkMenuOpen] = useState(false); // bulk Actions dropdown
-  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false); // confirm dialog
-  const [bulkProcessing, setBulkProcessing] = useState(false); // bulk op running
-  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 });
-  const [bulkSummary, setBulkSummary] = useState(null); // { approved, already_approved, failed[] }
-  const bulkAbortRef = useRef(false); // stops issuing new bulk batches when true
-  const [retrySelected, setRetrySelected] = useState([]); // "submissionId:emailType" keys
-  const [retryProcessing, setRetryProcessing] = useState(false);
-  const [retryProgress, setRetryProgress] = useState({ done: 0, total: 0 });
-  const [retrySummary, setRetrySummary] = useState(null); // { sent, already_sent, failed[] }
-  const retryAbortRef = useRef(false); // stops issuing new retry batches when true
-  const [activationConfirmOpen, setActivationConfirmOpen] = useState(false);
-  const [activationForceResend, setActivationForceResend] = useState(false);
-  const [activationProcessing, setActivationProcessing] = useState(false);
-  const [activationProgress, setActivationProgress] = useState({ done: 0, total: 0 });
-  // Bulk Send Result (response PDF email) — Actions menu
-  const [resultConfirmOpen, setResultConfirmOpen] = useState(false);
-  const [resultProcessing, setResultProcessing] = useState(false);
-  const [resultProgress, setResultProgress] = useState({ done: 0, total: 0 });
-
-  // Manual message composer (Room Overview → selected participants)
-  const [showMessageComposer, setShowMessageComposer] = useState(false);
-  const [messageSubject, setMessageSubject] = useState("");
-  const [messageBody, setMessageBody] = useState("");
-  const [messageSending, setMessageSending] = useState(false);
-  const [messageResult, setMessageResult] = useState(null); // { recipients, sent, failed }
-  const [messageSummary, setMessageSummary] = useState(null); // { title, sent, skipped }
-  const [aiPersonalizing, setAiPersonalizing] = useState(false);
-
-  // Manual add respondent (super admin injects a test person into a run)
-  const [showManualAdd, setShowManualAdd] = useState(false);
-  const [manualAddName, setManualAddName] = useState("");
-  const [manualAddEmail, setManualAddEmail] = useState("");
-  const [manualAdding, setManualAdding] = useState(false);
-  // Manual message composer (Room Overview → selected participants)
-  // Export options (format + scope)
-  const [showExportOptions, setShowExportOptions] = useState(false);
-  const [exportFormat, setExportFormat] = useState("csv"); // csv | xlsx
-  const [exportScope, setExportScope] = useState("filtered"); // selected | filtered
 
   const fetchEvalProgress = async (formId) => {
     try {

@@ -10,10 +10,6 @@ export default function AdminMetricsDashboard() {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchPrograms();
-  }, []);
-
   const fetchPrograms = async (bypassCache = false) => {
     const url = "/api/pm/programs?show_archived=all";
     const apply = (data) => {
@@ -41,6 +37,10 @@ export default function AdminMetricsDashboard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchPrograms();
+  }, []);
 
   const formatPct = (v) => (v !== null && v !== undefined ? `${Math.round(v)}%` : "—");
 

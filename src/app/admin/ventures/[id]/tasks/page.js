@@ -59,12 +59,6 @@ export default function VentureTasksPage() {
   // Search
   const [search, setSearch] = useState("");
 
-  useEffect(() => { fetchData(); }, []);
-
-  const notify = (msg, type = "success") => {
-    setToast({ msg, type }); setTimeout(() => setToast(null), 4000);
-  };
-
   const fetchData = async (bypassCache = false) => {
     // include_archived=1: archived (soft-deleted) tasks are rendered in their
     // own view — the page splits active vs archived client-side.
@@ -101,6 +95,12 @@ export default function VentureTasksPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
+  const notify = (msg, type = "success") => {
+    setToast({ msg, type }); setTimeout(() => setToast(null), 4000);
   };
 
   const openTask = async (task) => {

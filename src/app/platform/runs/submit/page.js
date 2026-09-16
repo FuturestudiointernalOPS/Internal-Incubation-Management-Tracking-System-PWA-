@@ -34,10 +34,6 @@ export default function MySubmissionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    loadSubmissions();
-  }, []);
-
   const loadSubmissions = async (bypassCache = false) => {
     setLoading(true);
     const url = "/api/platform/form-runs?my_submissions=true";
@@ -69,6 +65,10 @@ export default function MySubmissionsPage() {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadSubmissions();
+  }, []);
 
   return (
     <div className="min-h-screen">

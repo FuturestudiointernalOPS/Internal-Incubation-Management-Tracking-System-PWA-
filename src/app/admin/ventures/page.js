@@ -34,10 +34,6 @@ export default function VenturesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    fetchVentures();
-  }, []);
-
   const fetchVentures = async (bypassCache = false) => {
     setLoading(true);
     try {
@@ -67,6 +63,10 @@ export default function VenturesPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchVentures();
+  }, []);
 
   const filteredVentures = ventures.filter((v) => {
     if (!searchQuery) return true;

@@ -33,8 +33,6 @@ export default function VentureInvestmentPage() {
   const [roadmap, setRoadmap] = useState(null);
   const [roadmapLoading, setRoadmapLoading] = useState(true);
 
-  useEffect(() => { fetchData(); fetchRoadmap(); }, []);
-
   const fetchData = async (bypassCache = false) => {
     const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/investment`];
     const apply = (v, i) => {
@@ -71,6 +69,8 @@ export default function VentureInvestmentPage() {
       if (d?.success && d.roadmap_readiness) setRoadmap(d.roadmap_readiness);
     } catch {} finally { setRoadmapLoading(false); }
   };
+
+  useEffect(() => { fetchData(); fetchRoadmap(); }, []);
 
   const handleEvaluate = async () => {
     setEvaluating(true);

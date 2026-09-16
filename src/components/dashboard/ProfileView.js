@@ -195,16 +195,6 @@ export default function ProfileView() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoMessage, setPhotoMessage] = useState(null);
 
-  useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(stored);
-    if (stored?.cid || stored?.email) {
-      fetchAllData(stored);
-    } else {
-      setLoading(false);
-    }
-  }, []);
-
   const fetchAllData = async (u) => {
     try {
       const cid = u.cid;
@@ -292,6 +282,16 @@ export default function ProfileView() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const stored = JSON.parse(localStorage.getItem("user") || "{}");
+    setUser(stored);
+    if (stored?.cid || stored?.email) {
+      fetchAllData(stored);
+    } else {
+      setLoading(false);
+    }
+  }, []);
 
   const handleSave = async () => {
     if (!contact?.cid) return;

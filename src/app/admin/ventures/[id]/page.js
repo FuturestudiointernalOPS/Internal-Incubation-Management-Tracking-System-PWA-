@@ -119,10 +119,6 @@ export default function VentureDetailPage({ params }) {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
 
-  useEffect(() => {
-    if (id) fetchVenture();
-  }, [id]);
-
   const fetchVenture = async (bypassCache = false) => {
     const url = `/api/ventures/${id}`;
     const apply = (data) => {
@@ -157,6 +153,10 @@ export default function VentureDetailPage({ params }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (id) fetchVenture();
+  }, [id]);
 
   const getStageConfig = (stage) => STAGE_CONFIG[stage] || STAGE_CONFIG.idea;
   const getActivityIcon = (action) => ACTIVITY_ICONS[action] || Activity;

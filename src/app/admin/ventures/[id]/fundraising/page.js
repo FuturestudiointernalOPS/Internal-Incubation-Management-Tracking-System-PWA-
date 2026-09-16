@@ -40,8 +40,6 @@ export default function VentureFundraisingPage() {
   const [noteText, setNoteText] = useState("");
   const [activityForm, setActivityForm] = useState({ activity_type: "email", title: "" });
 
-  useEffect(() => { fetchAll(); }, []);
-
   const fetchAll = async (bypassCache = false) => {
     const urls = [
       `/api/ventures/${id}`,
@@ -83,6 +81,8 @@ export default function VentureFundraisingPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => { fetchAll(); }, []);
 
   const loadDetail = async (oppId, bypassCache = false) => {
     const url = `/api/ventures/${id}/fundraising?type=detail&opportunity_id=${oppId}`;

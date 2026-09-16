@@ -44,11 +44,6 @@ export default function PMProgramsRegistry() {
   const [, setTasksLoading] = useState(true);
   const { t } = useI18n();
 
-  useEffect(() => {
-    fetchMyPrograms();
-    fetchMyTasks();
-  }, [activeTab]);
-
   const fetchMyPrograms = async (bypassCache = false) => {
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -118,6 +113,11 @@ export default function PMProgramsRegistry() {
       setTasksLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchMyPrograms();
+    fetchMyTasks();
+  }, [activeTab]);
 
   const filtered = programs.filter(
     (p) =>

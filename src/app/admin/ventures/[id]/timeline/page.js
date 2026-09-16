@@ -48,8 +48,6 @@ export default function VentureTimelinePage() {
   const [journeyLoading, setJourneyLoading] = useState(false);
   const roadmapRequested = useRef(false);
 
-  useEffect(() => { fetchAll(); }, []);
-
   const fetchAll = async (bypassCache = false) => {
     const urls = [
       `/api/ventures/${id}`,
@@ -86,6 +84,8 @@ export default function VentureTimelinePage() {
       apply(v, t, p, d);
     } catch {} finally { setLoading(false); }
   };
+
+  useEffect(() => { fetchAll(); }, []);
 
   // Roadmap view only: the journey report loads when the view is selected, and
   // again on a later visit (the ref clears once another view is active). It is

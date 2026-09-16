@@ -67,10 +67,6 @@ export default function SuperAdminExecutiveView({ params }) {
      
   }, [program?.id, program?.assigned_segments]);
 
-  useEffect(() => {
-    fetchData();
-  }, [id]);
-
   const fetchData = async (bypassCache = false) => {
     const urls = [
       `/api/pm/full-state?id=${id}`,
@@ -128,6 +124,10 @@ export default function SuperAdminExecutiveView({ params }) {
       setIsLoaded(true);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, [id]);
 
   const handleAddFollowup = async (wn, sid = null) => {
     if (!newFollowup.comment.trim()) return;

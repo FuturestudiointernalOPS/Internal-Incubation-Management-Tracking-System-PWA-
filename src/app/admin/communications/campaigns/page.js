@@ -60,10 +60,6 @@ export default function CampaignsPage() {
     minutes: t('crm.campaigns.minutes'),
   };
 
-  useEffect(() => { 
-    fetchData(); 
-  }, []);
-
   const fetchData = async (bypassCache = false) => {
     const urls = ['/api/campaigns', '/api/contacts', '/api/forms', '/api/families'];
     const apply = (campData, contData, formData, famData) => {
@@ -104,6 +100,10 @@ export default function CampaignsPage() {
       setLoading(false); 
     }
   };
+
+  useEffect(() => { 
+    fetchData(); 
+  }, []);
 
   const openDetails = async (campaign) => {
     try {

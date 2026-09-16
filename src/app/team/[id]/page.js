@@ -87,11 +87,6 @@ export default function TeamDashboardPage({ params }) {
   const [userRole, setUserRole] = useState(null);
 
   // — Fetch all data —
-  useEffect(() => {
-    fetchTeamData();
-    fetchUserRole();
-  }, [teamId, retryCount]);
-
   const fetchUserRole = async () => {
     try {
       const res = await fetch("/api/auth/session");
@@ -243,6 +238,11 @@ export default function TeamDashboardPage({ params }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchTeamData();
+    fetchUserRole();
+  }, [teamId, retryCount]);
 
   // — Fetch team tasks —
   const fetchTasks = async (bypassCache = false) => {

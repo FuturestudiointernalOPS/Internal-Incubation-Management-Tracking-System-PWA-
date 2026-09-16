@@ -13,8 +13,6 @@ export default function PlatformDashboard() {
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadOperationalData(); }, []);
-
   const loadOperationalData = async (bypassCache = false) => {
     const statsUrl = "/api/platform/form-runs?dashboard=true";
     const activityUrl = "/api/platform/form-runs?activity=true";
@@ -52,6 +50,8 @@ export default function PlatformDashboard() {
     } catch (_) {}
     setLoading(false);
   };
+
+  useEffect(() => { loadOperationalData(); }, []);
 
   if (loading) {
     return (

@@ -63,11 +63,6 @@ export default function UserAccessSummary() {
   const [supervisorMsg, setSupervisorMsg] = useState("");
   const [supervisorError, setSupervisorError] = useState("");
 
-  useEffect(() => {
-    fetchUsers();
-    fetchModules();
-  }, []);
-
   const fetchModules = async () => {
     try {
       const res = await fetch("/api/engineering/permissions");
@@ -111,6 +106,11 @@ export default function UserAccessSummary() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchUsers();
+    fetchModules();
+  }, []);
 
   const searchUsers = (query) => {
     setSearchQuery(query);

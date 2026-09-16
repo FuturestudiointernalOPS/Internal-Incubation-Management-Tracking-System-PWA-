@@ -42,10 +42,6 @@ export default function ResponsesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newCampaignName, setNewCampaignName] = useState("");
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   const fetchData = async (bypassCache = false) => {
     const urls = ["/api/responses", "/api/contacts"];
     const apply = (json, contactsJson) => {
@@ -82,6 +78,10 @@ export default function ResponsesPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const resolveMatch = async (response_id, cid) => {
     if (!cid) return;

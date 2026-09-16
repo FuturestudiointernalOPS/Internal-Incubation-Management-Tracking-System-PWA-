@@ -19,10 +19,6 @@ export default function InviteAcceptPage({ params }) {
   const [success, setSuccess] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
 
-  useEffect(() => {
-    fetchInvite();
-  }, [token]);
-
   const fetchInvite = async () => {
     try {
       const res = await fetch(`/api/invites/${token}`);
@@ -38,6 +34,10 @@ export default function InviteAcceptPage({ params }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchInvite();
+  }, [token]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -42,8 +42,6 @@ export default function InvestorProfilePage() {
   const [ticketMax, setTicketMax] = useState("");
   const [philosophy, setPhilosophy] = useState("");
 
-  useEffect(() => { fetchProfile(); }, []);
-
   const fetchProfile = async (bypassCache = false) => {
     setLoading(true);
     try {
@@ -81,6 +79,8 @@ export default function InvestorProfilePage() {
     } catch (_) {}
     setLoading(false);
   };
+
+  useEffect(() => { fetchProfile(); }, []);
 
   const saveProfile = async () => {
     setSaving(true);

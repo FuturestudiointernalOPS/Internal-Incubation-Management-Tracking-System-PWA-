@@ -22,7 +22,10 @@ export default function DuplicatesPage() {
   const [preview, setPreview] = useState(null);
   const [notification, setNotification] = useState(null);
 
-  useEffect(() => { fetchFlags(); }, []);
+  function notify(msg, type) {
+    setNotification({ msg, type });
+    setTimeout(() => setNotification(null), 4000);
+  }
 
   async function fetchFlags(bypassCache = false) {
     const url = "/api/contacts/duplicates";
@@ -59,6 +62,8 @@ export default function DuplicatesPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => { fetchFlags(); }, []);
 
   async function handleDismiss(flagId) {
     try {
@@ -102,11 +107,6 @@ export default function DuplicatesPage() {
         notify(t((data.error || t("crm.duplicates.mergeFailed")) || "") || (data.error || t("crm.duplicates.mergeFailed")), "error");
       }
     } catch (_) { notify(t("crm.duplicates.mergeFailed"), "error"); }
-  }
-
-  function notify(msg, type) {
-    setNotification({ msg, type });
-    setTimeout(() => setNotification(null), 4000);
   }
 
   return (

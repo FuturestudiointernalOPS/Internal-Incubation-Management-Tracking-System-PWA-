@@ -40,10 +40,6 @@ export default function VentureKnowledgePage() {
   // Create form
   const [crForm, setCrForm] = useState({ title: "", description: "", resource_type: "article", category_id: "", url: "", tags: "" });
 
-  useEffect(() => { fetchAll(); }, []);
-
-  const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 4000); };
-
   const fetchAll = async (bypassCache = false) => {
     const urls = [
       `/api/ventures/${id}`,
@@ -89,6 +85,10 @@ export default function VentureKnowledgePage() {
       apply(v, r, c, b, rec, lp, paths);
     } catch {} finally { setLoading(false); }
   };
+
+  useEffect(() => { fetchAll(); }, []);
+
+  const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 4000); };
 
   const handleSearch = async () => {
     const res = await fetch(`/api/ventures/${id}/knowledge?search=${encodeURIComponent(search)}`);

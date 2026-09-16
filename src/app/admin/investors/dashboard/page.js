@@ -14,8 +14,6 @@ export default function ExecutiveDashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchDashboard(); }, []);
-
   const fetchDashboard = async (bypassCache = false) => {
     setLoading(true);
     try {
@@ -41,6 +39,8 @@ export default function ExecutiveDashboardPage() {
     } catch (_) {}
     setLoading(false);
   };
+
+  useEffect(() => { fetchDashboard(); }, []);
 
   if (loading) return <><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>;
 

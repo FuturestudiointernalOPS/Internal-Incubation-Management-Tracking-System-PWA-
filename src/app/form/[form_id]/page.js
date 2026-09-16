@@ -25,11 +25,6 @@ function PublicFormContent() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  useEffect(() => {
-    fetchForm();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form_id]);
-
   const fetchForm = async (bypassCache = false) => {
     const url = `/api/forms/${form_id}`;
     const apply = (data) => {
@@ -62,6 +57,11 @@ function PublicFormContent() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form_id]);
 
   const handleChange = (id, val) => {
     setAnswers(prev => ({ ...prev, [id]: val }));

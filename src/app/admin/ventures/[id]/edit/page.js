@@ -50,10 +50,6 @@ export default function EditVenturePage({ params }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  useEffect(() => {
-    if (id) fetchVenture();
-  }, [id]);
-
   const fetchVenture = async (bypassCache = false) => {
     const url = `/api/ventures/${id}`;
     const apply = (data) => {
@@ -94,6 +90,10 @@ export default function EditVenturePage({ params }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (id) fetchVenture();
+  }, [id]);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));

@@ -32,10 +32,6 @@ export default function NotificationsPage() {
   const [filterType, setFilterType] = useState("");
   const [toast, setToast] = useState(null);
 
-  useEffect(() => { fetchAll(); }, []);
-
-  const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
-
   const fetchAll = async (bypassCache = false) => {
     setLoading(true);
     const urls = [
@@ -70,6 +66,10 @@ export default function NotificationsPage() {
       apply(responses[0], responses[1]);
     } catch {} finally { setLoading(false); }
   };
+
+  useEffect(() => { fetchAll(); }, []);
+
+  const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
   const markRead = async (id) => {
     await fetch(`/api/notifications/venture`, {

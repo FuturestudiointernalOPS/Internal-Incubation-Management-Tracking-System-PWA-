@@ -40,10 +40,6 @@ export default function SegmentsPage() {
   const [campaignConfig, setCampaignConfig] = useState({ name: '', form_id: '' });
   const [isLaunching, setIsLaunching] = useState(false);
 
-  useEffect(() => { 
-    fetchData(); 
-  }, []);
-
   const fetchData = async (bypassCache = false) => {
     try {
       const urls = ['/api/segments', '/api/campaigns', '/api/forms'];
@@ -81,6 +77,10 @@ export default function SegmentsPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => { 
+    fetchData(); 
+  }, []);
 
   const runPreview = async (currentFilters) => {
     setIsPreviewing(true);

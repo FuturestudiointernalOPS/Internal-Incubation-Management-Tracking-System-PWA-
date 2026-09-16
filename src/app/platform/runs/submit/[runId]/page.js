@@ -40,10 +40,6 @@ export default function SubmitFormPage() {
 
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
-  useEffect(() => {
-    loadRun();
-  }, [runId]);
-
   const loadRun = async (bypassCache = false) => {
     setLoading(true);
     setError(null);
@@ -106,6 +102,10 @@ export default function SubmitFormPage() {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadRun();
+  }, [runId]);
 
   const updateField = (fieldId, value) => {
     setFormData((prev) => ({ ...prev, [fieldId]: value }));

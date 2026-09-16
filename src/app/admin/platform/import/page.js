@@ -112,11 +112,6 @@ export default function ImportPage() {
 
   const fileInputRef = useRef(null);
 
-  // Fetch forms on mount
-  useEffect(() => {
-    fetchForms();
-  }, []);
-
   const fetchForms = async (bypassCache = false) => {
     const url = "/api/platform/forms?status=all";
     const apply = (data) => {
@@ -137,6 +132,11 @@ export default function ImportPage() {
       }
     } catch (_) {}
   };
+
+  // Fetch forms on mount
+  useEffect(() => {
+    fetchForms();
+  }, []);
 
   const fetchRuns = async (formId) => {
     try {

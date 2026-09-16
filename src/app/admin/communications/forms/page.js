@@ -44,11 +44,6 @@ export default function FormsPage() {
   const [newGroupName, setNewGroupName] = useState("");
   const [showNewGroupInput, setShowNewGroupInput] = useState(false);
 
-  useEffect(() => {
-    fetchForms();
-    fetchFamilies();
-  }, []);
-
   const fetchFamilies = async (bypassCache = false) => {
     const url = "/api/families";
     const apply = (data) => {
@@ -102,6 +97,11 @@ export default function FormsPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchForms();
+    fetchFamilies();
+  }, []);
 
   const addField = (type) => {
     const newField = {

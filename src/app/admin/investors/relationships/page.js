@@ -62,8 +62,6 @@ export default function AdminRelationshipsPage() {
     outcome: "", notes: "", action_items: "",
   });
 
-  useEffect(() => { fetchWorkspaces(); fetchStaff(); fetchCurrentUser(); }, []);
-
   const fetchCurrentUser = async () => {
     try {
       const res = await fetch("/api/auth/session");
@@ -112,6 +110,8 @@ export default function AdminRelationshipsPage() {
       if (data.success) setStaffList(data.contacts || []);
     } catch (_) {}
   };
+
+  useEffect(() => { fetchWorkspaces(); fetchStaff(); fetchCurrentUser(); }, []);
 
   const handleAssign = async (field, cid, name) => {
     try {

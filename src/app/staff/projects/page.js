@@ -27,34 +27,6 @@ export default function MyProjects() {
   const [responding, setResponding] = useState(null);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    async function init() {
-      try {
-        // First try session API (reliable — waits for auth to resolve)
-        const res = await fetch("/api/auth/session");
-        const data = await res.json();
-        if (data.authenticated && data.user) {
-          const u = data.user;
-          setUser(u);
-          fetchProjects(u.cid || u.id);
-          fetchInvitations(u.cid || u.id);
-          return;
-        }
-      } catch (_) {}
-
-      // Fallback: read from localStorage
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      if (u.cid || u.id) {
-        setUser(u);
-        fetchProjects(u.cid || u.id);
-        fetchInvitations(u.cid || u.id);
-      } else {
-        setLoading(false);
-      }
-    }
-    init();
-  }, []);
-
   const fetchProjects = async (cid, bypassCache = false) => {
     try {
       const url = `/api/projects?user_cid=${encodeURIComponent(cid)}`;
@@ -105,6 +77,34 @@ export default function MyProjects() {
       console.error("Failed to fetch invitations", e);
     }
   };
+
+  useEffect(() => {
+    async function init() {
+      try {
+        // First try session API (reliable — waits for auth to resolve)
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          const u = data.user;
+          setUser(u);
+          fetchProjects(u.cid || u.id);
+          fetchInvitations(u.cid || u.id);
+          return;
+        }
+      } catch (_) {}
+
+      // Fallback: read from localStorage
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      if (u.cid || u.id) {
+        setUser(u);
+        fetchProjects(u.cid || u.id);
+        fetchInvitations(u.cid || u.id);
+      } else {
+        setLoading(false);
+      }
+    }
+    init();
+  }, []);
 
   const handleInvitationResponse = async (invitationId, action) => {
     setResponding(invitationId);

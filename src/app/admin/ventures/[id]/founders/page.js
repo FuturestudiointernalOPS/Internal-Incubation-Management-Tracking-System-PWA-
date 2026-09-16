@@ -89,15 +89,6 @@ export default function VentureFoundersPage() {
   // Menu
   const [openMenuId, setOpenMenuId] = useState(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const notify = (message, type = "success") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  };
-
   const fetchData = async (bypassCache = false) => {
     const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/founders`];
     const apply = (ventureData, foundersData) => {
@@ -142,6 +133,15 @@ export default function VentureFoundersPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const notify = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
   };
 
   const handleInvite = async () => {

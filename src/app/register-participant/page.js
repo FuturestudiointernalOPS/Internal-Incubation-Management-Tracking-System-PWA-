@@ -24,16 +24,6 @@ export default function RegisterParticipantPage() {
   const [error, setError] = useState('');
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
 
-  useEffect(() => {
-    if (groupId) {
-      setError('');
-      fetchGroup();
-    } else {
-      setError(t('rootMisc.registerParticipant.noGroupId'));
-      setLoading(false);
-    }
-  }, [groupId]);
-
   const fetchGroup = async (bypassCache = false) => {
     const url = `/api/public/group-info?id=${groupId}`;
     // This endpoint signals success by the presence of `group` (no `success` flag).
@@ -85,6 +75,16 @@ export default function RegisterParticipantPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (groupId) {
+      setError('');
+      fetchGroup();
+    } else {
+      setError(t('rootMisc.registerParticipant.noGroupId'));
+      setLoading(false);
+    }
+  }, [groupId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

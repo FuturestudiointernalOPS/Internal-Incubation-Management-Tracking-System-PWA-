@@ -44,8 +44,6 @@ export default function VentureDataRoomPage() {
   // Share form
   const [shareForm, setShareForm] = useState({ email: "", name: "", access_type: "read", expires_in_hours: "72" });
 
-  useEffect(() => { fetchAll(); }, []);
-
   const fetchAll = async (bypassCache = false) => {
     const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/documents`];
     const apply = (v, d) => {
@@ -71,6 +69,8 @@ export default function VentureDataRoomPage() {
       apply(v, d);
     } catch {} finally { setLoading(false); }
   };
+
+  useEffect(() => { fetchAll(); }, []);
 
   const loadDetail = async (docId, bypassCache = false) => {
     const urls = [

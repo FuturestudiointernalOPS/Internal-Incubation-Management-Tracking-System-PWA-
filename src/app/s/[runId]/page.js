@@ -90,23 +90,6 @@ export default function PublicSubmitPage() {
     setTranslating(false);
   };
 
-  useEffect(() => { loadRun(); }, []);
-
-  // Auto-save currentSection to localStorage
-  useEffect(() => {
-    try {
-      const existing = JSON.parse(localStorage.getItem(`form_draft_${runId}`) || "{}");
-      existing.currentSection = currentSection;
-      existing.lastSaved = Date.now();
-      localStorage.setItem(`form_draft_${runId}`, JSON.stringify(existing));
-    } catch (_) {}
-  }, [currentSection, runId]);
-
-  // Re-translate when language is switched
-  useEffect(() => {
-    if (rawForm.current) translateFormContent(lang);
-  }, [lang]);  
-
   const loadRun = async (bypassCache = false) => {
     const url = `/api/s/public-run?slug=${runId}`;
     const apply = (data) => {
@@ -176,6 +159,23 @@ export default function PublicSubmitPage() {
     }
     setLoading(false);
   };
+
+  useEffect(() => { loadRun(); }, []);
+
+  // Auto-save currentSection to localStorage
+  useEffect(() => {
+    try {
+      const existing = JSON.parse(localStorage.getItem(`form_draft_${runId}`) || "{}");
+      existing.currentSection = currentSection;
+      existing.lastSaved = Date.now();
+      localStorage.setItem(`form_draft_${runId}`, JSON.stringify(existing));
+    } catch (_) {}
+  }, [currentSection, runId]);
+
+  // Re-translate when language is switched
+  useEffect(() => {
+    if (rawForm.current) translateFormContent(lang);
+  }, [lang]);  
 
   const updateField = (fieldId, value) => {
     const updated = (prev) => ({ ...prev, [fieldId]: value });

@@ -41,17 +41,6 @@ export default function PortfolioPage() {
 
   const [toast, setToast] = useState(null);
 
-  useEffect(() => { fetchData(); }, []);
-
-  useEffect(() => {
-    if (selected?.venture_id) {
-      fetchMeetings(selected.venture_id);
-      fetchNotes(selected.id);
-      fetchUpdates(selected.venture_id);
-      fetchKpis(selected.venture_id);
-    }
-  }, [selected]);
-
   const fetchData = async (bypassCache = false) => {
     setLoading(true);
     try {
@@ -157,6 +146,17 @@ export default function PortfolioPage() {
       }
     } catch (_) {}
   };
+
+  useEffect(() => { fetchData(); }, []);
+
+  useEffect(() => {
+    if (selected?.venture_id) {
+      fetchMeetings(selected.venture_id);
+      fetchNotes(selected.id);
+      fetchUpdates(selected.venture_id);
+      fetchKpis(selected.venture_id);
+    }
+  }, [selected]);
 
   const getDecision = (ventureId) => decisions.find(d => d.venture_id === ventureId);
 

@@ -46,8 +46,6 @@ export default function AdminCampaignsPage() {
     opening_date: "", closing_date: "",
   });
 
-  useEffect(() => { fetchData(); }, []);
-
   const fetchData = async (bypassCache = false) => {
     setLoading(true);
     try {
@@ -80,6 +78,8 @@ export default function AdminCampaignsPage() {
     } catch (_) {}
     setLoading(false);
   };
+
+  useEffect(() => { fetchData(); }, []);
 
   const handleCreate = async () => {
     if (!form.venture_id || !form.name) {

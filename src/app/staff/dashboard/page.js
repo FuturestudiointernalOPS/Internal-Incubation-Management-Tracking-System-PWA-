@@ -31,12 +31,6 @@ export default function StaffDashboard() {
     return new Date(dateStr).toLocaleDateString();
   };
 
-  useEffect(() => {
-    const sessionUser = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(sessionUser);
-    fetchData(sessionUser.id);
-  }, []);
-
   const fetchData = async (uid) => {
     const urls = [
       `/api/program-staff?staff_id=${uid}`,
@@ -82,6 +76,12 @@ export default function StaffDashboard() {
       setTasksLoading(false);
     }
   };
+
+  useEffect(() => {
+    const sessionUser = JSON.parse(localStorage.getItem("user") || "{}");
+    setUser(sessionUser);
+    fetchData(sessionUser.id);
+  }, []);
 
   return (
     <>

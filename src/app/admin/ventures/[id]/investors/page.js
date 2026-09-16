@@ -24,8 +24,6 @@ export default function VentureInvestorsPage() {
   const [invForm, setInvForm] = useState({ name: "", email: "", organization: "", industries: "", preferred_stage: "" });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { fetchAll(); }, []);
-
   const fetchAll = async (bypassCache = false) => {
     const urls = [
       `/api/ventures/${id}`,
@@ -67,6 +65,8 @@ export default function VentureInvestorsPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => { fetchAll(); }, []);
 
   const handleGenerate = async () => {
     setGenerating(true);

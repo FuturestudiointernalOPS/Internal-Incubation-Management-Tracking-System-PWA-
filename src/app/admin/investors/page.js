@@ -41,8 +41,6 @@ export default function AdminInvestorsPage() {
   const [copied, setCopied] = useState(false);
   const { t } = useI18n();
 
-  useEffect(() => { fetchInvestors(); }, [statusFilter]);
-
   const fetchInvestors = async (bypassCache = false) => {
     setLoading(true);
     try {
@@ -69,6 +67,8 @@ export default function AdminInvestorsPage() {
     } catch (_) {}
     setLoading(false);
   };
+
+  useEffect(() => { fetchInvestors(); }, [statusFilter]);
 
   const handleAction = async (profileId, action) => {
     setActing(profileId);

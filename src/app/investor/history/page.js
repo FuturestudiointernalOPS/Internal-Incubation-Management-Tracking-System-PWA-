@@ -39,8 +39,6 @@ export default function InvestmentHistoryPage() {
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchData(); }, []);
-
   const fetchData = async (bypassCache = false) => {
     setLoading(true);
     try {
@@ -70,6 +68,8 @@ export default function InvestmentHistoryPage() {
     } catch (_) {}
     setLoading(false);
   };
+
+  useEffect(() => { fetchData(); }, []);
 
   const exportCSV = () => {
     const headers = "Venture,Industry,Stage,Decision,Amount,Date\n";

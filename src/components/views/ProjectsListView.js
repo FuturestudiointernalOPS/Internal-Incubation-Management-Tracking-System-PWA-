@@ -33,6 +33,22 @@ export default function ProjectsListView({ role: propRole }) {
   // Resolve role: session-detected role > prop > fallback
   const role = detectedRole || propRole || "developer";
 
+  const fetchProjects = async (cid) => {
+    try {
+      const res = await fetch(
+        `/api/projects/assignments?user_cid=${encodeURIComponent(cid)}`,
+      );
+      const data = await res.json();
+      if (data.success) {
+        setProjects(data.myProjects || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch projects", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     async function init() {
       try {
@@ -72,22 +88,6 @@ export default function ProjectsListView({ role: propRole }) {
     }
     init();
   }, []);
-
-  const fetchProjects = async (cid) => {
-    try {
-      const res = await fetch(
-        `/api/projects/assignments?user_cid=${encodeURIComponent(cid)}`,
-      );
-      const data = await res.json();
-      if (data.success) {
-        setProjects(data.myProjects || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch projects", err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filtered = projects.filter(
     (p) =>

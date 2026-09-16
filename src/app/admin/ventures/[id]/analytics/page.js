@@ -30,8 +30,6 @@ export default function VentureAnalyticsPage() {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchData(); }, []);
-
   const fetchData = async (bypassCache = false) => {
     const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/analytics`];
     const apply = (v, a) => {
@@ -56,6 +54,8 @@ export default function VentureAnalyticsPage() {
       apply(v, a);
     } catch {} finally { setLoading(false); }
   };
+
+  useEffect(() => { fetchData(); }, []);
 
   const handleExport = async () => {
     const res = await fetch(`/api/ventures/${id}/analytics?type=export&format=csv`);

@@ -84,8 +84,6 @@ export default function InvestorDashboard() {
   const [introMessage, setIntroMessage] = useState("");
   const [processingId, setProcessingId] = useState(null);
 
-  useEffect(() => { fetchDashboard(); }, []);
-
   const fetchDashboard = async (bypassCache = false) => {
     setLoading(true);
     try {
@@ -120,6 +118,8 @@ export default function InvestorDashboard() {
     } catch (_) {}
     setLoading(false);
   };
+
+  useEffect(() => { fetchDashboard(); }, []);
 
   const addToPipeline = async (ventureId, stage) => {
     setProcessingId(ventureId);

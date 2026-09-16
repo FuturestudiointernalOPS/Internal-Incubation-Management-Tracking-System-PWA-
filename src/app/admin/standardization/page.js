@@ -22,10 +22,6 @@ export default function SuperAdminStandardization() {
   const [, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  useEffect(() => {
-    fetchTypes();
-  }, []);
-
   const fetchTypes = async (bypassCache = false) => {
     const url = '/api/superadmin/standard-types';
     const apply = (data) => {
@@ -52,6 +48,10 @@ export default function SuperAdminStandardization() {
       if (!painted) console.error(e);
     }
   };
+
+  useEffect(() => {
+    fetchTypes();
+  }, []);
 
    const handleSaveType = async (payload) => {
     if (!payload.label) return;

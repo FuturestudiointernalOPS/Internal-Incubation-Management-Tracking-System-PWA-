@@ -147,6 +147,23 @@ export default function JourneyManagerPanel({ ventureId }) {
     setTimeout(() => setToast(null), 5000);
   };
 
+  const loadReports = () =>
+    fetch(`/api/ventures/${ventureId}/progress-reports`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.success) return;
+        const grouped = {};
+        for (const rep of d.reports || []) {
+          // Legacy period-based reports are not journey-anchored. They stay
+          // readable in history; they are simply not shown against a journey.
+          const key = String(rep.journey_stage_id || "");
+          if (!key) continue;
+          (grouped[key] ||= []).push(rep);
+        }
+        setReportsByStage(grouped);
+      })
+      .catch(() => {});
+
   const load = async () => {
     try {
       // include_archived=1: management surfaces render archived journeys in
@@ -1007,23 +1024,6 @@ export default function JourneyManagerPanel({ ventureId }) {
     fetch(`/api/ventures/${ventureId}/sessions`)
       .then((r) => r.json())
       .then((sd) => { if (sd.success) setVentureSessions(sd.sessions || []); })
-      .catch(() => {});
-
-  const loadReports = () =>
-    fetch(`/api/ventures/${ventureId}/progress-reports`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (!d.success) return;
-        const grouped = {};
-        for (const rep of d.reports || []) {
-          // Legacy period-based reports are not journey-anchored. They stay
-          // readable in history; they are simply not shown against a journey.
-          const key = String(rep.journey_stage_id || "");
-          if (!key) continue;
-          (grouped[key] ||= []).push(rep);
-        }
-        setReportsByStage(grouped);
-      })
       .catch(() => {});
 
   const reportStatusLabel = (status) =>

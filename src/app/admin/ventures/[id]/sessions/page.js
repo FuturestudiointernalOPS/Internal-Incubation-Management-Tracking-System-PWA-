@@ -57,10 +57,6 @@ export default function VentureSessionsPage() {
   // Action items
   const [aiTitle, setAiTitle] = useState("");
 
-  useEffect(() => { fetchAll(); }, []);
-
-  const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 4000); };
-
   const fetchAll = async (bypassCache = false) => {
     const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/sessions`, `/api/ventures/${id}/coaches`];
     const apply = (v, s, c) => {
@@ -88,6 +84,10 @@ export default function VentureSessionsPage() {
       apply(v, s, c);
     } catch {} finally { setLoading(false); }
   };
+
+  useEffect(() => { fetchAll(); }, []);
+
+  const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 4000); };
 
   const loadSessionDetail = async (sessionId) => {
     try {

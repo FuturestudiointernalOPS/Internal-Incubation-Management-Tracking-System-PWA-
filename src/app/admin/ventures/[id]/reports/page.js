@@ -24,7 +24,9 @@ export default function VentureReportsPage() {
   const [jrLoading, setJrLoading] = useState(false);
   const [jrError, setJrError] = useState(false);
 
-  useEffect(() => { fetchData(); fetchJourneyReport(); }, []);
+  const [milestones, setMilestones] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [team, setTeam] = useState([]);
 
   const fetchData = async (bypassCache = false) => {
     const urls = [
@@ -80,10 +82,6 @@ export default function VentureReportsPage() {
     }
   };
 
-  const [milestones, setMilestones] = useState([]);
-  const [tasks, setTasks] = useState([]);
-  const [team, setTeam] = useState([]);
-
   const fetchJourneyReport = async () => {
     setJrLoading(true);
     try {
@@ -94,6 +92,8 @@ export default function VentureReportsPage() {
     } catch { setJrError(true); }
     finally { setJrLoading(false); }
   };
+
+  useEffect(() => { fetchData(); fetchJourneyReport(); }, []);
 
   const handleExport = async (format) => {
     try {

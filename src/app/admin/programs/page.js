@@ -474,14 +474,6 @@ export default function ProgramManagement() {
       .catch(() => setProgramRegLink(null));
   }, [editingProgram?.id]);
 
-  useEffect(() => {
-    if (editingProgram?.id) {
-      fetchEditingKpis(editingProgram.id);
-    } else {
-      setEditingKpis([]);
-    }
-  }, [editingProgram?.id]);
-
   const fetchEditingKpis = async (programId) => {
     try {
       const res = await fetch(`/api/v2/kpis?program_id=${programId}`);
@@ -493,6 +485,14 @@ export default function ProgramManagement() {
       console.error("Failed to fetch KPIs:", e);
     }
   };
+
+  useEffect(() => {
+    if (editingProgram?.id) {
+      fetchEditingKpis(editingProgram.id);
+    } else {
+      setEditingKpis([]);
+    }
+  }, [editingProgram?.id]);
 
   const handleAddEditKpi = async () => {
     if (!editKpiInput.title.trim() || !editingProgram?.id) return;

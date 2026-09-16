@@ -53,10 +53,6 @@ function DueDiligenceContent() {
   const [showRiskForm, setShowRiskForm] = useState(false);
   const [riskForm, setRiskForm] = useState({ risk_category:"market", risk_description:"", severity:"medium", mitigation:"", status:"open" });
 
-  useEffect(() => {
-    if (pipelineId) fetchData();
-  }, [pipelineId]);
-
   const fetchData = async (bypassCache = false) => {
     setLoading(true);
     try {
@@ -103,6 +99,10 @@ function DueDiligenceContent() {
     } catch (_) {}
     setLoading(false);
   };
+
+  useEffect(() => {
+    if (pipelineId) fetchData();
+  }, [pipelineId]);
 
   const createWorkspace = async () => {
     try {

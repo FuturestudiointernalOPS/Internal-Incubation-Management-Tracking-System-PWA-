@@ -21,8 +21,6 @@ export default function VentureFeedbackPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
 
-  useEffect(() => { fetchAll(); }, []);
-
   const fetchAll = async (bypassCache = false) => {
     const urls = [
       `/api/ventures/${id}`,
@@ -63,6 +61,8 @@ export default function VentureFeedbackPage() {
       apply(v, f, ca, aa, ss, ft);
     } catch {} finally { setLoading(false); }
   };
+
+  useEffect(() => { fetchAll(); }, []);
 
   const renderStars = (rating) => (
     <div className="flex gap-0.5">
