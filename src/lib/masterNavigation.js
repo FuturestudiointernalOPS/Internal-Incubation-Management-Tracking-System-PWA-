@@ -81,6 +81,7 @@ export const MASTER_NAVIGATION = [
     icon: "rocket",
     children: [
       { id: "all_ventures", name: "ALL VENTURES", href: "/admin/ventures" },
+      { id: "journey_reports", name: "JOURNEY REPORTS", href: "/admin/journey-reports" },
       { id: "register_venture", name: "REGISTER STARTUP", href: "/admin/ventures/register" },
     ],
   },
@@ -220,7 +221,7 @@ export const ROLE_ACCESS = {
       crm: ["crm_dashboard", "all_contacts", "crm_membership", "crm_timeline", "crm_duplicates", "pending_users", "bulk_upload"],
       communication: ["messages", "announcements", "forms"],
       programs: ["all_programs", "create_program", "progress"],
-      ventures: ["all_ventures"],
+      ventures: ["all_ventures", "journey_reports"],
       investors: ["investors_manage", "investors_dashboard", "investors_review", "investors_overview", "investors_campaigns", "investors_relationships"],
       operations: ["internal_ops_board", "all_projects", "create_project", "tasks", "blockers", "standup", "retro"],
       reports: ["program_reports", "internal_reports", "metrics"],

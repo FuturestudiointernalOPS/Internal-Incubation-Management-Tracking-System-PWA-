@@ -239,6 +239,76 @@ export const uploadDeliverableEvidence = async (file, { ventureId, deliverableId
   }
 }
 
+/**
+ * Session materials — the documents a session carries (a deck to review, a
+ * brief to read before the call). Same PRIVATE bucket and the same
+ * documents-only rule as deliverable evidence, under a `sessions/` prefix so the
+ * two kinds of file never blur. The database stores the storage path; the read
+ * layer signs a short-lived URL for viewers who already passed a Venture access
+ * gate. Authorization happens in the route — founders book sessions too.
+ */
+export const uploadSessionMaterial = async (file, { ventureId, milestoneId } = {}) => {
+  try {
+    if (!file) {
+      return { success: false, error: 'No file provided.' }
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return {
+        success: false,
+        error: `File size exceeds the maximum of 5MB. This file is ${(file.size / (1024 * 1024)).toFixed(1)}MB. Please compress it or paste a link instead.`
+      }
+    }
+
+    if (!isAllowedEvidenceDocument(file)) {
+      return { success: false, error: EVIDENCE_DOCUMENT_ERROR }
+    }
+
+    const bucket = 'deliverable-evidence'
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const client = url && serviceKey ? createClient(url, serviceKey) : supabase
+
+    const sanitized = String(file.name || 'material').replace(/\s+/g, '_').replace(/[^A-Za-z0-9._-]/g, '_')
+    const scope = String(ventureId || 'unknown').replace(/[^A-Za-z0-9_-]/g, '_')
+    const milestone = String(milestoneId || 'general').replace(/[^A-Za-z0-9_-]/g, '_')
+    const path = `sessions/${scope}/${milestone}/${Date.now()}_${sanitized}`
+
+    let { error } = await client.storage
+      .from(bucket)
+      .upload(path, file, {
+        cacheControl: '3600',
+        upsert: true,
+      })
+
+    if (error && /bucket.*not found|does not exist/i.test(error.message)) {
+      await client.storage.createBucket(bucket, { public: false });
+      const retry = await client.storage
+        .from(bucket)
+        .upload(path, file, {
+          cacheControl: '3600',
+          upsert: true,
+        });
+      error = retry.error;
+    }
+
+    if (error) throw error;
+
+    return { success: true, path, name: file.name, size: file.size || null }
+  } catch (error) {
+    console.error('Storage Error:', error.message)
+
+    if (/bucket/i.test(error.message)) {
+      return {
+        success: false,
+        error: `Storage bucket "deliverable-evidence" is not configured. Please contact your administrator.`
+      }
+    }
+
+    return { success: false, error: `Upload failed: ${error.message}` }
+  }
+}
+
 export const deleteFile = async (bucket, path) => {
   try {
     const { error } = await supabase.storage.from(bucket).remove([path])

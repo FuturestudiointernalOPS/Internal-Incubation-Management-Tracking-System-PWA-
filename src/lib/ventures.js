@@ -256,6 +256,11 @@ export async function ensureVentureSchema() {
     // to one of that milestone's deliverables (soft ref — no FK, like
     // milestone_ref itself).
     "ALTER TABLE venture_sessions ADD COLUMN IF NOT EXISTS deliverable_id TEXT",
+    // Documents the participants need for a session (a deck to review, a brief
+    // to read), attached while booking. Rows store [{path,name,size}]; the files
+    // live in the private evidence bucket under a `sessions/` prefix and are
+    // signed on read, so only people with Venture access can open them.
+    "ALTER TABLE venture_sessions ADD COLUMN IF NOT EXISTS materials JSONB",
     // Task submissions (D5): append-only versions; founder submits, staff
     // reviews (approved | changes_requested); official task completion requires
     // an approved submission when review_required = TRUE.
@@ -289,6 +294,12 @@ export async function ensureVentureSchema() {
     // ─── Phase P4 — Internal Venture Notes (staff-only; founders never) ───
     "CREATE TABLE IF NOT EXISTS venture_notes (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, author_cid TEXT, author_name TEXT, title TEXT NOT NULL, body TEXT NOT NULL, scope_ref_type TEXT, scope_ref_id TEXT, is_archived BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
     "CREATE INDEX IF NOT EXISTS idx_venture_notes_venture ON venture_notes(venture_id, is_archived)",
+    // Legacy marker from the trial: identifies notes that were auto-filed from a
+    // session. The memo now lives on the session ONLY — the milestone record is
+    // the manager's own writing, never a copy — so nothing writes this column any
+    // more. It is kept so trial-era rows stay identifiable and a fresh database
+    // matches an existing one.
+    "ALTER TABLE venture_notes ADD COLUMN IF NOT EXISTS source_session_id INTEGER",
     // ─── Phase P4b — Venture Operating Plans (Lead Manager instrument) ───
     "CREATE TABLE IF NOT EXISTS venture_operating_plans (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, name TEXT NOT NULL, objective TEXT, status TEXT NOT NULL DEFAULT 'draft', created_by TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
     "CREATE INDEX IF NOT EXISTS idx_vop_venture ON venture_operating_plans(venture_id)",
@@ -336,6 +347,15 @@ export async function ensureVentureSchema() {
     // Vinance 3 Phase 3 — typed Venture Progress Reports (Manager → Super Admin)
     "CREATE TABLE IF NOT EXISTS venture_reports (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, title TEXT NOT NULL, reporting_period TEXT, summary TEXT, current_journey TEXT, current_milestone TEXT, completed_items JSONB DEFAULT '[]'::jsonb, outstanding_items JSONB DEFAULT '[]'::jsonb, support_delivered TEXT, challenges TEXT, recommendation TEXT, status TEXT NOT NULL DEFAULT 'draft', created_by TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), submitted_at TIMESTAMPTZ)",
     "CREATE INDEX IF NOT EXISTS idx_venture_reports_venture ON venture_reports(venture_id, status)",
+    // A report BELONGS to a journey. The period-based report stays valid, but
+    // "every journey needs a report" needs a real reference — `current_journey`
+    // is free text and can never be queried. Existing rows keep this NULL and are
+    // never back-filled by guessing at their free text.
+    "ALTER TABLE venture_reports ADD COLUMN IF NOT EXISTS journey_stage_id UUID",
+    // 'progress' (interim, any time) or 'closing' (the journey's final report).
+    // A journey has at most ONE closing report; extra interim reports are
+    // allowed and LABELLED, never blocked.
+    "ALTER TABLE venture_reports ADD COLUMN IF NOT EXISTS report_kind TEXT",
     // Milestone & task archiving (soft delete). Archived rows stay in the
     // database forever (history preserved) but are hidden from default lists.
     "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE",
@@ -3386,27 +3406,36 @@ export async function checkDoubleBooking({ ventureId, coachId, startTime, endTim
   return { conflict: false };
 }
 
-export async function createSession({ ventureId, title, description, sessionType, coachId, coachName, founderCid, founderName, startTime, endTime, timezone, location, meetingLink, agenda, createdBy, ventureFacing = false, preparationNotes = null, journeyStageId = null, milestoneRef = null, taskId = null, coachContactId = null, deliverableId = null }) {
+export async function createSession({ ventureId, title, description, sessionType, coachId, coachName, founderCid, founderName, startTime, endTime, timezone, location, meetingLink, agenda, createdBy, ventureFacing = false, preparationNotes = null, journeyStageId = null, milestoneRef = null, taskId = null, coachContactId = null, deliverableId = null, materials = null }) {
   if (new Date(startTime) >= new Date(endTime)) throw new Error("End time must be after start time.");
   if (new Date(endTime) < new Date()) throw new Error("Cannot schedule sessions in the past.");
   const conflict = await checkDoubleBooking({ ventureId, coachId, startTime, endTime });
   if (conflict.conflict) throw new Error(conflict.message);
-  const insertSql = `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes, journey_stage_id, milestone_ref, task_id, coach_contact_id, deliverable_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`;
-  const insertArgs = [ventureId, title.trim(), description||null, sessionType||"coaching", coachId||null, coachName||null, founderCid||null, founderName||null, startTime, endTime, timezone||"UTC", location||null, meetingLink||null, agenda||null, createdBy||"system", ventureFacing ? true : false, preparationNotes||null, journeyStageId||null, milestoneRef||null, taskId||null, coachContactId||null, deliverableId||null];
+  const materialsJson = Array.isArray(materials) && materials.length > 0 ? JSON.stringify(materials) : null;
+  const insertSql = `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes, journey_stage_id, milestone_ref, task_id, coach_contact_id, deliverable_id, materials)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`;
+  const insertArgs = [ventureId, title.trim(), description||null, sessionType||"coaching", coachId||null, coachName||null, founderCid||null, founderName||null, startTime, endTime, timezone||"UTC", location||null, meetingLink||null, agenda||null, createdBy||"system", ventureFacing ? true : false, preparationNotes||null, journeyStageId||null, milestoneRef||null, taskId||null, coachContactId||null, deliverableId||null, materialsJson];
   let res;
   try {
     res = await db.execute({ sql: insertSql, args: insertArgs });
   } catch (e) {
-    // Older database without the deliverable_id column: keep working, without
-    // the deliverable link (the column arrives with the next migration run).
+    // Older database missing the newest columns: drop them one at a time, so a
+    // database only one migration behind keeps its deliverable link.
     if (!isUnknownColumnError(e)) throw e;
-    const legacyArgs = insertArgs.slice(0, -1);
-    res = await db.execute({
-      sql: `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes, journey_stage_id, milestone_ref, task_id, coach_contact_id)
+    try {
+      res = await db.execute({
+        sql: `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes, journey_stage_id, milestone_ref, task_id, coach_contact_id, deliverable_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        args: insertArgs.slice(0, -1),
+      });
+    } catch (e2) {
+      if (!isUnknownColumnError(e2)) throw e2;
+      res = await db.execute({
+        sql: `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes, journey_stage_id, milestone_ref, task_id, coach_contact_id)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-      args: legacyArgs,
-    });
+        args: insertArgs.slice(0, -2),
+      });
+    }
   }
   const id = res.rows[0]?.id || res.lastInsertRowid;
   await db.execute({
@@ -3417,9 +3446,15 @@ export async function createSession({ ventureId, title, description, sessionType
 }
 
 export async function updateSession(sessionId, updates) {
-  const allowed = ["title", "description", "session_type", "coach_id", "coach_name", "founder_cid", "founder_name", "start_time", "end_time", "timezone", "location", "meeting_link", "status", "agenda", "recording_url", "venture_facing", "preparation_notes", "journey_stage_id", "milestone_ref", "task_id", "coach_contact_id", "deliverable_id"];
+  const allowed = ["title", "description", "session_type", "coach_id", "coach_name", "founder_cid", "founder_name", "start_time", "end_time", "timezone", "location", "meeting_link", "status", "agenda", "recording_url", "venture_facing", "preparation_notes", "journey_stage_id", "milestone_ref", "task_id", "coach_contact_id", "deliverable_id", "materials"];
   const sets = []; const args = [];
-  for (const f of allowed) { if (updates[f] !== undefined) { sets.push(`${f} = ?`); args.push(updates[f]); } }
+  // `materials` is a JSONB column: callers hand over an array, the column gets
+  // the serialized form (null when the list is cleared).
+  for (const f of allowed) {
+    if (updates[f] === undefined) continue;
+    sets.push(`${f} = ?`);
+    args.push(f === "materials" ? (Array.isArray(updates[f]) && updates[f].length > 0 ? JSON.stringify(updates[f]) : null) : updates[f]);
+  }
   if (sets.length === 0) return { updated: false };
   if (updates.start_time || updates.end_time) {
     const s = await db.execute({ sql: "SELECT * FROM venture_sessions WHERE id = ?", args: [sessionId] });

@@ -1,5 +1,28 @@
 {
   "vadmin": {
+    "journeyReports": {
+      "title": "Rapports de parcours",
+      "subtitle": "Tous les rapports rédigés sur les parcours d'une entreprise — et les parcours terminés sans rapport.",
+      "filterAll": "Tous",
+      "filterSubmitted": "En attente de révision",
+      "filterDraft": "Brouillons",
+      "filterReviewed": "Révisés",
+      "missingTitle": "Parcours terminés sans rapport de clôture : {n}",
+      "noReports": "Aucun rapport pour le moment.",
+      "noJourney": "Aucun parcours",
+      "closingReport": "Rapport de clôture",
+      "interimReport": "Rapport intermédiaire",
+      "closedOn": "terminé le {date}",
+      "submittedOn": "envoyé le {date}",
+      "openJourney": "Ouvrir le parcours",
+      "loadFailed": "Les rapports n'ont pas pu être chargés.",
+      "statuses": {
+        "draft": "Brouillon",
+        "submitted": "En attente de révision",
+        "reviewed": "Révisé",
+        "archived": "Archivé"
+      }
+    },
     "admin": {
       "settingUpdated": "Paramètre mis à jour",
       "featureEnabled": "Fonctionnalité activée",

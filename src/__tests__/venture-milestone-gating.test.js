@@ -16,9 +16,19 @@ const MS_1 = "33333333-3333-4333-8333-333333333333";
 const MS_2 = "44444444-4444-4444-8444-444444444444";
 
 function makeFakeDb() {
-  const flags = { lastStatus: null, nextLocked: true, assignment: "none" };
+  const flags = { lastStatus: null, nextLocked: true, assignment: "none", stageCloses: false };
   const execute = jest.fn(async ({ sql, args = [] }) => {
     executed.push({ sql, args });
+    // The stage that a completed milestone might CLOSE (the closing report is
+    // asked for at exactly this moment).
+    if (sql.includes("SELECT id, name, status, stage_order FROM venture_journey_stages")) {
+      return { rows: flags.stageCloses ? [{ id: "s1", name: "Family & Friends", status: "active", stage_order: 1 }] : [] };
+    }
+    // Its milestones, for “is every one of them done?”. The release query also
+    // reads this table but orders by display_order, so it is excluded here.
+    if (sql.includes("SELECT id, status FROM venture_milestones") && sql.includes("journey_stage_id = ?") && !sql.includes("ORDER BY")) {
+      return { rows: flags.stageCloses ? [{ id: MS_1, status: "completed" }] : [] };
+    }
     if (sql.includes("SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?")) {
       return { rows: [{ id: VENTURE_DB_ID, venture_id: "VNT-TEST" }] };
     }
@@ -91,6 +101,31 @@ beforeEach(() => {
   mockDb.flags.lastStatus = null;
   mockDb.flags.nextLocked = true;
   mockDb.flags.assignment = "none";
+  mockDb.flags.stageCloses = false;
+});
+
+describe("a completion that CLOSES a journey says so", () => {
+  const complete = () =>
+    PATCH(
+      new Request("http://localhost/x?id=MS_1", { method: "PATCH", body: JSON.stringify({ status: "completed" }) }),
+      ctx,
+    );
+
+  test("the response carries the closed journey, so its closing report can be asked for", async () => {
+    mockDb.flags.stageCloses = true;
+    const data = await readJson(await complete());
+    expect(data.success).toBe(true);
+    expect(data.journey_completed).toBe(true);
+    expect(data.journey).toMatchObject({ id: "s1", name: "Family & Friends" });
+  });
+
+  test("a completion that leaves the journey open claims nothing", async () => {
+    mockDb.flags.stageCloses = false;
+    const data = await readJson(await complete());
+    expect(data.success).toBe(true);
+    expect(data.journey_completed).toBe(false);
+    expect(data.journey).toBeNull();
+  });
 });
 
 describe("milestone completion authority (Lead Manager / Super Admin only)", () => {

@@ -79,7 +79,9 @@ function coachDefaults() {
     ...set("tasks", ["view", "create", "edit", "comment", "review"]),
     ...set("documents", ["view", "upload", "comment", "review"]),
     ...set("internal_notes", ["view", "create", "comment"]),
-    ...set("calendar", ["view", "create", "schedule"]),
+    // A coach SUPPORTS the work; they do not define the calendar. Booking is a
+    // manager act — this cell is what the `create_session` gate reads.
+    ...set("calendar", ["view"]),
     ...set("coaching", ["view", "comment", "manage"]),
     ...set("operating_plan", ["view", "comment"]),
     ...set("settings", ["view"]),
@@ -91,6 +93,10 @@ function facilitatorDefaults() {
   const rows = coachDefaults();
   const set = (area, actions) => actions.map((a) => [area, a, true]);
   rows.push(...set("operating_plan", ["create", "edit"]));
+  // Scheduling is re-stated rather than inherited: a facilitator runs sessions,
+  // so a later change to the COACH default must never silently strip their
+  // ability to book.
+  rows.push(...set("calendar", ["create", "schedule"]));
   rows.push(...set("internal_notes", ["edit"]));
   rows.push(...set("documents", ["approve"]));
   rows.push(...set("milestones", ["approve"]));
@@ -110,14 +116,51 @@ const DEFAULT_MATRIX = {
 };
 
 /**
+ * The coach default once granted `calendar.schedule`. Nothing read that cell, so
+ * it was a promise the platform never kept. Now that the booking gate READS it,
+ * the promise would finally be honoured — and coaches would be able to book.
+ * The decision is the opposite: a coach supports a Venture, a manager schedules
+ * it.
+ *
+ * `updated_by IS NULL` confines this to the SEEDED row, so a cell an
+ * administrator deliberately configured is never overwritten. If someone wants a
+ * coach to book, they grant it and this leaves it alone.
+ *
+ * Idempotent: once the row is FALSE the `allowed = TRUE` predicate stops matching.
+ * Fail-soft: a database without the table yet is not an error here.
+ */
+export async function correctCoachSchedulingDefault(db) {
+  try {
+    await db.execute({
+      sql: `UPDATE venture_permission_matrix
+               SET allowed = FALSE
+             WHERE responsibility_code = 'coach'
+               AND area = 'calendar'
+               AND action = 'schedule'
+               AND allowed = TRUE
+               AND updated_by IS NULL`,
+      args: [],
+    });
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
  * Idempotent seed — only seeds the permission MATRIX when it is empty, so
  * admin edits are never overwritten on subsequent boots. Catalog rows use
  * ON CONFLICT DO NOTHING so a partial previous run can never block the seed.
+ *
+ * The correction below runs on EVERY boot, seeded or not: an edited default only
+ * reaches fresh installs through the seed, so an already-seeded database would
+ * otherwise never receive it — and the booking gate would read the old value.
  */
 export async function seedVenturePermissions(db) {
   const countRes = await db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_permission_matrix", args: [] });
   const existing = Number(countRes.rows?.[0]?.n || 0);
-  if (existing > 0) return { seeded: false };
+  const corrected = await correctCoachSchedulingDefault(db);
+  if (existing > 0) return { seeded: false, corrected };
 
   const tx = [];
   for (const r of DEFAULT_RESPONSIBILITIES) {
@@ -141,7 +184,7 @@ export async function seedVenturePermissions(db) {
     }
   }
   await Promise.all(tx);
-  return { seeded: true };
+  return { seeded: true, corrected };
 }
 
 // ── Helpers used by the admin APIs ─────────────────────────────────────────

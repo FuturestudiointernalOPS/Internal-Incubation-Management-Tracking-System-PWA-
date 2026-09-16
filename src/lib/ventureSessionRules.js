@@ -27,10 +27,63 @@ export function minSessionStartInput(now = Date.now()) {
   return new Date(Math.ceil(target / 60000) * 60000);
 }
 
+/** A Date → the `YYYY-MM-DD` value an <input type="date"> expects (LOCAL day). */
+export function toDateInput(d) {
+  const pad2 = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+/** A Date → the `HH:MM` value an <input type="time"> expects (LOCAL clock). */
+export function toTimeInput(d) {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 /** True when the given start time is a valid, at-least-30-minutes-ahead time. */
 export function isValidSessionStart(value, now = Date.now()) {
   if (value === null || value === undefined || value === "") return false;
   const t = value instanceof Date ? value.getTime() : new Date(value).getTime();
   if (Number.isNaN(t)) return false;
   return t >= now + SESSION_MIN_LEAD_MINUTES * 60 * 1000;
+}
+
+// ─── Session materials (documents attached while booking) ────────────────────
+// A session may carry documents the participants need (a deck, a brief). The
+// files live in the PRIVATE evidence bucket under this prefix and are signed on
+// read like deliverable evidence, so only people with Venture access can open
+// them.
+
+/** Most files one session may carry. */
+export const SESSION_MATERIALS_MAX = 5;
+
+/** Storage prefix every session material path must carry. */
+export const SESSION_MATERIALS_PREFIX = "sessions/";
+
+/** True when a stored path was issued by the session material upload route. */
+export function isSessionMaterialPath(value) {
+  const p = String(value || "").trim();
+  if (!p.startsWith(SESSION_MATERIALS_PREFIX)) return false;
+  if (p.includes("..") || p.length > 300) return false;
+  return p.length > SESSION_MATERIALS_PREFIX.length;
+}
+
+/**
+ * Normalise the materials payload of a booking request into [{path,name,size}].
+ * Returns `null` for a malformed payload so the caller can answer 400 instead
+ * of storing something the read layer cannot sign.
+ */
+export function normalizeSessionMaterials(input) {
+  if (input === undefined || input === null) return [];
+  if (!Array.isArray(input) || input.length > SESSION_MATERIALS_MAX) return null;
+  const out = [];
+  for (const item of input) {
+    if (!item || typeof item !== "object") return null;
+    const path = String(item.path || "").trim();
+    if (!isSessionMaterialPath(path)) return null;
+    out.push({
+      path,
+      name: String(item.name || path.split("/").pop() || "file").slice(0, 255),
+      size: Number.isFinite(Number(item.size)) ? Number(item.size) : null,
+    });
+  }
+  return out;
 }

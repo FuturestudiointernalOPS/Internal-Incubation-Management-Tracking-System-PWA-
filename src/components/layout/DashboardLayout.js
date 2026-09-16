@@ -132,6 +132,7 @@ const NAV_KEY_MAP = {
   watchlist: "navigation.watchlist",
   ventures: "navigation.ventures",
   all_ventures: "navigation.allVentures",
+  journey_reports: "navigation.journeyReports",
   register_venture: "navigation.registerVenture",
   investors: "navigation.investors",
   investors_manage: "navigation.investorsManage",
@@ -176,7 +177,11 @@ function tnav(key) {
   return key;
 }
 
-// Map last path segment -> translation key for the topbar breadcrumb
+// Map last path segment -> translation key for the topbar breadcrumb.
+// Keys must be unique: a duplicated key silently wins over the earlier one.
+// When one segment means different things under different parents (e.g.
+// /admin/reports/responses vs /platform/responses) disambiguate in
+// CRUMB_FULL_PATH_MAP below instead of adding a second entry here.
 const CRUMB_PATH_MAP = {
   admin: "navigation.dashboard",
   crm: "navigation.crm",
@@ -235,13 +240,24 @@ const CRUMB_PATH_MAP = {
   runs: "navigation.forms",
   collections: "navigation.collections",
   modules: "navigation.modules",
-  responses: "navigation.forms",
   groups: "navigation.groups",
   submissions: "navigation.submissions",
 };
 
+// Exact-path overrides, checked before CRUMB_PATH_MAP so a segment that means
+// different things in different sections still resolves to the right crumb.
+const CRUMB_FULL_PATH_MAP = {
+  "/admin/reports/responses": "navigation.reportResponses",
+  "/platform/responses": "navigation.forms",
+};
+
 function navCrumb(pathname) {
-  const seg = (pathname || "").split("/").filter(Boolean).pop() || "";
+  const clean = (pathname || "")
+    .split("?")[0]
+    .split("#")[0]
+    .replace(/\/+$/, "");
+  if (CRUMB_FULL_PATH_MAP[clean]) return CRUMB_FULL_PATH_MAP[clean];
+  const seg = clean.split("/").filter(Boolean).pop() || "";
   return CRUMB_PATH_MAP[seg] || (NAV_KEY_MAP[seg] ? NAV_KEY_MAP[seg] : seg);
 }
 

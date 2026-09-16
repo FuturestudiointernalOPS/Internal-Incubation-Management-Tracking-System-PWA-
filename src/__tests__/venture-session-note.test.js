@@ -12,9 +12,8 @@
  *   - a deliverable_id must resolve to a deliverable of the booked milestone:
  *     an unknown deliverable, or one from another milestone, is refused (400)
  *     and creates nothing
- *   - when the session is booked on a milestone, the note is filed on that
- *     milestone (venture_notes, scope_ref_type = "milestone"), so notes never
- *     exist outside a milestone
+ *   - the memo is NOT copied onto the milestone: it lives on the session only,
+ *     and the milestone record stays the manager's own writing
  *   - a valid session carries its trimmed note, its milestone_ref and its
  *     deliverable_id through to createSession
  */
@@ -25,6 +24,8 @@ const mockCreateSession = jest.fn(async (args) => {
   return { id: 42 };
 });
 const mockGetDeliverable = jest.fn(async () => null);
+const mockGetSession = jest.fn(async () => null);
+const mockUpdateSession = jest.fn(async () => ({ updated: true }));
 
 const mockDb = {
   execute: jest.fn(async ({ sql, args = [] }) => {
@@ -52,8 +53,15 @@ jest.mock("@/lib/api/createHandler", () => ({
   createHandler: (fn) => fn,
 }));
 
+// The real guard returns { session, path } on allow — path is how a caller knows
+// it was let through as Super Admin. A bare { allowed: true } is not a shape the
+// gate ever produces, so the booking gate would read it as a delegated staff
+// member and refuse. Mirror the contract.
 jest.mock("@/lib/ventureScopedAccess", () => ({
-  requireVentureScopedAccess: jest.fn().mockResolvedValue({ allowed: true }),
+  requireVentureScopedAccess: jest.fn().mockResolvedValue({
+    session: { cid: "sa-1", name: "Super", role: "super_admin" },
+    path: "super-admin",
+  }),
 }));
 
 jest.mock("@/lib/ventureCoach", () => ({
@@ -62,10 +70,10 @@ jest.mock("@/lib/ventureCoach", () => ({
 
 jest.mock("@/lib/ventures", () => ({
   listSessions: jest.fn().mockResolvedValue([]),
-  getSession: jest.fn().mockResolvedValue(null),
+  getSession: (...args) => mockGetSession(...args),
   createSession: (...args) => mockCreateSession(...args),
   getDeliverable: (...args) => mockGetDeliverable(...args),
-  updateSession: jest.fn(),
+  updateSession: (...args) => mockUpdateSession(...args),
   cancelSession: jest.fn(),
   rescheduleSession: jest.fn(),
   deleteSession: jest.fn(),
@@ -96,6 +104,9 @@ beforeEach(() => {
   mockCreateSession.mockClear();
   mockGetDeliverable.mockReset();
   mockGetDeliverable.mockResolvedValue(null);
+  mockGetSession.mockReset();
+  mockGetSession.mockResolvedValue(null);
+  mockUpdateSession.mockClear();
 });
 
 describe("POST /api/ventures/[id]/sessions — compulsory session note", () => {
@@ -148,12 +159,9 @@ describe("POST /api/ventures/[id]/sessions — compulsory session note", () => {
     expect(mockCreateSession).toHaveBeenCalledTimes(1);
     expect(mockCreateSession.mock.calls[0][0].description).toBe("Review the 20 interview findings.");
 
-    // And the note is filed on the milestone — never outside one.
-    const noteInsert = executed.find((e) => e.sql && e.sql.includes("INSERT INTO venture_notes"));
-    expect(noteInsert).toBeDefined();
-    expect(noteInsert.args).toEqual(
-      expect.arrayContaining(["VNT-TEST", "sa-1", "milestone", "m1", "Review the 20 interview findings."]),
-    );
+    // The memo stays on the SESSION: it is the brief the Venture is told about,
+    // and nothing is copied onto the milestone.
+    expect(executed.find((e) => e.sql && e.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
   });
 
   test("a session without a milestone is refused", async () => {
@@ -273,8 +281,60 @@ describe("POST /api/ventures/[id]/sessions — compulsory session note", () => {
     expect(mockCreateSession.mock.calls[0][0].milestoneRef).toBe("m1");
     expect(mockCreateSession.mock.calls[0][0].deliverableId).toBe("dv1");
 
-    const noteInsert = executed.find((e) => e.sql && e.sql.includes("INSERT INTO venture_notes"));
-    expect(noteInsert).toBeDefined();
-    expect(noteInsert.args).toEqual(expect.arrayContaining(["milestone", "m1"]));
+    // ONE memo per session, and it is not copied anywhere else.
+    expect(executed.find((e) => e.sql && e.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
+  });
+});
+
+describe("POST /api/ventures/[id]/sessions — one editable memo, never filed elsewhere", () => {
+  test("an edit without a session is refused", async () => {
+    const res = await POST(request({ action: "update_session_note", note: "New text." }), ctx);
+    expect(res.status).toBe(400);
+  });
+
+  test("an edit with an empty memo is refused", async () => {
+    const res = await POST(request({ action: "update_session_note", session_id: 7, note: "   " }), ctx);
+    expect(res.status).toBe(400);
+    expect(mockUpdateSession).not.toHaveBeenCalled();
+  });
+
+  test("an unknown session is refused and writes nothing", async () => {
+    mockGetSession.mockResolvedValueOnce(null);
+    const res = await POST(request({ action: "update_session_note", session_id: 999, note: "New text." }), ctx);
+    expect(res.status).toBe(404);
+    expect(mockUpdateSession).not.toHaveBeenCalled();
+  });
+
+  test("a valid edit replaces the memo on the session — the only place it lives", async () => {
+    mockGetSession.mockResolvedValueOnce({ id: 7, title: "Pitch deck review", milestone_ref: "m1" });
+    const res = await POST(
+      request({ action: "update_session_note", session_id: 7, note: "  Sharper agenda.  " }),
+      ctx,
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).success).toBe(true);
+    expect(mockUpdateSession).toHaveBeenCalledWith(7, { description: "Sharper agenda." });
+    // Nothing is copied onto the milestone: the record there is the manager's
+    // own writing, never a reflection of a Venture-facing brief.
+    expect(executed.find((e) => e.sql && e.sql.includes("venture_notes"))).toBeUndefined();
+  });
+
+  test("the generic update path changes the session, never a milestone note", async () => {
+    const res = await POST(
+      request({ action: "update_session", session_id: 7, updates: { description: "Changed through the generic path." } }),
+      ctx,
+    );
+    expect(res.status).toBe(200);
+    expect(mockUpdateSession).toHaveBeenCalledWith(7, { description: "Changed through the generic path." });
+    expect(executed.find((e) => e.sql && e.sql.includes("venture_notes"))).toBeUndefined();
+  });
+
+  test("a generic update that does not touch the memo changes nothing else", async () => {
+    const res = await POST(
+      request({ action: "update_session", session_id: 7, updates: { meeting_link: "https://meet.example.com/x" } }),
+      ctx,
+    );
+    expect(res.status).toBe(200);
+    expect(executed.find((e) => e.sql && e.sql.includes("venture_notes"))).toBeUndefined();
   });
 });

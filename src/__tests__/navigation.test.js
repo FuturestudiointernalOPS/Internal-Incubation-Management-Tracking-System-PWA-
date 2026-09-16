@@ -54,7 +54,10 @@ const FIXTURE = {
     {
       id: "ventures",
       href: null,
-      subItems: [{ id: "all_ventures", href: "/admin/ventures", subItems: null }],
+      subItems: [
+        { id: "all_ventures", href: "/admin/ventures", subItems: null },
+        { id: "journey_reports", href: "/admin/journey-reports", subItems: null },
+      ],
     },
     {
       id: "investors",
