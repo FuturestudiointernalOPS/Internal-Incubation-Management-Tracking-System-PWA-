@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
 import { deepseekIntelligence } from "@/lib/deepseek";
+import { requireAuthorization } from "@/lib/authorization";
 import { getDefaultTemplate } from "@/lib/email";
 import {
   placeholdersOf,
@@ -80,8 +80,19 @@ function parseJsonObject(raw) {
 
 export async function POST(req) {
   try {
-    const authError = await requireAuth(["super_admin", "admin"]);
-    if (authError) return authError;
+    // This used to be requireAuth(["super_admin", "admin"]) — a hardcoded role
+    // list, so no grant, profile or template change could ever satisfy it and
+    // the AI button answered 403 for every Program Manager and staff member.
+    // Personalizing a template is an edit of that template, so it is now
+    // governed by the capability of whichever surface the caller is in: Runs
+    // (the message composer and the run-level templates) or Forms (the
+    // form-level templates). Both are visible and grantable in the Permission
+    // Center, under Communication → Runs / Forms.
+    const runsError = await requireAuthorization("runs", "edit");
+    if (runsError) {
+      const formsError = await requireAuthorization("forms", "edit");
+      if (formsError) return runsError;
+    }
 
     const body = await req.json().catch(() => ({}));
     const templateKey = body.template_key;

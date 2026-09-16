@@ -350,21 +350,38 @@ export async function querySegmentContacts(filters) {
 
 // ── GET / POST /api/invites ──────────────────────────────────────────────────
 
-/** Ensure the v2_invitations table exists (idempotent, per-request). */
+/**
+ * Ensure the v2_invitations table exists (idempotent, per-request).
+ *
+ * Two defects fixed here:
+ *   1. The original DDL used SQLite syntax — `id INTEGER PRIMARY KEY AUTOINCREMENT`
+ *      — which Postgres rejects outright. src/lib/db.js translates only
+ *      `datetime('now')`, NOT `AUTOINCREMENT`, so this CREATE threw every time
+ *      and the table never existed on any Postgres database.
+ *   2. The column list omitted `token_hash` and `email`, both of which
+ *      createInvitation writes — so the insert would have failed next even once
+ *      the table existed.
+ * The ALTERs below repair a table created by any older or manual path.
+ */
 export async function ensureInvitationsTable() {
-  return db.execute({
-    sql: `CREATE TABLE IF NOT EXISTS v2_invitations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await db.execute(`CREATE TABLE IF NOT EXISTS v2_invitations (
+        id SERIAL PRIMARY KEY,
         token TEXT NOT NULL UNIQUE,
+        token_hash TEXT,
         program_id TEXT NOT NULL,
         group_name TEXT,
         team_id TEXT,
         role TEXT DEFAULT 'participant',
+        email TEXT,
         expires_at TIMESTAMP NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )`,
-    args: [],
-  });
+      )`);
+  await db.execute(
+    "ALTER TABLE v2_invitations ADD COLUMN IF NOT EXISTS token_hash TEXT",
+  );
+  await db.execute(
+    "ALTER TABLE v2_invitations ADD COLUMN IF NOT EXISTS email TEXT",
+  );
 }
 
 /** Insert a program invite link (plain token + token_hash; blank email). */

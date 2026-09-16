@@ -1757,6 +1757,63 @@ export default function FormRunsPage() {
     setAiPersonalizing(false);
   };
 
+  /**
+   * Render a manual-message result TRUTHFULLY.
+   *
+   * `success` only means the request was processed — the API answers
+   * `success: true` even when every single recipient failed, so reading it
+   * reported a total failure as a green "Message sent" with no reason shown.
+   * The outcome lives in `sent` / `failed`, and the reason only ever appears in
+   * `results[].error` ("No usable recipient email", "Refused — placeholder
+   * address is not a real recipient", a transport error, …).
+   *
+   * Colour classes stay full literals — never interpolated — so Tailwind's
+   * scanner keeps them in the build.
+   */
+  const renderMessageResult = (r) => {
+    if (!r) return null;
+    const sent = r.sent || 0;
+    const failed = r.failed || 0;
+    const failures = (r.results || []).filter((x) => x.status !== "sent");
+    const box =
+      sent === 0
+        ? "bg-rose-500/10 border-rose-500/20"
+        : failed > 0
+          ? "bg-amber-500/10 border-amber-500/20"
+          : "bg-emerald-500/10 border-emerald-500/20";
+    const text =
+      sent === 0 ? "text-rose-400" : failed > 0 ? "text-amber-400" : "text-emerald-400";
+    const title =
+      sent === 0
+        ? t("platformMisc.runs.messageNothingSentTitle")
+        : failed > 0
+          ? t("platformMisc.runs.messagePartialTitle")
+          : t("platformMisc.runs.messageSentTitle");
+
+    return (
+      <div className="space-y-3">
+        <div className={`p-4 rounded-xl border ${box}`}>
+          <p className={`text-sm font-black ${text}`}>{title}</p>
+          <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.messageRecipientsCount", { count: r.recipients })}</p>
+          <p className={`text-[10px] font-bold mt-1 ${sent > 0 ? "text-emerald-400" : "text-[var(--text-secondary)]"}`}>{t("platformMisc.runs.messageSentCount", { count: sent })}</p>
+          {failed > 0 && <p className="text-[10px] font-bold text-rose-400 mt-1">{t("platformMisc.runs.messageFailedCount", { count: failed })}</p>}
+        </div>
+        {failures.length > 0 && (
+          <div className="p-4 rounded-xl bg-secondary/40 border border-[var(--border-primary)] space-y-2">
+            <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.messageFailureReasons")}</p>
+            {failures.map((f) => (
+              <div key={f.submission_id} className="text-[10px] leading-relaxed">
+                <span className="font-bold text-[var(--text-primary)]">{f.name || f.to || `#${f.submission_id}`}</span>
+                <span className="block text-rose-400">{f.error || t("platformMisc.runs.messageFailureUnknown")}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={() => { setShowMessageComposer(false); setMessageResult(null); }} className="w-full py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide">{t("platformMisc.runs.done")}</button>
+      </div>
+    );
+  };
+
   const sendManualMessages = async () => {
     if (!selectedRun || selectedIds.length === 0 || messageSending) return;
     if (!messageSubject.trim() || !messageBody.trim()) {
@@ -4058,15 +4115,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
 
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {messageResult ? (
-                  <div className="space-y-3">
-                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                      <p className="text-sm font-black text-emerald-400">{t("platformMisc.runs.messageSentTitle")}</p>
-                      <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.messageRecipientsCount", { count: messageResult.recipients })}</p>
-                      <p className="text-[10px] font-bold text-emerald-400 mt-1">{t("platformMisc.runs.messageSentCount", { count: messageResult.sent })}</p>
-                      {messageResult.failed > 0 && <p className="text-[10px] font-bold text-rose-400 mt-1">{t("platformMisc.runs.messageFailedCount", { count: messageResult.failed })}</p>}
-                    </div>
-                    <button onClick={() => { setShowMessageComposer(false); setMessageResult(null); }} className="w-full py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide">{t("platformMisc.runs.done")}</button>
-                  </div>
+                  renderMessageResult(messageResult)
                 ) : (
                   <>
                     <div className="space-y-1">
