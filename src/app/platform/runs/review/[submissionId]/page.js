@@ -159,7 +159,7 @@ export default function ReviewPage() {
       }
     } catch (e) { if (!painted) setError(t(e.message || "") || e.message); }
     setLoading(false);
-  }, [submissionId]);
+  }, [submissionId, t]);
 
   useEffect(() => { load(); }, [load]);
 

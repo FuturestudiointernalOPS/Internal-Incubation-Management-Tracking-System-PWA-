@@ -44,7 +44,7 @@ export default function SetupPasswordPage({ params }) {
       }
     };
     validateToken();
-  }, [token]);
+  }, [token, t]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -294,7 +294,7 @@ export default function ProgramListing() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchPrograms();

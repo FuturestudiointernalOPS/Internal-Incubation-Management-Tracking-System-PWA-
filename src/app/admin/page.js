@@ -512,7 +512,7 @@ export default function AdminDashboard() {
       }
     });
     return cal;
-  }, [tasks]);
+  }, [tasks, assignments]);
 
   useEffect(() => {
     fetchWidgetData();

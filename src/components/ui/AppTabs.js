@@ -32,7 +32,6 @@ export default function AppTabs({
   activeTab,
   onTabChange,
   variant = "underline",
-  scrollable = false,
 }) {
   const variants = useMemo(
     () => ({
@@ -63,7 +62,7 @@ export default function AppTabs({
         indicator: () => "",
       },
     }),
-    [scrollable],
+    [],
   );
 
   const style = variants[variant] || variants.underline;

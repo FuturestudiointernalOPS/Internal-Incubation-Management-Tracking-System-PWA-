@@ -4,6 +4,6 @@ import { useRouter } from 'next/navigation';
 
 export default function ReportsRedirect() {
   const router = useRouter();
-  useEffect(() => { router.replace('/admin/reports/responses'); }, []);
+  useEffect(() => { router.replace('/admin/reports/responses'); }, [router]);
   return null;
 }

@@ -190,7 +190,7 @@ export default function SecurityPage() {
     Promise.all([fetchSummary(), fetchSessions(), fetchEvents(), fetchLoginHistory()])
       .catch((err) => setError(t(err.message || "") || err.message))
       .finally(() => setLoading(false));
-  }, [fetchSummary, fetchSessions, fetchEvents, fetchLoginHistory]);
+  }, [fetchSummary, fetchSessions, fetchEvents, fetchLoginHistory, t]);
 
   const handleRevokeSession = async (token) => {
     try {

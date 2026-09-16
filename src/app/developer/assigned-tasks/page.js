@@ -17,21 +17,10 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function AssignedTasks() {
   const { t } = useI18n();
-  const [user, setUser] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [pendingAssignments, setPendingAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [responding, setResponding] = useState(null);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("user");
-      if (saved) {
-        const u = JSON.parse(saved);
-        setUser(u);
-      }
-    } catch (_) {}
-  }, []);
 
   const fetchData = useCallback(async (bypassCache = false) => {
     setLoading(true);
@@ -40,7 +29,6 @@ export default function AssignedTasks() {
       const sessionData = await sessionRes.json();
       if (!sessionData.authenticated || !sessionData.user) return;
       const userId = sessionData.user.cid;
-      if (!user) setUser(sessionData.user);
 
       // Fetch accepted/active assigned tasks
       const tasksUrl = `/api/tasks?assigned_to=${userId}&sort=priority`;

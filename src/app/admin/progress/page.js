@@ -67,7 +67,7 @@ export default function SuperAdminProgressHub() {
       }
     }
     checkAuth();
-  }, []);
+  }, [router]);
 
   const filteredPrograms = programs.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase()),

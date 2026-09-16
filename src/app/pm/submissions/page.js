@@ -79,7 +79,7 @@ export default function PMSubmissions() {
       setStartTime("");
       setEventLocation("");
     }
-  }, [scheduleModal]);
+  }, [scheduleModal, t]);
 
   const fetchSubmissions = useCallback(async (bypassCache = false) => {
     if (!user?.cid && !user?.id) return;

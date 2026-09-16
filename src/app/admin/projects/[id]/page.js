@@ -150,7 +150,7 @@ export default function ProjectDetail() {
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, t]);
 
   const fetchStaff = useCallback(async () => {
     try {

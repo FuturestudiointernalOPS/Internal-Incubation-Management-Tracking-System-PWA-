@@ -490,7 +490,7 @@ export default function MessagingChat({ role = "super_admin" }) {
         new Date(a.lastMessage?.created_at || 0),
     );
     return threads;
-  }, [messages, contacts, families, allPrograms, uid]);
+  }, [messages, contacts, families, allPrograms, uid, t]);
 
   // ── Unread counts ──
   const unreadCounts = useMemo(() => {

@@ -127,7 +127,7 @@ export default function StaffProjectDetail() {
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, t]);
 
   const fetchUpdates = useCallback(async (bypassCache = false) => {
     if (!projectId) return;

@@ -128,7 +128,7 @@ export default function FinanceDashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (selectedId) {
@@ -178,7 +178,7 @@ export default function FinanceDashboard() {
     } finally {
       setSyncing(false);
     }
-  }, [selectedId, fetchDashboard]);
+  }, [selectedId, fetchDashboard, t]);
 
   // ── Compute card statuses ──────────────────────────────────────────────
 

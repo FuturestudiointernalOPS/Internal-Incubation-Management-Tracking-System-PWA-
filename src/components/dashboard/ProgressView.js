@@ -220,7 +220,7 @@ export default function ProgressView({ programId: _filterProgramId }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchProgress();

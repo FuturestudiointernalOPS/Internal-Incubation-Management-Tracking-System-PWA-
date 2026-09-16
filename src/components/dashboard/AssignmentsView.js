@@ -102,7 +102,7 @@ export default function AssignmentsView() {
     } finally {
       setLoading(false);
     }
-  }, [filterProgram]);
+  }, [filterProgram, t]);
 
   useEffect(() => {
     fetchAssignments();

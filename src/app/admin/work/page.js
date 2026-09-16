@@ -215,7 +215,7 @@ export default function ProjectKanbanBoard() {
     } finally {
       setDeletingTaskId(null);
     }
-  }, []);
+  }, [t]);
 
   const isSuperAdmin =
     user?.role === "super_admin" || user?.role === "developer";

@@ -44,7 +44,7 @@ function RegisterVentureContent() {
       })
       .catch(() => setError(t("rootMisc.registerVenture.unableToValidateLink")))
       .finally(() => setValidating(false));
-  }, [token]);
+  }, [token, t]);
 
   async function handleSubmit(e) {
     e.preventDefault();

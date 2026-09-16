@@ -163,7 +163,7 @@ export default function IntegrationsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

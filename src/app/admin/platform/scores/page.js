@@ -139,7 +139,7 @@ export default function ScoresPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedRunId, selectedFormId, sort]);
+  }, [selectedRunId, selectedFormId, sort, t]);
 
   const toggleExpand = (idx) => {
     setExpanded((prev) => ({ ...prev, [idx]: !prev[idx] }));

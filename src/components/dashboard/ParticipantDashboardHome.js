@@ -194,7 +194,7 @@ export default function ParticipantDashboardHome() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchDashboard();

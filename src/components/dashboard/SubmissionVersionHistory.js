@@ -273,7 +273,7 @@ export default function SubmissionVersionHistory({
     } finally {
       setLoading(false);
     }
-  }, [participantId, programId, deliverableId]);
+  }, [participantId, programId, deliverableId, t]);
 
   useEffect(() => {
     fetchVersions();

@@ -689,7 +689,7 @@ export default function ProgramDetail({ programId }) {
     } finally {
       setLoading(false);
     }
-  }, [programId]);
+  }, [programId, t]);
 
   useEffect(() => {
     fetchDetail();

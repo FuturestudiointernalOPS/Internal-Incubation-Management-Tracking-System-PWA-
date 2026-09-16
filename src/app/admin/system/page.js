@@ -148,7 +148,7 @@ export default function SystemMonitoringPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 

@@ -97,7 +97,7 @@ export default function PromoteToVenture() {
       }
     };
     fetchProgram();
-  }, [id]);
+  }, [id, t]);
 
   const handlePromote = async () => {
     // Validate

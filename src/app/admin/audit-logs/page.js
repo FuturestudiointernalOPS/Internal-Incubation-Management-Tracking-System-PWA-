@@ -105,7 +105,7 @@ export default function AuditLogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, t]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 

@@ -203,7 +203,7 @@ export default function NewProgram() {
         if (data.types) setCustomProgramTypes(data.types);
       })
       .catch(() => {});
-  }, []);
+  }, [t]);
 
   const handleFileUpload = async (e, type = "program") => {
     const files = Array.from(e.target.files);

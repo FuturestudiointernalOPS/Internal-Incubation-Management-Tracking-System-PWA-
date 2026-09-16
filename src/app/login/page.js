@@ -32,6 +32,11 @@ async function getFounderVentureTarget(cid) {
   return "/workspaces";
 }
 
+// Hardcoded staging test users as fallback
+const FALLBACK_USERS = {
+  super_admin: [{ cid: "sp", name: "Super Admin", email: "sp@staging.bj" }],
+};
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -54,11 +59,6 @@ export default function LoginPage() {
   const isStaging =
     typeof window !== "undefined" &&
     process.env.NEXT_PUBLIC_ALLOW_IMPERSONATION === "true";
-
-  // Hardcoded staging test users as fallback
-  const FALLBACK_USERS = {
-    super_admin: [{ cid: "sp", name: "Super Admin", email: "sp@staging.bj" }],
-  };
 
   // Fetch available users when dev tools are opened
   useEffect(() => {

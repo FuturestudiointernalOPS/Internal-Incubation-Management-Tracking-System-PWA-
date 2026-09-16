@@ -53,6 +53,9 @@ const EMAIL_STATUS_ORDER = ["sent", "delivered", "opened", "clicked", "delayed",
 
 const EMAIL_PAGE_SIZE = 25;
 
+// Only these statuses are selectable for manual retry.
+const RETRYABLE_EMAIL_STATUSES = ["failed", "bounced", "cancelled", "pending"];
+
 // Filter option lists for the Run Overview tracking columns.
 const EMAIL_FILTER_OPTIONS = ["sent", "delivered", "opened", "clicked", "delayed", "bounced", "failed", "cancelled", "skipped", "pending", "not_sent"];
 const REVIEW_FILTER_OPTIONS = ["approved", "rejected", "revision_requested"];
@@ -507,7 +510,7 @@ export default function FormRunsPage() {
       }
     }
     setLoading(false);
-  }, [statusFilter, page, perPage]);
+  }, [statusFilter, page, perPage, t]);
 
   const fetchForms = useCallback(async (bypassCache = false) => {
     const url = "/api/platform/forms?status=published";
@@ -642,7 +645,19 @@ export default function FormRunsPage() {
     } catch (_) {}
   }, []);
 
-  useEffect(() => { fetchRuns(); fetchForms(); fetchContacts(); fetchGroups(); fetchPrograms(); fetchDashboardStats(); }, [fetchRuns]);
+  // The run list follows the status filter and the page; the reference lists
+  // beside it (forms, contacts, groups, programs, stats) do not. Splitting them
+  // means a filter or page change refetches the runs alone instead of firing all
+  // six requests again.
+  useEffect(() => { fetchRuns(); }, [fetchRuns]);
+
+  useEffect(() => {
+    fetchForms();
+    fetchContacts();
+    fetchGroups();
+    fetchPrograms();
+    fetchDashboardStats();
+  }, [fetchForms, fetchContacts, fetchGroups, fetchPrograms, fetchDashboardStats]);
 
   const openRun = useCallback(async (run, opts = {}) => {
     if (!opts.keepTab) {
@@ -1524,9 +1539,6 @@ export default function FormRunsPage() {
       };
     });
   }, [emailLog, submissions]);
-
-  // Only these statuses are selectable for manual retry.
-  const RETRYABLE_EMAIL_STATUSES = ["failed", "bounced", "cancelled", "pending"];
 
   const [emailStatusFilter, setEmailStatusFilter] = useState("all");
   const [emailDateFrom, setEmailDateFrom] = useState("");

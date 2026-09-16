@@ -83,7 +83,7 @@ export default function JoinGroupPage() {
       }
     }
     load();
-  }, [id]);
+  }, [id, t]);
 
   function updateField(fieldId, value) {
     setFormData(prev => ({ ...prev, [fieldId]: value }));
