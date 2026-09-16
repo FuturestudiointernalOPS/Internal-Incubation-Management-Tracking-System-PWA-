@@ -2,10 +2,15 @@
 -- GRANT runs.edit TO PROGRAM MANAGERS
 -- =============================================================================
 -- WHY
---   Every Runs write action is gated on the `runs.edit` capability:
+--   Every Runs write action EXCEPT the admission decision is gated on
+--   `runs.edit`:
 --     send_manual_message, send_result_emails, send_activation_messages,
 --     retry_emails, mark_email_cancelled, manual_add, assign, unassign,
---     review, bulk_review, regenerate_link, and PUT (run metadata).
+--     regenerate_link, and PUT (run metadata).
+--   `review` and `bulk_review` are NOT on this list — they moved to their own
+--   `runs.review` capability so that sending messages never implies the
+--   authority to admit or reject an applicant. This file deliberately does not
+--   grant it; see 3d.
 --   The backfills only ever granted `runs.view` (level 1) to Staff Default, the
 --   Program Manager profile, and the staff / program_manager / admin roles — see
 --   RUNS_BACKFILL in src/models/authorization/backfill.js, whose own comment
@@ -82,11 +87,17 @@ INSERT INTO role_capabilities (role, module, capability, access_level) SELECT 'p
 --     Managers cannot publish a course or enrol anyone. That is open decision D1
 --     in docs/PRODUCTION_TEST.md section 3. Deliberately NOT granted here.
 --
--- 3d. Note that runs.edit also unlocks REVIEW: POST action=review and
---     action=bulk_review (approve / reject an applicant, which sends email).
---     That is the same capability and cannot be granted separately today. If
---     Program Managers should NOT be able to decide applications, this grant is
---     the wrong tool and the routes need splitting — a code change, not a grant.
+-- 3d. REVIEW IS NOW SEPARATE — and deliberately not granted here.
+--     POST action=review and action=bulk_review are gated on `runs.review`, a
+--     capability of its own (it used to share runs.edit). Nobody holds it after
+--     this file runs, so only Super Admin — who bypasses eligibility and
+--     capabilities — can approve or reject an applicant. That is the safe
+--     default: deciding who is admitted is not a side effect of being able to
+--     send a message.
+--     If a group SHOULD decide applications, grant runs.review to that profile
+--     below. Uncomment, and keep the same seed-then-grant ordering.
+-- INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level) SELECT ap.id, 'runs', 'review', 1 FROM access_profiles ap WHERE ap.name = 'Program Manager' AND ap.is_active = 1 AND NOT EXISTS (SELECT 1 FROM access_profile_capabilities c WHERE c.profile_id = ap.id AND c.module = 'runs' AND c.capability = 'review');
+-- INSERT INTO role_capabilities (role, module, capability, access_level) SELECT 'program_manager', 'runs', 'review', 1 WHERE NOT EXISTS (SELECT 1 FROM role_capabilities WHERE role = 'program_manager' AND module = 'runs' AND capability = 'review');
 
 
 -- =============================================================================

@@ -192,7 +192,8 @@
         "progress_view": "View Progress",
         "groups_view": "View Groups",
         "groups_manage": "Manage Groups",
-        "reviews_submit": "Submit Reviews"
+        "reviews_submit": "Submit Reviews",
+        "runs_review": "Review Applicants"
       },
       "titleIndividualGrant": "Individual Access",
       "titleInherited": "Inherited from role/group",

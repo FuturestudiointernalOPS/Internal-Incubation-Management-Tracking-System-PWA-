@@ -192,7 +192,8 @@
         "progress_view": "Voir la progression",
         "groups_view": "Voir les groupes",
         "groups_manage": "Gérer les groupes",
-        "reviews_submit": "Soumettre des évaluations"
+        "reviews_submit": "Soumettre des évaluations",
+        "runs_review": "Examiner les candidats"
       },
       "titleIndividualGrant": "Accès individuel",
       "titleInherited": "Hérité du rôle/groupe",

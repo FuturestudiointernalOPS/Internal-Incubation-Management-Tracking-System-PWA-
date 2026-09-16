@@ -471,7 +471,10 @@ export const PERMISSION_MODULES = {
     capabilities: ["view", "create_announcements", "moderate"],
   },
   forms: { name: "Forms", capabilities: ["view", "create", "edit", "delete"] },
-  runs: { name: "Runs", capabilities: ["view", "create", "edit", "delete"] },
+  // `review` is separate from `edit` on purpose: sending run messages, assigning
+  // people and retrying emails must never imply the authority to admit or reject
+  // an applicant. Granted to nobody by default.
+  runs: { name: "Runs", capabilities: ["view", "create", "edit", "delete", "review"] },
   contacts: {
     name: "Contacts",
     capabilities: ["view", "create", "edit", "delete"],
