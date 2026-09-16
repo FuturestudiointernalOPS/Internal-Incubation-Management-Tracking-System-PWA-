@@ -67,6 +67,9 @@
     "sessionResources": {
       "title": "Ressources de la séance",
       "add": "Ajouter une ressource",
+      "addResource": "Ajouter la ressource",
+      "saveChanges": "Enregistrer les modifications",
+      "unsaved": "À enregistrer",
       "addTitle": "Ajouter une ressource",
       "editTitle": "Modifier la ressource",
       "edit": "Modifier",

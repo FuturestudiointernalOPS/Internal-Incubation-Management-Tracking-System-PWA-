@@ -607,9 +607,18 @@ A session (program week) carries its own material as ROWS in
 `lms_session_resources` — videos and documents, each with an optional
 `is_recommended` flag and a `recommendation_note`.
 
-- **Authoring** (`lms.assign`): the Program Manager session card in
-  `/pm/programs/[id]` (Phase 3 — Resources) adds, edits and deletes resources;
-  the component is `src/components/lms/SessionResourcesSection.js`.
+- **Authoring** (`lms.assign`): one form serves both places a session's material
+  is managed. `src/components/lms/SessionResourcesEditor.js` renders the list and
+  the add/edit form and is CONTROLLED — it owns no persistence, which lets
+  - the session card panel (`SessionResourcesSection`, in the curriculum tab)
+    save every change immediately, and
+  - the session creation form buffer the resources in component state and attach
+    them right after the session is created (a resource needs a session id).
+  Files are uploaded to storage as soon as they are picked (the only way to get a
+  URL), so an abandoned form discards its unsaved uploads
+  (`discardUnsavedUploads`, which never touches a saved object).
+  The add/edit form itself lives in `SessionResourcesEditor`; the session modal
+  renders it inline (`inlineForm`) rather than nesting a second modal.
 - **Two origins, one row**: a resource is either an external link
   (`source = 'link'`) or a file uploaded through ImpactOS
   (`source = 'upload'`). Uploads are a deliberate two-step:

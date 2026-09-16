@@ -41,6 +41,9 @@ import { getWeekNumber, getLocalToday, FACILITATOR_REVIEW_OPTIONS } from "@/lib/
 import { FacilitatorsPanel } from "@/components/pm/FacilitatorsPanel";
 import ProgramLearningSection from "@/components/lms/ProgramLearningSection";
 import SessionResourcesSection from "@/components/lms/SessionResourcesSection";
+import SessionResourcesEditor, {
+  discardUnsavedUploads,
+} from "@/components/lms/SessionResourcesEditor";
 import CoachingRequestsPanel from "@/components/lms/CoachingRequestsPanel";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
@@ -258,6 +261,9 @@ function ProgramWorkspace() {
     notes: "",
     extra_materials: [],
     requirements: [],
+    // Session material (Phase 8): buffered here and saved once the session
+    // exists — a resource always needs a session id.
+    resources: [],
   });
 
   const [newSessionMaterial, setNewSessionMaterial] = useState({
@@ -576,6 +582,15 @@ function ProgramWorkspace() {
     }
   };
 
+  /**
+   * Close the session form. Uploads that were never saved (the session did not
+   * exist yet) are removed from storage so they do not linger.
+   */
+  const closeSessionModal = () => {
+    discardUnsavedUploads(newSession.resources || []);
+    setShowSessionModal(false);
+  };
+
   const addSession = async () => {
     if (!newSession.title.trim()) return;
     if (
@@ -609,7 +624,45 @@ function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
+        // The session exists now, so the buffered material can be attached.
+        const resources = newSession.resources || [];
+        let failedResources = 0;
+        for (const resource of resources) {
+          try {
+            const resourceRes = await fetch("/api/lms/session-resources", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                program_id: id,
+                session_id: data.id,
+                week_number: newSession.week_number,
+                kind: resource.kind,
+                title: resource.title,
+                description: resource.description,
+                url: resource.url,
+                source: resource.source,
+                storage_path: resource.storage_path,
+                file_name: resource.file_name,
+                file_size: resource.file_size,
+                mime_type: resource.mime_type,
+                is_recommended: resource.is_recommended,
+                recommendation_note: resource.recommendation_note,
+              }),
+            });
+            const resourceData = await resourceRes.json();
+            if (!resourceData.success) failedResources += 1;
+          } catch (_) {
+            failedResources += 1;
+          }
+        }
+
         notify(t("pmMisc.workspace.added"));
+        if (failedResources > 0) {
+          notify(
+            t("pmMisc.workspace.resourcesNotSaved", { count: failedResources }),
+            "error",
+          );
+        }
         setShowSessionModal(false);
         setNewSession({
           title: "",
@@ -627,6 +680,7 @@ function ProgramWorkspace() {
           notes: "",
           extra_materials: [],
           requirements: [],
+          resources: [],
         });
         fetchProgramData(true);
       } else notify(t((data.error || t("pmMisc.workspace.addFailed")) || "") || (data.error || t("pmMisc.workspace.addFailed")), "error");
@@ -3998,7 +4052,7 @@ function ProgramWorkspace() {
         {showSessionModal && (
           <div
             className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowSessionModal(false)}
+            onClick={closeSessionModal}
           >
             <div
               className="card w-full max-w-lg space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar"
@@ -4022,7 +4076,7 @@ function ProgramWorkspace() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setShowSessionModal(false)}
+                  onClick={closeSessionModal}
                   className="p-2 hover:bg-[var(--surface-2)] rounded-lg transition-all"
                 >
                   <X
@@ -4413,6 +4467,60 @@ function ProgramWorkspace() {
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* Session material (Phase 8) — buffered until the session is
+                    created, then attached to it. */}
+                <div className="space-y-2 mt-4 pt-4 border-t border-[var(--border-primary)]">
+                  <SessionResourcesEditor
+                    badge={
+                      <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center text-[9px] font-black text-blue-500 border border-blue-500/20 shadow-sm shrink-0">
+                        3
+                      </div>
+                    }
+                    title={t("lms.sessionResources.title")}
+                    accent="var(--brand-blue)"
+                    resources={newSession.resources || []}
+                    canEdit
+                    busy={isSaving}
+                    inlineForm
+                    programId={id}
+                    sessionId={null}
+                    onCreate={(values) =>
+                      setNewSession((p) => ({
+                        ...p,
+                        resources: [
+                          ...(p.resources || []),
+                          {
+                            ...values,
+                            localId: `pending-${Date.now()}-${Math.random()
+                              .toString(36)
+                              .slice(2, 8)}`,
+                          },
+                        ],
+                      }))
+                    }
+                    onUpdate={(resource, values) =>
+                      setNewSession((p) => ({
+                        ...p,
+                        resources: (p.resources || []).map((r) =>
+                          (r.localId ?? r.id) === (resource.localId ?? resource.id)
+                            ? { ...r, ...values }
+                            : r,
+                        ),
+                      }))
+                    }
+                    onDelete={(resource) => {
+                      discardUnsavedUploads([resource]);
+                      setNewSession((p) => ({
+                        ...p,
+                        resources: (p.resources || []).filter(
+                          (r) =>
+                            (r.localId ?? r.id) !== (resource.localId ?? resource.id),
+                        ),
+                      }));
+                    }}
+                  />
                 </div>
 
                 <div className="space-y-2">

@@ -579,6 +579,7 @@
       "kpiRequired": "At least one KPI must be assigned.",
       "added": "Added",
       "addFailed": "Add failed.",
+      "resourcesNotSaved": "{count} session resource(s) could not be saved — open the session to add them again.",
       "kpiLinkRequired": "Please link at least one KPI. Grading parameters are derived from linked KPIs.",
       "failed": "Failed.",
       "statusUpdatedTo": "Status updated to {status}",

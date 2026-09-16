@@ -67,6 +67,9 @@
     "sessionResources": {
       "title": "Session Resources",
       "add": "Add resource",
+      "addResource": "Add resource",
+      "saveChanges": "Save changes",
+      "unsaved": "To save",
       "addTitle": "Add a resource",
       "editTitle": "Edit resource",
       "edit": "Edit",
