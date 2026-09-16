@@ -1477,6 +1477,11 @@ export async function seedDefaultAccessProfiles() {
 
 let responsibilitiesSchemaPromise = null;
 
+// The default-responsibility seed is a fixed catalogue: run it once per process
+// (see seedDefaultResponsibilities). Request paths that call it on every read
+// are answered from this promise after the first call.
+let responsibilitiesSeedPromise = null;
+
 /**
  * Idempotent runtime self-healing for the responsibilities tables.
  * Creates the tables on first use so the migration is optional, matching the
@@ -1732,6 +1737,21 @@ export async function getAllResponsibilities() {
  * Seed default responsibilities.
  */
 export async function seedDefaultResponsibilities() {
+  // Once per process. The definitions are a fixed catalogue that only changes
+  // when the code changes, and the allowed_roles pass is fill-only by design —
+  // so repeating them per request bought nothing and cost 24 round trips on
+  // every read of the responsibilities screen. A failure clears the memo so the
+  // next call retries instead of the process caching a broken state.
+  if (!responsibilitiesSeedPromise) {
+    responsibilitiesSeedPromise = seedDefaultResponsibilitiesOnce().catch((e) => {
+      responsibilitiesSeedPromise = null;
+      return { success: false, error: e.message };
+    });
+  }
+  return responsibilitiesSeedPromise;
+}
+
+async function seedDefaultResponsibilitiesOnce() {
   try {
     await initDb();
     await ensureResponsibilitiesSchema();
@@ -1811,39 +1831,38 @@ export async function seedDefaultResponsibilities() {
       },
     ];
 
-    for (const resp of defaults) {
-      const defaultRoles = JSON.stringify(
-        RESPONSIBILITY_FEATURE_ROLES[resp.key] || [],
-      );
-      await db.execute({
-        sql: `INSERT INTO responsibilities (name, key, description, icon, allowed_roles, is_active)
-              VALUES (?, ?, ?, ?, ?, 1)
-              ON CONFLICT (key) DO UPDATE SET name = ?, description = ?, icon = ?`,
-        args: [
-          resp.name,
-          resp.key,
-          resp.description,
-          resp.icon,
-          defaultRoles,
-          resp.name,
-          resp.description,
-          resp.icon,
-        ],
-      });
-    }
+    // 1. Definitions — ONE multi-row statement instead of 12 round trips.
+    //    Same ON CONFLICT (key) upsert as before, same values as the incoming
+    //    row (EXCLUDED), so re-running is still a no-op for existing rows.
+    await db.execute({
+      sql: `INSERT INTO responsibilities (name, key, description, icon, allowed_roles, is_active)
+            VALUES ${defaults.map(() => "(?, ?, ?, ?, ?, 1)").join(", ")}
+            ON CONFLICT (key) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, icon = EXCLUDED.icon`,
+      args: defaults.flatMap((resp) => [
+        resp.name,
+        resp.key,
+        resp.description,
+        resp.icon,
+        JSON.stringify(RESPONSIBILITY_FEATURE_ROLES[resp.key] || []),
+      ]),
+    });
 
-    // Backfill allowed_roles ONLY where it has never been configured. Manual
-    // Super Admin edits (including an explicit empty list) are never touched.
-    for (const resp of defaults) {
-      const defaultRoles = JSON.stringify(
-        RESPONSIBILITY_FEATURE_ROLES[resp.key] || [],
-      );
-      await db.execute({
-        sql: `UPDATE responsibilities SET allowed_roles = ?
-              WHERE key = ? AND (allowed_roles IS NULL OR TRIM(allowed_roles) = '')`,
-        args: [defaultRoles, resp.key],
-      });
-    }
+    // 2. Backfill allowed_roles ONLY where it has never been configured. Manual
+    //    Super Admin edits (including an explicit empty list) are never touched.
+    //    ONE statement instead of 12 round trips.
+    await db.execute({
+      sql: `UPDATE responsibilities AS r
+            SET allowed_roles = v.roles
+            FROM (VALUES ${defaults
+              .map(() => "(CAST(? AS TEXT), CAST(? AS TEXT))")
+              .join(", ")}) AS v(key, roles)
+            WHERE r.key = v.key
+              AND (r.allowed_roles IS NULL OR TRIM(r.allowed_roles) = '')`,
+      args: defaults.flatMap((resp) => [
+        resp.key,
+        JSON.stringify(RESPONSIBILITY_FEATURE_ROLES[resp.key] || []),
+      ]),
+    });
 
     return { success: true };
   } catch (e) {
