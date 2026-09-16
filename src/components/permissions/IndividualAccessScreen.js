@@ -30,6 +30,14 @@ import PermissionManager from "./PermissionCenter";
 export default function IndividualAccessScreen() {
   const { t } = useI18n();
   const [person, setPerson] = useState(null);
+  // Bumped by PeopleView after an in-place grant/revoke. The two panels read
+  // the same rows through different endpoints, so without this the matrix below
+  // would keep showing the access the person had a moment ago.
+  const [accessVersion, setAccessVersion] = useState(0);
+  const onAccessChanged = useCallback(
+    () => setAccessVersion((v) => v + 1),
+    [],
+  );
 
   // Deep link on first paint. Deferred: an effect must not write state
   // synchronously (project convention: ./effectUtils).
@@ -65,8 +73,12 @@ export default function IndividualAccessScreen() {
 
       {person ? (
         <div className="space-y-6">
-          <PeopleView person={person} />
-          <PermissionManager cid={person.cid} initialTab="search" />
+          <PeopleView person={person} onAccessChanged={onAccessChanged} />
+          <PermissionManager
+            key={`access-editor-${accessVersion}`}
+            cid={person.cid}
+            initialTab="search"
+          />
         </div>
       ) : (
         <div className="ios-card !p-6 border-[var(--border-primary)] text-center">

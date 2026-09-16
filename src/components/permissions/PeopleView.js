@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Search, ShieldCheck, RefreshCw } from "lucide-react";
+import { Search, ShieldCheck, RefreshCw, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { defer, settled, createLatestGuard } from "./effectUtils";
@@ -10,6 +10,15 @@ import Badge from "./ui/Badge";
 import EffectiveBadge from "./ui/EffectiveBadge";
 import WhyDrawer from "./ui/WhyDrawer";
 import { collectContextModules, deriveUserCapState, deriveDenialReason, describeCapOrigins } from "./matrixHelpers";
+import {
+  ACCESS_LEVEL_KEYS,
+  ACCESS_SHORT,
+  GRANT_LEVELS,
+  LEVEL_CHIP_ACTIVE,
+  LEVEL_CHIP_BASE,
+  LEVEL_CHIP_IDLE,
+  personalGrantLevel,
+} from "./levelChips";
 import { SCOPE_POLICIES, SCOPE_POLICY_KEYS } from "@/lib/authorization/scope-catalog";
 
 /**
@@ -52,7 +61,7 @@ function SourceGlyph({ on, kind }) {
   return <span className="text-sm font-black text-[var(--brand-orange)]">✓</span>;
 }
 
-export default function PeopleView({ person = null }) {
+export default function PeopleView({ person = null, onAccessChanged = null }) {
   const { t } = useI18n();
   // The screen above owns the selection (PersonPicker); this panel follows it.
   const selected = person;
@@ -63,6 +72,10 @@ export default function PeopleView({ person = null }) {
   const [err, setErr] = useState("");
   const [scope, setScope] = useState([]);
   const [why, setWhy] = useState(null);
+  // In-place granting. `busyKey` is scoped to one capability row so a second
+  // click elsewhere is still possible; the write itself is server-authoritative.
+  const [busyKey, setBusyKey] = useState(null);
+  const [actionErr, setActionErr] = useState("");
   const [query, setQuery] = useState("");
   const [onlyGranted, setOnlyGranted] = useState(false);
 
@@ -152,6 +165,60 @@ export default function PeopleView({ person = null }) {
     lastPickedCid.current = person.cid;
     defer(() => pick(person));
   }, [person, pick]);
+
+  /**
+   * Re-read ONLY the resolved context after a write. Deliberately not `pick()`:
+   * that resets `ctx` to null and refetches scope, which would flash the whole
+   * matrix empty on every chip click.
+   */
+  const refreshCtx = useCallback(async (cid) => {
+    const res = await fetch(
+      `/api/engineering/permissions/user-context?cid=${encodeURIComponent(cid)}`,
+    );
+    const d = await res.json();
+    if (d?.success) setCtx(d);
+  }, []);
+
+  /**
+   * Grant / revoke a PERSONAL capability for the selected person.
+   * The server is the boundary: it rejects a grant to an ineligible target
+   * (403) and applies the merge semantics — so the surface stays unchanged on
+   * failure and the reason is shown next to the control that caused it.
+   */
+  const writeAccess = useCallback(
+    async (action, module, capability, accessLevel) => {
+      if (!selected?.cid) return;
+      setBusyKey(`${module}.${capability}`);
+      setActionErr("");
+      try {
+        const res = await fetch("/api/engineering/permissions", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            user_cid: selected.cid,
+            module,
+            capability,
+            access_level: accessLevel,
+          }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok || d?.success === false) {
+          throw new Error(d?.error || t("engineering.permissions.saveFailed"));
+        }
+        await refreshCtx(selected.cid);
+        // The "Change access" panel below holds its own copy of the same data;
+        // tell the screen so it remounts with this write included rather than
+        // showing a stale matrix next to a fresh one.
+        if (onAccessChanged) onAccessChanged();
+      } catch (e) {
+        setActionErr(e.message || t("engineering.permissions.saveFailed"));
+      } finally {
+        setBusyKey(null);
+      }
+    },
+    [selected, refreshCtx, onAccessChanged, t],
+  );
 
   const modules = useMemo(() => {
     if (!ctx) return [];
@@ -244,6 +311,68 @@ export default function PeopleView({ person = null }) {
         ).effective;
       return { cap, offered, held };
     });
+
+  // One editable Grant control, shared by the table and the mobile cards so the
+  // two layouts cannot drift apart. Nothing is written until a chip is clicked.
+  const grantControl = (module, capability, eligible) => {
+    const level = personalGrantLevel(ctx?.sources, module, capability);
+    const busy = busyKey === `${module}.${capability}`;
+
+    // A feature the person is not eligible for is not grantable — say so here
+    // rather than letting the click travel to a server-side 403.
+    if (!eligible) {
+      return (
+        <span
+          className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-70"
+          title={t("engineering.permissions.peopleGrantNotEligible")}
+        >
+          {t("engineering.permissions.peopleGrantNotEligible")}
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex flex-wrap items-center justify-center gap-1">
+        {GRANT_LEVELS.map((lvl) => {
+          const held = level === lvl;
+          return (
+            <button
+              key={lvl}
+              type="button"
+              aria-pressed={held}
+              disabled={held || busy}
+              onClick={(e) => {
+                e.stopPropagation();
+                writeAccess("grant", module, capability, lvl);
+              }}
+              title={t("engineering.permissions.titleSetTo", {
+                level: t(ACCESS_LEVEL_KEYS[lvl]),
+              })}
+              className={`${LEVEL_CHIP_BASE} !h-6 !w-6 ${
+                held ? LEVEL_CHIP_ACTIVE[lvl] : LEVEL_CHIP_IDLE
+              }`}
+            >
+              {ACCESS_SHORT[lvl]}
+            </button>
+          );
+        })}
+        {level > 0 && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={(e) => {
+              e.stopPropagation();
+              writeAccess("revoke", module, capability);
+            }}
+            title={t("engineering.permissions.titleRevokeGrant")}
+            className="p-1 rounded-md hover:bg-red-500/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+          >
+            <Trash2 className="w-3 h-3 text-red-400" />
+          </button>
+        )}
+      </span>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -424,6 +553,14 @@ export default function PeopleView({ person = null }) {
               {t("engineering.permissions.peopleMatrixLegend")}
             </p>
 
+            {/* Write feedback — a rejected write must explain itself next to
+                the control that caused it, never silently no-op. */}
+            {actionErr && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                <p className="text-[10px] font-bold text-red-400">{actionErr}</p>
+              </div>
+            )}
+
             <div
               tabIndex={0}
               role="region"
@@ -488,6 +625,10 @@ export default function PeopleView({ person = null }) {
                             key={`${m.module}.${cap}`}
                             onClick={() => setWhy({ module: m.module, cap, state: s, reason })}
                             onKeyDown={(e) => {
+                              // The row acts as a button itself; a keydown from a
+                              // Grant chip must not be hijacked into opening the
+                              // drawer (and must not lose its default click).
+                              if (e.target !== e.currentTarget) return;
                               if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
                                 setWhy({ module: m.module, cap, state: s, reason });
@@ -511,8 +652,11 @@ export default function PeopleView({ person = null }) {
                             <td className="text-center">
                               <SourceGlyph on={s.group} kind="groups" />
                             </td>
-                            <td className="text-center">
-                              <SourceGlyph on={s.grant} kind="grants" />
+                            <td
+                              className="px-2 py-1 text-center"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {grantControl(m.module, cap, eligibleFor(m.module))}
                             </td>
                             <td className="text-center">
                               <SourceGlyph on={s.restricted} kind="restrictions" />
@@ -568,10 +712,24 @@ export default function PeopleView({ person = null }) {
                     const s = deriveUserCapState(ctx.sources, m.module, cap, eligibleFor(m.module));
                     const reason = reasonFor(s);
                     return (
-                      <button
+                      <div
                         key={`${m.module}.${cap}`}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={t("engineering.permissions.peopleRowAria", {
+                          capability: `${m.module}.${cap}`,
+                        })}
                         onClick={() => setWhy({ module: m.module, cap, state: s, reason })}
-                        className="w-full text-left rounded-xl border border-[var(--border-primary)] bg-secondary/30 p-3 space-y-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                        onKeyDown={(e) => {
+                          // Same guard as the table row: the Grant chips inside
+                          // keep their own keyboard behaviour.
+                          if (e.target !== e.currentTarget) return;
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setWhy({ module: m.module, cap, state: s, reason });
+                          }
+                        }}
+                        className="w-full text-left rounded-xl border border-[var(--border-primary)] bg-secondary/30 p-3 space-y-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
                       >
                         <span className="flex items-center justify-between gap-2">
                           <span className="text-xs font-bold text-[var(--text-primary)]">
@@ -583,7 +741,6 @@ export default function PeopleView({ person = null }) {
                           {[
                             { label: t("engineering.permissions.userMatrixProfile"), on: s.profile, kind: "profile" },
                             { label: t("engineering.permissions.userMatrixGroup"), on: s.group, kind: "groups" },
-                            { label: t("engineering.permissions.userMatrixGrant"), on: s.grant, kind: "grants" },
                             { label: t("engineering.permissions.userMatrixRestriction"), on: s.restricted, kind: "restrictions" },
                           ].map((src) => (
                             <span key={src.label} className="inline-flex items-center gap-1">
@@ -595,7 +752,16 @@ export default function PeopleView({ person = null }) {
                         <span className="block text-[10px] font-bold text-[var(--text-secondary)] opacity-80">
                           {originText(s)}
                         </span>
-                      </button>
+                        <span
+                          className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--border-primary)]/50"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                            {t("engineering.permissions.userMatrixGrant")}
+                          </span>
+                          {grantControl(m.module, cap, eligibleFor(m.module))}
+                        </span>
+                      </div>
                     );
                   })}
                 </div>
