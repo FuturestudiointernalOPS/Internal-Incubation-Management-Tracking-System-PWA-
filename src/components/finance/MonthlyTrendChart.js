@@ -20,6 +20,46 @@ import { useI18n } from "@/lib/i18n";
  *   monthlyData   - Array of { monthKey, monthLabel, plannedSpending, actualSpending, variance }
  *   totalBudget   - Total planned budget for the year (for cumulative % calculation)
  */
+/**
+ * Both helpers live at module scope: a component created inside the chart body
+ * is a new element type on every render, and this one is handed to the charting
+ * library, so its content would remount mid-hover. The tooltip reads the
+ * language itself, which is what lets it be defined outside the chart.
+ */
+const formatPct = (val) => `${val}%`;
+
+const CustomTooltip = ({ active, payload, label }) => {
+  const { t } = useI18n();
+  if (!active || !payload?.length) return null;
+  const entry = payload[0]?.payload;
+  return (
+    <div
+      className="rounded-xl p-3 text-[11px] shadow-lg"
+      style={{
+        background: "var(--surface-1)",
+        border: "1px solid var(--border-primary)",
+      }}
+    >
+      <p className="font-black mb-1" style={{ color: "var(--text-primary)" }}>
+        {label}
+      </p>
+      <p style={{ color: "var(--blue)" }}>
+        {t("finance.chart.planned")}: {formatPct(entry.plannedPct)}
+      </p>
+      <p style={{ color: "var(--brand-orange)" }}>
+        {t("finance.chart.actual")}: {formatPct(entry.actualPct)}
+      </p>
+      <p
+        style={{
+          color: entry.variance <= 0 ? "var(--green)" : "var(--red)",
+        }}
+      >
+        {t("finance.chart.tooltipVariance")}: {formatPct(entry.variance)}
+      </p>
+    </div>
+  );
+};
+
 export default function MonthlyTrendChart({ monthlyData = [], totalBudget = 0 }) {
   const { t } = useI18n();
   const chartData = useMemo(() => {
@@ -61,39 +101,6 @@ export default function MonthlyTrendChart({ monthlyData = [], totalBudget = 0 })
       </div>
     );
   }
-
-  const formatPct = (val) => `${val}%`;
-
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null;
-    const entry = payload[0]?.payload;
-    return (
-      <div
-        className="rounded-xl p-3 text-[11px] shadow-lg"
-        style={{
-          background: "var(--surface-1)",
-          border: "1px solid var(--border-primary)",
-        }}
-      >
-        <p className="font-black mb-1" style={{ color: "var(--text-primary)" }}>
-          {label}
-        </p>
-        <p style={{ color: "var(--blue)" }}>
-          {t("finance.chart.planned")}: {formatPct(entry.plannedPct)}
-        </p>
-        <p style={{ color: "var(--brand-orange)" }}>
-          {t("finance.chart.actual")}: {formatPct(entry.actualPct)}
-        </p>
-        <p
-          style={{
-            color: entry.variance <= 0 ? "var(--green)" : "var(--red)",
-          }}
-        >
-          {t("finance.chart.tooltipVariance")}: {formatPct(entry.variance)}
-        </p>
-      </div>
-    );
-  };
 
   return (
     <div className="card !p-6">

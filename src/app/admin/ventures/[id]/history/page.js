@@ -10,6 +10,36 @@ import { useI18n } from "@/lib/i18n";
  * Venture institutional memory (Vinance 3 — Phase 2): events, staff notes,
  * session records and submission review decisions assembled read-only.
  */
+/**
+ * Section wrapper for the history lists. Declared at module scope, not inside
+ * the page: a component created during render is a new element type on every
+ * render, so React remounts its whole subtree each time (and would silently
+ * reset any state a child gains later).
+ */
+const Section = ({ icon: Icon, title, count, children }) => (
+  <section className="card">
+    <div className="flex items-center gap-2 mb-3">
+      <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center">
+        <Icon className="w-4 h-4 text-[var(--brand-orange)]" />
+      </div>
+      <h2 className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-wide">
+        {title} {count > 0 && <span className="text-slate-500">({count})</span>}
+      </h2>
+    </div>
+    {children}
+  </section>
+);
+
+// Reads the language itself so the definition can live outside the page body.
+const Empty = () => {
+  const { t } = useI18n();
+  return (
+    <p className="text-xs text-[var(--text-secondary)] py-2">
+      {t("venture.history.empty")}
+    </p>
+  );
+};
+
 export default function VentureHistoryPage() {
   const { t } = useI18n();
   const { id } = useParams();
@@ -34,22 +64,6 @@ export default function VentureHistoryPage() {
   }, [id]);
 
   const fmtDate = (v) => (v ? new Date(v).toLocaleString() : "");
-
-  const Section = ({ icon: Icon, title, count, children }) => (
-    <section className="card">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center">
-          <Icon className="w-4 h-4 text-[var(--brand-orange)]" />
-        </div>
-        <h2 className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-wide">
-          {title} {count > 0 && <span className="text-slate-500">({count})</span>}
-        </h2>
-      </div>
-      {children}
-    </section>
-  );
-
-  const Empty = () => <p className="text-xs text-[var(--text-secondary)] py-2">{t("venture.history.empty")}</p>;
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">

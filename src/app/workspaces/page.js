@@ -31,6 +31,54 @@ const ROLE_LABEL_KEY = {
   intern: "roleIntern",
 };
 
+/**
+ * Card linking to one workspace. Declared at module scope, not inside the page:
+ * a component created during render is a new element type on every render, so
+ * React remounts it each time — which resets hover and focus on the links and
+ * restarts their preloading.
+ */
+const ContextCard = ({ title, role, href, completed, badge }) => {
+  const { t } = useI18n();
+  return (
+    <Link
+      href={href || "/workspaces"}
+      className="flex items-center justify-between gap-4 p-5 rounded-2xl border border-[var(--border-primary)] bg-secondary hover:border-[var(--brand-orange)] transition-all"
+    >
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-[12px] font-black uppercase truncate text-[var(--text-primary)]">
+            {title}
+          </p>
+          {(completed || badge) && (
+            <span className="px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)]">
+              {t("common.workspaces.completedViewOnly")}
+            </span>
+          )}
+        </div>
+        {role && (
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
+            {role}
+          </p>
+        )}
+        </div>
+      <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)] shrink-0">
+        {t("common.workspaces.open")}
+        <ArrowRight className="w-3.5 h-3.5" />
+      </span>
+    </Link>
+  );
+};
+
+const Group = ({ icon: Icon, label, children }) => (
+  <section className="space-y-3">
+    <h2 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+      <Icon className="w-4 h-4" />
+      {label}
+    </h2>
+    <div className="grid gap-3">{children}</div>
+  </section>
+);
+
 export default function WorkspacesPage() {
   const { t } = useI18n();
   const router = useRouter();
@@ -108,45 +156,6 @@ export default function WorkspacesPage() {
   // Legacy fallback: environments where the contextual tables are absent still
   // show the previous flat assignment list instead of an empty state.
   const hasLegacy = !hasAny && (data?.workspaces?.length || 0) > 0;
-
-  const ContextCard = ({ title, role, href, completed, badge }) => (
-    <Link
-      href={href || "/workspaces"}
-      className="flex items-center justify-between gap-4 p-5 rounded-2xl border border-[var(--border-primary)] bg-secondary hover:border-[var(--brand-orange)] transition-all"
-    >
-      <div className="min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-[12px] font-black uppercase truncate text-[var(--text-primary)]">
-            {title}
-          </p>
-          {(completed || badge) && (
-            <span className="px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)]">
-              {t("common.workspaces.completedViewOnly")}
-            </span>
-          )}
-        </div>
-        {role && (
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
-            {role}
-          </p>
-        )}
-        </div>
-      <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)] shrink-0">
-        {t("common.workspaces.open")}
-        <ArrowRight className="w-3.5 h-3.5" />
-      </span>
-    </Link>
-  );
-
-  const Group = ({ icon: Icon, label, children }) => (
-    <section className="space-y-3">
-      <h2 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-        <Icon className="w-4 h-4" />
-        {label}
-      </h2>
-      <div className="grid gap-3">{children}</div>
-    </section>
-  );
 
   if (loading) {
     return (
