@@ -1,7 +1,11 @@
 import db from "@/lib/db";
 import { LmsError } from "./errors";
 import { nextPosition } from "./helpers";
-import { LMS_RESOURCE_KINDS } from "./constants";
+import { LMS_RESOURCE_KINDS, LMS_RESOURCE_SOURCES } from "./constants";
+import {
+  isManagedStoragePath,
+  removeSessionResourceFile,
+} from "./sessionResourceFiles";
 
 /**
  * SESSION RESOURCES & RECOMMENDATIONS (Phase 8)
@@ -21,7 +25,10 @@ import { LMS_RESOURCE_KINDS } from "./constants";
  *     docs/LMS_ARCHITECTURE.md §8) — existence is validated here, in service
  *     code, exactly like `lms_program_requirements`.
  *   - A resource WITHOUT a link is useless, so `url` is required and must be an
- *     absolute http(s) URL (no `javascript:`, no relative path).
+ *     absolute http(s) URL (no `javascript:`, no relative path). `url` holds
+ *     EITHER the external link (source 'link') OR the public URL of the file
+ *     uploaded through ImpactOS (source 'upload'), which also carries the
+ *     storage path, filename, size and mime type.
  *   - Mutations are gated by `lms.assign` at the route layer (Program Course
  *     Assignment) and reads by `lms.view`; learners never call this module
  *     directly — the participant surface reads the same rows through the
@@ -29,6 +36,7 @@ import { LMS_RESOURCE_KINDS } from "./constants";
  */
 
 export const RESOURCE_KINDS = LMS_RESOURCE_KINDS;
+export const RESOURCE_SOURCES = LMS_RESOURCE_SOURCES;
 
 /** Longest accepted link/text lengths — mirrors the UI contract. */
 const MAX_URL_LENGTH = 2000;
@@ -45,6 +53,11 @@ function parseResource(row) {
     title: row.title,
     description: row.description ?? null,
     url: row.url ?? null,
+    source: row.source || "link",
+    storage_path: row.storage_path ?? null,
+    file_name: row.file_name ?? null,
+    file_size: row.file_size ?? null,
+    mime_type: row.mime_type ?? null,
     is_recommended: row.is_recommended === true || row.is_recommended === 1,
     recommendation_note: row.recommendation_note ?? null,
     position: row.position ?? 0,
@@ -86,6 +99,30 @@ function normalizeTitle(value) {
   const title = String(value ?? "").trim();
   if (!title) throw new LmsError("lms.errors.resourceTitleRequired", 400);
   return title.slice(0, MAX_TITLE_LENGTH);
+}
+
+function normalizeSource(value) {
+  const source = String(value ?? "").trim().toLowerCase();
+  if (!source) return "link";
+  if (!RESOURCE_SOURCES.includes(source)) {
+    throw new LmsError("lms.errors.invalidResourceSource", 400);
+  }
+  return source;
+}
+
+/**
+ * An uploaded resource must carry the storage path (the handle used to delete
+ * the object later) on top of its public URL.
+ */
+function assertUploadMetadata(source, url, storagePath) {
+  if (source !== "upload") return;
+  if (!storagePath) throw new LmsError("lms.errors.resourceFileRequired", 400);
+  if (!url) throw new LmsError("lms.errors.resourceUrlRequired", 400);
+  // Only objects this domain created can ever be referenced — a caller cannot
+  // point a resource at (and later delete) an unrelated stored object.
+  if (!isManagedStoragePath(storagePath)) {
+    throw new LmsError("lms.errors.resourceFileRequired", 400);
+  }
 }
 
 /** Program must exist (v2_programs; TEXT id — validated in service code, no FK). */
@@ -181,6 +218,11 @@ export async function createSessionResource({
   title,
   description,
   url,
+  source,
+  storagePath,
+  fileName,
+  fileSize,
+  mimeType,
   isRecommended,
   recommendationNote,
   createdBy,
@@ -201,12 +243,15 @@ export async function createSessionResource({
   );
 
   const recommended = isRecommended === true;
+  const resolvedSource = normalizeSource(source);
+  assertUploadMetadata(resolvedSource, url, storagePath);
 
   const res = await db.execute({
     sql: `INSERT INTO lms_session_resources
             (program_id, session_id, week_number, kind, title, description, url,
+             source, storage_path, file_name, file_size, mime_type,
              is_recommended, recommendation_note, position, created_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
     args: [
       String(programId),
       sessionId ? String(sessionId) : null,
@@ -215,6 +260,11 @@ export async function createSessionResource({
       normalizeTitle(title),
       description ? String(description).trim() : null,
       normalizeUrl(url),
+      resolvedSource,
+      resolvedSource === "upload" ? String(storagePath).trim() : null,
+      resolvedSource === "upload" && fileName ? String(fileName).trim() : null,
+      resolvedSource === "upload" && fileSize != null ? Number(fileSize) : null,
+      resolvedSource === "upload" && mimeType ? String(mimeType).trim() : null,
       recommended,
       recommended && recommendationNote ? String(recommendationNote).trim() : null,
       position,
@@ -247,6 +297,26 @@ export async function updateSessionResource(resourceId, fields = {}) {
     sets.push("url = ?");
     args.push(normalizeUrl(fields.url));
   }
+  if (fields.source !== undefined) {
+    sets.push("source = ?");
+    args.push(normalizeSource(fields.source));
+  }
+  if (fields.storage_path !== undefined) {
+    sets.push("storage_path = ?");
+    args.push(fields.storage_path ? String(fields.storage_path).trim() : null);
+  }
+  if (fields.file_name !== undefined) {
+    sets.push("file_name = ?");
+    args.push(fields.file_name ? String(fields.file_name).trim() : null);
+  }
+  if (fields.file_size !== undefined) {
+    sets.push("file_size = ?");
+    args.push(fields.file_size != null ? Number(fields.file_size) : null);
+  }
+  if (fields.mime_type !== undefined) {
+    sets.push("mime_type = ?");
+    args.push(fields.mime_type ? String(fields.mime_type).trim() : null);
+  }
   if (fields.is_recommended !== undefined) {
     sets.push("is_recommended = ?");
     args.push(fields.is_recommended === true);
@@ -269,7 +339,19 @@ export async function updateSessionResource(resourceId, fields = {}) {
     sql: `UPDATE lms_session_resources SET ${sets.join(", ")} WHERE id = ?`,
     args,
   });
-  return getSessionResource(resourceId);
+
+  const updated = await getSessionResource(resourceId);
+
+  // Replacing an uploaded file leaves the previous object orphaned in storage:
+  // drop it (best-effort — the row is already correct).
+  if (
+    existing.source === "upload" &&
+    existing.storage_path &&
+    String(existing.storage_path) !== String(updated.storage_path || "")
+  ) {
+    await removeSessionResourceFile(existing.storage_path);
+  }
+  return updated;
 }
 
 export async function deleteSessionResource(resourceId) {
@@ -279,5 +361,9 @@ export async function deleteSessionResource(resourceId) {
     sql: "DELETE FROM lms_session_resources WHERE id = ?",
     args: [resourceId],
   });
+  // The row is gone; the file should not outlive it (best-effort, never throws).
+  if (existing.source === "upload" && existing.storage_path) {
+    await removeSessionResourceFile(existing.storage_path);
+  }
   return { success: true, id: resourceId };
 }

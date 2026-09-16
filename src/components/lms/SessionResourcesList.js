@@ -1,15 +1,19 @@
 "use client";
 
-import { Video, FileText, Star, ExternalLink, Sparkles } from "lucide-react";
+import { Video, FileText, Star, ExternalLink, Sparkles, Paperclip } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { formatFileSize } from "@/lib/lms/constants";
+import ResourcePreview from "./ResourcePreview";
 
 /**
  * SESSION RESOURCES (learner, read-only)
  *
  * Renders the material a Program session depends on, as the learner sees it:
  * an explicit "Recommended for you" block (flagged resources + the note written
- * for them) followed by the rest of the session material. Purely presentational
- * — every link opens in a new tab and nothing is authored here.
+ * for them) followed by the rest of the session material. Uploaded files are
+ * labelled with their filename and size, and previewed inline when the format
+ * allows it (see ResourcePreview). Purely presentational — every link opens in a
+ * new tab and nothing is authored here.
  */
 export default function SessionResourcesList({ resources = [] }) {
   const { t } = useI18n();
@@ -27,44 +31,7 @@ export default function SessionResourcesList({ resources = [] }) {
             {t("lms.sessionResources.recommendationsTitle")}
           </h4>
           {recommended.map((resource) => (
-            <div
-              key={resource.id}
-              className="p-3 rounded-xl border"
-              style={{
-                borderColor: "rgb(255 102 0 / 0.25)",
-                background: "rgb(255 102 0 / 0.06)",
-              }}
-            >
-              <a
-                href={resource.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-bold flex items-center gap-1.5 hover:underline"
-                style={{ color: "var(--text-primary)" }}
-              >
-                {resource.kind === "video" ? (
-                  <Video className="w-3.5 h-3.5 shrink-0 text-[var(--brand-orange)]" />
-                ) : (
-                  <FileText className="w-3.5 h-3.5 shrink-0 text-[var(--brand-orange)]" />
-                )}
-                <span className="truncate">{resource.title}</span>
-                <ExternalLink className="w-3 h-3 opacity-50 shrink-0" />
-              </a>
-              {resource.recommendation_note && (
-                <p
-                  className="text-[10px] mt-1 italic flex items-start gap-1"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  <Star className="w-3 h-3 mt-0.5 shrink-0 text-[var(--brand-orange)]" />
-                  <span>{resource.recommendation_note}</span>
-                </p>
-              )}
-              {resource.description && (
-                <p className="text-[10px] mt-1" style={{ color: "var(--text-tertiary)" }}>
-                  {resource.description}
-                </p>
-              )}
-            </div>
+            <ResourceRow key={resource.id} resource={resource} highlighted />
           ))}
         </div>
       )}
@@ -79,36 +46,78 @@ export default function SessionResourcesList({ resources = [] }) {
             {t("lms.sessionResources.learnerTitle")}
           </h4>
           {others.map((resource) => (
-            <a
-              key={resource.id}
-              href={resource.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-start gap-2 p-2.5 rounded-lg border hover:border-[var(--brand-orange)]/40 transition-all"
-              style={{ borderColor: "var(--border-primary)" }}
-            >
-              {resource.kind === "video" ? (
-                <Video className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--brand-blue)" }} />
-              ) : (
-                <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--brand-blue)" }} />
-              )}
-              <span className="min-w-0">
-                <span
-                  className="text-xs font-bold block truncate"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  {resource.title}
-                </span>
-                {resource.description && (
-                  <span className="text-[10px] block" style={{ color: "var(--text-tertiary)" }}>
-                    {resource.description}
-                  </span>
-                )}
-              </span>
-            </a>
+            <ResourceRow key={resource.id} resource={resource} />
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+/** One piece of session material: link, optional recommendation, optional preview. */
+function ResourceRow({ resource, highlighted = false }) {
+  const accent = highlighted ? "var(--brand-orange)" : "var(--brand-blue)";
+  const Icon =
+    resource.kind === "video" ? Video : resource.source === "upload" ? Paperclip : FileText;
+
+  return (
+    <div
+      className="p-3 rounded-xl border"
+      style={
+        highlighted
+          ? { borderColor: "rgb(255 102 0 / 0.25)", background: "rgb(255 102 0 / 0.06)" }
+          : { borderColor: "var(--border-primary)" }
+      }
+    >
+      <a
+        href={resource.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-xs font-bold flex items-center gap-1.5 hover:underline"
+        style={{ color: "var(--text-primary)" }}
+      >
+        <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: accent }} />
+        <span className="truncate">{resource.title}</span>
+        <ExternalLink className="w-3 h-3 opacity-50 shrink-0" />
+      </a>
+
+      {highlighted && resource.recommendation_note && (
+        <p
+          className="text-[10px] mt-1 italic flex items-start gap-1"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          <Star className="w-3 h-3 mt-0.5 shrink-0 text-[var(--brand-orange)]" />
+          <span>{resource.recommendation_note}</span>
+        </p>
+      )}
+
+      <ResourceMeta resource={resource} />
+
+      {resource.description && (
+        <p className="text-[10px] mt-1" style={{ color: "var(--text-tertiary)" }}>
+          {resource.description}
+        </p>
+      )}
+
+      <ResourcePreview resource={resource} />
+    </div>
+  );
+}
+
+/** Second line of a resource: the uploaded filename and size, when relevant. */
+function ResourceMeta({ resource }) {
+  if (resource.source !== "upload") return null;
+  const size = formatFileSize(resource.file_size);
+  if (!resource.file_name && !size) return null;
+  return (
+    <span
+      className="text-[10px] flex items-center gap-1 mt-0.5"
+      style={{ color: "var(--text-tertiary)" }}
+    >
+      <Paperclip className="w-2.5 h-2.5 shrink-0" />
+      {resource.file_name && <span className="truncate">{resource.file_name}</span>}
+      {resource.file_name && size ? <span>·</span> : null}
+      {size ? <span>{size}</span> : null}
+    </span>
   );
 }

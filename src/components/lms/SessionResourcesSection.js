@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Plus,
   Video,
@@ -10,11 +10,21 @@ import {
   Star,
   ExternalLink,
   Sparkles,
+  Upload,
+  Link2,
+  Paperclip,
+  X,
 } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppButton from "@/components/ui/AppButton";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import {
+  LMS_RESOURCE_ACCEPT,
+  formatFileSize,
+  isAcceptedResourceFile,
+  lmsMaxBytesForKind,
+} from "@/lib/lms/constants";
 
 /**
  * SESSION RESOURCES (Phase 8 — Program Manager experience)
@@ -23,9 +33,14 @@ import { useI18n } from "@/lib/i18n";
  * optional "recommended" flag and note. Rendered inside one session card of the
  * Program curriculum (Phase 3 — Resources), right above Phase 4 (Learning/LMS).
  *
- * The resources belong to the session (`session_id`) and are stored as rows in
- * `lms_session_resources` — never as opaque JSON — so the participant surface
- * and any reporting can read them without parsing.
+ * A resource is EITHER an external link (`source: 'link'`) OR a file uploaded
+ * through ImpactOS (`source: 'upload'`) — the file is uploaded first
+ * (/api/lms/session-resources/upload), then saved with its storage metadata, so
+ * removing a resource can also delete the stored object. Files can be picked or
+ * dropped on the zone.
+ *
+ * Storage rows live in `lms_session_resources` — never opaque JSON — so the
+ * participant surface and any reporting can read them without parsing.
  *
  * Authorization: mutations require `lms.assign` server-side; `canEdit` only
  * controls visibility.
@@ -34,11 +49,13 @@ import { useI18n } from "@/lib/i18n";
 const EMPTY_FORM = {
   id: null,
   kind: "document",
+  mode: "link", // "link" | "file"
   title: "",
   url: "",
   description: "",
   is_recommended: false,
   recommendation_note: "",
+  upload: null, // { url, storage_path, file_name, file_size, mime_type, kind }
 };
 
 // Inputs follow the shared surface/border variables (no hardcoded colours).
@@ -49,6 +66,10 @@ const inputStyle = {
   color: "var(--text-primary)",
 };
 
+/**
+ * Client-side pre-check mirrors the server rules (src/lib/lms/constants.js) so
+ * the PM gets instant feedback — the server still enforces both limits.
+ */
 export default function SessionResourcesSection({
   programId,
   sessionId,
@@ -60,6 +81,13 @@ export default function SessionResourcesSection({
   const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef(null);
+  // Storage path already saved on the row being edited — lets the form tell a
+  // freshly uploaded (still unsaved) object from the persisted one.
+  const savedPathRef = useRef(null);
 
   const fetchResources = useCallback(async () => {
     setResources(null);
@@ -81,27 +109,152 @@ export default function SessionResourcesSection({
   }, [programId, fetchResources]);
 
   const openCreate = () => {
+    savedPathRef.current = null;
     setForm(EMPTY_FORM);
+    setUploadError(null);
     setShowForm(true);
   };
 
   const openEdit = (resource) => {
+    savedPathRef.current =
+      resource.source === "upload" ? resource.storage_path || null : null;
     setForm({
       id: resource.id,
       kind: resource.kind,
+      mode: resource.source === "upload" ? "file" : "link",
       title: resource.title || "",
       url: resource.url || "",
       description: resource.description || "",
       is_recommended: !!resource.is_recommended,
       recommendation_note: resource.recommendation_note || "",
+      upload:
+        resource.source === "upload"
+          ? {
+              url: resource.url,
+              storage_path: resource.storage_path,
+              file_name: resource.file_name,
+              file_size: resource.file_size,
+              mime_type: resource.mime_type,
+              kind: resource.kind,
+            }
+          : null,
     });
+    setUploadError(null);
     setShowForm(true);
+  };
+
+  /** Discard an uploaded-but-unsaved object so storage never keeps orphans. */
+  const discardUpload = async (upload) => {
+    if (!upload?.storage_path) return;
+    try {
+      await fetch(
+        `/api/lms/session-resources/upload?path=${encodeURIComponent(upload.storage_path)}`,
+        { method: "DELETE" },
+      );
+    } catch {
+      /* best-effort cleanup */
+    }
+  };
+
+  /**
+   * A form upload is "pending" while it is not the object the saved row points
+   * to — only those may be deleted when the PM swaps or drops the file (the
+   * persisted object is removed by the service when the row actually changes).
+   */
+  const isPendingUpload = (upload) =>
+    !!upload?.storage_path && upload.storage_path !== savedPathRef.current;
+
+  const closeForm = () => {
+    if (isPendingUpload(form.upload)) discardUpload(form.upload);
+    setShowForm(false);
+    setForm(EMPTY_FORM);
+    setDragActive(false);
+    savedPathRef.current = null;
+  };
+
+  /**
+   * Validate + upload one file. Shared by the picker and the drop zone so both
+   * paths behave identically (same limits, same cleanup, same defaults).
+   */
+  const uploadFile = async (file) => {
+    if (!file || uploading) return;
+
+    if (!isAcceptedResourceFile(file, form.kind)) {
+      setUploadError(
+        t(
+          form.kind === "video"
+            ? "lms.errors.invalidVideoFile"
+            : "lms.errors.invalidDocumentFile",
+        ),
+      );
+      return;
+    }
+    const maxBytes = lmsMaxBytesForKind(form.kind);
+    if (file.size > maxBytes) {
+      setUploadError(
+        t("lms.errors.fileTooLarge", { maxMb: Math.round(maxBytes / (1024 * 1024)) }),
+      );
+      return;
+    }
+
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      body.append("kind", form.kind);
+      body.append("program_id", programId);
+      if (sessionId) body.append("session_id", sessionId);
+      const res = await fetch("/api/lms/session-resources/upload", {
+        method: "POST",
+        body,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!data.success) throw new Error(data.error || "lms.errors.fileUploadFailed");
+
+      // Replacing a still-unsaved upload drops it; the previously SAVED object
+      // is cleaned up by the service once the row is updated.
+      if (isPendingUpload(form.upload) && form.upload.storage_path !== data.storage_path) {
+        discardUpload(form.upload);
+      }
+      setForm((f) => ({
+        ...f,
+        upload: {
+          url: data.url,
+          storage_path: data.storage_path,
+          file_name: data.file_name,
+          file_size: data.file_size,
+          mime_type: data.mime_type,
+          kind: data.kind,
+        },
+        // Saving a minute of typing: the filename is a decent default title.
+        title: f.title.trim() ? f.title : String(data.file_name || "").replace(/\.[^.]+$/, ""),
+      }));
+    } catch (err) {
+      setUploadError(t(err.message) || t("lms.errors.fileUploadFailed"));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file
+    await uploadFile(file);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    setDragActive(false);
+    await uploadFile(e.dataTransfer?.files?.[0]);
   };
 
   const save = async () => {
     setSaving(true);
     try {
       const isEdit = !!form.id;
+      const isFile = form.mode === "file";
+      const upload = form.upload;
       const res = await fetch(
         isEdit
           ? `/api/lms/session-resources/${form.id}`
@@ -113,10 +266,16 @@ export default function SessionResourcesSection({
             program_id: programId,
             session_id: sessionId || null,
             week_number: weekNumber ?? null,
-            kind: form.kind,
+            kind: isFile ? upload?.kind || form.kind : form.kind,
             title: form.title,
-            url: form.url,
             description: form.description,
+            // Switching modes must clear the fields of the other origin.
+            url: isFile ? upload?.url : form.url,
+            source: isFile ? "upload" : "link",
+            storage_path: isFile ? upload?.storage_path : null,
+            file_name: isFile ? upload?.file_name : null,
+            file_size: isFile ? upload?.file_size : null,
+            mime_type: isFile ? upload?.mime_type : null,
             is_recommended: form.is_recommended,
             recommendation_note: form.is_recommended
               ? form.recommendation_note
@@ -158,6 +317,9 @@ export default function SessionResourcesSection({
   };
 
   const recommended = (resources || []).filter((r) => r.is_recommended);
+  const isFile = form.mode === "file";
+  const canSave =
+    !!form.title.trim() && (isFile ? !!form.upload : !!form.url.trim());
 
   return (
     <div className="space-y-4">
@@ -212,6 +374,8 @@ export default function SessionResourcesSection({
                 <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
                   {resource.kind === "video" ? (
                     <Video className="w-4 h-4 text-blue-500" />
+                  ) : resource.source === "upload" ? (
+                    <Paperclip className="w-4 h-4 text-blue-500" />
                   ) : (
                     <FileText className="w-4 h-4 text-blue-500" />
                   )}
@@ -240,7 +404,24 @@ export default function SessionResourcesSection({
                     >
                       {t(`lms.sessionResources.kind.${resource.kind}`)}
                     </span>
+                    {resource.source === "upload" && (
+                      <span
+                        className="text-[8px] font-bold uppercase tracking-widest"
+                        style={{ color: "var(--text-tertiary)" }}
+                      >
+                        {t("lms.sessionResources.uploaded")}
+                        {resource.file_size ? ` · ${formatFileSize(resource.file_size)}` : ""}
+                      </span>
+                    )}
                   </div>
+                  {resource.source === "upload" && resource.file_name && (
+                    <p
+                      className="text-[10px] mt-0.5 truncate"
+                      style={{ color: "var(--text-tertiary)" }}
+                    >
+                      {resource.file_name}
+                    </p>
+                  )}
                   {resource.description && (
                     <p
                       className="text-[10px] mt-1 line-clamp-2"
@@ -283,7 +464,7 @@ export default function SessionResourcesSection({
 
       <AppModal
         isOpen={showForm}
-        onClose={() => setShowForm(false)}
+        onClose={closeForm}
         title={
           form.id
             ? t("lms.sessionResources.editTitle")
@@ -297,7 +478,14 @@ export default function SessionResourcesSection({
               <button
                 key={kind}
                 type="button"
-                onClick={() => setForm((f) => ({ ...f, kind }))}
+                onClick={() => {
+                  const drop = form.upload && form.upload.kind !== kind;
+                  // Accepted types differ per kind: an upload for the other kind
+                  // would be inconsistent, so it is dropped (and cleaned up when
+                  // it was never saved).
+                  if (drop && isPendingUpload(form.upload)) discardUpload(form.upload);
+                  setForm((f) => ({ ...f, kind, upload: drop ? null : f.upload }));
+                }}
                 className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border transition-all text-[10px] font-black uppercase tracking-widest"
                 style={{
                   borderColor:
@@ -318,6 +506,31 @@ export default function SessionResourcesSection({
             ))}
           </div>
 
+          {/* Origin: external link or uploaded file */}
+          <div className="flex gap-2">
+            {[
+              { mode: "link", icon: Link2, key: "originLink" },
+              { mode: "file", icon: Upload, key: "originFile" },
+            ].map(({ mode, icon: Icon, key }) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, mode }))}
+                className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border transition-all text-[9px] font-black uppercase tracking-widest"
+                style={{
+                  borderColor:
+                    form.mode === mode ? "var(--brand-orange)" : "var(--border-primary)",
+                  background: form.mode === mode ? "rgb(255 102 0 / 0.08)" : "transparent",
+                  color:
+                    form.mode === mode ? "var(--brand-orange)" : "var(--text-secondary)",
+                }}
+              >
+                <Icon className="w-3 h-3" />
+                {t(`lms.sessionResources.${key}`)}
+              </button>
+            ))}
+          </div>
+
           <Field label={t("lms.sessionResources.fieldTitle")}>
             <input
               className={inputClassName}
@@ -328,16 +541,135 @@ export default function SessionResourcesSection({
             />
           </Field>
 
-          <Field label={t("lms.sessionResources.fieldUrl")}>
-            <input
-              className={inputClassName}
-              style={inputStyle}
-              type="url"
-              value={form.url}
-              onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
-              placeholder={t("lms.sessionResources.fieldUrlPlaceholder")}
-            />
-          </Field>
+          {form.mode === "link" ? (
+            <Field label={t("lms.sessionResources.fieldUrl")}>
+              <input
+                className={inputClassName}
+                style={inputStyle}
+                type="url"
+                value={form.url}
+                onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+                placeholder={t("lms.sessionResources.fieldUrlPlaceholder")}
+              />
+            </Field>
+          ) : (
+            <Field label={t("lms.sessionResources.fieldFile")}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept={LMS_RESOURCE_ACCEPT[form.kind]}
+                disabled={uploading}
+                onChange={handleFile}
+              />
+
+              {/* Drop zone: the whole area accepts a drop, in both states (an
+                  existing file can be replaced by dropping a new one). */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (!uploading) setDragActive(true);
+                }}
+                onDragLeave={(e) => {
+                  // Moving onto a child element fires dragleave with the child as
+                  // target — ignore those, or the zone would flicker.
+                  if (!e.currentTarget.contains(e.relatedTarget)) setDragActive(false);
+                }}
+                onDrop={handleDrop}
+              >
+                {form.upload ? (
+                  <div
+                    className="flex items-center justify-between gap-3 p-3 rounded-lg border"
+                    style={{
+                      background: "var(--surface-2)",
+                      borderColor: dragActive ? "var(--brand-orange)" : "var(--border-primary)",
+                    }}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Paperclip className="w-4 h-4 shrink-0 text-blue-500" />
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold truncate" style={{ color: "var(--text-primary)" }}>
+                          {form.upload.file_name}
+                        </p>
+                        {form.upload.file_size ? (
+                          <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>
+                            {formatFileSize(form.upload.file_size)}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <AppButton
+                        variant="ghost"
+                        size="sm"
+                        icon={Upload}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {t("lms.sessionResources.replaceFile")}
+                      </AppButton>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isPendingUpload(form.upload)) discardUpload(form.upload);
+                          setForm((f) => ({ ...f, upload: null }));
+                        }}
+                        className="p-1.5 rounded-lg text-rose-500/50 hover:text-rose-500 transition-all"
+                        title={t("common.remove")}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="w-full py-5 rounded-lg border border-dashed flex flex-col items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                    style={{
+                      background: dragActive ? "rgb(255 102 0 / 0.08)" : "var(--surface-2)",
+                      borderColor: dragActive ? "var(--brand-orange)" : "var(--border-primary)",
+                    }}
+                  >
+                    {uploading ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
+                        <span
+                          className="text-[9px] font-black uppercase tracking-widest"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          {t("lms.sessionResources.uploading")}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" style={{ color: "var(--brand-orange)" }} />
+                        <span
+                          className="text-[9px] font-black uppercase tracking-widest"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          {dragActive
+                            ? t("lms.sessionResources.dropHere")
+                            : t("lms.sessionResources.chooseFile")}
+                        </span>
+                        <span className="text-[9px]" style={{ color: "var(--text-tertiary)" }}>
+                          {dragActive
+                            ? t("lms.sessionResources.orBrowse")
+                            : t("lms.sessionResources.fileHint", {
+                                maxMb: Math.round(lmsMaxBytesForKind(form.kind) / (1024 * 1024)),
+                              })}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {uploadError && (
+                <p className="text-[10px] font-bold mt-1 text-rose-500">{uploadError}</p>
+              )}
+            </Field>
+          )}
 
           <Field label={t("lms.sessionResources.fieldDescription")}>
             <textarea
@@ -390,13 +722,13 @@ export default function SessionResourcesSection({
           )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <AppButton variant="secondary" onClick={() => setShowForm(false)}>
+            <AppButton variant="secondary" onClick={closeForm}>
               {t("common.cancel")}
             </AppButton>
             <AppButton
               variant="primary"
               loading={saving}
-              disabled={!form.title.trim() || !form.url.trim()}
+              disabled={!canSave || uploading}
               onClick={save}
             >
               {t("common.save")}
