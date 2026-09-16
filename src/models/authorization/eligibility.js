@@ -167,6 +167,38 @@ export async function seedVenturesFounderEligibility() {
 }
 
 /**
+ * Catch-up for databases whose eligibility bootstrap ran BEFORE the seeded
+ * default templates were reconciled with their roles' ceilings.
+ *
+ * The bootstrap seed runs once per database, so an existing database never
+ * picks up a later default on its own — the same gap the two seeders above
+ * close. That gap had a real cost here: `seedDefaultAccessProfiles` creates the
+ * Participant Default / Mentor templates carrying messaging + `projects.view`
+ * caps, while those roles had no eligibility row for the `communication` /
+ * `operations` features. The ceiling check validates the WHOLE template, so
+ * those role-default templates could never be saved from the Permissions UI
+ * ("Template contains capabilities the identity is not eligible for").
+ *
+ * Insert-only, own marker: an administrator's decision is never overwritten,
+ * and only rows that were never configured are added. MIRRORS the additions in
+ * FEATURE_ELIGIBILITY_DEFAULTS (same features, same roles) — that file is what
+ * a fresh database gets.
+ */
+export const TEMPLATE_CEILING_ROWS = {
+  communication: ["participant", "mentor", "investor"],
+  operations: ["participant", "mentor", "investor"],
+  programs: ["mentor", "investor"],
+};
+
+export async function seedTemplateCeilingEligibility() {
+  for (const [featureKey, roles] of Object.entries(TEMPLATE_CEILING_ROWS)) {
+    const result = await seedFeatureRows(featureKey, roles);
+    if (!result.success) return result;
+  }
+  return { success: true };
+}
+
+/**
  * Pure eligibility evaluation over pre-loaded rows.
  *
  * @param {Array<{feature_key, eligible}>} rows

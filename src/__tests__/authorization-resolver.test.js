@@ -384,11 +384,19 @@ describe("communication feature (Messages + Announcements)", () => {
 
   test("communication eligibility defaults cover the CRM-like allowlist (PO decision, no admin)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    // participant / mentor / investor are listed because their OWN seeded
+    // default templates (Participant Default, Mentor) carry messaging caps. A
+    // role must be eligible for every feature its default template grants —
+    // otherwise the ceiling check rejects the whole template and it can never
+    // be saved (the bug that made Staff Default unsavable).
     expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).toEqual([
       "super_admin",
       "staff",
       "program_manager",
       "developer",
+      "participant",
+      "mentor",
+      "investor",
     ]);
     expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).not.toContain("admin");
     // The legacy messaging/internal_comms feature keys are gone.
@@ -708,6 +716,9 @@ describe("messaging module (communication feature)", () => {
       "staff",
       "program_manager",
       "developer",
+      "participant",
+      "mentor",
+      "investor",
     ]);
   });
 
@@ -1239,6 +1250,22 @@ describe("validateEligibilityChanges (eligibility API)", () => {
       {},
     );
     expect(r.valid).toBe(true);
+  });
+
+  test("the template-ceiling catch-up mirrors the canonical defaults (no drift)", () => {
+    // The catch-up exists for databases whose eligibility bootstrap ran BEFORE
+    // the seeded default templates were reconciled with their roles' ceilings.
+    // It must add exactly what a fresh database gets from the defaults — a
+    // divergence would make the two populations behave differently.
+    const { TEMPLATE_CEILING_ROWS, FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    const rows = Object.entries(TEMPLATE_CEILING_ROWS);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const [featureKey, roles] of rows) {
+      expect(FEATURE_ELIGIBILITY_DEFAULTS[featureKey]).toBeDefined();
+      for (const role of roles) {
+        expect(FEATURE_ELIGIBILITY_DEFAULTS[featureKey]).toContain(role);
+      }
+    }
   });
 
   test("capability catalog exposes labels and risk for every module", () => {

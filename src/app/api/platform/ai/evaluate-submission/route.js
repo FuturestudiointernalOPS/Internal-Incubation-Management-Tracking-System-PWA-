@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { evaluateSubmission, hasEvaluation, getEvaluation } from "@/lib/platform/ai/evaluate";
 import {
   approveSubmissionAndReturn,
@@ -356,24 +357,31 @@ async function runBatch(formId, onlyFailed, batchSize) {
 
 export async function POST(req) {
   try {
-    // Phase 1.6 (C5b = A): AI evaluation/auto-approval is management-only
-    // (SA/admin/PM) — it can change applicant status and send decision
-    // emails; no program context exists here to verify program staff.
     const authError = await requireAuth();
     if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
-    if (session && !["super_admin", "admin", "program_manager"].includes(session.role)) {
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
-    }
 
     const body = await req.json();
     const { initDb } = await import("@/lib/db");
     await initDb();
     await ensureTables();
+
+    // Admission authority, in the two shapes this endpoint has. Evaluating a
+    // submission can AUTO-APPROVE the applicant, change their status and send
+    // the decision email — that is exactly `runs.review`, a standalone
+    // capability precisely so that holding `runs.edit` (messages, assignments,
+    // retries) never implies the right to admit someone. Reading evaluation
+    // PROGRESS is only a read, so it stays on `runs.view`: a reviewer who may
+    // not decide can still watch the batch run.
+    //
+    // This used to be a hardcoded ["super_admin", "admin", "program_manager"]
+    // role list — no grant, profile or individual assignment could satisfy it,
+    // and it names the retired `admin` role. Both capabilities are now
+    // configurable from the front end (Default Access, or individual access).
+    const capError = await requireAuthorization(
+      "runs",
+      body.action === "progress" ? "view" : "review",
+    );
+    if (capError) return capError;
 
     // ── PROGRESS ONLY ──
     if (body.action === "progress" && body.form_id) {
@@ -447,17 +455,15 @@ export async function POST(req) {
 
 export async function GET(req) {
   try {
-    // Phase 1.6 (C5b = A): evaluation reads (scores/PII) are management-only.
     const authError = await requireAuth();
     if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
-    if (session && !["super_admin", "admin", "program_manager"].includes(session.role)) {
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
-    }
+
+    // Reading one submission's evaluation (scores and the respondent PII
+    // behind them) is a read, so it is gated on `runs.view`. Whether the
+    // reader may ACT on it is the POST's concern, which requires `runs.review`.
+    const capError = await requireAuthorization("runs", "view");
+    if (capError) return capError;
+
     const { initDb } = await import("@/lib/db");
     await initDb();
     const { searchParams } = new URL(req.url);

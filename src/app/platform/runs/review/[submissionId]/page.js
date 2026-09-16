@@ -11,6 +11,7 @@ import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 import { formatLocaleDate } from "@/lib/constants";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { usePermissions } from "@/lib/PermissionProvider";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -42,6 +43,12 @@ export default function ReviewPage() {
   const goBack = useSafeBack("/admin/platform/runs");
   const submissionId = params.submissionId;
   const { t, lang } = useI18n();
+  // Running the AI evaluation is the `runs.review` capability — it can
+  // auto-approve the applicant and send the decision email. Reading a STORED
+  // evaluation needs only runs.view, so the panel stays visible while the
+  // trigger controls do not.
+  const { can } = usePermissions();
+  const canReview = can("runs", "review");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -142,8 +149,11 @@ export default function ReviewPage() {
       if (evalData.success && evalData.evaluation) {
         cacheSet(evalUrl, evalData);
         applyEval(evalData);
-      } else {
-        // No evaluation yet — auto-trigger AI evaluation if form is configured for it
+      } else if (canReview) {
+        // No evaluation yet — auto-trigger AI evaluation if the form is
+        // configured for it. Evaluating can auto-approve, so it needs
+        // runs.review: a reader without it sees "not evaluated yet" rather
+        // than firing a request the server would refuse.
         try {
           const triggerRes = await fetch("/api/platform/ai/evaluate-submission", {
             method: "POST",
@@ -159,7 +169,7 @@ export default function ReviewPage() {
       }
     } catch (e) { if (!painted) setError(t(e.message || "") || e.message); }
     setLoading(false);
-  }, [submissionId, t]);
+  }, [submissionId, t, canReview]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -199,6 +209,7 @@ export default function ReviewPage() {
   };
 
   const handleReRunAI = async () => {
+    if (!canReview) return;
     if (isReviewLocked) return;
     setSaving(true);
     try {
@@ -286,9 +297,11 @@ export default function ReviewPage() {
             )}
           </div>
         )}
+        {canReview && (
         <button onClick={handleReRunAI} disabled={saving || isReviewLocked} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           <RefreshCw className={cn("w-3 h-3", saving && "animate-spin")} /> {t("platformMisc.runReview.rerunAi")}
         </button>
+        )}
       </div>
 
       <div className="max-w-3xl mx-auto p-6 pb-24 space-y-6">

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAuthorization } from "@/lib/authorization";
 import { summarizeSubmission, analyzeSubmission } from "@/lib/platform/integrations";
 
 /**
@@ -14,18 +15,20 @@ export async function POST(req) {
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 
-    // Phase 1.6 (C5b = A): AI analysis is management-only (SA/admin/PM). The
-    // request carries opaque submission/form objects with no program context,
-    // so no assignment can be verified — the legacy entry is dropped
-    // rather than trusted (zero holders on staging). Seam for later: a
-    // canOperateAiReview() capability may admit assignment-verified program
-    // staff once run->program resolution exists on this path.
-    if (!["super_admin", "admin", "program_manager"].includes(session?.role)) {
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
-    }
+    // Advisory AI on a submission: a summary and a set of flagged issues.
+    // Gated on `runs.view` — asking for a reading aid about a submission you
+    // can already read is a READ, and the result is advisory only (the human
+    // decision stays final).
+    //
+    // This used to be a hardcoded ["super_admin", "admin", "program_manager"]
+    // role list: no grant, no profile edit and no individual assignment could
+    // ever satisfy it, and one of the three is the retired `admin` role. It is
+    // now configurable like every other Runs permission — Permissions ->
+    // Default Access -> Runs -> View for a template, or individual access for
+    // one person. Pairs with the front end, which hides the control when the
+    // capability is missing instead of letting the click 403.
+    const capError = await requireAuthorization("runs", "view");
+    if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
     const action = searchParams.get("action");

@@ -1440,9 +1440,12 @@ export async function POST(req) {
     // ─── REVIEW ACTION ───
     if (action === "review") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      // Applicant review (approve/reject + automation + emails) is governed by
-      // the runs.edit capability.
-      const authError = await requireAuthorization("runs", "edit");
+      // Deciding an applicant (approve/reject + automation + emails) is its OWN
+      // capability, so holding runs.edit — which is what lets someone send run
+      // messages, assign people and retry emails — never implies the authority
+      // to admit or reject a person. Granted to nobody by default: only Super
+      // Admin (eligibility bypass) can decide until runs.review is granted.
+      const authError = await requireAuthorization("runs", "review");
       if (authError) return authError;
 
       const { submission_id, decision, comment, internal_note, dimension_overrides, force } = body;
@@ -1477,7 +1480,9 @@ export async function POST(req) {
     // activation/access automation, idempotency) — no parallel logic.
     if (action === "bulk_review") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuthorization("runs", "edit");
+      // Same separation as the single review: an admission decision is never a
+      // side effect of holding runs.edit.
+      const authError = await requireAuthorization("runs", "review");
       if (authError) return authError;
 
       const { run_id, submission_ids, decision, comment } = body;

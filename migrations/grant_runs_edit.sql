@@ -1,0 +1,120 @@
+-- =============================================================================
+-- GRANT runs.edit TO PROGRAM MANAGERS
+-- =============================================================================
+-- WHY
+--   Every Runs write action EXCEPT the admission decision is gated on
+--   `runs.edit`:
+--     send_manual_message, send_result_emails, send_activation_messages,
+--     retry_emails, mark_email_cancelled, manual_add, assign, unassign,
+--     regenerate_link, and PUT (run metadata).
+--   `review` and `bulk_review` are NOT on this list — they moved to their own
+--   `runs.review` capability so that sending messages never implies the
+--   authority to admit or reject an applicant. This file deliberately does not
+--   grant it; see 3d.
+--   The backfills only ever granted `runs.view` (level 1) to Staff Default, the
+--   Program Manager profile, and the staff / program_manager / admin roles — see
+--   RUNS_BACKFILL in src/models/authorization/backfill.js, whose own comment
+--   says the write actions must be restored by granting runs.edit explicitly.
+--   That grant was never made, which is why the Runs page opens and every button
+--   on it answers 403 errors.insufficientPermissions.
+--
+-- ORDERING — THIS FILE MUST RUN *AFTER* THE PERMISSION SEEDING
+--   PRODUCTION_TEST.md section 4.3 (GET /api/engineering/permissions/seed-access-profiles)
+--   re-writes the profile capabilities with DO UPDATE, so it would overwrite
+--   anything granted here first. Always: seed first, then grant.
+--
+-- NON-DISRUPTIVE
+--   * INSERT ... WHERE NOT EXISTS only. A capability that already exists is left
+--     EXACTLY as it is, at EXACTLY the level an administrator set — this file
+--     never upgrades, downgrades or overwrites an existing row.
+--   * Nothing is deleted, no level is lowered, no other module is touched.
+--   * Safe to re-run: the second run inserts nothing.
+--
+-- LEVEL 3 = EDIT
+--   Levels follow the catalog convention (view 1, create 2, edit 3, delete 4).
+--   The enforcement only compares the capability's own level against the minimum
+--   the route asks for, so level 3 is the semantically correct value here.
+--
+-- RUN IT (dry run first — prints every statement, connects to nothing)
+--   node scripts/db-audit/apply-schema-file.mjs migrations/grant_runs_edit.sql
+--   DB_AUDIT_ENV_FILE=.env.local node scripts/db-audit/apply-schema-file.mjs migrations/grant_runs_edit.sql --apply
+--   Then run the verification queries in section 3 by hand.
+-- =============================================================================
+
+
+-- =============================================================================
+-- SECTION 1 — THE PROGRAM MANAGER PROFILE (the path that actually resolves)
+-- =============================================================================
+-- The resolver reads access_profile_capabilities FIRST: role_access_profile_defaults
+-- maps program_manager -> the "Program Manager" profile, and while that row
+-- exists the role_capabilities fallback in section 2 is never consulted. This is
+-- therefore the grant that fixes real Program Manager accounts.
+-- -----------------------------------------------------------------------------
+INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level) SELECT ap.id, 'runs', 'edit', 3 FROM access_profiles ap WHERE ap.name = 'Program Manager' AND ap.is_active = 1 AND NOT EXISTS (SELECT 1 FROM access_profile_capabilities c WHERE c.profile_id = ap.id AND c.module = 'runs' AND c.capability = 'edit');
+
+
+-- =============================================================================
+-- SECTION 2 — THE role_capabilities FALLBACK
+-- =============================================================================
+-- Mirrors section 1 for Program Managers with NO profile: the resolver falls
+-- back to role_capabilities when no access profile resolves (an inactive profile,
+-- or a contact whose access_profile_id was cleared). Same shape as every other
+-- backfill in src/models/authorization/backfill.js.
+-- -----------------------------------------------------------------------------
+INSERT INTO role_capabilities (role, module, capability, access_level) SELECT 'program_manager', 'runs', 'edit', 3 WHERE NOT EXISTS (SELECT 1 FROM role_capabilities WHERE role = 'program_manager' AND module = 'runs' AND capability = 'edit');
+
+
+-- =============================================================================
+-- SECTION 3 — NOT INCLUDED, DELIBERATELY
+-- =============================================================================
+-- These are policy calls, not fixes. Each is one line you can add if the answer
+-- is yes. They are commented out so nothing is granted by accident.
+--
+-- 3a. STAFF. "A program manager is first a staff" is true of the people, but NOT
+--     of the engine: the resolver uses the role's profile INSTEAD of
+--     role_capabilities, never both, so a Program Manager does not inherit
+--     Staff's capabilities. Staff hold runs.view only, so today a plain staff
+--     member also cannot send a manual message. Uncomment to let staff write:
+-- INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level) SELECT ap.id, 'runs', 'edit', 3 FROM access_profiles ap WHERE ap.name = 'Staff Default' AND ap.is_active = 1 AND NOT EXISTS (SELECT 1 FROM access_profile_capabilities c WHERE c.profile_id = ap.id AND c.module = 'runs' AND c.capability = 'edit');
+-- INSERT INTO role_capabilities (role, module, capability, access_level) SELECT 'staff', 'runs', 'edit', 3 WHERE NOT EXISTS (SELECT 1 FROM role_capabilities WHERE role = 'staff' AND module = 'runs' AND capability = 'edit');
+--
+-- 3b. runs.create — gates creating a run, launching it, and changing its status
+--     (POST action=create, action=launch, action=status). Separate capability,
+--     separate decision.
+--
+-- 3c. lms.edit — the same shape of gap: lms.publish / enroll / assign were
+--     retired and deleted, and lms.edit was granted to nobody, so Program
+--     Managers cannot publish a course or enrol anyone. That is open decision D1
+--     in docs/PRODUCTION_TEST.md section 3. Deliberately NOT granted here.
+--
+-- 3d. REVIEW IS NOW SEPARATE — and deliberately not granted here.
+--     POST action=review and action=bulk_review are gated on `runs.review`, a
+--     capability of its own (it used to share runs.edit). Nobody holds it after
+--     this file runs, so only Super Admin — who bypasses eligibility and
+--     capabilities — can approve or reject an applicant. That is the safe
+--     default: deciding who is admitted is not a side effect of being able to
+--     send a message.
+--     If a group SHOULD decide applications, grant runs.review to that profile
+--     below. Uncomment, and keep the same seed-then-grant ordering.
+-- INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level) SELECT ap.id, 'runs', 'review', 1 FROM access_profiles ap WHERE ap.name = 'Program Manager' AND ap.is_active = 1 AND NOT EXISTS (SELECT 1 FROM access_profile_capabilities c WHERE c.profile_id = ap.id AND c.module = 'runs' AND c.capability = 'review');
+-- INSERT INTO role_capabilities (role, module, capability, access_level) SELECT 'program_manager', 'runs', 'review', 1 WHERE NOT EXISTS (SELECT 1 FROM role_capabilities WHERE role = 'program_manager' AND module = 'runs' AND capability = 'review');
+
+
+-- =============================================================================
+-- SECTION 4 — VERIFICATION (REPORTING ONLY — NEVER EXECUTED)
+-- =============================================================================
+-- 4a. Did it land? Expect exactly 2 rows (profile + role), each level 3.
+-- SELECT 'profile' AS source, ap.name, c.module, c.capability, c.access_level FROM access_profile_capabilities c JOIN access_profiles ap ON ap.id = c.profile_id WHERE ap.name = 'Program Manager' AND c.module = 'runs' UNION ALL SELECT 'role', rc.role, rc.module, rc.capability, rc.access_level FROM role_capabilities rc WHERE rc.role = 'program_manager' AND rc.module = 'runs' ORDER BY 1, 4;
+--
+-- 4b. Was a row already there at a DIFFERENT level? If this returns a row with a
+--     level other than 3, an administrator set it deliberately and this file
+--     correctly did nothing. Decide by hand whether that is intended.
+-- SELECT ap.name, c.access_level FROM access_profile_capabilities c JOIN access_profiles ap ON ap.id = c.profile_id WHERE ap.name = 'Program Manager' AND c.module = 'runs' AND c.capability = 'edit' AND c.access_level <> 3;
+--
+-- 4c. Does the profile still resolve for the role? Expect one row.
+-- SELECT rpd.role_name, ap.name, ap.is_active FROM role_access_profile_defaults rpd JOIN access_profiles ap ON ap.id = rpd.access_profile_id WHERE rpd.role_name = 'program_manager';
+--
+-- 4d. End-to-end, as the affected person: sign in as the Program Manager and open
+--     /api/engineering/permissions/user-context?cid=<their cid>
+--     Expect effective.runs = { view: 1, edit: 3 } and eligibility.communication = true.
+-- =============================================================================

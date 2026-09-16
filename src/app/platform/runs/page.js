@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { usePermissions } from "@/lib/PermissionProvider";
 
 /**
  * PLATFORM FORM RUNS — Launch, assign, collect, review
@@ -334,6 +335,13 @@ function MiniCalendar({ value, onChange, onClose }) {
 
 export default function FormRunsPage() {
   const { t } = useI18n();
+  // The AI evaluation controls follow `runs.review` — the same capability the
+  // server enforces on POST /api/platform/ai/evaluate-submission. Holding it is
+  // what lets a reviewer run (and re-run) the evaluation, which can auto-approve
+  // an applicant. Watching batch PROGRESS only needs runs.view, so the progress
+  // panel stays visible to everyone who can open the run.
+  const { can } = usePermissions();
+  const canReview = can("runs", "review");
   const [runs, setRuns] = useState([]);
   const [forms, setForms] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -843,6 +851,7 @@ export default function FormRunsPage() {
 
   // Manual Re-evaluate: the ONE deliberate exception to skip-already-evaluated
   const handleReevaluate = async () => {
+    if (!canReview) return;
     if (!reviewing) return;
     setSaving(true);
     try {
@@ -1041,6 +1050,9 @@ export default function FormRunsPage() {
   };
 
   const handleBatchEvaluate = async (retryOnly = false) => {
+    // Belt and braces: the control is not rendered without the capability, and
+    // the server refuses the call too.
+    if (!canReview) return;
     if (!selectedRun?.form_id) return notify(t("platformMisc.runs.noFormLinked"));
     const formId = selectedRun.form_id;
 
@@ -1766,6 +1778,63 @@ export default function FormRunsPage() {
     setAiPersonalizing(false);
   };
 
+  /**
+   * Render a manual-message result TRUTHFULLY.
+   *
+   * `success` only means the request was processed — the API answers
+   * `success: true` even when every single recipient failed, so reading it
+   * reported a total failure as a green "Message sent" with no reason shown.
+   * The outcome lives in `sent` / `failed`, and the reason only ever appears in
+   * `results[].error` ("No usable recipient email", "Refused — placeholder
+   * address is not a real recipient", a transport error, …).
+   *
+   * Colour classes stay full literals — never interpolated — so Tailwind's
+   * scanner keeps them in the build.
+   */
+  const renderMessageResult = (r) => {
+    if (!r) return null;
+    const sent = r.sent || 0;
+    const failed = r.failed || 0;
+    const failures = (r.results || []).filter((x) => x.status !== "sent");
+    const box =
+      sent === 0
+        ? "bg-rose-500/10 border-rose-500/20"
+        : failed > 0
+          ? "bg-amber-500/10 border-amber-500/20"
+          : "bg-emerald-500/10 border-emerald-500/20";
+    const text =
+      sent === 0 ? "text-rose-400" : failed > 0 ? "text-amber-400" : "text-emerald-400";
+    const title =
+      sent === 0
+        ? t("platformMisc.runs.messageNothingSentTitle")
+        : failed > 0
+          ? t("platformMisc.runs.messagePartialTitle")
+          : t("platformMisc.runs.messageSentTitle");
+
+    return (
+      <div className="space-y-3">
+        <div className={`p-4 rounded-xl border ${box}`}>
+          <p className={`text-sm font-black ${text}`}>{title}</p>
+          <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.messageRecipientsCount", { count: r.recipients })}</p>
+          <p className={`text-[10px] font-bold mt-1 ${sent > 0 ? "text-emerald-400" : "text-[var(--text-secondary)]"}`}>{t("platformMisc.runs.messageSentCount", { count: sent })}</p>
+          {failed > 0 && <p className="text-[10px] font-bold text-rose-400 mt-1">{t("platformMisc.runs.messageFailedCount", { count: failed })}</p>}
+        </div>
+        {failures.length > 0 && (
+          <div className="p-4 rounded-xl bg-secondary/40 border border-[var(--border-primary)] space-y-2">
+            <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.messageFailureReasons")}</p>
+            {failures.map((f) => (
+              <div key={f.submission_id} className="text-[10px] leading-relaxed">
+                <span className="font-bold text-[var(--text-primary)]">{f.name || f.to || `#${f.submission_id}`}</span>
+                <span className="block text-rose-400">{f.error || t("platformMisc.runs.messageFailureUnknown")}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={() => { setShowMessageComposer(false); setMessageResult(null); }} className="w-full py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide">{t("platformMisc.runs.done")}</button>
+      </div>
+    );
+  };
+
   const sendManualMessages = async () => {
     if (!selectedRun || selectedIds.length === 0 || messageSending) return;
     if (!messageSubject.trim() || !messageBody.trim()) {
@@ -2110,11 +2179,12 @@ export default function FormRunsPage() {
                 </span>
               ) : (
                 <>
-                  {evalProgress && evalProgress.failed > 0 && (
+                  {canReview && evalProgress && evalProgress.failed > 0 && (
                     <button onClick={() => handleBatchEvaluate(true)} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20 flex items-center gap-1">
                       <RotateCcw className="w-3 h-3" /> {t("platformMisc.runs.retryFailed", { count: evalProgress.failed })}
                     </button>
                   )}
+                  {canReview && (
                   <button
                     onClick={() => handleBatchEvaluate(false)}
                     className="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 flex items-center gap-1"
@@ -2126,6 +2196,7 @@ export default function FormRunsPage() {
                       ? t("platformMisc.runs.continueEvaluation")
                       : t("platformMisc.runs.evaluateAll")}
                   </button>
+                  )}
                 </>
               )}
             </div>
@@ -4014,6 +4085,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
               {/* Sticky Footer */}
               <div className="flex gap-3 px-6 py-4 border-t border-[var(--border-primary)] bg-secondary shrink-0">
                 <button onClick={() => setShowReview(false)} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button>
+                {canReview && (
                 <button
                   onClick={handleReevaluate}
                   disabled={saving}
@@ -4022,6 +4094,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 >
                   <Sparkles className="w-3 h-3" /> {t("platformMisc.runs.reevaluate")}
                 </button>
+                )}
                 <button onClick={handleReview} disabled={saving} className="flex-1 btn btn-primary">{saving ? t("platformMisc.runs.saving") : t("platformMisc.runs.submitReview")}</button>
               </div>
             </div>
@@ -4067,15 +4140,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
 
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {messageResult ? (
-                  <div className="space-y-3">
-                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                      <p className="text-sm font-black text-emerald-400">{t("platformMisc.runs.messageSentTitle")}</p>
-                      <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.messageRecipientsCount", { count: messageResult.recipients })}</p>
-                      <p className="text-[10px] font-bold text-emerald-400 mt-1">{t("platformMisc.runs.messageSentCount", { count: messageResult.sent })}</p>
-                      {messageResult.failed > 0 && <p className="text-[10px] font-bold text-rose-400 mt-1">{t("platformMisc.runs.messageFailedCount", { count: messageResult.failed })}</p>}
-                    </div>
-                    <button onClick={() => { setShowMessageComposer(false); setMessageResult(null); }} className="w-full py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide">{t("platformMisc.runs.done")}</button>
-                  </div>
+                  renderMessageResult(messageResult)
                 ) : (
                   <>
                     <div className="space-y-1">

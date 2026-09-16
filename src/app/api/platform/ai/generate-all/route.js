@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { initDb } from "@/lib/db";
 import { deepseekIntelligence } from "@/lib/deepseek";
 import {
@@ -23,8 +23,12 @@ export async function POST(req) {
   try {
     await initDb();
     console.log("[AI GenerateAll] Request received");
-    const authError = await requireAuth(["super_admin", "admin"]);
-    if (authError) return authError;
+    // Generating a whole form (sections, fields and framework) is form
+    // AUTHORING, so it is the Forms create capability rather than a role name.
+    // Bear in mind Staff Default holds forms.create: untick Forms -> Create
+    // there if the AI generators should stay a smaller group.
+    const capError = await requireAuthorization("forms", "create");
+    if (capError) return capError;
 
     const { text, collection_id } = await req.json();
     if (!text || !text.trim()) {

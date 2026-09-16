@@ -207,18 +207,31 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(model).toMatch(/SELECT DISTINCT venture_id FROM investment_pipeline WHERE investor_id/);
   });
 
-  test("phase 1.6: AI + review actions — bare auth + management-only gate (no teacher)", () => {
-    const files = [
+  test("phase 1.6/1.7: AI + review actions — capability seam, no role list", () => {
+    // These four used to gate on ["super_admin", "admin", "program_manager"]:
+    // a role name cannot be granted, a capability can. They are now on the Runs
+    // capabilities, so the Permission Center can toggle them for a template and
+    // Individual access can grant them to one person.
+    const aiFiles = [
       "src/app/api/platform/ai/route.js",
       "src/app/api/platform/ai/analyze/route.js",
       "src/app/api/platform/ai/evaluate-submission/route.js",
       "src/app/api/platform/ai/evaluation-scores/route.js",
     ];
-    for (const file of files) {
+    for (const file of aiFiles) {
       const src = fs.readFileSync(path.join(ROOT, file), "utf8");
       for (const l of authBlocks(file)) expect(containsContextual(l)).toBe(false);
-      expect(src).toMatch(/\["super_admin", "admin", "program_manager"\]\.includes/);
+      expect(src).not.toMatch(/\["super_admin", "admin", "program_manager"\]\.includes/);
+      expect(src).toMatch(/requireAuthorization\(\s*"runs"/);
     }
+    // evaluate-submission separates READING from DECIDING: watching batch
+    // progress is runs.view, evaluating (it can auto-approve and send the
+    // decision email) is runs.review.
+    const es = fs.readFileSync(
+      path.join(ROOT, "src/app/api/platform/ai/evaluate-submission/route.js"),
+      "utf8",
+    );
+    expect(es).toMatch(/body\.action === "progress" \? "view" : "review"/);
     // form-runs: the two consequential actions (review + result emails) are now
     // governed by the `runs.edit` capability — the resolver replaces the inline
     // management role check, and the legacy list must be gone for good.

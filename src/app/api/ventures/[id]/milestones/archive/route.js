@@ -35,13 +35,21 @@ export const POST = createHandler(async (req, { params }) => {
   const action = body?.action === "restore" ? "restore" : "archive";
   if (ids.length === 0) return NextResponse.json({ success: false, error: "No milestones selected." }, { status: 400 });
 
+  // venture_id holds the Venture's INTERNAL id in this table, and its type differs
+  // per database (uuid on staging, text on production). Comparing as text on both
+  // sides matches either type: joining on v.id alone raised "operator does not
+  // exist: uuid = text" on staging and "integer = text" on production, and the
+  // catch below turned that into a silent "archived 0 of N".
   const rowsRes = await db.execute({
     sql: `SELECT m.id, m.title, m.journey_stage_id, v.id AS venture_db_id FROM venture_milestones m
-          JOIN ventures v ON v.id = m.venture_id
+          JOIN ventures v ON (m.venture_id::text = v.id::text OR m.venture_id::text = v.venture_id)
           WHERE (v.venture_id = ? OR v.id::text = ?)
             AND m.id::text = ANY(?)`,
     args: [id, id, ids],
-  }).catch(() => ({ rows: [] }));
+  }).catch((error) => {
+    console.error("[milestones/archive] lookup failed:", error?.message);
+    return { rows: [] };
+  });
 
   const summary = await applyBulk(db, {
     rows: rowsRes.rows || [],

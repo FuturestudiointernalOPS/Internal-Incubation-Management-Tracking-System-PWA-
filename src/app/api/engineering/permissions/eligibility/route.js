@@ -18,6 +18,8 @@ import {
   listFeatureEligibilityRows,
   listDistinctUserGroupNames,
   listDistinctContactGroupNames,
+  listEligibilityRoleIdentities,
+  listRoleAccessProfileDefaults,
   getEligibilityRow,
   deleteEligibilityRow,
   upsertEligibilityRow,
@@ -73,6 +75,27 @@ export async function GET() {
       ),
     ].sort();
 
+    // Roles the resolver actually consults that are NOT in the curated identity
+    // list (mentor, teacher, developer, program_manager…). The administrator
+    // must be able to see and configure those ceilings from THIS screen —
+    // otherwise a refused template save has no front-end remedy, which is
+    // exactly how Staff Default became unsavable. Derived from the data, never a
+    // new allowlist: nothing becomes configurable that the engine does not
+    // already enforce.
+    const [eligibilityRolesRes, roleDefaultsRes] = await Promise.all([
+      listEligibilityRoleIdentities(),
+      listRoleAccessProfileDefaults(),
+    ]);
+    const agreedIdentities = new Set(ELIGIBILITY_IDENTITIES);
+    const extraRoles = [
+      ...new Set([
+        ...eligibilityRolesRes.rows.map((r) => r.identity_value),
+        ...roleDefaultsRes.rows.map((r) => r.role_name),
+      ]),
+    ]
+      .filter((r) => r && !agreedIdentities.has(r))
+      .sort();
+
     return NextResponse.json({
       success: true,
       features: FEATURE_KEYS,
@@ -84,6 +107,10 @@ export async function GET() {
       // program_manager are not eligibility identities). ROLE_CATALOG stays
       // the full technical catalog for gate validation.
       roles: ELIGIBILITY_IDENTITIES,
+      // Roles found in this database that the agreed list does not carry. The
+      // UI renders them as a third, clearly-labelled group so no enforced
+      // ceiling is invisible.
+      extraRoles,
       // The honest split (UI-4c): baseline identities vs the context roles that
       // share the same ceiling table. The UI labels them, never conflates them.
       identityGroups: ELIGIBILITY_IDENTITY_GROUPS,

@@ -43,14 +43,33 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "developer",
   ],
   // Communication — messaging, announcements, forms
+  //
+  // INVARIANT: a role must be eligible for every feature its OWN default
+  // template grants. The default templates seeded by seedDefaultAccessProfiles
+  // include messaging caps for Participant / Mentor / Investor, so those roles
+  // belong here — without the row, the whole template fails the ceiling check
+  // and can never be saved ("Template contains capabilities the identity is not
+  // eligible for").
   communication: [
     "super_admin",
     "staff",
     "program_manager",
     "developer",
+    "participant",
+    "mentor",
+    "investor",
   ],
   // Programs — programs, participants, submissions (facilitator module)
-  programs: ["super_admin", "staff", "program_manager", "participant"],
+  // Mentor / Investor resolve to the Mentor template, which reads program
+  // progress — same invariant as `communication` above.
+  programs: [
+    "super_admin",
+    "staff",
+    "program_manager",
+    "participant",
+    "mentor",
+    "investor",
+  ],
   // Ventures — incubated businesses (founder eligible for own-venture access).
   ventures: [
     "super_admin",
@@ -65,12 +84,16 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
   // Finance — budgets, reports
   finance: ["super_admin", "staff"],
   // Operations — projects, tasks, blockers, standups, retros
+  // Participant / Mentor / Investor templates carry `projects.view`.
   operations: [
     "super_admin",
     "staff",
     "program_manager",
     "developer",
     "team",
+    "participant",
+    "mentor",
+    "investor",
   ],
   // Reports — reports and analytics
   reports: [

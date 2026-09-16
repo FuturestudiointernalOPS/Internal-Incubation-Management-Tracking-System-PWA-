@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { resolvePersonName, resolveSubmissionEmail } from "@/lib/email";
 import {
   countEvaluatedSubmissionsForScores,
@@ -73,18 +73,14 @@ function answerValue(v) {
 export async function GET(req) {
   try {
     await initDb();
-    // Phase 1.6 (C5b = A): scoreboard reads include respondent PII —
-    // management-only (SA/admin/PM).
-    const authError = await requireAuth();
-    if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
-    if (session && !["super_admin", "admin", "program_manager"].includes(session.role)) {
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
-    }
+    // The scoreboard is a read of one Run's evaluations and the respondent PII
+    // behind them, so it is gated on the `runs.view` capability. It used to be
+    // a ["super_admin", "admin", "program_manager"] role list, which no
+    // capability grant could ever satisfy (and which names the retired `admin`
+    // role). Configure it under Default Access -> Runs -> View, or grant it to
+    // one person.
+    const capError = await requireAuthorization("runs", "view");
+    if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
     const runIdParam = searchParams.get("run_id");

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { usePermissions } from "@/lib/PermissionProvider";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +91,9 @@ function cn(...classes) { return classes.filter(Boolean).join(" "); }
 export default function PlatformForms() {
   const router = useRouter();
   const { t } = useI18n();
+  const { can } = usePermissions();
+  const canCreate = can("forms", "create");
+  const canEdit = can("forms", "edit");
   const [forms, setForms] = useState([]);
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -860,7 +864,7 @@ export default function PlatformForms() {
               {/* Mode Switcher */}
               <div className="flex gap-2 p-1 rounded-xl bg-tertiary">
                 <button onClick={() => setCreateMode("manual")} className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${createMode === "manual" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)]"}`}>{t("platformMisc.forms.createManual")}</button>
-                <button onClick={() => setCreateMode("ai")} className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${createMode === "ai" ? "bg-indigo-500 text-white" : "text-[var(--text-secondary)]"}`}>{t("platformMisc.forms.createGenerateAi")}</button>
+                {canCreate && <button onClick={() => setCreateMode("ai")} className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${createMode === "ai" ? "bg-indigo-500 text-white" : "text-[var(--text-secondary)]"}`}>{t("platformMisc.forms.createGenerateAi")}</button>}
               </div>
 
               {createMode === "manual" ? (
@@ -898,6 +902,7 @@ export default function PlatformForms() {
                   </div>
                   <div className="flex gap-3">
                     <button onClick={() => { setCreateMode("manual"); setAiGenText(""); }} className="flex-1 btn btn-secondary">{t("platformMisc.forms.back")}</button>
+                    {canCreate && (
                     <button
                       onClick={async () => {
                         if (!aiGenText.trim()) return;
@@ -930,6 +935,7 @@ export default function PlatformForms() {
                     >
                       {aiGenLoading ? t("platformMisc.forms.generating") : t("platformMisc.forms.generateForm")}
                     </button>
+                    )}
                   </div>
                 </>
               )}
@@ -1640,7 +1646,8 @@ export default function PlatformForms() {
               <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{t("platformMisc.forms.aiEvalTitle")}</h3>
             </div>
             <div className="flex items-center gap-2">
-              <button 
+              {canEdit && (
+              <button
                 onClick={async () => {
                   setSaving(true);
                   try {
@@ -1659,6 +1666,7 @@ export default function PlatformForms() {
               >
                 {t("platformMisc.forms.aiEvalSaveFramework")}
               </button>
+              )}
               <button onClick={() => setShowAiEval(false)}><X className="w-4 h-4 text-[var(--text-secondary)]" /></button>
             </div>
           </div>
@@ -1782,6 +1790,7 @@ export default function PlatformForms() {
                 </button>
               </div>
 
+              {canEdit && (
               <div className="flex gap-2">
                 <button
                   onClick={async () => {
@@ -1814,6 +1823,7 @@ export default function PlatformForms() {
                   {t("platformMisc.forms.remove")}
                 </button>
               </div>
+              )}
             </>
           ) : (
             <>
@@ -1827,6 +1837,7 @@ export default function PlatformForms() {
                 placeholder={t("platformMisc.forms.aiEvalTextPlaceholder")}
                 className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)] resize-none"
               />
+              {canEdit && (
               <button
                 onClick={async () => {
                   if (!aiEvalText.trim()) return;
@@ -1853,6 +1864,7 @@ export default function PlatformForms() {
               >
                 {aiEvalLoading ? t("platformMisc.forms.analyzing") : t("platformMisc.forms.aiEvalGenerate")}
               </button>
+              )}
             </>
           )}
         </div>

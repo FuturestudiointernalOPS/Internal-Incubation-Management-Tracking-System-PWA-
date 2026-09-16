@@ -192,7 +192,8 @@
         "progress_view": "View Progress",
         "groups_view": "View Groups",
         "groups_manage": "Manage Groups",
-        "reviews_submit": "Submit Reviews"
+        "reviews_submit": "Submit Reviews",
+        "runs_review": "Review Applicants"
       },
       "titleIndividualGrant": "Individual Access",
       "titleInherited": "Inherited from role/group",
@@ -263,6 +264,9 @@
       "eligibilityNoPermission": "You do not have permission to modify eligibility (permissions.configure_eligibility is required)",
       "eligibilityReadOnly": "Read-only — you do not hold the permissions.configure_eligibility capability",
       "eligibilityHint": "Eligibility defines who MAY receive a feature. It does not grant access — capabilities (Default Access profiles / Individual Access grants) decide what the person can actually do.",
+      "ineligibleCapsTitle": "Blocked by the eligibility ceiling",
+      "ineligibleCapsRole": "Role {role} is not eligible for these features:",
+      "ineligibleCapsHint": "The check covers every role this template serves. Add the role to those features in Rules → Feature eligibility, then save again.",
       "eligibilityLegend": "Eligible = may receive the feature. Not eligible = explicitly denied (deny wins). Unset = no row (missing rows fail closed to deny). Changes apply immediately to the authorization resolver.",
       "explanationTitle": "Why this access?",
       "explanationEligibility": "Eligibility",
@@ -466,6 +470,7 @@
       "contextKind_course": "course",
       "contextPending": "pending",
       "contextRoleTag": "context role",
+      "databaseRoleTag": "in this database",
       "identityGroupsNote": "The matrix lists baseline identities (Super Admin, Staff, Member). Context roles (Participant, Facilitator, Investor, Founder) are ceilings too, but they are held per relationship — open one in the identity editor to configure it; it never becomes the person's platform identity.",
       "accessEditorTitle": "Change access",
       "peopleScopeTitle": "Resolved scope (read-only)",

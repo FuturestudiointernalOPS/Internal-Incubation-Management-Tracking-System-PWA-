@@ -471,7 +471,10 @@ export const PERMISSION_MODULES = {
     capabilities: ["view", "create_announcements", "moderate"],
   },
   forms: { name: "Forms", capabilities: ["view", "create", "edit", "delete"] },
-  runs: { name: "Runs", capabilities: ["view", "create", "edit", "delete"] },
+  // `review` is separate from `edit` on purpose: sending run messages, assigning
+  // people and retrying emails must never imply the authority to admit or reject
+  // an applicant. Granted to nobody by default.
+  runs: { name: "Runs", capabilities: ["view", "create", "edit", "delete", "review"] },
   contacts: {
     name: "Contacts",
     capabilities: ["view", "create", "edit", "delete"],
@@ -1429,7 +1432,11 @@ export async function seedDefaultAccessProfiles() {
       participant: "Participant Default",
       developer: "Developer",
       program_manager: "Program Manager",
-      admin: "Staff Default",
+      // `admin` is deliberately NOT mapped. It is a retired role (no dashboard,
+      // no eligibility rows, no people) but it used to point at Staff Default —
+      // which made Staff Default a role-default template for an identity that
+      // cannot be eligible for anything, so the ceiling check blocked every save
+      // of Staff Default. Re-adding this line re-introduces that bug.
       investor: "Mentor",
       mentor: "Mentor",
       // Phase 5b: founder-role users resolve to the Founder profile. There is

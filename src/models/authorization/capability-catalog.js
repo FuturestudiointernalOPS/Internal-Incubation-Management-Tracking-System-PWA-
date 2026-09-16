@@ -105,8 +105,11 @@ export const CAPABILITY_CATALOG = {
     capabilities: {
       view: { label: "View", risk: "low", description: "See runs, assignments and submissions" },
       create: { label: "Create", risk: "medium", description: "Create, launch and change the status of runs" },
-      edit: { label: "Edit", risk: "high", description: "Assign people, review/decide and send run emails" },
+      edit: { label: "Edit", risk: "high", description: "Assign people and send run emails" },
       delete: { label: "Delete", risk: "high", description: "Delete runs and submissions" },
+      // Deliberately NOT a child of `edit`: an admission decision must be a
+      // standalone grant, never a side effect of holding the edit capability.
+      review: { label: "Review", risk: "high", description: "Approve or reject an applicant (decides admission and sends the decision email)" },
     },
   },
   projects: {
