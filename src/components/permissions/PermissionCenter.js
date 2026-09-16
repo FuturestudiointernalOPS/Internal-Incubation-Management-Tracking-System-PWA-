@@ -23,8 +23,10 @@ import {
   Pencil,
   Ban,
   RotateCcw,
+  RefreshCw,
 } from "lucide-react";
 import AppPagination from "@/components/ui/AppPagination";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
 import { capabilityLabel, CAPABILITY_CATALOG, moduleCapabilityParents } from "@/lib/authorization/capability-catalog";
 import { FEATURE_ORDER } from "@/models/authorization/eligibility-defaults";
@@ -92,7 +94,9 @@ export default function PermissionManager({
   const [selectedUser, setSelectedUser] = useState(null);
   const [userPerms, setUserPerms] = useState(null);
   const [loadingPerms, setLoadingPerms] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [modules, setModules] = useState({});
+  const [modulesError, setModulesError] = useState("");
   const [moduleToFeature, setModuleToFeature] = useState({});
   const [expandedModules, setExpandedModules] = useState({});
   const [actionMsg, setActionMsg] = useState("");
@@ -113,15 +117,21 @@ export default function PermissionManager({
   }, [cid]);
 
   const fetchModules = async () => {
+    setModulesError("");
     try {
       const res = await fetch("/api/engineering/permissions");
       const data = await res.json();
-      if (data.success) {
-        setModules(data.modules || {});
-        setModuleToFeature(data.moduleToFeature || {});
-      }
+      if (!data.success) throw new Error(data.error || `HTTP ${res.status}`);
+      setModules(data.modules || {});
+      setModuleToFeature(data.moduleToFeature || {});
     } catch (e) {
       console.error("Failed to fetch modules", e);
+      // The catalogue is what the grid is built from: without it there is no
+      // section and no right to show, so the failure is stated where the grid
+      // would be instead of looking like an empty screen.
+      setModulesError(
+        e?.message || t("engineering.permissions.catalogLoadFailed"),
+      );
     }
   };
 
@@ -181,22 +191,28 @@ export default function PermissionManager({
     setShowAssignForm(false); // reset the profile-override card for the new user
     setAssignMsg("");
     setAssignErr("");
+    setLoadError("");
+    // Clear the previous person's rights: keeping them on screen while the next
+    // person loads shows one person's access under another person's name.
+    setUserPerms(null);
     try {
       const res = await fetch(
         `/api/engineering/permissions?user_cid=${user.cid}`,
       );
       const data = await res.json();
-      if (data.success) {
-        setUserPerms(data);
-        // Auto-expand all modules
-        const expanded = {};
-        Object.keys(data.effectivePermissions || {}).forEach((key) => {
-          expanded[key] = true;
-        });
-        setExpandedModules(expanded);
-      }
+      if (!data.success) throw new Error(data.error || `HTTP ${res.status}`);
+      setUserPerms(data);
+      // Auto-expand all modules
+      const expanded = {};
+      Object.keys(data.effectivePermissions || {}).forEach((key) => {
+        expanded[key] = true;
+      });
+      setExpandedModules(expanded);
     } catch (e) {
       console.error("Failed to fetch user permissions", e);
+      setLoadError(
+        e?.message || t("engineering.permissions.personAccessLoadFailed"),
+      );
     } finally {
       setLoadingPerms(false);
     }
@@ -503,6 +519,47 @@ export default function PermissionManager({
         {activeTab === "setup" && <AccessProfilesView initialProfileId={initialProfileId} />}
         {activeTab === "search" && (
           <div className="space-y-6">
+            {/* Loading, and failing to load, keep this panel in place and say
+                what is happening. The area used to render nothing until the
+                person's access arrived — and nothing at all when the request
+                was refused, which reads exactly like a section removed from
+                the screen. */}
+            {selectedUser && !userPerms && (
+              <div className="space-y-6">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                  {t("engineering.permissions.accessEditorTitle")}
+                </h3>
+                {loadingPerms ? (
+                  <div
+                    role="status"
+                    aria-label={t("common.loading")}
+                    className="space-y-3"
+                  >
+                    <Skeleton className="h-10" />
+                    <Skeleton className="h-40" />
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-red-400">
+                      {t("engineering.permissions.personAccessLoadFailed")}
+                    </p>
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)] break-words">
+                      {loadError ||
+                        t("engineering.permissions.personAccessUnavailable")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => selectUser(selectedUser)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      {t("common.refresh")}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* User Permission Panel */}
             {selectedUser && userPerms && (
               <div className="space-y-6">
@@ -674,7 +731,25 @@ export default function PermissionManager({
                   </div>
                 ) : (
                   <div className="space-y-8">
-                    {moduleSections.length === 0 && (
+                    {modulesError && (
+                      <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 space-y-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-red-400">
+                          {t("engineering.permissions.catalogLoadFailed")}
+                        </p>
+                        <p className="text-[10px] font-bold text-[var(--text-secondary)] break-words">
+                          {modulesError}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => fetchModules()}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          {t("common.refresh")}
+                        </button>
+                      </div>
+                    )}
+                    {!modulesError && moduleSections.length === 0 && (
                       <p className="text-xs font-bold text-[var(--text-secondary)]">
                         {t("engineering.permissions.personNoSections")}
                       </p>
