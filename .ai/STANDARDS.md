@@ -97,3 +97,42 @@ During the Operations OS stabilization sprint, these additional rules apply:
 - Follow the runtime: `SYSTEM.md` orchestrates, skills do the work, PROJECT/MEMORY/STANDARDS provide knowledge.
 - Do not put project knowledge in skills; do not put skills in this file.
 - If a convention changes, update STANDARDS.md in the same change that introduces it.
+
+## 12. Testing
+
+- Run everything with `npm test` (`jest --runInBand`); a single suite with
+  `npx jest src/__tests__/<name>.test.js`.
+- **Default environment is `node`** — services, routes and pure modules run there and
+  mock `@/lib/db` + `@/lib/auth` + `@/lib/authorization` (see
+  `src/__tests__/helpers/fakeLmsDb.js` for the in-memory DB interpreter).
+- **Component tests opt into jsdom** with a docblock pragma on the first line:
+
+  ```js
+  /**
+   * @jest-environment jsdom
+   *
+   * …
+   */
+  ```
+
+  The pragma must be followed by a blank line, otherwise the following text is read
+  as part of the environment name. `@babel/preset-react` (automatic runtime) is
+  configured for every test file.
+- **Component test conventions**
+  (see `src/__tests__/lms-session-resources-upload-ui.test.js`):
+  - `@testing-library/react` (`render`, `screen`, `fireEvent`, `waitFor`);
+  - mock the network, never the component: assert on the request contract and the
+    rendered result (`fetch` is replaced by a `jest.fn` that answers by URL);
+  - `lucide-react` is mapped to its CJS build in the jest config, so icons render
+    for real without transforming `node_modules`;
+  - mock `framer-motion` with **stable** passthrough components (a fresh component
+    type per `motion.x` access remounts the subtree and detaches the nodes your
+    assertions hold);
+  - `useI18n()` outside a provider returns the key itself, so asserting a key
+    string both checks the text AND proves it goes through `t()`;
+  - `fireEvent.drop(target, { dataTransfer: { files: [file] } })` simulates a drop
+    (jsdom has no `DataTransfer`);
+  - assert previews/embeds are NOT rendered before interaction — "nothing loads by
+    itself" is part of the contract.
+- Every new behavior ships with tests; a fix ships with the test that would have
+  caught it. Report pre-existing failures separately instead of fixing them silently.
