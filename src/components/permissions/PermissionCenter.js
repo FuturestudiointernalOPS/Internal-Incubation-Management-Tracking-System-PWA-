@@ -1140,6 +1140,12 @@ function AccessProfilesView({ initialProfileId = null }) {
   const [, setProfileCaps] = useState([]);
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
+  // { role, violations:[{module,capability,feature}] } — set when the server
+  // refuses a save against the eligibility ceiling. Rendered explicitly: the
+  // generic "not eligible" message alone left the administrator unable to tell
+  // WHICH identity blocked the save (that is how a retired `admin` role silently
+  // blocked every save of Staff Default).
+  const [saveViolations, setSaveViolations] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newProfile, setNewProfile] = useState({ name: "", description: "" });
   const [safetyAck, setSafetyAck] = useState(false); // confirmed role-bound profile edits
@@ -1236,6 +1242,7 @@ function AccessProfilesView({ initialProfileId = null }) {
     setRenameMode(false);
     setActionMsg("");
     setActionError("");
+    setSaveViolations(null);
     try {
       const res = await fetch(`/api/access-profiles?id=${profile.id}`);
       const data = await res.json();
@@ -1521,6 +1528,7 @@ function AccessProfilesView({ initialProfileId = null }) {
     setSaving(true);
     setActionMsg("");
     setActionError("");
+    setSaveViolations(null);
     try {
       const res = await fetch("/api/access-profiles", {
         method: "PUT",
@@ -1539,6 +1547,15 @@ function AccessProfilesView({ initialProfileId = null }) {
         setReason("");
         setActionMsg(t("engineering.permissions.permissionsSaved"));
       } else {
+        // The ceiling check runs against EVERY role this template serves, so a
+        // refusal is per identity: keep the server's `role` + `violations` and
+        // show them — they name the feature to allow in Rules → Feature
+        // eligibility before saving again.
+        setSaveViolations(
+          Array.isArray(data.violations) && data.violations.length > 0
+            ? { role: data.role || null, violations: data.violations }
+            : null,
+        );
         setActionError(t((data.error || t("engineering.permissions.failedToUpdate")) || "") || (data.error || t("engineering.permissions.failedToUpdate")));
       }
     } catch {
@@ -1730,6 +1747,39 @@ function AccessProfilesView({ initialProfileId = null }) {
       {actionError && (
         <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
           <p className="text-[10px] font-bold text-red-400">{actionError}</p>
+        </div>
+      )}
+      {saveViolations && (
+        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-amber-400">
+            {t("engineering.permissions.ineligibleCapsTitle")}
+          </p>
+          {saveViolations.role && (
+            <p className="text-[10px] font-bold text-[var(--text-primary)]">
+              {t("engineering.permissions.ineligibleCapsRole", {
+                role: saveViolations.role,
+              })}
+            </p>
+          )}
+          <ul className="flex flex-wrap gap-1.5">
+            {[
+              ...new Set(
+                saveViolations.violations.map(
+                  (v) => `${v.module}.${v.capability} → ${v.feature}`,
+                ),
+              ),
+            ].map((line) => (
+              <li
+                key={line}
+                className="text-[10px] font-bold px-2 py-1 rounded-lg bg-primary border border-[var(--border-primary)] text-[var(--text-secondary)]"
+              >
+                {line}
+              </li>
+            ))}
+          </ul>
+          <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+            {t("engineering.permissions.ineligibleCapsHint")}
+          </p>
         </div>
       )}
 
@@ -2997,8 +3047,16 @@ function EligibilityView() {
     });
   }, [identityType, identityValue, data]);
 
+  // Roles the database actually carries that the curated identity list omits
+  // (mentor, teacher, developer, program_manager…). They are enforceable
+  // ceilings, so they must be selectable here — this is the front-end remedy
+  // for a refused template save.
+  const extraRoles = data?.extraRoles || [];
+
   const identities =
-    (identityType === "role" ? data?.roles : data?.groups) || [];
+    identityType === "role"
+      ? [...new Set([...(data?.roles || []), ...extraRoles])]
+      : data?.groups || [];
   const canConfigure = !!data?.canConfigure;
   const selected = identityValue || null;
 
@@ -3097,7 +3155,14 @@ function EligibilityView() {
   // relationship, so they are NOT rows of the matrix — they stay selectable in
   // the identity editor, where they are tagged as context roles.
   const contextRoles = new Set(data?.identityGroups?.contextRoles || []);
-  const matrixRoles = (data?.roles || []).filter((r) => !contextRoles.has(r));
+  // Baseline identities first, then the roles this database carries that the
+  // curated list omits. Both are rows of the matrix: an enforced ceiling must
+  // never be invisible to the administrator who has to configure it.
+  const matrixRoles = [
+    ...(data?.roles || []).filter((r) => !contextRoles.has(r)),
+    ...(data?.extraRoles || []).filter((r) => !contextRoles.has(r)),
+  ];
+  const isDatabaseRole = (role) => (data?.extraRoles || []).includes(role);
 
   // One lookup for both presentations (table on md+, cards below) so the two
   // can never disagree about what a cell shows.
@@ -3182,6 +3247,11 @@ function EligibilityView() {
                   >
                     <td className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)] sticky left-0 bg-secondary">
                       {role}
+                      {isDatabaseRole(role) && (
+                        <span className="ml-1 text-[8px] font-black uppercase tracking-widest text-teal-400">
+                          {t("engineering.permissions.databaseRoleTag")}
+                        </span>
+                      )}
                     </td>
                     {(data.features || []).map((f) => {
                       const state = stateFor(role, f);
@@ -3214,6 +3284,11 @@ function EligibilityView() {
               <div key={role} className="p-3 space-y-2">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
                   {role}
+                  {isDatabaseRole(role) && (
+                    <span className="ml-1 text-[8px] font-black uppercase tracking-widest text-teal-400">
+                      {t("engineering.permissions.databaseRoleTag")}
+                    </span>
+                  )}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {(data.features || []).map((f) => {
@@ -3318,6 +3393,11 @@ function EligibilityView() {
                 {identityType === "role" && contextRoles.has(selected) && (
                   <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-teal-400">
                     {t("engineering.permissions.contextRoleTag")}
+                  </span>
+                )}
+                {identityType === "role" && isDatabaseRole(selected) && (
+                  <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-teal-400">
+                    {t("engineering.permissions.databaseRoleTag")}
                   </span>
                 )}
               </p>

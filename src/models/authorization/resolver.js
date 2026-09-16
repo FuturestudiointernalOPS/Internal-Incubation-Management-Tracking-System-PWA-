@@ -26,6 +26,7 @@ import {
   seedLmsFeatureEligibility,
   seedVenturesMemberEligibility,
   seedVenturesFounderEligibility,
+  seedTemplateCeilingEligibility,
   evaluateEligibility,
 } from "./eligibility";
 import { ensureCapabilityBackfills } from "./backfill";
@@ -75,6 +76,15 @@ function ensureEligibilitySeeded() {
         await runAuthzMigration(
           "eligibility-ventures-founder-v1",
           seedVenturesFounderEligibility,
+        );
+        // The seeded default templates (Participant Default, Mentor) grant
+        // capabilities their own roles had no eligibility row for, which made
+        // those templates unsavable from the Permissions UI. Insert-only
+        // catch-up for the rows that were never configured on any database that
+        // bootstrapped before the two were reconciled.
+        await runAuthzMigration(
+          "eligibility-template-ceiling-v1",
+          seedTemplateCeilingEligibility,
         );
         eligibilitySeeded = true;
       })().finally(() => {

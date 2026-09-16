@@ -134,6 +134,19 @@ export async function getRoleEligibilityRows(role) {
   });
 }
 
+/**
+ * Every role identity that actually has eligibility rows in this database.
+ * Used by the Permissions UI so a role the engine enforces is never invisible
+ * to the administrator who has to configure it (the agreed identity list is a
+ * curated subset; the data is the truth).
+ */
+export async function listEligibilityRoleIdentities() {
+  return db.execute({
+    sql: `SELECT DISTINCT identity_value FROM feature_eligibility
+          WHERE identity_type = 'role' ORDER BY identity_value`,
+  });
+}
+
 /** Single profile definition row — 404 check + payload for GET ?id=X. */
 export async function getAccessProfileById(profileId) {
   return db.execute({
