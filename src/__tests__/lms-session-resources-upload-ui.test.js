@@ -122,6 +122,42 @@ beforeEach(() => {
   mockNetwork();
 });
 
+describe("session resources panel — saving", () => {
+  test("a resource saved from the panel is scoped to the program and its session", async () => {
+    const fetchMock = mockNetwork();
+    await renderPanel();
+
+    fireEvent.click(screen.getByText("lms.sessionResources.add"));
+    fireEvent.change(
+      screen.getByPlaceholderText("lms.sessionResources.fieldTitlePlaceholder"),
+      { target: { value: "Reader" } },
+    );
+    fireEvent.change(
+      screen.getByPlaceholderText("lms.sessionResources.fieldUrlPlaceholder"),
+      { target: { value: "https://example.test/reader.pdf" } },
+    );
+    fireEvent.click(screen.getByText("lms.sessionResources.addResource"));
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(
+        ([url, options]) =>
+          String(url) === "/api/lms/session-resources" && options?.method === "POST",
+      );
+      expect(call).toBeTruthy();
+      expect(JSON.parse(call[1].body)).toMatchObject({
+        program_id: PROGRAM,
+        session_id: SESSION,
+        week_number: 1,
+        kind: "document",
+        title: "Reader",
+        url: "https://example.test/reader.pdf",
+        source: "link",
+        is_recommended: false,
+      });
+    });
+  });
+});
+
 describe("session resource uploader — drag & drop", () => {
   test("dragging over the zone switches it to the drop state, leaving restores it", async () => {
     await renderPanel();
