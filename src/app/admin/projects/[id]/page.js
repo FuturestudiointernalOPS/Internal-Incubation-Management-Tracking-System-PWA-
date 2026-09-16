@@ -59,7 +59,7 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
-  const [taskFilter] = useState("all");
+
   const [blockerFilter, setBlockerFilter] = useState("all");
   const [updates, setUpdates] = useState([]);
   const [updatesLoading, setUpdatesLoading] = useState(false);
@@ -356,12 +356,6 @@ export default function ProjectDetail() {
       setSavingUpdate(false);
     }
   };
-
-  const _filteredTasks = React.useMemo(() => {
-    if (!project?.tasks) return [];
-    if (taskFilter === "all") return project.tasks;
-    return project.tasks.filter((t) => t.status === taskFilter);
-  }, [project?.tasks, taskFilter]);
 
   const projectBlockers = project?.blockers;
   const filteredBlockers = React.useMemo(() => {
