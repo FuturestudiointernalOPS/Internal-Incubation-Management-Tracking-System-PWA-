@@ -64,7 +64,7 @@ export function FacilitatorsPanel({ programId }) {
   const [inviteResults, setInviteResults] = useState(null);
   const [inviting, setInviting] = useState(false);
   const [previewing, setPreviewing] = useState(false);
-  const [facilitatorsGroup, setFacilitatorsGroup] = useState(null);
+  const [, setFacilitatorsGroup] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [conflictError, setConflictError] = useState(null);
 
@@ -127,7 +127,7 @@ export function FacilitatorsPanel({ programId }) {
       } else {
         notify("error", data.error || t("pmMisc.facilitators.saveFailed"));
       }
-    } catch (e) {
+    } catch {
       notify("error", t("pmMisc.facilitators.saveFailed"));
     } finally {
       setBusy(false);
@@ -205,7 +205,7 @@ export function FacilitatorsPanel({ programId }) {
       });
       const data = await res.json();
       if (data.success) setInvitePreview(data.results || []);
-    } catch (e) {
+    } catch {
       notify("error", t("pmMisc.facilitators.inviteFailed"));
     } finally {
       setPreviewing(false);
@@ -233,7 +233,7 @@ export function FacilitatorsPanel({ programId }) {
       } else {
         notify("error", data.error || t("pmMisc.facilitators.inviteFailed"));
       }
-    } catch (e) {
+    } catch {
       notify("error", t("pmMisc.facilitators.inviteFailed"));
     } finally {
       setInviting(false);

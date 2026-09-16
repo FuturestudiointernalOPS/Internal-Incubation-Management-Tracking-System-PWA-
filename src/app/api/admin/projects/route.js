@@ -41,13 +41,10 @@ export async function GET(req) {
     // resilience) so a missing start_date/end_date column never affects the
     // task/blocker stats — exactly matching the original per-project behavior
     // where only the dated-count query was wrapped in its own try/catch.
-    let datedRes = { rows: [] };
     if (projectIds.length > 0) {
       try {
-        datedRes = await countDatedTasksByProjectIds(projectIds);
-      } catch (_) {
-        datedRes = { rows: [] }; // columns missing / error → 0, same as before
-      }
+        await countDatedTasksByProjectIds(projectIds);
+      } catch (_) {}
     }
 
     const blockerStatsRes =

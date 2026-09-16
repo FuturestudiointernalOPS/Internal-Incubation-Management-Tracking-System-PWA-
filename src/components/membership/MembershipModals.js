@@ -5,7 +5,6 @@ import {
   Search,
   UserPlus,
   History,
-  RotateCcw,
   Ban,
   CheckCircle2,
   Clock,
@@ -358,7 +357,7 @@ export function AddMemberModal({ groups, defaultGroup, isProtected, existing, t,
 
 /* ── Renew / Reactivate ─────────────────────────────────────────────────── */
 
-export function RenewModal({ member, isReactivate, t, lang, fmtDate, onClose, onConfirm }) {
+export function RenewModal({ member, isReactivate, t, fmtDate, onClose, onConfirm }) {
   const [expires, setExpires] = useState("");
   const [noExpiry, setNoExpiry] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -440,7 +439,7 @@ export function RenewModal({ member, isReactivate, t, lang, fmtDate, onClose, on
 /* ── Deactivate / End confirm ───────────────────────────────────────────── */
 
 export function ConfirmModal({ state, t, onClose, onConfirm }) {
-  const [busy, setBusy] = useState(false);
+  const [busy] = useState(false);
   const isEnd = state.action === "ended";
 
   return (
@@ -472,7 +471,7 @@ export function ConfirmModal({ state, t, onClose, onConfirm }) {
 
 /* ── History ────────────────────────────────────────────────────────────── */
 
-export function HistoryModal({ member, t, lang, fmtDate, onClose }) {
+export function HistoryModal({ member, t, fmtDate, onClose }) {
   const [events, setEvents] = useState(null);
   const [error, setError] = useState("");
 

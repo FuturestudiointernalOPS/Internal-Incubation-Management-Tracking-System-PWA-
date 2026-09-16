@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use } from 'react';
 import { 
   Activity, Briefcase, ChevronRight, BookOpen, 
-  Target, Users, Layers, MessageSquare, Clock, CheckCircle2, AlertCircle, Send,
+  Target, Users, Layers, MessageSquare, Clock, CheckCircle2, AlertCircle,
   Link as LinkIcon, Trash2,
   ExternalLink
 } from 'lucide-react';
@@ -15,7 +15,7 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 export default function SuperAdminExecutiveView({ params }) {
   const unwrappedParams = use(params);
   const { id } = unwrappedParams;
-  const router = useRouter();
+  const _router = useRouter();
   const { t } = useI18n();
 
   const [program, setProgram] = useState(null);

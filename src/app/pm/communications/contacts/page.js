@@ -3,14 +3,10 @@ import React, { useState, useEffect } from "react";
 import {
   Users,
   Search,
-  Send,
   Shield,
   Briefcase,
-  ChevronRight,
   Mail,
   Phone,
-  MessageCircle,
-  User,
   Layers,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -36,7 +32,7 @@ export default function PMGroups() {
   const [selectedProgram, setSelectedProgram] = useState(null);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("participants"); // 'participants' | 'teams' | 'staff'
-  const router = useRouter();
+  const _router = useRouter();
   const { t } = useI18n();
 
   useEffect(() => {

@@ -134,7 +134,7 @@ export default function ScoresPage() {
       } else {
         setError(t((d.error || t("adminMisc.platformScores.fetchFailed")) || "") || (d.error || t("adminMisc.platformScores.fetchFailed")));
       }
-    } catch (err) {
+    } catch {
       if (!painted) setError(t("adminMisc.platformScores.networkError"));
     } finally {
       setLoading(false);

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import {
-  Megaphone, Plus, Loader2, Building2, Target, DollarSign,
-  Calendar, Eye, Play, Pause, XCircle, CheckCircle2, BarChart3,
+  Megaphone, Plus, Loader2, DollarSign,
+  Calendar, Play, Pause, XCircle,
   Users, TrendingUp, Edit3
 } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
@@ -37,7 +37,6 @@ export default function AdminCampaignsPage() {
   const [ventures, setVentures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [editingId, setEditingId] = useState(null);
   const [toast, setToast] = useState(null);
 
   // Create form
@@ -294,7 +293,7 @@ export default function AdminCampaignsPage() {
           <div className="space-y-3">
             {campaigns.map(c => {
               const pct = progressPct(c);
-              const StatusIcon = STATUS_ICONS[c.status] || Edit3;
+              const _StatusIcon = STATUS_ICONS[c.status] || Edit3;
               return (
                 <AppCard key={c.id} padding="md">
                   <div className="space-y-3">

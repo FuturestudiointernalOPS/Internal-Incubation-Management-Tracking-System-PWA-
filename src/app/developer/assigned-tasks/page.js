@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   ListTodo,
-  ChevronRight,
   RefreshCw,
   Calendar,
   User,
@@ -18,7 +17,7 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function AssignedTasks() {
   const { t } = useI18n();
-  const [userRole, setUserRole] = useState("developer");
+  const [, setUserRole] = useState("developer");
   const [user, setUser] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [pendingAssignments, setPendingAssignments] = useState([]);
@@ -94,7 +93,7 @@ export default function AssignedTasks() {
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t(data.error || "Failed to respond") || data.error || "Failed to respond" } }));
       }
-    } catch (e) {
+    } catch {
       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: "Network error" } }));
     } finally {
       setResponding(null);

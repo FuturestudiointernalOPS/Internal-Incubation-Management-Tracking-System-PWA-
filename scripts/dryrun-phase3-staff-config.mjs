@@ -59,9 +59,9 @@ for (const file of [".env.dryrun", ".env.local", ".env.audit-staging", ".env.sta
 const { initDb } = await import("../src/lib/db.js");
 const { rowsToCaps, rowsToRestrictions, mergeEffectiveCapabilities, authorize } =
   await import("../src/lib/authorization/index.js");
-const { MODULE_TO_FEATURE, evaluateEligibility, FEATURE_ELIGIBILITY_DEFAULTS } =
+const { MODULE_TO_FEATURE, evaluateEligibility } =
   await import("../src/lib/authorization/eligibility.js");
-const { PERMISSION_MODULES, ACCESS_LEVELS } = await import("../src/lib/auth.js");
+const { PERMISSION_MODULES } = await import("../src/lib/auth.js");
 
 // ─── The proposed Staff default template (configuration, NOT code) ──────────
 const PROPOSED_STAFF_TEMPLATE = {

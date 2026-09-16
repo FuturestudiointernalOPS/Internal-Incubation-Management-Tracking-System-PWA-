@@ -59,7 +59,6 @@ export async function GET(req) {
       docRes,
       folRes,
       teamRes,
-      familyRes,
     ] = await Promise.all([
       getFullStateProgramByName(groupName),
       getFullStateSubmissionsByParticipant(cid),

@@ -10,7 +10,6 @@ import {
   Search,
   Save,
   X,
-  Link as LinkIcon,
   Loader2,
   Copy,
   Edit3,
@@ -535,7 +534,7 @@ export default function FormsPage() {
               </header>
               <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
                 {Object.entries(selectedResponse.answers).map(
-                  ([key, val], idx) => (
+                  ([, val], idx) => (
                     <div key={idx} className="space-y-2">
                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                         {t("crm.forms.questionNumber", { n: idx + 1 })}

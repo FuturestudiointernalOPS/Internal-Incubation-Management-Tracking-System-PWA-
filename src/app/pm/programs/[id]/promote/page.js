@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Rocket,
@@ -8,10 +8,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  ExternalLink,
   Building2,
-  Users,
-  Target,
   Shield,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -92,7 +89,7 @@ export default function PromoteToVenture() {
         } else if (!painted) {
           notify(t("pmMisc.promote.failedToLoadProgram"), "error");
         }
-      } catch (e) {
+      } catch {
         if (!painted)
           notify(t("pmMisc.promote.networkErrorLoadingProgram"), "error");
       } finally {

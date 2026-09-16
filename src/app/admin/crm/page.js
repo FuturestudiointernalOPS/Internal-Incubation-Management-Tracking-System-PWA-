@@ -24,7 +24,6 @@ export default function CrmDashboardPage() {
   const goBack = useSafeBack("/admin");
   const [stats, setStats] = useState(null);
   const [recentContacts, setRecentContacts] = useState([]);
-  const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

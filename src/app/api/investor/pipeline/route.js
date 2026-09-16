@@ -97,7 +97,7 @@ export async function POST(req) {
       const pipelineId = result.rows[0].id;
       const investedAmount = parseFloat(amount || notes) || 0;
 
-      const decisionRes = await createInvestmentDecision({ pipeline_id: pipelineId, investment_amount: investedAmount, notes });
+      await createInvestmentDecision({ pipeline_id: pipelineId, investment_amount: investedAmount, notes });
 
       // Update fundraising campaign current_raised
       if (investedAmount > 0) {

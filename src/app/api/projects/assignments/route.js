@@ -55,7 +55,7 @@ export const GET = createHandler(async (req) => {
   try {
     const result = await getOwnedProjectsByUser(userCid);
     owned = result.rows;
-  } catch (e) {
+  } catch {
     owned = [];
   }
 
@@ -64,7 +64,7 @@ export const GET = createHandler(async (req) => {
   try {
     const result = await getCollaboratingProjectsByUser(userCid);
     collab = result.rows;
-  } catch (e) {
+  } catch {
     collab = [];
   }
 
@@ -74,7 +74,7 @@ export const GET = createHandler(async (req) => {
     try {
       const result = await getAllActiveProjects();
       all_active = result.rows;
-    } catch (e) {
+    } catch {
       all_active = [];
     }
   }

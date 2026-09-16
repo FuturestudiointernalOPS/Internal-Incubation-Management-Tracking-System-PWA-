@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { User, Clock, FileText, Briefcase, Rocket, MessageSquare, Upload, Plus, ArrowLeft, Check, X, Send, Mail, GraduationCap, Building2 } from "lucide-react";
+import { User, Clock, FileText, Briefcase, Rocket, Upload, Plus, ArrowLeft, Send, Mail, GraduationCap, Building2 } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
@@ -58,7 +58,7 @@ const MODULE_LABELS = {
 
 export default function CrmDetailPage({ params }) {
   const { cid } = use(params);
-  const router = useRouter();
+  const _router = useRouter();
   const { t, lang } = useI18n();
   const goBack = useSafeBack("/admin/crm");
 
@@ -228,7 +228,7 @@ export default function CrmDetailPage({ params }) {
       } else {
         setInviteMessage({ type: "error", text: data.error || "Failed to send invitation" });
       }
-    } catch (e) {
+    } catch {
       setInviteMessage({ type: "error", text: "Error sending invitation" });
     }
     setInviting(false);

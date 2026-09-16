@@ -30,7 +30,7 @@ export async function POST(req) {
     if (authError) return authError;
 
     const body = await req.json();
-    const { participant_ids, program_id, action, assigned_by, source } = body;
+    const { participant_ids, program_id, action, assigned_by } = body;
 
     if (
       !participant_ids ||

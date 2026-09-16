@@ -86,7 +86,7 @@ export async function GET(req) {
         ) {
           try {
             program.note_files = JSON.parse(program.note_files);
-          } catch (e) {
+          } catch {
             let value = program.note_files;
             let parsed = false;
             for (let i = 0; i < 3; i++) {
@@ -147,7 +147,7 @@ export async function GET(req) {
 
         program.completion_index =
           totalPoints > 0 ? (completedPoints / totalPoints) * 100.0 : 0;
-      } catch (e) {
+      } catch {
         program.materials = [];
         program.knowledge_assets = [];
         program.completion_index = 0;
@@ -187,7 +187,7 @@ export async function GET(req) {
             new Map(merged.map((item) => [item.cid, item])).values(),
           );
         }
-      } catch (e) {}
+      } catch {}
     }
 
     // --- MERGE PARTICIPANTS (always) ---

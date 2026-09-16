@@ -19,8 +19,6 @@ import {
   Plus,
   X,
   ListTodo,
-  Archive,
-  RotateCcw,
   Briefcase,
   Activity,
   CornerDownRight,
@@ -158,7 +156,7 @@ function StaffOpReport() {
   const [reportType, setReportType] = useState("standup"); // "standup" | "retro" | "summary"
   const [weekInfo, setWeekInfo] = useState(getCurrentWeek());
   const [existingReport, setExistingReport] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
   const [history, setHistory] = useState([]);
@@ -211,33 +209,24 @@ function StaffOpReport() {
   // Temporary input for adding bullet items
   const [newPriority, setNewPriority] = useState("");
   const [newDeliverable, setNewDeliverable] = useState("");
-  const [newCompleted, setNewCompleted] = useState("");
-  const [newUnfinished, setNewUnfinished] = useState("");
   const [newWin, setNewWin] = useState("");
   const [newCarryover, setNewCarryover] = useState("");
 
   // Task integration state (Phase 4)
   const [tasks, setTasks] = useState([]);
-  const [carryoverTasks, setCarryoverTasks] = useState([]);
-  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [, setLoadingTasks] = useState(false);
   // Increment to ask the TaskManager inside the standup to open its new-task
   // form directly ("Add Task" shortcut at the bottom of the task list).
-  const [newTaskRequest, setNewTaskRequest] = useState(0);
+  const [newTaskRequest] = useState(0);
   const [taskCreationOpen, setTaskCreationOpen] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskDescription, setNewTaskDescription] = useState("");
-  const [newTaskProject, setNewTaskProject] = useState("");
-  const [newTaskStartDate, setNewTaskStartDate] = useState("");
-  const [newTaskEndDate, setNewTaskEndDate] = useState("");
   const [creatingTask, setCreatingTask] = useState(false);
-  const [reconciledBlockers, setReconciledBlockers] = useState({});
   const [taskReasons, setTaskReasons] = useState({});
 
   // Structured task row state
   const [assignedProjects, setAssignedProjects] = useState([]);
-  const [ownedProjects, setOwnedProjects] = useState([]);
-  const [collabProjects, setCollabProjects] = useState([]);
-  const [allStaff, setAllStaff] = useState([]);
+  const [, setOwnedProjects] = useState([]);
+  const [, setCollabProjects] = useState([]);
+  const [, setAllStaff] = useState([]);
   const [taskRows, setTaskRows] = useState([]);
   const [blockerModal, setBlockerModal] = useState(null); // { taskRowIndex } or null
   const [confirmTarget, setConfirmTarget] = useState(null); // { id, message, onConfirm } or null
@@ -248,7 +237,6 @@ function StaffOpReport() {
   const [newBlockerNotes, setNewBlockerNotes] = useState("");
   const [subTaskModal, setSubTaskModal] = useState(null); // parent row id or null
   const [subTaskName, setSubTaskName] = useState("");
-  const [staffSearch, setStaffSearch] = useState("");
   const [expandedTasks, setExpandedTasks] = useState({}); // taskId -> boolean
   const [updatingTasks, setUpdatingTasks] = useState({}); // taskId -> boolean
   const [taskDetail, setTaskDetail] = useState(null); // task object for detail modal
@@ -294,7 +282,7 @@ function StaffOpReport() {
         } else {
           localStorage.removeItem(key);
         }
-      } catch (e) {
+      } catch {
         // localStorage full or unavailable — silently ignore
       }
     }, 2000);
@@ -317,7 +305,7 @@ function StaffOpReport() {
           return;
         }
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
     setDraftAvailable(false);
@@ -336,7 +324,7 @@ function StaffOpReport() {
         if (draft.reportType) setReportType(draft.reportType);
         if (draft.showTaskForm !== undefined) setShowTaskForm(draft.showTaskForm);
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
     setDraftAvailable(false);
@@ -346,7 +334,7 @@ function StaffOpReport() {
   const discardDraft = useCallback(() => {
     const key = getDraftKey();
     if (key) {
-      try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
+      try { localStorage.removeItem(key); } catch { /* ignore */ }
     }
     setDraftAvailable(false);
   }, [getDraftKey]);
@@ -355,7 +343,7 @@ function StaffOpReport() {
   const clearDraft = useCallback(() => {
     const key = getDraftKey();
     if (key) {
-      try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
+      try { localStorage.removeItem(key); } catch { /* ignore */ }
     }
     setDraftAvailable(false);
   }, [getDraftKey]);
@@ -537,7 +525,7 @@ function StaffOpReport() {
         cacheSet(url, data);
         apply(data);
       }
-    } catch (e) {}
+    } catch {}
   }, [user]);
 
   const fetchTasks = useCallback(async (bypassCache = false) => {
@@ -722,7 +710,7 @@ function StaffOpReport() {
             return;
           }
         }
-      } catch (e) {
+      } catch {
         // Fall through to localStorage
       }
 
@@ -909,7 +897,7 @@ function StaffOpReport() {
       } else {
         notify(t((data.error || t("reports.failedToSave")) || "") || (data.error || t("reports.failedToSave")), "error");
       }
-    } catch (e) {
+    } catch {
       notify(t("errors.networkError"), "error");
     } finally {
       setSaving(false);
@@ -917,14 +905,14 @@ function StaffOpReport() {
   };
 
   // ─── BULLET-LIST ITEM HANDLERS (priorities / deliverables / wins / carryover) ───
-  const addPriority = () => {
+  const _addPriority = () => {
     const v = newPriority.trim();
     if (!v) return;
     setForm((p) => ({ ...p, top_priorities: [...(p.top_priorities || []), v] }));
     setNewPriority("");
   };
 
-  const addDeliverable = () => {
+  const _addDeliverable = () => {
     const v = newDeliverable.trim();
     if (!v) return;
     setForm((p) => ({
@@ -934,14 +922,14 @@ function StaffOpReport() {
     setNewDeliverable("");
   };
 
-  const addWin = () => {
+  const _addWin = () => {
     const v = newWin.trim();
     if (!v) return;
     setForm((p) => ({ ...p, wins: [...(p.wins || []), v] }));
     setNewWin("");
   };
 
-  const addCarryover = () => {
+  const _addCarryover = () => {
     const v = newCarryover.trim();
     if (!v) return;
     setForm((p) => ({
@@ -953,12 +941,12 @@ function StaffOpReport() {
 
   // ─── TASK ROW MANAGEMENT ───
 
-  const addSubTaskRow = (parentRowId) => {
+  const _addSubTaskRow = (parentRowId) => {
     setSubTaskModal(parentRowId);
     setSubTaskName("");
   };
 
-  const addSubTaskFromModal = () => {
+  const _addSubTaskFromModal = () => {
     const name = subTaskName.trim();
     if (!name) return;
     const parentId = subTaskModal;
@@ -990,7 +978,7 @@ function StaffOpReport() {
     setSubTaskName("");
   };
 
-  const addTaskRow = () => {
+  const _addTaskRow = () => {
     if (!newTaskForm.name.trim()) return;
     setTaskRows((prev) => {
       const newRow = {
@@ -1091,7 +1079,7 @@ function StaffOpReport() {
     }
   };
 
-  const updateTaskRow = (index, field, value) => {
+  const _updateTaskRow = (index, field, value) => {
     setTaskRows((prev) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
@@ -1099,7 +1087,7 @@ function StaffOpReport() {
     });
   };
 
-  const removeTaskRow = (index) => {
+  const _removeTaskRow = (index) => {
     const row = taskRows[index];
     if (!row?.status) {
       setTaskRows((prev) => prev.filter((_, i) => i !== index));
@@ -1152,7 +1140,7 @@ function StaffOpReport() {
     });
   };
 
-  const updateBlockerInRow = (rowIndex, blockerId, updates) => {
+  const _updateBlockerInRow = (rowIndex, blockerId, updates) => {
     setTaskRows((prev) => {
       const updated = [...prev];
       updated[rowIndex] = {
@@ -1165,7 +1153,7 @@ function StaffOpReport() {
     });
   };
 
-  const removeBlockerFromRow = (rowIndex, blockerId) => {
+  const _removeBlockerFromRow = (rowIndex, blockerId) => {
     setTaskRows((prev) => {
       const updated = [...prev];
       updated[rowIndex] = {
@@ -2025,7 +2013,6 @@ function StaffOpReport() {
                             r.report_type === "retro",
                         )
                         .reduce((unique, r) => {
-                          const key = r.week_number + "-" + r.year;
                           if (
                             !unique.find(
                               (x) =>
@@ -2181,10 +2168,6 @@ function StaffOpReport() {
                                                   );
                                                 })
                                                 .map((task) => {
-                                                  const cfg =
-                                                    STATUS_CONFIG[
-                                                      task.status
-                                                    ] || STATUS_CONFIG.pending;
                                                   const ab = (
                                                     task.blockers || []
                                                   ).filter(
@@ -4111,23 +4094,6 @@ function StaffOpReport() {
         </div>
       )}
     </>
-  );
-}
-
-// Section wrapper component
-function Section({ title, icon: Icon, color, children }) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2 pb-1 border-b border-[var(--border-primary)]/30">
-        <Icon className={`w-3.5 h-3.5 ${color}`} />
-        <span
-          className={`text-[10px] font-bold uppercase tracking-widest ${color}`}
-        >
-          {title}
-        </span>
-      </div>
-      {children}
-    </div>
   );
 }
 

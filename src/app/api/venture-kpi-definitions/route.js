@@ -12,7 +12,7 @@ import {
 const READ_ROLES = ["participant", "staff", "program_manager", "super_admin", "developer"];
 const WRITE_ROLES = ["staff", "program_manager", "super_admin"];
 
-export async function GET(req) {
+export async function GET(_req) {
   try {
     await initDb();
     const authError = await requireAuth(READ_ROLES);

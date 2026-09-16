@@ -13,7 +13,7 @@ import {
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
 
 /** GET  /api/investor/profile — current investor's profile */
-export async function GET(req) {
+export async function GET(_req) {
   try {
     await initDb();
     // Phase I6A: own-profile read — the model hard-scopes by session cid

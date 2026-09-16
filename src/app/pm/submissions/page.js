@@ -6,15 +6,11 @@ import {
   Search,
   FileText,
   CheckCircle2,
-  Clock,
-  AlertCircle,
   ExternalLink,
   RefreshCw,
   X,
   Shield,
-  User,
   Calendar,
-  ChevronDown,
   Briefcase,
   MapPin,
 } from "lucide-react";
@@ -50,7 +46,7 @@ function StatusBadge({ status }) {
 }
 
 export default function PMSubmissions() {
-  const router = useRouter();
+  const _router = useRouter();
   const { t } = useI18n();
   const [user, setUser] = useState(null);
   const [submissions, setSubmissions] = useState([]);

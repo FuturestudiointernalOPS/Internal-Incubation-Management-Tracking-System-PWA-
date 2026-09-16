@@ -45,7 +45,7 @@ const q = async (label, sql, args = []) => {
 };
 
 await q("super admin contacts", "SELECT cid, name, email, role, status, access_profile_id, group_name FROM contacts WHERE role = 'super_admin'");
-const sas = await q("all distinct roles in contacts", "SELECT role, count(*) AS n FROM contacts GROUP BY role ORDER BY n DESC");
+await q("all distinct roles in contacts", "SELECT role, count(*) AS n FROM contacts GROUP BY role ORDER BY n DESC");
 
 // Grants/restrictions for every super admin
 const saCids = (await pool.query("SELECT cid FROM contacts WHERE role = 'super_admin'")).rows.map((r) => r.cid);

@@ -3,13 +3,6 @@ import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { hasVentureCapability, hasAnyVentureAssignment } from "@/lib/venturePermissions";
 
-async function resolveDbId(db, ventureId) {
-  try {
-    const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
-    return r.rows?.[0]?.id || ventureId;
-  } catch { return ventureId; }
-}
-
 /**
  * Phase 6: reconcile a person's context grants after a membership write.
  * Never throws, never blocks the response.
@@ -120,7 +113,7 @@ export async function GET(req, { params }) {
       }
     } catch (_) {}
 
-    const vRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+    await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
     const code = await resolveVentureCode(db, id);
 
     const result = await db.execute({

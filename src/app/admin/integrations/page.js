@@ -10,21 +10,11 @@ import {
   Trash2,
   RefreshCw,
   Loader2,
-  CheckCircle2,
   XCircle,
   AlertCircle,
-  Globe,
-  Clock,
   Copy,
-  Eye,
-  EyeOff,
-  ExternalLink,
   Zap,
-  Activity,
-  Settings,
-  ChevronRight,
   X,
-  Search,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
@@ -108,7 +98,6 @@ export default function IntegrationsPage() {
   const [showAddKey, setShowAddKey] = useState(false);
   const [newKey, setNewKey] = useState({ name: "", description: "", scopes: [], expires_at: "" });
   const [newKeyResult, setNewKeyResult] = useState(null);
-  const [showSecret, setShowSecret] = useState({});
 
   // Webhooks state
   const [webhooks, setWebhooks] = useState([]);

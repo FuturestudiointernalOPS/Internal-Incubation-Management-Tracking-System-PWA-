@@ -13,7 +13,6 @@ import {
   RefreshCw,
   BookOpen,
   TrendingUp,
-  Calendar,
   Clock,
   Award,
 } from "lucide-react";
@@ -185,7 +184,7 @@ function ProgressSkeleton() {
 }
 
 // ─── Main Component ─────────────────────────────────────────────────
-export default function ProgressView({ programId: filterProgramId }) {
+export default function ProgressView({ programId: _filterProgramId }) {
   const { t } = useI18n();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -216,7 +215,7 @@ export default function ProgressView({ programId: filterProgramId }) {
       const result = await res.json();
       if (result.success) cacheSet(url, result);
       apply(result);
-    } catch (e) {
+    } catch {
       if (!painted) setError("Network error");
     } finally {
       setLoading(false);

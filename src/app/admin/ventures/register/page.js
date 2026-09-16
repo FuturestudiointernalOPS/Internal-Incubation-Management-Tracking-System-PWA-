@@ -12,9 +12,6 @@ import {
   User,
   Mail,
   Phone,
-  Globe,
-  FileText,
-  ChevronRight,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
@@ -108,7 +105,7 @@ export default function RegisterVenturePage() {
       setTimeout(() => {
         router.push(`/admin/ventures/${data.venture.venture_id}`);
       }, 2000);
-    } catch (e) {
+    } catch {
       setErrors([t("vadmin.register.networkError")]);
     } finally {
       setLoading(false);

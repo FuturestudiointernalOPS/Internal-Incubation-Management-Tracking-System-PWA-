@@ -226,7 +226,7 @@ export default function TeamManagementPage({ params }) {
       } else {
         setFormError(t((data.error || t("adminMisc.programTeams.operationFailed")) || "") || (data.error || t("adminMisc.programTeams.operationFailed")));
       }
-    } catch (e) {
+    } catch {
       setFormError(t("adminMisc.programTeams.networkError"));
     } finally {
       setSaving(false);
@@ -248,7 +248,7 @@ export default function TeamManagementPage({ params }) {
         setDeleteTarget(null);
         fetchData(true);
       }
-    } catch (e) {
+    } catch {
       notify("error", t("adminMisc.programTeams.deleteFailed"));
     } finally {
       setDeleting(false);

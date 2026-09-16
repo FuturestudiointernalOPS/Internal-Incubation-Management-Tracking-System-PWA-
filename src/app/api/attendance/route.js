@@ -1,7 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
-import { recalculateKpiProgress } from "@/lib/kpi-progress";
 import { getLocalToday } from "@/lib/constants";
 import {
   addAttendanceDateColumn,

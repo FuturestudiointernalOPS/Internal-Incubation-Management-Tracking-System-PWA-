@@ -50,7 +50,7 @@ export async function GET(req, { params }) {
         const p = progRes.rows[0];
         let deliverables = p.deliverables;
         if (typeof deliverables === "string") {
-          try { deliverables = JSON.parse(deliverables); } catch (e) {}
+          try { deliverables = JSON.parse(deliverables); } catch {}
         }
         program = {
           id: p.id, name: p.name, start_date: p.start_date, end_date: p.end_date,

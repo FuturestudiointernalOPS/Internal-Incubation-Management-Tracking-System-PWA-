@@ -30,7 +30,7 @@ export async function POST(req) {
         if (formRes.rows.length > 0) {
           resolvedGroupName = formRes.rows[0].group_name;
         }
-      } catch (e) {
+      } catch {
         // forms schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
         resolvedGroupName = group_name;
       }
@@ -83,7 +83,7 @@ export async function POST(req) {
         matchStatus: match_status,
         groupName: resolvedGroupName || null,
       });
-    } catch (e) {
+    } catch {
       // form_responses schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
       // continue — campaign_contacts update below still executes
     }

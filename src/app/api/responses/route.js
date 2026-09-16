@@ -23,7 +23,7 @@ export const GET = createHandler({ roles: ["staff", "super_admin"] }, async () =
   let responsesResult;
   try {
     responsesResult = await listFormResponses();
-  } catch (e) {
+  } catch {
     // form_responses schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
     responsesResult = { rows: [] };
   }
@@ -33,7 +33,7 @@ export const GET = createHandler({ roles: ["staff", "super_admin"] }, async () =
   let flaggedResult;
   try {
     flaggedResult = await listFlaggedFormResponses();
-  } catch (e) {
+  } catch {
     // form_responses schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
     flaggedResult = { rows: [] };
   }

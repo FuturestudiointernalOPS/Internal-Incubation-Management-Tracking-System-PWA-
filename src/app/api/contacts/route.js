@@ -39,7 +39,7 @@ export const dynamic = "force-dynamic";
 /**
  * Generates an invite token and sends activation email. Non-blocking.
  */
-async function fireInvite(cid, name, email, role, groupId) {
+async function fireInvite(cid, name, email, role, _groupId) {
   try {
     await ensureTokenHashColumns();
     const token = uuidv4();
@@ -489,7 +489,7 @@ export async function GET(req) {
       } catch (_) {}
     }
     const contacts = (await attachInvitationStatus(rows)).map(
-      ({ password, ...safeContact }) => ({
+      ({ password: _password, ...safeContact }) => ({
         ...safeContact,
         // Derived flags: a participant enrollment OR the legacy role value.
         is_participant:

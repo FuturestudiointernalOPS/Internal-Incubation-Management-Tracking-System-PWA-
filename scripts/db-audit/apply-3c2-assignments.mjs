@@ -84,7 +84,7 @@ try {
     );
 
     // 2) contact_roles mirror (idempotent, matching the API's NOT EXISTS guard)
-    const mirror = await client.query(
+    await client.query(
       `INSERT INTO contact_roles
          (contact_cid, role, context_type, context_id, is_current, title, scope, status, capability_overrides, assigned_by)
        SELECT c.cid, 'facilitator', 'program', $2, true, 'facilitator', '{"type":"program"}'::jsonb, 'active', $3::jsonb, $4

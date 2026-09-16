@@ -62,7 +62,7 @@ async function migrate() {
       args: [],
     });
     console.log("  ✅ v2_op_reports table ready");
-  } catch (e) {
+  } catch {
     console.log("  ⚠️  Table already exists, adding new columns...");
     // If table exists, add any missing columns
     const retroColumns = [

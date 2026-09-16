@@ -26,7 +26,6 @@ export async function GET(req, { params }) {
     const { id } = await params;
     const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
     if (access.error) return access.error;
-    const { session } = access;
     const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { week_number, year } = getWeekNumber();
     const cur = await getRetroForWeek(dbId, week_number, year);

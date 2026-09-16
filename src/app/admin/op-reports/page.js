@@ -13,9 +13,6 @@ import {
   FileText,
   Download,
   Eye,
-  User,
-  ChevronDown,
-  ChevronUp,
   AlertTriangle,
   CheckCircle2,
   TrendingUp,
@@ -23,9 +20,7 @@ import {
   ArrowLeft,
   ListTodo,
   Shield,
-  RefreshCw,
   Briefcase,
-  ChevronRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
@@ -287,7 +282,7 @@ export default function AdminOpReports() {
   }, [reports]);
 
   // Aggregated blocker data (from both op-reports AND dedicated blockers table)
-  const blockerData = useMemo(() => {
+  const _blockerData = useMemo(() => {
     // From op-reports (old format)
     const reportBlockers = reports.filter((r) => r.has_blockers);
     const byUser = {};
@@ -1259,14 +1254,14 @@ export default function AdminOpReports() {
                     String(r.week_number).padStart(2, "0"),
                 ),
               );
-              let streak = 0;
+              let _streak = 0;
               const weekList = [...weekSet].sort().reverse();
               for (let i = 0; i < weekList.length; i++) {
                 if (i === 0) {
-                  streak = 1;
+                  _streak = 1;
                   continue;
                 }
-                streak++;
+                _streak++;
               }
 
               return (
@@ -1532,7 +1527,7 @@ function MonthlyBreakdown({ reports }) {
   );
 }
 
-function TrendsDashboard({ reports, allReports, onViewReport }) {
+function TrendsDashboard({ allReports }) {
   const { t } = useI18n();
   // Monthly report volume
   const monthlyData = useMemo(() => {
@@ -1594,7 +1589,6 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
         <div className="space-y-3">
           {monthlyData.slice(-6).map((m) => {
             const total = m.standups + m.retros;
-            const pct = (total / maxMonthly) * 100;
             return (
               <div key={m.key}>
                 <div className="flex items-center justify-between text-[10px] font-bold text-[var(--text-secondary)] mb-1">
@@ -1712,7 +1706,7 @@ function ReportDetailModal({ report, onClose }) {
   const [weekTasks, setWeekTasks] = useState([]);
   const [weekTasksLoading, setWeekTasksLoading] = useState(false);
   const [projects, setProjects] = useState([]);
-  const [expandedTaskMeta, setExpandedTaskMeta] = useState(null);
+  const [expandedTaskMeta] = useState(null);
   const [taskLogs, setTaskLogs] = useState({});
   const pdfContentRef = useRef(null);
 
@@ -1778,14 +1772,14 @@ function ReportDetailModal({ report, onClose }) {
     );
   };
 
-  const fetchTaskLogs = async (taskId) => {
+  const _fetchTaskLogs = async (taskId) => {
     if (taskLogs[taskId]) return;
     try {
       const res = await fetch(`/api/tasks/logs?task_id=${taskId}`);
       const data = await res.json();
       if (data.success)
         setTaskLogs((prev) => ({ ...prev, [taskId]: data.logs || [] }));
-    } catch (e) {
+    } catch {
       /* silent */
     }
   };
@@ -2299,10 +2293,8 @@ function ReportDetailModal({ report, onClose }) {
                   const trace = [];
                   for (let i = weeks; i >= 0; i--) {
                     let w = report.week_number - i;
-                    let y = report.year;
                     if (w < 1) {
                       w += 52;
-                      y--;
                     }
                     trace.push(`W${w}`);
                   }

@@ -11,7 +11,7 @@ import path from "path";
  * Requires super_admin authentication.
  * Safe to re-run — all operations use IF NOT EXISTS / ADD COLUMN IF NOT EXISTS.
  */
-export async function POST(req) {
+export async function POST(_req) {
   try {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
@@ -89,7 +89,7 @@ export async function POST(req) {
  *
  * Dry-run: reads the SQL file and returns it for review.
  */
-export async function GET(req) {
+export async function GET(_req) {
   try {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;

@@ -181,7 +181,7 @@ const getPool = () => {
     });
 
     // Remove idle connections more aggressively to avoid stale sockets
-    pgPool.on("remove", (client) => {
+    pgPool.on("remove", (_client) => {
       // Connection was removed from pool — normal lifecycle
     });
 

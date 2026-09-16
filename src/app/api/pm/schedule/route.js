@@ -5,7 +5,7 @@ import { getOwnSchedule, getSuperAdminSchedule } from "@/models/programWorkspace
 
 export const GET = createHandler(
   { roles: ["staff", "super_admin", "program_manager"] },
-  async (req) => {
+  async (_req) => {
     try {
       const session = await getSession();
 

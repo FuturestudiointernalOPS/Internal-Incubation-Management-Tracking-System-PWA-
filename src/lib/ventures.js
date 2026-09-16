@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { hashToken } from "@/lib/token-hashing";
 import { isUnknownColumnError } from "@/lib/ventureInput";
@@ -405,7 +405,6 @@ export async function resolveTeamMembersForPromotion(teamId) {
  */
 export function validateCompanyInfo({
   company_name,
-  registration_number,
   industry,
   business_stage,
   founder_email,
@@ -745,7 +744,7 @@ export async function notifyVentureFounders(dbId, title, message, context = {}, 
         templateKey, params, dedupeKey: dedupeKey ? `sa:${dedupeKey}` : null,
       });
     }
-  } catch (e) { /* non-blocking */ }
+  } catch { /* non-blocking */ }
 }
 
 /**
@@ -756,7 +755,7 @@ export async function sendFounderInvitation({ email, name, venture_name, token }
   const { sendInviteEmail } = await import("@/lib/email");
   const { resolveAppUrl } = await import("@/lib/appUrl");
   const appUrl = resolveAppUrl();
-  const activationUrl = `${appUrl}/activate?token=${token}&venture=${encodeURIComponent(venture_name)}`;
+  const _activationUrl = `${appUrl}/activate?token=${token}&venture=${encodeURIComponent(venture_name)}`;
 
   return sendInviteEmail({
     to: email,
@@ -901,7 +900,7 @@ export async function updateVenture(ventureId, updates) {
  * founder), the change is appended to ownership_history and audited.
  * A Venture can never end up without a lead through this action.
  */
-export async function changeVentureLead({ ventureId, memberId, actorCid, actorName }) {
+export async function changeVentureLead({ ventureId, memberId, actorCid }) {
   const memberRes = await db.execute({
     sql: "SELECT * FROM venture_members WHERE id = ? AND venture_id = ? AND removed_at IS NULL",
     args: [memberId, ventureId],
@@ -1609,7 +1608,7 @@ export async function submitStartupProfile({ ventureId, submittedBy }) {
   });
 
   // Log activity
-  const { logVentureActivity, addVentureHistory, createVentureNotification } = await import("./ventures");
+  const { logVentureActivity, addVentureHistory } = await import("./ventures");
   await logVentureActivity({
     venture_id: ventureId,
     action: "PROFILE_SUBMITTED",
@@ -1868,7 +1867,6 @@ export async function getFounderById(founderId) {
  */
 export async function inviteFounder({
   ventureId,
-  invitedByFounderId,
   email,
   name,
   role,
@@ -2928,8 +2926,6 @@ export async function getGanttData(ventureId) {
  * Get delay detection summary.
  */
 export async function getDelaySummary(ventureId) {
-  const now = new Date();
-
   const overdueTasks = await db.execute({
     sql: `SELECT id, title, status, due_date FROM venture_tasks WHERE venture_id = ? AND due_date IS NOT NULL AND due_date < NOW() AND status NOT IN ('done', 'cancelled') ORDER BY due_date ASC`,
     args: [ventureId],
@@ -2984,8 +2980,6 @@ export async function removeDependency(dependencyId) {
  * Compute full project analytics for a venture.
  */
 export async function getVentureAnalytics(ventureId) {
-  const now = new Date();
-
   // ── Project Summary ──
   const [mRes, tRes, dRes] = await Promise.all([
     db.execute({ sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as done, SUM(CASE WHEN status='delayed' THEN 1 ELSE 0 END) as delayed FROM venture_milestones WHERE venture_id=?", args: [ventureId] }),
@@ -3846,7 +3840,6 @@ function getInvestmentLevel(score) {
  */
 export async function calculateInvestmentReadiness(ventureId) {
   const scores = {};
-  const now = new Date();
 
   // 1. Startup Profile (exists + submitted + completion %)
   let profileScore = 0;
@@ -4130,7 +4123,7 @@ export async function getInvestmentRecommendations(ventureId) {
 // ENHANCEMENT 4.2: INVESTOR MATCHING
 // =============================================================================
 
-export async function listInvestors({ industry, status, search, limit = 50 } = {}) {
+export async function listInvestors({ status, search, limit = 50 } = {}) {
   let sql = "SELECT * FROM venture_investors WHERE 1=1";
   const args = [];
   if (status) { sql += " AND status = ?"; args.push(status); }
@@ -4287,12 +4280,12 @@ export async function uploadDocument({ ventureId, title, description, documentTy
     args: [ventureId, title.trim(), description||null, documentType||"other", category||"other", fileName, fileSize||null, fileType||null, fileUrl, fileUrl, thumbnailUrl||null, isPitchDeck?1:0, uploadedBy||"system"],
   })).rows[0]?.id;
   // Ensure version table columns exist (schema compatibility)
-  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS version_number INTEGER" }); } catch(e){}
-  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS version INTEGER" }); } catch(e){}
-  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS file_name TEXT" }); } catch(e){}
-  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS file_size BIGINT" }); } catch(e){}
-  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS change_notes TEXT" }); } catch(e){}
-  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS storage_path TEXT" }); } catch(e){}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS version_number INTEGER" }); } catch {}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS version INTEGER" }); } catch {}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS file_name TEXT" }); } catch {}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS file_size BIGINT" }); } catch {}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS change_notes TEXT" }); } catch {}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS storage_path TEXT" }); } catch {}
   await db.execute({ sql: `INSERT INTO venture_document_versions (document_id, version_number, version, file_name, file_size, file_url, storage_path, uploaded_by, change_notes) VALUES (?, 1, 1, ?, ?, ?, ?, ?, 'v1')`, args: [id, fileName, fileSize||null, fileUrl, fileUrl, uploadedBy||"system"] });
   return { id };
 }
@@ -5368,7 +5361,7 @@ export async function revokeApiKey(keyId, revokedBy) {
   return { success: true };
 }
 
-export async function rotateApiKey(keyId, rotatedBy) {
+export async function rotateApiKey(keyId, _rotatedBy) {
   const key = (await db.execute({ sql: "SELECT * FROM api_keys WHERE key_id=? AND is_active=TRUE", args: [keyId] })).rows[0];
   if (!key) throw new Error("API key not found or inactive.");
   const newSecret = generateApiKeySecret();
@@ -5492,7 +5485,7 @@ export async function getWebhooks({ ventureId, event, isActive, limit=50, offset
   return (await db.execute({ sql, args })).rows || [];
 }
 
-export async function deleteWebhook(id, deletedBy) {
+export async function deleteWebhook(id, _deletedBy) {
   const wh = (await db.execute({ sql: "SELECT * FROM webhooks WHERE id=?", args: [id] })).rows[0];
   if (!wh) throw new Error("Webhook not found.");
   await db.execute({ sql: "DELETE FROM webhooks WHERE id=?", args: [id] });

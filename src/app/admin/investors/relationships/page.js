@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   Users, Building2, Calendar, Loader2, Plus, CheckCircle2,
-  Clock, ArrowRight, History, MessageSquare, UserPlus, X, Edit3,
-  FileText, Target, ChevronLeft, Video, MapPin, Phone, Shield, AlertCircle, Upload,
+  ArrowRight, UserPlus, X,
+  FileText, Target, ChevronLeft, MapPin, Shield, Upload,
 } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";

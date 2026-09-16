@@ -4,74 +4,21 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
 import {
-  CheckCircle2,
   Clock,
   AlertCircle,
   Calendar,
   Target,
   BookOpen,
-  ChevronRight,
   Bell,
   FileText,
-  TrendingUp,
   Users,
-  Zap,
   BarChart3,
-  MessageSquare,
-  ArrowRight,
-  Loader2,
   RefreshCw,
-  ExternalLink,
   Layers,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import CalendarPanel from "@/components/ui/CalendarPanel";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
-
-// ─── Progress Ring ─────────────────────────────────────────────────
-function ProgressRing({
-  percent,
-  size = 80,
-  strokeWidth = 6,
-  color = "#FF6600",
-}) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (percent / 100) * circumference;
-
-  return (
-    <div className="relative inline-flex items-center justify-center">
-      <svg width={size} height={size}>
-        {/* Rotation around the circle center via SVG attribute (CSS transform
-            on <svg> clips the ring at the top-left in some browsers). */}
-        <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="transparent"
-            stroke="currentColor"
-            strokeWidth={strokeWidth}
-            className="text-white/10"
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="transparent"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            strokeLinecap="round"
-            className="transition-all duration-1000 ease-out"
-          />
-        </g>
-      </svg>
-      <span className="absolute text-lg font-black text-white">{percent}%</span>
-    </div>
-  );
-}
 
 // ─── Metric Card ────────────────────────────────────────────────────
 function MetricCard({ label, value, icon: Icon, color, trend }) {
@@ -217,7 +164,7 @@ export default function ParticipantDashboardHome() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
 
   const fetchDashboard = useCallback(async () => {
     const url = "/api/participant/home";
@@ -242,7 +189,7 @@ export default function ParticipantDashboardHome() {
       } else {
         setError(t((result.error || t("participantMisc.dashboardHome.failedToLoad")) || "") || (result.error || t("participantMisc.dashboardHome.failedToLoad")));
       }
-    } catch (e) {
+    } catch {
       setError(t("participantMisc.dashboardHome.networkError"));
     } finally {
       setLoading(false);
@@ -305,16 +252,10 @@ export default function ParticipantDashboardHome() {
   const {
     participant,
     primaryProgram,
-    programs,
     actionCenter,
     calendarEvents,
     announcements,
   } = data;
-  const hasActions =
-    actionCenter.overdue.length > 0 ||
-    actionCenter.dueSoon.length > 0 ||
-    actionCenter.pendingSubmissions.length > 0 ||
-    actionCenter.upcomingSessions.length > 0;
 
   // ── Main Dashboard ───────────────────────────────────────────────
   return (

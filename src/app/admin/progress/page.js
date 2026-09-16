@@ -6,11 +6,7 @@ import {
   Briefcase,
   ChevronRight,
   Search,
-  Filter,
-  LayoutDashboard,
-  Clock,
   Target,
-  Zap,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";

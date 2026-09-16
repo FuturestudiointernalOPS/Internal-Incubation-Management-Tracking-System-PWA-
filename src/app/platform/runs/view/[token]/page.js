@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useState } from "react";
-import { Eye, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Eye } from "lucide-react";
 
 export default function RunViewPage({ params }) {
   const token = params.token;
@@ -48,7 +48,6 @@ export default function RunViewPage({ params }) {
   }
 
   const { run, submissions } = data;
-  const statusIcons = { pending: "pending", approved: "approved", rejected: "rejected" };
   return (
     <div className="min-h-screen bg-[#0f1117] p-6">
       <div className="max-w-4xl mx-auto space-y-6">

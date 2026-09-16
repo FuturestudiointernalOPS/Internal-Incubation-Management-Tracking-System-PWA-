@@ -8,7 +8,7 @@ import NavHistoryTracker from "@/components/NavHistoryTracker";
 import NavigationLoader from "@/components/ui/NavigationLoader";
 
 export default function RootLayout({ children }) {
-  const [themeReady, setThemeReady] = useState(false);
+  const [, setThemeReady] = useState(false);
 
   useEffect(() => {
     setThemeReady(true);

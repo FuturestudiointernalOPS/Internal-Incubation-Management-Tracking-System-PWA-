@@ -13,7 +13,6 @@ import {
   getSheetJSON,
   excelDateToISO,
   PROJECT_SHEETS,
-  BUDGET_SHEET_MAP,
 } from "@/lib/finance";
 
 // ─── Sheet Parsing ───────────────────────────────────────────────────────────
@@ -201,7 +200,7 @@ export async function ingestFromSheet(dataSourceId) {
   const ds = dsResult.rows[0];
 
   // 2. Fetch the workbook
-  const workbook = await fetchWorkbook(ds.source_url);
+  await fetchWorkbook(ds.source_url);
   const fiscalYear = ds.fiscal_year || "2025-2026";
 
   // 3. Build program lookup
@@ -229,7 +228,7 @@ export async function ingestFromSheet(dataSourceId) {
 
   // --- Parse project-specific sheets ---
   const projectTransactions = [];
-  for (const [projectName, sheetName] of Object.entries(PROJECT_SHEETS)) {
+  for (const [, sheetName] of Object.entries(PROJECT_SHEETS)) {
     if (sheetName === "Réalisations globales" || sheetName === "Suivi budgétaire") {
       continue; // Already parsed above
     }
@@ -248,7 +247,7 @@ export async function ingestFromSheet(dataSourceId) {
   try {
     // --- Upsert budget lines ---
     for (const line of budgetLines) {
-      const upsertResult = await db.execute(
+      await db.execute(
         `INSERT INTO finance_budget_lines
            (data_source_id, program_id, planned_amount, fiscal_year)
          VALUES (?, ?, ?, ?)
@@ -356,7 +355,7 @@ export async function ingestFromSheet(dataSourceId) {
  * - Handles errors gracefully
  */
 export async function syncDataSource(dataSourceId, syncType = "manual") {
-  const startTime = new Date();
+  const _startTime = new Date();
 
   // Create sync log entry
   const logResult = await db.execute(

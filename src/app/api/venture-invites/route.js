@@ -7,7 +7,7 @@ import { initDb } from "@/lib/db";
 // Ventures outside the Forms/Runs pipeline. It has been retired. Use
 // POST /api/platform/venture-invitations instead (sends the official
 // Venture intake form/run URL; approval creates the Venture).
-export async function POST(req) {
+export async function POST(_req) {
   try {
     await initDb();
     return NextResponse.json(

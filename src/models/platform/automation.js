@@ -12,7 +12,6 @@
 import {
   audit,
   sendSubmissionConfirmation,
-  summarizeSubmission,
   notifyUser,
 } from "@/lib/platform/integrations";
 import { resolveDefaultRole } from "@/lib/platform/roles";
@@ -77,7 +76,7 @@ async function syncCrmContact(submission) {
       args: [cid, name || "Applicant", email.toLowerCase().trim(), phone || null],
     });
     return cid;
-  } catch (e) { return null; }
+  } catch { return null; }
 }
 
 async function writeCrmTimeline(cid, type, desc, module, ctxId, actor, meta) {
@@ -89,7 +88,7 @@ async function writeCrmTimeline(cid, type, desc, module, ctxId, actor, meta) {
             VALUES (?, ?, ?, ?, ?, ?, ?::jsonb)`,
       args: [cid, type, desc, module, String(ctxId), actor || "system", JSON.stringify(meta || {})],
     });
-  } catch (e) {}
+  } catch {}
 }
 
 // ─── AUTOMATION RULES ──────────────────────────────────────────────
@@ -101,7 +100,7 @@ const RULES = [
     description: "Log audit + notify submitter",
     condition: (ctx) => ctx.submission?.status === "submitted",
     action: async (ctx) => {
-      const { submission, run, form, session } = ctx;
+      const { submission, run } = ctx;
 
       await audit({
         entity_type: "submission",
@@ -235,7 +234,7 @@ const RULES = [
             await writeCrmTimeline(ctx.submission.submitter_id, "participant_enrolled",
               "Enrolled in program", "programs", pid, "system", { program_id: pid });
           }
-        } catch (e) {}
+        } catch {}
       }
 
       // ── Group assignment from form run (respects automation config) ──
@@ -280,7 +279,7 @@ const RULES = [
               }
             }
           }
-        } catch (e) {}
+        } catch {}
       }
 
       // ── Create platform user + send activation email (respects workflow settings) ──

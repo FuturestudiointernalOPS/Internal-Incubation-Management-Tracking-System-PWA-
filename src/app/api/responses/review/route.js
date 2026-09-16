@@ -28,14 +28,14 @@ export const POST = createHandler(
 
     try {
       await resolveFormResponseMatch({ responseId: response_id, cid });
-    } catch (e) {
+    } catch {
       // form_responses schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
     }
 
     let responseData;
     try {
       responseData = await getFormResponseById(response_id);
-    } catch (e) {
+    } catch {
       // form_responses schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
       responseData = { rows: [] };
     }

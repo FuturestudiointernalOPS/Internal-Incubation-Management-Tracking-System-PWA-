@@ -2,10 +2,8 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import {
   requireAuth,
-  getSession,
   getUserResponsibilities,
   getAllResponsibilities,
-  logPermissionAudit,
   seedDefaultResponsibilities,
 } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";

@@ -9,7 +9,7 @@ import ProfileView from "@/components/dashboard/ProfileView";
  * All roles share the same ProfileView component.
  */
 export default function DeveloperProfilePage() {
-  const [role, setRole] = useState("developer");
+  const [, setRole] = useState("developer");
 
   useEffect(() => {
     try {

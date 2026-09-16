@@ -48,7 +48,7 @@ export async function GET(req) {
     try {
       const result = await getUserGroups(userCid);
       groups = result.rows.map((r) => r.group_name);
-    } catch (e) {
+    } catch {
       // user_groups table may not exist yet — fall through to legacy group_name
       groups = [];
     }

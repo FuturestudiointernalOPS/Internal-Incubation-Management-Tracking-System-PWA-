@@ -374,7 +374,7 @@ export async function PATCH(req) {
           ? new Date(`${followup_date}T${followup_time}`)
           : new Date(followup_date);
 
-        const eventRes = await createSubmissionFollowupEvent({
+        await createSubmissionFollowupEvent({
           program_id: sub.program_id,
           title: eventTitle,
           description: followup_notes || null,

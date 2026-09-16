@@ -5,7 +5,7 @@ import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth"
 import {
   listOpportunities, getOpportunity, createOpportunity, updateOpportunity, deleteOpportunity,
   addOpportunityNote, addOpportunityActivity, getPipelineAnalytics,
-  PIPELINE_STAGES, ACTIVITY_TYPES,
+  ACTIVITY_TYPES,
 } from "@/lib/ventures";
 
 export const GET = createHandler(async (req, { params }) => {

@@ -42,10 +42,6 @@ const RATING_OPTIONS = [
   { label: "5 - Strongly Agree", value: "5" },
 ];
 
-function ratingField(label, sort) {
-  return { field_type: "rating", label, required: true, options: RATING_OPTIONS, settings: { scored: true }, sort_order: sort };
-}
-
 const SCORED_SECTIONS = [
   {
     title: "Founder Motivation", weight: 10,
@@ -259,8 +255,6 @@ export async function POST() {
     }
 
     // ── Scored sections ──
-    const isRevenueField = (label) => label === "Monthly Recurring Revenue (USD)" || label === "Number of Paying Customers";
-    const isIdeaField = (label) => label === "Describe your idea validation approach" || label === "Have you conducted any customer interviews?";
 
     for (const sec of SCORED_SECTIONS) {
       const secRes = await insertScoredAssessmentSection(formId, sec.title, sortOrder++);

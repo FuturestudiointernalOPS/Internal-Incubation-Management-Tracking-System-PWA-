@@ -16,7 +16,7 @@ import {
  * Returns operational data for the Head of Development dashboard.
  * Shows: active devs, assignments, overdue tasks, unresolved bugs, blockers.
  */
-export async function GET(request) {
+export async function GET(_request) {
   try {
     const capError = await requireAuthorization("engineering", "view");
     if (capError) return capError;

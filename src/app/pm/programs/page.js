@@ -2,13 +2,9 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  Rocket,
   Users,
-  Calendar,
   ArrowRight,
   Layers,
-  Layout,
-  ChevronRight,
   Briefcase,
   Search,
   Activity,
@@ -45,7 +41,7 @@ export default function PMProgramsRegistry() {
   const router = useRouter();
 
   const [tasks, setTasks] = useState([]);
-  const [tasksLoading, setTasksLoading] = useState(true);
+  const [, setTasksLoading] = useState(true);
   const { t } = useI18n();
 
   useEffect(() => {
@@ -392,7 +388,7 @@ export default function PMProgramsRegistry() {
                                     }),
                                   );
                                 }
-                              } catch (err) {}
+                              } catch {}
                             }}
                             className="px-8 py-3 bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white hover:text-emerald-500 transition-all shadow-xl shadow-emerald-500/20 flex items-center gap-2"
                           >

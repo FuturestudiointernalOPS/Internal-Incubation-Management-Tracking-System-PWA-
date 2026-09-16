@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { User, AlertTriangle, Check, X, ArrowRight, RefreshCw, ArrowLeft } from "lucide-react";
+import { AlertTriangle, Check, ArrowRight, RefreshCw, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";

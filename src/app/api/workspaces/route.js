@@ -34,7 +34,7 @@ function assignmentHref(role, programId) {
   return roleHomeHref(r);
 }
 
-export async function GET(req) {
+export async function GET(_req) {
   try {
     await initDb();
     const authError = await requireAuth();

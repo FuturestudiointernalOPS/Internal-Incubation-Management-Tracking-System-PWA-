@@ -7,7 +7,7 @@ import {
   FileText, Plus, Search, Loader2, Edit3, Archive, Copy,
   Eye, Grid3X3, X, ChevronUp, ChevronDown, Trash2,
   CheckSquare, Circle, List, Hash, Mail, PhoneIcon, Calendar,
-  Clock, Star, FileUp, Link, DollarSign, PenTool, AlignLeft,
+  Clock, Star, Link, DollarSign, PenTool, AlignLeft,
   Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play, FolderKanban, GitBranch, Send, Key, LogIn, XCircle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -105,7 +105,7 @@ export default function PlatformForms() {
   const [saving, setSaving] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [selectedFieldId, setSelectedFieldId] = useState(null); // Now uses field temp ID, not array index
-  const [addingFieldType, setAddingFieldType] = useState(null);
+  const [, setAddingFieldType] = useState(null);
   const [activeSectionId, setActiveSectionId] = useState(null); // Track which section new fields go into
 
   // Scoring config panel
@@ -307,7 +307,7 @@ export default function PlatformForms() {
         const fwRes = await fetch(`/api/platform/ai/evaluation-config?form_id=${editingForm.id}`);
         const fwJson = await fwRes.json();
         if (fwJson.success && fwJson.framework) fwData = fwJson.framework;
-      } catch (e) {}
+      } catch {}
 
       const res = await fetch("/api/platform/forms", {
         method: "POST",
@@ -1646,7 +1646,7 @@ export default function PlatformForms() {
                     });
                     if (res.ok) notify(t("platformMisc.forms.aiEvalFrameworkSaved"));
                     else notify(t("platformMisc.forms.aiEvalSaveFailed"));
-                  } catch (e) {}
+                  } catch {}
                   setSaving(false);
                 }}
                 disabled={saving}

@@ -46,7 +46,6 @@ export async function POST(req) {
       start_date,
       end_date,
       priority,
-      department,
       assigned_pm_id,
       assigned_pm_ids = [],
     } = body;

@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from "react";
 import {
-  Users, Building2, CheckCircle2, XCircle, AlertCircle,
-  Search, Loader2, Shield, Clock, Ban, UserCheck, Copy, Check, Link,
+  Building2, CheckCircle2, XCircle,
+  Search, Loader2, Clock, Ban, Check, Link,
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
@@ -38,7 +37,7 @@ export default function AdminInvestorsPage() {
   const [search, setSearch] = useState("");
   const [acting, setActing] = useState(null);
   const [detail, setDetail] = useState(null);
-  const [toast, setToast] = useState(null);
+  const [, setToast] = useState(null);
   const [copied, setCopied] = useState(false);
   const { t } = useI18n();
 

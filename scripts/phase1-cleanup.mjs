@@ -76,7 +76,7 @@ try {
     [G],
   );
   refs["contacts.group_name"] = Number(r.rows[0].n);
-} catch (e) {
+} catch {
   refs["contacts.group_name"] = "n/a";
 }
 console.log("References to lowercase group:", JSON.stringify(refs));

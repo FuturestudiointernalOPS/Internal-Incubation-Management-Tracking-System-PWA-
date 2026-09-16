@@ -24,7 +24,6 @@ const {
   STATUS_WORD_IDS,
   STATUS_TONE_CLASSES,
   statusWord,
-  storedStatusWord,
   stageStatusWord,
   milestoneStatusWord,
   deliverableStatusWord,

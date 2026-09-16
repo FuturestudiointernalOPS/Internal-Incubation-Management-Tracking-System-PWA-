@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Loader2, CheckCircle2, AlertCircle, AlertTriangle, X, Plus, Trash2, User, Mail, Phone,
-  Globe, Linkedin, BookOpen, Clock, Star, Calendar,
+  ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Trash2, Mail,
+  BookOpen, Star,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";

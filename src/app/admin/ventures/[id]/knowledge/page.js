@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Search, BookOpen, Bookmark,
-  ExternalLink, Clock, Eye, Filter, FileText, Video, Link as LinkIcon, TrendingUp, Target,
+  ExternalLink, Clock, Eye, FileText, Video, Link as LinkIcon, TrendingUp,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
@@ -19,7 +19,7 @@ export default function VentureKnowledgePage() {
   const { id } = useParams();
   const router = useRouter();
   const { t } = useI18n();
-  const [venture, setVenture] = useState(null);
+  const [, setVenture] = useState(null);
   const [resources, setResources] = useState([]);
   const [categories, setCategories] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
@@ -36,7 +36,6 @@ export default function VentureKnowledgePage() {
   // Learning
   const [learningProgress, setLearningProgress] = useState(null);
   const [learningPaths, setLearningPaths] = useState([]);
-  const [allPaths, setAllPaths] = useState([]);
 
   // Create form
   const [crForm, setCrForm] = useState({ title: "", description: "", resource_type: "article", category_id: "", url: "", tags: "" });

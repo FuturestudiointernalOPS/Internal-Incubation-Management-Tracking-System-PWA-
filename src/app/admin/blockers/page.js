@@ -10,11 +10,8 @@ import {
   ArrowLeft,
   X,
   CheckCircle2,
-  Clock,
-  Eye,
   Shield,
   ListTodo,
-  ChevronRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";

@@ -119,7 +119,7 @@ export async function GET(req) {
     // Derive invitation/account status (Not Invited / Sent / Activated / Expired)
     // and strip the password hash so it is never sent to the browser.
     const contactsWithInvitation = (await attachInvitationStatus(normalizedContacts)).map(
-      ({ password, ...safeContact }) => safeContact,
+      ({ password: _password, ...safeContact }) => safeContact,
     );
 
     // Attach activation EMAIL status from platform_email_log — the same

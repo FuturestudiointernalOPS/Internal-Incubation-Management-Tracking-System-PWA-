@@ -5,17 +5,10 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import {
   Zap,
   CheckCircle2,
-  Clock,
-  AlertCircle,
   Send,
-  RefreshCw,
-  BookOpen,
-  MessageSquare,
   Lightbulb,
-  Target,
-  ChevronDown,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 
 // ─── RITUAL TYPES ──────────────────────────────────────────────────
@@ -242,7 +235,7 @@ export default function RitualsView() {
         cacheSet(url, data);
         apply(data);
       }
-    } catch (e) {
+    } catch {
       /* ignore */
     }
   }, []);
@@ -277,7 +270,7 @@ export default function RitualsView() {
         }),
       );
       apply(perType);
-    } catch (e) {
+    } catch {
       /* ignore */
     } finally {
       setLoading(false);
@@ -297,7 +290,7 @@ export default function RitualsView() {
         body: JSON.stringify(payload),
       });
       fetchHistory(true);
-    } catch (e) {
+    } catch {
       /* ignore */
     }
   };

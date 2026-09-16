@@ -7,15 +7,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   Clock,
-  TrendingUp,
-  Activity,
   RefreshCw,
-  Calendar,
-  Users,
   ListTodo,
-  Shield,
-  ArrowUp,
-  ArrowDown,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";

@@ -26,7 +26,6 @@ export async function resolve(specifier, context, nextResolve) {
     const srcBase = fileURLToPath(new URL("../../src/", import.meta.url));
     const rel = specifier.slice(2);
     const asFile = `${srcBase}${rel}.js`;
-    const asDir = `${srcBase}${rel}/index.js`;
     const url = new URL(
       existsSync(asFile) ? `${rel}.js` : `${rel}/index.js`,
       new URL("../../src/", import.meta.url)

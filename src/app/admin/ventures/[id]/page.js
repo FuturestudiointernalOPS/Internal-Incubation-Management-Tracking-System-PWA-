@@ -9,14 +9,11 @@ import {
   User,
   Mail,
   Phone,
-  Globe,
   Calendar,
-  Clock,
   TrendingUp,
   Users,
   FileText,
   Loader2,
-  ChevronRight,
   ExternalLink,
   Activity,
   CheckCircle2,
@@ -154,7 +151,7 @@ export default function VentureDetailPage({ params }) {
       const data = await res.json();
       if (data.success) cacheSet(url, data);
       apply(data);
-    } catch (e) {
+    } catch {
       if (!painted) setError(t("vadmin.detail.ventureLoadError"));
     } finally {
       setLoading(false);

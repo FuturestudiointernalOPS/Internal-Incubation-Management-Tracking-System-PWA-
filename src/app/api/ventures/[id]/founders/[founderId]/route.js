@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
-import { requireVentureAccess } from "@/lib/ventureAuth";
-import db from "@/lib/db";
 import {
   getFounderById,
   updateFounderRole,
   removeFounder,
   canManageFounders,
   logVentureActivity,
-  createVentureNotification,
 } from "@/lib/ventures";
 
 /**
@@ -57,7 +54,7 @@ export const PATCH = createHandler(
     const body = await req.json();
     const { role, title, phone, name } = body;
 
-    const result = await updateFounderRole({
+    await updateFounderRole({
       founderId: parseInt(founderId),
       role,
       title,

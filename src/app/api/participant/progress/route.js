@@ -19,7 +19,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req) {
+export async function GET(_req) {
   try {
     await initDb();
     const authError = await requireAuth();

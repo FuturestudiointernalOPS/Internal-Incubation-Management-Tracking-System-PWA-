@@ -11,7 +11,7 @@ import { Award, Loader2 } from "lucide-react";
  */
 export default function ParticipantCertificatesPage() {
   const { t } = useI18n();
-  const [user, setUser] = useState(null);
+  const [, setUser] = useState(null);
   const [certificates, setCertificates] = useState(null);
   const [loading, setLoading] = useState(true);
 

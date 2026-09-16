@@ -37,7 +37,7 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
       } else {
         setError(d.error || t("venture.manager.notes.loadFailed"));
       }
-    } catch (e) {
+    } catch {
       setError(t("venture.manager.notes.loadFailed"));
     } finally {
       setLoading(false);
@@ -75,7 +75,7 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
       } else {
         setError(d.error || t("venture.manager.notes.postFailed"));
       }
-    } catch (err) {
+    } catch {
       setError(t("venture.manager.notes.postFailed"));
     } finally {
       setPosting(false);
@@ -96,7 +96,7 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
       } else {
         setError(d.error || t("venture.manager.notes.deleteFailed"));
       }
-    } catch (err) {
+    } catch {
       setError(t("venture.manager.notes.deleteFailed"));
     }
   };

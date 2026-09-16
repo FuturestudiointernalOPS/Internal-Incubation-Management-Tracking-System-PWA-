@@ -22,7 +22,7 @@ export const GET = createHandler(async () => {
  * Runs outstanding platform migrations (idempotent — safe to call multiple times).
  * Only accessible to super_admin.
  */
-export async function POST(req) {
+export async function POST(_req) {
   try {
     await initDb();
     const capError = await requireAuthorization("settings", "edit");

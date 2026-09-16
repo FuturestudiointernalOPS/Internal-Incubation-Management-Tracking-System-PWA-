@@ -21,7 +21,6 @@ import AssessmentModal from "./AssessmentModal";
 import AssessmentViewModal from "./AssessmentViewModal";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
-import { extractYouTubeVideoId } from "@/lib/lms/youtube";
 
 /**
  * Section/lesson/assessment authoring area of the course editor.

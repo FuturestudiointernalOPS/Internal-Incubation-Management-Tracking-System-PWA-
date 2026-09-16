@@ -122,7 +122,7 @@ export default function VentureStaffAssignmentsPage() {
       } else {
         notify(d.error || "Assignment failed.", "error");
       }
-    } catch (err) {
+    } catch {
       notify("Assignment failed.", "error");
     } finally {
       setSaving(false);

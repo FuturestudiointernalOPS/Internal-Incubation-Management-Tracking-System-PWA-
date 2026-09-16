@@ -48,8 +48,8 @@ export async function POST(req, { params }) {
     // the existing Operations OS task-completion blocker-lock check filters on
     // (src/app/api/tasks/route.js), so this blocker correctly blocks completion
     // of the task it's attached to.
-    try { await dropBlockersTaskForeignKeyIfExists(); } catch(e) {}
-    try { await addSupportingUrlColumnToBlockers(); } catch(e) {}
+    try { await dropBlockersTaskForeignKeyIfExists(); } catch {}
+    try { await addSupportingUrlColumnToBlockers(); } catch {}
     await insertVentureBlocker({ task_id, title, description, venture_id: dbId, venture_retro_id, user_id: session.cid, user_name: contact.rows?.[0]?.name, supporting_url });
     return NextResponse.json({ success: true });
   } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }

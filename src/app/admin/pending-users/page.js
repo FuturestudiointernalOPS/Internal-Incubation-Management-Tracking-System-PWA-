@@ -13,7 +13,6 @@ import {
   Clock,
   Shield,
   UserCheck,
-  UserX,
   Search,
   ChevronDown,
   ChevronRight,
@@ -109,7 +108,7 @@ export default function PendingUsersPage() {
           text: t((data.error || t("adminMisc.pendingUsers.failApprove")) || "") || (data.error || t("adminMisc.pendingUsers.failApprove")),
         });
       }
-    } catch (err) {
+    } catch {
       setActionMsg({
         type: "error",
         text: t("adminMisc.pendingUsers.networkApproveError"),
@@ -141,7 +140,7 @@ export default function PendingUsersPage() {
           text: t((data.error || t("adminMisc.pendingUsers.failArchive")) || "") || (data.error || t("adminMisc.pendingUsers.failArchive")),
         });
       }
-    } catch (err) {
+    } catch {
       setActionMsg({
         type: "error",
         text: t("adminMisc.pendingUsers.networkError"),
@@ -172,7 +171,7 @@ export default function PendingUsersPage() {
           text: t((data.error || t("adminMisc.pendingUsers.failResend")) || "") || (data.error || t("adminMisc.pendingUsers.failResend")),
         });
       }
-    } catch (err) {
+    } catch {
       setActionMsg({
         type: "error",
         text: t("adminMisc.pendingUsers.networkError"),
@@ -204,7 +203,7 @@ export default function PendingUsersPage() {
           text: t((data.error || t("adminMisc.pendingUsers.failReject")) || "") || (data.error || t("adminMisc.pendingUsers.failReject")),
         });
       }
-    } catch (err) {
+    } catch {
       setActionMsg({
         type: "error",
         text: t("adminMisc.pendingUsers.networkRejectError"),

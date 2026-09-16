@@ -5,12 +5,7 @@ import {
   Briefcase,
   Search,
   Users,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
   ChevronRight,
-  Shield,
-  BarChart3,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
@@ -125,7 +120,7 @@ export default function MyProjects() {
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || t("staffMisc.projects.failedToRespond")) || "") || (data.error || t("staffMisc.projects.failedToRespond")) } }));
       }
-    } catch (e) {
+    } catch {
       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t("staffMisc.projects.networkError") } }));
     } finally {
       setResponding(null);

@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import {
-  Building2, Target, TrendingUp, DollarSign, Calendar, Loader2,
+  Building2, Target, DollarSign, Calendar, Loader2,
   ArrowLeft, BarChart3, MessageSquare, Plus, Send, FileText,
-  Activity, MapPin, Video, X, Edit3, Trash2,
+  Activity, X,
 } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
@@ -210,8 +210,6 @@ export default function PortfolioPage() {
   if (loading) {
     return <><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>;
   }
-
-  const STAGE_COLORS = { interested:"bg-slate-500/10 text-slate-400",watching:"bg-blue-500/10 text-blue-400",meeting_requested:"bg-amber-500/10 text-amber-400",due_diligence:"bg-purple-500/10 text-purple-400",negotiation:"bg-orange-500/10 text-orange-400",invested:"bg-emerald-500/10 text-emerald-400",declined:"bg-rose-500/10 text-rose-400"};
 
   // Company detail
   if (selected) {

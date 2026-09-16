@@ -18,17 +18,6 @@ function jsonList(value) {
   return arr.slice(0, 100).map((v) => (typeof v === "string" ? v.slice(0, 500) : String(v || "").slice(0, 500)));
 }
 
-const TEXT_FIELDS = {
-  title: "title",
-  reporting_period: "reporting_period",
-  summary: "summary",
-  current_journey: "current_journey",
-  current_milestone: "current_milestone",
-  support_delivered: "support_delivered",
-  challenges: "challenges",
-  recommendation: "recommendation",
-};
-
 export async function createVentureReport(db, { code, actorCid = null, fields = {} }) {
   const title = String(fields.title || "").trim();
   if (!title) return { error: "Report title is required." };

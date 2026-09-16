@@ -16,7 +16,6 @@ import {
   isConfigured,
   createPage,
   updatePage,
-  queryDatabase,
 } from "./client";
 
 /**

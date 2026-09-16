@@ -79,7 +79,7 @@ export default function RegisterParticipantPage() {
       }
       cacheSet(url, data);
       apply(data);
-    } catch (e) {
+    } catch {
       if (!painted) setError(t('rootMisc.registerParticipant.loadFailed'));
     } finally {
       setLoading(false);
@@ -107,7 +107,7 @@ export default function RegisterParticipantPage() {
       } else {
         setError(t((data.error || t('rootMisc.registerParticipant.registrationFailed')) || "") || (data.error || t('rootMisc.registerParticipant.registrationFailed')));
       }
-    } catch (e) {
+    } catch {
       // Network/parse failure — the registration may still have been saved.
       setError(t('rootMisc.registerParticipant.couldNotConfirm') || "We couldn't confirm your registration. Please check your email — if we received it, you'll hear from us shortly.");
     } finally {

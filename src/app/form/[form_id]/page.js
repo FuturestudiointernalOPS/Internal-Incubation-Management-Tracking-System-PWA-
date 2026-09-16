@@ -56,7 +56,7 @@ function PublicFormContent() {
       } else {
         setError(t((data.error || t("rootMisc.form.formNotFound")) || "") || (data.error || t("rootMisc.form.formNotFound")));
       }
-    } catch (err) {
+    } catch {
       if (!painted) setError(t("rootMisc.form.connectionError"));
     } finally {
       setLoading(false);
@@ -87,7 +87,7 @@ function PublicFormContent() {
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t(data.error || "") || data.error } }));
       }
-    } catch (err) {
+    } catch {
       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t("rootMisc.form.errorSubmitting") } }));
     } finally {
       setSubmitting(false);

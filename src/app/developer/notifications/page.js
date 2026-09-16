@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Bell, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Bell } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function DeveloperNotifications() {
   const { t } = useI18n();
-  const [userRole, setUserRole] = useState("developer");
+  const [, setUserRole] = useState("developer");
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 

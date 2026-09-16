@@ -3,20 +3,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   BarChart3,
-  Calendar,
   User,
   FileText,
   Search,
   Filter,
-  CheckCircle2,
-  AlertCircle,
   Clock,
   ArrowLeft,
   ArrowRight,
   Download,
   Eye,
-  ExternalLink,
-  ChevronRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
@@ -641,13 +636,13 @@ export default function ReportResponses() {
 function X({ className }) {
   return <XCircle className={className} />;
 }
-function Activity({ className }) {
+function _Activity({ className }) {
   return <ShieldCheck className={className} />;
 }
-function Zap({ className }) {
+function _Zap({ className }) {
   return <ArrowRight className={className} />;
 }
-function TrendingUp({ className }) {
+function _TrendingUp({ className }) {
   return <TrendingUpIcon className={className} />;
 }
 function TrendingUpIcon({ className }) {

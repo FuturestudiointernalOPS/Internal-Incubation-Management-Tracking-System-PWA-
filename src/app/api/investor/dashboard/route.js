@@ -16,7 +16,7 @@ import {
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
 
 /** GET /api/investor/dashboard — investor's personalized dashboard data */
-export async function GET(req) {
+export async function GET(_req) {
   try {
     await initDb();
     const capError = await requireInvestorSelfServiceAuthorization("view");

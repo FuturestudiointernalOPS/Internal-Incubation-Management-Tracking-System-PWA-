@@ -9,7 +9,7 @@ import ProfileView from "@/components/dashboard/ProfileView";
  * All roles share the same ProfileView component.
  */
 export default function PMProfilePage() {
-  const [role, setRole] = useState("program_manager");
+  const [, setRole] = useState("program_manager");
 
   useEffect(() => {
     try {

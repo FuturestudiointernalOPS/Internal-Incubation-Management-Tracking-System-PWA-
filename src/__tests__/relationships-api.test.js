@@ -123,7 +123,7 @@ describe("GET /api/me/relationships", () => {
   });
 
   test("isFounder follows the owning/founder-typed membership", async () => {
-    const founderImpl = async ({ sql, args }) => {
+    const founderImpl = async ({ sql, args: _args }) => {
       if (sql.includes("FROM participant_programs")) return { rows: [] };
       if (sql.includes("FROM v2_participants")) return { rows: [] };
       if (sql.includes("FROM venture_members vm")) {

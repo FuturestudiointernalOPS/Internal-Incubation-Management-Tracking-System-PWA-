@@ -73,7 +73,7 @@ export async function POST(req) {
 
     // Get workspace info for timeline
     const ws = await getVentureIdByWorkspaceId(workspace_id);
-    const ventureName = (await getVentureNameForScheduledMeeting(ws.rows[0]?.venture_id)).rows[0]?.name || "Venture";
+    await getVentureNameForScheduledMeeting(ws.rows[0]?.venture_id);
 
     // Timeline entry
     await insertMeetingScheduledTimeline(workspace_id, `${meeting_type.replace(/_/g, " ")} meeting scheduled${scheduled_date ? " for " + scheduled_date : ""}`, session.cid || session.id);

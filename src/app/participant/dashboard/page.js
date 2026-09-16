@@ -8,7 +8,6 @@ import {
   Send,
   Bell,
   Target,
-  TrendingUp,
   BookOpen,
   ChevronRight,
 } from "lucide-react";

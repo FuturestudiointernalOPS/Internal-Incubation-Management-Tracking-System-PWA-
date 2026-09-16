@@ -12,33 +12,24 @@ import {
   Calendar,
   User,
   MessageSquare,
-  Settings,
   LogOut,
   Bell,
-  Search,
   ChevronRight,
   ChevronDown,
   TrendingUp,
   FileText,
   ShieldCheck,
-  Activity,
   Menu,
-  X,
-  Zap,
   Rocket,
-  Trash2,
   Send,
   Library,
   Globe,
   BarChart3,
-  UploadCloud,
   ListTodo,
   ClipboardList,
   Wrench,
   CheckSquare,
   Megaphone,
-  HeartPulse,
-  Blocks,
   Clock,
   GraduationCap,
 } from "lucide-react";
@@ -300,7 +291,6 @@ function getActivePathIds(navItems, pathname) {
 const SidebarContent = ({
   collapsed,
   role,
-  user,
   navItems,
   openMenus,
   toggleMenu,
@@ -672,7 +662,7 @@ function shellRole(user, role) {
 }
 
 function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = false }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -1048,7 +1038,7 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
             setDashboardSession({ user: JSON.parse(savedUser) });
           }
         }
-      } catch (e) {
+      } catch {
         // Network error — fallback to localStorage
         const savedUser = localStorage.getItem("user");
         if (savedUser) {

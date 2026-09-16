@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Loader2, CheckCircle2, AlertCircle, Bell, Mail, Settings, Archive, Trash2,
-  X, Send, Filter, RefreshCw,
+  Loader2, CheckCircle2, AlertCircle, Bell, Settings, Archive, Trash2,
+  Send,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
@@ -23,7 +23,7 @@ const TYPE_COLORS = {
 
 export default function NotificationsPage() {
   const { t } = useI18n();
-  const router = useRouter();
+  const _router = useRouter();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [preferences, setPreferences] = useState(null);

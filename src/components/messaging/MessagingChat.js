@@ -17,7 +17,6 @@ import {
   X,
   Check,
   CheckCheck,
-  Building2,
   Paperclip,
   ExternalLink,
   Loader2,
@@ -839,10 +838,6 @@ export default function MessagingChat({ role = "super_admin" }) {
 
   const selectedContact = contacts.find(
     (c) => (c.cid || c.id) === composeRecipient,
-  );
-
-  const selectedGroup = availableGroups.find(
-    (g) => String(g.id) === String(composeGroupId),
   );
 
   // ── Conversation icon ──

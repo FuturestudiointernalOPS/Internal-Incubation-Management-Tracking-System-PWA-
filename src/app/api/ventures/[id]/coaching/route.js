@@ -37,10 +37,10 @@ export async function POST(req, { params }) {
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { advisor_contact_id, session_date, start_time, location, meeting_link, notes, observations, recommendations, follow_up_date } = await req.json();
     // Ensure columns exist (dev migration)
-    try { await addCoachingFollowUpDateColumn(); } catch(e){}
-    try { await addCoachingStartTimeColumn(); } catch(e){}
-    try { await addCoachingLocationColumn(); } catch(e){}
-    try { await addCoachingMeetingLinkColumn(); } catch(e){}
+    try { await addCoachingFollowUpDateColumn(); } catch {}
+    try { await addCoachingStartTimeColumn(); } catch {}
+    try { await addCoachingLocationColumn(); } catch {}
+    try { await addCoachingMeetingLinkColumn(); } catch {}
     await insertCoachingSession({ venture_id: dbId, advisor_contact_id, session_date, start_time, location, meeting_link, notes, observations, recommendations, follow_up_date });
     notifyVentureFounders(dbId, 'Coaching Session Scheduled', `A coaching session has been scheduled${session_date ? ' for '+session_date : ''}.`);
     return NextResponse.json({ success: true });
@@ -72,7 +72,7 @@ export async function PATCH(req, { params }) {
       }
       updates.push("status = ?"); args.push(status);
       // Ensure column exists
-      try { await addCoachingStatusColumn(); } catch(e){}
+      try { await addCoachingStatusColumn(); } catch {}
       if (status === "approved") {
         notifyVentureFounders(dbId, 'Coaching Session Approved', 'Your coaching session has been approved by the mentor.');
       } else if (status === "revision_requested") {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Loader2, FileText, Send, Clock, CheckCircle2, XCircle,
+  Loader2, FileText, Send, Clock,
   RotateCcw, AlertTriangle, ArrowLeft, Play,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";

@@ -197,7 +197,7 @@ function buildSuperAdminMatrix() {
  *
  * @param {{cid: string, role?: string, group_name?: string}} user
  */
-export async function resolveAuthorizationContext({ cid, role, group_name }) {
+export async function resolveAuthorizationContext({ cid, role }) {
   if (!cid) throw new Error("resolveAuthorizationContext: cid is required");
   await initDb();
   // Boot-time self-healing (once per process; idempotent). Run in parallel so

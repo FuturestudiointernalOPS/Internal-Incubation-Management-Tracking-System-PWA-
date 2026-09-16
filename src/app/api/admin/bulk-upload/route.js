@@ -178,7 +178,6 @@ export async function POST(req) {
     // and delete them on failure.
 
     const processedCids = [];
-    let hasDbError = false;
     const dbErrors = [];
 
     for (const row of validated) {
@@ -217,7 +216,6 @@ export async function POST(req) {
         }
       } catch (rowErr) {
         // 7.7: Rollback on DB failure
-        hasDbError = true;
         dbErrors.push({
           row: row.rowNum,
           email: row.email,

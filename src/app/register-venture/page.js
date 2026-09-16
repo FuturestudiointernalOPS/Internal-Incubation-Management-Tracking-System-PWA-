@@ -80,7 +80,7 @@ function RegisterVentureContent() {
         setError(t((d.error || t("rootMisc.registerVenture.createFailed")) || "") || (d.error || t("rootMisc.registerVenture.createFailed")));
         setSubmitting(false);
       }
-    } catch (err) {
+    } catch {
       setError(t("rootMisc.registerVenture.networkError"));
       setSubmitting(false);
     }

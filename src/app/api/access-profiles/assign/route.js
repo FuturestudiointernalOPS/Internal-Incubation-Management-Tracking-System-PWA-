@@ -45,8 +45,6 @@ export async function PUT(req) {
       );
     }
 
-    const previousProfileId = user.rows[0].access_profile_id;
-
     // If profile_id is provided, verify it exists
     if (profile_id) {
       const profile = await getActiveAccessProfile(profile_id);

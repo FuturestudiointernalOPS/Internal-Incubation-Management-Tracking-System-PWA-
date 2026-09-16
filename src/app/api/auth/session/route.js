@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession, destroySession } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 
 export async function GET() {
   try {

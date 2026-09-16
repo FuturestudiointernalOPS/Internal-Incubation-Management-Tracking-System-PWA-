@@ -15,14 +15,11 @@ import {
   Briefcase,
   Users,
   Activity,
-  FileText,
   TrendingUp,
   X,
   AlertTriangle,
   CheckCircle2,
   BarChart3,
-  ChevronDown,
-  Eye,
   Sparkles,
   Zap,
   Plus,
@@ -128,8 +125,6 @@ const ACTIVITY_LABELS = {
   assigned: "activity.assigned",
 };
 
-const SEVERITY_SORT = { critical: 0, high: 1, medium: 2, low: 3 };
-
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 
 function formatDate(year, month, day) {
@@ -152,11 +147,6 @@ function isToday(d) {
     d.getMonth() === today.getMonth() &&
     d.getFullYear() === today.getFullYear()
   );
-}
-
-function getTodayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function cn(...classes) {
@@ -208,9 +198,6 @@ export default function UnifiedDashboard({ role: propRole }) {
 
   // ── Assignment actions ──
   const [actionLoading, setActionLoading] = useState(null);
-
-  // ── Quick Access collapse ──
-  const [expandedPanels, setExpandedPanels] = useState({});
 
   // ── Facilitator programs (program-scoped assignments for any session role) ──
   const [facilitatorPrograms, setFacilitatorPrograms] = useState([]);
@@ -1700,78 +1687,6 @@ export default function UnifiedDashboard({ role: propRole }) {
         />
       )}
     </>
-  );
-}
-
-// ─── SUB-COMPONENTS ────────────────────────────────────────────────────────
-
-function SummaryCard({ icon: Icon, label, value, color, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className="card !p-4 hover:bg-tertiary transition-all text-left group"
-    >
-      <Icon className={cn("w-5 h-5 mb-2", color)} />
-      <p className="text-2xl font-black tracking-tight text-[var(--text-primary)]">
-        {value ?? "—"}
-      </p>
-      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">
-        {label}
-      </p>
-    </button>
-  );
-}
-
-function QuickAccessPanel({
-  title,
-  icon: Icon,
-  color,
-  count,
-  viewAllHref,
-  loading,
-  emptyMessage,
-  children,
-}) {
-  const router = useRouter();
-  return (
-    <div className="card">
-      <div className="flex items-center gap-2 mb-3">
-        <Icon className={cn("w-4 h-4", color)} />
-        <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
-          {title}
-        </span>
-        <span className="text-[10px] font-bold text-[var(--text-secondary)] ml-auto">
-          {count}
-        </span>
-      </div>
-      {loading ? (
-        <div className="py-8 text-center">
-          <div
-            className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin mx-auto"
-            style={{
-              borderColor: "rgba(255,102,0,0.1)",
-              borderTopColor: "var(--brand-orange)",
-            }}
-          />
-        </div>
-      ) : count === 0 ? (
-        <p className="text-sm text-[var(--text-secondary)] py-6 text-center">
-          {emptyMessage}
-        </p>
-      ) : (
-        <div className="space-y-1">
-          {children}
-          {viewAllHref && count > 0 && (
-            <button
-              onClick={() => router.push(viewAllHref)}
-              className="w-full text-center py-1.5 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mt-1"
-            >
-              View All
-            </button>
-          )}
-        </div>
-      )}
-    </div>
   );
 }
 

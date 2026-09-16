@@ -117,7 +117,7 @@ function CertificateResult({ certificate, t, lang }) {
   );
 }
 
-function Field({ label, value, t }) {
+function Field({ label, value }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b pb-3" style={{ borderColor: "var(--border-primary)" }}>
       <span className="text-[10px] font-black uppercase tracking-wider pt-0.5" style={{ color: "var(--text-tertiary)" }}>

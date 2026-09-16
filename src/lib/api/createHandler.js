@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 

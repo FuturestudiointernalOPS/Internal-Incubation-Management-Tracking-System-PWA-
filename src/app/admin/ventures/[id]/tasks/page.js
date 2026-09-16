@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Plus, Loader2, CheckCircle2, AlertCircle, AlertTriangle, X, Trash2, Edit3,
-  Calendar, Clock, User, Paperclip, MessageCircle, Flag, ChevronDown, ChevronRight,
-  List, Columns, LayoutGrid, Circle, Square, CopyPlus, Archive, RotateCcw,
+  ArrowLeft, Plus, Loader2, CheckCircle2, AlertCircle, X,
+  Calendar, User,
+  List, Columns, CopyPlus, Archive, RotateCcw,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";

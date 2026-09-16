@@ -27,10 +27,6 @@ const TABS = [
 const JOURNEY_TOOLS = [
   "businessModel", "discovery", "validation", "pmf", "documents",
 ];
-const STAGES = ["idea", "validation", "mvp", "growth", "scale"];
-const INDUSTRY_FALLBACK = ["Fintech", "Healthtech", "Edtech", "Cleantech", "SaaS", "E-commerce", "Agritech", "Logistics", "AI / ML", "Blockchain", "Media & Entertainment", "Real Estate", "Other"];
-const STATUSES = ["active", "paused", "graduated", "archived"];
-const VISIBILITIES = ["private", "public", "inviteOnly"];
 
 export default function VentureDetail() {
   const [user, setUser] = useState({});
@@ -46,7 +42,7 @@ export default function VentureDetail() {
   // Members state
   const [members, setMembers] = useState([]);
   const [dashboardData, setDashboardData] = useState(null);
-  const [historyData, setHistoryData] = useState(null);
+  const [historyData] = useState(null);
 
   // Track 2 state
   const [bmData, setBmData] = useState(null);
@@ -259,22 +255,13 @@ export default function VentureDetail() {
     } catch (e) { console.error(e); }
   }
 
-  async function loadHistory(bypassCache = false) {
-    const url = `/api/ventures/${params.id}/history`;
-    const apply = (d) => { if (d.success) setHistoryData(d); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const res = await fetch(url); const d = await res.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch (e) { console.error(e); }
-  }
-
   async function fetchBm(bypassCache = false) {
     const url = `/api/ventures/${params.id}/business-model`;
     const apply = (d) => { if (d.success) setBmData(d.business_model); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchInterviews(bypassCache = false) {
     const url = `/api/ventures/${params.id}/interviews`;
@@ -282,7 +269,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchValidations(bypassCache = false) {
     const url = `/api/ventures/${params.id}/validations`;
@@ -290,7 +277,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchPmf(bypassCache = false) {
     const url = `/api/ventures/${params.id}/pmf`;
@@ -298,7 +285,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchMilestones(bypassCache = false) {
     const url = `/api/ventures/${params.id}/milestones`;
@@ -306,7 +293,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchActionPlans(bypassCache = false) {
     const url = `/api/ventures/${params.id}/action-plans`;
@@ -314,7 +301,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchTasks(bypassCache = false) {
     const url = `/api/ventures/${params.id}/tasks`;
@@ -322,7 +309,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchStandups(bypassCache = false) {
     const url = `/api/ventures/${params.id}/standups`;
@@ -330,7 +317,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchRetros(bypassCache = false) {
     const url = `/api/ventures/${params.id}/retros`;
@@ -338,7 +325,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchBlockers(bypassCache = false) {
     const url = `/api/ventures/${params.id}/blockers`;
@@ -346,7 +333,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchCalendar(bypassCache = false) {
     const url = `/api/ventures/${params.id}/calendar`;
@@ -354,14 +341,14 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function handleTaskStatusChange(taskId, newStatus) {
     try {
       const r = await fetch(`/api/ventures/${params.id}/tasks?id=${taskId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
       const d = await r.json();
       if (d.success) { fetchTasks(true); fetchProgress(true); }
-    } catch(e) {}
+    } catch {}
   }
   async function fetchProgress(bypassCache = false) {
     const url = `/api/ventures/${params.id}/progress`;
@@ -369,13 +356,13 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchDocuments(search, cat, bypassCache = false) {
     try { const p = new URLSearchParams(); if (search||documentSearch) p.set('search', search||documentSearch); if (cat||documentCategory) p.set('category', cat||documentCategory);
     const url = `/api/ventures/${params.id}/documents?${p.toString()}`; const apply = (d) => { if (d.success) setDocuments(d.documents || []); };
     if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-    const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d); } catch(e){}
+    const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d); } catch{}
   }
   async function fetchAdvisors(bypassCache = false) {
     const url = `/api/ventures/${params.id}/advisors`;
@@ -383,7 +370,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchCoaching(bypassCache = false) {
     const url = `/api/ventures/${params.id}/coaching`;
@@ -391,7 +378,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchKpis(bypassCache = false) {
     const url = `/api/ventures/${params.id}/kpis`;
@@ -399,7 +386,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchKpiDefinitions(bypassCache = false) {
     const url = `/api/venture-kpi-definitions`;
@@ -407,7 +394,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function handleResolveBlocker(blockerId) {
     await fetch(`/api/ventures/${params.id}/blockers`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ blocker_id: blockerId, action: "resolve" }) });
@@ -461,7 +448,7 @@ export default function VentureDetail() {
         });
         setPermissions(merged);
       }
-    } catch(e){}
+    } catch{}
     setPermissionsDoc({id: docId}); setShowPermissions(true);
   }
   async function handleSavePermission(docId, role_scope, access_level) {
@@ -474,7 +461,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchPlaybook(bypassCache = false) {
     const url = `/api/ventures/${params.id}/playbook`;
@@ -482,7 +469,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function fetchInvestmentReadiness(bypassCache = false) {
     const url = `/api/ventures/${params.id}/investment-readiness`;
@@ -494,7 +481,7 @@ export default function VentureDetail() {
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch(e){}
+    } catch{}
   }
   async function handleUpdateKpi(assignmentId, current_value) {
     await fetch(`/api/ventures/${params.id}/kpis`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: assignmentId, current_value }) });
@@ -524,13 +511,10 @@ export default function VentureDetail() {
       });
       const d = await res.json();
       notifyMsg(d.success ? t("venture.updateSuccess") : (d.error || t("venture.updateError")));
-    } catch (e) {
+    } catch {
       notifyMsg(t("venture.updateError"));
     } finally { setSaving(false); }
   }
-
-  const FOUNDER_ROLES = ["Founder", "Lead Founder", "Co-Founder", "Technical Founder", "Business Founder"];
-  const TEAM_ROLES = ["Team Member", "Developer", "Designer", "Product Manager", "Marketing", "Operations", "Advisor"];
 
   async function handleUpdateMemberRole(memberId, newRole) {
     try {
@@ -561,7 +545,7 @@ export default function VentureDetail() {
       } else {
         notifyMsg(t((d.error || t("venture.addError")) || "") || (d.error || t("venture.addError")));
       }
-    } catch (e) { notifyMsg(t("venture.addError")); }
+    } catch { notifyMsg(t("venture.addError")); }
   }
 
   async function handleRemoveMember(memberId) {
@@ -578,7 +562,7 @@ export default function VentureDetail() {
       } else {
         notifyMsg(t((d.error || t("venture.removeError")) || "") || (d.error || t("venture.removeError")));
       }
-    } catch (e) { notifyMsg(t("venture.removeError")); }
+    } catch { notifyMsg(t("venture.removeError")); }
   }
 
   async function searchContacts(q) {

@@ -2,12 +2,10 @@
 
 import React, { useState, useEffect, use } from 'react';
 import { 
-  ChevronLeft, Plus, Trash2, Globe, 
-  Link as LinkIcon, Save, Layers, Rocket,
-  FileText, MessageSquare, Shield, Settings,
+  ChevronLeft, Save, Layers, Rocket,
+  Shield,
   Users
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { useI18n } from '@/lib/i18n';
 import { cacheGet, cacheSet } from '@/lib/hooks/useApi';
 import { useSafeBack } from "@/lib/useSafeBack";
@@ -20,7 +18,7 @@ export default function GroupWorkspaceV2({ params }) {
   
   const [isLoaded, setIsLoaded] = useState(false);
   const [group, setGroup] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
 
   useEffect(() => {
     fetchGroup();
@@ -74,7 +72,7 @@ export default function GroupWorkspaceV2({ params }) {
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || t('adminMisc.programGroups.updateFailed') } }));
       }
-    } catch (e) {
+    } catch {
       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t('adminMisc.programGroups.updateFailed') } }));
     } finally {
       setLoading(false);

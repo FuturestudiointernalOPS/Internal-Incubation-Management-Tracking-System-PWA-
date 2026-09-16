@@ -12,16 +12,12 @@ import {
   Briefcase,
   User,
   Plus,
-  X,
   ChevronDown,
   ChevronRight,
-  Shield,
   Trash2,
-  Folder,
   FolderOpen,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
@@ -103,7 +99,7 @@ export default function ProjectKanbanBoard() {
     try {
       const u = JSON.parse(localStorage.getItem("user") || "{}");
       setUser(u);
-    } catch (e) {}
+    } catch {}
   }, []);
 
   const fetchData = useCallback(async (bypassCache = false) => {

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  BarChart3,
   Search,
   Filter,
   Briefcase,
@@ -15,7 +14,6 @@ import {
   RefreshCw,
   TrendingUp,
   Users,
-  Target,
   Plus,
   X,
 } from "lucide-react";
@@ -47,7 +45,7 @@ export default function AdminProjects() {
   const router = useRouter();
   const { t } = useI18n();
   const [projects, setProjects] = useState([]);
-  const [totals, setTotals] = useState({
+  const [, setTotals] = useState({
     totalTasks: 0,
     completedTasks: 0,
     totalBlockers: 0,
@@ -80,7 +78,7 @@ export default function AdminProjects() {
     try {
       const u = JSON.parse(localStorage.getItem("user") || "{}");
       setUserRole(u.role || "");
-    } catch (e) {}
+    } catch {}
   }, []);
 
   const canCreate = userRole === "super_admin" || userRole === "admin";
@@ -256,7 +254,7 @@ export default function AdminProjects() {
     }
   };
 
-  const quickStatus = async (project, newStatus, confirmMsg) => {
+  const quickStatus = async (project, newStatus, _confirmMsg) => {
     setActionLoading(true);
     try {
       await fetch("/api/projects", {
@@ -293,7 +291,6 @@ export default function AdminProjects() {
       const data = await res.json();
       if (data.success && data.project_id) {
         // Add selected members
-        let memberError = false;
         for (const memberId of selectedMembers) {
           try {
             await fetch("/api/projects/members", {
@@ -305,9 +302,7 @@ export default function AdminProjects() {
                 role: "member",
               }),
             });
-          } catch (e) {
-            memberError = true;
-          }
+          } catch {}
         }
         setShowCreateModal(false);
         setNewProject({
@@ -332,7 +327,7 @@ export default function AdminProjects() {
           msg: t((data.error || t("adminMisc.projectsList.createFailed")) || "") || (data.error || t("adminMisc.projectsList.createFailed")),
         });
       }
-    } catch (e) {
+    } catch {
       setToast({
         type: "error",
         msg: t("adminMisc.projectsList.networkError"),

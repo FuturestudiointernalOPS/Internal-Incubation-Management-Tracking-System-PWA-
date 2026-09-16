@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { Loader2, Send, CheckCircle2, AlertTriangle, FileText, Clock, Info, ChevronDown, ChevronUp, Star, Globe, Mail } from "lucide-react";
+import { useParams } from "next/navigation";
+import { Loader2, Send, CheckCircle2, AlertTriangle, Clock, Globe, Mail } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import AppPhoneInput from "@/components/ui/AppPhoneInput";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
-
-const cn = (...classes) => classes.filter(Boolean).join(" ");
 
 // ─── Translation helper via MyMemory (free, no API key needed) ───
 async function translateText(text, sourceLang, targetLang) {
@@ -50,7 +48,6 @@ export default function PublicSubmitPage() {
   const [fields, setFields] = useState([]);
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
-  const [expandedSections, setExpandedSections] = useState({});
   const [currentSection, setCurrentSection] = useState(0); // Multi-section stepper
 
   // Cache raw originals so we can always restore original language perfectly

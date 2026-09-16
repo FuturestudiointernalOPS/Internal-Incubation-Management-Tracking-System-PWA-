@@ -189,7 +189,7 @@ export default function FacilitatorProgram({ params }) {
       } else {
         notify("error", data.error || t("pmMisc.facilitators.weeklyReview.submitError"));
       }
-    } catch (e) {
+    } catch {
       notify("error", t("pmMisc.facilitators.weeklyReview.submitError"));
     } finally {
       setSavingReview(false);
@@ -220,7 +220,7 @@ export default function FacilitatorProgram({ params }) {
       if ((await res.json()).success) {
         notify("success", "Attendance recorded");
       }
-    } catch (e) {
+    } catch {
       notify("error", "Failed to record attendance");
     } finally {
       setSavingAtt(false);
@@ -248,7 +248,7 @@ export default function FacilitatorProgram({ params }) {
       if (!data.success) {
         notify("error", data.error || "Failed to record attendance");
       }
-    } catch (e) {
+    } catch {
       notify("error", "Failed to record attendance");
     }
   };
@@ -271,7 +271,7 @@ export default function FacilitatorProgram({ params }) {
       } else {
         notify("error", data.error || "Failed to update submission");
       }
-    } catch (e) {
+    } catch {
       notify("error", "Failed to update submission");
     }
   };

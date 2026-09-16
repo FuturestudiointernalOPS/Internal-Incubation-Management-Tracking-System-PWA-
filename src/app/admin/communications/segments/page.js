@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Filter, Users, Rocket, Save, X, Search, Loader2, Plus, ArrowLeft } from 'lucide-react';
+import { Filter, Rocket, Save, X, Loader2, Plus, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';

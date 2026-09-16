@@ -32,7 +32,7 @@ export const GET = createHandler(
     try {
       const progressRes = await getKpiProgressByProgramId(programId);
       progressEntries = progressRes.rows || [];
-    } catch (e) {
+    } catch {
       // kpi_progress schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 11
       return NextResponse.json({
         success: true,

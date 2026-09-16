@@ -43,8 +43,6 @@ import {
   getContactsByLowerEmails,
   getPasswordTokensByContactCids,
   getSubmissionsBySubmitterId,
-  countFormRuns,
-  listFormRuns,
   listFormRunsPage,
   getDecisionEmailSubmissionById,
   getFieldLabelsByRunId,
@@ -2038,7 +2036,7 @@ export async function POST(req) {
         try {
           await addPublicSlugColumnIfMissing();
           await updatePublicSlugRetryAfterAlterById(slug, id);
-        } catch (e) {
+        } catch {
           return NextResponse.json({ success: false, error: "Could not rotate the share link" }, { status: 500 });
         }
       }

@@ -7,11 +7,8 @@ import {
   FileText,
   CheckCircle,
   AlertCircle,
-  ArrowRight,
   Loader2,
   Download,
-  Users,
-  X,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
@@ -58,7 +55,7 @@ export default function BulkUploadPage() {
       } else {
         setError(t((data.error || t("adminMisc.bulkUpload.uploadFailed")) || "") || (data.error || t("adminMisc.bulkUpload.uploadFailed")));
       }
-    } catch (err) {
+    } catch {
       setError(t("adminMisc.bulkUpload.networkError"));
     } finally {
       setUploading(false);

@@ -1473,7 +1473,7 @@ export default function ProgramManagement() {
                             : editingProgram.assigned_assistant_id
                                 .split(",")
                                 .filter(Boolean);
-                        } catch (e) {
+                        } catch {
                           assistantIds = editingProgram.assigned_assistant_id
                             .split(",")
                             .filter(Boolean);

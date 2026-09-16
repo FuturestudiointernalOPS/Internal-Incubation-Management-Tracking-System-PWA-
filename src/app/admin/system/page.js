@@ -31,13 +31,6 @@ function formatDate(d) {
   });
 }
 
-function formatBytes(bytes) {
-  if (!bytes || bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
-}
-
 const STATUS_COLORS = {
   healthy: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
   degraded: "text-amber-400 bg-amber-500/10 border-amber-500/20",

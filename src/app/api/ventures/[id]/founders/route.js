@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
-import { requireAuth, getSession } from "@/lib/auth";
+import db from "@/lib/db";
+import { getSession } from "@/lib/auth";
 import { createHandler } from "@/lib/api/createHandler";
 import {
   listFounders,
-  getFounderById,
   inviteFounder,
-  updateFounderRole,
-  removeFounder,
   canManageFounders,
   logVentureActivity,
-  createVentureNotification,
   VENTURE_ROLES,
 } from "@/lib/ventures";
 

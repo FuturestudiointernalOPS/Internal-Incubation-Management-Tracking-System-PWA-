@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   CheckCircle2, Clock, AlertTriangle, Plus,
-  ChevronDown, ChevronRight, Target, Calendar,
-  User, ArrowUpRight, Shield,
+  ChevronRight, Target, Calendar,
+  User, ArrowUpRight,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
@@ -27,7 +27,7 @@ export default function UnifiedOperationsView({
 }) {
   const { t } = useI18n();
   const [loading, setLoading] = useState(true);
-  const [report, setReport] = useState(null);
+  const [, setReport] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [weekInfo] = useState(getCurrentWeek());
   const [expandTask, setExpandTask] = useState({});
@@ -93,7 +93,7 @@ export default function UnifiedOperationsView({
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
-    } catch (e) {
+    } catch {
       setToast({ type: "error", message: "Failed to create task" });
     } finally {
       setCreating(false);
@@ -117,7 +117,7 @@ export default function UnifiedOperationsView({
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
-    } catch (e) {
+    } catch {
       setToast({ type: "error", message: "Failed to update task" });
     }
   };

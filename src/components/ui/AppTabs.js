@@ -33,7 +33,6 @@ export default function AppTabs({
   onTabChange,
   variant = "underline",
   scrollable = false,
-  className = "",
 }) {
   const variants = useMemo(
     () => ({

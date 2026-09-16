@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import {
   isGlobalRole,

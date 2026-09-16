@@ -10,7 +10,7 @@ import ProgressView from "@/components/dashboard/ProgressView";
  * and weekly breakdown across all enrolled programs.
  */
 export default function ParticipantProgressPage() {
-  const [user, setUser] = useState({});
+  const [, setUser] = useState({});
 
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("user") || "{}");

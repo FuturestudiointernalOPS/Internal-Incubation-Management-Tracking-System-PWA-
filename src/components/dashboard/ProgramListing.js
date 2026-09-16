@@ -7,15 +7,10 @@ import {
   ChevronRight,
   Target,
   Users,
-  Clock,
-  BarChart3,
   FileText,
   AlertCircle,
   RefreshCw,
-  Zap,
   Layers,
-  CheckCircle2,
-  TrendingUp,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -294,7 +289,7 @@ export default function ProgramListing() {
               t("participantMisc.programListing.failedToLoadPrograms")),
         );
       }
-    } catch (e) {
+    } catch {
       setError(t("participantMisc.programListing.networkError"));
     } finally {
       setLoading(false);

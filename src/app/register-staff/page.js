@@ -4,16 +4,13 @@ import React, { useState } from "react";
 import {
   Users,
   Mail,
-  Calendar,
   Phone,
-  Image as ImageIcon,
   CheckCircle,
   AlertCircle,
   ArrowRight,
   UserPlus,
   MapPin,
   Briefcase,
-  FileText,
   UserIcon,
   Loader2,
 } from "lucide-react";
@@ -37,17 +34,6 @@ export default function PublicApplicationRegistration() {
   });
 
   const [status, setStatus] = useState({ state: "idle", message: "" });
-
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, image: reader.result });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();

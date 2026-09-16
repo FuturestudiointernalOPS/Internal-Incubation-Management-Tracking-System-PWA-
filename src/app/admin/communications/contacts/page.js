@@ -6,7 +6,6 @@ import {
   Plus,
   Users,
   Mail,
-  Phone,
   Search,
   X,
   CheckCircle,
@@ -83,7 +82,7 @@ function ContactsPageContent() {
   const [selectedGroup, setSelectedGroup] = useState("All Contacts");
   const [selectedTeamTab, setSelectedTeamTab] = useState("All Teams");
   const [copiedGroup, setCopiedGroup] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [, setCurrentUser] = useState(null);
 
   // Modals
   const [showManualModal, setShowManualModal] = useState(false);
@@ -132,7 +131,7 @@ function ContactsPageContent() {
       if (userStr) {
         setCurrentUser(JSON.parse(userStr));
       }
-    } catch (e) {
+    } catch {
       // ignore parse error
     }
   }, []);
@@ -193,7 +192,7 @@ function ContactsPageContent() {
     fetchData();
   }, [fetchData]);
 
-  const toggleStatus = async (cid, currentStatus, currentGroup) => {
+  const toggleStatus = async (cid, currentStatus, _currentGroup) => {
     const newStatus =
       currentStatus === "active" || currentStatus === "approved"
         ? "inactive"
@@ -228,7 +227,7 @@ function ContactsPageContent() {
       } else {
         setNotification({ type: "error", text: data.error || "Failed to send email" });
       }
-    } catch (e) {
+    } catch {
       setNotification({ type: "error", text: "Error sending email" });
     }
     setIsProcessing(false);
@@ -254,7 +253,7 @@ function ContactsPageContent() {
       } else {
         setNotification({ type: "error", text: data.error || "Failed to send invitation" });
       }
-    } catch (e) {
+    } catch {
       setNotification({ type: "error", text: "Error sending invitation" });
     }
     setIsProcessing(false);
@@ -376,7 +375,7 @@ function ContactsPageContent() {
           }),
         );
       }
-    } catch (e) {
+    } catch {
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
           detail: { type: "error", message: t("crm.contacts.networkError") },
@@ -417,7 +416,7 @@ function ContactsPageContent() {
           }),
         );
       }
-    } catch (e) {
+    } catch {
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
           detail: { type: "error", message: t("crm.contacts.networkError") },
@@ -460,7 +459,7 @@ function ContactsPageContent() {
           }),
         );
       }
-    } catch (e) {
+    } catch {
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
           detail: { type: "error", message: t("crm.contacts.networkError") },
@@ -1438,10 +1437,9 @@ function ContactsPageContent() {
                   const programId = document.getElementById(
                     "bulk-program-select",
                   ).value;
-                  const actionEl = document.querySelector(
+                  const _actionEl = document.querySelector(
                     "#bulk-action-add.bg-[var(--brand-orange)/10]",
                   );
-                  const isAdd = true; // default to add
                   if (!programId || !bulkSelected.length) return;
                   setIsProcessing(true);
                   try {
@@ -1466,7 +1464,7 @@ function ContactsPageContent() {
                       setBulkSelected([]);
                       fetchData(true);
                     }
-                  } catch (e) {
+                  } catch {
                     setNotification({
                       type: "error",
                       message: t("crm.contacts.bulkAssignmentFailed"),

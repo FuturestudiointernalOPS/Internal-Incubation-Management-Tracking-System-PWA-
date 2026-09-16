@@ -355,7 +355,7 @@ export async function requireSession(allowedRoles = null) {
  */
 export async function requireAuth(allowedRoles = null) {
   try {
-    const session = await requireSession(allowedRoles);
+    await requireSession(allowedRoles);
     return null; // authorized
   } catch (err) {
     if (err.message === "Unauthorized") {
@@ -1728,7 +1728,7 @@ export async function getAllResponsibilities() {
       sql: "SELECT * FROM responsibilities WHERE is_active = 1 ORDER BY name",
     });
     return result.rows;
-  } catch (e) {
+  } catch {
     return [];
   }
 }

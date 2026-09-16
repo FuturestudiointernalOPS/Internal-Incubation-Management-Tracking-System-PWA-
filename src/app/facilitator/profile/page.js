@@ -9,7 +9,7 @@ import ProfileView from "@/components/dashboard/ProfileView";
  * All roles share the same ProfileView component.
  */
 export default function FacilitatorProfilePage() {
-  const [role, setRole] = useState("facilitator");
+  const [, setRole] = useState("facilitator");
 
   useEffect(() => {
     try {

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Trash2, Settings, Shield, 
-  FileText, CheckCircle2, X,
+  X,
   Globe, Film, FileType, Diamond, ArrowLeft, Target, Lock
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -15,11 +15,11 @@ export default function SuperAdminStandardization() {
   const router = useRouter();
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState('task'); // task | deliverable | media
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [, setIsLoaded] = useState(false);
   const [types, setTypes] = useState([]);
   const [newType, setNewType] = useState({ category: 'task', label: '' });
   const [editingItem, setEditingItem] = useState(null);
-  const [error, setError] = useState('');
+  const [, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
@@ -71,7 +71,7 @@ export default function SuperAdminStandardization() {
       } else {
         setError(t(data.error || "") || data.error);
       }
-    } catch (e) { setError('Network Error'); }
+    } catch { setError('Network Error'); }
     setIsProcessing(false);
   };
 
@@ -90,7 +90,7 @@ export default function SuperAdminStandardization() {
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t(data.error || "") || data.error } }));
       }
-    } catch (e) { window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t("adminMisc.standardization.actionFailedNetworkError") } })); }
+    } catch { window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t("adminMisc.standardization.actionFailedNetworkError") } })); }
     setIsProcessing(false);
   };
 

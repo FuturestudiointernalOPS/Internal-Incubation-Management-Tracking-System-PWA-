@@ -79,7 +79,6 @@ try {
 
   // 1. Host discovery — contexts only run when a real host row exists.
   let prog = null, progB = null, venture = null, course = null;
-  let fixtureProgram = false;
   try { const r = await pool.query(`SELECT id, name FROM v2_programs WHERE (status IS NULL OR LOWER(status) = 'active') ORDER BY created_at DESC LIMIT 2`); [prog, progB] = r.rows; } catch {}
   // No second program host on staging → create a minimal marker program so the
   // facilitator context can still be proven (cleaned up by the marker).
@@ -97,7 +96,6 @@ try {
           : `INSERT INTO v2_programs (id, name, status, ${extra.join(", ")}) VALUES (gen_random_uuid(), 'I6C-FIXTURE-PROGRAM', 'active', ${extra.map(() => "NULL").join(", ")}) RETURNING id`;
       const ins = await pool.query(sql);
       progB = { id: ins.rows[0].id };
-      fixtureProgram = true;
       console.log("hosts → created marker program B:", progB.id);
     } catch (e) {
       console.log("hosts → fixture program creation failed:", e.message);

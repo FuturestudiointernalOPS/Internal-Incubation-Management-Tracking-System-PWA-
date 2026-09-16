@@ -15,7 +15,6 @@ import {
   RefreshCw,
   Target,
   Send,
-  CheckCircle2,
   AlertTriangle,
   MessageSquare,
 } from "lucide-react";
@@ -68,7 +67,7 @@ export default function StaffProjectDetail() {
   const [activeTab, setActiveTab] = useState("overview");
   const [blockerFilter, setBlockerFilter] = useState("all");
   const [updates, setUpdates] = useState([]);
-  const [updatesLoading, setUpdatesLoading] = useState(false);
+  const [, setUpdatesLoading] = useState(false);
   const [updateForm, setUpdateForm] = useState({
     accomplishments: "",
     current_focus: "",
@@ -121,7 +120,7 @@ export default function StaffProjectDetail() {
       const data = await res.json();
       if (data.success) cacheSet(url, data);
       apply(data);
-    } catch (e) {
+    } catch {
       if (!painted) {
         setError(t("staffMisc.projectDetail.loadNetworkError"));
       }

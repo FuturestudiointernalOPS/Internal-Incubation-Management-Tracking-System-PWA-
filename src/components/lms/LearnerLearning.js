@@ -84,7 +84,7 @@ export default function LearnerLearning() {
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {courses.map(({ course, enrollment, progress, continueLesson, certificate }) => (
+          {courses.map(({ course, progress, continueLesson, certificate }) => (
             <div
               key={course.id}
               className="rounded-xl border overflow-hidden"

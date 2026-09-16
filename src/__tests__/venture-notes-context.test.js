@@ -158,7 +158,6 @@ describe("POST /api/ventures/[id]/notes — staff-only preserved", () => {
       ctx,
     );
     if (res.status !== 404) {
-      // eslint-disable-next-line no-console
       console.log("founder debug", res.status, await readJson(res));
     }
     expect(res.status).toBe(404);

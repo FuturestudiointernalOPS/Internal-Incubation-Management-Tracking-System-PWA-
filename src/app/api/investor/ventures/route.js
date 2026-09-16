@@ -1,6 +1,5 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
 
 import {
   countInvestorVentureSearch,

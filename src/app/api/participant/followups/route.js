@@ -10,7 +10,7 @@ import {
  * Returns follow-up meetings for the authenticated participant.
  * Reads from v2_events where participant_id matches the session CID.
  */
-export const GET = createHandler(async (req) => {
+export const GET = createHandler(async (_req) => {
   const { getSession } = await import("@/lib/auth");
   const session = await getSession();
   if (!session) {

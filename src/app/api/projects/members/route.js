@@ -85,13 +85,12 @@ export async function POST(req) {
     await declinePendingProjectInvitation(project_id, user_cid);
 
     // Create invitation
-    const invResult = await createProjectInvitation(
+    await createProjectInvitation(
       project_id,
       inviterName,
       user_cid,
       role,
     );
-    const invitationId = invResult.rows[0]?.id || invResult.lastInsertRowid;
 
     // Notify invitee
     await createProjectInvitationNotification(

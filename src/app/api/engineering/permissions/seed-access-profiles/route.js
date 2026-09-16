@@ -1,4 +1,3 @@
-import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { seedDefaultAccessProfiles } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";

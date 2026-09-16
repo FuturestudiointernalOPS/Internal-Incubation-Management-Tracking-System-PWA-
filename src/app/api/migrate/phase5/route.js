@@ -11,7 +11,7 @@ import path from "path";
  * v2_standups, and v2_retros into the unified v2_op_reports table.
  * Requires super_admin. Idempotent — safe to re-run.
  */
-export async function POST(req) {
+export async function POST(_req) {
   try {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
@@ -89,7 +89,7 @@ export async function POST(req) {
 /**
  * GET /api/migrate/phase5 — preview the migration SQL
  */
-export async function GET(req) {
+export async function GET(_req) {
   try {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;

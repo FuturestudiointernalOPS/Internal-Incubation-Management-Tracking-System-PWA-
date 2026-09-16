@@ -88,7 +88,7 @@ export default function EditVenturePage({ params }) {
       const data = await res.json();
       if (data.success) cacheSet(url, data);
       apply(data);
-    } catch (e) {
+    } catch {
       if (!painted) setError(t("vadmin.edit.loadFailed"));
     } finally {
       setLoading(false);
@@ -124,7 +124,7 @@ export default function EditVenturePage({ params }) {
       setTimeout(() => {
         router.push(`/admin/ventures/${id}`);
       }, 1500);
-    } catch (e) {
+    } catch {
       setError(t("vadmin.edit.networkError"));
     } finally {
       setSaving(false);
