@@ -85,6 +85,24 @@ function ensureEligibilitySeeded() {
   return eligibilitySeeded ? Promise.resolve() : eligibilitySeedPromise;
 }
 
+/** Personal grants for a user (still-valid rows only). */
+function fetchUserGrants(cid) {
+  return db.execute({
+    sql: `SELECT module, capability, access_level FROM user_capabilities
+          WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())`,
+    args: [cid],
+  });
+}
+
+/** Explicit blocks for a user (still-valid rows only). */
+function fetchUserRestrictions(cid) {
+  return db.execute({
+    sql: `SELECT module, capability FROM user_capability_restrictions
+          WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())`,
+    args: [cid],
+  });
+}
+
 // ─── Pure helpers (exported for tests) ──────────────────────────────────────
 
 /** Group DB rows [{module, capability, access_level}] into {module:{cap:level}} (max-merge). */
@@ -187,25 +205,17 @@ export async function resolveAuthorizationContext({ cid, role, group_name }) {
   // authorization decision (serverless timeout risk on slow databases).
   await Promise.all([ensureEligibilitySeeded(), ensureCapabilityBackfills()]);
 
-  // Grants + restrictions are needed for every user (SA edge case included).
-  const [grantRows, restrictRows] = await Promise.all([
-    db.execute({
-      sql: `SELECT module, capability, access_level FROM user_capabilities
-            WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())`,
-      args: [cid],
-    }),
-    db.execute({
-      sql: `SELECT module, capability FROM user_capability_restrictions
-            WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())`,
-      args: [cid],
-    }),
-  ]);
-  const grants = rowsToCaps(grantRows.rows);
-  const restrictions = rowsToRestrictions(restrictRows.rows);
-
   // Super Admin: allowed unless explicitly restricted (V2 L1370-1385).
   // Eligibility is bypassed entirely — SA is eligible for every feature.
+  // The role is known before any query, so this branch deliberately pays only
+  // the grants/restrictions read and never the profile/group lookups.
   if (role === "super_admin") {
+    const [grantRows, restrictRows] = await Promise.all([
+      fetchUserGrants(cid),
+      fetchUserRestrictions(cid),
+    ]);
+    const grants = rowsToCaps(grantRows.rows);
+    const restrictions = rowsToRestrictions(restrictRows.rows);
     const saMatrix = buildSuperAdminMatrix();
     return {
       cid,
@@ -223,15 +233,23 @@ export async function resolveAuthorizationContext({ cid, role, group_name }) {
     };
   }
 
-  // 1. Contact row (profile override + group_name fallback) + groups —
-  //    independent reads, run in parallel.
-  const [contactRes, groupList] = await Promise.all([
+  // One wave for everything that needs only the identity: the personal grants
+  // and blocks, the contact row (profile override + group_name fallback) and the
+  // effective groups. These four reads are independent of each other — they used
+  // to be two separate waves, which cost every cold resolution an extra round
+  // trip (~130ms) for nothing.
+  const [grantRows, restrictRows, contactRes, groupList] = await Promise.all([
+    fetchUserGrants(cid),
+    fetchUserRestrictions(cid),
     db.execute({
       sql: "SELECT access_profile_id, group_name FROM contacts WHERE cid = ?",
       args: [cid],
     }),
     getEffectiveGroupsForUser(cid),
   ]);
+  const grants = rowsToCaps(grantRows.rows);
+  const restrictions = rowsToRestrictions(restrictRows.rows);
+
   const contact = contactRes.rows[0] || {};
   let groups = groupList;
   if (groups.length === 0 && contact.group_name) groups = [contact.group_name];
