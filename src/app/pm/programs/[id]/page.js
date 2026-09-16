@@ -40,6 +40,8 @@ import { useI18n } from "@/lib/i18n";
 import { getWeekNumber, getLocalToday, FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
 import { FacilitatorsPanel } from "@/components/pm/FacilitatorsPanel";
 import ProgramLearningSection from "@/components/lms/ProgramLearningSection";
+import SessionResourcesSection from "@/components/lms/SessionResourcesSection";
+import CoachingRequestsPanel from "@/components/lms/CoachingRequestsPanel";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export const dynamic = "force-dynamic";
@@ -2060,6 +2062,9 @@ function ProgramWorkspace() {
                   )}
                 </div>
               </div>
+              {/* Phase 8 — learner coaching requests raised from the LMS view */}
+              <CoachingRequestsPanel programId={id} canEdit={canEdit} />
+
               <div className="flex flex-col gap-4 mt-4">
                 {(sessions || [])
                   .filter(
@@ -2757,19 +2762,15 @@ function ProgramWorkspace() {
                           {/* SEPARATOR */}
                           <div className="w-full h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
 
-                          {/* PHASE 3: RESOURCES (THE SUPPORT) */}
-                          <div className="space-y-6">
-                            <div className="flex items-center justify-between pb-3 border-b border-blue-500/20">
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center text-[9px] font-black text-blue-500 border border-blue-500/20 shadow-sm">
-                                  3
-                                </div>
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">
-                                  {t("pmMisc.workspace.curriculumWeeklyResources")}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
+                          {/* PHASE 3: RESOURCES (THE SUPPORT) — Phase 8: videos and
+                              documents attached to THIS session, each with an optional
+                              "recommended" flag the learner sees. */}
+                          <SessionResourcesSection
+                            programId={id}
+                            sessionId={session.id}
+                            weekNumber={session.week_number}
+                            canEdit={canEdit}
+                          />
 
                           {/* SEPARATOR */}
                           <div className="w-full h-px bg-gradient-to-r from-transparent via-[var(--brand-orange)]/20 to-transparent" />

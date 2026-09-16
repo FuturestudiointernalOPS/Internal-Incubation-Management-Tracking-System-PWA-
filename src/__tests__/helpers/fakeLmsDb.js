@@ -32,7 +32,12 @@ const TABLES = [
   "lms_assessment_attempts",
   "lms_certificates",
   "lms_program_requirements",
+  "lms_session_resources",
+  "lms_coaching_requests",
   "v2_programs",
+  "v2_sessions",
+  "v2_program_staff",
+  "v2_notifications",
   "participant_programs",
   "contacts",
 ];
@@ -41,6 +46,7 @@ const TABLES = [
 // schema's DEFAULT clauses so inserted rows look like real-DB rows).
 const TABLE_DEFAULTS = {
   lms_certificates: { status: "valid" },
+  lms_coaching_requests: { status: "pending", timing: "during" },
 };
 
 export function createFakeDb() {
@@ -135,6 +141,9 @@ export function createFakeDb() {
         updated.completed_at = "2026-08-27T02:00:00Z";
       else if (/revoked_at\s*=\s*now\(\)/i.test(part))
         updated.revoked_at = "2026-08-27T03:00:00Z";
+      else if (/^(\w+)\s*=\s*now\(\)/i.test(part))
+        // Generic `<col> = NOW()` (e.g. handled_at on a coaching decision).
+        updated[/^(\w+)\s*=\s*now\(\)/i.exec(part)[1]] = "2026-08-27T04:00:00Z";
     }
     state[table] = state[table].map((r) => (r === row ? updated : r));
     return { rows: [updated], rowsAffected: 1 };
@@ -176,7 +185,10 @@ export function createFakeDb() {
     // positionally: `user_cid = ? AND assessment_id IN (?, ?)` binds user_cid
     // first. A single pass that processed IN clauses before `=` clauses would
     // bind the IN list to the wrong args whenever an `=` clause precedes it.
-    const condRe = /(\w+)\s+in\s*\(([^)]*)\)|(\w+)\s*(?:<>|!=)\s*'([^']+)'|(\w+)\s*=\s*\?|(\w+)\s+like\s*\?/gi;
+    // An optional `::type` cast is tolerated (production code casts TEXT/UUID
+    // id columns to compare across the two id spaces).
+    const condRe =
+      /(\w+)(?:::\w+)?\s+in\s*\(([^)]*)\)|(\w+)(?:::\w+)?\s*(?:<>|!=)\s*'([^']+)'|(\w+)(?:::\w+)?\s*=\s*\?|(\w+)(?:::\w+)?\s+like\s*\?/gi;
     let m;
     while ((m = condRe.exec(cond))) {
       if (m[1]) {

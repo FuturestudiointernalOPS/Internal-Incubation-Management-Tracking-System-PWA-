@@ -7,6 +7,7 @@ import AppButton from "@/components/ui/AppButton";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import LearnerProgressBar from "./LearnerProgressBar";
 import CourseThumb from "./CourseThumb";
+import LearnerCoachingButton from "./LearnerCoachingButton";
 import { useI18n } from "@/lib/i18n";
 
 /**
@@ -50,9 +51,13 @@ export default function LearnerLearning() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-xl font-black uppercase tracking-tight" style={{ color: "var(--text-primary)" }}>
-        {t("lms.learning.title")}
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-black uppercase tracking-tight" style={{ color: "var(--text-primary)" }}>
+          {t("lms.learning.title")}
+        </h1>
+        {/* Phase 8 — ask for coaching around a course (blinking CTA). */}
+        <LearnerCoachingButton />
+      </div>
 
       {loading ? (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">

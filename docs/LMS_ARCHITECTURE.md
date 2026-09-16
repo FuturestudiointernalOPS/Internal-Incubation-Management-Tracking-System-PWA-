@@ -218,6 +218,48 @@ Index: `(course_id)`.
 
 Indexes: `(user_cid)`, `(course_id)`, `(status)`.
 
+### 2.11 lms_session_resources (Phase 8)
+
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| program_id | TEXT NOT NULL | `v2_programs.id`; **no FK** — see §8 |
+| session_id | TEXT | `v2_sessions.id`; **no FK**; NULL = program-wide material |
+| week_number | INTEGER | denormalised program week (read convenience) |
+| kind | TEXT CHECK | `video` \| `document` |
+| title | TEXT NOT NULL | |
+| description | TEXT | what the resource is / how to use it |
+| url | TEXT | where the material lives: an external link OR the uploaded file's public URL — required by the service |
+| source | TEXT CHECK | `link` \| `upload` (default `link`) — the origin of `url` |
+| storage_path | TEXT | object path in the `lms-session-resources` bucket; NULL for links (deletion handle) |
+| file_name / file_size / mime_type | TEXT / BIGINT / TEXT | original filename, bytes and mime type of an upload |
+| is_recommended | BOOLEAN | default FALSE — the "recommended for this session" signal |
+| recommendation_note | TEXT | why it is recommended (coach/PM guidance) |
+| position | INTEGER | default 0 |
+| created_by | TEXT | `contacts.cid` or `system` |
+| created_at / updated_at | TIMESTAMPTZ | |
+
+Indexes: `(program_id, session_id)`, `(program_id, is_recommended)`.
+
+### 2.12 lms_coaching_requests (Phase 8)
+
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| user_cid | TEXT NOT NULL FK → contacts(cid) | the learner (existing ImpactOS identity) |
+| program_id | TEXT | `v2_programs.id`; **no FK**; resolved server-side |
+| course_id | UUID FK → lms_courses | `ON DELETE CASCADE` |
+| lesson_id | UUID FK → lms_lessons | `ON DELETE SET NULL`; optional "right here" context |
+| timing | TEXT CHECK | `before` \| `during` \| `after` |
+| topic / message | TEXT | optional learner input |
+| status | TEXT CHECK | `pending` \| `accepted` \| `declined` \| `completed` \| `cancelled` |
+| handled_by | TEXT | `contacts.cid` of the staff member who decided |
+| handled_at | TIMESTAMPTZ | |
+| response_note | TEXT | staff answer the learner sees |
+| created_at / updated_at | TIMESTAMPTZ | |
+
+Indexes: `(user_cid)`, `(program_id, status)`, `(course_id)`.
+
 ## 3. Conventions
 
 - **IDs**: UUID PKs via `gen_random_uuid()` (matches `v2_programs`/`v2_sessions` style). User
@@ -312,12 +354,22 @@ Follow existing ImpactOS conventions (see `docs/API.md`, `docs/MODULES.md`):
 | `/api/lms/program-requirements` + `[id]` | ✅ Phase 6 | Program → Course links (list/attach/update/detach; `lms.assign`) + auto-enrollment |
 | `/api/public/courses` + `[slug]` | ✅ Phase 7 | public catalogue + detail (marketing-safe) + free self-enrollment (`source 'self'`) |
 | `/api/contacts/[cid]/learning` | ✅ Phase 7 | CRM learning-journey trace (`contacts.view`) |
+| `/api/lms/session-resources` + `[id]` | ✅ Phase 8 | session material + recommendations (`lms.view` read, `lms.assign` write) |
+| `/api/lms/session-resources/upload` | ✅ Phase 8.1 | file upload + orphan cleanup for session material (`lms.assign`) |
+| `/api/lms/coaching-requests` + `[id]` | ✅ Phase 8 | learner asks for coaching before/during/after a course; staff decision queue |
 
 Phase 6/7 implementation details, deviations and the final report: `docs/PHASE6_7_REPORT.md`.
 
 ## 7. Migration & verification
 
 - File: `supabase/migrations/20260827_lms_foundation.sql` (additive, idempotent).
+- Phase 8 additions: `supabase/migrations/20260916_lms_session_resources_and_coaching.sql`
+  (additive, idempotent — `lms_session_resources` + `lms_coaching_requests`), see §13.
+- Phase 8.1 additions:
+  `supabase/migrations/20260917_lms_session_resource_uploads.sql` (additive,
+  idempotent — `source` / `storage_path` / `file_name` / `file_size` /
+  `mime_type` on `lms_session_resources`). Deliberately dated after 20260916 so
+  the table exists when it runs.
 - Apply via the Supabase SQL editor. Then re-run the permission seeds so the live DB's
   `access_profile_capabilities` / `role_capabilities` include the new `lms` module rows:
   `GET /api/engineering/permissions/seed` and
@@ -543,3 +595,89 @@ with the full certificate + Download). The existing `/participant/certificates`
 page belongs to the PROGRAM certificate system (`participant_programs.
 certificate_issued`) — LMS certificates are intentionally kept separate until
 the Program ↔ LMS integration phase.
+
+## 13. Session resources, recommendations & coaching requests (Phase 8)
+
+Two additions that turn a Program session into a place where learners actually
+find support:
+
+### 13.1 Session resources
+
+A session (program week) carries its own material as ROWS in
+`lms_session_resources` — videos and documents, each with an optional
+`is_recommended` flag and a `recommendation_note`.
+
+- **Authoring** (`lms.assign`): the Program Manager session card in
+  `/pm/programs/[id]` (Phase 3 — Resources) adds, edits and deletes resources;
+  the component is `src/components/lms/SessionResourcesSection.js`.
+- **Two origins, one row**: a resource is either an external link
+  (`source = 'link'`) or a file uploaded through ImpactOS
+  (`source = 'upload'`). Uploads are a deliberate two-step:
+  `POST /api/lms/session-resources/upload` (multipart) stores the object and
+  returns `{ url, storage_path, file_name, file_size, mime_type, kind }`, which
+  the caller then saves on the resource. That keeps the row and the object in
+  sync, and lets the same metadata be edited like any other field.
+  Bucket: `lms-session-resources` (auto-created on first use, service-role
+  upload — same boundary as `course-thumbnails`). Objects live under
+  `sessions/<program>/<session>/<timestamp>-<name>`.
+- **Limits**: documents (PDF / Office / OpenDocument / text / images) up to
+  **5 MB** — the app-wide ceiling (see `src/lib/storage.js`); videos (mp4 / webm
+  / mov / m4v) up to **25 MB**. Enforced server-side before storage, and mirrored
+  in the picker for instant feedback (`src/lib/lms/constants.js` is the shared
+  source of both rules). The picker accepts a dropped file as well as a click.
+- **Inline preview (learner)**: `ResourcePreview` shows an uploaded image
+  directly and reveals a PDF (framed) or a video (player) on demand — never
+  automatically, and **never for external links** (a third-party page may refuse
+  to be framed; a broken embed is worse than a plain link). `resourcePreviewKind`
+  (in `src/lib/lms/constants.js`) decides, falling back to the filename when the
+  browser reported no mime type. Everything else opens in a new tab.
+- **No orphans**: deleting a resource deletes its stored object; replacing a
+  file deletes the previous one; an upload cancelled before saving is removed
+  through `DELETE /api/lms/session-resources/upload?path=…`. All of these are
+  best-effort — the database stays authoritative, a storage hiccup never blocks
+  the row from being saved or deleted. Only paths under `sessions/` are ever
+  accepted as a deletion target.
+- **Reading** (`lms.view`): `GET /api/lms/session-resources?program_id=…
+  [&session_id=…][&week_number=…]`.
+- **Learner surface**: the participant program payload
+  (`/api/participant/programs/[id]`) attaches each session's resources to its
+  week (`week.resources` / `week.recommendations`);
+  `src/components/lms/SessionResourcesList.js` renders recommendations first
+  (note included), then the remaining material, with the filename and size for
+  uploads. Links always open in a new tab.
+- Legitimacy rules: `title` and an http(s) `url` are required (a link-less
+  resource is not a resource); an unknown `kind` is rejected; a recommendation
+  note is only stored when the resource is actually flagged. The legacy
+  `v2_sessions.extra_materials` JSON is left untouched — it is not read or
+  migrated.
+
+### 13.2 Coaching requests
+
+A learner asks for coaching **before, during or after** a course from inside the
+LMS view (the blinking button rendered by
+`src/components/lms/LearnerCoachingButton.js`, present on My Learning, the course
+overview and the lesson player).
+
+Flow: `POST /api/lms/coaching-requests` → row `pending` in
+`lms_coaching_requests` → the program's staff (assigned PM + `v2_program_staff`)
+receive a `v2_notifications` entry → the PM answers from the
+`CoachingRequestsPanel` in the Program curriculum tab (`PUT …/[id]`) → the
+learner is notified and sees the status/response on their own surface.
+
+Rules:
+- Enrollment IS the access model: a request can only be created for a course the
+  caller is enrolled in (server-derived, never from the client's course id), and
+  `program_id` is resolved server-side (enrollment first, then the course's
+  program requirement).
+- One OPEN request per (learner, course): asking twice returns the existing row
+  (`duplicate: true`) instead of flooding the queue.
+- A learner may withdraw their OWN request while it is still open
+  (`DELETE /api/lms/coaching-requests/[id]`, `cancelled`).
+- Notification text is data-bearing (learner, course, timing) and stored on
+  `v2_notifications`, matching the existing notification convention — it is not
+  routed through `t()`.
+- The blinking CTA uses the `animate-coaching-blink` Tailwind animation and is
+  disabled under `prefers-reduced-motion` (`motion-reduce:animate-none`).
+- This is a request queue, NOT a scheduling engine: no calendar slot or meeting
+  link is created. A future phase can promote an accepted request into a real
+  session without changing this table.

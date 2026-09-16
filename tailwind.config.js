@@ -57,6 +57,18 @@ module.exports = {
         sans: ["Inter", "sans-serif"],
         headings: ["Poppins", "sans-serif"],
       },
+      animation: {
+        // Learner "ask for coaching" call-to-action: a soft, continuous blink
+        // (opacity + a fading halo) that stays legible instead of a harsh
+        // on/off flash. `motion-reduce` in the component stops it.
+        "coaching-blink": "coachingBlink 1.6s ease-in-out infinite",
+      },
+      keyframes: {
+        coachingBlink: {
+          "0%, 100%": { opacity: "1", boxShadow: "0 0 0 0 rgb(255 102 0 / 0.55)" },
+          "50%": { opacity: "0.6", boxShadow: "0 0 0 8px rgb(255 102 0 / 0)" },
+        },
+      },
     },
   },
   plugins: [],

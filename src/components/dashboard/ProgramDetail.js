@@ -31,6 +31,7 @@ import { useI18n } from "@/lib/i18n";
 import { getServerErrorKey } from "@/lib/constants";
 import SubmissionVersionHistory from "./SubmissionVersionHistory";
 import CourseThumb from "@/components/lms/CourseThumb";
+import SessionResourcesList from "@/components/lms/SessionResourcesList";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 // ─── Status Badge ──────────────────────────────────────────────────
@@ -379,6 +380,12 @@ function WeekCard({ week, isExpanded, onToggle, onSubmit, t }) {
                 );
               })}
             </div>
+          )}
+
+          {/* Session resources & recommendations (Phase 8). Attached by the PM
+              to the session; read-only for the learner. */}
+          {week.resources && week.resources.length > 0 && (
+            <SessionResourcesList resources={week.resources} />
           )}
         </div>
       )}
