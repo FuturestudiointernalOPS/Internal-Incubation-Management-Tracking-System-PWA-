@@ -8,6 +8,7 @@ import LearnerProgressBar from "./LearnerProgressBar";
 import LessonStateIcon from "./LessonStateIcon";
 import CertificateCard from "./CertificateCard";
 import CourseThumb from "./CourseThumb";
+import LearnerCoachingButton from "./LearnerCoachingButton";
 import { useI18n } from "@/lib/i18n";
 
 /**
@@ -91,9 +92,13 @@ export default function LearnerCourse({ courseId }) {
           />
         )}
         <div>
-          <h1 className="text-xl font-black uppercase tracking-tight" style={{ color: "var(--text-primary)" }}>
-            {course.title}
-          </h1>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-xl font-black uppercase tracking-tight" style={{ color: "var(--text-primary)" }}>
+              {course.title}
+            </h1>
+            {/* Phase 8 — coaching request tied to THIS course. */}
+            <LearnerCoachingButton courseId={course.id} />
+          </div>
           {course.description && (
             <p className="text-xs mt-2 max-w-2xl" style={{ color: "var(--text-secondary)" }}>
               {course.description}

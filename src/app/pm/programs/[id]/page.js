@@ -45,6 +45,7 @@ import { getWeekNumber, getLocalToday, FACILITATOR_REVIEW_OPTIONS } from "@/lib/
 import { FacilitatorsPanel } from "@/components/pm/FacilitatorsPanel";
 import ProgramLearningSection from "@/components/lms/ProgramLearningSection";
 import SessionResourcesSection from "@/components/lms/SessionResourcesSection";
+import CoachingRequestsPanel from "@/components/lms/CoachingRequestsPanel";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export const dynamic = "force-dynamic";
@@ -2072,6 +2073,9 @@ function ProgramWorkspace() {
                   )}
                 </div>
               </div>
+              {/* Phase 8 — learner coaching requests raised from the LMS view */}
+              <CoachingRequestsPanel programId={id} canEdit={canEdit} />
+
               <div className="flex flex-col gap-4 mt-4">
                 {(sessions || [])
                   .filter(

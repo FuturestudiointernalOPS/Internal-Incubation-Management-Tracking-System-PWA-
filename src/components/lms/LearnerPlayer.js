@@ -16,6 +16,7 @@ import {
 import AppButton from "@/components/ui/AppButton";
 import LessonStateIcon from "./LessonStateIcon";
 import LearnerProgressBar from "./LearnerProgressBar";
+import LearnerCoachingButton from "./LearnerCoachingButton";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 import { isValidYouTubeVideoId, buildYouTubeEmbedUrl } from "@/lib/lms/youtube";
@@ -177,7 +178,9 @@ export default function LearnerPlayer({ courseId, lessonId }) {
         >
           ← {course.title}
         </button>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Phase 8 — ask for coaching right where the learner is stuck. */}
+          <LearnerCoachingButton courseId={course.id} lessonId={lesson.id} />
           <div className="w-32">
             <LearnerProgressBar percent={progress.percent} label={`${course.title} ${progress.percent}%`} />
           </div>
