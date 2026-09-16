@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Shield,
   Search,
@@ -47,8 +47,8 @@ import { splitAuditReason } from "@/components/permissions/auditHelpers";
 import { deriveProfileBadges } from "@/components/permissions/profileBadges";
 import FeatureMatrixSection from "@/components/permissions/FeatureMatrixSection";
 import AdvancedCapabilities from "@/components/permissions/AdvancedCapabilities";
-import { groupModulesByFeature, buildSubsectionRows, toggleCapability, toggleFullCapabilities, filterSectionsByRoleEligibility, crudCapabilities, CRUD_CAPABILITIES, collectHiddenStoredCaps, eligibleFeaturesForPerson, isPersonEligibleForFeature } from "@/components/permissions/matrixHelpers";
-import { defer } from "@/components/permissions/effectUtils";
+import { groupModulesByFeature, buildSubsectionRows, toggleCapability, toggleFullCapabilities, filterSectionsByRoleEligibility, crudCapabilities, CRUD_CAPABILITIES, collectHiddenStoredCaps, eligibleFeaturesForPerson, isPersonEligibleForFeature, deriveUserCapState, describeCapOrigins } from "@/components/permissions/matrixHelpers";
+import { defer, createLatestGuard } from "@/components/permissions/effectUtils";
 
 const ACCESS_LEVEL_KEYS = {
   0: "engineering.permissions.accessLevelNone",
@@ -109,13 +109,6 @@ export default function PermissionManager({
   const [assignErr, setAssignErr] = useState("");
   const [assignBusy, setAssignBusy] = useState(false);
 
-  // The screen above owns the person selection: the editor follows the cid it
-  // is handed (Individual Access merged both lenses onto one selection).
-  useEffect(() => {
-    if (!cid) return;
-    defer(() => selectUser({ cid }));
-  }, [cid]);
-
   const fetchModules = async () => {
     setModulesError("");
     try {
@@ -172,8 +165,16 @@ export default function PermissionManager({
     defer(() => fetchModules());
   }, []);
 
-  // Hoisted declaration: referenced by the effects above, so it must not live
-  // in the temporal dead zone (react-hooks/immutability).
+  // One line of succession for every read of the selected person's access: a
+  // late answer from the person you just left must never paint their rights
+  // under the name of the person you are now looking at. The loader is declared
+  // BEFORE the effect that calls it, so neither is accessed before declaration
+  // (react-hooks/immutability).
+  const personLoad = useRef(null);
+  if (personLoad.current == null) {
+    personLoad.current = createLatestGuard();
+  }
+
   async function selectUser(user) {
     setSelectedUser(user);
     // One person, two lenses: keep ?cid= in the URL so the "Effective access"
@@ -195,11 +196,13 @@ export default function PermissionManager({
     // Clear the previous person's rights: keeping them on screen while the next
     // person loads shows one person's access under another person's name.
     setUserPerms(null);
+    const token = personLoad.current.begin();
     try {
       const res = await fetch(
         `/api/engineering/permissions?user_cid=${user.cid}`,
       );
       const data = await res.json();
+      if (!personLoad.current.isCurrent(token)) return; // a newer person won
       if (!data.success) throw new Error(data.error || `HTTP ${res.status}`);
       setUserPerms(data);
       // Auto-expand all modules
@@ -210,13 +213,21 @@ export default function PermissionManager({
       setExpandedModules(expanded);
     } catch (e) {
       console.error("Failed to fetch user permissions", e);
+      if (!personLoad.current.isCurrent(token)) return;
       setLoadError(
         e?.message || t("engineering.permissions.personAccessLoadFailed"),
       );
     } finally {
-      setLoadingPerms(false);
+      if (personLoad.current.isCurrent(token)) setLoadingPerms(false);
     }
   };
+
+  // The screen above owns the person selection: the editor follows the cid it
+  // is handed (Individual Access merged both lenses onto one selection).
+  useEffect(() => {
+    if (!cid) return;
+    defer(() => selectUser({ cid }));
+  }, [cid]);
 
   const loadAssignProfiles = async () => {
     try {
@@ -258,6 +269,49 @@ export default function PermissionManager({
       setAssignBusy(false);
     }
   };
+
+  // The source layers as the SERVER describes them (profile, group, direct
+  // grant) plus the blocks, so the editors can name the origin of a capability
+  // exactly the way the report does. `getOrigin` below answers the coarser
+  // question the write controls need (is there a personal exception?); this one
+  // answers "why do they have it?" for the reader.
+  const sourceLayers = useMemo(() => {
+    const sources = userPerms?.explanation?.sources || {};
+    const restrictions = {};
+    for (const row of userPerms?.individualRestrictions || []) {
+      if (!row?.module || !row?.capability) continue;
+      restrictions[row.module] ??= {};
+      restrictions[row.module][row.capability] = true;
+    }
+    return {
+      profile: sources.profile || {},
+      groups: sources.groups || {},
+      grants: sources.grants || {},
+      restrictions,
+    };
+  }, [userPerms]);
+
+  /** Origin labels of one capability, ready to render (never empty). */
+  const originsOf = (module, capability) =>
+    describeCapOrigins(
+      deriveUserCapState(
+        sourceLayers,
+        module,
+        capability,
+        isPersonEligibleForFeature(eligibilityMap, featureMap[module]),
+      ),
+      {
+        profileName: userPerms?.effectiveProfile?.profileName || null,
+        groups: userPerms?.groups || [],
+        superAdmin: userPerms?.user?.role === "super_admin",
+      },
+    );
+
+  /** One capability's origin, as a readable sentence. */
+  const originText = (module, capability) =>
+    originsOf(module, capability)
+      .map((origin) => t(origin.key, origin.params))
+      .join(" · ");
 
   const getEffectiveLevel = (module, capability) => {
     return userPerms?.effectivePermissions?.[module]?.[capability] ?? 0;
@@ -432,11 +486,13 @@ export default function PermissionManager({
   };
 
   const refreshUserPerms = async () => {
+    const token = personLoad.current.begin();
     try {
       const res = await fetch(
         `/api/engineering/permissions?user_cid=${selectedUser.cid}`,
       );
       const data = await res.json();
+      if (!personLoad.current.isCurrent(token)) return; // a newer person won
       if (data.success) setUserPerms(data);
     } catch {}
   };
@@ -869,6 +925,15 @@ export default function PermissionManager({
                                                   </span>
                                                 )}
                                               </div>
+                                              {/* The state the chips act on: what the
+                                                  person has TODAY and where it comes
+                                                  from, so a chip is never clicked blind
+                                                  (a direct grant of a level the person
+                                                  already inherits changes nothing). */}
+                                              <p className="mt-1 text-[9px] font-bold text-[var(--text-secondary)] opacity-80">
+                                                {t("engineering.permissions.advancedCurrentState")}:{" "}
+                                                {originText(modKey, cap)}
+                                              </p>
                                             </td>
 
                                             {/* Controls — the level chips use the same
@@ -1010,22 +1075,27 @@ export default function PermissionManager({
                     ))}
 
                     {/* Non-CRUD capabilities (grant, promote_super_admin, send,
-                        publish, execute…) — individual grants/restrictions. */}
-                    <AdvancedCapabilities
-                      availableModules={availableModules}
-                      moduleToFeature={moduleToFeature}
-                      visibleFeatures={personFeatures}
-                      retainedCaps={exceptionSpecialCaps}
-                      mode="individual"
-                      stateOf={(module, capability) => ({
-                        level: getEffectiveLevel(module, capability),
-                        origin: getOrigin(module, capability),
-                      })}
-                      onAction={handleQuickAction}
-                      onWhy={(module, capability) =>
-                        setWhyTarget({ module, capability })
-                      }
-                    />
+                        publish, execute…) — individual grants/blocks. Hidden when
+                        the catalogue failed: these controls are built from it, and
+                        an empty list would claim there is nothing to grant. */}
+                    {!modulesError && (
+                      <AdvancedCapabilities
+                        availableModules={availableModules}
+                        moduleToFeature={moduleToFeature}
+                        visibleFeatures={personFeatures}
+                        retainedCaps={exceptionSpecialCaps}
+                        mode="individual"
+                        stateOf={(module, capability) => ({
+                          level: getEffectiveLevel(module, capability),
+                          origin: getOrigin(module, capability),
+                          origins: originsOf(module, capability),
+                        })}
+                        onAction={handleQuickAction}
+                        onWhy={(module, capability) =>
+                          setWhyTarget({ module, capability })
+                        }
+                      />
+                    )}
                   </div>
                 )}
               </div>

@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Search, ShieldCheck } from "lucide-react";
+import { Search, ShieldCheck, RefreshCw } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
-import { defer, settled } from "./effectUtils";
+import { defer, settled, createLatestGuard } from "./effectUtils";
 import { Skeleton } from "@/components/ui/Skeleton";
 import Badge from "./ui/Badge";
 import EffectiveBadge from "./ui/EffectiveBadge";
 import WhyDrawer from "./ui/WhyDrawer";
-import { collectContextModules, deriveUserCapState, deriveDenialReason } from "./matrixHelpers";
+import { collectContextModules, deriveUserCapState, deriveDenialReason, describeCapOrigins } from "./matrixHelpers";
 import { SCOPE_POLICIES, SCOPE_POLICY_KEYS } from "@/lib/authorization/scope-catalog";
 
 /**
@@ -85,17 +85,28 @@ export default function PeopleView({ person = null }) {
     defer(() => loadCatalog());
   }, [loadCatalog]);
 
+  // The report reads two things: the person's access, then what the scope
+  // engine resolves for them. Both belong to the person selected when the read
+  // STARTED, so a late answer is dropped rather than shown under the next
+  // person's name.
+  const ctxLoad = useRef(null);
+  if (ctxLoad.current == null) {
+    ctxLoad.current = createLatestGuard();
+  }
+
   const pick = useCallback(
     async (u) => {
       setCtx(null);
       setScope([]);
       setErr("");
       setLoadingCtx(true);
+      const token = ctxLoad.current.begin();
       try {
         const res = await fetch(
           `/api/engineering/permissions/user-context?cid=${encodeURIComponent(u.cid)}`,
         );
         const d = await res.json();
+        if (!ctxLoad.current.isCurrent(token)) return; // a newer person won
         if (!d.success) throw new Error(d.error || "load failed");
         setCtx(d);
 
@@ -119,11 +130,13 @@ export default function PeopleView({ person = null }) {
             }
           }),
         );
+        if (!ctxLoad.current.isCurrent(token)) return; // a newer person won
         setScope(settled);
       } catch (e) {
+        if (!ctxLoad.current.isCurrent(token)) return;
         setErr(e.message);
       } finally {
-        setLoadingCtx(false);
+        if (ctxLoad.current.isCurrent(token)) setLoadingCtx(false);
       }
     },
     [],
@@ -207,6 +220,16 @@ export default function PeopleView({ person = null }) {
         })
         .filter((m) => m.caps.length > 0);
 
+  /** Origin labels of one capability, as a readable sentence. */
+  const originText = (state) =>
+    describeCapOrigins(state, {
+      profileName: ctx?.profile?.profileName || null,
+      groups: ctx?.groups || [],
+      superAdmin: Boolean(ctx?.isSuperAdmin),
+    })
+      .map((origin) => t(origin.key, origin.params))
+      .join(" · ");
+
   /** One section header summary: which of the four rights are held. */
   const rightStates = (m) =>
     CRUD_RIGHTS.map((cap) => {
@@ -229,7 +252,24 @@ export default function PeopleView({ person = null }) {
           {t("engineering.permissions.peopleSelectPrompt")}
         </p>
       )}
-      {err && <p className="text-xs font-bold text-red-500">{err}</p>}
+      {err && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 space-y-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-red-400">
+            {t("engineering.permissions.peopleReportLoadFailed")}
+          </p>
+          <p className="text-[10px] font-bold text-[var(--text-secondary)] break-words">
+            {err}
+          </p>
+          <button
+            type="button"
+            onClick={() => selected && pick(selected)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+          >
+            <RefreshCw className="w-3 h-3" />
+            {t("common.refresh")}
+          </button>
+        </div>
+      )}
       {loadingCtx && (
         <div className="space-y-2">
           <Skeleton className="h-10" />
@@ -377,7 +417,10 @@ export default function PeopleView({ person = null }) {
               </div>
             </div>
 
-            <p className="px-3 pt-2 text-[10px] font-bold text-[var(--text-secondary)] opacity-70">
+            <p className="px-3 pt-2 text-[10px] font-bold text-[var(--text-secondary)]">
+              {t("engineering.permissions.peopleMatrixReportHint")}
+            </p>
+            <p className="px-3 pt-1 text-[10px] font-bold text-[var(--text-secondary)] opacity-70">
               {t("engineering.permissions.peopleMatrixLegend")}
             </p>
 
@@ -458,6 +501,9 @@ export default function PeopleView({ person = null }) {
                           >
                             <td className="px-3 py-1.5 text-xs font-bold text-[var(--text-primary)]">
                               {m.module}.{cap}
+                              <span className="block text-[9px] font-bold text-[var(--text-secondary)] opacity-80">
+                                {originText(s)}
+                              </span>
                             </td>
                             <td className="text-center">
                               <SourceGlyph on={s.profile} kind="profile" />
@@ -545,6 +591,9 @@ export default function PeopleView({ person = null }) {
                               <SourceGlyph on={src.on} kind={src.kind} />
                             </span>
                           ))}
+                        </span>
+                        <span className="block text-[10px] font-bold text-[var(--text-secondary)] opacity-80">
+                          {originText(s)}
                         </span>
                       </button>
                     );

@@ -15,8 +15,18 @@ import { CRUD_CAPABILITIES } from "@/components/permissions/matrixHelpers";
  *
  *   - mode="profile"    → checkbox bound to a profile's draft capabilities
  *                         (onToggle), saved with the rest of the profile.
- *   - mode="individual" → grant / restrict controls bound to a person's
+ *   - mode="individual" → grant / block controls bound to a person's
  *                         overrides (onAction), applied immediately.
+ *
+ * Individual mode never uses a bare checkbox: its meaning depended on context
+ * (unchecking an INHERITED right created a block), so each row now states what
+ * the person has TODAY (with its origin) next to the actions that are actually
+ * available — grant directly, block, remove the direct grant, or restore a
+ * blocked right. One ambiguity removed, nothing hidden.
+ *
+ * The caller passes anything it knows about the capability through `stateOf` as
+ * `{ level, origin, origins }` — `origins` being ready-made label descriptors —
+ * so this component renders and never decides what a source is.
  *
  * Why it exists: the CRUD matrix edits view/create/edit/delete/full only. The
  * privileged / operational capabilities (grant, promote_super_admin, send,
@@ -161,56 +171,88 @@ export default function AdvancedCapabilities({
   const renderIndividualRow = (module, capability) => {
     const state = stateOf?.(module, capability) || {};
     const origin = state.origin || "inherited";
-    const checked = Number(state.level ?? 0) > 0;
+    const originsText = (state.origins || [])
+      .map((originLabel) => t(originLabel.key, originLabel.params))
+      .join(" · ");
     return (
       <div
         key={`${module}.${capability}`}
-        className="flex items-center justify-between gap-3 py-1.5"
+        className="py-2 space-y-1.5"
       >
-        <span className="flex items-center gap-2 min-w-0">
-          <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-            {capabilityText(module, capability)}
-          </span>
-          {renderRisk(module, capability)}
-          {origin === "granted" && (
-            <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-emerald-400">
-              {t("engineering.permissions.legendIndividualGrant")}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="flex items-center gap-2 min-w-0">
+            <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+              {capabilityText(module, capability)}
             </span>
-          )}
-        </span>
-        <span className="flex items-center gap-1.5">
-          {origin === "restricted" ? (
-            <button
-              type="button"
-              onClick={() => onAction?.("unrestrict", module, capability)}
-              className="px-2 py-0.5 rounded border border-red-500/40 bg-red-500/10 text-[9px] font-black uppercase tracking-widest text-red-400"
-            >
-              {t("engineering.permissions.restricted")}
-            </button>
-          ) : (
-            <input
-              type="checkbox"
-              checked={checked}
-              disabled={disabled}
-              onChange={(e) => {
-                if (e.target.checked) onAction?.("grant", module, capability, 1);
-                else if (origin === "granted") onAction?.("revoke", module, capability);
-                else onAction?.("restrict", module, capability, 0);
-              }}
-              className="h-4 w-4 rounded border-[var(--border-primary)] accent-[var(--brand-orange)] cursor-pointer disabled:opacity-25"
-            />
-          )}
-          {onWhy && (
-            <button
-              type="button"
-              onClick={() => onWhy(module, capability)}
-              title={t("engineering.permissions.whyAccess")}
-              className="p-1 rounded hover:bg-blue-500/10"
-            >
-              <Info className="w-3 h-3 text-blue-400" />
-            </button>
-          )}
-        </span>
+            {renderRisk(module, capability)}
+          </span>
+          <span className="flex flex-wrap items-center gap-1.5">
+            {origin === "restricted" ? (
+              <button
+                type="button"
+                onClick={() => onAction?.("unrestrict", module, capability)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-[9px] font-black uppercase tracking-widest text-emerald-400 hover:bg-emerald-500/20 transition-all"
+              >
+                {t("engineering.permissions.restore")}
+              </button>
+            ) : (
+              <>
+                {origin === "granted" ? (
+                  <button
+                    type="button"
+                    onClick={() => onAction?.("revoke", module, capability)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-red-400 hover:border-red-400/50 transition-all"
+                  >
+                    {t("engineering.permissions.advancedRevokeDirect")}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => onAction?.("grant", module, capability, 1)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20 transition-all disabled:opacity-40"
+                  >
+                    {t("engineering.permissions.advancedGrantDirect")}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onAction?.("restrict", module, capability, 0)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:border-red-400/50 hover:text-red-400 transition-all disabled:opacity-40"
+                  title={t("engineering.permissions.titleRestrict")}
+                >
+                  {t("engineering.permissions.block")}
+                </button>
+              </>
+            )}
+            {onWhy && (
+              <button
+                type="button"
+                onClick={() => onWhy(module, capability)}
+                title={t("engineering.permissions.whyAccess")}
+                className="p-1 rounded hover:bg-blue-500/10"
+              >
+                <Info className="w-3 h-3 text-blue-400" />
+              </button>
+            )}
+          </span>
+        </div>
+        <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+          {t("engineering.permissions.advancedCurrentState")}:{" "}
+          <span
+            className={
+              origin === "restricted"
+                ? "text-red-400"
+                : origin === "granted"
+                  ? "text-emerald-400"
+                  : "text-[var(--text-primary)]"
+            }
+          >
+            {originsText ||
+              t("engineering.permissions.capOriginNone")}
+          </span>
+        </p>
       </div>
     );
   };
