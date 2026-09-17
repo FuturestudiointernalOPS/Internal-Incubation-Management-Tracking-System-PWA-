@@ -2,9 +2,24 @@
 
 export const dynamic = "force-dynamic";
 
-import React, { useEffect, useLayoutEffect, useState } from "react";
+import React, { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { getDashboardSessionUser, subscribeDashboardSession } from "@/lib/dashboardSession";
+
+/** The roles this section admits. */
+const ADMIN_ROLES = ["super_admin", "developer"];
+
+// The role the BROWSER can already vouch for: the session the shell has published,
+// or the stored copy on a cold load. Read as a store snapshot, which is why the
+// guard needs no effect to copy it into state — and why entering /admin still
+// paints on the first frame. The check below remains the authority.
+const getRestoredAdminRole = () => {
+  const role = getDashboardSessionUser()?.role;
+  return ADMIN_ROLES.includes(role) ? role : null;
+};
+
+const getRestoredRoleOnServer = () => null;
 
 /**
  * ADMIN LAYOUT — Role Guard + persistent dashboard shell
@@ -18,24 +33,15 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
  */
 export default function AdminLayout({ children }) {
   const router = useRouter();
-  // "super_admin" | "developer" — the role authorized to view this section.
-  const [sessionRole, setSessionRole] = useState(null);
-
-  // Optimistic fast-path: restore a cached admin session before first paint so
-  // entering /admin never flashes a blank screen. checkAccess() below still
-  // re-validates against the server and redirects if the session is invalid.
-  useLayoutEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const saved = localStorage.getItem("user");
-      if (saved) {
-        const u = JSON.parse(saved);
-        if (u.role === "super_admin" || u.role === "developer") {
-          setSessionRole(u.role);
-        }
-      }
-    } catch (_) {}
-  }, []);
+  const restoredRole = useSyncExternalStore(
+    subscribeDashboardSession,
+    getRestoredAdminRole,
+    getRestoredRoleOnServer,
+  );
+  // "super_admin" | "developer" — what the SERVER said, once it has answered.
+  const [serverRole, setServerRole] = useState(null);
+  // The server's word is the authority; the browser's is the first paint.
+  const sessionRole = serverRole || restoredRole;
 
   useEffect(() => {
     async function checkAccess() {
@@ -60,8 +66,8 @@ export default function AdminLayout({ children }) {
             }
           } catch (_) {}
           const role = data.user.role;
-          if (role === "super_admin" || role === "developer") {
-            setSessionRole(role);
+          if (ADMIN_ROLES.includes(role)) {
+            setServerRole(role);
             return;
           }
           // Redirect non-admin users to their correct dashboard

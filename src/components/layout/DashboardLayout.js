@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import {
   getDashboardSession,
+  getDashboardSessionUser,
   setDashboardSession,
   subscribeDashboardSession,
 } from "@/lib/dashboardSession";
@@ -712,36 +713,19 @@ function shellRole(userRole, role) {
   return userRole || role || "admin";
 }
 
-// ─── The identity the shell paints with, as a store ─────────────────────────
+// ─── The identity the shell paints with ─────────────────────────────────────
 //
-// Two sources, in order: the session this shell has already published (an
-// in-memory store that survives a remount, so navigating costs no re-fetch), and
-// — on a cold load, before the session has answered — the browser's stored copy.
-// Reading it through a SUBSCRIPTION is what removes the effect that used to copy
-// it into state, and with it the cascaded render that copy caused. The server
-// snapshot is deliberately absent, so the server's render and the browser's first
-// render agree and the identity arrives on the client's own read.
+// It comes from the shared session store: the session this shell has already
+// published (an in-memory store that survives a remount, so navigating costs no
+// re-fetch), or — on a cold load, before the session has answered — the browser's
+// stored copy. Reading it through a SUBSCRIPTION is what removes the effect that
+// used to copy it into state, and with it the cascaded render that copy caused.
+// The server snapshot is deliberately absent, so the server's render and the
+// browser's first render agree and the identity arrives on the client's own read.
 const EMPTY_USER = {};
 
-let cachedStoredUser = null;
-let storedUserRead = false;
-
-/** The browser's stored copy, read once: a snapshot must keep its identity. */
-function getStoredUserOnce() {
-  if (!storedUserRead) {
-    storedUserRead = true;
-    try {
-      const raw = localStorage.getItem("user");
-      cachedStoredUser = raw ? JSON.parse(raw) : null;
-    } catch {
-      cachedStoredUser = null;
-    }
-  }
-  return cachedStoredUser;
-}
-
 function getShellUserSnapshot() {
-  return getDashboardSession()?.user || getStoredUserOnce() || null;
+  return getDashboardSessionUser();
 }
 
 function getShellUserServerSnapshot() {

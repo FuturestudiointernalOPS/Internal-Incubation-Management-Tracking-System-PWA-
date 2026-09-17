@@ -2,9 +2,47 @@
 
 export const dynamic = "force-dynamic";
 
-import React, { useEffect, useLayoutEffect, useState } from "react";
+import React, { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import {
+  getDashboardSessionUser,
+  getStoredUserOnce,
+  subscribeDashboardSession,
+} from "@/lib/dashboardSession";
+
+/** The roles this section admits. */
+const DEVELOPER_ROLES = ["developer", "super_admin"];
+
+/** A group that also admits, whatever the role says. */
+const INTERN_GROUPS = ["FUTURE STUDIO INTERNS", "INTERN"];
+
+/** Where each other role belongs. */
+const ROLE_DASHBOARDS = {
+  staff: "/staff",
+  program_manager: "/pm",
+  participant: "/participant",
+};
+
+const toShellRole = (role) =>
+  role === "super_admin" ? "super_admin" : "developer";
+
+const isInternOf = (groups) =>
+  (groups || [])
+    .map((g) => String(g).toUpperCase())
+    .some((g) => INTERN_GROUPS.includes(g));
+
+// The role the BROWSER can already vouch for: the session the shell has published,
+// or the stored copy on a cold load. Read as a store snapshot, which is why the
+// guard needs no effect to copy it into state — and why entering /developer still
+// paints on the first frame. The check below remains the authority, and it is also
+// where the intern GROUP is honoured, exactly as before.
+const getRestoredDeveloperRole = () => {
+  const role = getDashboardSessionUser()?.role;
+  return DEVELOPER_ROLES.includes(role) ? toShellRole(role) : null;
+};
+
+const getRestoredRoleOnServer = () => null;
 
 /**
  * DEVELOPER LAYOUT — Role + Group Guard and persistent dashboard shell
@@ -19,27 +57,15 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
  */
 export default function DeveloperLayout({ children }) {
   const router = useRouter();
-  // "developer" | "super_admin" — the role authorized to view this section.
-  const [sessionRole, setSessionRole] = useState(null);
-
-  const toShellRole = (role) =>
-    role === "super_admin" ? "super_admin" : "developer";
-
-  // Optimistic fast-path: restore a cached session before first paint so
-  // entering /developer never flashes a blank screen. checkAccess() below
-  // still re-validates against the server and redirects if invalid.
-  useLayoutEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const saved = localStorage.getItem("user");
-      if (saved) {
-        const u = JSON.parse(saved);
-        if (u.role === "developer" || u.role === "super_admin") {
-          setSessionRole(toShellRole(u.role));
-        }
-      }
-    } catch (_) {}
-  }, []);
+  const restoredRole = useSyncExternalStore(
+    subscribeDashboardSession,
+    getRestoredDeveloperRole,
+    getRestoredRoleOnServer,
+  );
+  // "developer" | "super_admin" — what the SERVER said, once it has answered.
+  const [serverRole, setServerRole] = useState(null);
+  // The server's word is the authority; the browser's is the first paint.
+  const sessionRole = serverRole || restoredRole;
 
   useEffect(() => {
     async function checkAccess() {
@@ -75,25 +101,15 @@ export default function DeveloperLayout({ children }) {
             if (groupsData.success) userGroups = groupsData.groups;
           } catch (_) {}
 
-          const isIntern = userGroups.some(
-            (g) =>
-              g.toUpperCase() === "FUTURE STUDIO INTERNS" ||
-              g.toUpperCase() === "INTERN",
-          );
+          const isIntern = isInternOf(userGroups);
 
-          if (role === "developer" || role === "super_admin" || isIntern) {
-            setSessionRole(toShellRole(role));
+          if (DEVELOPER_ROLES.includes(role) || isIntern) {
+            setServerRole(toShellRole(role));
             return;
           }
 
           // Redirect non-developer users to their correct dashboard
-          const redirectMap = {
-            staff: "/staff",
-            program_manager: "/pm",
-            participant: "/participant",
-          };
-          const dest = redirectMap[role] || "/login";
-          router.replace(dest);
+          router.replace(ROLE_DASHBOARDS[role] || "/login");
           return;
         }
       } catch (_) {}
@@ -106,32 +122,17 @@ export default function DeveloperLayout({ children }) {
         } catch (_) {}
       }
 
-      // Fallback: check localStorage
-      try {
-        const saved = localStorage.getItem("user");
-        if (saved) {
-          const u = JSON.parse(saved);
-          const groups = u.groups || [];
-          const isIntern = groups.some(
-            (g) =>
-              g.toUpperCase() === "FUTURE STUDIO INTERNS" ||
-              g.toUpperCase() === "INTERN",
-          );
-
-          if (u.role === "developer" || u.role === "super_admin" || isIntern) {
-            setSessionRole(toShellRole(u.role));
-            return;
-          }
-          const redirectMap = {
-            staff: "/staff",
-            program_manager: "/pm",
-            participant: "/participant",
-          };
-          const dest = redirectMap[u.role] || "/login";
-          router.replace(dest);
+      // Fallback: the stored copy alone, read exactly as the fast path reads it -
+      // including the intern group, and including where a non-developer is sent.
+      const stored = getStoredUserOnce();
+      if (stored) {
+        if (DEVELOPER_ROLES.includes(stored.role) || isInternOf(stored.groups)) {
+          setServerRole(toShellRole(stored.role));
           return;
         }
-      } catch (_) {}
+        router.replace(ROLE_DASHBOARDS[stored.role] || "/login");
+        return;
+      }
 
       router.replace("/login");
     }
