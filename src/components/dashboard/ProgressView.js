@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import React, { useState } from "react";
+import { useApi } from "@/lib/hooks/useApi";
 import {
   Target,
   Users,
@@ -183,48 +183,39 @@ function ProgressSkeleton() {
   );
 }
 
+// ─── Read shaping (module scope: built once, never per render) ───────────
+
+// The whole payload is what this view renders, so the shaper carries it whole -
+// with the server's own refusal folded in, so a refused payload still reaches
+// the failure panel.
+const EMPTY_PROGRESS = { payload: null, failure: null };
+
+const pickProgress = (d) =>
+  d?.success
+    ? { payload: d, failure: null }
+    : { payload: null, failure: d?.error || null };
+
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ProgressView({ programId: _filterProgramId }) {
   const { t } = useI18n();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [selectedProgram, setSelectedProgram] = useState("all");
   const [showMilestones, setShowMilestones] = useState(true);
   const [showHistory, setShowHistory] = useState(true);
 
-  const fetchProgress = useCallback(async () => {
-    const url = "/api/participant/progress";
-    const apply = (result) => {
-      if (result.success) setData(result);
-      else setError(t(result.error || "Failed to load") || result.error || "Failed to load");
-    };
-    let painted = false;
-    try {
-      setLoading(true);
-      setError(null);
-      // Cache-first paint: returning to the progress hub renders instantly
-      // from a fresh snapshot; the network refresh below converges.
-      const cached = cacheGet(url);
-      if (cached !== null && cached.success) {
-        apply(cached);
-        setLoading(false);
-        painted = true;
-      }
-      const res = await fetch(url);
-      const result = await res.json();
-      if (result.success) cacheSet(url, result);
-      apply(result);
-    } catch {
-      if (!painted) setError("Network error");
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
-  useEffect(() => {
-    fetchProgress();
-  }, [fetchProgress]);
+  // The read goes through the shared hook, which owns the cache, the cache-first
+  // paint and the discarding of a stale answer.
+  const {
+    data: progress,
+    loading,
+    error: readError,
+    refresh,
+  } = useApi("/api/participant/progress", {
+    defaultValue: EMPTY_PROGRESS,
+    transform: pickProgress,
+  });
+  const data = progress.payload;
+  const error =
+    progress.failure || (readError ? "Network error" : null);
 
   if (loading) return <ProgressSkeleton />;
   if (error) {
@@ -233,7 +224,7 @@ export default function ProgressView({ programId: _filterProgramId }) {
         <AlertCircle className="w-10 h-10 text-rose-400" />
         <p className="text-sm text-[var(--text-secondary)]">{error}</p>
         <button
-          onClick={fetchProgress}
+          onClick={refresh}
           className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-wide"
         >
           <RefreshCw className="w-3 h-3" /> {t("participantMisc.progress.retry")}

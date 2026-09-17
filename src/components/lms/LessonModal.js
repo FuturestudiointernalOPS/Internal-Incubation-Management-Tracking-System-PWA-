@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { CheckCircle2, AlertCircle, Film, PlayCircle, X } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
 import { extractYouTubeVideoId, buildYouTubeEmbedUrl } from "@/lib/lms/youtube";
+import { useApi } from "@/lib/hooks/useApi";
 import { notify } from "./notify";
 
 /**
@@ -24,69 +25,77 @@ import { notify } from "./notify";
  * that the modal itself detected — a manually typed duration is never
  * overwritten.
  */
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are built once here
+// rather than on every render.
+
+const EMPTY_VIDEO_INFO = { minutes: null, available: null };
+
+/**
+ * What the duration lookup said: the detected minutes, or why there are none.
+ * `available === false` is the server reporting that the lookup is not
+ * configured, which is a different hint from a lookup that failed.
+ */
+const pickVideoInfo = (d) =>
+  d?.success && d.durationMinutes != null
+    ? { minutes: d.durationMinutes, available: true }
+    : { minutes: null, available: d?.available === false ? false : null };
+
 export default function LessonModal({ isOpen, onClose, onSaved, mode, sectionId, lesson }) {
   const { t } = useI18n();
   const [title, setTitle] = useState(lesson?.title || "");
   const [description, setDescription] = useState(lesson?.description || "");
   const [video, setVideo] = useState(lesson?.youtube_video_id || "");
-  const [duration, setDuration] = useState(
-    lesson?.duration_minutes != null ? String(lesson.duration_minutes) : "",
+  // The minutes the lookup detected are the BASE for this field; anything the
+  // admin types is recorded as an edit on top of it, so a detection can never
+  // land on a manual entry. `null` means the field is still the modal's to fill.
+  const [durationEdit, setDurationEdit] = useState(
+    lesson?.duration_minutes != null ? String(lesson.duration_minutes) : null,
   );
   const [isRequired, setIsRequired] = useState(lesson ? !!lesson.is_required : true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // ── Duration auto-detection state ────────────────────────────────────────
-  // idle | loading | done | unavailable | failed
-  const [detectStatus, setDetectStatus] = useState("idle");
-  // True while the duration field holds a value the modal detected itself, so
-  // a later link change replaces it instead of clobbering a manual entry.
-  const [durationAuto, setDurationAuto] = useState(false);
-  const lastAutoId = useRef(null);
-
   const trimmedVideo = video.trim();
   const extracted = trimmedVideo ? extractYouTubeVideoId(trimmedVideo) : null;
   const videoInvalid = trimmedVideo !== "" && !extracted;
 
-  // Ask the server for the video duration whenever the pasted video changes.
-  // Fill the duration field only when it is empty or holds a previous auto
-  // detection — never overwrite a manually entered value.
-  useEffect(() => {
-    if (!extracted || lastAutoId.current === extracted) {
-      if (!extracted) setDetectStatus("idle");
-      return;
-    }
-    const shouldFill = duration.trim() === "" || durationAuto;
-    if (!shouldFill) {
-      setDetectStatus("idle");
-      return;
-    }
-    setDetectStatus("loading");
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/lms/video-info?v=${encodeURIComponent(extracted)}`);
-        const data = await res.json();
-        if (cancelled) return;
-        if (data?.success && data.durationMinutes != null) {
-          lastAutoId.current = extracted;
-          setDuration(String(data.durationMinutes));
-          setDurationAuto(true);
-          setDetectStatus("done");
-        } else {
-          setDetectStatus(data?.available === false ? "unavailable" : "failed");
-        }
-      } catch {
-        if (!cancelled) setDetectStatus("failed");
-      }
-    }, 400);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-    // `duration`/`durationAuto` gate whether a fetch is wanted; they are not
-    // triggers on their own (the effect early-returns without fetching).
-  }, [extracted, duration, durationAuto]);
+  // The duration lookup is asked for by ADDRESS: the video reference is the
+  // address, so a pasted link is the whole trigger, and the lookup is only asked
+  // for while the field is still the modal's to fill — never once the admin has
+  // taken the value over.
+  const detectUrl =
+    extracted && durationEdit === null
+      ? `/api/lms/video-info?v=${encodeURIComponent(extracted)}`
+      : null;
+  const { data: videoInfo, loading: detecting, error: lookupError } = useApi(detectUrl, {
+    defaultValue: EMPTY_VIDEO_INFO,
+    transform: pickVideoInfo,
+  });
+
+  // What the field shows: the admin's own value when there is one, the detected
+  // minutes otherwise.
+  const duration =
+    durationEdit !== null
+      ? durationEdit
+      : videoInfo.minutes != null
+        ? String(videoInfo.minutes)
+        : "";
+
+  // The lookup's own progress, derived rather than stored:
+  // idle | loading | done | unavailable | failed
+  const detectStatus = !detectUrl
+    ? "idle"
+    : detecting
+      ? "loading"
+      : lookupError
+        ? "failed"
+        : videoInfo.minutes != null
+          ? "done"
+          : videoInfo.available === false
+            ? "unavailable"
+            : "failed";
 
   const save = async () => {
     if (!title.trim()) {
@@ -207,11 +216,9 @@ export default function LessonModal({ isOpen, onClose, onSaved, mode, sectionId,
               min="0"
               value={duration}
               onChange={(e) => {
-                setDuration(e.target.value);
-                // Manual edits leave the "auto-detected" state: the value is
-                // now the admin's own and must not be replaced later.
-                setDurationAuto(false);
-                setDetectStatus("idle");
+                // The admin's own value: it sits over the detected one and the
+                // lookup stops being asked for, so nothing replaces it later.
+                setDurationEdit(e.target.value);
               }}
             />
             {detectStatus === "loading" && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LifeBuoy,
   Clock,
@@ -14,6 +14,7 @@ import AppModal from "@/components/ui/AppModal";
 import AppButton from "@/components/ui/AppButton";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * COACHING REQUESTS (Phase 8 — Program Manager experience)
@@ -41,33 +42,54 @@ const DECISIONS = [
   { status: "declined", icon: XIcon, key: "decline" },
 ];
 
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are built once here
+// rather than on every render.
+
+const EMPTY_REQUESTS = { list: [], failure: null };
+
+/**
+ * The program's requests, together with the message for a read that failed. A
+ * refusal carries the server's own message, or the same key the loader's toast
+ * fell back to; a request that never answered is reported where it is shown.
+ */
+const pickRequests = (d) =>
+  d?.success
+    ? { list: d.requests || [], failure: null }
+    : { list: [], failure: d?.error || "lms.errors.loadFailed" };
+
 export default function CoachingRequestsPanel({ programId, canEdit = false }) {
   const { t } = useI18n();
-  const [requests, setRequests] = useState(null);
   const [open, setOpen] = useState(true);
   const [decision, setDecision] = useState(null);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const fetchRequests = useCallback(async () => {
-    if (!programId) return;
-    setRequests(null);
-    try {
-      const res = await fetch(
-        `/api/lms/coaching-requests?program_id=${encodeURIComponent(programId)}`,
-      );
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || "lms.errors.loadFailed");
-      setRequests(data.requests || []);
-    } catch (e) {
-      notify("error", e.message || "lms.errors.loadFailed");
-      setRequests([]);
-    }
-  }, [programId]);
+  // The queue is read through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the panel keeps no
+  // copy of its own. A decision re-reads through `refresh`.
+  const {
+    data: requestsRead,
+    loading,
+    error: readError,
+    refresh,
+  } = useApi(
+    programId
+      ? `/api/lms/coaching-requests?program_id=${encodeURIComponent(programId)}`
+      : null,
+    { defaultValue: EMPTY_REQUESTS, transform: pickRequests, deps: [programId] },
+  );
+  const requests = requestsRead.list;
 
+  // The loader raised ONE toast for a failed read, whichever way it failed: the
+  // refusal's own message, or the request's message when there was no answer.
+  // This effect's only job is that notification - it writes no state of its own -
+  // and the message is compared as a string, so it fires when the failure appears
+  // rather than on every render.
+  const failure = requestsRead.failure || readError || null;
   useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
+    if (failure) notify("error", failure);
+  }, [failure]);
 
   const submitDecision = async () => {
     if (!decision) return;
@@ -86,7 +108,7 @@ export default function CoachingRequestsPanel({ programId, canEdit = false }) {
       notify("success", "lms.coaching.updated");
       setDecision(null);
       setNote("");
-      fetchRequests();
+      refresh();
     } catch (e) {
       notify("error", e.message || "lms.errors.saveFailed");
     } finally {
@@ -94,7 +116,7 @@ export default function CoachingRequestsPanel({ programId, canEdit = false }) {
     }
   };
 
-  const pendingCount = (requests || []).filter((r) => r.status === "pending").length;
+  const pendingCount = requests.filter((r) => r.status === "pending").length;
 
   return (
     <div className="card border border-[var(--border-primary)] !p-0 overflow-hidden">
@@ -128,7 +150,7 @@ export default function CoachingRequestsPanel({ programId, canEdit = false }) {
 
       {open && (
         <div className="px-5 pb-5 space-y-2">
-          {requests === null ? (
+          {loading ? (
             <div className="flex justify-center py-6">
               <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
             </div>

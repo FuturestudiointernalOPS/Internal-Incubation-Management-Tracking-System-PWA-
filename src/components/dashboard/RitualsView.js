@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import React, { useState } from "react";
+import { useApi, useApiMulti } from "@/lib/hooks/useApi";
 import {
   Zap,
   CheckCircle2,
@@ -44,6 +44,19 @@ const RITUAL_TYPES = [
     bg: "bg-purple-500/10",
   },
 ];
+
+// One read per ritual type, issued together. A type's answers arrive on its own
+// endpoint under the type name with an "s" (standups) or an "ions" (checkins) -
+// the two shapes the API has always used. Built at module scope so the list has
+// one identity for the life of the page, which is what the multi-read needs.
+const RITUAL_ENDPOINTS = RITUAL_TYPES.map((rt) => ({
+  key: rt.id,
+  url: `/api/participant/rituals/${rt.id}`,
+  transform: (d) =>
+    d && d.success ? d[`${rt.id}s`] || d[`${rt.id}ions`] || [] : [],
+}));
+
+const pickPrograms = (d) => (d?.success ? d.programs || [] : []);
 
 function RitualForm({ type, programs, onSubmit, onClose }) {
   const { t } = useI18n();
@@ -216,71 +229,20 @@ function RitualForm({ type, programs, onSubmit, onClose }) {
 
 export default function RitualsView() {
   const { t } = useI18n();
-  const [programs, setPrograms] = useState([]);
   const [activeForm, setActiveForm] = useState(null);
-  const [history, setHistory] = useState({});
-  const [loading, setLoading] = useState(true);
 
-  const fetchPrograms = useCallback(async () => {
-    const url = "/api/participant/programs";
-    const apply = (data) => {
-      if (data.success) setPrograms(data.programs || []);
-    };
-    const cached = cacheGet(url);
-    if (cached !== null && cached.success) apply(cached);
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const fetchHistory = useCallback(async (bypassCache = false) => {
-    setLoading(true);
-    const urls = RITUAL_TYPES.map((rt) => `/api/participant/rituals/${rt.id}`);
-    const apply = (perType) => {
-      const hist = {};
-      RITUAL_TYPES.forEach((rt, i) => {
-        hist[rt.id] = perType[i] || [];
-      });
-      setHistory(hist);
-    };
-    const pick = (data, rt) =>
-      data && data.success ? data[`${rt.id}s`] || data[`${rt.id}ions`] || [] : [];
-    try {
-      // Cache-first paint on reads; submit flows pass bypassCache=true.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null)) {
-          apply(cached.map((c, i) => pick(c, RITUAL_TYPES[i])));
-          setLoading(false);
-        }
-      }
-      const perType = await Promise.all(
-        RITUAL_TYPES.map(async (rt, i) => {
-          const res = await fetch(urls[i]);
-          const data = await res.json();
-          if (data.success) cacheSet(urls[i], data);
-          return pick(data, rt);
-        }),
-      );
-      apply(perType);
-    } catch {
-      /* ignore */
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchPrograms();
-    fetchHistory();
-  }, [fetchPrograms, fetchHistory]);
+  // The programmes and the ritual history are reads through the shared hook,
+  // which owns the cache, the cache-first paint and the discarding of a stale
+  // answer. The history is one read per ritual type, issued together.
+  const { data: programs } = useApi("/api/participant/programs", {
+    defaultValue: [],
+    transform: pickPrograms,
+  });
+  const {
+    data: history,
+    loading,
+    refresh: refreshHistory,
+  } = useApiMulti(RITUAL_ENDPOINTS);
 
   const handleSubmit = async (type, payload) => {
     try {
@@ -289,7 +251,7 @@ export default function RitualsView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      fetchHistory(true);
+      refreshHistory();
     } catch {
       /* ignore */
     }

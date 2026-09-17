@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Rocket, Archive, Trash2, Save, AlertCircle, Users, Pencil } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
@@ -13,6 +13,7 @@ import EnrollModal from "./EnrollModal";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 import { usePermissions } from "@/lib/PermissionProvider";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * Course workspace. Opening a course shows a READ-ONLY presentation: the first
@@ -24,6 +25,37 @@ import { usePermissions } from "@/lib/PermissionProvider";
  * status actions). Server-side authorization is enforced by every API call
  * (lms.view / edit / publish / delete / enroll).
  */
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are built once here
+// rather than on every render.
+
+const EMPTY_COURSE_READ = { payload: null, failure: null };
+
+/**
+ * The course, together with the reason it is missing. A refusal carries the
+ * server's own key and both it and a request that never answered are translated
+ * where they are shown.
+ */
+const pickCourse = (d) =>
+  d?.success
+    ? { payload: d, failure: null }
+    : { payload: null, failure: d?.error || null };
+
+/**
+ * The values the metadata form starts from. The form shows these with the
+ * person's own edits laid over them, so nothing is copied into state when the
+ * read arrives.
+ */
+const formBase = (course) => ({
+  title: course?.title || "",
+  description: course?.description || "",
+  thumbnail_url: course?.thumbnail_url || "",
+  visibility: course?.visibility || "public",
+  is_free: course?.is_free !== false,
+  price: course?.price,
+});
+
 export default function CourseEditor({ courseId, basePath = "/admin/lms/courses" }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -31,41 +63,37 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
   // Fails OPEN while the matrix loads, so no action flashes away.
   const { can, loading: permsLoading } = usePermissions();
   const allow = (cap) => (permsLoading ? true : can("lms", cap));
-  const [course, setCourse] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null);
-  const [details, setDetails] = useState(null);
+  const [edits, setEdits] = useState({});
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
 
-  const fetchCourse = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const res = await fetch(`/api/lms/courses/${courseId}`);
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || "lms.errors.loadFailedCourse");
-      setCourse(data.course);
-      setDetails({
-        title: data.course.title || "",
-        description: data.course.description || "",
-        thumbnail_url: data.course.thumbnail_url || "",
-        visibility: data.course.visibility || "public",
-        is_free: data.course.is_free !== false,
-        price: data.course.price,
-      });
-    } catch (e) {
-      setLoadError(e.message || "lms.errors.loadFailedCourse");
-    } finally {
-      setLoading(false);
-    }
-  }, [courseId]);
+  // The course is read through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the workspace
+  // keeps no copy of it. Every reload point below re-reads through `refresh`.
+  const {
+    data: courseRead,
+    loading,
+    error: readError,
+    refresh,
+  } = useApi(`/api/lms/courses/${courseId}`, {
+    defaultValue: EMPTY_COURSE_READ,
+    transform: pickCourse,
+    deps: [courseId],
+  });
+  const course = courseRead.payload?.course || null;
 
-  useEffect(() => {
-    fetchCourse();
-  }, [fetchCourse]);
+  // The loader showed the server's own key when it refused a payload and the
+  // request's message when there was no answer; the panel translates whichever
+  // arrives, with the same fallback as before.
+  const loadError = courseRead.failure || readError || null;
+
+  // The form is the course the read returned with the person's edits over it:
+  // the read's values are the base and `onChange` records the whole form it is
+  // handed as the edits, so a background re-read cannot be undone on screen and
+  // nothing has to be copied into state when the read arrives.
+  const details = { ...formBase(course), ...edits };
 
   const startEdit = () => {
     setValidationErrors([]);
@@ -75,8 +103,10 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
   const cancelEdit = async () => {
     setEditing(false);
     setValidationErrors([]);
-    // Reload so unsaved edits to the metadata form are discarded.
-    await fetchCourse();
+    // The form is the read's values with the edits over them, so discarding the
+    // edits is what returns to the course the server holds.
+    setEdits({});
+    await refresh();
   };
 
   const saveDetails = async () => {
@@ -92,7 +122,8 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.courses.saved");
       setEditing(false);
-      await fetchCourse();
+      setEdits({});
+      await refresh();
     } catch (e) {
       notify("error", e.message || "lms.errors.saveFailed");
     } finally {
@@ -116,7 +147,7 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
         return;
       }
       notify("success", "lms.courses.published");
-      fetchCourse();
+      refresh();
     } catch (e) {
       notify("error", e.message || "lms.errors.saveFailed");
     }
@@ -129,7 +160,7 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.courses.archived");
-      fetchCourse();
+      refresh();
     } catch (e) {
       notify("error", e.message || "lms.errors.saveFailed");
     }
@@ -259,14 +290,14 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
             <p className="text-[10px] font-black uppercase tracking-wider mb-3" style={{ color: "var(--text-secondary)" }}>
               {t("lms.preview.courseDetails")}
             </p>
-            <CourseFormFields value={details} onChange={setDetails} />
+            <CourseFormFields value={details} onChange={setEdits} />
           </AppCard>
 
           <AppCard padding="md">
             <p className="text-[10px] font-black uppercase tracking-wider mb-3" style={{ color: "var(--text-secondary)" }}>
               {t("lms.preview.content")}
             </p>
-            <SectionsManager course={course} onChange={fetchCourse} />
+            <SectionsManager course={course} onChange={refresh} />
           </AppCard>
         </>
       ) : (

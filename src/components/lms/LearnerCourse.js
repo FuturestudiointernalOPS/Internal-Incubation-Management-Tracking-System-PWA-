@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlayCircle, AlertCircle, HelpCircle, CheckCircle2, XCircle } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
@@ -10,36 +9,52 @@ import CertificateCard from "./CertificateCard";
 import CourseThumb from "./CourseThumb";
 import LearnerCoachingButton from "./LearnerCoachingButton";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * COURSE OVERVIEW (learner) — progress, sections, lessons, resume point.
  * Access is enrollment-derived (server-side).
  */
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are built once here
+// rather than on every render.
+
+const EMPTY_COURSE_READ = { payload: null, failure: null };
+
+/**
+ * The course overview, together with the reason it is missing. A refusal carries
+ * the server's own key (lms.errors.notEnrolled is the one the panel has wording
+ * for) and both it and a request that never answered are translated where they
+ * are shown.
+ */
+const pickCourse = (d) =>
+  d?.success
+    ? { payload: d, failure: null }
+    : { payload: null, failure: d?.error || null };
+
 export default function LearnerCourse({ courseId }) {
   const { t } = useI18n();
   const router = useRouter();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  const fetchCourse = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/lms/courses/${courseId}/learn`);
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || "lms.errors.loadFailedCourse");
-      setData(json);
-    } catch (e) {
-      setError(e.message || "lms.errors.loadFailedCourse");
-    } finally {
-      setLoading(false);
-    }
-  }, [courseId]);
+  // The overview arrives in ONE payload and is read through the shared hook,
+  // which owns the cache, the cache-first paint and the discarding of a stale
+  // answer, so the screen keeps no copy of its own.
+  const {
+    data: courseRead,
+    loading,
+    error: readError,
+  } = useApi(`/api/lms/courses/${courseId}/learn`, {
+    defaultValue: EMPTY_COURSE_READ,
+    transform: pickCourse,
+    deps: [courseId],
+  });
+  const data = courseRead.payload;
 
-  useEffect(() => {
-    fetchCourse();
-  }, [fetchCourse]);
+  // The loader showed the server's own key when it refused a payload and the
+  // request's message when there was no answer; the panel translates whichever
+  // arrives, with the same fallback as before.
+  const error = courseRead.failure || readError || null;
 
   if (loading) {
     return (

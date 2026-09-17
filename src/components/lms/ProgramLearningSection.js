@@ -1,13 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, GraduationCap, Trash2, CheckCircle2, Circle } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppButton from "@/components/ui/AppButton";
 import CourseThumb from "./CourseThumb";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
+
+// ─── Read shapers (module scope: built once, never per render) ───────────
+
+// The hook keys its internal work on the address alone, so the default and the
+// shaper are made once here rather than on every render.
+const EMPTY_PROGRAM_LEARNING = { requirements: null, summary: [], failure: null };
+
+/**
+ * The week's learning items together with the enrolment summary, and the reason
+ * they are missing. A refusal carries the server's own i18n key, which is what
+ * the toast already showed.
+ */
+const pickProgramLearning = (d) =>
+  d?.success
+    ? { requirements: d.requirements || [], summary: d.summary || [], failure: null }
+    : { requirements: [], summary: [], failure: d?.error || "lms.errors.loadFailed" };
 
 /**
  * PROGRAM LEARNING SECTION (Phase 6 — Program Manager experience)
@@ -41,35 +58,38 @@ export default function ProgramLearningSection({
   const matrixKnown = !permsLoading || permissions !== null;
   const canViewLms = matrixKnown ? can("lms", "view") : null;
   const canManageLms = canEdit && (matrixKnown ? can("lms", "edit") : null);
-  const [requirements, setRequirements] = useState(null);
-  const [summary, setSummary] = useState([]);
   const [showPicker, setShowPicker] = useState(false);
   const [courses, setCourses] = useState([]);
   const [saving, setSaving] = useState(false);
 
-  const fetchRequirements = useCallback(async () => {
-    setRequirements(null);
-    const params = new URLSearchParams({ program_id: programId });
-    if (weekNumber != null && weekNumber !== "") params.set("week_number", weekNumber);
-    if (sessionId) params.set("session_id", sessionId);
-    if (canManageLms) params.set("includeSummary", "1");
-    try {
-      const res = await fetch(`/api/lms/program-requirements?${params.toString()}`);
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || "lms.errors.loadFailed");
-      setRequirements(data.requirements || []);
-      setSummary(data.summary || []);
-    } catch (e) {
-      notify("error", e.message || "lms.errors.loadFailed");
-      setRequirements([]);
-    }
-  }, [programId, weekNumber, sessionId, canManageLms]);
+  // The read goes through the shared hook, which owns the cache, the cache-first
+  // paint and the discarding of a stale answer, so the section keeps no copy of
+  // its own. It stays unaddressed until the capability is confirmed: without it
+  // the call would be refused, and reading before the matrix lands would read
+  // twice.
+  const params = new URLSearchParams({ program_id: programId });
+  if (weekNumber != null && weekNumber !== "") params.set("week_number", weekNumber);
+  if (sessionId) params.set("session_id", sessionId);
+  if (canManageLms) params.set("includeSummary", "1");
+  const { data, error: readError, refresh } = useApi(
+    programId && canViewLms === true
+      ? `/api/lms/program-requirements?${params.toString()}`
+      : null,
+    { defaultValue: EMPTY_PROGRAM_LEARNING, transform: pickProgramLearning },
+  );
 
+  // The payload's own refusal, or a request that never got an answer. Either
+  // way there is nothing to list, so the placeholder must not stand - which is
+  // what `null` means here.
+  const failure = data.failure || readError || null;
+  const requirements = data.requirements === null && failure ? [] : data.requirements;
+  const summary = data.summary;
+
+  // The loader raised one error toast per failed read; that is the only job
+  // this effect has.
   useEffect(() => {
-    // Fetch only once the capability is confirmed: without it the call would be
-    // refused, and fetching before the matrix lands would fetch twice.
-    if (programId && canViewLms === true) fetchRequirements();
-  }, [programId, canViewLms, fetchRequirements]);
+    if (failure) notify("error", failure);
+  }, [failure]);
 
   const openPicker = async () => {
     setShowPicker(true);
@@ -103,7 +123,7 @@ export default function ProgramLearningSection({
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.programLearning.attached");
       setShowPicker(false);
-      fetchRequirements();
+      refresh();
     } catch (e) {
       notify("error", e.message || "lms.errors.saveFailed");
     } finally {
@@ -121,7 +141,7 @@ export default function ProgramLearningSection({
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.programLearning.updated");
-      fetchRequirements();
+      refresh();
     } catch (e) {
       notify("error", e.message || "lms.errors.saveFailed");
     }
@@ -136,7 +156,7 @@ export default function ProgramLearningSection({
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.programLearning.detached");
-      fetchRequirements();
+      refresh();
     } catch (e) {
       notify("error", e.message || "lms.errors.saveFailed");
     }

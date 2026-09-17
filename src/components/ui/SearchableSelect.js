@@ -58,13 +58,26 @@ export default function SearchableSelect({
     };
   }, []);
 
-  useEffect(() => {
+  // Opening the popover is an ACTION, so the search it starts from is cleared
+  // where the action is taken rather than by an effect watching the popover. An
+  // effect that reset it could only do so one render after the popover had
+  // already been painted with the previous search still in it.
+  const toggle = () => {
     if (open) {
-      setQuery("");
-      setHighlight(0);
-      const id = setTimeout(() => inputRef.current?.focus(), 0);
-      return () => clearTimeout(id);
+      setOpen(false);
+      return;
     }
+    setQuery("");
+    setHighlight(0);
+    setOpen(true);
+  };
+
+  // Focusing the search box once the popover has been painted is a DOM side
+  // effect and writes no state.
+  useEffect(() => {
+    if (!open) return;
+    const id = setTimeout(() => inputRef.current?.focus(), 0);
+    return () => clearTimeout(id);
   }, [open]);
 
   const selectOption = (v) => {
@@ -98,7 +111,7 @@ export default function SearchableSelect({
 
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         className="w-full flex items-center gap-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg p-3 text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all text-left"
       >
         <span className={`flex-1 truncate ${selected ? "" : "text-[var(--text-tertiary)]"}`}>

@@ -12,7 +12,7 @@
  * GET requires `org_membership.view`, PUT requires `org_membership.manage`.
  */
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   Users,
   Shield,
@@ -28,7 +28,7 @@ import {
   Link2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
@@ -47,15 +47,28 @@ import {
   HistoryModal,
 } from "@/components/membership/MembershipModals";
 
+const MEMBERSHIP_URL = "/api/org-membership";
+
+// ─── Read shapers (module scope: built once, never per render) ───────────
+
+// The hook keys its internal work on the address alone, so the default and the
+// shaper are made once here rather than on every render.
+const EMPTY_MEMBERSHIP = { members: [], protectedMap: {}, failure: null };
+
+/**
+ * The roster, together with the groups whose last member must not be removed,
+ * and the reason they are missing. A refusal carries the server's own message.
+ */
+const pickMembership = (d) =>
+  d?.success
+    ? { members: d.memberships || [], protectedMap: d.protected || {}, failure: null }
+    : { members: [], protectedMap: {}, failure: d?.error || null };
+
 export default function MembershipScreen({
   readOnly = false,
   effectiveAccessHref = "/admin/security/permissions/people",
 }) {
   const { t, lang } = useI18n();
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [members, setMembers] = useState([]);
-  const [protectedMap, setProtectedMap] = useState({});
   const [selectedGroup, setSelectedGroup] = useState(""); // "" = all groups
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -67,45 +80,28 @@ export default function MembershipScreen({
   const [confirmState, setConfirmState] = useState(null); // { member, action }
   const [historyMember, setHistoryMember] = useState(null);
 
-  const fetchMemberships = useCallback(async (bypassCache = false) => {
-    const url = "/api/org-membership";
-    const apply = (data) => {
-      if (!data.success) {
-        setLoadError(data.error || t("membership.page.loadError"));
-        return;
-      }
-      setMembers(data.memberships || []);
-      setProtectedMap(data.protected || {});
-    };
-    let painted = false;
-    setLoading(true);
-    setLoadError("");
-    try {
-      // Cache-first paint: returning to this page renders instantly from a
-      // fresh snapshot; mutation flows pass bypassCache=true so the list
-      // always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch {
-      if (!painted) setLoadError(t("membership.page.loadError"));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
+  // The roster is read through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the screen keeps
+  // no copy of its own and reads during render.
+  const {
+    data,
+    loading,
+    error: readError,
+    status,
+    refresh,
+  } = useApi(MEMBERSHIP_URL, {
+    defaultValue: EMPTY_MEMBERSHIP,
+    transform: pickMembership,
+  });
+  const members = data.members;
+  const protectedMap = data.protectedMap;
 
-  useEffect(() => {
-    fetchMemberships();
-  }, [fetchMemberships]);
+  // Three shapes of failure reach the screen: the server refusing (a status),
+  // the payload reporting its own failure (a message), and a request that never
+  // got an answer (an error).
+  const loadFailed = Boolean(
+    data.failure || readError || (status !== null && status >= 400),
+  );
 
   const groups = useMemo(
     () =>
@@ -180,10 +176,10 @@ export default function MembershipScreen({
     });
   }, [members, selectedGroup, search, statusFilter, accountFilter, roleFilter]);
 
-  const reload = (bypassCache) => {
+  const reload = () => {
     setDetailMember(null);
     setHistoryMember(null);
-    fetchMemberships(bypassCache);
+    refresh();
   };
 
   const handleAction = async () => {
@@ -191,7 +187,7 @@ export default function MembershipScreen({
     const ok = await runMembershipAction(confirmState.member, confirmState.action, t);
     if (ok) {
       setConfirmState(null);
-      reload(true);
+      reload();
     }
   };
 
@@ -202,7 +198,7 @@ export default function MembershipScreen({
     });
     if (ok) {
       setRenewMember(null);
-      reload(true);
+      reload();
     }
     return ok;
   };
@@ -350,7 +346,7 @@ export default function MembershipScreen({
                 <div key={i} className="h-10 rounded-lg animate-pulse" style={{ background: "var(--surface-3)" }} />
               ))}
             </div>
-          ) : loadError ? (
+          ) : loadFailed ? (
             <AppEmptyState
               title={t("membership.page.loadError")}
               icon={AlertTriangle}
@@ -514,7 +510,7 @@ export default function MembershipScreen({
           onClose={() => setAddOpen(false)}
           onAdded={() => {
             setAddOpen(false);
-            reload(true);
+            reload();
           }}
         />
       )}

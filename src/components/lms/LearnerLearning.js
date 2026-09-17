@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, PlayCircle, CheckCircle2, AlertCircle, Award } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
@@ -9,37 +8,52 @@ import LearnerProgressBar from "./LearnerProgressBar";
 import CourseThumb from "./CourseThumb";
 import LearnerCoachingButton from "./LearnerCoachingButton";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * MY LEARNING — enrolled courses with progress and Continue Learning.
  * Access is enrollment-derived (server-side); empty state when unenrolled.
  */
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are built once here
+// rather than on every render.
+
+const EMPTY_MY_LEARNING = { list: [], failure: false };
+
+/**
+ * The enrolled courses, together with whether the read was refused. Both ways
+ * the loader could fail - the payload refusing and the request never being
+ * answered - were shown as the same panel, so the shaper reports the refusal and
+ * the panel keeps its message.
+ */
+const pickMyLearning = (d) =>
+  d?.success
+    ? { list: d.courses || [], failure: false }
+    : { list: [], failure: true };
+
 export default function LearnerLearning() {
   const { t } = useI18n();
   const router = useRouter();
-  const [courses, setCourses] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
-  const fetchCourses = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      const res = await fetch("/api/lms/my-learning");
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || "lms.learning.loadFailed");
-      setCourses(data.courses || []);
-    } catch (e) {
-      console.error("[LMS] my-learning error:", e);
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // The list is read through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the screen keeps
+  // no copy of its own. The retry button re-reads through `refresh`, which
+  // bypasses the cache.
+  const {
+    data: coursesRead,
+    loading,
+    error: readError,
+    refresh,
+  } = useApi("/api/lms/my-learning", {
+    defaultValue: EMPTY_MY_LEARNING,
+    transform: pickMyLearning,
+  });
+  const courses = coursesRead.list;
 
-  useEffect(() => {
-    fetchCourses();
-  }, [fetchCourses]);
+  // The loader's failure flag, derived: the payload refusing or a request that
+  // never answered.
+  const error = Boolean(coursesRead.failure || readError);
 
   const openCourse = (course, continueLesson) => {
     if (continueLesson) {
@@ -75,7 +89,7 @@ export default function LearnerLearning() {
           <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
             {t("lms.learning.loadFailed")}
           </p>
-          <AppButton variant="secondary" onClick={fetchCourses}>
+          <AppButton variant="secondary" onClick={refresh}>
             {t("common.refresh")}
           </AppButton>
         </div>

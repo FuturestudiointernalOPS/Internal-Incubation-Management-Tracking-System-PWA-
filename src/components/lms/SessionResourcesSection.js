@@ -1,9 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
 import SessionResourcesEditor from "./SessionResourcesEditor";
+
+// ─── Read shapers (module scope: built once, never per render) ───────────
+
+// The hook keys its internal work on the address alone, so the default and the
+// shaper are made once here rather than on every render.
+const EMPTY_SESSION_RESOURCES = { resources: null, failure: null };
+
+/**
+ * The session's material, together with the reason it is missing. A refusal
+ * carries the server's own i18n key, which is what the toast already showed.
+ */
+const pickSessionResources = (d) =>
+  d?.success
+    ? { resources: d.resources || [], failure: null }
+    : { resources: [], failure: d?.error || "lms.errors.loadFailed" };
 
 /**
  * SESSION RESOURCES — session card panel (Phase 8)
@@ -23,27 +39,29 @@ export default function SessionResourcesSection({
   canEdit = false,
 }) {
   const { t } = useI18n();
-  const [resources, setResources] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const fetchResources = useCallback(async () => {
-    setResources(null);
-    const params = new URLSearchParams({ program_id: programId });
-    if (sessionId) params.set("session_id", sessionId);
-    try {
-      const res = await fetch(`/api/lms/session-resources?${params.toString()}`);
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || "lms.errors.loadFailed");
-      setResources(data.resources || []);
-    } catch (e) {
-      notify("error", e.message || "lms.errors.loadFailed");
-      setResources([]);
-    }
-  }, [programId, sessionId]);
+  // The read goes through the shared hook, which owns the cache, the cache-first
+  // paint and the discarding of a stale answer, so the panel keeps no copy of
+  // its own. Its address is built from the scope this panel edits.
+  const params = new URLSearchParams({ program_id: programId });
+  if (sessionId) params.set("session_id", sessionId);
+  const { data, error: readError, refresh } = useApi(
+    programId ? `/api/lms/session-resources?${params.toString()}` : null,
+    { defaultValue: EMPTY_SESSION_RESOURCES, transform: pickSessionResources },
+  );
 
+  // The payload's own refusal, or a request that never got an answer. Either
+  // way there is nothing to list, so the placeholder must not stand - which is
+  // what `null` means here.
+  const failure = data.failure || readError || null;
+  const resources = data.resources === null && failure ? [] : data.resources;
+
+  // The loader raised one error toast per failed read; that is the only job
+  // this effect has.
   useEffect(() => {
-    if (programId) fetchResources();
-  }, [programId, fetchResources]);
+    if (failure) notify("error", failure);
+  }, [failure]);
 
   /** Every write shares the same scope + error contract for the editor. */
   const write = async ({ url, method, body }) => {
@@ -56,7 +74,7 @@ export default function SessionResourcesSection({
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
-      await fetchResources();
+      await refresh();
       return true;
     } catch (e) {
       // Rethrown so the editor keeps the form open: nothing the PM typed is lost.

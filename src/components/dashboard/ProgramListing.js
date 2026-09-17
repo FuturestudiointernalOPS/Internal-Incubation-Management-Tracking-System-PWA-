@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React from "react";
 import {
   BookOpen,
   Calendar,
@@ -16,7 +16,18 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// ─── Read shaping (module scope: built once, never per render) ───────
+
+// The list and the contact it came with, plus the server's own refusal folded
+// into the value so a refused payload still reaches the failure panel.
+const EMPTY_PROGRAMS = { programs: [], contact: null, failure: null };
+
+const pickPrograms = (d) =>
+  d?.success
+    ? { programs: d.programs || [], contact: d.contact, failure: null }
+    : { programs: [], contact: null, failure: d?.error || null };
 
 // ─── Status Badge ──────────────────────────────────────────────────
 function StatusBadge({ status }) {
@@ -252,53 +263,31 @@ function ListingSkeleton() {
 
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ProgramListing() {
-  const [programs, setPrograms] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [contact, setContact] = useState(null);
   const { t } = useI18n();
   const router = useRouter();
 
-  const fetchPrograms = useCallback(async () => {
-    const url = "/api/participant/programs";
-    const apply = (data) => {
-      setPrograms(data.programs || []);
-      setContact(data.contact);
-    };
-    try {
-      // Cache-first paint: returning to the dashboard shows the program list
-      // instantly from a fresh snapshot; the network refresh below converges.
-      const cached = cacheGet(url);
-      if (cached !== null && cached.success) {
-        apply(cached);
-        setLoading(false);
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      } else {
-        setError(
-          t(
-            (data.error ||
-              t("participantMisc.programListing.failedToLoadPrograms")) ||
-              "",
-          ) ||
-            (data.error ||
-              t("participantMisc.programListing.failedToLoadPrograms")),
-        );
-      }
-    } catch {
-      setError(t("participantMisc.programListing.networkError"));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
-  useEffect(() => {
-    fetchPrograms();
-  }, [fetchPrograms]);
+  // The list is read through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer.
+  const {
+    data: programsRead,
+    loading,
+    error: readError,
+    refresh,
+  } = useApi("/api/participant/programs", {
+    defaultValue: EMPTY_PROGRAMS,
+    transform: pickPrograms,
+  });
+  const programs = programsRead.programs;
+  const contact = programsRead.contact;
+  // A refused payload keeps the server's own message (translated when it names a
+  // key, shown as it stands otherwise) with the generic one as the floor; a
+  // request that never answered says so.
+  const error = programsRead.failure
+    ? t(programsRead.failure) ||
+      t("participantMisc.programListing.failedToLoadPrograms")
+    : readError
+      ? t("participantMisc.programListing.networkError")
+      : null;
 
   const handleProgramSelect = (programId) => {
     // Client-side navigation — ProgramListing lives inside the persistent
@@ -323,7 +312,7 @@ export default function ProgramListing() {
           </p>
         </div>
         <button
-          onClick={fetchPrograms}
+          onClick={refresh}
           className="flex items-center gap-2 px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all"
         >
           <RefreshCw className="w-3.5 h-3.5" /> {t("participantMisc.programListing.retry")}

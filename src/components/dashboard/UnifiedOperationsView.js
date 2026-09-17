@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import {
   CheckCircle2, Clock, AlertTriangle, Plus,
   ChevronRight, Target, Calendar,
   User, ArrowUpRight,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * UNIFIED OPERATIONS VIEW (Phase 5)
@@ -25,15 +26,21 @@ import { useI18n } from "@/lib/i18n";
 // useCallback dependency, refetches in a loop.
 const DEFAULT_CONTEXT = { context_type: "staff", context_id: null };
 
+// The week's tasks, with the server's own refusal folded in so the screen can
+// tell "nothing to show" from "the read did not answer".
+const EMPTY_STANDUP = { tasks: [], failure: null };
+
+const pickStandup = (d) =>
+  d?.success
+    ? { tasks: d.tasks || [], failure: null }
+    : { tasks: [], failure: d?.error || null };
+
 export default function UnifiedOperationsView({
   user,
   context = DEFAULT_CONTEXT,
   contextLabel = "Internal Operations",
 }) {
   const { t } = useI18n();
-  const [loading, setLoading] = useState(true);
-  const [, setReport] = useState(null);
-  const [tasks, setTasks] = useState([]);
   const [weekInfo] = useState(getCurrentWeek());
   const [expandTask, setExpandTask] = useState({});
   const [showCreateTask, setShowCreateTask] = useState(false);
@@ -41,40 +48,31 @@ export default function UnifiedOperationsView({
   const [creating, setCreating] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // Hoisted so the loader's identity changes only when the id does: `user` is a
-  // fresh object on every render of the parent.
+  // Hoisted so the address changes only when the id does: `user` is a fresh
+  // object on every render of the parent. The address is a STRING, which is what
+  // keeps a new object per render from re-issuing the read.
   const cid = user?.cid;
-
-  const fetchStandup = useCallback(async () => {
-    if (!cid) return;
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
+  const standupUrl = cid
+    ? `/api/standups/current?${new URLSearchParams({
         user_id: cid,
         week: weekInfo.week,
         year: weekInfo.year,
         context_type: context.context_type,
-      });
-      if (context.context_id) {
-        params.set("context_id", context.context_id);
-      }
+        ...(context.context_id ? { context_id: context.context_id } : {}),
+      }).toString()}`
+    : null;
 
-      const res = await fetch(`/api/standups/current?${params}`);
-      const data = await res.json();
-      if (data.success) {
-        setReport(data.report);
-        setTasks(data.tasks || []);
-      }
-    } catch (e) {
-      console.error("Failed to load standup", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [cid, weekInfo.week, weekInfo.year, context]);
-
-  useEffect(() => {
-    fetchStandup();
-  }, [fetchStandup]);
+  // The read goes through the shared hook, which owns the cache, the cache-first
+  // paint and the discarding of a stale answer.
+  const {
+    data: standup,
+    loading,
+    refresh: refreshStandup,
+  } = useApi(standupUrl, {
+    defaultValue: EMPTY_STANDUP,
+    transform: pickStandup,
+  });
+  const tasks = standup.tasks;
 
   const handleCreateTask = async (e) => {
     e.preventDefault();
@@ -98,7 +96,7 @@ export default function UnifiedOperationsView({
       if (data.success) {
         setNewTaskTitle("");
         setShowCreateTask(false);
-        fetchStandup();
+        refreshStandup();
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
@@ -122,7 +120,7 @@ export default function UnifiedOperationsView({
       });
       const data = await res.json();
       if (data.success) {
-        fetchStandup();
+        refreshStandup();
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }

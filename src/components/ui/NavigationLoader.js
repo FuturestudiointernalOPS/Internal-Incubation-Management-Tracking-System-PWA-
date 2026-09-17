@@ -11,12 +11,25 @@ import { usePathname, useSearchParams } from "next/navigation";
  * grace period (~250ms) so fast client-side navigations never flash it, and it
  * disappears once the navigation completes (pathname/search change) or after a
  * safety timeout, so it never stays stuck.
+ *
+ * The navigation in flight is recorded as the address it STARTED from, and "it
+ * has finished" is then DERIVED during render by comparing that address with
+ * the current one. The completion therefore costs no state write and cannot
+ * cascade a render. What is left in an effect is the two things an effect is
+ * for: clearing the timers, and letting the completed bar linger for its exit
+ * animation.
  */
 export default function NavigationLoader() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const query = searchParams?.toString() || "";
+  const address = query ? `${pathname}?${query}` : pathname;
+
+  // The address the in-flight navigation started from, or null when there is
+  // none. Read from the browser rather than from the render, because the click
+  // that starts a navigation is handled by a listener that outlives a render.
+  const [startedFrom, setStartedFrom] = useState(null);
   const [progress, setProgress] = useState(0);
-  const [visible, setVisible] = useState(false);
   // Grace period before the bar shows: quick navigations never display it.
   const pendingRef = useRef(null);
   const safetyRef = useRef(null);
@@ -27,34 +40,32 @@ export default function NavigationLoader() {
     pendingRef.current = null;
   };
 
-  const finish = () => {
-    cancelPending();
-    if (safetyRef.current) clearTimeout(safetyRef.current);
-    if (animRef.current) clearInterval(animRef.current);
-    setProgress(100);
-    safetyRef.current = setTimeout(() => {
-      setVisible(false);
-      setProgress(0);
-    }, 250);
-  };
-
-  const show = () => {
-    setVisible(true);
+  const show = (from) => {
+    setStartedFrom(from);
     setProgress(15);
     if (safetyRef.current) clearTimeout(safetyRef.current);
     if (animRef.current) clearInterval(animRef.current);
     animRef.current = setInterval(() => {
       setProgress((p) => (p < 85 ? p + 12 : p));
     }, 180);
-    // Safety: never leave the bar stuck if the route never changes
-    safetyRef.current = setTimeout(finish, 6000);
+    // Safety: never leave the bar stuck if the route never changes.
+    safetyRef.current = setTimeout(() => {
+      cancelPending();
+      setStartedFrom(null);
+      setProgress(0);
+    }, 6000);
   };
 
   const start = () => {
     cancelPending();
+    const from = `${window.location.pathname}${window.location.search}`;
     // Only start the animation if the route is still loading after the grace
     // period — otherwise fast navigations flash a meaningless progress bar.
-    pendingRef.current = setTimeout(show, 250);
+    pendingRef.current = setTimeout(() => {
+      // A navigation that completed inside the grace period shows nothing.
+      if (`${window.location.pathname}${window.location.search}` !== from) return;
+      show(from);
+    }, 250);
   };
 
   // Detect internal link clicks → start loading
@@ -105,13 +116,26 @@ export default function NavigationLoader() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Navigation completed (route or query changed) → finish
-  useEffect(() => {
-    finish();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, searchParams]);
+  // The navigation is over the moment the address it started from stops being
+  // the address on screen. Derived, so arriving costs no render of its own.
+  const arrived = startedFrom !== null && startedFrom !== address;
 
-  if (!visible) return null;
+  // Completion: let the bar linger for its exit animation, then clear it. The
+  // 100% it shows meanwhile is derived above, not written here.
+  useEffect(() => {
+    if (!arrived) return;
+    if (pendingRef.current) clearTimeout(pendingRef.current);
+    pendingRef.current = null;
+    if (safetyRef.current) clearTimeout(safetyRef.current);
+    if (animRef.current) clearInterval(animRef.current);
+    const id = setTimeout(() => {
+      setStartedFrom(null);
+      setProgress(0);
+    }, 250);
+    return () => clearTimeout(id);
+  }, [arrived]);
+
+  if (startedFrom === null) return null;
 
   return (
     <div
@@ -120,7 +144,7 @@ export default function NavigationLoader() {
     >
       <div
         className="h-full rounded-r-full bg-[var(--brand-orange)] shadow-[0_0_8px_rgba(255,102,0,0.6)] transition-all duration-200 ease-out"
-        style={{ width: `${progress}%` }}
+        style={{ width: `${arrived ? 100 : progress}%` }}
       />
     </div>
   );

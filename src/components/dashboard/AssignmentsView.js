@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import React, { useState, useMemo } from "react";
+import { useApi } from "@/lib/hooks/useApi";
 import {
   FileText,
   CheckCircle2,
@@ -16,6 +16,26 @@ import { useI18n } from "@/lib/i18n";
 
 function isSafeUrl(url) {
   return typeof url === "string" && /^https?:\/\//i.test(url.trim());
+}
+
+// ─── Read shaping (module scope: built once, never per render) ───────────
+
+// The list, with the server's own refusal folded into the value so a refused
+// payload still reaches the failure panel.
+const EMPTY_ASSIGNMENTS = { assignments: [], failure: null };
+
+const pickAssignments = (d) =>
+  d?.success
+    ? { assignments: d.assignments || [], failure: null }
+    : { assignments: [], failure: d?.error || null };
+
+/** The programmes a list of assignments mentions, in the order it mentions them. */
+function programsOf(assignments) {
+  const map = {};
+  for (const a of assignments) {
+    if (!map[a.programId]) map[a.programId] = a.programName;
+  }
+  return Object.entries(map).map(([id, name]) => ({ id, name }));
 }
 
 function StatusBadge({ status }) {
@@ -47,10 +67,6 @@ function StatusBadge({ status }) {
 
 export default function AssignmentsView() {
   const { t } = useI18n();
-  const [assignments, setAssignments] = useState([]);
-  const [programs, setPrograms] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [filterProgram, setFilterProgram] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [showSubmitModal, setShowSubmitModal] = useState(null);
@@ -59,54 +75,30 @@ export default function AssignmentsView() {
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
-  const fetchAssignments = useCallback(async (bypassCache = false) => {
-    const url =
-      filterProgram !== "all"
-        ? `/api/participant/assignments?program_id=${filterProgram}`
-        : "/api/participant/assignments";
-    const apply = (data) => {
-      if (data.success) {
-        setAssignments(data.assignments || []);
-        // Extract unique programs
-        const progMap = {};
-        (data.assignments || []).forEach((a) => {
-          if (!progMap[a.programId]) progMap[a.programId] = a.programName;
-        });
-        setPrograms(
-          Object.entries(progMap).map(([id, name]) => ({ id, name })),
-        );
-      } else {
-        setError(t(data.error || "Failed to load") || data.error || "Failed to load");
-      }
-    };
-    let painted = false;
-    try {
-      setLoading(true);
-      setError(null);
-      // Cache-first paint on reads (incl. program filter switches); the
-      // submit flow passes bypassCache=true so it always reloads fresh.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch {
-      if (!painted) setError("Network error");
-    } finally {
-      setLoading(false);
-    }
-  }, [filterProgram, t]);
+  // The list is read through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so this view keeps
+  // no copy of its own and reads during render. Choosing another programme
+  // changes the ADDRESS, which is what re-issues the read.
+  const {
+    data: assignmentsRead,
+    loading,
+    error: readError,
+    refresh,
+  } = useApi(
+    filterProgram !== "all"
+      ? `/api/participant/assignments?program_id=${filterProgram}`
+      : "/api/participant/assignments",
+    { defaultValue: EMPTY_ASSIGNMENTS, transform: pickAssignments },
+  );
+  const assignments = assignmentsRead.assignments;
 
-  useEffect(() => {
-    fetchAssignments();
-  }, [fetchAssignments]);
+  // The programme filter's options belong to the list, so they are derived from
+  // it rather than stored beside it - there is then no way for the two to
+  // disagree.
+  const programs = useMemo(() => programsOf(assignments), [assignments]);
+
+  const error =
+    assignmentsRead.failure || (readError ? "Network error" : null);
 
   const handleSubmit = async () => {
     if (!showSubmitModal) return;
@@ -164,7 +156,7 @@ export default function AssignmentsView() {
         setSubmitUrl("");
         setSubmitFile(null);
         setFeedback(null);
-        fetchAssignments(true);
+        refresh();
       } else {
         setFeedback({
           type: "error",
@@ -219,7 +211,7 @@ export default function AssignmentsView() {
         <AlertCircle className="w-10 h-10 text-rose-400" />
         <p className="text-sm text-[var(--text-secondary)]">{error}</p>
         <button
-          onClick={fetchAssignments}
+          onClick={refresh}
           className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-wide"
         >
           <RefreshCw className="w-3 h-3" /> {t("participantMisc.assignments.retry")}

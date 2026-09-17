@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Eye, Rocket, Archive, Loader2, BookOpen } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
@@ -13,6 +13,7 @@ import CourseThumb from "./CourseThumb";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/constants";
+import { useApi } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
 
 const STATUS_OPTIONS = [
@@ -21,6 +22,23 @@ const STATUS_OPTIONS = [
   { value: "published", label: "published" },
   { value: "archived", label: "archived" },
 ];
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are built once here
+// rather than on every render.
+
+const EMPTY_COURSES_READ = { list: [], failure: false };
+
+/**
+ * The course list, together with whether the read was refused. Both failures
+ * this screen has ever had - the payload refusing and the request never being
+ * answered - were shown as the same panel, so the shaper reports the refusal and
+ * the panel stays exactly as it was.
+ */
+const pickCourses = (d) =>
+  d?.success
+    ? { list: d.courses || [], failure: false }
+    : { list: [], failure: true };
 
 /**
  * LMS course-management list: search, status filter, open / publish / archive.
@@ -33,35 +51,34 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
   // Fails OPEN while the matrix loads, so no action flashes away.
   const { can, loading: permsLoading } = usePermissions();
   const allow = (cap) => (permsLoading ? true : can("lms", cap));
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [busyId, setBusyId] = useState(null);
 
-  const fetchCourses = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      const params = new URLSearchParams();
-      if (search.trim()) params.set("search", search.trim());
-      if (status) params.set("status", status);
-      const res = await fetch(`/api/lms/courses?${params.toString()}`);
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || "lms.errors.loadFailed");
-      setCourses(data.courses || []);
-    } catch (e) {
-      console.error("[LMS] list error:", e);
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [search, status]);
+  // The list is read through the shared hook, ADDRESSED ON THE FILTERS: a filter
+  // change is an address change, so the read follows it. Publish and archive
+  // re-read through `refresh`, which bypasses the cache.
+  const params = new URLSearchParams();
+  if (search.trim()) params.set("search", search.trim());
+  if (status) params.set("status", status);
+  const {
+    data: coursesRead,
+    loading,
+    error: readError,
+    status: readStatus,
+    refresh,
+  } = useApi(`/api/lms/courses?${params.toString()}`, {
+    defaultValue: EMPTY_COURSES_READ,
+    transform: pickCourses,
+    deps: [search, status],
+  });
+  const courses = coursesRead.list;
 
-  useEffect(() => {
-    fetchCourses();
-  }, [fetchCourses]);
+  // The loader's failure flag, derived: the payload refusing, the server
+  // answering with a status, or a request that never answered.
+  const error = Boolean(
+    coursesRead.failure || readError || (readStatus !== null && readStatus >= 400),
+  );
 
   const runAction = async (courseId, action, successKey) => {
     setBusyId(courseId);
@@ -72,7 +89,7 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", successKey);
-      fetchCourses();
+      refresh();
     } catch (e) {
       notify("error", e.message || "lms.errors.saveFailed");
     } finally {
@@ -136,7 +153,7 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
           <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
             {t("lms.errors.loadFailed")}
           </p>
-          <AppButton variant="secondary" onClick={fetchCourses}>
+          <AppButton variant="secondary" onClick={refresh}>
             {t("common.refresh")}
           </AppButton>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React from "react";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
 import {
@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import CalendarPanel from "@/components/ui/CalendarPanel";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 // ─── Metric Card ────────────────────────────────────────────────────
 function MetricCard({ label, value, icon: Icon, color, trend }) {
@@ -159,46 +159,40 @@ function DashboardSkeleton() {
   );
 }
 
+// ─── Read shaping (module scope: built once, never per render) ───────
+
+// The whole payload is what this view renders, with the server's own refusal
+// folded in so a refused payload still reaches the failure panel.
+const EMPTY_HOME = { payload: null, failure: null };
+
+const pickHome = (d) =>
+  d?.success
+    ? { payload: d, failure: null }
+    : { payload: null, failure: d?.error || null };
+
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ParticipantDashboardHome() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const { t } = useI18n();
 
-  const fetchDashboard = useCallback(async () => {
-    const url = "/api/participant/home";
-    const apply = (result) => {
-      if (result.success) setData(result);
-    };
-    try {
-      setLoading(true);
-      setError(null);
-      // Cache-first paint: returning to the dashboard renders instantly from a
-      // fresh snapshot; the network refresh below converges.
-      const cached = cacheGet(url);
-      if (cached !== null && cached.success) {
-        apply(cached);
-        setLoading(false);
-      }
-      const res = await fetch(url);
-      const result = await res.json();
-      if (result.success) {
-        cacheSet(url, result);
-        apply(result);
-      } else {
-        setError(t((result.error || t("participantMisc.dashboardHome.failedToLoad")) || "") || (result.error || t("participantMisc.dashboardHome.failedToLoad")));
-      }
-    } catch {
-      setError(t("participantMisc.dashboardHome.networkError"));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
-  useEffect(() => {
-    fetchDashboard();
-  }, [fetchDashboard]);
+  // The read goes through the shared hook, which owns the cache, the cache-first
+  // paint and the discarding of a stale answer.
+  const {
+    data: home,
+    loading,
+    error: readError,
+    refresh,
+  } = useApi("/api/participant/home", {
+    defaultValue: EMPTY_HOME,
+    transform: pickHome,
+  });
+  const data = home.payload;
+  // A refused payload keeps the server's own message with the generic one as the
+  // floor; a request that never answered says so.
+  const error = home.failure
+    ? t(home.failure) || t("participantMisc.dashboardHome.failedToLoad")
+    : readError
+      ? t("participantMisc.dashboardHome.networkError")
+      : null;
 
   // ── Error State ──────────────────────────────────────────────────
   if (error && !loading) {
@@ -216,7 +210,7 @@ export default function ParticipantDashboardHome() {
           </p>
         </div>
         <button
-          onClick={fetchDashboard}
+          onClick={refresh}
           className="flex items-center gap-2 px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all"
         >
           <RefreshCw className="w-3.5 h-3.5" /> {t("participantMisc.dashboardHome.retry")}

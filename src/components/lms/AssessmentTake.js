@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   PlayCircle,
@@ -16,6 +16,7 @@ import {
 import AppButton from "@/components/ui/AppButton";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * LEARNER ASSESSMENT (Phase 4).
@@ -30,40 +31,56 @@ import { useI18n } from "@/lib/i18n";
  *
  * Scoring + pass/fail are computed server-side (never trusted from the client).
  */
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are built once here
+// rather than on every render.
+
+const EMPTY_ASSESSMENT = { payload: null, failure: null };
+
+/**
+ * The assessment, together with the reason it is missing. A refusal carries the
+ * server's own i18n key (lms.errors.notEnrolled is the one the entry view has
+ * wording for) and both it and a request that never answered are translated
+ * where they are shown.
+ */
+const pickAssessment = (d) =>
+  d?.success
+    ? { payload: d, failure: null }
+    : { payload: null, failure: d?.error || null };
+
 export default function AssessmentTake({ courseId, assessmentId }) {
   const { t } = useI18n();
   const router = useRouter();
 
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [view, setView] = useState("entry");
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
-  const [attempts, setAttempts] = useState([]);
   const [validationError, setValidationError] = useState(null);
 
-  const fetchAssessment = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/lms/assessments/${assessmentId}/take`);
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || "lms.assessment.unavailable");
-      setData(json);
-      setAttempts(json.attempts || []);
-    } catch (e) {
-      setError(e.message || "lms.assessment.unavailable");
-    } finally {
-      setLoading(false);
-    }
-  }, [assessmentId]);
+  // The assessment and its attempt history arrive in ONE payload and are read
+  // through the shared hook, which owns the cache, the cache-first paint and the
+  // discarding of a stale answer, so the screen keeps no copy of its own. A
+  // submitted attempt re-reads through `refresh`.
+  const {
+    data: assessmentRead,
+    loading,
+    error: readError,
+    refresh,
+  } = useApi(`/api/lms/assessments/${assessmentId}/take`, {
+    defaultValue: EMPTY_ASSESSMENT,
+    transform: pickAssessment,
+    deps: [assessmentId],
+  });
+  const data = assessmentRead.payload;
+  const attempts = data?.attempts || [];
 
-  useEffect(() => {
-    fetchAssessment();
-  }, [fetchAssessment]);
+  // The loader showed the server's own key when it refused a payload and the
+  // request's message when there was no answer; the entry view translates
+  // whichever arrives, with the same fallback as before.
+  const error = assessmentRead.failure || readError || null;
 
   const questions = useMemo(() => data?.questions || [], [data]);
   const question = questions[index];
@@ -97,7 +114,9 @@ export default function AssessmentTake({ courseId, assessmentId }) {
         notify("success", "lms.certificate.courseCompleted");
       }
       setResult(json);
-      setAttempts((prev) => [...prev, json.attempt]);
+      // The attempt list is the read's; a submitted attempt re-reads it rather
+      // than being appended to a copy the screen keeps.
+      refresh();
       setView("result");
     } catch (e) {
       notify("error", e.message === "lms.errors.answerRequired" ? e.message : "lms.assessment.submitFailed");

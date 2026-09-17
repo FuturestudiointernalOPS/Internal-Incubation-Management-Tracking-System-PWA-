@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, UserPlus } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
@@ -8,6 +8,17 @@ import AppButton from "@/components/ui/AppButton";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/constants";
+import { useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are built once here
+// rather than on every render.
+const EMPTY_ENROLLMENTS = { list: [], failure: null };
+
+const pickEnrollments = (d) =>
+  d?.success
+    ? { list: d.enrollments || [], failure: null }
+    : { list: [], failure: d?.error || "lms.enroll.loadFailed" };
 
 /**
  * Admin enrollment enabler — list a course's learners and enroll by email/cid.
@@ -16,26 +27,31 @@ import { formatDate } from "@/lib/constants";
  */
 export default function EnrollModal({ isOpen, onClose, courseId }) {
   const { t } = useI18n();
-  const [enrollments, setEnrollments] = useState(null);
   const [identifier, setIdentifier] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const fetchEnrollments = useCallback(async () => {
-    setEnrollments(null);
-    try {
-      const res = await fetch(`/api/lms/courses/${courseId}/enrollments`);
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || "lms.enroll.loadFailed");
-      setEnrollments(data.enrollments || []);
-    } catch (e) {
-      notify("error", e.message || "lms.enroll.loadFailed");
-      setEnrollments([]);
-    }
-  }, [courseId]);
+  // The roster is read through the shared hook: addressed on the course, and
+  // asked for only while the modal is open. Enrolling re-reads through
+  // `refresh`, which bypasses the cache.
+  const {
+    data,
+    loading,
+    error: readError,
+    refresh: refreshEnrollments,
+  } = useApi(isOpen ? `/api/lms/courses/${courseId}/enrollments` : null, {
+    defaultValue: EMPTY_ENROLLMENTS,
+    transform: pickEnrollments,
+    deps: [courseId],
+  });
+  const enrollments = data.list;
 
+  // A refused payload keeps the server's own key, which is what the toast showed;
+  // a request that never answered says so. The loader raised one error toast per
+  // failed read, and that is this effect's only job - it writes no state.
+  const failure = data.failure || readError || null;
   useEffect(() => {
-    if (isOpen) fetchEnrollments();
-  }, [isOpen, fetchEnrollments]);
+    if (failure) notify("error", failure);
+  }, [failure]);
 
   const enroll = async () => {
     if (!identifier.trim()) return;
@@ -55,7 +71,7 @@ export default function EnrollModal({ isOpen, onClose, courseId }) {
       if (!data.success) throw new Error(data.error || "lms.enroll.userNotFound");
       notify("success", "lms.enroll.enrolled");
       setIdentifier("");
-      fetchEnrollments();
+      refreshEnrollments();
     } catch (e) {
       notify("error", e.message || "lms.enroll.userNotFound");
     } finally {
@@ -82,7 +98,7 @@ export default function EnrollModal({ isOpen, onClose, courseId }) {
         </div>
 
         <div className="border-t pt-4" style={{ borderColor: "var(--border-primary)" }}>
-          {enrollments === null ? (
+          {loading ? (
             <div className="flex justify-center py-8">
               <div className="w-5 h-5 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
             </div>
