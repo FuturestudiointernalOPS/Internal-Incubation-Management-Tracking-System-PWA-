@@ -538,12 +538,12 @@ whole of what remains. It fails if:
 
 Which surfaces are wired, and which stay open:
 
-| Wired (the guard is consulted) | Left open by project instruction |
+| Wired (the guard is consulted) | Not wired |
 |---|---|
-| `api/pm/programs` (PUT, DELETE) | `api/v2/groups` |
-| `api/participant-programs` (POST, DELETE) | `api/v2/kpis` |
-| `api/participant-programs/bulk` (POST) | `api/v2/invites` |
-| `api/invites` (POST) | |
+| `api/pm/programs` (PUT, DELETE) | `api/v2/groups` — **live**, banner-protected |
+| `api/participant-programs` (POST, DELETE) | `api/v2/kpis` — **live**, banner-protected |
+| `api/participant-programs/bulk` (POST) | invitation acceptance (intentional) |
+| `api/invites` (POST) | side-effect enrolments (intentional) |
 | `api/groups` (POST, PUT, DELETE) | |
 | `api/kpis` (POST, PUT, DELETE) | |
 
@@ -551,11 +551,33 @@ For the id-only handlers (group and KPI PUT/DELETE) the owning program is read
 first, because a write that cannot be attributed to a program is refused rather
 than guessed at.
 
-**The remaining work is the three exempt files**, and it is a human decision:
-they carry an in-file banner reserving them for V1 pages and instructing agents to
-leave them read-only. Until they are converted, the enrollment and groups domains
-are PARTIAL — which the report and the screen both say prominently, and the census
-fails if that claim stops being true.
+### 12.6.1 What was removed, and what must NOT be
+
+`api/v2/invites` (both the collection and its `[token]` acceptance route) was
+verified unused — no fetch, no import anywhere — and **removed**. The census now
+asserts the files are gone and that nothing calls them, so a reintroduction fails
+loudly instead of quietly reopening a bypass.
+
+**`api/v2/groups` and `api/v2/kpis` were NOT removed, and must not be**, despite
+their in-file banner being out of date about who still calls them. They are live:
+
+| Route | Called by |
+|---|---|
+| `api/v2/groups` | `admin/programs/[id]/groups/[groupId]`, `components/pm/FacilitatorsPanel` |
+| `api/v2/kpis` | `admin/programs` (list, create, weights), `pm/programs/[id]` (create, delete) |
+
+Converting those callers is therefore a BEHAVIOUR change, not a rename, and it
+needs two decisions first:
+
+1. **KPI weights have no V1 equivalent.** The V1 KPI route creates and updates a
+   title/target only; weight redistribution exists solely in the V2 route. The
+   weights feature must be ported before those callers move.
+2. **The group writers do not hold the V1 route's permission.** `api/groups`
+   requires the capability-assignment authority, which staff and program managers
+   do not hold; the V2 route admits them. Moving the callers without deciding the
+   gate would remove group management from them.
+
+So the remaining work is two conversions with a decision each — not a deletion.
 
 ### 12.7 The template split has its click
 
@@ -592,6 +614,6 @@ still listed four rows, so the catalogue advertised a rule nobody could see.
    remove.
 3. **Repoint the role default** at the trimmed portfolio template, using the
    action in the same panel (it shows the impact before it writes).
-4. **Convert the three exempt legacy routes** so the enrollment and groups domains
-   become fully covered. That is the only remaining code change, and it needs a
-   human because the files are banner-protected.
+4. **Decide the two conversions** in §12.6.1 — port the KPI weights to the V1
+   route, and settle which capability should govern group writes. Both are product
+   decisions; the routes themselves are live and must not be deleted first.

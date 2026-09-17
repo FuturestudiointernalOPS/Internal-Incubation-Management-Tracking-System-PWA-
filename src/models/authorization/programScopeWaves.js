@@ -9,9 +9,14 @@
  *
  * `partial` / `exempt` are the honest part. Some surfaces inside a domain are NOT
  * scope-enforced, and an administrator must never read a domain as closed when it
- * is not. Right now those are three legacy V2 route files that carry a project
- * banner reserving them for V1 pages and instructing agents to leave them
- * read-only, so their endpoints stay open until a human converts them.
+ * is not. They fall into two kinds:
+ *
+ *   - INTENTIONALLY outside the rule: accepting an invitation (the token is the
+ *     authorisation, and the invitee is not staff), and enrolments created as a
+ *     side effect of another operation;
+ *   - NOT YET converted: the two legacy V2 routes that carry a project banner
+ *     reserving them for V1 pages and instructing agents to leave them
+ *     read-only. Those are the ones a human still has to deal with.
  *
  * No db import, no side effects: this is vocabulary shared by the guard, the
  * report, the census test and the screens.
@@ -34,7 +39,15 @@ export const PROGRAM_SCOPE_WAVE_INFO = {
     covers: "Program invitations, adding and removing participants",
     partial: true,
     exempt: [
-      "api/v2/invites (legacy V2 route — project instruction: changes go in the V1 counterpart)",
+      // Two DIFFERENT legitimate gaps, and neither is a bypass waiting on a
+      // conversion:
+      //   * accepting an invitation — the token IS the authorisation, and the
+      //     invitee is not staff, so the rule deliberately does not apply;
+      //   * enrolments created as a SIDE EFFECT of another operation (contact
+      //     and group sync). They are not program-write surfaces, so wiring them
+      //     here would be the wrong place.
+      "api/invites/[token] (accepting an invitation — the token is the authorisation)",
+      "enrollment created as a side effect by contact and group sync (not a program-write surface)",
     ],
   },
   groups: {

@@ -44,17 +44,28 @@ const COVERAGE = {
 };
 
 /**
- * Files that are part of a wave's DOMAIN but deliberately not wired, because a
+ * Files that are part of a domain's SURFACE but deliberately not wired, because a
  * project instruction reserves them. Asserted to still carry that instruction
- * and to NOT contain a guard.
+ * and to NOT contain a guard. Only the routes a human still has to convert
+ * appear here — an exemption that is intentional by DESIGN (accepting an
+ * invitation, side-effect enrolments) lives in the catalogue's exempt list but
+ * names no file, because there is nothing to convert.
  */
 const EXEMPT = {
-  enrollment: ["src/app/api/v2/invites/route.js"],
   groups: [
     "src/app/api/v2/groups/route.js",
     "src/app/api/v2/kpis/route.js",
   ],
 };
+
+/**
+ * Legacy routes that were verified unused and REMOVED. Kept here so a
+ * reintroduction fails loudly instead of quietly reopening a bypass.
+ */
+const RETIRED = [
+  "src/app/api/v2/invites/route.js",
+  "src/app/api/v2/invites/[token]/route.js",
+];
 
 describe("every declared wave is wired somewhere", () => {
   test("the census covers exactly the declared waves", () => {
@@ -102,9 +113,34 @@ describe("deliberately exempt surfaces say so", () => {
   }
 
   test("a fully covered wave is not flagged partial", () => {
-    // The content wave has no exempt file, so it must not claim otherwise.
+    // The content wave has no unwired surface, so it must not claim otherwise.
     expect(PROGRAM_SCOPE_WAVE_INFO.content.partial).toBe(false);
     expect(PROGRAM_SCOPE_WAVE_INFO.content.exempt).toEqual([]);
+  });
+});
+
+describe("removed legacy routes stay removed", () => {
+  test.each(RETIRED)("%s no longer exists", (file) => {
+    expect(fs.existsSync(path.join(ROOT, file))).toBe(false);
+  });
+
+  test("nothing references the removed invite endpoints", () => {
+    const offenders = [];
+    (function walk(dir) {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.[cm]?js$/.test(entry.name)) {
+          const src = fs.readFileSync(full, "utf8");
+          // "api/v2/invites" may still appear in a PROSE comment explaining why
+          // it was removed; a fetch or an import is what must not come back.
+          if (/fetch\(\s*["'`]\/api\/v2\/invites/.test(src)) {
+            offenders.push(path.relative(ROOT, full));
+          }
+        }
+      }
+    })(path.join(ROOT, "src"));
+    expect(offenders).toEqual([]);
   });
 });
 
