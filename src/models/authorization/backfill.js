@@ -19,6 +19,7 @@ import { ensureMembershipBootstrap } from "./membership";
 import { backfillContextRoleProfileMappings } from "./contextRoleProfiles";
 import {
   ensureAssignedProgramManagerProfile,
+  ensurePortfolioProgramManagerProfile,
   backfillFacilitatorTickLists,
 } from "./programAssignmentBackfill";
 import { ensureEligibilitySchema } from "./eligibility";
@@ -101,6 +102,16 @@ export function ensureCapabilityBackfills() {
           runAuthzMigration(
             "assigned-program-manager-profile-v1",
             ensureAssignedProgramManagerProfile,
+          ),
+          // (c) Create the PORTFOLIO template — the trimmed replacement for the
+          //     role bundle that mixes programme management with venture
+          //     editing and people creation. ADDITIVE AND INERT: nothing
+          //     resolves to it until an administrator repoints the role default
+          //     from the permission console, after reading the impact report.
+          //     Nothing is repointed at boot, on purpose.
+          runAuthzMigration(
+            "portfolio-program-manager-profile-v1",
+            ensurePortfolioProgramManagerProfile,
           ),
           runAuthzMigration(
             "facilitator-tick-list-backfill-v1",

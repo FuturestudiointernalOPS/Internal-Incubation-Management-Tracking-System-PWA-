@@ -50,28 +50,111 @@ export const ASSIGNED_PM_PROFILE = {
 };
 
 /**
+ * The PORTFOLIO template (step 3 of the program-scope program).
+ *
+ * The seeded "Program Manager" template bundles three unrelated jobs, applied
+ * by identity label:
+ *
+ *   programme management  — see/create/edit/publish EVERY programme
+ *   venture work          — see AND EDIT ventures
+ *   CRM work              — see people AND CREATE people
+ *     (+ projects, reports, messaging, courses)
+ *
+ * Because it is one unit, the where-it-applies rule cannot narrow the programme
+ * part without also touching the other two, and the other two are not attached
+ * to a programme at all — so scope has nothing to say about them. That is why
+ * the bundle must be SPLIT before scope can be enforced.
+ *
+ * This template keeps what genuinely runs the portfolio and drops the two
+ * misplaced powers. See-visibility is kept in both directions on purpose:
+ * programme work reads participant records and can touch venture-producing
+ * programmes, so removing the READ would break working screens; removing the
+ * WRITE is what takes away a job that belongs to another responsibility.
+ *
+ * Creating this template changes nobody. The role default is repointed to it
+ * deliberately from the permission console, AFTER reading the impact report
+ * (src/models/authorization/programScopeReadiness.js) — never at boot.
+ */
+export const PORTFOLIO_PM_PROFILE = {
+  name: "Program Manager (Portfolio)",
+  description:
+    "Portfolio-wide program oversight — see and create programs, reports; the assignment template covers one program",
+  capabilities: {
+    programs: { view: 1, create: 2, edit: 3, publish: 4 },
+    projects: { view: 1 },
+    // ventures.edit REMOVED: that is the venture responsibility, already
+    // granted inside the venture's own boundary. ventures.view stays because
+    // programme oversight touches venture-producing programmes.
+    ventures: { view: 1 },
+    reports: { view: 1, create: 2, export: 3 },
+    messaging: { view: 1, send: 2 },
+    // contacts.create REMOVED: creating people is CRM work. contacts.view stays
+    // because every programme screen reads participant records.
+    contacts: { view: 1 },
+    lms: { view: 1 },
+  },
+};
+
+/**
  * The profile the registry row was seeded with. Repointing only happens while
  * the row still points here (or nowhere) — a deliberate administrator choice is
  * never overwritten.
  */
 const SEEDED_PM_PROFILE_NAME = "Program Manager";
 
-export async function ensureAssignedProgramManagerProfile() {
-  await ensurePermissionsSchema();
-  await ensureContextRoleProfilesSchema();
-
+/**
+ * Create a template with its capabilities, insert-only, and return its id.
+ * Shared by both templates above so their creation rules cannot diverge (the
+ * previous hand-rolled loop also only covered the `programs` module, which
+ * would have silently dropped every other module of the portfolio template).
+ */
+async function ensureProfile(template) {
   await db.execute({
     sql: `INSERT INTO access_profiles (name, description, is_active)
           VALUES (?, ?, 1)
           ON CONFLICT (name) DO NOTHING`,
-    args: [ASSIGNED_PM_PROFILE.name, ASSIGNED_PM_PROFILE.description],
+    args: [template.name, template.description],
   });
-
-  const profileRes = await db.execute({
+  const res = await db.execute({
     sql: "SELECT id FROM access_profiles WHERE name = ?",
-    args: [ASSIGNED_PM_PROFILE.name],
+    args: [template.name],
   });
-  const profileId = profileRes.rows?.[0]?.id ?? null;
+  const profileId = res.rows?.[0]?.id ?? null;
+  if (!profileId) return null;
+
+  for (const [module, caps] of Object.entries(template.capabilities)) {
+    for (const [capability, level] of Object.entries(caps)) {
+      await db.execute({
+        sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+              VALUES (?, ?, ?, ?)
+              ON CONFLICT (profile_id, module, capability) DO NOTHING`,
+        args: [profileId, module, capability, level],
+      });
+    }
+  }
+  return profileId;
+}
+
+/**
+ * Create the PORTFOLIO template (step 3 of the program-scope program).
+ *
+ * ADDITIVE AND INERT: nothing resolves to it until an administrator repoints
+ * the programme-manager role default at it, so running this at boot cannot
+ * change anyone's access. The impact report (programScopeReadiness.js) states
+ * what that repoint would remove, per template, BEFORE it happens.
+ */
+export async function ensurePortfolioProgramManagerProfile() {
+  await ensurePermissionsSchema();
+  const profileId = await ensureProfile(PORTFOLIO_PM_PROFILE);
+  if (!profileId) return { success: false, reason: "profile-unavailable" };
+  return { success: true, profileId };
+}
+
+export async function ensureAssignedProgramManagerProfile() {
+  await ensurePermissionsSchema();
+  await ensureContextRoleProfilesSchema();
+
+  const profileId = await ensureProfile(ASSIGNED_PM_PROFILE);
   if (!profileId) {
     // Soft failure on purpose. This runs inside the boot chain that EVERY
     // authorization decision awaits, so throwing here would turn a missing
@@ -80,17 +163,6 @@ export async function ensureAssignedProgramManagerProfile() {
     // database that cannot write at all — and the registry gap stays visible in
     // the Context Roles screen rather than being hidden.
     return { success: false, reason: "profile-unavailable" };
-  }
-
-  for (const [capability, level] of Object.entries(
-    ASSIGNED_PM_PROFILE.capabilities.programs,
-  )) {
-    await db.execute({
-      sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
-            VALUES (?, 'programs', ?, ?)
-            ON CONFLICT (profile_id, module, capability) DO NOTHING`,
-      args: [profileId, capability, level],
-    });
   }
 
   const seededRes = await db.execute({
