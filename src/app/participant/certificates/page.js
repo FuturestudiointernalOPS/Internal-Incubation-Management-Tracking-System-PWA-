@@ -1,9 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { Award, Loader2 } from "lucide-react";
+
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickCertificates = (d) => (d?.success ? d.certificates || [] : []);
 
 /**
  * PARTICIPANT CERTIFICATES — certificates issued to the current user
@@ -11,38 +15,13 @@ import { Award, Loader2 } from "lucide-react";
  */
 export default function ParticipantCertificatesPage() {
   const { t } = useI18n();
-  const [certificates, setCertificates] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const loadCertificates = async (bypassCache = false) => {
-    const url = "/api/participant/certificates";
-    const apply = (data) => {
-      setCertificates(data?.success ? data.certificates || [] : []);
-    };
-    try {
-      // Cache-first paint: returning to this page renders instantly from a
-      // fresh snapshot; the network refresh below converges.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data?.success) cacheSet(url, data);
-      apply(data);
-    } catch (_) {
-      setCertificates([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadCertificates();
-  }, []);
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, and the background refresh — belongs to the hook, so this screen
+  // keeps no data state of its own and never sets state from an effect.
+  const { data: certificates, loading } = useApi(
+    "/api/participant/certificates",
+    { defaultValue: null, transform: pickCertificates },
+  );
 
   const fmt = (d) => (d ? new Date(d).toLocaleDateString() : "");
 
