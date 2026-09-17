@@ -23,7 +23,6 @@ let mockState = {};
 
 const PROGRAM_ACTIVE = "P-ACTIVE";
 const PROGRAM_OPEN_ENDED = "P-OPEN";
-const PROGRAM_ENDED = "P-ENDED";
 
 const ALL_FACILITATOR_KEYS = require("@/lib/facilitator-permissions").FACILITATOR_CAPABILITY_KEYS;
 
@@ -200,7 +199,6 @@ const {
   deriveAssignmentsExpiry,
   deriveFacilitatorDesiredCaps,
   resolveAssignmentCapabilityLevel,
-  assignmentsForRole,
   UNCONFIGURED_LEVEL,
 } = require("@/models/authorization/programAssignments");
 const {
