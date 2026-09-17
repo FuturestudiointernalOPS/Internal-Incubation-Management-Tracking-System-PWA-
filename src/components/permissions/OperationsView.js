@@ -11,6 +11,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import AppButton from "@/components/ui/AppButton";
 import AppModal from "@/components/ui/AppModal";
+import ProgramScopePanel from "./ProgramScopePanel";
 
 /**
  * Toast via the app-wide listener (src/components/ui/GlobalToast.js). Kept
@@ -27,10 +28,11 @@ function notify(type, message) {
 /**
  * PHASE UI-8 — Operations (Permission Center).
  *
- * The two PORTFOLIO-WIDE jobs. Both change or describe access for many people
- * at once, and before this screen neither had a button anywhere in the product:
- * they were reachable only by typing a URL. The most consequential operations in
- * the system were invisible to the administrator who owns them.
+ * The two PORTFOLIO-WIDE jobs, and the programme-scope report that must be read
+ * before one rule can be switched on. Both jobs change or describe access for
+ * many people at once, and before this screen neither had a button anywhere in the
+ * product: they were reachable only by typing a URL. The most consequential
+ * operations in the system were invisible to the administrator who owns them.
  *
  *   1. RE-DERIVE FROM RELATIONSHIPS
  *      Applies the Context Roles mapping at the relationship boundary: an active
@@ -48,8 +50,15 @@ function notify(type, message) {
  *      strictly assignment-derived, so it is what you read BEFORE narrowing the
  *      portfolio-wide defaults.
  *
- * Neither action is a security boundary of its own: both call endpoints that
- * require the permission-matrix read capability, and the server decides.
+ *   3. PROGRAMME ACCESS (./ProgramScopePanel)
+ *      The measurement that makes the programme where-it-applies rule safe to
+ *      switch on, plus the repair for the one thing that would block it. It
+ *      lives in its own file because it is a report and a worklist, not one more
+ *      button.
+ *
+ * No action is a security boundary of its own: every one calls an endpoint that
+ * the server gates (matrix read, or the capability the write actually needs),
+ * and the server decides.
  */
 
 /** One result tile: a label, a value, and whether the value needs attention. */
@@ -345,6 +354,9 @@ export default function OperationsView() {
           </div>
         )}
       </section>
+
+      {/* ── 3. Programme access ─────────────────────────────────────────── */}
+      <ProgramScopePanel />
 
       <ConfirmDialog
         open={confirmReconcile}
