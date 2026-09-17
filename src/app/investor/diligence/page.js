@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, Suspense, useCallback } from "react";
+import { useState, Suspense } from "react";
 import {
   ArrowLeft, Loader2, Building2, FileText, Send, Plus,
   MessageSquare, CheckCircle2, ClipboardList,
@@ -13,7 +13,13 @@ import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// Module scope on purpose: the hook keys its internal callback on these
+// functions, so inline arrows would give them a new identity on every render and
+// refetch in a loop.
+const pickDiligence = (d) => (d?.success ? d : null);
+const pickEvaluation = (d) => (d?.success ? d : null);
 
 const REQUEST_CATEGORIES = [
   { id: "corporate", label: "Corporate", color: "bg-blue-500/10 text-blue-400" },
@@ -29,11 +35,39 @@ function DueDiligenceContent() {
   const pipelineId = searchParams.get("pipeline_id");
   const { t } = useI18n();
 
-  const [workspace, setWorkspace] = useState(null);
-  const [requests, setRequests] = useState([]);
-  const [notes, setNotes] = useState([]);
-  const [pipeline, setPipeline] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Two reads, the pipeline identifier staying a plain dependency of each. Their
+  // loaders' work — cache-first paint, discarding a stale response, the
+  // background refresh — belongs to the hook, so the screen keeps no data state
+  // of its own and never sets state from an effect. Every mutation flow calls
+  // refreshAll(), which bypasses the cache exactly like bypassCache did. Before
+  // the workspace exists the identifier can be absent, and then nothing is read.
+  const {
+    data: diligence,
+    loading: diligenceLoading,
+    refresh: refreshDiligence,
+  } = useApi(
+    pipelineId ? `/api/investor/diligence?pipeline_id=${pipelineId}` : null,
+    { transform: pickDiligence, deps: [pipelineId] },
+  );
+  const {
+    data: evaluation,
+    loading: evaluationLoading,
+    refresh: refreshEvaluation,
+  } = useApi(
+    pipelineId ? `/api/investor/evaluation?pipeline_id=${pipelineId}` : null,
+    { transform: pickEvaluation, deps: [pipelineId] },
+  );
+  const loading = diligenceLoading || evaluationLoading;
+  const workspace = diligence?.workspace ?? null;
+  const requests = diligence?.requests || [];
+  const notes = diligence?.notes || [];
+  const pipeline = diligence?.pipeline ?? null;
+  const founders = evaluation?.founder_evaluations || [];
+  const risks = evaluation?.risk_assessments || [];
+  const refreshAll = () => {
+    refreshDiligence();
+    refreshEvaluation();
+  };
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -46,63 +80,10 @@ function DueDiligenceContent() {
   const [noteType, setNoteType] = useState("private");
 
   // Founder & Risk
-  const [founders, setFounders] = useState([]);
-  const [risks, setRisks] = useState([]);
   const [showFounderForm, setShowFounderForm] = useState(false);
   const [founderForm, setFounderForm] = useState({ founder_name:"", role:"", experience_score:0, leadership_score:0, domain_expertise_score:0, overall_rating:0, notes:"" });
   const [showRiskForm, setShowRiskForm] = useState(false);
   const [riskForm, setRiskForm] = useState({ risk_category:"market", risk_description:"", severity:"medium", mitigation:"", status:"open" });
-
-  const fetchData = useCallback(async (bypassCache = false) => {
-    setLoading(true);
-    try {
-      const url = `/api/investor/diligence?pipeline_id=${pipelineId}`;
-      const evalUrl = `/api/investor/evaluation?pipeline_id=${pipelineId}`;
-      const apply = (data, evalData) => {
-        if (data?.success) {
-          setWorkspace(data.workspace);
-          setRequests(data.requests || []);
-          setNotes(data.notes || []);
-          setPipeline(data.pipeline);
-        }
-        if (evalData?.success) {
-          setFounders(evalData.founder_evaluations || []);
-          setRisks(evalData.risk_assessments || []);
-        }
-      };
-      // Cache-first paint: returning to this workspace renders instantly when
-      // both snapshots are fresh; mutation flows pass bypassCache=true so the
-      // workspace always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        const cachedEval = cacheGet(evalUrl);
-        if (cached !== null && cached.success && cachedEval !== null && cachedEval.success) {
-          apply(cached, cachedEval);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data, null);
-      }
-      // Also fetch evaluations
-      try {
-        const evalRes = await fetch(evalUrl);
-        const evalData = await evalRes.json();
-        if (evalData.success) {
-          cacheSet(evalUrl, evalData);
-          apply(null, evalData);
-        }
-      } catch (_) {}
-    } catch (_) {}
-    setLoading(false);
-  }, [pipelineId]);
-
-  useEffect(() => {
-    if (pipelineId) fetchData();
-  }, [pipelineId, fetchData]);
 
   const createWorkspace = async () => {
     try {
@@ -114,7 +95,7 @@ function DueDiligenceContent() {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: "Due Diligence workspace created" });
-        fetchData(true);
+        refreshAll();
       }
     } catch (_) {}
   };
@@ -132,7 +113,7 @@ function DueDiligenceContent() {
         setToast({ type: "success", message: "Request submitted" });
         setNewReq({ title: "", description: "", category: "financial", priority: "medium", due_date: "" });
         setShowReqForm(false);
-        fetchData(true);
+        refreshAll();
       }
     } catch (_) {}
   };
@@ -144,7 +125,7 @@ function DueDiligenceContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pipeline_id: pipelineId, action: "update_request", request_id: reqId, status }),
       });
-      fetchData(true);
+      refreshAll();
     } catch (_) {}
   };
 
@@ -156,7 +137,7 @@ function DueDiligenceContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pipeline_id: pipelineId, action: "add_note", content: newNote, note_type: noteType }),
       });
-      if (res.ok) { setNewNote(""); fetchData(true); }
+      if (res.ok) { setNewNote(""); refreshAll(); }
     } catch (_) {}
   };
 
@@ -168,7 +149,7 @@ function DueDiligenceContent() {
         body: JSON.stringify({ pipeline_id: pipelineId, action: "complete" }),
       });
       setToast({ type: "success", message: "Diligence completed" });
-      fetchData(true);
+      refreshAll();
     } catch (_) {}
   };
 
@@ -192,7 +173,7 @@ function DueDiligenceContent() {
           setToast({ type: "success", message: `"${file.name}" uploaded` });
           setUploadReqId(null);
           fetchDdDocs(requestId);
-          fetchData(true);
+          refreshAll();
         }
       } catch (_) {}
     };
@@ -232,7 +213,7 @@ function DueDiligenceContent() {
         setToast({ type: "success", message: "Follow-up question submitted" });
         setFollowupQuestion("");
         setFollowupReqId(null);
-        fetchData(true);
+        refreshAll();
       }
     } catch (_) {}
   };
@@ -247,7 +228,7 @@ function DueDiligenceContent() {
       setToast({ type: "success", message: "Founder evaluation saved" });
       setShowFounderForm(false);
       setFounderForm({ founder_name:"", role:"", experience_score:0, leadership_score:0, domain_expertise_score:0, overall_rating:0, notes:"" });
-      fetchData(true);
+      refreshAll();
     } catch (_) {}
   };
 
@@ -261,7 +242,7 @@ function DueDiligenceContent() {
       setToast({ type: "success", message: "Risk assessment saved" });
       setShowRiskForm(false);
       setRiskForm({ risk_category:"market", risk_description:"", severity:"medium", mitigation:"", status:"open" });
-      fetchData(true);
+      refreshAll();
     } catch (_) {}
   };
 

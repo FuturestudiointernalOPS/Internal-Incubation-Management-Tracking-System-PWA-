@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Loader2, FileText, Send, Clock,
   RotateCcw, AlertTriangle, ArrowLeft, Play,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -30,45 +29,23 @@ const STATUS_KEYS = {
 export default function MySubmissionsPage() {
   const router = useRouter();
   const { t } = useI18n();
-  const [submissions, setSubmissions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const loadSubmissions = useCallback(async (bypassCache = false) => {
-    setLoading(true);
-    const url = "/api/platform/form-runs?my_submissions=true";
-    const apply = (data) => {
-      if (data.success) setSubmissions(data.submissions || []);
-    };
-    let painted = false;
-    try {
-      // Cache-first paint: revisiting the page renders instantly from a fresh
-      // snapshot; the network refresh keeps the list current in the background.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      } else {
-        setError(t((data.error || t("platformMisc.runSubmit.loadFailed")) || "") || (data.error || t("platformMisc.runSubmit.loadFailed")));
-      }
-    } catch (err) {
-      if (!painted) setError(t(err.message || "") || err.message);
-    }
-    setLoading(false);
-  }, [t]);
-
-  useEffect(() => {
-    loadSubmissions();
-  }, [loadSubmissions]);
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no list state of its own and never sets state from an effect. The read is
+  // kept raw here because its failure payload carries the message the screen
+  // shows.
+  const { data, loading, error: fetchError } = useApi(
+    "/api/platform/form-runs?my_submissions=true",
+  );
+  const submissions = data?.success ? data.submissions || [] : [];
+  // The "could not load" banner is derived from the payload rather than written
+  // by the loader, so a rejected read and an unreachable one still read the same
+  // way on screen.
+  const error = data && !data.success
+    ? t(data.error || "platformMisc.runSubmit.loadFailed")
+    : fetchError
+      ? t(fetchError) || fetchError
+      : null;
 
   return (
     <div className="min-h-screen">

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * IMPORT IDENTITY REVIEW
@@ -22,12 +22,14 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
  * Admin resolves each flag after verifying in the CRM duplicates tool.
  */
 
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickReviewFlags = (d) => (d?.success ? d.flags || [] : []);
+
 function ImportReviewContent() {
   const { t } = useI18n();
-  const _router = useRouter();
   const searchParams = useSearchParams();
-  const [flags, setFlags] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState(searchParams.get("status") || "pending");
   const [resolving, setResolving] = useState(null);
   const [notification, setNotification] = useState(null);
@@ -37,32 +39,15 @@ function ImportReviewContent() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const fetchFlags = useCallback(async (bypassCache = false) => {
-    const url = `/api/platform/import/review-flags?status=${filter}`;
-    const apply = (data) => {
-      if (data.success) setFlags(data.flags || []);
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: switching filters / returning to this page renders
-      // instantly from a fresh snapshot; resolving a flag passes
-      // bypassCache=true so the list always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch (_) {}
-    setLoading(false);
-  }, [filter]);
-
-  useEffect(() => { fetchFlags(); }, [fetchFlags]);
+  // The loader's work — each status filter caching under its own URL, the
+  // cache-first paint, discarding a stale response and the background refresh —
+  // belongs to the hook, so the screen keeps no list state of its own and never
+  // sets state from an effect. The filter stays a plain dependency, and resolving
+  // a row calls refresh(), which bypasses the cache like bypassCache did.
+  const { data: flags, loading, refresh } = useApi(
+    `/api/platform/import/review-flags?status=${filter}`,
+    { defaultValue: [], transform: pickReviewFlags, deps: [filter] },
+  );
 
   const resolveFlag = async (id, status) => {
     setResolving(id);
@@ -75,7 +60,7 @@ function ImportReviewContent() {
       const data = await res.json();
       if (data.success) {
         notify(status === "resolved" ? t("adminMisc.platformImportReview.flagResolved") : t("adminMisc.platformImportReview.flagReopened"));
-        fetchFlags(true);
+        refresh();
       }
     } catch (_) {}
     setResolving(null);
@@ -134,7 +119,7 @@ function ImportReviewContent() {
             </button>
           ))}
           <button
-            onClick={fetchFlags}
+            onClick={refresh}
             className="ml-auto p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--brand-orange)]"
             title={t("adminMisc.platformImportReview.refresh")}
           >

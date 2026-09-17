@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Eye, BarChart3, Users,
   Building2, ArrowRight, Loader2, Search,
@@ -13,7 +13,7 @@ import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const PIPELINE_STAGES = [
   "interested", "watching", "meeting_requested",
@@ -44,17 +44,52 @@ const INDUSTRY_OPTIONS = ["FinTech","HealthTech","AgriTech","EdTech","CleanTech"
 const COUNTRY_OPTIONS = ["CD","KE","NG","ZA","GH","RW","UG","TZ","EG","MA"];
 const STAGE_OPTIONS = ["Pre-Seed","Seed","Series A","Series B","Growth"];
 
+// The shape the screen renders from, so a failed or malformed payload never
+// reaches a `.map` / `.total_*` read. Module scope keeps both values stable for
+// the hook (an inline literal would refetch on every render).
+const EMPTY_INVESTOR_DASHBOARD = {
+  profile: null,
+  pipeline: [],
+  watchlist: [],
+  recommendations: [],
+  campaigns: [],
+  relationships: [],
+  stats: {},
+};
+const pickInvestorDashboard = (d) =>
+  d?.success
+    ? {
+        profile: d.profile ?? null,
+        pipeline: d.pipeline || [],
+        watchlist: d.watchlist || [],
+        recommendations: d.recommendations || [],
+        campaigns: d.campaigns || [],
+        relationships: d.relationships || [],
+        stats: d.stats || {},
+      }
+    : EMPTY_INVESTOR_DASHBOARD;
+
 export default function InvestorDashboard() {
   const router = useRouter();
   const { t } = useI18n();
-  const [profile, setProfile] = useState(null);
-  const [pipeline, setPipeline] = useState([]);
-  const [watchlist, setWatchlist] = useState([]);
-  const [recommendations, setRecommendations] = useState([]);
-  const [campaigns, setCampaigns] = useState([]);
-  const [relationships, setRelationships] = useState([]);
-  const [stats, setStats] = useState({});
-  const [loading, setLoading] = useState(true);
+
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no data state of its own and never sets state from an effect. Both mutation
+  // flows below call refresh(), which bypasses the cache like bypassCache did.
+  const { data, loading, refresh } = useApi("/api/investor/dashboard", {
+    defaultValue: EMPTY_INVESTOR_DASHBOARD,
+    transform: pickInvestorDashboard,
+  });
+  const {
+    profile,
+    pipeline,
+    watchlist,
+    recommendations,
+    campaigns,
+    relationships,
+    stats,
+  } = data;
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState("discover");
   const [search, setSearch] = useState("");
@@ -84,43 +119,6 @@ export default function InvestorDashboard() {
   const [introMessage, setIntroMessage] = useState("");
   const [processingId, setProcessingId] = useState(null);
 
-  const fetchDashboard = async (bypassCache = false) => {
-    setLoading(true);
-    try {
-      const url = "/api/investor/dashboard";
-      const apply = (data) => {
-        if (data.success) {
-          setProfile(data.profile);
-          setPipeline(data.pipeline || []);
-          setWatchlist(data.watchlist || []);
-          setRecommendations(data.recommendations || []);
-          setCampaigns(data.campaigns || []);
-          setRelationships(data.relationships || []);
-          setStats(data.stats || {});
-        }
-      };
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; mutation flows pass bypassCache=true so the dashboard always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (_) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchDashboard(); }, []);
-
   const addToPipeline = async (ventureId, stage) => {
     setProcessingId(ventureId);
     try {
@@ -132,7 +130,7 @@ export default function InvestorDashboard() {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: `${t("venture")} ${t(STAGE_LABELS[stage] || "")}` });
-        fetchDashboard(true);
+        refresh();
       }
     } catch (_) {} finally {
       setProcessingId(null);
@@ -150,7 +148,7 @@ export default function InvestorDashboard() {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: data.action === "added" ? "Added to watchlist" : "Removed from watchlist" });
-        fetchDashboard(true);
+        refresh();
       }
     } catch (_) {} finally {
       setProcessingId(null);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Wrench,
@@ -15,7 +15,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 // Lookup map: raw severity/priority value → i18n key (keep raw value as fallback)
 const SEV_KEYS = {
@@ -27,48 +27,23 @@ const SEV_KEYS = {
   low: "engineering.overview.severityValues.low",
 };
 
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickEngineeringDashboard = (d) => (d?.success ? d : null);
+
 export default function EngineeringOperations() {
   const router = useRouter();
   const { t } = useI18n();
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState(null);
   const [, setActiveTab] = useState("overview");
 
-  const fetchDashboard = useCallback(async (bypassCache = false) => {
-    const url = "/api/engineering/dashboard";
-    const apply = (json) => {
-      if (json.success) {
-        setData(json);
-      }
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; the refresh button passes bypassCache=true so the view always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const json = await res.json();
-      if (json.success) {
-        cacheSet(url, json);
-        apply(json);
-      }
-    } catch (e) {
-      console.error("Failed to fetch engineering dashboard", e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchDashboard();
-  }, [fetchDashboard]);
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no data state of its own and never sets state from an effect. The refresh
+  // button calls refresh(), which bypasses the cache as it did before.
+  const { data, loading, refresh } = useApi("/api/engineering/dashboard", {
+    transform: pickEngineeringDashboard,
+  });
 
   const statsCards = data
     ? [
@@ -155,7 +130,7 @@ export default function EngineeringOperations() {
             </p>
           </div>
           <button
-            onClick={fetchDashboard}
+            onClick={refresh}
             className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5" /> {t("engineering.overview.refresh")}

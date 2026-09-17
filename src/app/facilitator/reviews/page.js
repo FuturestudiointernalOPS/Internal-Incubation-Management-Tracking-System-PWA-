@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
 import { ClipboardList, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +13,20 @@ export const dynamic = "force-dynamic";
  * including Program Manager decisions.
  */
 
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickReviews = (d) => (d?.success ? d.reviews || [] : []);
+
 export default function FacilitatorReviews() {
   const { t } = useI18n();
-  const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no data state of its own and never sets state from an effect.
+  const { data: reviews, loading } = useApi("/api/facilitator-reviews", {
+    defaultValue: [],
+    transform: pickReviews,
+  });
 
   const ratingLabel = (v) =>
     FACILITATOR_REVIEW_OPTIONS.ratings.includes(v)
@@ -38,42 +47,6 @@ export default function FacilitatorReviews() {
       return t("pmMisc.facilitators.weeklyReview.status_decided");
     return t("pmMisc.facilitators.weeklyReview.status_submitted");
   };
-
-  const loadReviews = async (bypassCache = false) => {
-    const url = "/api/facilitator-reviews";
-    const apply = (data) => {
-      if (data.success) setReviews(data.reviews || []);
-    };
-    let painted = false;
-    if (!bypassCache) setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a
-      // fresh snapshot while the network refreshes in the background.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (_) {
-      if (!painted) setReviews([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadReviews();
-     
-  }, []);
 
   return (
     <>
