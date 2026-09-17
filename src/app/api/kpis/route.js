@@ -1,8 +1,9 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import { logAuditEvent } from "@/lib/audit";
-import { deleteKpi, insertKpi, updateKpi } from "@/models/platformConfig";
+import { deleteKpi, insertKpi, updateKpi, getV2KpiProgramId } from "@/models/platformConfig";
 export const dynamic = "force-dynamic";
 
 /**
@@ -24,6 +25,14 @@ export async function POST(req) {
         { status: 400 }
       );
     }
+
+    // Program scope (wave: groups) — targets belong to the cohorts wave. OFF by
+    // default (no-op until the wave is switched on).
+    const scopeError = await requireProgramScope({
+      programId: program_id,
+      wave: "groups",
+    });
+    if (scopeError) return scopeError;
 
     await insertKpi(program_id, title, target_value);
 
@@ -62,6 +71,15 @@ export async function PUT(req) {
       );
     }
 
+    // Program scope (wave: groups) — the handler receives only a KPI id, so the
+    // owning program is read first.
+    const kpiProgram = await getV2KpiProgramId(id);
+    const scopeError = await requireProgramScope({
+      programId: kpiProgram.rows?.[0]?.program_id,
+      wave: "groups",
+    });
+    if (scopeError) return scopeError;
+
     await updateKpi(id, title, target_value);
 
     const session = await getSession();
@@ -98,6 +116,14 @@ export async function DELETE(req) {
         { status: 400 }
       );
     }
+
+    // Program scope (wave: groups) — read the owning program before deleting.
+    const kpiProgram = await getV2KpiProgramId(id);
+    const scopeError = await requireProgramScope({
+      programId: kpiProgram.rows?.[0]?.program_id,
+      wave: "groups",
+    });
+    if (scopeError) return scopeError;
 
     await deleteKpi(id);
 

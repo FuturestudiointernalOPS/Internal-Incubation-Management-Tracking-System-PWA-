@@ -122,6 +122,18 @@ export async function updateGroupAfterColumnSelfHeal(updates, args) {
 }
 
 /** Delete a contact group (families) by id. */
+/**
+ * Program owning a group row (V1 /api/groups mutates the `families` table).
+ * Read before a scoped write so the record-scope check knows WHICH program the
+ * group belongs to — the PUT/DELETE handlers receive only the group id.
+ */
+export async function getFamilyProgramId(id) {
+  return db.execute({
+    sql: "SELECT CAST(program_id AS TEXT) AS program_id FROM families WHERE CAST(id AS TEXT) = ?",
+    args: [String(id)],
+  });
+}
+
 export async function deleteGroup(id) {
   return db.execute({
     sql: "DELETE FROM families WHERE id = ?",

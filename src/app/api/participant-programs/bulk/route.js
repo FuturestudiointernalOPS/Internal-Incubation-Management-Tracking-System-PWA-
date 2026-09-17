@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import { ensureProgramEnrollments } from "@/lib/lms/programRequirements";
 import {
   getBulkProgramById,
@@ -59,6 +60,13 @@ export async function POST(req) {
         { status: 400 },
       );
     }
+
+    // Program scope (wave: enrollment). OFF by default (no-op until switched on).
+    const scopeError = await requireProgramScope({
+      programId: program_id,
+      wave: "enrollment",
+    });
+    if (scopeError) return scopeError;
 
     // Verify the program exists before assigning (only on add)
     if (action === "add") {

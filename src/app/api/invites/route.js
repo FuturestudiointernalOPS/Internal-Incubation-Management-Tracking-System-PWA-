@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireAuthorization } from "@/lib/authorization";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { ensureInvitationsTable, createInvitation, listActiveInvites } from "@/models/groups";
@@ -29,6 +30,15 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
       { status: 400 },
     );
   }
+
+  // Program scope (wave: enrollment) — issuing a program invite is enrollment
+  // work. Gated on the permission-matrix read capability above; this decides
+  // WHICH PROGRAM. OFF by default (no-op until the wave is switched on).
+  const scopeError = await requireProgramScope({
+    programId: program_id,
+    wave: "enrollment",
+  });
+  if (scopeError) return scopeError;
 
   // Ensure table exists
   try {

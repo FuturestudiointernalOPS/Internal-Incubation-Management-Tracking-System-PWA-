@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import { requireAuthorization } from "@/lib/authorization";
 import {
   getGroups,
@@ -15,6 +16,7 @@ import {
   addFamilyDefaultRoleColumnOnUpdate,
   addFamilyIsArchivedColumnOnUpdate,
   deleteGroup,
+  getFamilyProgramId,
 } from "@/models/groups";
 export const dynamic = "force-dynamic";
 
@@ -57,6 +59,17 @@ export async function POST(req) {
         { success: false, error: "name required" },
         { status: 400 }
       );
+    }
+
+    // Program scope (wave: groups). A group belongs to a program when the caller
+    // supplies one; a group created with no program is not program-scoped, so the
+    // guard is only consulted for the program-bound case. OFF by default.
+    if (program_id) {
+      const scopeError = await requireProgramScope({
+        programId: program_id,
+        wave: "groups",
+      });
+      if (scopeError) return scopeError;
     }
 
     // Generate a unique registration_id (matches families route pattern: GRP-XXXX123)
@@ -111,6 +124,17 @@ export async function PUT(req) {
       );
     }
 
+    // Program scope (wave: groups). The handler receives only a group id, so the
+    // owning program is read first — a write that cannot be attributed to a
+    // program cannot be scope-checked, and the guard refuses in that case.
+    // OFF by default (no-op until the wave is switched on).
+    const groupProgram = await getFamilyProgramId(id);
+    const scopeError = await requireProgramScope({
+      programId: groupProgram.rows?.[0]?.program_id,
+      wave: "groups",
+    });
+    if (scopeError) return scopeError;
+
     const updates = [];
     const args = [];
 
@@ -164,6 +188,14 @@ export async function DELETE(req) {
         { status: 400 }
       );
     }
+
+    // Program scope (wave: groups) — read the owning program first (see PUT).
+    const groupProgram = await getFamilyProgramId(id);
+    const scopeError = await requireProgramScope({
+      programId: groupProgram.rows?.[0]?.program_id,
+      wave: "groups",
+    });
+    if (scopeError) return scopeError;
 
     await deleteGroup(id);
 

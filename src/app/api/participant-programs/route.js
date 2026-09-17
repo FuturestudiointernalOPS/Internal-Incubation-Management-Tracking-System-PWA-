@@ -7,6 +7,10 @@ import {
   requireAssignmentAccess,
 } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  requireProgramScope,
+  requireProgramScopeForAll,
+} from "@/lib/programScopedAccess";
 import { ensureProgramEnrollments } from "@/lib/lms/programRequirements";
 import {
   getParticipantProgramAssignments,
@@ -118,6 +122,15 @@ export async function POST(req) {
     const results = [];
     const errors = [];
 
+    // Program scope (wave: enrollment) — after the ids are validated and before
+    // any write. EVERY id must be staffed, because a partial write is harder to
+    // see and to undo than a refusal. OFF by default (no-op).
+    const scopeError = await requireProgramScopeForAll({
+      programIds: program_ids,
+      wave: "enrollment",
+    });
+    if (scopeError) return scopeError;
+
     let participantEmail = "";
     try {
       const pc = await getContactEmailByCid(participant_id);
@@ -204,6 +217,13 @@ export async function DELETE(req) {
         { status: 400 },
       );
     }
+
+    // Program scope (wave: enrollment). OFF by default (no-op until switched on).
+    const scopeError = await requireProgramScope({
+      programId: program_id,
+      wave: "enrollment",
+    });
+    if (scopeError) return scopeError;
 
     const result = await deleteParticipantProgram(participant_id, program_id);
 

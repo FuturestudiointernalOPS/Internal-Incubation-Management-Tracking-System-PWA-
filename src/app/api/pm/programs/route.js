@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { requireAuth, getSession, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import { logAuditEvent } from "@/lib/audit";
 import {
   addParticipantToProgram,
@@ -355,6 +356,7 @@ export async function PUT(req) {
     // profile; plain staff without it are denied (intended model).
     const capError = await requireAuthorization("programs", "edit");
     if (capError) return capError;
+
     const {
       id,
       name,
@@ -387,6 +389,21 @@ export async function PUT(req) {
         { success: false, error: "ID required" },
         { status: 400 },
       );
+
+    // Program scope (wave: content) — evaluated AFTER the body is read, so the
+    // program id is known. A check placed before the destructuring would read a
+    // not-yet-declared binding and fail the request outright, so the order here
+    // is load-bearing (the same defect was fixed once in the venture pilot).
+    //
+    // OFF by default: a no-op until an administrator switches the wave on from
+    // the Operations screen (src/lib/programScopedAccess.js). The capability
+    // above decides WHAT; this decides WHICH PROGRAM, on staffing rather than
+    // enrollment.
+    const scopeError = await requireProgramScope({
+      programId: id,
+      wave: "content",
+    });
+    if (scopeError) return scopeError;
 
     // Verify the program exists before updating or assigning
     const progExists = await getProgramWithAssignedPm(id);
@@ -555,6 +572,14 @@ export async function DELETE(req) {
         { success: false, error: "ID required" },
         { status: 400 },
       );
+
+    // Program scope (wave: content) — same no-op-until-switched-on guard as the
+    // PUT above.
+    const scopeError = await requireProgramScope({
+      programId: id,
+      wave: "content",
+    });
+    if (scopeError) return scopeError;
 
     // Phase 3C-7: refuse permanent deletion when the program carries protected
     // historical data (participants, sessions, submissions, deliverables).
