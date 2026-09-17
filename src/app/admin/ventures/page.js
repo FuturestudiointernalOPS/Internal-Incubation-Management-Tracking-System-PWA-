@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Rocket,
@@ -11,7 +11,7 @@ import {
   Link2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const VENTURE_STAGES = {
   idea: { label: "vadmin.list.stageIdea", color: "text-blue-400 bg-blue-500/10" },
@@ -27,46 +27,23 @@ const STATUS_CONFIG = {
   archived: { label: "vadmin.list.statusArchived", color: "text-slate-400 bg-slate-500/10", dot: "bg-slate-400" },
 };
 
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickVentures = (d) => (d?.success ? d.ventures || [] : []);
+
 export default function VenturesPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const [ventures, setVentures] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-
-  const fetchVentures = async (bypassCache = false) => {
-    setLoading(true);
-    try {
-      const url = "/api/ventures";
-      const apply = (data) => {
-        if (data.success) setVentures(data.ventures || []);
-      };
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; mutation flows pass bypassCache=true so the list always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch ventures:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchVentures();
-  }, []);
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no list state of its own and never sets state from an effect. The approval
+  // action calls refresh(), which bypasses the cache like bypassCache did.
+  const { data: ventures, loading, refresh } = useApi("/api/ventures", {
+    defaultValue: [],
+    transform: pickVentures,
+  });
 
   const filteredVentures = ventures.filter((v) => {
     if (!searchQuery) return true;
@@ -94,7 +71,7 @@ export default function VenturesPage() {
           },
         })
       );
-      if (d.success) fetchVentures(true);
+      if (d.success) refresh();
     } catch {
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   Building2, CheckCircle2, XCircle,
   Search, Loader2, Clock, Ban, Check, Link,
@@ -8,7 +8,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const STATUS_ICONS = {
   pending_review: { icon: Clock, color: "text-amber-400" },
@@ -30,9 +30,12 @@ const ACTION_LABELS = {
   suspend: "investorAdmin.list.actionSuspended",
 };
 
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickInvestors = (d) => (d?.success ? d.investors || [] : []);
+
 export default function AdminInvestorsPage() {
-  const [investors, setInvestors] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [acting, setActing] = useState(null);
@@ -41,34 +44,15 @@ export default function AdminInvestorsPage() {
   const [copied, setCopied] = useState(false);
   const { t } = useI18n();
 
-  const fetchInvestors = useCallback(async (bypassCache = false) => {
-    setLoading(true);
-    try {
-      const url = `/api/investor/approval?status=${statusFilter}${search ? `&search=${encodeURIComponent(search)}` : ""}`;
-      const apply = (data) => {
-        if (data.success) setInvestors(data.investors || []);
-      };
-      // Cache-first paint: switching filters / returning to the page renders
-      // instantly from fresh snapshots; mutation flows pass bypassCache=true
-      // so the list always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (_) {}
-    setLoading(false);
-  }, [statusFilter, search]);
-
-  useEffect(() => { fetchInvestors(); }, [fetchInvestors]);
+  // The loader's work — each filter/search combination caching under its own URL,
+  // the cache-first paint, discarding a stale response, the background refresh —
+  // belongs to the hook, so the screen keeps no list state of its own and never
+  // sets state from an effect. The filter and the search term stay plain
+  // dependencies.
+  const { data: investors, loading, refresh } = useApi(
+    `/api/investor/approval?status=${statusFilter}${search ? `&search=${encodeURIComponent(search)}` : ""}`,
+    { defaultValue: [], transform: pickInvestors, deps: [statusFilter, search] },
+  );
 
   const handleAction = async (profileId, action) => {
     setActing(profileId);
@@ -81,7 +65,7 @@ export default function AdminInvestorsPage() {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: t("investorAdmin.list.actionDone", { action: t(ACTION_LABELS[action]) }) });
-        fetchInvestors(true);
+        refresh();
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
@@ -149,7 +133,7 @@ export default function AdminInvestorsPage() {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && fetchInvestors()}
+              onKeyDown={e => e.key === "Enter" && refresh()}
               placeholder={t("investorAdmin.list.searchPlaceholder")}
               className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60"
             />

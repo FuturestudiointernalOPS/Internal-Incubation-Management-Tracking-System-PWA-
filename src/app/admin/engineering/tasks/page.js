@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   ListTodo,
   RefreshCw,
@@ -14,12 +14,16 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// Module scope on purpose: the hook keys its internal callback on these functions,
+// so inline arrows would give them a new identity on every render and refetch in
+// a loop.
+const pickActiveTasks = (d) => (d?.success ? d.activeTasks || [] : []);
+const pickDevelopers = (d) => (d?.success ? d.developers || [] : []);
 
 export default function EngineeringTasks() {
   const { t } = useI18n();
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -33,56 +37,20 @@ export default function EngineeringTasks() {
   const [formDueDate, setFormDueDate] = useState("");
   const [formCreating, setFormCreating] = useState(false);
   const [formError, setFormError] = useState("");
-  const [developers, setDevelopers] = useState([]);
 
-  const fetchTasks = useCallback(async (bypassCache = false) => {
-    const url = "/api/engineering/dashboard";
-    const apply = (data) => {
-      if (data.success) {
-        setTasks(data.activeTasks || []);
-      }
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; task creation passes bypassCache=true so the list always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch tasks", e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchDevelopers = async () => {
-    try {
-      const res = await fetch("/api/engineering/developers");
-      const data = await res.json();
-      if (data.success) {
-        setDevelopers(data.developers || []);
-      }
-    } catch (e) {
-      console.error("Failed to fetch developers", e);
-    }
-  };
-
-  useEffect(() => {
-    fetchTasks();
-    fetchDevelopers();
-  }, [fetchTasks]);
+  // The loaders' work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no list state of its own and never sets state from an effect. Task creation
+  // and the refresh button call refresh(), which bypasses the cache exactly like
+  // the old bypassCache argument did.
+  const { data: tasks, loading, refresh } = useApi("/api/engineering/dashboard", {
+    defaultValue: [],
+    transform: pickActiveTasks,
+  });
+  const { data: developers } = useApi("/api/engineering/developers", {
+    defaultValue: [],
+    transform: pickDevelopers,
+  });
 
   const filtered = tasks.filter((t) => {
     const matchesSearch =
@@ -141,7 +109,7 @@ export default function EngineeringTasks() {
         setFormPriority("medium");
         setFormAssignee("");
         setFormDueDate("");
-        fetchTasks(true);
+        refresh();
       } else {
         setFormError(t((data.error || t("engineering.tasks.createFailed")) || "") || (data.error || t("engineering.tasks.createFailed")));
       }
@@ -189,7 +157,7 @@ export default function EngineeringTasks() {
               <Wrench className="w-3.5 h-3.5" /> {t("engineering.tasks.newTask")}
             </button>
             <button
-              onClick={fetchTasks}
+              onClick={refresh}
               className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
             >
               <RefreshCw className="w-3.5 h-3.5" /> {t("engineering.tasks.refresh")}

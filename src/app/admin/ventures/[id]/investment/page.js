@@ -1,13 +1,21 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, TrendingUp, Target, RefreshCw,
   BookOpen, Briefcase, Shield, DollarSign, Rocket, Users, BarChart3, Lightbulb,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
+
+// Module scope on purpose: the hook keys its internal callback on these
+// functions, so inline arrows would give them a new identity on every render and
+// refetch in a loop.
+const pickVenture = (d) => (d?.success ? d.venture : null);
+const pickInvestment = (d) => (d?.success ? d : null);
+const pickRoadmapReadiness = (d) =>
+  d?.success && d.roadmap_readiness ? d.roadmap_readiness : null;
 
 const CATEGORY_ICONS = {
   startup_profile: Briefcase, legal: Shield, financial: DollarSign, product: Rocket,
@@ -26,58 +34,39 @@ export default function VentureInvestmentPage() {
   const { id } = useParams();
   const router = useRouter();
   const { t } = useI18n();
-  const [venture, setVenture] = useState(null);
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [evaluating, setEvaluating] = useState(false);
-  const [roadmap, setRoadmap] = useState(null);
-  const [roadmapLoading, setRoadmapLoading] = useState(true);
 
-  const fetchData = useCallback(async (bypassCache = false) => {
-    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/investment`];
-    const apply = (v, i) => {
-      if (v.success) setVenture(v.venture);
-      if (i.success) setData(i);
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from
-      // fresh snapshots; the assessment flow passes bypassCache=true so the
-      // data always reflects the last evaluation.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1]);
-          setLoading(false);
-        }
-      }
-      const [vRes, iRes] = await Promise.all(urls.map((u) => fetch(u)));
-      const v = await vRes.json(); const i = await iRes.json();
-      if (v.success) cacheSet(urls[0], v);
-      if (i.success) cacheSet(urls[1], i);
-      apply(v, i);
-    } catch {} finally { setLoading(false); }
-  }, [id]);
-
+  // Three reads, the venture identifier staying a plain dependency of each. Their
+  // loaders' work — cache-first paint, discarding a stale response, the
+  // background refresh — belongs to the hook, so the screen keeps no data state
+  // of its own and never sets state from an effect.
+  const { data: venture, loading: ventureLoading } = useApi(
+    `/api/ventures/${id}`,
+    { transform: pickVenture, deps: [id] },
+  );
+  const { data, loading: assessmentLoading, refresh } = useApi(
+    `/api/ventures/${id}/investment`,
+    { transform: pickInvestment, deps: [id] },
+  );
   // Roadmap-derived readiness (read-only, independent): the same live numbers
-  // the founder sees. Fail-soft — any error just leaves the derived block
-  // hidden, the recorded assessment below keeps working untouched.
-  const fetchRoadmap = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/ventures/${id}/investment-readiness`);
-      const d = await res.json();
-      if (d?.success && d.roadmap_readiness) setRoadmap(d.roadmap_readiness);
-    } catch {} finally { setRoadmapLoading(false); }
-  }, [id]);
-
-  useEffect(() => { fetchData(); fetchRoadmap(); }, [fetchData, fetchRoadmap]);
+  // the founder sees. Fail-soft — any error just leaves the derived block hidden,
+  // the recorded assessment below keeps working untouched.
+  const {
+    data: roadmap,
+    loading: roadmapLoading,
+    refresh: refreshRoadmap,
+  } = useApi(`/api/ventures/${id}/investment-readiness`, {
+    transform: pickRoadmapReadiness,
+    deps: [id],
+  });
+  const loading = ventureLoading || assessmentLoading;
 
   const handleEvaluate = async () => {
     setEvaluating(true);
     try {
       const res = await fetch(`/api/ventures/${id}/investment`, { method: "POST" });
       const d = await res.json();
-      if (d.success) { fetchData(true); fetchRoadmap(); }
+      if (d.success) { refresh(); refreshRoadmap(); }
     } catch {} finally { setEvaluating(false); }
   };
 

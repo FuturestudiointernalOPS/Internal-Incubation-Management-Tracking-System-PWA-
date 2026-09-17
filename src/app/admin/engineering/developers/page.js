@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   Users,
   RefreshCw,
@@ -11,53 +10,28 @@ import {
   X,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickDevelopers = (d) => (d?.success ? d.developers || [] : []);
 
 export default function DevelopersPage() {
   const { t } = useI18n();
-  const _router = useRouter();
-  const [developers, setDevelopers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showPromoteModal, setShowPromoteModal] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState("");
 
-  const fetchDevelopers = useCallback(async (bypassCache = false) => {
-    const url = "/api/engineering/developers";
-    const apply = (data) => {
-      if (data.success) {
-        setDevelopers(data.developers || []);
-      }
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a
-      // fresh snapshot; promote/activate pass bypassCache=true so the list
-      // always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch developers", e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchDevelopers();
-  }, [fetchDevelopers]);
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no list state of its own and never sets state from an effect. The promote
+  // action calls refresh(), which bypasses the cache like bypassCache did.
+  const { data: developers, loading, refresh } = useApi("/api/engineering/developers", {
+    defaultValue: [],
+    transform: pickDevelopers,
+  });
 
   const filtered = developers.filter(
     (d) =>
@@ -79,7 +53,7 @@ export default function DevelopersPage() {
       if (data.success) {
         setActionMsg(t("engineering.developers.promoteSuccess", { role: newRole }));
         setShowPromoteModal(null);
-        fetchDevelopers(true);
+        refresh();
       } else {
         setActionMsg(t((data.error || t("engineering.developers.promoteFailed")) || "") || (data.error || t("engineering.developers.promoteFailed")));
       }
@@ -100,7 +74,7 @@ export default function DevelopersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchDevelopers(true);
+        refresh();
         window.dispatchEvent(new CustomEvent("notifications:refresh"));
       }
     } catch (e) {
@@ -132,7 +106,7 @@ export default function DevelopersPage() {
             </p>
           </div>
           <button
-            onClick={fetchDevelopers}
+            onClick={refresh}
             className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5" />{" "}
