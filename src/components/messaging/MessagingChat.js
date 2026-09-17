@@ -6,6 +6,7 @@ import React, {
   useCallback,
   useMemo,
   useRef,
+  useSyncExternalStore,
 } from "react";
 import {
   Send,
@@ -22,6 +23,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import GlobalToast from "@/components/ui/GlobalToast";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -215,16 +218,42 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
   };
 }
 
+// ─── Read shapers ────────────────────────────────────────────────────────
+// Module scope on purpose: the hook mirrors the transformation it is handed, so
+// one built inside the component would be a new identity on every render.
+
+const pickMessages = (d) => (d?.success ? d.messages || [] : []);
+const pickContacts = (d) => (d?.success ? d.contacts || [] : []);
+const pickFamilies = (d) => (d?.success ? d.families || [] : []);
+const pickPrograms = (d) => (d?.success ? d.programs || [] : []);
+
+// The identity is absent for the first moment of a cold load. One stable shape
+// for it keeps the memos that read `user` from recomputing on every render.
+const EMPTY_USER = {};
+
+// ─── Page visibility ─────────────────────────────────────────────────────
+// The chat polls, and the loop has to STOP while the tab is hidden - a property
+// of the page rather than of the read. Subscribing to it (the same mechanism the
+// repo uses for the session) makes it a value the poll can be keyed on, with no
+// state of ours to write from an effect.
+
+function subscribeVisibility(onChange) {
+  document.addEventListener("visibilitychange", onChange);
+  return () => document.removeEventListener("visibilitychange", onChange);
+}
+
+function readVisibility() {
+  return document.visibilityState === "visible";
+}
+
+function readVisibilityOnServer() {
+  return true;
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────
 
 export default function MessagingChat({ role = "super_admin" }) {
   // ── State ──
-  const [user, setUser] = useState(null);
-  const [allContacts, setAllContacts] = useState([]);
-  const [families, setFamilies] = useState([]);
-  const [allPrograms, setAllPrograms] = useState([]);
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [activeConversation, setActiveConversation] = useState(null);
   const [replyText, setReplyText] = useState("");
   const [replyAttachmentUrl, setReplyAttachmentUrl] = useState("");
@@ -257,13 +286,69 @@ export default function MessagingChat({ role = "super_admin" }) {
   const replyInputRef = useRef(null);
   const { t } = useI18n();
 
-  useEffect(() => {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(u);
-  }, []);
+  // ── The signed-in identity ──
+  // The shell already fetches the session and publishes it, so this only
+  // observes that cache: no request of its own, and no effect parsing the
+  // browser's stored copy. It is momentarily absent on a cold load, which the
+  // reads below treat as "not known yet" rather than as "nothing to show".
+  const { user: sessionUser } = useSessionUser();
+  const user = sessionUser || EMPTY_USER;
 
   const uid = user?.cid || user?.id;
   const groupName = user?.group_name;
+
+  // ── Is the tab on screen? ──
+  const pageVisible = useSyncExternalStore(
+    subscribeVisibility,
+    readVisibility,
+    readVisibilityOnServer,
+  );
+
+  // ── Reads ──
+  // One read per source, each addressed on the identity and each shaped by a
+  // module-scope function. No identity yet means no address, so no request goes
+  // out and nothing is reported as loading until it arrives.
+  const {
+    data: messages,
+    loading: messagesLoading,
+    refresh: refreshMessages,
+  } = useApi(uid ? `/api/internal-comms?cid=${uid}` : null, {
+    defaultValue: [],
+    transform: pickMessages,
+    deps: [uid],
+    // The chat's live-update loop, kept in the hook so it reuses the read's own
+    // cache, stale-answer handling and loading flag: the same read every 3 s,
+    // and no interval at all while the tab is hidden.
+    refetchInterval: pageVisible ? 3000 : 0,
+  });
+
+  // ── All contacts ──
+  // Messaging is internal-only: internal staff use the CRM list as the
+  // recipient directory (they hold contacts.view). The participant/founder
+  // scoped endpoint was removed with the external messaging MVP decision.
+  const { data: allContacts } = useApi(uid ? "/api/contacts" : null, {
+    defaultValue: [],
+    transform: pickContacts,
+    deps: [uid],
+  });
+
+  // ── Families (contact groups) ──
+  const { data: families } = useApi(uid ? "/api/families" : null, {
+    defaultValue: [],
+    transform: pickFamilies,
+    deps: [uid],
+  });
+
+  // ── All programs ──
+  const { data: allPrograms } = useApi(uid ? "/api/programs" : null, {
+    defaultValue: [],
+    transform: pickPrograms,
+    deps: [uid],
+  });
+
+  // The messages read's own flag, plus "the identity is not known yet": the
+  // list keeps its spinner for that moment instead of claiming it is empty.
+  const loading = !uid || messagesLoading;
 
   // ── Determine user's program IDs based on role ──
   const userProgramIds = useMemo(() => {
@@ -329,103 +414,6 @@ export default function MessagingChat({ role = "super_admin" }) {
       chatEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [activeConversation, messages]);
-
-  // ── Fetch messages ──
-  const fetchMessages = useCallback(async () => {
-    if (!uid) return [];
-    try {
-      const res = await fetch(`/api/internal-comms?cid=${uid}`);
-      const data = await res.json();
-      if (data.success) {
-        setMessages(data.messages || []);
-        return data.messages || [];
-      }
-      return [];
-    } catch (e) {
-      console.error(e);
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }, [uid]);
-
-  // ── Fetch all contacts ──
-  // Messaging is internal-only: internal staff use the CRM list as the
-  // recipient directory (they hold contacts.view). The participant/founder
-  // scoped endpoint was removed with the external messaging MVP decision.
-  const fetchAllContacts = useCallback(async () => {
-    try {
-      const res = await fetch("/api/contacts");
-      const data = await res.json();
-      if (data.success) setAllContacts(data.contacts || []);
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
-
-  // ── Fetch families (contact groups) ──
-  const fetchFamilies = useCallback(async () => {
-    try {
-      const res = await fetch("/api/families");
-      const data = await res.json();
-      if (data.success) setFamilies(data.families || []);
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
-
-  // ── Fetch all programs ──
-  const fetchPrograms = useCallback(async () => {
-    try {
-      const res = await fetch("/api/programs");
-      const data = await res.json();
-      if (data.success) setAllPrograms(data.programs || []);
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
-
-  // ── Initial data load ──
-  useEffect(() => {
-    if (uid) {
-      fetchMessages();
-      fetchAllContacts();
-      fetchFamilies();
-      fetchPrograms();
-    }
-  }, [uid, fetchMessages, fetchAllContacts, fetchFamilies, fetchPrograms]);
-
-  // ── Auto-poll every 3 seconds while the page is visible ──
-  useEffect(() => {
-    if (!uid) return;
-    let timer = null;
-    const tick = () => {
-      fetchMessages();
-    };
-    const start = () => {
-      if (timer) return;
-      tick();
-      timer = setInterval(tick, 3000);
-    };
-    const stop = () => {
-      if (timer) {
-        clearInterval(timer);
-        timer = null;
-      }
-    };
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") start();
-      else stop();
-    };
-    start();
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("focus", onVisibility);
-    return () => {
-      stop();
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("focus", onVisibility);
-    };
-  }, [uid, fetchMessages]);
 
   // ── Build conversation threads ──
   const conversations = useMemo(() => {
@@ -710,7 +698,9 @@ export default function MessagingChat({ role = "super_admin" }) {
       setReplyAttachmentUrl("");
       setReplyAttachmentName("");
       setReplyShowAttachment(false);
-      await fetchMessages();
+      // The POST answers with the new id and not with the thread, so the read
+      // that shows it is refreshed rather than published into.
+      await refreshMessages();
     } catch (e) {
       console.error(e);
     } finally {
@@ -811,7 +801,9 @@ export default function MessagingChat({ role = "super_admin" }) {
       setShowContactDropdown(false);
       setShowProgramDropdown(false);
 
-      await fetchMessages();
+      // Same as the quick reply: the write's body carries no thread, so the
+      // messages read is refreshed.
+      await refreshMessages();
     } catch (e) {
       console.error(e);
     } finally {

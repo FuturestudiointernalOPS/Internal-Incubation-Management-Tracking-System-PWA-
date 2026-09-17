@@ -29,6 +29,7 @@ import {
 
 import { uploadTaskAttachment } from "@/lib/storage";
 import { useI18n } from "@/lib/i18n";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
 
 function cn(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -103,15 +104,11 @@ export default function TaskManager({
 
   // ── Confirmation dialog state ──
   const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm } or null
-  // Get current logged-in user for permission checks
-  const [currentUserId, setCurrentUserId] = useState(null);
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("user");
-      if (saved)
-        setCurrentUserId(JSON.parse(saved).cid || JSON.parse(saved).id || null);
-    } catch (_) {}
-  }, []);
+  // Get current logged-in user for permission checks. The shell has already
+  // fetched and published the session, so this observes it instead of keeping a
+  // second copy of the identity read out of the browser's stored user.
+  const { cid, user } = useSessionUser();
+  const currentUserId = cid ?? user?.id ?? null;
 
   // Compute effective week info — fallback to current ISO week if not provided
   const effectiveWeekInfo = useMemo(() => {
@@ -132,9 +129,18 @@ export default function TaskManager({
     return { week, year: now.getFullYear() };
   }, [weekInfo]);
 
-  const [tasks, setTasks] = useState([]);
+  // The list shown is the one the parent handed down, plus the reordering a
+  // person made on it. The reordering is recorded AGAINST the exact prop value
+  // it was made on, so a parent re-read hands down a new list and shows it.
+  const [localOrder, setLocalOrder] = useState(null);
+  const tasks = useMemo(
+    () =>
+      localOrder && localOrder.base === taskList
+        ? localOrder.list
+        : taskList || [],
+    [localOrder, taskList],
+  );
   const [updatingTasks, setUpdatingTasks] = useState({});
-  const [showTaskForm, setShowTaskForm] = useState(false);
   const [pendingParentTaskId, setPendingParentTaskId] = useState(null);
   const [subTaskModal, setSubTaskModal] = useState(null); // { id, project_id, category, title } or null
   const [subTaskInput, setSubTaskInput] = useState("");
@@ -255,23 +261,24 @@ export default function TaskManager({
     }
   };
 
-  // Auto-populate project_id from prop when in project mode
-  useEffect(() => {
-    if (mode === "project" && projectId && showTaskForm) {
+  // The creation form is open when either the person opened it, or the parent
+  // asked for it by bumping the counter (the standup "Add Task" shortcut).
+  // Closing clears the local half and records the exact counter value it
+  // dismissed, so a signal that is still up does not reopen the form, while a
+  // later bump (a larger value) does.
+  const [formOpen, setFormOpen] = useState(false);
+  const [dismissedRequest, setDismissedRequest] = useState(0);
+  const showTaskForm = formOpen || requestNewTask > dismissedRequest;
+
+  // Opening the form is also where its project is seeded in project mode: that
+  // reset belongs to the action that opens the control, not to an effect
+  // watching the flag.
+  const openTaskForm = useCallback(() => {
+    if (mode === "project" && projectId) {
       setForm((p) => ({ ...p, project_id: String(projectId) }));
     }
-  }, [mode, projectId, showTaskForm]);
-
-  // External signal to open the new-task form directly (used by the standup
-  // "Add Task" shortcut so the creation form shows immediately).
-  useEffect(() => {
-    if (requestNewTask > 0) setShowTaskForm(true);
-  }, [requestNewTask]);
-
-  // Sync taskList into local state when it changes
-  useEffect(() => {
-    setTasks(taskList || []);
-  }, [taskList]);
+    setFormOpen(true);
+  }, [mode, projectId]);
 
   // Fetch available categories from API
   useEffect(() => {
@@ -687,7 +694,10 @@ export default function TaskManager({
   }, [form, pendingParentTaskId, createTask, onTasksChange, creating, taskFile, t]);
 
   const handleCloseForm = useCallback(() => {
-    setShowTaskForm(false);
+    setFormOpen(false);
+    // Dismiss the parent's request at the value it was made with, so a signal
+    // still up cannot immediately reopen the form.
+    setDismissedRequest(requestNewTask);
     setPendingParentTaskId(null);
     setAddedCount(0);
     setForm({
@@ -703,7 +713,7 @@ export default function TaskManager({
       due_time: "",
       link: "",
     });
-  }, []);
+  }, [requestNewTask]);
 
   // ── Open sub-task popup modal ──
   const openSubTask = useCallback(
@@ -840,17 +850,19 @@ export default function TaskManager({
   );
 
   // Move task up or down in the active list
-  const moveTask = useCallback((taskId, direction) => {
-    setTasks((prev) => {
+  const moveTask = useCallback(
+    (taskId, direction) => {
+      const prev = tasks;
       const idx = prev.findIndex((t) => t.id === taskId);
-      if (idx === -1) return prev;
+      if (idx === -1) return;
       const targetIdx = direction === "up" ? idx - 1 : idx + 1;
-      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
+      if (targetIdx < 0 || targetIdx >= prev.length) return;
       const updated = [...prev];
       [updated[idx], updated[targetIdx]] = [updated[targetIdx], updated[idx]];
-      return updated;
-    });
-  }, []);
+      setLocalOrder({ base: taskList, list: updated });
+    },
+    [tasks, taskList],
+  );
 
   // ── Render task row (with optional sub-tasks) ──
   // Track task index for numbering in standup mode
@@ -1741,7 +1753,7 @@ export default function TaskManager({
       ) : (
         !readOnly && (
           <button
-            onClick={() => setShowTaskForm(true)}
+            onClick={openTaskForm}
             className="flex items-center gap-2 px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all w-fit"
           >
             <Plus className="w-3 h-3" /> New Task

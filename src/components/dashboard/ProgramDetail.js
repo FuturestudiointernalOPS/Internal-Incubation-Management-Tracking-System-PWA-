@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import {
   ArrowLeft,
   BookOpen,
@@ -32,7 +32,43 @@ import { getServerErrorKey } from "@/lib/constants";
 import SubmissionVersionHistory from "./SubmissionVersionHistory";
 import CourseThumb from "@/components/lms/CourseThumb";
 import SessionResourcesList from "@/components/lms/SessionResourcesList";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
+
+// ─── Read shaping (module scope: built once, never per render) ───────────
+
+// The curriculum as the screen shows it: the "attendance" deliverables are not
+// part of what a participant submits, so they come out of the answer here rather
+// than being filtered again on every render.
+function shapeCurriculum(d) {
+  const weeks = d.curriculum?.weeks;
+  if (!weeks) return d;
+  return {
+    ...d,
+    curriculum: {
+      ...d.curriculum,
+      weeks: weeks.map((w) => ({
+        ...w,
+        deliverables: (w.deliverables || []).filter(
+          (x) => !x.title?.toLowerCase().includes("attendance"),
+        ),
+      })),
+    },
+  };
+}
+
+const EMPTY_DETAIL = { payload: null, failure: null };
+
+const pickProgramDetail = (d) =>
+  d?.success
+    ? { payload: shapeCurriculum(d), failure: null }
+    : { payload: null, failure: d?.error || null };
+
+/** The message for a refused payload: its own key when one is known. */
+function detailError(failure, t) {
+  const key = getServerErrorKey(failure);
+  return key ? t(key) : failure || t("participant.failedToLoad");
+}
 
 // ─── Status Badge ──────────────────────────────────────────────────
 function translateStatus(raw, t) {
@@ -399,12 +435,11 @@ function SubmitForm({ programId, deliverableId, deliverable, onDone, readOnly })
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [url, setUrl] = useState("");
-  const [user, setUser] = useState({});
 
-  useEffect(() => {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(u);
-  }, []);
+  // Who is signed in comes from the session the shell already publishes, so it
+  // needs no effect and no read of its own.
+  const { user: sessionUser } = useSessionUser();
+  const user = sessionUser || {};
 
   const handleSubmit = async () => {
     if (!file && !url.trim()) return;
@@ -640,74 +675,46 @@ function DetailSkeleton() {
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ProgramDetail({ programId }) {
   const { t } = useI18n();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [expandedWeeks, setExpandedWeeks] = useState({});
   const [activeTab, setActiveTab] = useState("curriculum");
-  const [user, setUser] = useState({});
   const [submitModal, setSubmitModal] = useState(null); // { deliverableId, weekNumber, deliverable }
+  // Only the weeks the person has toggled themselves, recorded over the default.
+  const [weekOverrides, setWeekOverrides] = useState({});
 
-  useEffect(() => {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(u);
-  }, []);
+  // Who is signed in comes from the session the shell already publishes.
+  const { user: sessionUser } = useSessionUser();
+  const user = sessionUser || {};
 
-  const fetchDetail = useCallback(async (bypassCache = false) => {
-    const url = `/api/participant/programs/${programId}`;
-    const apply = (result) => {
-      if (result.success) {
-        if (result.curriculum && result.curriculum.weeks) {
-          result.curriculum.weeks = result.curriculum.weeks.map(w => ({
-            ...w,
-            deliverables: (w.deliverables || []).filter(d => !d.title?.toLowerCase().includes("attendance"))
-          }));
-        }
-        setData(result);
-        // Auto-expand current week
-        if (result.curriculum?.currentWeek) {
-          setExpandedWeeks({ [result.curriculum.currentWeek]: true });
-        }
-      } else {
-        const key = getServerErrorKey(result.error);
-        setError(key ? t(key) : result.error || t("participant.failedToLoad"));
-      }
-    };
-    let painted = false;
-    try {
-      setLoading(true);
-      setError(null);
-      // Cache-first paint: returning to a program detail page renders
-      // instantly from a fresh snapshot; submit flows pass bypassCache=true.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const result = await res.json();
-      if (result.success) cacheSet(url, result);
-      apply(result);
-    } catch {
-      if (!painted) setError(t("errors.networkError"));
-    } finally {
-      setLoading(false);
-    }
-  }, [programId, t]);
+  // The programme is read through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer.
+  const {
+    data: detail,
+    loading,
+    error: readError,
+    refresh: refreshDetail,
+  } = useApi(`/api/participant/programs/${programId}`, {
+    defaultValue: EMPTY_DETAIL,
+    transform: pickProgramDetail,
+  });
+  const data = detail.payload;
+  const error = detail.failure
+    ? detailError(detail.failure, t)
+    : readError
+      ? t("errors.networkError")
+      : null;
 
-  useEffect(() => {
-    fetchDetail();
-  }, [fetchDetail]);
+  // Which weeks are open. The course's current week starts open and every week
+  // the person toggles keeps their choice - DERIVED, so a fresh read can no
+  // longer close a week they had opened, and opening the current one costs no
+  // state write and no extra render.
+  const isWeekOpen = (weekNumber) =>
+    weekOverrides[weekNumber] ??
+    (weekNumber === data?.curriculum?.currentWeek);
 
-  const toggleWeek = (weekNumber) => {
-    setExpandedWeeks((prev) => ({
+  const toggleWeek = (weekNumber) =>
+    setWeekOverrides((prev) => ({
       ...prev,
-      [weekNumber]: !prev[weekNumber],
+      [weekNumber]: !(prev[weekNumber] ?? (weekNumber === data?.curriculum?.currentWeek)),
     }));
-  };
 
   // ── Error State ──────────────────────────────────────────────────
   if (error && !loading) {
@@ -723,7 +730,7 @@ export default function ProgramDetail({ programId }) {
           </p>
         </div>
         <button
-          onClick={fetchDetail}
+          onClick={refreshDetail}
           className="flex items-center gap-2 px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide"
         >
           <RefreshCw className="w-3.5 h-3.5" /> {t("participant.retry")}
@@ -905,7 +912,7 @@ export default function ProgramDetail({ programId }) {
               <WeekCard
                 key={week.number}
                 week={week}
-                isExpanded={!!expandedWeeks[week.number]}
+                isExpanded={isWeekOpen(week.number)}
                 onToggle={toggleWeek}
                 programId={programId}
                 t={t}
@@ -1272,7 +1279,7 @@ export default function ProgramDetail({ programId }) {
               deliverableId={submitModal.deliverableId}
               onDone={() => {
                 setSubmitModal(null);
-                fetchDetail(true);
+                refreshDetail();
               }}
               readOnly={isViewOnlyProgram}
               deliverable={submitModal.deliverable}
