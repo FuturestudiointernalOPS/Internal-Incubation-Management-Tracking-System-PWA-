@@ -114,23 +114,23 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 151 |
-| `react-hooks/set-state-in-effect` | 200 | 144 |
+| ESLint warnings, total | 2192 | 146 |
+| `react-hooks/set-state-in-effect` | 200 | 139 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` in converted files | 0 | 0 |
 | Tests | 1539 / 1539 | 1669 / 1669 |
 | Production build | passes | passes |
 
-Screens carrying a `set-state-in-effect` warning: **93**.
+Screens carrying a `set-state-in-effect` warning: **89**.
 
 | Group | Screens |
 |---|---:|
-| Application pages | 34 |
+| Application pages | 30 |
 | Shared components (`src/components/`) | 32 |
 | Venture screens | 23 |
 | `src/lib/` modules | 4 |
 
-Of these 93 screens, **65 carry a single warning**; the remaining 28 carry two
+Of these 89 screens, **62 carry a single warning**; the remaining 27 carry two
 to five.
 
 > The hook itself accounts for 4 of the remaining warnings (`src/lib/hooks/useApi.js`):
@@ -246,7 +246,27 @@ None left. The two that were here are resolved:
 
 | Screen | Why it is deferred |
 |---|---|
-| Screens over ~800 lines (`admin/programs`, `admin/projects`, `admin/tasks`, `admin/work`, `admin/access`, `admin/knowledge`, `admin/op-reports`, `pm/programs/[id]`, `pm/programs`, `pm/submissions`, `staff/op-report`, `staff/projects/[id]`, `team/[id]`, `platform/runs`, `platform/forms`, `admin/communications/contacts`, `admin/programs/[id]`, `admin/projects/[id]`) | Not examined individually yet. Several load more than one endpoint and some mix loads with mutations, so each needs a read before conversion. |
+| Screens over ~800 lines (`admin/programs`, `admin/projects`, `admin/work`, `admin/access`, `admin/projects/[id]`, `admin/op-reports`, `pm/programs/[id]`, `pm/submissions`, `staff/op-report`, `staff/projects/[id]`, `team/[id]`, `platform/runs`, `platform/forms`, `admin/communications/contacts`, `admin/programs/[id]`) | Not examined individually yet. Several load more than one endpoint and some mix loads with mutations, so each needs a read before conversion. |
+
+A second group here needs a decision rather than only a conversion, because the
+identifier in the request is the person's:
+
+| Screen | What has to be decided first |
+|---|---|
+| `src/app/team/[id]/page.js` | Reads the session endpoint itself, then a team and three of its sub-resources. The session read is what `useSessionUser` replaces, but the sub-reads have to be untangled from the same loader first. |
+| `src/app/admin/crm/people/[cid]/page.js`, `src/app/admin/investors/relationships/page.js`, `src/app/facilitator/program/[id]/page.js` | One record plus several sub-resources, each with its own status handling. |
+
+Converted out of this list:
+
+- the **programme manager's registry** — its reads were keyed on the browser's
+  stored identifier, which is the person's RECORD id where both endpoints
+  authenticate against the SESSION id. Same repair as the staff dashboard: a
+  programme manager may now see programmes that were previously missing.
+- the **knowledge bank** — its second effect copied one note's first document
+  into state, so the viewer lagged one render behind the note that was open. The
+  value is now derived, and the effect is gone.
+- the **platform form list** and the **investor campaign list** — two and two
+  reads through the hook.
 
 The two consoles that stood here are converted:
 

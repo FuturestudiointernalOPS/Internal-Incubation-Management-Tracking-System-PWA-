@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Megaphone, Plus, Loader2, DollarSign,
   Calendar, Play, Pause, XCircle,
@@ -9,7 +9,28 @@ import {
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApiMulti } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on the list below, so it is built once
+// at module scope: rebuilt each render it would be a new identity and would put
+// both requests back on the wire on every render.
+
+const pickCampaigns = (d) => (d?.success ? d.campaigns || [] : []);
+const pickVentures = (d) => (d?.success ? d.ventures || [] : []);
+
+const CAMPAIGN_ENDPOINTS = [
+  {
+    key: "campaigns",
+    url: "/api/investor/campaigns",
+    transform: pickCampaigns,
+  },
+  {
+    key: "ventures",
+    url: "/api/investor/ventures?limit=100",
+    transform: pickVentures,
+  },
+];
 
 const STATUS_COLORS = {
   draft: "bg-slate-500/10 text-slate-400",
@@ -33,11 +54,15 @@ const VIS_LABELS = {
 
 export default function AdminCampaignsPage() {
   const { t } = useI18n();
-  const [campaigns, setCampaigns] = useState([]);
-  const [ventures, setVentures] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [toast, setToast] = useState(null);
+
+  // The two lists, read through the shared hook: it owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the page keeps no
+  // copy of its own and reads during render.
+  const { data, loading, refresh } = useApiMulti(CAMPAIGN_ENDPOINTS);
+  const campaigns = data.campaigns ?? [];
+  const ventures = data.ventures ?? [];
 
   // Create form
   const [form, setForm] = useState({
@@ -45,41 +70,6 @@ export default function AdminCampaignsPage() {
     max_investment: "", currency: "USD", visibility: "public",
     opening_date: "", closing_date: "",
   });
-
-  const fetchData = async (bypassCache = false) => {
-    setLoading(true);
-    try {
-      const urls = ["/api/investor/campaigns", "/api/investor/ventures?limit=100"];
-      const apply = (cData, vData) => {
-        if (cData.success) setCampaigns(cData.campaigns || []);
-        if (vData.success) setVentures(vData.ventures || []);
-      };
-      // Cache-first paint: returning to the page renders instantly from fresh
-      // snapshots; mutation flows pass bypassCache=true so the lists always
-      // reflect the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1]);
-          setLoading(false);
-        }
-      }
-      const responses = await Promise.all(
-        urls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1]);
-    } catch (_) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchData(); }, []);
 
   const handleCreate = async () => {
     if (!form.venture_id || !form.name) {
@@ -97,7 +87,7 @@ export default function AdminCampaignsPage() {
         setToast({ type: "success", message: t("investorAdmin.campaigns.campaignCreated") });
         setShowCreate(false);
         setForm({ venture_id: "", name: "", target_raise: "", min_investment: "", max_investment: "", currency: "USD", visibility: "public", opening_date: "", closing_date: "" });
-        fetchData(true);
+        refresh();
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
@@ -116,7 +106,7 @@ export default function AdminCampaignsPage() {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: t("investorAdmin.campaigns.campaignStatusToast", { status: newStatus }) });
-        fetchData(true);
+        refresh();
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
@@ -140,7 +130,7 @@ export default function AdminCampaignsPage() {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: t("investorAdmin.campaigns.amountUpdated") });
-        fetchData(true);
+        refresh();
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }

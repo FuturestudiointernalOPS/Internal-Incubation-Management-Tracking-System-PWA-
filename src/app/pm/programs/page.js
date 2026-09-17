@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Users,
@@ -16,7 +16,23 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const pickPrograms = (d) => (d?.success ? d.programs || [] : []);
+const pickTasks = (d) => (d?.success ? d.tasks || [] : []);
+
+/** The archive/status filters the four tabs ask for. */
+const TAB_QUERY = {
+  all: "&show_archived=all",
+  archived: "&show_archived=true",
+  completed: "&status=completed&show_archived=false",
+  active: "&status=active&show_archived=false",
+};
 
 // Visual + label config per program status (mirrors the admin program status chips).
 const PROGRAM_STATUS_STYLE = {
@@ -34,90 +50,30 @@ const PROGRAM_STATUS_STYLE = {
  * Unified list of all programs assigned to the current PM identity.
  */
 export default function PMProgramsRegistry() {
-  const [programs, setPrograms] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeTab, setTab] = useState("all");
   const router = useRouter();
-
-  const [tasks, setTasks] = useState([]);
-  const [, setTasksLoading] = useState(true);
   const { t } = useI18n();
 
-  const fetchMyPrograms = useCallback(async (bypassCache = false) => {
-    try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const identifier = user.cid || user.id;
+  // Who is signed in, from the shell's session cache - no request of its own, and
+  // no dependence on the browser's stored copy, which is the person's RECORD id
+  // where these two endpoints authenticate against the SESSION id.
+  const { cid } = useSessionUser();
 
-      let endpoint = `/api/pm/programs?assigned_pm_id=${identifier}`;
-      if (activeTab === "all") {
-        endpoint += "&show_archived=all";
-      } else if (activeTab === "archived") {
-        endpoint += "&show_archived=true";
-      } else if (activeTab === "completed") {
-        endpoint += "&status=completed&show_archived=false";
-      } else {
-        endpoint += "&status=active&show_archived=false";
-      }
+  const { data: programs, loading: programsLoading, refresh: refreshPrograms } =
+    useApi(
+      cid ? `/api/pm/programs?assigned_pm_id=${cid}${TAB_QUERY[activeTab] || TAB_QUERY.active}` : null,
+      { defaultValue: [], transform: pickPrograms, deps: [cid, activeTab] },
+    );
 
-      const apply = (data) => {
-        if (data.success) setPrograms(data.programs || []);
-      };
-      // Cache-first paint: switching tabs / returning to the page renders
-      // instantly from fresh snapshots; the network refresh below converges.
-      if (!bypassCache) {
-        const cached = cacheGet(endpoint);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(endpoint);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(endpoint, data);
-        apply(data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeTab]);
+  const { data: tasks } = useApi(
+    cid ? `/api/tasks?assigned_to=${encodeURIComponent(cid)}&limit=10&brief=true` : null,
+    { defaultValue: [], transform: pickTasks, deps: [cid] },
+  );
 
-  const fetchMyTasks = useCallback(async (bypassCache = false) => {
-    try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const identifier = user.cid || user.id;
-      const url = `/api/tasks?assigned_to=${encodeURIComponent(identifier)}&limit=10&brief=true`;
-      const apply = (data) => {
-        if (data.success) setTasks(data.tasks || []);
-      };
-      setTasksLoading(true);
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setTasksLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setTasksLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchMyPrograms();
-    fetchMyTasks();
-  }, [activeTab, fetchMyPrograms, fetchMyTasks]);
+  // An identity that has not arrived yet is not the same as an empty one, so the
+  // screen keeps its placeholder rather than claiming there is nothing to show.
+  const loading = !cid || programsLoading;
 
   const filtered = programs.filter(
     (p) =>
@@ -378,7 +334,7 @@ export default function PMProgramsRegistry() {
                                   }),
                                 });
                                 if ((await res.json()).success) {
-                                  fetchMyPrograms(true);
+                                  refreshPrograms();
                                   window.dispatchEvent(
                                     new CustomEvent("impactos:notify", {
                                       detail: {

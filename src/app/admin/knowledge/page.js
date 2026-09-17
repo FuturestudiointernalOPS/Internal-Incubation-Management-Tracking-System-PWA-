@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { 
   Library, Upload, Plus, X, 
   BookOpen, Loader2, Trash2, Edit3, 
@@ -10,19 +10,37 @@ import {
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { uploadFile } from '@/lib/storage';
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * IMPACTOS KNOWLEDGE BANK — OPERATIONAL INTELLIGENCE
  * Centralized repository with High-Visibility Feedback & Error Handling.
  */
 
+// Module scope on purpose: the reading hook keys its internal work on this, so an
+// inline arrow would be a new identity every render and would re-read forever.
+const pickConceptNotes = (d) => (d?.success ? d.conceptNotes || [] : []);
+
+const KNOWLEDGE_URL = "/api/knowledge";
+
 export default function KnowledgeBank() {
   const { t } = useI18n();
-  const [allNotes, setAllNotes] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: allNotes,
+    loading,
+    refresh: refreshNotes,
+  } = useApi(KNOWLEDGE_URL, {
+    defaultValue: [],
+    transform: pickConceptNotes,
+  });
   const [viewingNote, setViewingNote] = useState(null);
-  const [activeFileUrl, setActiveFileUrl] = useState(null);
+
+  // The document on show is a plain consequence of which note is open, so it is
+  // derived rather than copied into state. Copied, it lagged: the effect that
+  // held it ran after the render, so the viewer showed the previous file for a
+  // frame after opening another note.
+  const activeFileUrl = viewingNote?.files?.[0]?.url ?? null;
+
   const [activeTab, setLibraryTab] = useState('active'); 
   
   // Modals & Feedback
@@ -39,50 +57,6 @@ export default function KnowledgeBank() {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 5000);
   };
-
-  const fetchNotes = useCallback(async (bypassCache = false) => {
-    const url = '/api/knowledge';
-    const apply = (data) => {
-      if (data.success) {
-        setAllNotes(data.conceptNotes || []);
-      }
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to the page renders instantly from a
-      // fresh snapshot; mutation flows pass bypassCache=true so the library
-      // always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (e) {
-      console.error("Sync Error:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchNotes();
-  }, [fetchNotes]);
-
-  useEffect(() => {
-    if (viewingNote?.files?.length > 0) {
-      setActiveFileUrl(viewingNote.files[0].url);
-    } else {
-      setActiveFileUrl(null);
-    }
-  }, [viewingNote]);
 
   const handleFileSelection = (e) => {
     const files = Array.from(e.target.files);
@@ -129,7 +103,7 @@ export default function KnowledgeBank() {
       const data = await res.json();
       if (data.success) {
         notify('success', t("adminMisc.knowledge.deployedSuccessfully"));
-        fetchNotes(true);
+        refreshNotes();
         setShowUploadModal(false);
         setNewNote({ title: '', description: '', stagedFiles: [] });
       } else {
@@ -175,7 +149,7 @@ export default function KnowledgeBank() {
       if (res.ok) {
         notify('success', t("adminMisc.knowledge.updatedSuccessfully"));
         setEditingNote(null);
-        fetchNotes(true);
+        refreshNotes();
       }
     } catch {
       notify('error', t("adminMisc.knowledge.updateFailed"));
@@ -194,7 +168,7 @@ export default function KnowledgeBank() {
       if (res.ok) {
         notify('success', currentArchiveState ? t("adminMisc.knowledge.restoredFromArchive") : t("adminMisc.knowledge.movedToArchive"));
         if (viewingNote?.id === id) setViewingNote(null);
-        fetchNotes(true);
+        refreshNotes();
       }
     } catch {
       notify('error', t("adminMisc.knowledge.syncFailure"));
@@ -211,7 +185,7 @@ export default function KnowledgeBank() {
       if (res.ok) {
         notify('success', t("adminMisc.knowledge.decommissioned"));
         if (viewingNote?.id === id) setViewingNote(null);
-        fetchNotes(true);
+        refreshNotes();
       }
     } catch {
       notify('error', t("adminMisc.knowledge.deletionFailed"));
