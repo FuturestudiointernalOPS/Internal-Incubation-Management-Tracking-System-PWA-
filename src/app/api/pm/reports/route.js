@@ -9,6 +9,7 @@ import {
   listWeeklyReports,
   upsertWeeklyReport,
 } from "@/models/curriculum";
+import { listKpiNamesForPrograms } from "@/models/kpi-progress";
 
 /**
  * Ensure the weekly-report attachment columns exist (URL link or PDF upload).
@@ -66,7 +67,28 @@ export async function GET(req) {
       : reports.rows.filter(
           (r) => String(r.teacher_id ?? "") === String(session?.cid ?? ""),
         );
-    return NextResponse.json({ success: true, reports: rows });
+
+    // The KPI names the rows refer to, in the same answer.
+    //
+    // A report cites its KPIs by id, and the screen has to show titles. It used to
+    // resolve them by asking the KPI progress endpoint once per program on the
+    // page, in a loop, which cost one round trip per program and would also make
+    // each of them recalculate when it held no cached progress. The names live
+    // beside the program, so they come back with the reports: one query for every
+    // program in the answer, and a read that recalculates nothing.
+    let kpis = [];
+    try {
+      const catalogue = await listKpiNamesForPrograms(
+        rows.map((r) => r.program_id),
+      );
+      kpis = (catalogue.rows || []).map((k) => ({ id: k.id, title: k.title }));
+    } catch (e) {
+      // The names are a convenience for the screen: a report whose KPIs cannot be
+      // named still belongs on the page, with its ids shown as they are.
+      console.warn("[pm/reports] KPI names unavailable:", e?.message);
+    }
+
+    return NextResponse.json({ success: true, reports: rows, kpis });
   } catch (e) {
     console.error(e);
     return NextResponse.json(

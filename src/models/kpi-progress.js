@@ -7,6 +7,32 @@
 import db from "@/lib/db";
 
 /**
+ * The names of the KPIs belonging to the given programs.
+ *
+ * One query for as many programs as are asked about, so a screen that has to name
+ * the KPIs cited by a list of reports does not ask once per program - and, being a
+ * plain catalogue read, it never triggers the recalculation that the per-program
+ * progress read performs when it finds no cached row.
+ */
+export async function listKpiNamesForPrograms(programIds) {
+  const ids = [
+    ...new Set(
+      (programIds || [])
+        .filter((id) => id !== null && id !== undefined)
+        .map((id) => String(id)),
+    ),
+  ];
+  if (ids.length === 0) return { rows: [] };
+
+  const placeholders = ids.map(() => "?").join(", ");
+  return db.execute({
+    sql: `SELECT id, title, program_id FROM v2_kpis
+          WHERE program_id::text IN (${placeholders})`,
+    args: ids,
+  });
+}
+
+/**
  * Recalculate KPI progress for a program.
  * Counts unique participants with APPROVED submissions per KPI-linked deliverable.
  * Caches results in kpi_progress table.

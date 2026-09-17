@@ -213,6 +213,28 @@ export async function getSubmissionsByRunId(runId) {
   return db.execute({ sql: "SELECT * FROM platform_form_submissions WHERE run_id = ? ORDER BY updated_at DESC", args: [parseInt(runId)] });
 }
 
+/**
+ * Every submission of every run that is still open, with the run it answers.
+ *
+ * The Responses table used to fetch each open run's FULL detail to get at its
+ * submissions - one heavy round trip per run, in sequence, with the table waiting
+ * for the last one. A submission already knows which run it belongs to, so one
+ * query serves the whole table.
+ *
+ * "Still open" matches what the table shows: a run whose status is draft or
+ * cancelled is left out. COALESCE rather than NOT IN on its own, because a run
+ * with no status recorded is shown and a bare NOT IN would drop it.
+ */
+export async function listSubmissionsForOpenRuns() {
+  return db.execute({
+    sql: `SELECT ps.*, r.name AS run_name, r.form_id AS form_id, r.status AS run_status
+          FROM platform_form_submissions ps
+          JOIN platform_form_runs r ON r.id = ps.run_id
+          WHERE COALESCE(r.status, '') NOT IN ('draft', 'cancelled')
+          ORDER BY ps.updated_at DESC`,
+  });
+}
+
 /** Review rows for a run's submissions (run detail view). */
 export async function getReviewsByRunId(runId) {
   return db.execute({ sql: "SELECT pr.* FROM platform_submission_reviews pr JOIN platform_form_submissions ps ON pr.submission_id = ps.id WHERE ps.run_id = ? ORDER BY pr.created_at DESC", args: [parseInt(runId)] });

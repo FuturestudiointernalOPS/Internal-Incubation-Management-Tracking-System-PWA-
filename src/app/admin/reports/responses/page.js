@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import {
   BarChart3,
   User,
@@ -16,7 +16,25 @@ import {
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+const pickReports = (d) => {
+  if (!d?.success) return EMPTY_REPORTS;
+  const kpiNames = {};
+  for (const k of d.kpis || []) kpiNames[String(k.id)] = k.title;
+  return { reports: d.reports || [], kpiNames };
+};
+
+const pickPrograms = (d) => (d?.success ? d.programs || [] : []);
+
+const EMPTY_OBJECT = {};
+const EMPTY_REPORTS = { reports: [], kpiNames: EMPTY_OBJECT };
 
 // Helper: formats snake_case labels to Title Case
 function formatLabel(val) {
@@ -47,66 +65,32 @@ function InfoBlock({ label, value }) {
 export default function ReportResponses() {
   const router = useRouter();
   const { t } = useI18n();
-  const [reports, setReports] = useState([]);
-  const [programs, setPrograms] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("All Programs");
   const [viewingReport, setViewingReport] = useState(null);
-  const [kpis, setKpis] = useState([]);
 
-  const fetchData = useCallback(async (bypassCache = false) => {
-    const urls = ["/api/pm/reports", "/api/pm/programs"];
-    const apply = (repData, progData) => {
-      if (repData?.success) setReports(repData.reports || []);
-      if (progData?.success) setPrograms(progData.programs || []);
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to the page renders instantly from fresh
-      // snapshots; mutation flows pass bypassCache=true so the feed always
-      // reflects the latest server state.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1]);
-          setLoading(false);
-        }
-      }
-      const responses = await Promise.all(
-        urls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1]);
+  // One read of the reports feed, through the shared hook: it owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the page keeps no
+  // copy of its own and reads its data during render.
+  //
+  // The answer carries the names of the KPIs the reports cite, which the page used
+  // to collect by asking once per program in a loop - one round trip per program,
+  // each of which could also make the server recalculate.
+  const { data: feed, loading } = useApi("/api/pm/reports", {
+    defaultValue: EMPTY_REPORTS,
+    transform: pickReports,
+  });
+  const reports = feed.reports;
+  const kpiNames = feed.kpiNames;
 
-      // Fetch KPIs for each program to resolve KPI names
-      const allKpis = [];
-      for (const prog of (responses[1]?.programs || [])) {
-        try {
-          const kpiRes = await fetch(`/api/kpi-progress?program_id=${prog.id}`);
-          const kpiData = await kpiRes.json();
-          if (kpiData.success && kpiData.kpiProgress) {
-            allKpis.push(...kpiData.kpiProgress.map(k => ({ id: k.kpi_id, title: k.kpi_name })));
-          }
-        } catch (_) {}
-      }
-      setKpis(allKpis);
-    } catch (e) {
-      console.error("Sync Error:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data: programs } = useApi("/api/pm/programs", {
+    defaultValue: EMPTY_LIST,
+    transform: pickPrograms,
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // The report list is looked up by KPI id; the ids are shown as they are when a
+  // name is not among them.
+  const kpiTitle = (id) => kpiNames[String(id)];
 
   const filteredReports = reports.filter((r) => {
     const matchesSearch =
@@ -418,12 +402,10 @@ export default function ReportResponses() {
                               ? JSON.parse(viewingReport.assignment_kpi_ids)
                               : viewingReport.assignment_kpi_ids || [];
                           if (ids.length === 0) return "—";
-                          return (
-                            kpis
-                              .filter((k) => ids.includes(k.id))
-                              .map((k) => k.title)
-                              .join(", ") || ids.join(", ")
-                          );
+                          const named = ids
+                            .map((id) => kpiTitle(id))
+                            .filter(Boolean);
+                          return named.join(", ") || ids.join(", ");
                         } catch {
                           return viewingReport.assignment_kpi_ids || "—";
                         }

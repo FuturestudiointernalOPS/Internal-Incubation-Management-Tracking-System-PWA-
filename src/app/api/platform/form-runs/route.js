@@ -35,6 +35,7 @@ import {
   getRunDetailWithGroupTargetById,
   getAssignmentsByRunId,
   getSubmissionsByRunId,
+  listSubmissionsForOpenRuns,
   getReviewsByRunId,
   getLatestEvaluationsByRunId,
   getLatestEmailsByRunId,
@@ -465,6 +466,18 @@ export async function GET(req) {
         scoring_config: scoringConfig,
         submission_data: subData,
       });
+    }
+
+    // ─── SUBMISSIONS ACROSS THE OPEN RUNS (Responses table) ───
+    //
+    // The table needs every submission of every open run. Asking for each run's
+    // full detail in turn meant one heavy round trip per run - each of them
+    // fetching assignments, reviews, evaluations, email logs and the form's
+    // fields - with the table waiting for the last one before it stopped loading.
+    // This answers it in one query.
+    if (searchParams.get("responses") === "true") {
+      const rows = await listSubmissionsForOpenRuns();
+      return NextResponse.json({ success: true, submissions: rows.rows });
     }
 
     // Single run with submissions

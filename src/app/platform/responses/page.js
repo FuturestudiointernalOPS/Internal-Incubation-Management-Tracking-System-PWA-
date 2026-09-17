@@ -1,13 +1,44 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Suspense, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Search, Eye, FileText, Filter, X, ArrowLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
+
+/**
+ * The rows of the table: every submission of every open run, already carrying the
+ * run and the form it answers.
+ *
+ * This used to be collected one run at a time - the full detail of each open run
+ * fetched in sequence just to reach its submissions - with the table on its
+ * spinner until the last one answered. The submissions now arrive in one answer.
+ */
+const pickResponses = (d) => {
+  if (!d?.success || !Array.isArray(d.submissions)) return EMPTY_LIST;
+  return d.submissions.map((s) => {
+    const scores = s.data?._scores;
+    return {
+      ...s,
+      run_name: s.run_name,
+      run_id: s.run_id,
+      form_id: s.form_id,
+      overall: scores?.overall,
+      ranking: scores?.ranking,
+    };
+  });
+};
 
 function ResponsesContent() {
   const { t } = useI18n();
@@ -16,149 +47,92 @@ function ResponsesContent() {
   const searchParams = useSearchParams();
   const formParam = searchParams.get("form_id");
   const runParam = searchParams.get("run_id");
-  const [loading, setLoading] = useState(true);
-  const [runs, setRuns] = useState([]);
-  const [allSubs, setAllSubs] = useState([]);
-  const [forms, setForms] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedFormId, setSelectedFormId] = useState("");
-  const [formFields, setFormFields] = useState([]);
-  const [fieldsLoading, setFieldsLoading] = useState(false);
-  const [visibleFieldIds, setVisibleFieldIds] = useState([]); // user-selected columns
   const [showColumnPicker, setShowColumnPicker] = useState(false);
 
-  const load = useCallback(async (bypassCache = false) => {
-    setLoading(true);
-    const baseUrls = ["/api/platform/form-runs", "/api/platform/forms"];
-    const detailUrl = (runId) => `/api/platform/form-runs?id=${runId}`;
-    const activeRuns = (runsData) =>
-      (runsData.runs || []).filter((r) => !["draft", "cancelled"].includes(r.status));
-    // Per-run detail URL(s) backing the table for the current mode. In run
-    // mode only the requested run is expanded; otherwise every active run.
-    const detailUrlsFor = (runsData) =>
-      runParam ? [detailUrl(runParam)] : activeRuns(runsData).map((r) => detailUrl(r.id));
+  // The runs, the forms, the table's rows and the fields of the form on show, all
+  // through the shared hook: it owns the cache, the cache-first paint and the
+  // discarding of a stale answer, so the page keeps no copy of its own and reads
+  // its data during render.
+  const { data: runs, loading: runsLoading } = useApi("/api/platform/form-runs", {
+    defaultValue: EMPTY_LIST,
+    transform: pickList("runs"),
+  });
+  const { data: forms, loading: formsLoading } = useApi("/api/platform/forms", {
+    defaultValue: EMPTY_LIST,
+    transform: pickList("forms"),
+  });
+  const { data: allSubs, loading: subsLoading } = useApi(
+    "/api/platform/form-runs?responses=true",
+    { defaultValue: EMPTY_LIST, transform: pickResponses },
+  );
 
-    // GET + write the fresh payload to the shared cache on success.
-    const fetchJson = async (url) => {
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data && data.success) cacheSet(url, data);
-      return data;
-    };
+  const loading = runsLoading || formsLoading || subsLoading;
 
-    // State updates for one (runs, forms, run-details) snapshot — logic unchanged.
-    const apply = (runsData, formsData, detailMap) => {
-      setRuns(runsData.runs || []);
-      setForms(formsData.forms || []);
-      const all = [];
-      if (runParam) {
-        // Run-specific mode: only this run's submissions, no other runs.
-        const subData = detailMap[detailUrl(runParam)];
-        if (subData && subData.success && subData.run) {
-          const run = subData.run;
-          setSelectedFormId(String(run.form_id));
-          if (Array.isArray(subData.submissions)) {
-            for (const s of subData.submissions) {
-              const subScores = s.data?._scores;
-              all.push({
-                ...s,
-                run_name: run.name,
-                run_id: run.id,
-                form_id: run.form_id,
-                overall: subScores?.overall,
-                ranking: subScores?.ranking,
-              });
-            }
-          }
-        }
-      } else {
-        for (const run of activeRuns(runsData)) {
-          const subData = detailMap[detailUrl(run.id)];
-          if (subData && subData.success && subData.submissions) {
-            for (const s of subData.submissions) {
-              const subScores = s.data?._scores;
-              all.push({
-                ...s,
-                run_name: run.name,
-                run_id: run.id,
-                form_id: run.form_id,
-                overall: subScores?.overall,
-                ranking: subScores?.ranking,
-              });
-            }
-          }
-        }
-      }
-      setAllSubs(all);
-    };
+  // The run the address names, when it names one. Its form then decides the form
+  // filter, which is what the loader used to do while it fetched that run.
+  const selectedRun = runParam
+    ? runs.find((r) => String(r.id) === String(runParam))
+    : null;
 
-    try {
-      // Cache-first paint: when every URL this mode needs is a fresh snapshot
-      // (base lists + every run detail), render instantly and let the network
-      // refresh run in the background.
-      if (!bypassCache) {
-        const baseCached = baseUrls.map((u) => cacheGet(u));
-        if (baseCached.every((c) => c !== null && c.success)) {
-          const urls = detailUrlsFor(baseCached[0]);
-          const detailCached = urls.map((u) => cacheGet(u));
-          if (detailCached.every((c) => c !== null && c.success)) {
-            const detailMap = {};
-            urls.forEach((u, i) => { detailMap[u] = detailCached[i]; });
-            apply(baseCached[0], baseCached[1], detailMap);
-            setLoading(false);
-          }
-        }
-      }
-      const [runsRes, formsRes] = await Promise.all([fetchJson(baseUrls[0]), fetchJson(baseUrls[1])]);
-      const detailMap = {};
-      for (const url of detailUrlsFor(runsRes)) {
-        try {
-          detailMap[url] = await fetchJson(url);
-        } catch (_) {}
-      }
-      apply(runsRes, formsRes, detailMap);
-    } catch (_) {}
-    setLoading(false);
-  }, [runParam]);
+  // ── The form on show: what the ADDRESS asks for, or the person's choice ────
+  //
+  // The choice is recorded WITH the address value it was made under, so arriving
+  // on a different address applies that address's form, while picking (including
+  // clearing) survives a redraw. Held as "the choice, if it belongs here", which
+  // is what the old code did with a ref of the last applied parameter.
+  const formAsked = selectedRun?.form_id != null
+    ? String(selectedRun.form_id)
+    : formParam
+      ? String(formParam)
+      : "";
+  const [formChoice, setFormChoice] = useState({ asked: null, id: null });
+  const chosenFormId = formChoice.asked === formAsked ? formChoice.id : null;
+  const addressFormId =
+    formAsked && forms.some((f) => String(f.id) === formAsked) ? formAsked : "";
+  const selectedFormId = chosenFormId ?? addressFormId;
+  const selectForm = (id) => setFormChoice({ asked: formAsked, id });
 
-  useEffect(() => { load(); }, [load]);
+  // ── The columns of the form on show ─────────────────────────────────────
+  const { data: formFields, loading: fieldsLoading } = useApi(
+    selectedFormId ? `/api/platform/forms?id=${selectedFormId}` : null,
+    { defaultValue: EMPTY_LIST, transform: pickList("fields"), deps: [selectedFormId] },
+  );
+  const shownFields = formFields.filter(
+    (f) => !["hidden"].includes(f.field_type),
+  );
 
-  // Apply form_id from the shared link once its value changes, after the forms
-  // have loaded. The value already applied is remembered in a ref: keying this
-  // on "selectedFormId is empty" would re-apply the link's parameter the moment
-  // the user clears the filter, which makes the reset control a no-op.
-  const appliedFormParamRef = useRef(null);
-  useEffect(() => {
-    if (!formParam || forms.length === 0) return;
-    if (appliedFormParamRef.current === formParam) return;
-    appliedFormParamRef.current = formParam;
-    const match = forms.find(f => String(f.id) === String(formParam));
-    if (match) setSelectedFormId(String(match.id));
-  }, [formParam, forms]);
+  // Which columns are ticked: the person's choice for this form, or the first
+  // three of it. Recorded against the form, so choosing a column on one form does
+  // not decide the columns of another.
+  const [fieldChoices, setFieldChoices] = useState({ form: null, ids: null });
+  const chosenFieldIds =
+    fieldChoices.form === selectedFormId ? fieldChoices.ids : null;
+  const visibleFieldIds =
+    chosenFieldIds ?? shownFields.slice(0, 3).map((f) => String(f.id));
 
-  // Load form fields when a form is selected
-  useEffect(() => {
-    if (!selectedFormId) { setFormFields([]); setVisibleFieldIds([]); return; }
-    setFieldsLoading(true);
-    fetch(`/api/platform/forms?id=${selectedFormId}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.success) {
-          const allFields = (d.fields || []).filter(f => !["hidden"].includes(f.field_type));
-          setFormFields(allFields);
-          setVisibleFieldIds(allFields.slice(0, 3).map(f => String(f.id)));
-        }
-      })
-      .catch(() => {})
-      .finally(() => setFieldsLoading(false));
-  }, [selectedFormId]);
+  const toggleField = (fieldId) => {
+    const id = String(fieldId);
+    const next = visibleFieldIds.includes(id)
+      ? visibleFieldIds.filter((x) => x !== id)
+      : [...visibleFieldIds, id];
+    setFieldChoices({ form: selectedFormId, ids: next });
+  };
 
-  // Filter submissions by selected form
+  // The rows on show. The address can name a single run, in which case only that
+  // run's submissions belong here - the answer carries every open run's, so the
+  // narrowing is done on the rows rather than by asking differently.
   const formFilteredSubs = useMemo(() => {
-    if (!selectedFormId) return allSubs;
-    return allSubs.filter(s => String(s.form_id) === String(selectedFormId));
-  }, [allSubs, selectedFormId]);
+    let subs = allSubs;
+    if (runParam) {
+      subs = subs.filter((s) => String(s.run_id) === String(runParam));
+    }
+    if (selectedFormId) {
+      subs = subs.filter((s) => String(s.form_id) === String(selectedFormId));
+    }
+    return subs;
+  }, [allSubs, selectedFormId, runParam]);
 
   const filtered = formFilteredSubs
     .filter(s => {
@@ -188,15 +162,7 @@ function ResponsesContent() {
   const formName = (formId) => forms.find(f => f.id === formId)?.name || "—";
   const runName = (runId) => runs.find(r => r.id === runId)?.name || "—";
 
-  const visibleFields = formFields.filter(f => visibleFieldIds.includes(String(f.id)));
-
-  const toggleField = (fieldId) => {
-    setVisibleFieldIds(prev =>
-      prev.includes(String(fieldId))
-        ? prev.filter(id => id !== String(fieldId))
-        : [...prev, String(fieldId)]
-    );
-  };
+  const visibleFields = shownFields.filter(f => visibleFieldIds.includes(String(f.id)));
 
   const formatCell = (val) => {
     if (val === undefined || val === null || val === "") return "—";
@@ -247,7 +213,7 @@ function ResponsesContent() {
               {/* Form selector */}
               <select
                 value={selectedFormId}
-                onChange={e => { setSelectedFormId(e.target.value); setStatusFilter("all"); }}
+                onChange={e => { selectForm(e.target.value); setStatusFilter("all"); }}
                 className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
               >
                 <option value="">{t("platformMisc.responses.allForms")}</option>
@@ -257,7 +223,7 @@ function ResponsesContent() {
               </select>
 
               {selectedFormId && (
-                <button onClick={() => setSelectedFormId("")} className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                <button onClick={() => selectForm("")} className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
@@ -309,9 +275,9 @@ function ResponsesContent() {
                   </label>
                 ))}
                 <div className="flex gap-2 px-2 pt-1 border-t border-[var(--border-primary)]">
-                  <button onClick={() => setVisibleFieldIds(formFields.slice(0, 3).map(f => String(f.id)))} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.reset")}</button>
-                  <button onClick={() => setVisibleFieldIds(formFields.map(f => String(f.id)))} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.selectAll")}</button>
-                  <button onClick={() => setVisibleFieldIds([])} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.clear")}</button>
+                  <button onClick={() => setFieldChoices({ form: selectedFormId, ids: shownFields.slice(0, 3).map(f => String(f.id)) })} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.reset")}</button>
+                  <button onClick={() => setFieldChoices({ form: selectedFormId, ids: shownFields.map(f => String(f.id)) })} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.selectAll")}</button>
+                  <button onClick={() => setFieldChoices({ form: selectedFormId, ids: [] })} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.clear")}</button>
                 </div>
               </div>
             )}
