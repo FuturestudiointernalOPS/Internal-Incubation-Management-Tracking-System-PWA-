@@ -1,46 +1,25 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import {
+  BarChart3, Users, Target, Activity, CheckCircle2,
+} from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
-import { BarChart3, Users, Target, Activity, CheckCircle2 } from "lucide-react";
+import { useApi } from "@/lib/hooks/useApi";
+
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickMetricsPrograms = (d) => (d?.success ? d.programs || [] : []);
 
 export default function AdminMetricsDashboard() {
   const { t } = useI18n();
-  const [programs, setPrograms] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchPrograms = async (bypassCache = false) => {
-    const url = "/api/pm/programs?show_archived=all";
-    const apply = (data) => {
-      if (data.success) setPrograms(data.programs || []);
-    };
-    try {
-      // Cache-first paint: returning to the page renders instantly from a
-      // fresh snapshot; the network refresh below converges in the background.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (e) {
-      console.error("Metrics fetch error:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPrograms();
-  }, []);
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no list state of its own and never sets state from an effect.
+  const { data: programs, loading } = useApi("/api/pm/programs?show_archived=all", {
+    defaultValue: [],
+    transform: pickMetricsPrograms,
+  });
 
   const formatPct = (v) => (v !== null && v !== undefined ? `${Math.round(v)}%` : "—");
 

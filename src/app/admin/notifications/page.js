@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   Loader2, CheckCircle2, AlertCircle, Bell, Settings, Archive, Trash2,
   Send,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const TYPE_COLORS = {
   system: "text-slate-400 bg-slate-500/10",
@@ -21,53 +20,53 @@ const TYPE_COLORS = {
   announcements: "text-amber-400 bg-amber-500/10",
 };
 
+// The shapes the screen renders from, so a failed or malformed payload never
+// reaches a `.filter` / `.map` read. Module scope keeps them stable for the hook
+// (inline values would refetch on every render).
+const EMPTY_NOTIFICATION_INBOX = { notifications: [], unread_count: 0 };
+const pickNotificationInbox = (d) =>
+  d?.success
+    ? { notifications: d.notifications || [], unread_count: d.unread_count || 0 }
+    : EMPTY_NOTIFICATION_INBOX;
+// The preferences endpoint answers with the stored row: its `preferences` field
+// is the per-type channel map, and the delivery settings sit beside it. The
+// screen edits both, so the row is kept whole.
+const pickNotificationPreferences = (d) => (d?.success ? d.preferences : null);
+
 export default function NotificationsPage() {
   const { t } = useI18n();
-  const _router = useRouter();
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [preferences, setPreferences] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("inbox");
   const [filterType, setFilterType] = useState("");
   const [toast, setToast] = useState(null);
 
-  const fetchAll = async (bypassCache = false) => {
-    setLoading(true);
-    const urls = [
-      `/api/notifications/venture`,
-      `/api/notifications/venture?type=preferences`,
-    ];
-    const apply = (n, p) => {
-      if (n?.success) { setNotifications(n.notifications || []); setUnreadCount(n.unread_count || 0); }
-      if (p?.success) setPreferences(p.preferences);
-    };
-    try {
-      // Cache-first paint: returning to the page renders instantly from fresh
-      // snapshots; mutation flows pass bypassCache=true so content always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null)) {
-          apply(cached[0], cached[1]);
-          setLoading(false);
-        }
-      }
-      const responses = await Promise.all(
-        urls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1]);
-    } catch {} finally { setLoading(false); }
+  // Both loaders' work — cache-first paint, discarding a stale response, the
+  // background refresh — belongs to the hook, so the screen keeps no data state
+  // of its own and never sets state from an effect. The edits below write through
+  // each read's own setter, exactly as they did before, and sending a test
+  // notification refreshes both.
+  const {
+    data: inbox,
+    loading: inboxLoading,
+    setData: setInbox,
+    refresh: refreshInbox,
+  } = useApi("/api/notifications/venture", {
+    defaultValue: EMPTY_NOTIFICATION_INBOX,
+    transform: pickNotificationInbox,
+  });
+  const {
+    data: preferences,
+    loading: preferencesLoading,
+    setData: setPreferences,
+    refresh: refreshPreferences,
+  } = useApi("/api/notifications/venture?type=preferences", {
+    transform: pickNotificationPreferences,
+  });
+  const loading = inboxLoading || preferencesLoading;
+  const { notifications, unread_count: unreadCount } = inbox;
+  const refreshAll = () => {
+    refreshInbox();
+    refreshPreferences();
   };
-
-  useEffect(() => { fetchAll(); }, []);
 
   const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
@@ -76,8 +75,11 @@ export default function NotificationsPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "mark_read", notification_id: id }),
     });
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, status: "read" } : n));
-    setUnreadCount((c) => Math.max(0, c - 1));
+    setInbox((prev) => ({
+      ...prev,
+      notifications: prev.notifications.map((n) => n.id === id ? { ...n, status: "read" } : n),
+      unread_count: Math.max(0, prev.unread_count - 1),
+    }));
   };
 
   const markAllRead = async () => {
@@ -85,8 +87,11 @@ export default function NotificationsPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "mark_all_read" }),
     });
-    setNotifications((prev) => prev.map((n) => n.status === "unread" ? { ...n, status: "read" } : n));
-    setUnreadCount(0);
+    setInbox((prev) => ({
+      ...prev,
+      notifications: prev.notifications.map((n) => n.status === "unread" ? { ...n, status: "read" } : n),
+      unread_count: 0,
+    }));
     notify(t("adminMisc.notifications.allMarkedRead"));
   };
 
@@ -95,7 +100,7 @@ export default function NotificationsPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "archive", notification_id: id }),
     });
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    setInbox((prev) => ({ ...prev, notifications: prev.notifications.filter((n) => n.id !== id) }));
   };
 
   const deleteNotif = async (id) => {
@@ -103,7 +108,7 @@ export default function NotificationsPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "delete", notification_id: id }),
     });
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    setInbox((prev) => ({ ...prev, notifications: prev.notifications.filter((n) => n.id !== id) }));
   };
 
   const sendTest = async () => {
@@ -112,7 +117,7 @@ export default function NotificationsPage() {
       body: JSON.stringify({ action: "send_test" }),
     });
     notify(t("adminMisc.notifications.testNotificationSent"));
-    fetchAll(true);
+    refreshAll();
   };
 
   const togglePref = async (type, channel) => {

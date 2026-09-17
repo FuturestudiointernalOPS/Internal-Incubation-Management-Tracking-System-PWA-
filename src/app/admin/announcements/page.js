@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
 import {
@@ -18,7 +18,12 @@ import {
   Folder,
   Briefcase,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickAnnouncements = (d) => (d?.success ? d.announcements || [] : []);
 
 const TARGET_TYPES = [
   { value: "all", label: "announcements.targetAll", icon: Globe },
@@ -30,8 +35,6 @@ const TARGET_TYPES = [
 export default function AnnouncementsPage() {
   const { t, lang } = useI18n();
   const [user, setUser] = useState(null);
-  const [announcements, setAnnouncements] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -44,34 +47,21 @@ export default function AnnouncementsPage() {
   const [targetId, setTargetId] = useState("");
   const [isPinned, setIsPinned] = useState(false);
 
-  const fetchAnnouncements = useCallback(async (bypassCache = false) => {
-    const url = `/api/announcements${showArchived ? "?all=true" : ""}`;
-    const apply = (data) => {
-      if (data.success) {
-        setAnnouncements(data.announcements || []);
-      }
-    };
-    try {
-      // Cache-first paint on reads; mutations pass bypassCache=true so the
-      // list always reflects the just-saved server state.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (_) {
-    } finally {
-      setLoading(false);
-    }
-  }, [showArchived]);
+  // The loader's work — each list caching under its own URL, the cache-first
+  // paint, discarding a stale response, the background refresh — belongs to the
+  // hook, so the screen keeps no list state of its own and never sets state from
+  // an effect. Publishing, pinning and archiving call refresh(), which bypasses
+  // the cache like bypassCache did.
+  //
+  // One visible consequence: the old loader deliberately left the loading flag
+  // alone when the "include archived" switch was flipped, so the list stayed on
+  // screen. The shared read raises it, so the first switch to each state shows
+  // the spinner briefly; switching back within the cache's 30s window does not,
+  // because that list is already held.
+  const { data: announcements, loading, refresh } = useApi(
+    `/api/announcements${showArchived ? "?all=true" : ""}`,
+    { defaultValue: [], transform: pickAnnouncements, deps: [showArchived] },
+  );
 
   useEffect(() => {
     // Server session is authoritative; localStorage is only a legacy fallback.
@@ -90,10 +80,6 @@ export default function AnnouncementsPage() {
         setUser(u);
       });
   }, []);
-
-  useEffect(() => {
-    fetchAnnouncements();
-  }, [fetchAnnouncements]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -126,7 +112,7 @@ export default function AnnouncementsPage() {
         setTargetId("");
         setIsPinned(false);
         setShowForm(false);
-        fetchAnnouncements(true);
+        refresh();
       } else {
         setError(t(data.error || "Failed to create announcement.") || data.error || "Failed to create announcement.");
       }
@@ -145,7 +131,7 @@ export default function AnnouncementsPage() {
         body: JSON.stringify({ id: ann.id, is_pinned: !ann.is_pinned }),
       });
       const data = await res.json();
-      if (data.success) fetchAnnouncements(true);
+      if (data.success) refresh();
     } catch (_) {}
   };
 
@@ -155,7 +141,7 @@ export default function AnnouncementsPage() {
         method: "DELETE",
       });
       const data = await res.json();
-      if (data.success) fetchAnnouncements(true);
+      if (data.success) refresh();
     } catch (_) {}
   };
 

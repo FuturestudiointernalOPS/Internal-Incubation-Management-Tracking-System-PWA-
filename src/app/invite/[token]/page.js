@@ -1,10 +1,17 @@
 'use client';
 
-import { useState, useEffect, use, useCallback } from 'react';
+import { useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Loader2, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
+
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop. The read is kept raw because the rejection reason and the invitation
+// behind it are read separately below.
+const pickInvitation = (d) => d;
 
 export default function InviteAcceptPage({ params }) {
   const { t } = useI18n();
@@ -12,32 +19,27 @@ export default function InviteAcceptPage({ params }) {
   const { token } = unwrappedParams;
   const router = useRouter();
 
-  const [invite, setInvite] = useState(null);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
 
-  const fetchInvite = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/invites/${token}`);
-      const data = await res.json();
-      if (data.invite) {
-        setInvite(data.invite);
-      } else {
-        setError(t((data.error || t("rootMisc.invite.invalidOrExpiredInvite")) || "") || (data.error || t("rootMisc.invite.invalidOrExpiredInvite")));
-      }
-    } catch {
-      setError(t("rootMisc.invite.failedToValidate"));
-    } finally {
-      setLoading(false);
-    }
-  }, [token, t]);
-
-  useEffect(() => {
-    fetchInvite();
-  }, [fetchInvite]);
+  // The loader's work — cache-first paint, discarding a stale response, the
+  // background refresh — belongs to the hook, so the screen keeps no invitation
+  // state of its own and never sets state from an effect. The two failures are
+  // kept apart: a link that does not resolve invalidates the whole screen, while
+  // the form's own submission failure only concerns the form.
+  const { data: inviteData, loading, error: fetchError } = useApi(
+    `/api/invites/${token}`,
+    { transform: pickInvitation, deps: [token] },
+  );
+  const invite = inviteData?.invite || null;
+  const linkError = inviteData && !inviteData.invite
+    ? t(inviteData.error || "rootMisc.invite.invalidOrExpiredInvite")
+    : fetchError
+      ? t("rootMisc.invite.failedToValidate")
+      : '';
+  const error = submitError || linkError;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,10 +55,10 @@ export default function InviteAcceptPage({ params }) {
       if (data.user) {
         setSuccess(true);
       } else {
-        setError(t((data.error || t("rootMisc.invite.registrationFailed")) || "") || (data.error || t("rootMisc.invite.registrationFailed")));
+        setSubmitError(t((data.error || t("rootMisc.invite.registrationFailed")) || "") || (data.error || t("rootMisc.invite.registrationFailed")));
       }
     } catch {
-      setError(t("rootMisc.invite.networkError"));
+      setSubmitError(t("rootMisc.invite.networkError"));
     } finally {
       setSubmitting(false);
     }
