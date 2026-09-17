@@ -125,11 +125,22 @@ export async function POST(req) {
       );
     }
 
-    // Enforce program assignment for non-management roles
+    // Enforce program assignment for non-management roles.
+    //
+    // `reviews.submit` is passed so the per-program tick list is consulted: a
+    // program manager who removes review submission from a facilitator's
+    // assignment now actually stops it. Before this, ANY assigned person could
+    // submit a weekly review regardless of the assignment's permissions.
+    //
+    // Existing facilitators are unaffected: the tick-list backfill wrote the
+    // level each assignment already implied, and an entry that was never
+    // configured resolves to "granted" (see resolveAssignmentCapabilityLevel).
     if (session && !hasProgramManagementAccess(session.role)) {
       const guardError = await requireAssignmentAccess({
         resource: "program",
         contextId: program_id,
+        capability: "reviews.submit",
+        minLevel: 1,
       });
       if (guardError) return guardError;
     }
