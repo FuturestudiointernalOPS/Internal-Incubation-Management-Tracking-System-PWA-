@@ -74,6 +74,18 @@ const TARGET_LABELS = {
   team: "platformMisc.runs.targetTeam", organization: "platformMisc.runs.targetOrganization", all: "platformMisc.runs.targetAll",
 };
 
+// Automation switches a run can set for itself. Every flag resolves run → form →
+// on, so an explicit run value overrides the form for that flag only.
+const RUN_AUTOMATION_FLAGS = [
+  { section: "on_submit", flag: "send_acknowledgement", icon: Mail, label: "platformMisc.runs.automationSubmissionAck" },
+  { section: "on_approve", flag: "send_approval_email", icon: CheckCircle2, label: "platformMisc.runs.automationApprovalEmail" },
+  { section: "on_approve", flag: "create_platform_user", icon: Users, label: "platformMisc.runs.automationCreateUser" },
+  { section: "on_approve", flag: "send_activation_email", icon: Key, label: "platformMisc.runs.automationActivationEmail" },
+  { section: "on_approve", flag: "enroll_in_program", icon: FileText, label: "platformMisc.runs.automationEnrollProgram" },
+  { section: "on_approve", flag: "assign_to_group", icon: Link2, label: "platformMisc.runs.automationAssignGroup" },
+  { section: "on_reject", flag: "send_rejection_email", icon: XCircle, label: "platformMisc.runs.automationRejectionEmail" },
+];
+
 function cn(...classes) { return classes.filter(Boolean).join(" "); }
 
 // ─── Optimized Runs Table (memoized for performance) ───
@@ -950,6 +962,29 @@ export default function FormRunsPage() {
     } catch (_) {}
     setSaving(false);
   };
+
+  // Run automation switches — same resolution order as the server (run → form →
+  // on), computed locally so this screen never imports server code.
+  const runAutomationValue = (section, flag) => {
+    const runVal = runSettings?.automation?.[section]?.[flag];
+    if (typeof runVal === "boolean") return runVal;
+    const formVal = runFormSettings?.automation?.[section]?.[flag];
+    if (typeof formVal === "boolean") return formVal;
+    return true;
+  };
+
+  const isRunAutomationOverride = (section, flag) => typeof runSettings?.automation?.[section]?.[flag] === "boolean";
+
+  // Write an explicit boolean so the run overrides the form from then on.
+  const setRunAutomationFlag = (section, flag, value) => {
+    const prev = runSettings || {};
+    const automation = { ...(prev.automation || {}) };
+    automation[section] = { ...(automation[section] || {}), [flag]: value };
+    setRunSettings({ ...prev, automation });
+  };
+
+  // Drop every run override — the PUT body then omits `automation` entirely.
+  const resetRunAutomation = () => setRunSettings({ ...(runSettings || {}), automation: undefined });
 
   // AI Evaluation progress state (Phase 4 client-driven batching)
   const [evalProgress, setEvalProgress] = useState(null); // { total, evaluated, failed, remaining, percent, running, batch }
@@ -3682,6 +3717,30 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     <span className="text-[10px] font-medium text-[var(--text-secondary)] whitespace-pre-wrap">{runSettings.instructions || "—"}</span>
                   )}
                 </SettingRow>
+
+                {/* Automation — which applicant emails this run sends */}
+                <SettingRow label={t("platformMisc.runs.automationTitle")} icon={Sparkles} desc={t("platformMisc.runs.automationDesc")}>
+                  {editingSettings ? (
+                    <button onClick={resetRunAutomation} className="px-3 py-2 rounded-xl bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wide hover:text-[var(--text-primary)]">{t("platformMisc.runs.automationUseForm")}</button>
+                  ) : null}
+                </SettingRow>
+
+                {RUN_AUTOMATION_FLAGS.map(({ section, flag, icon: Icon, label }) => {
+                  const effective = runAutomationValue(section, flag);
+                  const fromForm = !isRunAutomationOverride(section, flag) && typeof runFormSettings?.automation?.[section]?.[flag] === "boolean";
+                  return (
+                    <SettingRow key={`${section}.${flag}`} label={t(label)} icon={Icon}>
+                      <div className="flex items-center gap-2">
+                        {fromForm && <span className="text-[9px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runs.automationFromForm")}</span>}
+                        {editingSettings ? (
+                          <Toggle checked={effective} onChange={(v) => setRunAutomationFlag(section, flag, v)} />
+                        ) : (
+                          <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded", effective ? "text-emerald-500 bg-emerald-500/10" : "text-slate-500 bg-slate-500/10")}>{effective ? t("platformMisc.runs.yes") : t("platformMisc.runs.no")}</span>
+                        )}
+                      </div>
+                    </SettingRow>
+                  );
+                })}
               </div>
             </div>
           )}

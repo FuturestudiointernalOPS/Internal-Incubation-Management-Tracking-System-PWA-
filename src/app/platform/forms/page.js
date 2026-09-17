@@ -1389,15 +1389,14 @@ export default function PlatformForms() {
                   };
                   return (
                     <div className="space-y-2 pl-1">
-                      <p className="text-[10px] font-bold text-amber-400 uppercase">{t("platformMisc.forms.automationOnSubmit")}</p>
-                      <Toggle path="on_submit.send_acknowledgement" label={t("platformMisc.forms.autoSendAckLabel")} desc={t("platformMisc.forms.autoSendAckDesc")} />
-                      <p className="text-[10px] font-bold text-emerald-400 uppercase pt-1">{t("platformMisc.forms.automationOnApproval")}</p>
-                      <Toggle path="on_approve.send_approval_email" label={t("platformMisc.forms.autoSendApprovalLabel")} desc={t("platformMisc.forms.autoSendApprovalDesc")} />
-                      <Toggle path="on_approve.create_platform_user" label={t("platformMisc.forms.autoCreateUserLabel")} desc={t("platformMisc.forms.autoCreateUserDesc")} />
-                      <Toggle path="on_approve.send_activation_email" label={t("platformMisc.forms.autoSendActivationLabel")} desc={t("platformMisc.forms.autoSendActivationDesc")} />
-                      <Toggle path="on_approve.enroll_in_program" label={t("platformMisc.forms.autoEnrollLabel")} desc={t("platformMisc.forms.autoEnrollDesc")} />
-                      <Toggle path="on_approve.assign_to_group" label={t("platformMisc.forms.autoAssignGroupLabel")} desc={t("platformMisc.forms.autoAssignGroupDesc")} />
-                      <p className="text-[10px] text-[var(--text-secondary)] mt-1">{t("platformMisc.forms.autoGroupTip")}</p>
+                      {/* The applicant-email switches are a RUN decision: the run's
+                          Settings tab owns them (see the run screen). The form
+                          keeps only its scoring policy below. Values already
+                          stored here stay as the default every run of this form
+                          inherits — lib/platform/automationSettings.js resolves
+                          run → form → on — so nothing configured before this
+                          change stops applying. */}
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.forms.automationMovedToRun")}</p>
                       <p className="text-[10px] font-bold text-emerald-400 uppercase pt-2">{t("platformMisc.forms.automationAutoApproval")}</p>
                       <Toggle path="auto_approve" label={t("platformMisc.forms.autoApproveScoreLabel")} desc={t("platformMisc.forms.autoApproveScoreDesc")} />
                       <div className="flex items-center gap-3 pt-1">
@@ -1413,8 +1412,6 @@ export default function PlatformForms() {
                         <span className="text-[10px] font-bold text-[var(--text-secondary)]">%</span>
                       </div>
                       <p className="text-[10px] text-[var(--text-secondary)] mt-1">{t("platformMisc.forms.autoCutoffHint")}</p>
-                      <p className="text-[10px] font-bold text-rose-400 uppercase pt-1">{t("platformMisc.forms.automationOnRejection")}</p>
-                      <Toggle path="on_reject.send_rejection_email" label={t("platformMisc.forms.autoSendRejectionLabel")} desc={t("platformMisc.forms.autoSendRejectionDesc")} />
                     </div>
                   );
                 })()}

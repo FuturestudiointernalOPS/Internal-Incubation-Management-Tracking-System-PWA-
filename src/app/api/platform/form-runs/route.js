@@ -5,6 +5,7 @@ import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { sendDecisionEmail, getTemplate, resolvePersonName, resolveSubmissionEmail, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun, detectLanguage, getEmailLogRow } from "@/lib/email";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
+import { resolveAutomationFlag } from "@/lib/platform/automationSettings";
 import { syncApprovedSubmissionToProgramGroup } from "@/lib/contact-group-sync";
 import {
   insertTimelineEntry,
@@ -48,7 +49,6 @@ import {
   getFieldLabelsByRunId,
   getContactNameEmailByCid,
   getGroupAssignedToRunById,
-  getRunFormSettingsForDecisionById,
   getRunTemplateSettingsForDecisionById,
   getGroupNameForDecisionEmailByRunId,
   getLatestScoreBySubmissionId,
@@ -741,10 +741,31 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
       fieldLabels: labels,
     });
 
+    // ── Should this decision email go out at all? ──
+    // The RUN decides; the form is only its default (run → form → on). One read
+    // serves both this verdict and the template lookup further down.
+    let decisionSettings = null;
+    try {
+      const s = await getRunTemplateSettingsForDecisionById(row.run_id);
+      decisionSettings = s.rows[0] || null;
+    } catch (_) {}
+
     let shouldSend = true;
-    // Approval email requires a group (organizational context). With no
-    // group, the person stays in the platform/CRM but no email is sent.
     if (decision === "approved") {
+      if (!resolveAutomationFlag(decisionSettings?.settings, decisionSettings?.run_settings, "on_approve.send_approval_email")) {
+        await recordEmailStatus({
+          submission_id: parseInt(submission_id),
+          contact_cid: row.submitter_id || null,
+          email_type: "approval",
+          status: "skipped",
+          error: "Skipped — Approval email switched off for this run",
+          to: applicantEmail,
+        });
+        return { status: "skipped", error: "Approval email switched off for this run", to: applicantEmail };
+      }
+
+      // Approval email requires a group (organizational context). With no
+      // group, the person stays in the platform/CRM but no email is sent.
       try {
         const grpCheck = await getGroupAssignedToRunById(row.run_id);
         if (grpCheck.rows.length === 0) {
@@ -762,22 +783,18 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
       } catch (_) {}
     }
     if (decision !== "approved") {
-      try {
-        const runInfo2 = await getRunFormSettingsForDecisionById(row.run_id);
-        if (runInfo2.rows[0]) {
-          const auto = (runInfo2.rows[0].settings || {}).automation;
-          if (auto?.on_reject?.send_rejection_email === false) shouldSend = false;
-        }
-      } catch (_) {}
+      if (!resolveAutomationFlag(decisionSettings?.settings, decisionSettings?.run_settings, "on_reject.send_rejection_email")) {
+        shouldSend = false;
+      }
     }
-    if (!shouldSend) return { status: "skipped", error: "Email disabled by form workflow settings", to: applicantEmail };
+    if (!shouldSend) return { status: "skipped", error: "Email disabled by workflow settings", to: applicantEmail };
 
     // Gather template + score for variables
     let decisionTemplate = null;
     let templateVars = null;
     let score = null;
     try {
-      const runInfo2 = await getRunTemplateSettingsForDecisionById(row.run_id);
+      const runInfo2 = { rows: decisionSettings ? [decisionSettings] : [] };
       if (runInfo2.rows[0]) {
         const formName = runInfo2.rows[0].name || "";
         decisionTemplate = getTemplate(
