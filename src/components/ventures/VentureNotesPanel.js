@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { StickyNote, Plus, Trash2, X, Loader2, Save } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
 import AppModal from "@/components/ui/AppModal";
 
 /**
@@ -14,62 +15,61 @@ import AppModal from "@/components/ui/AppModal";
  * Journey panel writes milestone-scoped notes too). Visibility/create/delete
  * are enforced server-side; this component only reflects what the server allows.
  */
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are built once here
+// rather than on every render.
+
+const EMPTY_LIST = [];
+const EMPTY_NOTES_PANEL = { notes: [], canPost: false };
+
+const pickNotes = (d) =>
+  d?.success ? { notes: d.notes || [], canPost: Boolean(d.can_post) } : EMPTY_NOTES_PANEL;
+
+// Milestone choices — the only place an internal note may live. The journey read
+// nests them inside its stages, so they are flattened here.
+const pickMilestones = (d) => {
+  if (!d?.success) return EMPTY_LIST;
+  const flat = [];
+  for (const stage of d.stages || []) {
+    for (const ms of stage.milestones || []) {
+      flat.push({ id: String(ms.id), title: ms.title || "", stage: stage.name || "" });
+    }
+  }
+  return flat;
+};
+
 export default function VentureNotesPanel({ ventureId }) {
   const { t } = useI18n();
-  const [notes, setNotes] = useState([]);
-  const [canPost, setCanPost] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [showComposer, setShowComposer] = useState(false);
   const [form, setForm] = useState({ title: "", body: "", milestone_id: "" });
   const [saving, setSaving] = useState(false);
   const [openNote, setOpenNote] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [toast, setToast] = useState(null);
-  // Milestone choices — the only place an internal note may live.
-  const [milestones, setMilestones] = useState([]);
+
+  // The notes and the milestone choices are two separate addresses, and both are
+  // read through the shared hook so the panel keeps no copy of its own.
+  const { data: notesRead, loading: notesLoading, refresh: refreshNotes } = useApi(
+    ventureId ? `/api/ventures/${ventureId}/notes` : null,
+    { defaultValue: EMPTY_NOTES_PANEL, transform: pickNotes, deps: [ventureId] },
+  );
+  const { data: milestones, loading: milestonesLoading } = useApi(
+    ventureId ? `/api/ventures/${ventureId}/journey` : null,
+    { defaultValue: EMPTY_LIST, transform: pickMilestones, deps: [ventureId] },
+  );
+
+  const notes = notesRead.notes;
+  const canPost = notesRead.canPost;
+  // The notes are what the panel waits for; the milestone choices arrive with
+  // them, and waiting for both keeps the composer from reporting "no milestones"
+  // in the moment before they land.
+  const loading = notesLoading || milestonesLoading;
 
   const notify = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   };
-
-  const load = async () => {
-    try {
-      const res = await fetch(`/api/ventures/${ventureId}/notes`);
-      const d = await res.json();
-      if (d.success) {
-        setNotes(d.notes || []);
-        setCanPost(!!d.can_post);
-      }
-    } catch (e) {
-      console.error("Failed to load internal notes:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadMilestones = async () => {
-    try {
-      const res = await fetch(`/api/ventures/${ventureId}/journey`);
-      const d = await res.json();
-      if (d.success) {
-        const flat = [];
-        for (const stage of d.stages || []) {
-          for (const ms of stage.milestones || []) {
-            flat.push({ id: String(ms.id), title: ms.title || "", stage: stage.name || "" });
-          }
-        }
-        setMilestones(flat);
-      }
-    } catch (_) {}
-  };
-
-  useEffect(() => {
-    if (ventureId) {
-      load();
-      loadMilestones();
-    }
-  }, [ventureId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const submit = async (e) => {
     e.preventDefault();
@@ -91,7 +91,7 @@ export default function VentureNotesPanel({ ventureId }) {
         notify(t("venture.notesPanel.saved"));
         setShowComposer(false);
         setForm({ title: "", body: "", milestone_id: "" });
-        await load();
+        await refreshNotes();
       } else {
         notify(d.error || t("venture.notesPanel.saveFailed"), "error");
       }
@@ -115,7 +115,7 @@ export default function VentureNotesPanel({ ventureId }) {
       notify(t("venture.notesPanel.deleted"));
       setOpenNote(null);
       setConfirmDelete(null);
-      await load();
+      await refreshNotes();
     } else {
       notify(d.error || t("venture.notesPanel.deleteFailed"), "error");
     }

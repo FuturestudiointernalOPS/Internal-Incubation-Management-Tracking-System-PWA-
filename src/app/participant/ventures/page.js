@@ -1,55 +1,35 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
 import { Briefcase, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+const pickVentures = (d) => (d?.success ? d.ventures || [] : []);
 
 export default function ParticipantVentures() {
-  const [ventures, setVentures] = useState([]);
-  const [loading, setLoading] = useState(true);
   const { t } = useI18n();
   const router = useRouter();
 
-  const loadVentures = useCallback(async (bypassCache = false) => {
-    // Scoping is resolved server-side from the session; the cached cid below is
-    // only a filter hint for global roles. It is read here rather than kept in
-    // state so the loader keeps a stable identity, and so the page still loads
-    // when the cache is empty instead of sitting on its spinner forever.
-    let cid = "";
-    try {
-      cid = JSON.parse(localStorage.getItem("user") || "{}").cid || "";
-    } catch (_) {}
-    const url = cid ? `/api/ventures?contact_id=${cid}` : "/api/ventures";
-    const apply = (data) => {
-      if (data.success) setVentures(data.ventures);
-    };
-    try {
-      // Cache-first paint: returning to this page renders instantly from a
-      // fresh snapshot; creating a venture passes bypassCache=true so the
-      // list always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch (e) {
-      console.error("Failed to load ventures", e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadVentures();
-  }, [loadVentures]);
+  // Scoping is resolved server-side from the session; the contact identifier in
+  // the address only narrows the list for a global role. It comes from the
+  // shell's session cache rather than from the browser's stored copy, so no
+  // effect has to read a browser store. The identity is absent for the first
+  // moment of a cold load, and the screen keeps its placeholder until it
+  // arrives rather than asking for a list it would have to ask for again.
+  const { cid } = useSessionUser();
+  const { data: ventures, loading: readLoading } = useApi(
+    cid ? `/api/ventures?contact_id=${cid}` : null,
+    { defaultValue: EMPTY_LIST, transform: pickVentures, deps: [cid] },
+  );
+  const loading = !cid || readLoading;
 
   // Phase 2 pipeline: Venture creation goes through the Venture Application
   // Form/Run. This button opens the configured Venture Run.

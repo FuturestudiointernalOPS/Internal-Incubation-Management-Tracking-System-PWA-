@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -23,6 +23,7 @@ import {
   User,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
 import { useVenture } from "../VentureContext";
 
 /**
@@ -71,14 +72,19 @@ const documentHref = (doc) => {
   return /^https?:\/\//i.test(raw) ? raw : null;
 };
 
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are built once here
+// rather than on every render.
+
+// The payload is kept whole, refusal included: when the server refuses the read
+// its own wording is what the panel has to show.
+const pickVerification = (d) => (d && typeof d === "object" ? d : null);
+
 export function VerificationTab() {
   const { t } = useI18n();
   const { params, notifyMsg } = useVenture();
 
   const ventureId = params?.id;
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [uploadingCategory, setUploadingCategory] = useState(null);
   const [deletingDoc, setDeletingDoc] = useState(null);
@@ -107,30 +113,36 @@ export function VerificationTab() {
     [t],
   );
 
-  const load = useCallback(async () => {
-    if (!ventureId) {
-      setError(t("vadmin.verification.loadVerificationFailed"));
-      setLoading(false);
-      return;
-    }
-    try {
-      const res = await fetch(`/api/ventures/${ventureId}/verification`, { cache: "no-store" });
-      const body = await res.json().catch(() => ({}));
-      if (!body?.success) {
-        throw new Error(messageFor(body?.error, "vadmin.verification.loadVerificationFailed"));
-      }
-      setData(body);
-      setError(null);
-    } catch (e) {
-      setError(e?.message || t("vadmin.verification.loadVerificationFailed"));
-    } finally {
-      setLoading(false);
-    }
-  }, [ventureId, t, messageFor]);
+  // The verification payload, read through the shared hook: it owns the cache,
+  // the cache-first paint and the discarding of a stale answer, so the panel
+  // keeps no copy of its own. The actions below re-read through `refresh`,
+  // which bypasses the cache so the payload reflects the action just made.
+  //
+  // `no-store` on the request itself, which is what this read asked for before it
+  // went through the hook: the documents are private and their links are
+  // short-lived, so the browser must not keep a copy of the answer. The hook's own
+  // short-lived copy still applies, as it does everywhere else.
+  const { data, loading, error: readError, refresh } = useApi(
+    ventureId ? `/api/ventures/${ventureId}/verification` : null,
+    {
+      defaultValue: null,
+      transform: pickVerification,
+      deps: [ventureId],
+      fetchOptions: { cache: "no-store" },
+    },
+  );
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // A refusal arrives as a payload rather than as a failed request, so it has to
+  // be read from the payload; the hook reports only a request that never
+  // answered. Both are shown as the same failure, with the server's own wording
+  // whenever there is one.
+  const error = !ventureId
+    ? t("vadmin.verification.loadVerificationFailed")
+    : readError
+      ? messageFor(readError, "vadmin.verification.loadVerificationFailed")
+      : data?.success === false
+        ? messageFor(data.error, "vadmin.verification.loadVerificationFailed")
+        : null;
 
   const post = useCallback(
     async (payload) => {
@@ -150,14 +162,14 @@ export function VerificationTab() {
       try {
         const result = await work();
         if (!result?.success) throw new Error(messageFor(result?.error, fallbackKey));
-        await load();
+        await refresh();
         return result;
       } catch (e) {
         setActionError(e?.message || t(fallbackKey));
         return null;
       }
     },
-    [load, messageFor, t],
+    [refresh, messageFor, t],
   );
 
   // Documents live in a PRIVATE bucket: the multipart upload returns the
@@ -265,10 +277,7 @@ export function VerificationTab() {
         <AlertTriangle size={24} className="mx-auto text-rose-500" />
         <p className="text-[11px] text-[var(--text-secondary)] break-words">{error}</p>
         <button
-          onClick={() => {
-            setLoading(true);
-            load();
-          }}
+          onClick={() => refresh()}
           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
         >
           <RefreshCw size={13} /> {t("participant.retry")}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -23,7 +23,16 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+const pickVenture = (d) => (d?.success ? d.venture || null : null);
+const pickFounders = (d) => (d?.success ? d.founders || [] : []);
 
 const VENTURE_ROLES = [
   "founder",
@@ -61,11 +70,6 @@ export default function VentureFoundersPage() {
   const router = useRouter();
   const { t } = useI18n();
 
-  const [venture, setVenture] = useState(null);
-  const [founders, setFounders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
   // Invite modal
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: "", name: "", role: "co-founder" });
@@ -89,55 +93,50 @@ export default function VentureFoundersPage() {
   // Menu
   const [openMenuId, setOpenMenuId] = useState(null);
 
-  const fetchData = useCallback(async (bypassCache = false) => {
-    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/founders`];
-    const apply = (ventureData, foundersData) => {
-      if (!ventureData.success) {
-        setError(t((ventureData.error || t("vadmin.founders.loadVentureFailed")) || "") || (ventureData.error || t("vadmin.founders.loadVentureFailed")));
-        return;
-      }
-      if (!foundersData.success) {
-        setError(t((foundersData.error || t("vadmin.founders.loadFoundersFailed")) || "") || (foundersData.error || t("vadmin.founders.loadFoundersFailed")));
-        return;
-      }
-      setVenture(ventureData.venture);
-      setFounders(foundersData.founders || []);
-    };
-    let painted = false;
-    setLoading(true);
-    setError(null);
-    try {
-      // Cache-first paint: returning to this page renders instantly from
-      // fresh snapshots; mutation flows pass bypassCache=true so the lists
-      // always reflect the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1]);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const [ventureRes, foundersRes] = await Promise.all([
-        fetch(urls[0]),
-        fetch(urls[1]),
-      ]);
-      const ventureData = await ventureRes.json();
-      const foundersData = await foundersRes.json();
+  // The Venture and its founders, through the shared hook: it owns the cache,
+  // the cache-first paint and the discarding of a stale answer, so the page
+  // keeps no copy of its own and reads during render. Two separate reads keep
+  // the Venture identifier a plain dependency rather than a list rebuilt on
+  // every render.
+  const {
+    data: venture,
+    loading: ventureLoading,
+    error: ventureFailed,
+    refresh: refreshVenture,
+  } = useApi(id ? `/api/ventures/${id}` : null, {
+    defaultValue: null,
+    transform: pickVenture,
+    deps: [id],
+  });
+  const {
+    data: founders,
+    loading: foundersLoading,
+    error: foundersFailed,
+    refresh: refreshFounders,
+  } = useApi(id ? `/api/ventures/${id}/founders` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickFounders,
+    deps: [id],
+  });
 
-      if (ventureData.success) cacheSet(urls[0], ventureData);
-      if (foundersData.success) cacheSet(urls[1], foundersData);
-      apply(ventureData, foundersData);
-    } catch (e) {
-      if (!painted) setError(t(e.message || "") || e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [id, t]);
+  const loading = ventureLoading || foundersLoading;
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // Every action below re-reads both, so the list and the Venture come from the
+  // reads that painted them.
+  const reload = () => {
+    refreshVenture();
+    refreshFounders();
+  };
+
+  // Which failure the panel below reports: the network's, or a read that came
+  // back without a Venture.
+  const error = ventureFailed
+    ? t("vadmin.founders.loadVentureFailed")
+    : foundersFailed
+      ? t("vadmin.founders.loadFoundersFailed")
+      : !venture
+        ? t("vadmin.founders.ventureNotFound")
+        : null;
 
   const notify = (message, type = "success") => {
     setToast({ message, type });
@@ -164,7 +163,7 @@ export default function VentureFoundersPage() {
         notify(t("vadmin.founders.inviteSent", { name: inviteForm.name }));
         setShowInviteModal(false);
         setInviteForm({ email: "", name: "", role: "co-founder" });
-        fetchData(true);
+        reload();
       } else {
         notify(t((data.error || t("vadmin.founders.inviteFailed")) || "") || (data.error || t("vadmin.founders.inviteFailed")), "error");
       }
@@ -192,7 +191,7 @@ export default function VentureFoundersPage() {
         setShowTransferModal(false);
         setTransferTarget("");
         setConfirmAction(null);
-        fetchData(true);
+        reload();
       } else {
         notify(t((data.error || t("vadmin.founders.transferFailed")) || "") || (data.error || t("vadmin.founders.transferFailed")), "error");
         setConfirmAction(null);
@@ -213,7 +212,7 @@ export default function VentureFoundersPage() {
       if (data.success) {
         notify(t("vadmin.founders.userSuspended"));
         setOpenMenuId(null);
-        fetchData(true);
+        reload();
       } else {
         notify(t((data.error || t("vadmin.founders.suspendFailed")) || "") || (data.error || t("vadmin.founders.suspendFailed")), "error");
       }
@@ -231,7 +230,7 @@ export default function VentureFoundersPage() {
       if (data.success) {
         notify(t("vadmin.founders.userReactivated"));
         setOpenMenuId(null);
-        fetchData(true);
+        reload();
       } else {
         notify(t((data.error || t("vadmin.founders.reactivateFailed")) || "") || (data.error || t("vadmin.founders.reactivateFailed")), "error");
       }
@@ -250,7 +249,7 @@ export default function VentureFoundersPage() {
         notify(t("vadmin.founders.founderRemoved"));
         setOpenMenuId(null);
         setConfirmAction(null);
-        fetchData(true);
+        reload();
       } else {
         notify(t((data.error || t("vadmin.founders.removeFailed")) || "") || (data.error || t("vadmin.founders.removeFailed")), "error");
         setConfirmAction(null);
@@ -271,7 +270,7 @@ export default function VentureFoundersPage() {
       if (data.success) {
         notify(t("vadmin.founders.roleUpdated"));
         setOpenMenuId(null);
-        fetchData(true);
+        reload();
       } else {
         notify(t((data.error || t("vadmin.founders.roleUpdateFailed")) || "") || (data.error || t("vadmin.founders.roleUpdateFailed")), "error");
       }
@@ -555,7 +554,7 @@ export default function VentureFoundersPage() {
                                           if (data.success) {
                                             notify(t("vadmin.founders.ownershipTransferred"));
                                             setConfirmAction(null);
-                                            fetchData(true);
+                                            reload();
                                           } else {
                                             notify(t((data.error || t("vadmin.founders.transferFailed")) || "") || (data.error || t("vadmin.founders.transferFailed")), "error");
                                             setConfirmAction(null);
@@ -745,7 +744,7 @@ export default function VentureFoundersPage() {
                             if (data.success) {
                               notify(t("vadmin.founders.ownershipTransferredTo", { name: f.name }));
                               setConfirmAction(null);
-                              fetchData(true);
+                              reload();
                             } else {
                               notify(t((data.error || t("vadmin.founders.transferFailed")) || "") || (data.error || t("vadmin.founders.transferFailed")), "error");
                               setConfirmAction(null);

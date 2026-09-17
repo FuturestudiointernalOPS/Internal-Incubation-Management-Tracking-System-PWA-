@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Rocket,
@@ -13,7 +13,29 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+const EMPTY_OBJECT = {};
+
+/**
+ * The stored Venture, shaped into the fields this form edits.
+ *
+ * Module scope on purpose: the reading hook is handed this shaper. A record that
+ * does not carry a field edits as an empty string, which is what the loader used
+ * to write into the form itself.
+ */
+const pickStoredForm = (d) =>
+  d?.success && d.venture
+    ? {
+        company_name: d.venture.company_name || "",
+        registration_number: d.venture.registration_number || "",
+        industry: d.venture.industry || "",
+        business_stage: d.venture.business_stage || "",
+        description: d.venture.description || "",
+        website: d.venture.website || "",
+        logo_url: d.venture.logo_url || "",
+      }
+    : null;
 
 const INDUSTRIES = [
   "Fintech",
@@ -44,64 +66,47 @@ export default function EditVenturePage({ params }) {
   const { id } = React.use(params);
   const goBack = useSafeBack(`/admin/ventures/${id}`);
   const { t } = useI18n();
-  const [form, setForm] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
+  // The save's own outcome. It belongs to the write, not to the read, so it is
+  // kept apart from the read's failure below.
+  const [saveError, setSaveError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  const fetchVenture = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${id}`;
-    const apply = (data) => {
-      if (!data.success) {
-        setError(t((data.error || t("vadmin.edit.ventureNotFoundError")) || "") || (data.error || t("vadmin.edit.ventureNotFoundError")));
-        return;
-      }
-      setForm({
-        company_name: data.venture.company_name || "",
-        registration_number: data.venture.registration_number || "",
-        industry: data.venture.industry || "",
-        business_stage: data.venture.business_stage || "",
-        description: data.venture.description || "",
-        website: data.venture.website || "",
-        logo_url: data.venture.logo_url || "",
-      });
-    };
-    setLoading(true);
-    let painted = false;
-    try {
-      // Cache-first paint: returning to this page renders instantly from a
-      // fresh snapshot while the network revalidates in the background.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch {
-      if (!painted) setError(t("vadmin.edit.loadFailed"));
-    } finally {
-      setLoading(false);
-    }
-  }, [id, t]);
+  // The stored Venture, through the shared hook: it owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the page keeps no
+  // copy of its own and reads during render.
+  const {
+    data: storedForm,
+    loading,
+    error: readFailure,
+  } = useApi(id ? `/api/ventures/${id}` : null, {
+    defaultValue: null,
+    transform: pickStoredForm,
+    deps: [id],
+  });
 
-  useEffect(() => {
-    if (id) fetchVenture();
-  }, [fetchVenture, id]);
+  // The form is a DERIVED BASE PLUS EDITS: what the server has stored, and what
+  // the person typed, recorded against the field it changes. Nothing is copied
+  // into state, so no effect has to notice the stored values arriving - which is
+  // what would erase a field edited in the moment before they did.
+  const [edits, setEdits] = useState(EMPTY_OBJECT);
+  const form = storedForm ? { ...storedForm, ...edits } : null;
+
+  // Which failure the panel below reports: a request that never got an answer is
+  // the network's, and a read that came back without a Venture is the server's.
+  const loadFailure = readFailure
+    ? t("vadmin.edit.loadFailed")
+    : form
+      ? null
+      : t("vadmin.edit.ventureNotFoundError");
 
   const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setEdits((previous) => ({ ...previous, [field]: value }));
   };
 
   const handleSave = async () => {
     setSaving(true);
-    setError(null);
+    setSaveError(null);
     setSuccess(null);
 
     try {
@@ -114,7 +119,7 @@ export default function EditVenturePage({ params }) {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(t((data.error || t("vadmin.edit.saveFailed")) || "") || (data.error || t("vadmin.edit.saveFailed")));
+        setSaveError(t((data.error || t("vadmin.edit.saveFailed")) || "") || (data.error || t("vadmin.edit.saveFailed")));
         return;
       }
 
@@ -125,7 +130,7 @@ export default function EditVenturePage({ params }) {
         router.push(`/admin/ventures/${id}`);
       }, 1500);
     } catch {
-      setError(t("vadmin.edit.networkError"));
+      setSaveError(t("vadmin.edit.networkError"));
     } finally {
       setSaving(false);
     }
@@ -141,13 +146,13 @@ export default function EditVenturePage({ params }) {
     );
   }
 
-  if (error && !form) {
+  if (loadFailure) {
     return (
       <>
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">{t("vadmin.edit.ventureNotFound")}</h2>
-          <p className="text-slate-500 mb-6">{error}</p>
+          <p className="text-slate-500 mb-6">{loadFailure}</p>
           <button onClick={() => router.push("/admin/ventures")} className="btn btn-primary">
             {t("vadmin.edit.backToVentures")}
           </button>
@@ -186,10 +191,10 @@ export default function EditVenturePage({ params }) {
         )}
 
         {/* Error message */}
-        {error && form && (
+        {saveError && (
           <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-rose-500" />
-            <span className="text-sm font-bold text-rose-500">{error}</span>
+            <span className="text-sm font-bold text-rose-500">{saveError}</span>
           </div>
         )}
 

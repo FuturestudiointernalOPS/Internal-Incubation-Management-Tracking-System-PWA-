@@ -1,12 +1,22 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, CheckCircle2, X, Plus, Target, Calendar,
   TrendingUp, MessageCircle, Phone, Mail, Users,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+const pickVenture = (d) => (d?.success ? d.venture || null : null);
+const pickOpportunities = (d) => (d?.success ? d.opportunities || [] : []);
+const pickAnalytics = (d) => (d?.success ? d : null);
 
 const STAGES = [
   { key: "prospect", label: "Prospect", color: "bg-slate-500/10 text-slate-400" },
@@ -25,10 +35,6 @@ const ACTIVITY_ICONS = { email: Mail, call: Phone, meeting: Users, demo: Target,
 export default function VentureFundraisingPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [venture, setVenture] = useState(null);
-  const [opportunities, setOpportunities] = useState([]);
-  const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState("kanban");
   const [selectedOpp, setSelectedOpp] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
@@ -40,50 +46,51 @@ export default function VentureFundraisingPage() {
   const [noteText, setNoteText] = useState("");
   const [activityForm, setActivityForm] = useState({ activity_type: "email", title: "" });
 
-  const fetchAll = useCallback(async (bypassCache = false) => {
-    const urls = [
-      `/api/ventures/${id}`,
-      `/api/ventures/${id}/fundraising`,
-      `/api/ventures/${id}/fundraising?type=analytics`,
-    ];
-    const apply = (v, o, a) => {
-      if (v.success) setVenture(v.venture);
-      if (o.success) setOpportunities(o.opportunities || []);
-      if (a.success) setAnalytics(a);
-    };
-    let painted = false;
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from
-      // fresh snapshots; mutation flows pass bypassCache=true so the
-      // pipeline always reflects the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2]);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const [vRes, oRes, aRes] = await Promise.all([
-        fetch(urls[0]),
-        fetch(urls[1]),
-        fetch(urls[2]),
-      ]);
-      const v = await vRes.json(); const o = await oRes.json(); const a = await aRes.json();
-      if (v.success) cacheSet(urls[0], v);
-      if (o.success) cacheSet(urls[1], o);
-      if (a.success) cacheSet(urls[2], a);
-      apply(v, o, a);
-    } catch (e) {
-      if (!painted) console.error("Failed to load fundraising data:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+  // The Venture, its pipeline and the pipeline analytics, through the shared
+  // hook: it owns the cache, the cache-first paint and the discarding of a stale
+  // answer, so the page keeps no copy of its own and reads during render.
+  const {
+    data: venture,
+    loading: ventureLoading,
+    refresh: refreshVenture,
+  } = useApi(id ? `/api/ventures/${id}` : null, {
+    defaultValue: null,
+    transform: pickVenture,
+    deps: [id],
+  });
+  const {
+    data: opportunities,
+    loading: opportunitiesLoading,
+    refresh: refreshOpportunities,
+  } = useApi(id ? `/api/ventures/${id}/fundraising` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickOpportunities,
+    deps: [id],
+  });
+  const {
+    data: analytics,
+    loading: analyticsLoading,
+    refresh: refreshAnalytics,
+  } = useApi(id ? `/api/ventures/${id}/fundraising?type=analytics` : null, {
+    defaultValue: null,
+    transform: pickAnalytics,
+    deps: [id],
+  });
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  const loading = ventureLoading || opportunitiesLoading || analyticsLoading;
 
+  // A stage change or a new opportunity re-reads the pipeline, its analytics
+  // and the Venture; the opportunity's own notes and activities re-read only
+  // its detail (see loadDetail below).
+  const reload = () => {
+    refreshVenture();
+    refreshOpportunities();
+    refreshAnalytics();
+  };
+
+  // The opportunity detail stays a fetch triggered by a click - opening a card
+  // is an event, not arriving on the page - which is why it still uses the
+  // shared cache directly.
   const loadDetail = async (oppId, bypassCache = false) => {
     const url = `/api/ventures/${id}/fundraising?type=detail&opportunity_id=${oppId}`;
     const apply = (d) => {
@@ -115,7 +122,7 @@ export default function VentureFundraisingPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "update", opportunity_id: oppId, updates: { stage: newStage } }),
     });
-    fetchAll(true);
+    reload();
   };
 
   const createOpp = async () => {
@@ -127,7 +134,7 @@ export default function VentureFundraisingPage() {
     });
     setSaving(false); setShowCreateModal(false);
     setOForm({ investor_name: "", expected_amount: "", probability: "10", stage: "prospect", expected_close_date: "", next_action: "" });
-    fetchAll(true);
+    reload();
   };
 
   const addNote = async () => {

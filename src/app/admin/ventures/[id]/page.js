@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Rocket,
@@ -33,9 +33,15 @@ import {
   X,
   Route,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import VentureDashboard from "@/components/ventures/VentureDashboard";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const pickVenture = (d) => (d?.success ? d.venture || null : null);
 
 const STAGE_CONFIG = {
   idea: { label: "vadmin.detail.stageIdea", color: "text-blue-400 bg-blue-500/10", order: 1 },
@@ -114,49 +120,28 @@ export default function VentureDetailPage({ params }) {
   const router = useRouter();
   const { id } = React.use(params);
   const { t, lang } = useI18n();
-  const [venture, setVenture] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
 
-  const fetchVenture = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${id}`;
-    const apply = (data) => {
-      if (!data.success) {
-        setError((data.error && t(data.error)) || t("vadmin.detail.ventureNotFound"));
-        return;
-      }
-      setVenture(data.venture);
-    };
-    let painted = false;
-    setLoading(true);
-    setError(null);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a
-      // fresh snapshot; mutation flows pass bypassCache=true so the venture
-      // always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch {
-      if (!painted) setError(t("vadmin.detail.ventureLoadError"));
-    } finally {
-      setLoading(false);
-    }
-  }, [id, t]);
+  // The Venture, through the shared hook: it owns the cache, the cache-first
+  // paint and the discarding of a stale answer, so the page keeps no copy of its
+  // own and reads during render.
+  const {
+    data: venture,
+    loading,
+    error: readFailure,
+  } = useApi(id ? `/api/ventures/${id}` : null, {
+    defaultValue: null,
+    transform: pickVenture,
+    deps: [id],
+  });
 
-  useEffect(() => {
-    if (id) fetchVenture();
-  }, [fetchVenture, id]);
+  // Which failure the panel below reports: a request that never got an answer is
+  // the network's, and a read that came back without a Venture is the server's.
+  const error = readFailure
+    ? t("vadmin.detail.ventureLoadError")
+    : !venture
+      ? t("vadmin.detail.ventureNotFound")
+      : null;
 
   const getStageConfig = (stage) => STAGE_CONFIG[stage] || STAGE_CONFIG.idea;
   const getActivityIcon = (action) => ACTIVITY_ICONS[action] || Activity;

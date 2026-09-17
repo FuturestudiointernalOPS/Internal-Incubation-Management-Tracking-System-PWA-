@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { Loader2, StickyNote, Plus, Trash2, ExternalLink, Paperclip } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
 import AppModal from "@/components/ui/AppModal";
 
 /**
@@ -14,44 +15,51 @@ import AppModal from "@/components/ui/AppModal";
  * GET/POST/DELETE /api/ventures/[id]/notes?scope_type=&scope_id=.
  * Supports text + link/file attachments.
  */
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are built once here
+// rather than on every render.
+
+// A refusal (no permission, missing object) arrives as a payload with
+// `success: false` rather than as a failed request, so it is shaped to null:
+// the panel can then tell a refusal apart from a genuinely empty list instead
+// of showing "no notes yet" for both.
+const pickScopedNotes = (d) =>
+  d?.success ? { notes: d.notes || [], canPost: Boolean(d.can_post) } : null;
+
 export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
   const { t } = useI18n();
-  const [notes, setNotes] = useState([]);
-  const [canPost, setCanPost] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [posting, setPosting] = useState(false);
   const [confirmNote, setConfirmNote] = useState(null);
   const [form, setForm] = useState({ title: "", body: "", url: "", urlName: "" });
+  // The create and delete actions report their own failures; they are not part
+  // of the read, so they are kept apart from it.
+  const [actionError, setActionError] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/ventures/${ventureId}/notes?scope_type=${encodeURIComponent(scopeType)}&scope_id=${encodeURIComponent(scopeId)}`);
-      const d = await res.json();
-      if (d.success) {
-        setNotes(d.notes || []);
-        setCanPost(!!d.can_post);
-      } else {
-        setError(d.error || t("venture.manager.notes.loadFailed"));
-      }
-    } catch {
-      setError(t("venture.manager.notes.loadFailed"));
-    } finally {
-      setLoading(false);
-    }
-  }, [ventureId, scopeType, scopeId, t]);
+  // The notes are asked for only once the panel is opened, so the address is
+  // absent while it is closed. That is also what tells the hook there is
+  // nothing to read yet, rather than a failed read of an empty list.
+  const { data, loading, refresh: refreshNotes } = useApi(
+    open && ventureId
+      ? `/api/ventures/${ventureId}/notes?scope_type=${encodeURIComponent(scopeType)}&scope_id=${encodeURIComponent(scopeId)}`
+      : null,
+    { defaultValue: null, transform: pickScopedNotes, deps: [open, ventureId, scopeType, scopeId] },
+  );
 
-  useEffect(() => {
-    if (open) load();
-  }, [open, load]);
+  const notes = data?.notes || [];
+  const canPost = Boolean(data?.canPost);
+  // Nothing to show and nothing in flight means the read failed, whether the
+  // request never answered or the server refused it — the shaper turned a
+  // refusal into null. Both report the same label.
+  const error =
+    open && !data && !loading ? t("venture.manager.notes.loadFailed") : null;
 
   const submit = async (e) => {
     e.preventDefault();
     if (!form.title.trim() || !form.body.trim()) return;
     setPosting(true);
+    setActionError(null);
     try {
       const attachments =
         form.url.trim() || form.urlName.trim()
@@ -71,18 +79,19 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
       const d = await res.json();
       if (d.success) {
         setForm({ title: "", body: "", url: "", urlName: "" });
-        await load();
+        await refreshNotes();
       } else {
-        setError(d.error || t("venture.manager.notes.postFailed"));
+        setActionError(d.error || t("venture.manager.notes.postFailed"));
       }
     } catch {
-      setError(t("venture.manager.notes.postFailed"));
+      setActionError(t("venture.manager.notes.postFailed"));
     } finally {
       setPosting(false);
     }
   };
 
   const remove = async (note) => {
+    setActionError(null);
     try {
       const res = await fetch(`/api/ventures/${ventureId}/notes`, {
         method: "DELETE",
@@ -92,12 +101,12 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
       const d = await res.json();
       if (d.success) {
         setConfirmNote(null);
-        await load();
+        await refreshNotes();
       } else {
-        setError(d.error || t("venture.manager.notes.deleteFailed"));
+        setActionError(d.error || t("venture.manager.notes.deleteFailed"));
       }
     } catch {
-      setError(t("venture.manager.notes.deleteFailed"));
+      setActionError(t("venture.manager.notes.deleteFailed"));
     }
   };
 
@@ -117,7 +126,7 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
     <div className="mt-2 pt-2 border-t border-[var(--border-primary)]">
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={() => { setOpen(!open); setActionError(null); }}
         className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-[var(--brand-orange)] transition-colors"
       >
         <StickyNote className="w-3 h-3" />
@@ -130,8 +139,8 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
             <div className="flex items-center gap-2 text-[10px] text-slate-500 py-1">
               <Loader2 className="w-3 h-3 animate-spin" /> {t("common.loading")}
             </div>
-          ) : error ? (
-            <p className="text-[10px] text-rose-400">{error}</p>
+          ) : error || actionError ? (
+            <p className="text-[10px] text-rose-400">{error || actionError}</p>
           ) : notes.length === 0 ? (
             <p className="text-[10px] text-slate-500">{t("venture.manager.notes.empty")}</p>
           ) : (

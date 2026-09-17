@@ -1,8 +1,19 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Shield, Plus, Save, Check, X, RefreshCw } from "lucide-react";
+import { useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const RESPONSIBILITIES_URL = "/api/venture-permissions/responsibilities?include_inactive=1";
+const EMPTY_LIST = [];
+
+const pickResponsibilities = (d) => (d?.success ? d.responsibilities || [] : []);
+const pickMatrix = (d) => (d?.success ? d.matrix : null);
 
 /**
  * GLOBAL Venture Permissions — Super Admin → Ventures → Permissions.
@@ -33,10 +44,10 @@ const AREA_LABELS = {
 
 export default function GlobalVenturePermissionsPage() {
   const router = useRouter();
-  const [responsibilities, setResponsibilities] = useState([]);
-  const [selectedResp, setSelectedResp] = useState("");
-  const [matrix, setMatrix] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // The profile the reader is looking at is an explicit override on a computed
+  // default: with no choice recorded the first profile of the list is shown, and
+  // a background refresh cannot throw the choice away.
+  const [chosenResp, setChosenResp] = useState("");
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState("matrix");
   const [showNewResp, setShowNewResp] = useState(false);
@@ -44,42 +55,32 @@ export default function GlobalVenturePermissionsPage() {
   const [newRespDesc, setNewRespDesc] = useState("");
   const [savingResp, setSavingResp] = useState(false);
 
+  // The responsibilities and the matrix for the selected one, through the shared
+  // hook: it owns the cache, the cache-first paint and the discarding of a stale
+  // answer, so the page keeps no copy of its own and reads during render. The
+  // matrix is addressed on the selected profile, so choosing another one asks
+  // for that profile's matrix rather than re-running a loader by hand.
+  const {
+    data: responsibilities,
+    loading,
+    refresh: refreshResponsibilities,
+  } = useApi(RESPONSIBILITIES_URL, {
+    defaultValue: EMPTY_LIST,
+    transform: pickResponsibilities,
+  });
+  const selectedResp = chosenResp || responsibilities[0]?.code || "";
+
+  const { data: matrix, refresh: refreshMatrix } = useApi(
+    selectedResp
+      ? `/api/venture-permissions/matrix?responsibility=${encodeURIComponent(selectedResp)}`
+      : null,
+    { defaultValue: null, transform: pickMatrix, deps: [selectedResp] },
+  );
+
   const notify = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 4000);
   };
-
-  const loadResponsibilities = useCallback(async () => {
-    const res = await fetch("/api/venture-permissions/responsibilities?include_inactive=1");
-    const d = await res.json();
-    if (d.success) {
-      setResponsibilities(d.responsibilities || []);
-      setSelectedResp((prev) => prev || (d.responsibilities?.length ? d.responsibilities[0].code : ""));
-    }
-  }, []);
-
-  const loadMatrix = useCallback(async (respCode) => {
-    if (!respCode) return;
-    const res = await fetch(`/api/venture-permissions/matrix?responsibility=${encodeURIComponent(respCode)}`);
-    const d = await res.json();
-    if (d.success) setMatrix(d.matrix);
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        await loadResponsibilities();
-      } catch (e) {
-        console.error("Failed to load responsibilities:", e);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [loadResponsibilities]);
-
-  useEffect(() => {
-    if (selectedResp) loadMatrix(selectedResp);
-  }, [selectedResp, loadMatrix]);
 
   const toggleCapability = async (area, action, current) => {
     const next = !current;
@@ -92,7 +93,7 @@ export default function GlobalVenturePermissionsPage() {
       const d = await res.json();
       if (d.success) {
         notify(`Global ${selectedResp} permission updated — applies to every Venture immediately.`);
-        await loadMatrix(selectedResp);
+        await refreshMatrix();
       } else {
         notify(d.error || "Update failed.", "error");
       }
@@ -117,8 +118,8 @@ export default function GlobalVenturePermissionsPage() {
         setShowNewResp(false);
         setNewRespName("");
         setNewRespDesc("");
-        setSelectedResp(d.responsibility.code);
-        await loadResponsibilities();
+        setChosenResp(d.responsibility.code);
+        await refreshResponsibilities();
       } else {
         notify(d.error || "Create failed.", "error");
       }
@@ -136,7 +137,7 @@ export default function GlobalVenturePermissionsPage() {
       body: JSON.stringify({ code, is_active: !isActive }),
     });
     notify(!isActive ? "Responsibility activated." : "Responsibility deactivated globally.");
-    await loadResponsibilities();
+    await refreshResponsibilities();
   };
 
   const rename = async (resp) => {
@@ -148,7 +149,7 @@ export default function GlobalVenturePermissionsPage() {
       body: JSON.stringify({ code: resp.code, name: next.trim() }),
     });
     notify("Renamed — assignments and permissions unchanged.");
-    await loadResponsibilities();
+    await refreshResponsibilities();
   };
 
   if (loading) {
@@ -228,14 +229,14 @@ export default function GlobalVenturePermissionsPage() {
               <div className="flex items-center gap-3">
                 <select
                   value={selectedResp}
-                  onChange={(e) => setSelectedResp(e.target.value)}
+                  onChange={(e) => setChosenResp(e.target.value)}
                   className="px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
                 >
                   {responsibilities.map((r) => (
                     <option key={r.code} value={r.code}>{r.name}{r.is_active ? "" : " (inactive)"}</option>
                   ))}
                 </select>
-                <button onClick={() => loadMatrix(selectedResp)} className="px-3 py-2 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)] flex items-center gap-1.5 text-xs">
+                <button onClick={refreshMatrix} className="px-3 py-2 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)] flex items-center gap-1.5 text-xs">
                   <RefreshCw className="w-3 h-3" /> Refresh
                 </button>
               </div>

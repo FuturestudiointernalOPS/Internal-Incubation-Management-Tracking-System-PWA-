@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { ArrowLeft, Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
@@ -46,8 +47,15 @@ export default function StaffVentureWorkspace() {
   const [queueLoading, setQueueLoading] = useState(true);
   // Coach tint: who is viewing, and title maps used to render each session's
   // operational context (Journey stage · milestone · task) in the Sessions pane.
-  const [myCid, setMyCid] = useState(null);
-  const [myName, setMyName] = useState("");
+  //
+  // The viewer's identity comes from the shell's session cache rather than from
+  // the browser's stored copy, so no effect writes it. It arrives a moment after
+  // the first paint, and until then no session claims to be coached by this
+  // person — the same "not known yet" state the coach-name fallback already
+  // handled.
+  const { user, cid } = useSessionUser();
+  const myCid = cid;
+  const myName = user?.name || user?.full_name || "";
   const [stageNameById, setStageNameById] = useState({});
   const [milestoneTitleById, setMilestoneTitleById] = useState({});
   const [taskTitleById, setTaskTitleById] = useState({});
@@ -121,30 +129,6 @@ export default function StaffVentureWorkspace() {
       }
     })();
   }, [id, loadReviewQueue]);
-
-  // Coach tint: the viewer's contact id (localStorage fallback first, then the
-  // authoritative session endpoint) decides which sessions show "Coached by you".
-  useEffect(() => {
-    let known = false;
-    try {
-      const saved = JSON.parse(localStorage.getItem("user") || "null");
-      if (saved && saved.cid) {
-        setMyCid(String(saved.cid));
-        setMyName(saved.name || "");
-        known = true;
-      }
-    } catch (_) {}
-    if (known) return;
-    fetch("/api/auth/session")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.authenticated && d.user) {
-          setMyCid(String(d.user.cid || d.user.id || ""));
-          setMyName(d.user.full_name || d.user.name || "");
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   // Coach tint: the sessions list payload carries only soft context ids, so
   // Journey stage/milestone titles come from the same journey read the

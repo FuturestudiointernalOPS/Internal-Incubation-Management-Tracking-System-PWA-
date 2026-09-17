@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Target, Plus, X, Loader2, ChevronDown, ChevronRight, Trash2, Save, Link2, CheckCircle2, Copy } from "lucide-react";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * OperatingPlanPanel — Lead Manager operating plans for a Venture.
@@ -10,12 +11,20 @@ import { Target, Plus, X, Loader2, ChevronDown, ChevronRight, Trash2, Save, Link
  * Server-enforced against the operating_plan permission area. Founders never
  * reach this (API 404).
  */
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are built once here
+// rather than on every render.
+
+const EMPTY_ACCESS = { create: false, edit: false, manage: false };
+const EMPTY_PLANS_READ = { plans: [], access: EMPTY_ACCESS };
+
+const pickPlans = (d) =>
+  d?.success ? { plans: d.plans || [], access: d.access || EMPTY_ACCESS } : EMPTY_PLANS_READ;
+
 export default function OperatingPlanPanel({ ventureId }) {
-  const [plans, setPlans] = useState([]);
-  const [access, setAccess] = useState({ create: false, edit: false, manage: false });
   const [openPlanId, setOpenPlanId] = useState(null);
   const [openPlan, setOpenPlan] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [newPlanOpen, setNewPlanOpen] = useState(false);
   const [planForm, setPlanForm] = useState({ name: "", objective: "" });
   const [savingPlan, setSavingPlan] = useState(false);
@@ -31,30 +40,20 @@ export default function OperatingPlanPanel({ ventureId }) {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const loadPlans = async () => {
-    try {
-      const res = await fetch(`/api/ventures/${ventureId}/operating-plans`);
-      const d = await res.json();
-      if (d.success) {
-        setPlans(d.plans || []);
-        setAccess(d.access || {});
-      }
-    } catch (e) {
-      console.error("Failed to load operating plans:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // The plans and the caller's permissions arrive in one payload, so one read
+  // serves both. The two reads below stay plain fetches: a plan's detail is asked
+  // for when it is opened, and the templates when the picker is opened.
+  const { data: plansRead, loading, refresh: refreshPlans } = useApi(
+    ventureId ? `/api/ventures/${ventureId}/operating-plans` : null,
+    { defaultValue: EMPTY_PLANS_READ, transform: pickPlans, deps: [ventureId] },
+  );
+  const { plans, access } = plansRead;
 
   const loadPlan = async (planId) => {
     const res = await fetch(`/api/ventures/${ventureId}/operating-plans/${planId}`);
     const d = await res.json();
     if (d.success) setOpenPlan(d.plan);
   };
-
-  useEffect(() => {
-    if (ventureId) loadPlans();
-  }, [ventureId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openPlanDetail = async (planId) => {
     setOpenPlanId(planId === openPlanId ? null : planId);
@@ -92,7 +91,7 @@ export default function OperatingPlanPanel({ ventureId }) {
         notify("Template applied — structure copied (no Venture data).");
         setApplyOpen(false);
         setTplSel("");
-        await loadPlans();
+        await refreshPlans();
       } else {
         notify(d.error || "Apply failed.", "error");
       }
@@ -132,7 +131,7 @@ export default function OperatingPlanPanel({ ventureId }) {
         notify("Operating plan created.");
         setNewPlanOpen(false);
         setPlanForm({ name: "", objective: "" });
-        await loadPlans();
+        await refreshPlans();
       } else {
         notify(d.error || "Create failed.", "error");
       }
@@ -152,7 +151,7 @@ export default function OperatingPlanPanel({ ventureId }) {
     const d = await res.json();
     if (d.success) {
       notify(`Plan ${status}.`);
-      await loadPlans();
+      await refreshPlans();
       if (openPlanId === planId) await loadPlan(planId);
     } else {
       notify(d.error || "Update failed.", "error");
@@ -171,7 +170,7 @@ export default function OperatingPlanPanel({ ventureId }) {
     if (d.success) {
       notify("Section added.");
       setSectionForm({ title: "", objective: "", instructions: "" });
-      await loadPlans();
+      await refreshPlans();
       await loadPlan(openPlanId);
     } else {
       notify(d.error || "Add failed.", "error");
@@ -187,7 +186,7 @@ export default function OperatingPlanPanel({ ventureId }) {
     const d = await res.json();
     if (d.success) {
       await loadPlan(openPlanId);
-      await loadPlans();
+      await refreshPlans();
     } else {
       notify(d.error || "Update failed.", "error");
     }
@@ -204,7 +203,7 @@ export default function OperatingPlanPanel({ ventureId }) {
     if (d.success) {
       notify("Section deleted.");
       await loadPlan(openPlanId);
-      await loadPlans();
+      await refreshPlans();
     } else {
       notify(d.error || "Delete failed.", "error");
     }

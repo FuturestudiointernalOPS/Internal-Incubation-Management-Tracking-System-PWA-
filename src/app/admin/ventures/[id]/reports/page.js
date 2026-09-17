@@ -1,99 +1,102 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, Download,
   BarChart3, RefreshCw, TrendingUp, Users, Target, Activity, Route,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { stageStatusWord, statusLabel, statusChipClass } from "@/lib/ventureStatuses";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+const pickVenture = (d) => (d?.success ? d.venture || null : null);
+const pickPayload = (d) => (d?.success ? d : null);
+const pickMilestones = (d) => (d?.success ? d.milestones || [] : []);
+const pickTasks = (d) => (d?.success ? d.tasks || [] : []);
+const pickTeam = (d) => (d?.success ? d.team || [] : []);
+
+// The journey progression report degrades gracefully: the screen distinguishes
+// "the read failed" from "there is no report yet", which is why the failure
+// travels beside the report rather than collapsing into a null report.
+const EMPTY_JOURNEY_REPORT = { report: null, failed: false };
+const pickJourneyReport = (d) => ({
+  report: d?.success ? d.journey_report || null : null,
+  failed: !d?.success,
+});
 
 export default function VentureReportsPage() {
   const { id } = useParams();
   const router = useRouter();
   const { t } = useI18n();
-  const [venture, setVenture] = useState(null);
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Journey progression report (independent fetch — graceful degradation).
-  const [journeyReport, setJourneyReport] = useState(null);
-  const [jrLoading, setJrLoading] = useState(false);
-  const [jrError, setJrError] = useState(false);
+  // The Venture and its four report views, plus the journey progression report,
+  // through the shared hook: it owns the cache, the cache-first paint and the
+  // discarding of a stale answer, so the page keeps no copy of its own and reads
+  // during render. Separate reads keep the Venture identifier a plain dependency
+  // rather than a list rebuilt on every render.
+  const {
+    data: venture,
+    loading: ventureLoading,
+    refresh: refreshVenture,
+  } = useApi(id ? `/api/ventures/${id}` : null, {
+    defaultValue: null,
+    transform: pickVenture,
+    deps: [id],
+  });
+  const { data: data, loading: dataLoading, refresh: refreshData } = useApi(
+    id ? `/api/ventures/${id}/reports?type=analytics` : null,
+    { defaultValue: null, transform: pickPayload, deps: [id] },
+  );
+  const {
+    data: milestones,
+    loading: milestonesLoading,
+    refresh: refreshMilestones,
+  } = useApi(id ? `/api/ventures/${id}/reports?type=milestones` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickMilestones,
+    deps: [id],
+  });
+  const { data: tasks, loading: tasksLoading, refresh: refreshTasks } = useApi(
+    id ? `/api/ventures/${id}/reports?type=tasks&limit=50` : null,
+    { defaultValue: EMPTY_LIST, transform: pickTasks, deps: [id] },
+  );
+  const { data: team, loading: teamLoading, refresh: refreshTeam } = useApi(
+    id ? `/api/ventures/${id}/reports?type=productivity` : null,
+    { defaultValue: EMPTY_LIST, transform: pickTeam, deps: [id] },
+  );
+  const {
+    data: journeyPayload,
+    loading: jrLoading,
+    refresh: refreshJourneyReport,
+  } = useApi(id ? `/api/ventures/${id}/journey-report` : null, {
+    defaultValue: EMPTY_JOURNEY_REPORT,
+    transform: pickJourneyReport,
+    deps: [id],
+  });
+  const journeyReport = journeyPayload.report;
+  const jrError = journeyPayload.failed;
 
-  const [milestones, setMilestones] = useState([]);
-  const [tasks, setTasks] = useState([]);
-  const [team, setTeam] = useState([]);
+  const loading =
+    ventureLoading || dataLoading || milestonesLoading || tasksLoading || teamLoading;
 
-  const fetchData = useCallback(async (bypassCache = false) => {
-    const urls = [
-      `/api/ventures/${id}`,
-      `/api/ventures/${id}/reports?type=analytics`,
-      `/api/ventures/${id}/reports?type=milestones`,
-      `/api/ventures/${id}/reports?type=tasks&limit=50`,
-      `/api/ventures/${id}/reports?type=productivity`,
-    ];
-    const apply = (v, r, m, t, p) => {
-      if (v.success) setVenture(v.venture);
-      if (r.success) setData(r);
-      if (m.success) setMilestones(m.milestones || []);
-      if (t.success) setTasks(t.tasks || []);
-      if (p.success) setTeam(p.team || []);
-    };
-    let painted = false;
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from
-      // fresh snapshots; the refresh button passes the click event, so
-      // fetchData bypasses the cache and always reloads latest data.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2], cached[3], cached[4]);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const [vRes, rRes, mRes, tRes, pRes] = await Promise.all([
-        fetch(urls[0]),
-        fetch(urls[1]),
-        fetch(urls[2]),
-        fetch(urls[3]),
-        fetch(urls[4]),
-      ]);
-      const v = await vRes.json();
-      const r = await rRes.json();
-      const m = await mRes.json();
-      const t = await tRes.json();
-      const p = await pRes.json();
-      if (v.success) cacheSet(urls[0], v);
-      if (r.success) cacheSet(urls[1], r);
-      if (m.success) cacheSet(urls[2], m);
-      if (t.success) cacheSet(urls[3], t);
-      if (p.success) cacheSet(urls[4], p);
-      apply(v, r, m, t, p);
-    } catch (e) {
-      if (!painted) console.error("Failed to load reports data:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  const fetchJourneyReport = useCallback(async () => {
-    setJrLoading(true);
-    try {
-      const res = await fetch(`/api/ventures/${id}/journey-report`);
-      const d = await res.json();
-      if (d.success) { setJourneyReport(d.journey_report || null); setJrError(false); }
-      else setJrError(true);
-    } catch { setJrError(true); }
-    finally { setJrLoading(false); }
-  }, [id]);
-
-  useEffect(() => { fetchData(); fetchJourneyReport(); }, [fetchData, fetchJourneyReport]);
+  // The header's refresh button re-reads every view on show rather than only the
+  // one that happens to be open.
+  const refreshAll = () => {
+    refreshVenture();
+    refreshData();
+    refreshMilestones();
+    refreshTasks();
+    refreshTeam();
+    refreshJourneyReport();
+  };
 
   const handleExport = async (format) => {
     try {
@@ -158,7 +161,7 @@ export default function VentureReportsPage() {
             <button onClick={() => handleExport("csv")} className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wider hover:bg-tertiary transition-all flex items-center gap-1.5">
               <Download className="w-3 h-3" /> CSV
             </button>
-            <button onClick={() => { fetchData(true); fetchJourneyReport(); }} className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wider hover:bg-tertiary transition-all flex items-center gap-1.5">
+            <button onClick={refreshAll} className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wider hover:bg-tertiary transition-all flex items-center gap-1.5">
               <RefreshCw className="w-3 h-3" /> Refresh
             </button>
           </div>
