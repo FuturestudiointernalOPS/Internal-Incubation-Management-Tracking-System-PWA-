@@ -93,23 +93,23 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 168 |
-| `react-hooks/set-state-in-effect` | 200 | 160 |
+| ESLint warnings, total | 2192 | 163 |
+| `react-hooks/set-state-in-effect` | 200 | 155 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` in converted files | 0 | 0 |
 | Tests | 1539 / 1539 | 1566 / 1566 |
 | Production build | passes | passes |
 
-Screens carrying a `set-state-in-effect` warning: **109**.
+Screens carrying a `set-state-in-effect` warning: **104**.
 
 | Group | Screens |
 |---|---:|
-| Application pages | 50 |
+| Application pages | 45 |
 | Shared components (`src/components/`) | 32 |
 | Venture screens | 23 |
 | `src/lib/` modules | 4 |
 
-Of these 109 screens, **81 carry a single warning**; the remaining 28 carry two
+Of these 104 screens, **76 carry a single warning**; the remaining 28 carry two
 to five.
 
 > Note: the repository currently reports 2 `no-unused-vars`, both in
@@ -160,12 +160,21 @@ render without breaking server rendering or the first paint.
 | `src/app/investor/profile/page.js` | Server data used to **initialise an editable form** | The effect is the standard way; removing it means restructuring the form (e.g. a keyed child component). |
 | `src/app/activate/page.js` | The token and mode, read from the browser's address bar | Same shape as the registration link that was converted; converting needs the navigation-parameter route plus a derived token state. Doable, do it deliberately: this is a sign-in screen. |
 
+The first five rows share one structural fix: the signed-in person's identity
+should come from a shared source rather than being re-read from browser storage
+in each screen. That is a change to how the session is exposed, not a screen
+change, and it would unblock them together. `src/lib/PermissionProvider.js`
+exposes capabilities but not the identity, so it is not that source yet.
+
 ### 3.5 The screen would show a message that is not true
 
-| Screen | Why it is deferred | Next step |
-|---|---|---|
-| `src/app/facilitator/page.js` | It shows "no programs assigned yet" when its program list is empty. The hook paints an empty list for a failed read, so a transient failure would tell the person they have no role. | **Solved on paper**: give the read a transformation that returns `null` (not an empty list) on failure, and only show the notice when the list is present and empty. Convert with that in place. |
-| `src/app/admin/announcements/page.js` | Its loader deliberately does **not** raise the loading flag when the "include archived" filter changes, so the list stays on screen instead of flashing a spinner. | Convert with a check on whether the data is already present, or accept the spinner and say so in the commit. |
+None left. The two that were here are resolved:
+
+- the facilitator dashboard now gives its program read a transformation that
+  reports `null` on failure, so "no programs assigned yet" is only shown when the
+  list is actually present and empty;
+- the announcements screen was converted with the spinner on a filter change
+  accepted, stated in its commit message.
 
 ### 3.6 Structural or large
 
@@ -173,9 +182,17 @@ render without breaking server rendering or the first paint.
 |---|---|
 | `src/app/admin/system/page.js` | Nine reads in one loader, one of which the health-check action also writes. |
 | `src/app/admin/security/page.js` | Seven reads: four are combined into one summary object, three feed their own lists; one list is also updated optimistically when a session is revoked. |
-| `src/app/admin/metrics/page.js` | The list is written through a helper shared by the cache path and the network path; it needs the same treatment as `facilitator/page.js` (§3.5) plus care around the helper. |
-| `src/app/invite/[token]/page.js` | The load failure and the form's own submission failure share one error value; splitting them is required first. |
 | Screens over ~800 lines (`admin/programs`, `admin/projects`, `admin/tasks`, `admin/work`, `admin/access`, `admin/knowledge`, `admin/op-reports`, `pm/programs/[id]`, `pm/programs`, `pm/submissions`, `staff/op-report`, `staff/projects/[id]`, `team/[id]`, `platform/runs`, `platform/forms`, `admin/communications/contacts`, `admin/programs/[id]`, `admin/projects/[id]`) | Not examined individually yet. Several load more than one endpoint and some mix loads with mutations, so each needs a read before conversion. |
+
+Resolved from this list:
+
+- the **admin metrics dashboard** — a single self-contained read; the note that
+  put it here was over-cautious;
+- the **notifications screen** — the value it stores for preferences really is the
+  whole stored row, so its two local edits were already consistent and were
+  preserved as they were;
+- the **invitation link** — converted by splitting the link failure from the
+  form's own submission failure, which is what this list asked for first.
 
 ---
 
