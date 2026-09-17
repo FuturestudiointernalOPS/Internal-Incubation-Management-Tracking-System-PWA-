@@ -273,12 +273,12 @@ deny existing facilitators. Required order:
 | # | Decision | Where it blocks |
 |---|---|---|
 | D1 | Grant `lms.edit` to the profiles that should publish/enroll/attach (currently **nobody** holds it, so only Super Admin can) | `docs/PRODUCTION_TEST.md` §3; migrate the facilitator backfill in §7 |
-| D2 | Should `program_assigned` become an enforced record policy on program **writes** (group/KPI/invite/enrollment mutations), or stay capability-only for Staff/PM? **Now measurable** — read the readiness report first (§11) | §4, §11 |
+| D2 | Enforce the where-it-applies rule for **program writes**. Steps 1–3 of the program-scope program are done (§12); steps 4–6 (the switch and the waves) remain | §4, §12 |
 | D3 | Resolve `team_own` (`v2_teams` mapping) or keep the fail-closed DENY permanently | `scope-catalog.js` |
 | D4 | Grant `assignments.review` per facilitator. `reviews.submit` is now **enforced** (done, §11) | §7, §11 |
 | D5 | The relationship re-derive and the readiness report now have a screen (§11). The venture strict audit and the access-profile seeding remain API-only | `docs/PHASE6_CONTEXT_GRANT_APPLICATION.md` |
 | D6 | Capture the audit filters the API already supports (`actor`, `target`, `capability`, `target_cid`) in the audit screen | Permission Center |
-| D7 | Narrow the portfolio-wide "Program Manager" template so a program manager's access is strictly assignment-derived. The impact list that makes this safe now exists (§11) | §11 |
+| D7 | Repoint the programme-manager role default at the new portfolio template — a deliberate click in Templates, after reading the impact report. Nothing is repointed at boot | §12 |
 | D8 | `CONTEXT_GRANTS_SECRET_KEY` must be set and the sweep scheduled for the belt-and-braces withdrawal (expiry already covers the cutoff without it) | §11 |
 
 ---
@@ -396,3 +396,96 @@ Two portfolio-wide jobs, previously reachable only by typing a URL:
   route, which is a product decision, not an enforcement fix. The census in
   `src/__tests__/facilitator-capability-coverage.test.js` keeps the gap explicit.
 - **Venture and team surfaces** — out of scope for this pass, as agreed.
+
+---
+
+## 12. The program-scope program (steps 1–3 DONE, 4–6 remaining)
+
+The goal: a staff member or programme manager reaches the programmes they were
+given, not the whole catalogue — and the people who genuinely run the portfolio
+keep running it.
+
+### Why it is a programme rather than a change
+
+Enforcing the where-it-applies rule for programmes is a **removal**. Today a
+capability holder reaches every programme. The rule restricts them to the ones
+they are attached to through a relationship. Three things make that unsafe to
+ship in one move, and each has a step here.
+
+| # | Step | Status |
+|---|---|---|
+| 1 | **Measure.** Report unmanaged programmes and the people attached to nothing | **DONE** (§12.1) |
+| 2 | **Repair the data.** Record a manager for every running programme | **DONE** — action shipped, the administrator works the list (§12.2) |
+| 3 | **Split the template.** Separate portfolio-wide powers from assignment-derived ones | **DONE** — template created and inert; the repoint is a deliberate click (§12.3) |
+| 4 | **Ship the rule switched off.** Add the check with its strictness behind a switch | NOT STARTED |
+| 5 | **Turn it on in waves** — programme editing, then invitations/enrolment, then groups/targets | NOT STARTED |
+| 6 | **Delete the switch** once the census reads zero unscoped programme actions | NOT STARTED |
+
+### 12.1 Measure
+
+`GET /api/engineering/permissions/program-scope-readiness` (read-only). Two
+findings, because both are invisible from either side alone:
+
+- **Unmanaged programmes** — a running programme with no manager recorded can
+  never be matched by the rule, so enforcing it first would make that programme
+  unreachable to everyone except the portfolio identity. A manager recorded only
+  as a staff row counts as managed; an **ended** programme is not a defect.
+- **People attached to nothing** — a holder whose template grants programme
+  editing but who is attached to no running programme loses **all** programme
+  access. That count is the number that decides whether the rule can be switched
+  on at all.
+
+The report is template-based (a handful of queries, not a per-person resolution
+loop), so its cost does not grow with the number of people.
+
+### 12.2 Repair the data
+
+`PUT /api/pm/programs/[id]/manager` records who manages a programme — the action
+that clears the worklist. It reconciles the assignment-derived access of **both**
+sides: the new manager receives it, the previous manager loses what that
+programme alone justified. Gated on `programs.edit`, because changing who runs a
+programme is a programme write. A reconcile failure never loses the recorded
+relationship: the assignment is the source of truth and the next connect (or the
+sweep) re-derives from it.
+
+The programme workspace shows the manager read-only, which is why this action
+lives in the Operations screen rather than being a form field.
+
+### 12.3 Split the template
+
+The seeded programme-manager template bundles **three** jobs and applies them by
+identity label:
+
+| Bundle | Content | Verdict |
+|---|---|---|
+| Programme management | see / create / edit / publish **every** programme | belongs to the identity (portfolio) |
+| Venture work | see **and edit** ventures | `edit` removed — that is the venture responsibility, already granted inside the venture's own boundary |
+| CRM work | see people **and create** people | `create` removed — that is CRM work |
+| plus | projects, reports, messaging, courses | kept |
+
+**Both READs stay on purpose.** Programme screens read participant records and
+touch venture-producing programmes, so removing the read would break working
+screens; removing the WRITE is what takes away a job belonging to another
+responsibility.
+
+A new **"Program Manager (Portfolio)"** template carries the trimmed set. It is
+**inert**: it is created at boot (additive, changes nobody), and nothing resolves
+to it until the role default is repointed — deliberately, from Templates, after
+reading the impact report. `removals[]` names exactly which capabilities the
+repoint would stop granting and how many people each affects, so the decision is
+made with the numbers in view rather than from a description.
+
+### 12.4 Steps 4–6 (not started)
+
+1. Add the where-it-applies check to programme write routes, with its strictness
+   controlled by a switch in Operations that **defaults to off**. Deploying
+   changes nothing; the report shows who would be affected.
+2. Turn it on in waves — programme content editing, then invitations and
+   enrolment, then groups and targets — staging first, walked as a programme
+   manager, as a staff member, and as someone with no attachment.
+3. Delete the switch once the census reads zero unscoped programme actions.
+
+Two properties are non-negotiable throughout: the rule **fails closed** when the
+relationship cannot be determined, and a programme with **no manager recorded**
+refuses everyone except the portfolio identity — which is exactly why 12.2 must
+be complete before 12.4 starts.
