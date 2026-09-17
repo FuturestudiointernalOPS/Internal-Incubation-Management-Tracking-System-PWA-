@@ -18,6 +18,7 @@ import AppBadge from "@/components/ui/AppBadge";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import PersonPicker from "./PersonPicker";
+import ProgramScopeWaves from "./ProgramScopeWaves";
 import { PERMISSION_BASE } from "./permissionNav";
 
 /**
@@ -88,6 +89,12 @@ const PROGRAM_EDIT_CAPABILITY = "programs.edit";
  *      so the rule cannot be narrowed inside it. `removals` names exactly what a
  *      trimmed portfolio template would stop granting; the trimmed template is
  *      already created and stays inert until the role default is repointed.
+ *
+ *   4. THE ROLLOUT SWITCH (./ProgramScopeWaves)
+ *      The control itself, one domain at a time, with the verdict and the
+ *      partial-coverage warning attached to each one. It lives in its own file
+ *      because a switch, a confirmation and a refusal reason are a different
+ *      kind of thing from a report.
  *
  * Read-only until the administrator records a manager. The report is loaded on
  * demand — never on mount — because it is a portfolio-wide scan.
@@ -543,6 +550,9 @@ export default function ProgramScopePanel() {
               </Link>
             </div>
           </div>
+
+          {/* ── 4. The rollout switch ─────────────────────────────────────── */}
+          <ProgramScopeWaves report={report} onRefresh={load} />
         </div>
       )}
 
