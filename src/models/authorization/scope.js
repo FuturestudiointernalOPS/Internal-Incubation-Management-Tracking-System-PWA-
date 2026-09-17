@@ -80,6 +80,22 @@ export async function resolveScopeIds(policyKey, userCid, { email = null } = {})
         });
         return r.rows.map((x) => String(x.id));
       }
+      case "program_staffed": {
+        // The WRITE side of the same question: staffing only. Enrollment is
+        // deliberately absent — a learner is attached to their program, and
+        // being attached must never authorise changing it.
+        const r = await db.execute({
+          sql: `SELECT DISTINCT CAST(program_id AS TEXT) AS id
+                FROM v2_program_staff
+                WHERE staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(?)
+                UNION
+                SELECT DISTINCT CAST(id AS TEXT) AS id
+                FROM v2_programs
+                WHERE CAST(assigned_pm_id AS TEXT) = ?`,
+          args: [userCid, email || userCid, userCid],
+        });
+        return r.rows.map((x) => String(x.id));
+      }
       case "learning_own": {
         const r = await db.execute({
           sql: `SELECT DISTINCT CAST(course_id AS TEXT) AS id

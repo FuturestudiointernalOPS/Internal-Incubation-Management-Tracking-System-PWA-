@@ -18,6 +18,7 @@
 export const SCOPE_POLICY_KEYS = [
   "venture_own",
   "program_assigned",
+  "program_staffed",
   "learning_own",
   "team_own",
 ];
@@ -41,6 +42,19 @@ export const SCOPE_POLICIES = {
     implemented: true,
     source:
       "v2_program_staff (assignment, email-tolerant) + participant_programs (enrollment)",
+  },
+  // The ATTACHMENT question, not the attendance question. `program_assigned`
+  // includes a learner's ENROLLMENT, which is exactly right for "may this person
+  // see this program's material" and exactly wrong for "may this person change
+  // this program" — being enrolled in a program never authorises editing it.
+  // Writes therefore scope on STAFFING: an assignment row of any kind, or being
+  // the named manager.
+  program_staffed: {
+    key: "program_staffed",
+    resource: "program",
+    implemented: true,
+    source:
+      "v2_program_staff (any assigned role, email-tolerant) + v2_programs.assigned_pm_id (named manager)",
   },
   learning_own: {
     key: "learning_own",
