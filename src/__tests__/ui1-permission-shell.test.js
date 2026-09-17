@@ -46,12 +46,17 @@ describe("UI-5 — navigation model", () => {
     for (const href of hrefs) expect(href.startsWith(PERMISSION_BASE)).toBe(true);
   });
 
-  test("the five places, in the order an admin asks", () => {
+  test("the places, in the order an admin asks", () => {
     expect(PERMISSION_NAV.map((n) => n.key)).toEqual([
       "people",
       "templates",
       "rules",
       "context",
+      // Portfolio-wide jobs: the two consequential operations that used to have
+      // no button anywhere. Its own door because "Where it applies" already
+      // carries its three sub-tasks and the max-3 rule is what keeps a tab
+      // readable.
+      "operations",
       "history",
     ]);
   });

@@ -4,16 +4,24 @@
  * Single source of truth shared by the shell, the route segments and the UI
  * contract tests. No React / Next imports, so it can be unit-tested directly.
  *
- * FIVE places, named as work rather than as machinery, in the order an admin
+ * SIX places, named as work rather than as machinery, in the order an admin
  * actually asks the questions:
  *
  *   1 People            — change what ONE person can do
  *   2 Templates         — change what a WHOLE group gets
  *   3 Rules             — who may even have this, and why can't I grant it
  *   4 Where it applies  — which programs / ventures / courses it covers
- *   5 History           — what changed, who did it, and why
+ *   5 Operations        — run the two portfolio-wide jobs, each behind a confirm
+ *   6 History           — what changed, who did it, and why
  *
- * Rules that keep it readable (locked by __tests__/ui5-layout.test.js):
+ * Operations (UI-8) is the sixth door on purpose: it names the two consequential
+ * actions that used to have no button anywhere — re-deriving capability grants
+ * from contextual relationships, and reading who would LOSE access if the
+ * portfolio-wide defaults were narrowed. It is a door rather than a sub-tab of
+ * "Where it applies" because that tab already carries its three sub-tasks and
+ * the "never more than 3" rule is what keeps a tab readable.
+ *
+ * Rules that keep it readable (locked by __tests__/ui1-permission-shell.test.js):
  *   • never more than 3 sub-tasks under a tab;
  *   • a sub-tab is never named like its own tab;
  *   • every item is a REAL route (deep linkable), the selected sub-tab is
@@ -67,7 +75,15 @@ export const PERMISSION_NAV = [
     ],
   },
   {
-    // Slot 5 — the numbers head the log; both are the same story at two lengths.
+    // Slot 5 — the portfolio-wide jobs. No sub-tabs: the door IS the screen, and
+    // each action states its own consequences before it runs (see
+    // ./SyncContextGrantsPanel and ./ContextGrantReadinessPanel).
+    key: "operations",
+    href: `${PERMISSION_BASE}/operations`,
+    labelKey: "engineering.permissions.navOperations",
+  },
+  {
+    // Slot 6 — the numbers head the log; both are the same story at two lengths.
     key: "history",
     href: `${PERMISSION_BASE}/audit`,
     labelKey: "engineering.permissions.navHistory",
