@@ -120,12 +120,45 @@ export function buildSubmissionResultPdf(data) {
 
   const text = (value) => sanitize(value);
 
+  /**
+   * Draw text wrapped to `width`, line by line, so nothing ever runs past the
+   * right margin — and paginate line by line so nothing is lost off the bottom
+   * either. The font family, size and colour must be set by the caller first:
+   * the wrap is measured against those metrics. `y` ends up past the block.
+   *
+   * With a single line and no `prefix`, the result is identical to drawing the
+   * string directly at `y`, so call sites keep their existing rhythm.
+   */
+  const drawWrapped = ({
+    value,
+    x = M,
+    width = W,
+    lineStep = BODY_STEP,
+    gap = 0,
+    prefix = null,
+    prefixX = M,
+    align = "left",
+  } = {}) => {
+    const lines = doc.splitTextToSize(text(value), width);
+    for (let i = 0; i < lines.length; i += 1) {
+      if (y + lineStep > pageH - M) {
+        doc.addPage();
+        y = M + 8;
+      }
+      if (i === 0 && prefix) doc.text(prefix, prefixX, y);
+      doc.text(lines[i], x, y, { align });
+      y += lineStep;
+    }
+    y += gap;
+    return lines.length;
+  };
+
   // ─── Header (person + date only — no form/run names) ───────────────────────
   doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
   doc.setTextColor(...INK);
-  doc.text(text(L.title), M, y + 6);
-  y += 30;
+  y += 6; // keeps the single-line title exactly where it was
+  drawWrapped({ value: L.title, lineStep: 24 });
 
   const idParts = [];
   if (data.applicantName) idParts.push(`${L.applicant}: ${text(data.applicantName)}`);
@@ -142,8 +175,9 @@ export function buildSubmissionResultPdf(data) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10.5);
     doc.setTextColor(...MUTED);
-    doc.text(idParts.join("   ·   "), M, y);
-    y += 22;
+    // A long applicant name (or both parts) wraps instead of running off.
+    drawWrapped({ value: idParts.join("   ·   "), lineStep: 16 });
+    y += 6;
   } else {
     y += 14;
   }
@@ -166,7 +200,18 @@ export function buildSubmissionResultPdf(data) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
     doc.setTextColor(...INK);
-    doc.text(text(data.ranking), pageW - M - 22, y + 50, { align: "right" });
+    // Wrapped so a long label stays inside the card; the score keeps the left
+    // half of it, so the ranking is confined to the right side and to 3 lines.
+    let rankLines = doc.splitTextToSize(text(data.ranking), W - 190);
+    if (rankLines.length > 3) {
+      rankLines = rankLines.slice(0, 3);
+      rankLines[2] = `${rankLines[2].replace(/\s*\S*$/, "")}...`;
+    }
+    const rankStep = 18;
+    const rankTop = y + 50 - ((rankLines.length - 1) * rankStep) / 2;
+    rankLines.forEach((line, i) => {
+      doc.text(line, pageW - M - 22, rankTop + i * rankStep, { align: "right" });
+    });
   }
   y += cardH + 26;
 
@@ -189,13 +234,11 @@ export function buildSubmissionResultPdf(data) {
     doc.text(text(label), M, y);
     y += 14;
     if (data.outcome.comment) {
-      const lines = doc.splitTextToSize(text(data.outcome.comment), W - 18);
-      ensure(lines.length * BODY_STEP + 10);
+      // Font first: the wrap is measured with the italic metrics it renders in.
       doc.setFont("helvetica", "italic");
       doc.setFontSize(10.5);
       doc.setTextColor(...MUTED);
-      doc.text(lines, M + 16, y);
-      y += lines.length * BODY_STEP + 8;
+      drawWrapped({ value: data.outcome.comment, x: M + 16, width: W - 18, gap: 8 });
     }
     y += 22;
   }
@@ -221,27 +264,31 @@ export function buildSubmissionResultPdf(data) {
 
     for (const dim of data.dimensions) {
       const score = dim.score == null ? null : Number(dim.score);
-      ensure(30);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11.5);
       doc.setTextColor(...INK);
-      doc.text(text(dim.name || "Untitled"), M, y + 4);
-      if (score != null) {
-        const c = scoreColor10(score);
-        doc.setFontSize(11);
-        doc.setTextColor(...c);
-        doc.text(`${score}/10`, pageW - M, y + 4, { align: "right" });
+      // The dimension name wraps; the score stays on the first line, right.
+      const nameLines = doc.splitTextToSize(text(dim.name || "Untitled"), W - 80);
+      for (let i = 0; i < nameLines.length; i += 1) {
+        if (i > 0) y += 16;
+        ensure(22);
+        doc.text(nameLines[i], M, y + 4);
+        if (i === 0 && score != null) {
+          doc.setFontSize(11);
+          doc.setTextColor(...scoreColor10(score));
+          doc.text(`${score}/10`, pageW - M, y + 4, { align: "right" });
+          doc.setFontSize(11.5);
+          doc.setTextColor(...INK);
+        }
       }
       y += 24;
 
       if (dim.feedback) {
-        const lines = doc.splitTextToSize(text(dim.feedback), W);
-        ensure(lines.length * BODY_STEP + 6);
+        // Font first: the wrap is measured with the metrics it renders in.
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
         doc.setTextColor(...MUTED);
-        doc.text(lines, M, y);
-        y += lines.length * BODY_STEP + 10;
+        drawWrapped({ value: dim.feedback, gap: 10 });
       }
 
       const renderBullets = (title, items, color) => {
@@ -257,11 +304,9 @@ export function buildSubmissionResultPdf(data) {
         doc.setFontSize(10);
         doc.setTextColor(...MUTED);
         for (const item of items) {
-          const wrapped = doc.splitTextToSize(text(item), W - 20);
-          ensure(wrapped.length * BODY_STEP + 4);
-          doc.text("•", M, y);
-          doc.text(wrapped, M + 14, y);
-          y += wrapped.length * BODY_STEP + 7;
+          // The bullet follows its text, so a bullet that lands on a new page
+          // still gets its marker.
+          drawWrapped({ value: item, x: M + 14, width: W - 20, gap: 7, prefix: "•" });
         }
         y += 4;
       };
@@ -280,29 +325,31 @@ export function buildSubmissionResultPdf(data) {
     for (const sec of data.sections) {
       if (!sec.items || sec.items.length === 0) continue;
       if (sec.title) {
-        ensure(26);
-        y += 6;
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
         doc.setTextColor(...BRAND_ORANGE);
-        doc.text(text(sec.title).toUpperCase(), M, y);
-        y += 18;
+        ensure(26);
+        y += 6;
+        drawWrapped({ value: text(sec.title).toUpperCase(), lineStep: 18 });
       }
 
       for (const item of sec.items) {
-        ensure(26);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(10.5);
         doc.setTextColor(...INK);
-        doc.text(text(item.label), M, y + 2);
+        // Question labels are often full sentences: wrap them too.
+        const labelLines = doc.splitTextToSize(text(item.label), W);
+        for (let i = 0; i < labelLines.length; i += 1) {
+          if (i > 0) y += 15;
+          ensure(20);
+          doc.text(labelLines[i], M, y + 2);
+        }
         y += 18;
-        const lines = doc.splitTextToSize(text(item.value), W);
-        ensure(lines.length * BODY_STEP + 6);
+
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
         doc.setTextColor(...MUTED);
-        doc.text(lines, M, y);
-        y += lines.length * BODY_STEP + 12;
+        drawWrapped({ value: item.value, gap: 12 });
       }
       y += 12;
     }
