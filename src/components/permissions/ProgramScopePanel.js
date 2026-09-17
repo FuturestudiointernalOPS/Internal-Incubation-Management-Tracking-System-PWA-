@@ -18,7 +18,7 @@ import AppBadge from "@/components/ui/AppBadge";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import PersonPicker from "./PersonPicker";
-import ProgramScopeWaves from "./ProgramScopeWaves";
+import ProgramScopeCoverage from "./ProgramScopeCoverage";
 import ProgramPortfolioDefaultAction from "./ProgramPortfolioDefaultAction";
 import { PERMISSION_BASE } from "./permissionNav";
 
@@ -94,11 +94,11 @@ const PROGRAM_EDIT_CAPABILITY = "programs.edit";
  *      block (./ProgramPortfolioDefaultAction): it reads what would be removed
  *      before it writes, and states what it removed after it wrote.
  *
- *   4. THE ROLLOUT SWITCH (./ProgramScopeWaves)
- *      The control itself, one domain at a time, with the verdict and the
- *      partial-coverage warning attached to each one. It lives in its own file
- *      because a switch, a confirmation and a refusal reason are a different
- *      kind of thing from a report.
+ *   4. COVERAGE (./ProgramScopeCoverage)
+ *      Where the rule does NOT reach. There is no switch to render: the rule is
+ *      enforced on every wired write surface, unconditionally, so the only
+ *      honest state left to publish is which surfaces still bypass it — and that
+ *      is stated prominently, never as a footnote.
  *
  * Read-only until the administrator records a manager. The report is loaded on
  * demand — never on mount — because it is a portfolio-wide scan.
@@ -558,8 +558,8 @@ export default function ProgramScopePanel() {
             <ProgramPortfolioDefaultAction onRefresh={load} />
           </div>
 
-          {/* ── 4. The rollout switch ─────────────────────────────────────── */}
-          <ProgramScopeWaves report={report} onRefresh={load} />
+          {/* ── 4. Coverage — where the rule does not reach ───────────────── */}
+          <ProgramScopeCoverage report={report} />
         </div>
       )}
 

@@ -1,14 +1,17 @@
 /**
  * PROGRAM SCOPED ACCESS — the record-scope layer for program writes.
  *
- * The property that matters most here is the FIRST test: while a wave is off the
- * guard is a no-op, so shipping it changes nothing. Everything else is the
- * behaviour that appears only once an administrator switches a wave on.
+ * The rule is enforced UNCONDITIONALLY: there is no rollout switch, because a
+ * rule that only applies when somebody remembers to enable it does not protect
+ * anything. What is locked here:
  *
- * Also locked: a missing program id is a DENIAL (an action that cannot be
- * attributed to a program cannot be scope-checked), enrollment never confers
- * scope for a write (the policy is "staffed", not "assigned"), and an
- * infrastructure failure is a 500 rather than a silent allow.
+ *   - the enforcement applies on every call (no gate to be off by accident);
+ *   - a missing program id is a DENIAL (an action that cannot be attributed to a
+ *     program cannot be scope-checked);
+ *   - enrollment never confers scope for a write (the rule is "staffed", not
+ *     "assigned");
+ *   - Super Admin is unscoped, and an infrastructure failure is a 500 rather
+ *     than a silent allow.
  */
 
 jest.mock("@/lib/auth", () => ({
@@ -24,14 +27,9 @@ jest.mock("@/lib/authorization/scope", () => ({
   isWithinScope: jest.fn(async () => true),
 }));
 
-jest.mock("@/models/authorization/programScopeStrictness", () => ({
-  isWaveStrict: jest.fn(async () => false),
-}));
-
 const { getSession } = require("@/lib/auth");
 const { getAuthorizationContext, requireAuthorization } = require("@/lib/authorization");
 const { isWithinScope } = require("@/lib/authorization/scope");
-const { isWaveStrict } = require("@/models/authorization/programScopeStrictness");
 const {
   requireProgramScope,
   requireProgramScopeForAll,
@@ -45,28 +43,33 @@ beforeEach(() => {
   getAuthorizationContext.mockResolvedValue({ isSuperAdmin: false });
   requireAuthorization.mockResolvedValue(null);
   isWithinScope.mockResolvedValue(true);
-  isWaveStrict.mockResolvedValue(false);
 });
 
-describe("the rollout switch — off is a no-op", () => {
-  test("a wave that is OFF allows the request without consulting anything", async () => {
+describe("enforcement is unconditional", () => {
+  test("the scope of the program is consulted on every call", async () => {
     const res = await requireProgramScope({ programId: "P1", wave: "content" });
 
     expect(res).toBeNull();
-    // Not even the session is read: shipping the guard must change nothing.
-    expect(getSession).not.toHaveBeenCalled();
-    expect(isWithinScope).not.toHaveBeenCalled();
+    // No switch, no cache of "is it on": the assignment data is read.
+    expect(isWithinScope).toHaveBeenCalledWith(
+      "program_staffed",
+      "USR_PM",
+      "P1",
+      { email: "pm@x.test" },
+    );
   });
 
-  test("an unknown wave is never strict", async () => {
-    isWaveStrict.mockResolvedValue(false);
-    expect(await requireProgramScope({ programId: "P1", wave: "nope" })).toBeNull();
+  test("an unknown wave name is harmless — it only labels the denial", async () => {
+    isWithinScope.mockResolvedValueOnce(false);
+    const res = await requireProgramScope({ programId: "P1", wave: "nope" });
+    const body = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(body.missing.wave).toBe("nope");
   });
 });
 
-describe("a wave that is ON", () => {
-  beforeEach(() => isWaveStrict.mockResolvedValue(true));
-
+describe("denials", () => {
   test("an unauthenticated caller is refused", async () => {
     getSession.mockResolvedValueOnce(null);
     const res = await requireProgramScope({ programId: "P1", wave: "content" });
@@ -88,12 +91,6 @@ describe("a wave that is ON", () => {
     const res = await requireProgramScope({ programId: "P1", wave: "content" });
 
     expect(res).toBeNull();
-    expect(isWithinScope).toHaveBeenCalledWith(
-      "program_staffed",
-      "USR_PM",
-      "P1",
-      { email: "pm@x.test" },
-    );
   });
 
   test("NOT staffed on the program → refused, and the missing scope is named", async () => {
@@ -103,7 +100,7 @@ describe("a wave that is ON", () => {
 
     expect(res.status).toBe(403);
     expect(decision(res)).toBe("out-of-scope");
-    expect(body.missing).toEqual({ scope: "program_staffed" });
+    expect(body.missing).toEqual({ scope: "program_staffed", wave: "content" });
   });
 
   test("a missing program id is a denial, never a pass", async () => {
@@ -143,7 +140,6 @@ describe("a wave that is ON", () => {
 });
 
 describe("bulk actions — every id must be in scope", () => {
-  beforeEach(() => isWaveStrict.mockResolvedValue(true));
 
   test("all ids in scope → allowed", async () => {
     isWithinScope.mockResolvedValue(true);
@@ -186,13 +182,13 @@ describe("bulk actions — every id must be in scope", () => {
     expect(res).toBeNull();
   });
 
-  test("the switch being off still short-circuits a bulk call", async () => {
-    isWaveStrict.mockResolvedValue(false);
+  test("an unauthenticated bulk call is refused before any scope lookup", async () => {
+    getSession.mockResolvedValueOnce(null);
     const res = await requireProgramScopeForAll({
       programIds: ["P1", "P2"],
       wave: "enrollment",
     });
-    expect(res).toBeNull();
+    expect(res.status).toBe(401);
     expect(isWithinScope).not.toHaveBeenCalled();
   });
 });

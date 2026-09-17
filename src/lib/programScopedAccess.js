@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getAuthorizationContext, requireAuthorization } from "@/lib/authorization";
 import { isWithinScope } from "@/lib/authorization/scope";
-import { isWaveStrict } from "@/models/authorization/programScopeStrictness";
 
 /**
  * PROGRAM SCOPED ACCESS — the record-scope layer for program WRITES.
@@ -12,7 +11,6 @@ import { isWaveStrict } from "@/models/authorization/programScopeStrictness";
  * is NOT repeated here unless a capability is passed — this guard adds the
  * WHERE, not the WHAT.
  *
- *     wave OFF          → allow, unchanged (the rollout switch, default)
  *     Super Admin       → allow (resolver semantics: unscoped authority)
  *     capability (opt.) → the resolver decides
  *     program_staffed   → the program must be one they are STAFFED on
@@ -22,22 +20,31 @@ import { isWaveStrict } from "@/models/authorization/programScopeStrictness";
  * learner's enrollment, which is right for reading a program and wrong for
  * changing it. Being enrolled never authorises editing.
  *
- * WHY A SWITCH AT ALL: enforcing this is a REMOVAL — every holder of the program
- * capability reaches every program today. The switch makes the change a decision
- * with a date, reversible in one click, and per domain so a mis-measured wave
- * can be turned back off alone. It defaults OFF, and it fails SAFE on a read
- * error (see programScopeStrictness.js) because "off" is what the system did
- * before the mechanism existed.
+ * ENFORCED UNCONDITIONALLY. There is deliberately no rollout switch: a rule that
+ * only applies when somebody remembers to enable it does not protect anything,
+ * and the switch this replaced made "read the report first" the only thing
+ * standing between measurement and action — which is not a control at all.
+ *
+ * WHAT THAT MEANS OPERATIONALLY, stated plainly because it is a real consequence:
+ * a program whose manager nobody recorded can never be matched by this rule, so
+ * only Super Admin can write to it until a manager is assigned. That is what the
+ * readiness report's unmanaged worklist is for, and why the repair action is
+ * reachable with the permission-console authority as well as from inside the
+ * program (see api/pm/programs/[id]/manager).
+ *
+ * `wave` does not gate anything — it names the domain being protected so a
+ * denial says WHICH rule refused, and so the census can hold each write surface to
+ * a domain.
  *
  * Denials are explicit and diagnosable, mirroring the venture gate:
  *
  *   403  X-Authz-Decision: out-of-scope | capability-missing | unresolvable
  *        { success: false, error: "errors.insufficientPermissions",
- *          missing: { scope: "program_staffed", capability? } }
+ *          missing: { scope: "program_staffed", wave, capability? } }
  *
- * A MISSING program id is a DENIAL when the wave is on, never a pass: an action
- * that cannot be attributed to a program cannot be scope-checked, and guessing
- * would be the one outcome worse than refusing.
+ * A MISSING program id is a DENIAL, never a pass: an action that cannot be
+ * attributed to a program cannot be scope-checked, and guessing would be the one
+ * outcome worse than refusing.
  *
  * Returns null on allow (drop-in for the other guards) or a NextResponse.
  */
@@ -55,10 +62,6 @@ export async function requireProgramScope({
   };
 
   try {
-    // The rollout switch, first: when the wave is off this guard is a no-op and
-    // every caller keeps the behaviour it had before the mechanism existed.
-    if (!(await isWaveStrict(wave))) return null;
-
     const session = await getSession();
     if (!session) {
       return denied(
@@ -81,7 +84,11 @@ export async function requireProgramScope({
           {
             success: false,
             error: "errors.insufficientPermissions",
-            missing: { capability: `${module}.${capability}`, scope: "program_staffed" },
+            missing: {
+              capability: `${module}.${capability}`,
+              scope: "program_staffed",
+              wave,
+            },
           },
           403,
           "capability-missing",
@@ -94,7 +101,7 @@ export async function requireProgramScope({
         {
           success: false,
           error: "errors.insufficientPermissions",
-          missing: { scope: "program_staffed", reason: "program-unresolvable" },
+          missing: { scope: "program_staffed", wave, reason: "program-unresolvable" },
         },
         403,
         "unresolvable",
@@ -109,7 +116,7 @@ export async function requireProgramScope({
         {
           success: false,
           error: "errors.insufficientPermissions",
-          missing: { scope: "program_staffed" },
+          missing: { scope: "program_staffed", wave },
         },
         403,
         "out-of-scope",

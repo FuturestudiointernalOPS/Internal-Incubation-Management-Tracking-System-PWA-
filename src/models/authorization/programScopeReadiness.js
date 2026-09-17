@@ -36,8 +36,7 @@ import { isProgramEnded } from "./programAssignments";
 import {
   PROGRAM_SCOPE_WAVES,
   PROGRAM_SCOPE_WAVE_INFO,
-  getProgramScopeWaves,
-} from "./programScopeStrictness";
+} from "./programScopeWaves";
 
 /** A runaway programme table must not turn this report into an unbounded scan. */
 const MAX_PROGRAMS = 500;
@@ -293,39 +292,21 @@ export async function buildProgramScopeReadiness() {
     holders: holderRows.filter((h) => h.profileId === String(t.id)).length,
   }));
 
-  // The switch state and, per wave, whether it is SAFE to turn on yet. The rule
-  // is only safe when nobody is left without a program AND every running program
-  // can be matched — the two findings above are exactly its two failure modes.
-  const strictness = await getProgramScopeWaves();
-  const blockers = {
-    unmanaged: unmanaged.length,
-    losesEverything: holderRows.filter((h) => h.losesEverything).length,
-  };
-  const waveSafety = PROGRAM_SCOPE_WAVES.map((wave) => {
+  // COVERAGE — which write domains are fully protected and which are not. There
+  // is no switch to report: the rule is enforced unconditionally, so the only
+  // honest state to publish is where it does NOT reach.
+  const coverage = PROGRAM_SCOPE_WAVES.map((wave) => {
     const info = PROGRAM_SCOPE_WAVE_INFO[wave];
     return {
       wave,
       label: info.label,
       covers: info.covers,
-      enabled: strictness[wave] === true,
-      safe: blockers.unmanaged === 0 && blockers.losesEverything === 0,
-      blockers,
       partial: info.partial === true,
-      // The inverse of `partial`, named positively so the cutover criterion below
-      // reads as what it is: full coverage of that domain.
       covered: info.partial !== true,
       exempt: info.exempt || [],
     };
   });
-
-  // WHEN THE SWITCH CAN BE DELETED. Two conditions, both necessary: every wave is
-  // switched ON (the enforcement is the norm, not an experiment) and no wave is
-  // PARTIAL (no write surface still bypasses it). Reporting this as a boolean is
-  // what turns step 6 from a judgement call into a check.
-  const allWavesOn = PROGRAM_SCOPE_WAVES.every((w) => strictness[w] === true);
-  const anyPartial = PROGRAM_SCOPE_WAVES.some(
-    (w) => PROGRAM_SCOPE_WAVE_INFO[w].partial === true,
-  );
+  const exemptSurfaces = coverage.flatMap((c) => c.exempt);
 
   return {
     success: true,
@@ -335,22 +316,21 @@ export async function buildProgramScopeReadiness() {
       .sort((a, b) => a.keptCount - b.keptCount || String(a.name).localeCompare(String(b.name))),
     portfolioTemplates,
     removals,
-    strictness,
-    waveSafety,
+    coverage,
     summary: {
       runningPrograms: running.length,
       unmanaged: unmanaged.length,
       portfolioTemplates: portfolioTemplates.length,
       holders: holderRows.length,
-      // The number that decides whether the rule can be switched on: people who
-      // would be left with NO programme at all.
+      // People who hold program EDITING but are staffed on no running program:
+      // with the rule enforced they can still SEE the catalog, but every write is
+      // refused until somebody attaches them. This is the number to review before
+      // and after a deploy, not a gate on one.
       losesEverything: holderRows.filter((h) => h.losesEverything).length,
       keptSome: holderRows.filter((h) => !h.losesEverything).length,
-      safeToEnable: blockers.unmanaged === 0 && blockers.losesEverything === 0,
-      wavesEnabled: PROGRAM_SCOPE_WAVES.filter((w) => strictness[w] === true).length,
-      allWavesOn,
-      anyPartial,
-      readyToRemoveSwitch: allWavesOn && !anyPartial,
+      partialWaves: coverage.filter((c) => c.partial).length,
+      coveredWaves: coverage.filter((c) => c.covered).length,
+      exemptSurfaces: exemptSurfaces.length,
     },
   };
 }

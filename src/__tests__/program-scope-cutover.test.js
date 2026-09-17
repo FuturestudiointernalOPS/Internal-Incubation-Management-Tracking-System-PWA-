@@ -1,18 +1,25 @@
 /**
- * PROGRAM SCOPE CUTOVER — the switch guard and the template-split action.
+ * THE TEMPLATE SPLIT — a deliberate, audited, reversible action.
  *
- * Two promises that finish steps 3-6:
+ * Creating the trimmed portfolio template changes nobody. Pointing the
+ * programme-manager role default AT it is what removes `ventures.edit` and
+ * `contacts.create` from everyone who resolves through their identity — a job
+ * that belongs to the venture and CRM responsibilities. So it must be an action
+ * somebody takes on purpose, with the impact in front of them, and it must say
+ * what it removed rather than only that it succeeded.
  *
- *   1. TURNING A WAVE ON IS BLOCKED WHILE IT IS UNSAFE. The readiness report
- *      computes the rule's two failure modes (programmes nobody manages, people
- *      left with no programme). The switch refuses while either is non-zero and
- *      returns the blockers — so "read the report first" is enforced rather than
- *      hoped for. It is not a lock: an explicit override proceeds and is audited.
- *      Turning a wave OFF is never blocked.
+ * Locked here:
+ *   - reading the impact writes nothing;
+ *   - the write needs the capability-assignment authority;
+ *   - a default an administrator set by hand is REFUSED, not overwritten;
+ *   - success reports what was taken away and how many people it affected;
+ *   - the change is audited with both templates;
+ *   - re-running it is a no-op that reports why.
  *
- *   2. THE TEMPLATE SPLIT IS A DELIBERATE, AUDITED ACTION that refuses to
- *      overwrite a default an administrator chose, and reports what it took
- *      away rather than only that it succeeded.
+ * (The rollout switch this file used to cover is gone: the program scope rule is
+ * enforced unconditionally, so there is no switch to test. Coverage is held to
+ * account by program-scope-coverage.test.js and the guard by
+ * program-scoped-access.test.js.)
  */
 
 jest.mock("@/lib/authorization", () => ({
@@ -24,30 +31,18 @@ jest.mock("@/lib/auth", () => ({
   logPermissionAudit: jest.fn(async () => true),
 }));
 
-jest.mock("@/models/authorization/programScopeStrictness", () => ({
-  PROGRAM_SCOPE_WAVES: ["content", "enrollment", "groups"],
-  getProgramScopeWaves: jest.fn(async () => ({
-    content: false,
-    enrollment: false,
-    groups: false,
-  })),
-  setProgramScopeWave: jest.fn(async (wave, enabled) => ({
-    success: true,
-    waves: { content: wave === "content" ? enabled : false, enrollment: false, groups: false },
-  })),
-}));
-
 jest.mock("@/models/authorization/programScopeReadiness", () => ({
   buildProgramScopeReadiness: jest.fn(async () => ({
     success: true,
-    unmanaged: [{ id: "P1", name: "Cohort 1", status: "Active", endDate: null }],
+    unmanaged: [],
     holders: [],
     removals: [
       { module: "ventures", capability: "edit", profile: "Program Manager", why: "x", holders: 4 },
       { module: "contacts", capability: "create", profile: "Program Manager", why: "y", holders: 4 },
     ],
     portfolioTemplates: [],
-    summary: { unmanaged: 3, losesEverything: 2, holders: 4 },
+    coverage: [],
+    summary: { unmanaged: 0, losesEverything: 0, holders: 4 },
   })),
 }));
 
@@ -63,58 +58,19 @@ jest.mock("@/models/authorization/programAssignmentBackfill", () => ({
 const { requireAuthorization } = require("@/lib/authorization");
 const { logPermissionAudit } = require("@/lib/auth");
 const {
-  getProgramScopeWaves,
-  setProgramScopeWave,
-} = require("@/models/authorization/programScopeStrictness");
-const {
   buildProgramScopeReadiness,
 } = require("@/models/authorization/programScopeReadiness");
 const {
   repointProgramManagerDefaultToPortfolio,
 } = require("@/models/authorization/programAssignmentBackfill");
 
-const strictnessRoute = require("@/app/api/engineering/permissions/program-scope-strictness/route");
 const portfolioRoute = require("@/app/api/engineering/permissions/program-portfolio-default/route");
 
 const denied = () => new Response("{}", { status: 403 });
-const put = (body) =>
-  new Request("http://localhost/api/x", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body ?? {}),
-  });
-
-/** A readiness payload whose two blockers are both zero (safe to enable). */
-function safeReadiness() {
-  buildProgramScopeReadiness.mockResolvedValueOnce({
-    success: true,
-    unmanaged: [],
-    holders: [],
-    removals: [],
-    portfolioTemplates: [],
-    summary: { unmanaged: 0, losesEverything: 0, holders: 0 },
-  });
-}
 
 beforeEach(() => {
   jest.clearAllMocks();
   requireAuthorization.mockResolvedValue(null);
-  getProgramScopeWaves.mockResolvedValue({ content: false, enrollment: false, groups: false });
-  setProgramScopeWave.mockImplementation(async (wave, enabled) => ({
-    success: true,
-    waves: { content: wave === "content" ? enabled : false, enrollment: false, groups: false },
-  }));
-  buildProgramScopeReadiness.mockResolvedValue({
-    success: true,
-    unmanaged: [{ id: "P1", name: "Cohort 1", status: "Active", endDate: null }],
-    holders: [],
-    removals: [
-      { module: "ventures", capability: "edit", profile: "Program Manager", why: "x", holders: 4 },
-      { module: "contacts", capability: "create", profile: "Program Manager", why: "y", holders: 4 },
-    ],
-    portfolioTemplates: [],
-    summary: { unmanaged: 3, losesEverything: 2, holders: 4 },
-  });
   repointProgramManagerDefaultToPortfolio.mockResolvedValue({
     success: true,
     changed: true,
@@ -123,103 +79,21 @@ beforeEach(() => {
   });
 });
 
-describe("the rollout switch — validation and authority", () => {
-  test("reading the switch state requires the matrix read", async () => {
-    await strictnessRoute.GET();
-    expect(requireAuthorization).toHaveBeenCalledWith("permissions", "view_matrix");
-  });
-
-  test("writing the switch requires the capability assignment authority", async () => {
-    await strictnessRoute.PUT(put({ wave: "content", enabled: true }));
-    expect(requireAuthorization).toHaveBeenCalledWith("permissions", "assign_capabilities");
-  });
-
-  test("a denial writes nothing", async () => {
-    requireAuthorization.mockResolvedValueOnce(denied());
-    const res = await strictnessRoute.PUT(put({ wave: "content", enabled: true }));
-
-    expect(res.status).toBe(403);
-    expect(setProgramScopeWave).not.toHaveBeenCalled();
-  });
-
-  test("an unknown wave or a non-boolean is a 400 with no write", async () => {
-    expect((await strictnessRoute.PUT(put({ wave: "nope", enabled: true }))).status).toBe(400);
-    expect((await strictnessRoute.PUT(put({ wave: "content", enabled: "yes" }))).status).toBe(400);
-    expect(setProgramScopeWave).not.toHaveBeenCalled();
-  });
-});
-
-describe("the switch refuses to remove access while it is unsafe", () => {
-  test("enabling is REFUSED (409) while blockers remain, and names them", async () => {
-    const res = await strictnessRoute.PUT(put({ wave: "content", enabled: true }));
-    const body = await res.json();
-
-    expect(res.status).toBe(409);
-    expect(body.reason).toBe("not-safe-to-enable");
-    expect(body.blockers).toEqual({ unmanaged: 3, losesEverything: 2 });
-    // The worklist travels with the refusal so the caller can render it.
-    expect(body.unmanaged).toHaveLength(1);
-    expect(setProgramScopeWave).not.toHaveBeenCalled();
-  });
-
-  test("an explicit override proceeds", async () => {
-    const res = await strictnessRoute.PUT(
-      put({ wave: "content", enabled: true, override: true }),
-    );
-
-    expect(res.status).toBe(200);
-    expect(setProgramScopeWave).toHaveBeenCalledWith("content", true);
-    // ...and the override is on the record.
-    expect(logPermissionAudit).toHaveBeenCalledWith(
-      expect.objectContaining({ details: expect.stringContaining("safety override") }),
-    );
-  });
-
-  test("TURNING OFF is never blocked", async () => {
-    getProgramScopeWaves.mockResolvedValueOnce({ content: true, enrollment: false, groups: false });
-    const res = await strictnessRoute.PUT(put({ wave: "content", enabled: false }));
-
-    expect(res.status).toBe(200);
-    expect(setProgramScopeWave).toHaveBeenCalledWith("content", false);
-    // The blockers were not even computed: this direction restores access.
-    expect(buildProgramScopeReadiness).not.toHaveBeenCalled();
-  });
-
-  test("a safe wave enables without an override", async () => {
-    safeReadiness();
-    const res = await strictnessRoute.PUT(put({ wave: "content", enabled: true }));
-
-    expect(res.status).toBe(200);
-    expect(setProgramScopeWave).toHaveBeenCalledWith("content", true);
-  });
-
-  test("the change is audited with both sides", async () => {
-    safeReadiness();
-    await strictnessRoute.PUT(put({ wave: "content", enabled: true }));
-
-    expect(logPermissionAudit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: "program_scope_changed",
-        previousValue: "false",
-        newValue: "true",
-        targetName: "program scope: content",
-      }),
-    );
-  });
-});
-
-describe("the template split — a deliberate, reversible action", () => {
-  test("reading the impact changes nothing", async () => {
+describe("reading the impact", () => {
+  test("the read requires the matrix read capability and changes nothing", async () => {
     const res = await portfolioRoute.GET();
     const body = await res.json();
 
+    expect(requireAuthorization).toHaveBeenCalledWith("permissions", "view_matrix");
     expect(res.status).toBe(200);
     expect(body.impact.peopleAffected).toBe(4);
     expect(body.impact.removals).toHaveLength(2);
     expect(repointProgramManagerDefaultToPortfolio).not.toHaveBeenCalled();
   });
+});
 
-  test("the write requires the capability assignment authority", async () => {
+describe("the write", () => {
+  test("requires the capability assignment authority", async () => {
     await portfolioRoute.PUT();
     expect(requireAuthorization).toHaveBeenCalledWith("permissions", "assign_capabilities");
   });
@@ -230,7 +104,7 @@ describe("the template split — a deliberate, reversible action", () => {
     expect(repointProgramManagerDefaultToPortfolio).not.toHaveBeenCalled();
   });
 
-  test("a customized default is refused, with the current profile reported", async () => {
+  test("a hand-set default is REFUSED, with the current profile reported", async () => {
     repointProgramManagerDefaultToPortfolio.mockResolvedValueOnce({
       success: false,
       changed: false,
@@ -283,5 +157,10 @@ describe("the template split — a deliberate, reversible action", () => {
     expect(body.reason).toBe("already-repointed");
     // Nothing changed, so nothing is claimed in the audit trail.
     expect(logPermissionAudit).not.toHaveBeenCalled();
+  });
+
+  test("the impact is read BEFORE the write, so the report describes the effect", async () => {
+    await portfolioRoute.PUT();
+    expect(buildProgramScopeReadiness).toHaveBeenCalledTimes(1);
   });
 });

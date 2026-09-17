@@ -17,11 +17,15 @@ jest.mock("@/lib/db", () => ({
 }));
 
 jest.mock("@/lib/auth", () => ({
-  getSession: jest.fn(async () => ({ cid: "USR_ACTOR", role: "super_admin" })),
+  getSession: jest.fn(async () => ({ cid: "USR_ACTOR", role: "staff" })),
 }));
 
 jest.mock("@/lib/authorization", () => ({
   requireAuthorization: jest.fn(async () => null),
+}));
+
+jest.mock("@/lib/authorization/scope", () => ({
+  isWithinScope: jest.fn(async () => true),
 }));
 
 jest.mock("@/models/programs", () => ({
@@ -38,6 +42,7 @@ jest.mock("@/models/authorization/contextGrants", () => ({
 }));
 
 const { requireAuthorization } = require("@/lib/authorization");
+const { isWithinScope } = require("@/lib/authorization/scope");
 const { getProgramManager, setProgramManager } = require("@/models/programs");
 const { getContactNameAndRole } = require("@/models/authorization");
 const { syncContextGrantsForUser } = require("@/models/authorization/contextGrants");
@@ -57,12 +62,14 @@ const ctx = (id = "P1") => ({ params: Promise.resolve({ id }) });
 beforeEach(() => {
   jest.clearAllMocks();
   requireAuthorization.mockResolvedValue(null);
+  isWithinScope.mockResolvedValue(true);
   getContactNameAndRole.mockResolvedValue({ rows: [{ name: "New PM", role: "staff" }] });
   syncContextGrantsForUser.mockResolvedValue({ applied: [], revoked: [] });
 });
 
 describe("authorization", () => {
   test("requires programs.edit — changing who runs a program is a program write", async () => {
+
     getProgramManager.mockResolvedValue({
       rows: [{ id: "P1", name: "Cohort 1", assigned_pm_id: null }],
     });
@@ -193,5 +200,85 @@ describe("recording the relationship", () => {
     expect(res.status).toBe(200);
     expect(setProgramManager).toHaveBeenCalledWith("P1", "USR_NEW");
     expect(body.reconciled).toEqual([]);
+  });
+});
+
+/**
+ * THE REPAIR PATH MUST NOT DEADLOCK.
+ *
+ * The scope rule matches a person to a program through the manager
+ * relationship, so a program with NO manager recorded cannot be matched — by
+ * definition nobody is staffed on it. If this route were scoped, the one action
+ * that repairs such a program would be refused by the rule it is repairing.
+ *
+ * Two ways in, therefore: staffed on the program (the ordinary case), or holding
+ * the authority to configure access — which is what changing a manager IS, since
+ * it decides who receives the assignment-derived grants. A staff member with only
+ * programs.edit still cannot touch a program they are not staffed on.
+ */
+describe("the repair path has two ways in", () => {
+  test("staffed on the program → allowed without the console authority", async () => {
+    isWithinScope.mockResolvedValueOnce(true);
+    getProgramManager.mockResolvedValue({
+      rows: [{ id: "P1", name: "Cohort 1", assigned_pm_id: null }],
+    });
+
+    const res = await PUT(req({ manager_cid: "USR_NEW" }), ctx());
+
+    expect(res.status).toBe(200);
+    expect(isWithinScope).toHaveBeenCalledWith(
+      "program_staffed",
+      "USR_ACTOR",
+      "P1",
+      expect.anything(),
+    );
+    // The console authority is never consulted when they are staffed.
+    expect(requireAuthorization).not.toHaveBeenCalledWith(
+      "permissions",
+      "assign_capabilities",
+    );
+  });
+
+  test("NOT staffed but holding the console authority → allowed (the unmanaged program)", async () => {
+    isWithinScope.mockResolvedValueOnce(false);
+    requireAuthorization.mockResolvedValue(null); // both capabilities held
+    getProgramManager.mockResolvedValue({
+      rows: [{ id: "P1", name: "Cohort 1", assigned_pm_id: null }],
+    });
+
+    const res = await PUT(req({ manager_cid: "USR_NEW" }), ctx());
+
+    expect(res.status).toBe(200);
+    expect(requireAuthorization).toHaveBeenCalledWith(
+      "permissions",
+      "assign_capabilities",
+    );
+    expect(setProgramManager).toHaveBeenCalledWith("P1", "USR_NEW");
+  });
+
+  test("NOT staffed and without the console authority → refused, nothing recorded", async () => {
+    isWithinScope.mockResolvedValueOnce(false);
+    requireAuthorization.mockImplementation(async (module) =>
+      module === "permissions" ? new Response("{}", { status: 403 }) : null,
+    );
+
+    const res = await PUT(req({ manager_cid: "USR_NEW" }), ctx());
+
+    expect(res.status).toBe(403);
+    expect(setProgramManager).not.toHaveBeenCalled();
+    expect(getProgramManager).not.toHaveBeenCalled();
+  });
+
+  test("Super Admin skips the scope check entirely", async () => {
+    const { getSession } = require("@/lib/auth");
+    getSession.mockResolvedValue({ cid: "USR_SA", role: "super_admin" });
+    getProgramManager.mockResolvedValue({
+      rows: [{ id: "P1", name: "Cohort 1", assigned_pm_id: null }],
+    });
+
+    const res = await PUT(req({ manager_cid: "USR_NEW" }), ctx());
+
+    expect(res.status).toBe(200);
+    expect(isWithinScope).not.toHaveBeenCalled();
   });
 });

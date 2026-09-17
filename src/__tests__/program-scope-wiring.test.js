@@ -6,13 +6,13 @@
  * the write. This drives the actual handlers so the wiring is proven, in both
  * directions and for both shapes of route:
  *
- *   - a programme id taken straight from the body (KPI create)
- *   - a programme id LOOKED UP from the record first (KPI delete, which receives
+ *   - a program id taken straight from the body (KPI create)
+ *   - a program id LOOKED UP from the record first (KPI delete, which receives
  *     only a KPI id)
  *
- * And the property that makes the whole thing shippable is asserted first:
- * with the wave OFF the handler behaves exactly as it did before, so the
- * enforcement cannot go live by accident.
+ * There is no switch any more, so the enforcement is always on: the first test
+ * asserts that the scope data is consulted on an ordinary write, which is exactly
+ * what a route that forgot to wire the guard would fail.
  */
 
 jest.mock("@/lib/db", () => ({
@@ -39,10 +39,6 @@ jest.mock("@/lib/authorization/scope", () => ({
   isWithinScope: jest.fn(async () => true),
 }));
 
-jest.mock("@/models/authorization/programScopeStrictness", () => ({
-  isWaveStrict: jest.fn(async () => false),
-}));
-
 jest.mock("@/models/platformConfig", () => ({
   insertKpi: jest.fn(async () => ({ rows: [{ id: 1 }] })),
   updateKpi: jest.fn(async () => ({ rows: [] })),
@@ -51,7 +47,6 @@ jest.mock("@/models/platformConfig", () => ({
 }));
 
 const { isWithinScope } = require("@/lib/authorization/scope");
-const { isWaveStrict } = require("@/models/authorization/programScopeStrictness");
 const { insertKpi, deleteKpi, getV2KpiProgramId } = require("@/models/platformConfig");
 const kpis = require("@/app/api/kpis/route");
 
@@ -70,31 +65,35 @@ const del = (body) =>
 
 beforeEach(() => {
   jest.clearAllMocks();
-  isWaveStrict.mockResolvedValue(false);
   isWithinScope.mockResolvedValue(true);
   getV2KpiProgramId.mockResolvedValue({ rows: [{ program_id: "P1" }] });
 });
 
-describe("with the wave OFF the route is unchanged", () => {
-  test("creating a KPI writes, exactly as before the guard existed", async () => {
+describe("the wiring is live — the rule runs on every write", () => {
+  test("creating a KPI consults the assignment data before writing", async () => {
     const res = await kpis.POST(post({ program_id: "P1", title: "Reach", target_value: 10 }));
 
     expect(res.status).toBe(200);
+    expect(isWithinScope).toHaveBeenCalledWith(
+      "program_staffed",
+      "USR_STAFF",
+      "P1",
+      { email: "s@x.test" },
+    );
     expect(insertKpi).toHaveBeenCalledWith("P1", "Reach", 10);
-    // Scope is not even consulted while the wave is off.
-    expect(isWithinScope).not.toHaveBeenCalled();
   });
 
-  test("deleting a KPI writes", async () => {
+  test("deleting a KPI resolves the owning program and checks it", async () => {
     const res = await kpis.DELETE(del({ id: 7 }));
 
     expect(res.status).toBe(200);
+    expect(getV2KpiProgramId).toHaveBeenCalledWith(7);
+    expect(isWithinScope).toHaveBeenCalled();
     expect(deleteKpi).toHaveBeenCalledWith(7);
   });
 });
 
-describe("with the wave ON the route is scoped", () => {
-  beforeEach(() => isWaveStrict.mockResolvedValue(true));
+describe("a write outside your programs is refused", () => {
 
   test("creating a KPI in a programme you are not staffed on is refused, and nothing is written", async () => {
     isWithinScope.mockResolvedValueOnce(false);
@@ -103,7 +102,9 @@ describe("with the wave ON the route is scoped", () => {
 
     expect(res.status).toBe(403);
     expect(res.headers.get("X-Authz-Decision")).toBe("out-of-scope");
-    expect(body.missing).toEqual({ scope: "program_staffed" });
+    // The denial names the rule AND the domain that refused, so a 403 is
+    // diagnosable without reading the code.
+    expect(body.missing).toEqual({ scope: "program_staffed", wave: "groups" });
     expect(insertKpi).not.toHaveBeenCalled();
   });
 

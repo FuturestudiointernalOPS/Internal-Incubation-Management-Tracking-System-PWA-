@@ -1,25 +1,22 @@
 /**
  * PROGRAM SCOPE COVERAGE CENSUS
  *
- * The census that step 6 ("delete the switch") needs: which program WRITE
- * surfaces actually consult the record-scope guard, wave by wave, and which are
- * deliberately exempt with a reason.
+ * The census of which program WRITE surfaces consult the record-scope rule, per
+ * domain, and which are deliberately exempt with a reason.
  *
- * Two failure modes this locks:
+ * The rule is enforced UNCONDITIONALLY — there is no switch — so the only thing
+ * left to hold to account is COVERAGE. Two failure modes this locks:
  *
- *   1. SILENT DRIFT — a route loses its guard, or a new write route is added
- *      without one. The wave lists below are explicit, so either move fails this
- *      test until it is updated deliberately.
+ *   1. SILENT DRIFT — a wired surface loses its guard, or a new write surface is
+ *      added to a domain without one. The lists below are explicit, so either
+ *      move fails this test until it is updated deliberately.
  *
- *   2. A FALSE CLAIM OF COVERAGE — the waves whose domain is NOT fully covered
- *      must keep saying so. Two legacy V2 route files carry a project banner
- *      reserving them for V1 pages and forbidding agent changes, so their
+ *   2. A FALSE CLAIM OF COVERAGE — the domains whose surfaces are NOT fully
+ *      covered must keep saying so. Three legacy V2 route files carry a project
+ *      banner reserving them for V1 pages and forbidding agent changes, so their
  *      endpoints stay open. Asserting the banner is still there (and that no
  *      guard was bolted on) is what keeps the "partial" flag honest instead of
  *      letting it rot into a claim of full coverage.
- *
- * `coverage` per wave is therefore: every listed file contains the guard, the
- * exempt files do not, and every declared wave appears here.
  */
 const fs = require("node:fs");
 const path = require("node:path");
@@ -27,7 +24,7 @@ const path = require("node:path");
 const {
   PROGRAM_SCOPE_WAVES,
   PROGRAM_SCOPE_WAVE_INFO,
-} = require("@/models/authorization/programScopeStrictness");
+} = require("@/models/authorization/programScopeWaves");
 
 const ROOT = path.join(__dirname, "..", "..");
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -111,24 +108,18 @@ describe("deliberately exempt surfaces say so", () => {
   });
 });
 
-describe("the switch stays off by default", () => {
-  test("every wave defaults to false", () => {
-    const {
-      allWavesOff,
-    } = require("@/models/authorization/programScopeStrictness");
-    const state = allWavesOff();
-    for (const wave of PROGRAM_SCOPE_WAVES) expect(state[wave]).toBe(false);
+describe("the vocabulary is pure and complete", () => {
+  test("every declared wave has a coverage entry", () => {
+    expect(Object.keys(PROGRAM_SCOPE_WAVE_INFO).sort()).toEqual(
+      [...PROGRAM_SCOPE_WAVES].sort(),
+    );
   });
 
-  test("a partial or corrupted stored value can only switch OFF, never on", () => {
-    const { normalizeWaves } = require("@/models/authorization/programScopeStrictness");
-    // Unknown keys dropped, missing waves false, only an explicit true enables.
-    expect(normalizeWaves({ content: "yes", bogus: true })).toEqual({
-      content: false,
-      enrollment: false,
-      groups: false,
-    });
-    expect(normalizeWaves(null).content).toBe(false);
-    expect(normalizeWaves({ groups: true }).groups).toBe(true);
+  test("a partial wave names the surfaces it cannot cover", () => {
+    for (const wave of PROGRAM_SCOPE_WAVES) {
+      const info = PROGRAM_SCOPE_WAVE_INFO[wave];
+      if (info.partial) expect(info.exempt.length).toBeGreaterThan(0);
+      else expect(info.exempt).toEqual([]);
+    }
   });
 });
