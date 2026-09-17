@@ -274,3 +274,75 @@ export async function backfillFacilitatorTickLists() {
 
   return { success: true, updated, scanned: rows.length };
 }
+
+/** The identity whose default template the split replaces. */
+export const PROGRAM_MANAGER_ROLE = "program_manager";
+
+/**
+ * REPOINT the programme-manager role default at the trimmed portfolio template.
+ *
+ * This is the deliberate click behind step 3. Creating the template changes
+ * nobody; pointing the default at it is what removes `ventures.edit` and
+ * `contacts.create` from everyone who resolves through their identity — so it is
+ * an ACTION with an audit record, not something that happens at boot.
+ *
+ * Refuses to overwrite a template an administrator chose on purpose: the repoint
+ * only proceeds while the default still points at the seeded "Program Manager"
+ * template or at nothing. Anything else is reported back as an error with the
+ * current profile, for the administrator to decide about.
+ *
+ * Idempotent: repointing an already-repointed default is a no-op.
+ */
+export async function repointProgramManagerDefaultToPortfolio() {
+  await ensurePermissionsSchema();
+
+  const portfolio = await ensurePortfolioProgramManagerProfile();
+  if (!portfolio?.profileId) {
+    return { success: false, error: "portfolio-profile-unavailable" };
+  }
+
+  const [seededRes, currentRes] = await Promise.all([
+    db.execute({
+      sql: "SELECT id, name FROM access_profiles WHERE name = ?",
+      args: [SEEDED_PM_PROFILE_NAME],
+    }),
+    db.execute({
+      sql: "SELECT access_profile_id FROM role_access_profile_defaults WHERE role_name = ? LIMIT 1",
+      args: [PROGRAM_MANAGER_ROLE],
+    }),
+  ]);
+  const seededId = seededRes.rows?.[0]?.id ?? null;
+  const currentId = currentRes.rows?.[0]?.access_profile_id ?? null;
+
+  if (currentId === portfolio.profileId) {
+    return {
+      success: true,
+      changed: false,
+      to: PORTFOLIO_PM_PROFILE.name,
+      reason: "already-repointed",
+    };
+  }
+  if (currentId !== null && currentId !== seededId) {
+    return {
+      success: false,
+      changed: false,
+      error: "role-default-customized",
+      currentProfileId: currentId,
+    };
+  }
+
+  await db.execute({
+    sql: `INSERT INTO role_access_profile_defaults (role_name, access_profile_id)
+          VALUES (?, ?)
+          ON CONFLICT (role_name) DO UPDATE SET access_profile_id = ?`,
+    args: [PROGRAM_MANAGER_ROLE, portfolio.profileId, portfolio.profileId],
+  });
+
+  return {
+    success: true,
+    changed: true,
+    from: seededId ? SEEDED_PM_PROFILE_NAME : null,
+    to: PORTFOLIO_PM_PROFILE.name,
+    profileId: portfolio.profileId,
+  };
+}

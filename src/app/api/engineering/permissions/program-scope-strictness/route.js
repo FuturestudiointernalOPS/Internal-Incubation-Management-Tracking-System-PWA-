@@ -6,6 +6,7 @@ import {
   getProgramScopeWaves,
   setProgramScopeWave,
 } from "@/models/authorization/programScopeStrictness";
+import { buildProgramScopeReadiness } from "@/models/authorization/programScopeReadiness";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,7 @@ export async function PUT(req) {
     const body = await req.json().catch(() => ({}));
     const wave = String(body?.wave || "");
     const enabled = body?.enabled === true;
+    const override = body?.override === true;
 
     if (!PROGRAM_SCOPE_WAVES.includes(wave)) {
       return NextResponse.json(
@@ -71,6 +73,37 @@ export async function PUT(req) {
         { success: false, error: "enabled must be a boolean" },
         { status: 400 },
       );
+    }
+
+    // MEASUREMENT BEFORE ACTION, ENFORCED. Turning a wave on is a removal, and
+    // the two conditions that make it safe are computed by the readiness report:
+    // every running program can be matched (no unmanaged program) and nobody is
+    // left with no program at all. The switch REFUSES while either is non-zero,
+    // reporting the exact blockers and the worklist size — so "read the report
+    // first" is a rule rather than a hope.
+    //
+    // It is not a lock: an administrator who understands the consequence can pass
+    // override, and the override is recorded. Turning a wave OFF is never blocked.
+    if (enabled && !override) {
+      const readiness = await buildProgramScopeReadiness();
+      const blockers = {
+        unmanaged: readiness.summary.unmanaged,
+        losesEverything: readiness.summary.losesEverything,
+      };
+      if (blockers.unmanaged > 0 || blockers.losesEverything > 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "errors.insufficientPermissions",
+            reason: "not-safe-to-enable",
+            blockers,
+            // Named so the caller can render the worklist without a second read.
+            unmanaged: readiness.unmanaged,
+            waves: await getProgramScopeWaves(),
+          },
+          { status: 409 },
+        );
+      }
     }
 
     const before = await getProgramScopeWaves();
@@ -93,7 +126,7 @@ export async function PUT(req) {
       capability: "program_scope_waves",
       previousValue: String(before[wave] === true),
       newValue: String(enabled),
-      details: `Program record scope for the "${wave}" domain`,
+      details: `Program record scope for the "${wave}" domain${override ? " (safety override)" : ""}`,
     });
 
     return NextResponse.json({ success: true, wave, enabled, waves: result.waves });

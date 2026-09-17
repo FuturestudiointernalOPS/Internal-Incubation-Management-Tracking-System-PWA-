@@ -311,9 +311,21 @@ export async function buildProgramScopeReadiness() {
       safe: blockers.unmanaged === 0 && blockers.losesEverything === 0,
       blockers,
       partial: info.partial === true,
+      // The inverse of `partial`, named positively so the cutover criterion below
+      // reads as what it is: full coverage of that domain.
+      covered: info.partial !== true,
       exempt: info.exempt || [],
     };
   });
+
+  // WHEN THE SWITCH CAN BE DELETED. Two conditions, both necessary: every wave is
+  // switched ON (the enforcement is the norm, not an experiment) and no wave is
+  // PARTIAL (no write surface still bypasses it). Reporting this as a boolean is
+  // what turns step 6 from a judgement call into a check.
+  const allWavesOn = PROGRAM_SCOPE_WAVES.every((w) => strictness[w] === true);
+  const anyPartial = PROGRAM_SCOPE_WAVES.some(
+    (w) => PROGRAM_SCOPE_WAVE_INFO[w].partial === true,
+  );
 
   return {
     success: true,
@@ -336,6 +348,9 @@ export async function buildProgramScopeReadiness() {
       keptSome: holderRows.filter((h) => !h.losesEverything).length,
       safeToEnable: blockers.unmanaged === 0 && blockers.losesEverything === 0,
       wavesEnabled: PROGRAM_SCOPE_WAVES.filter((w) => strictness[w] === true).length,
+      allWavesOn,
+      anyPartial,
+      readyToRemoveSwitch: allWavesOn && !anyPartial,
     },
   };
 }
