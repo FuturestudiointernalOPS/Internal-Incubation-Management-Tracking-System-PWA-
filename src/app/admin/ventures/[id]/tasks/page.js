@@ -1,13 +1,23 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Plus, Loader2, CheckCircle2, AlertCircle, X,
   Calendar, User,
   List, Columns, CopyPlus, Archive, RotateCcw,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_TASKS = { list: [], byStatus: {} };
+
+const pickVenture = (d) => (d?.success ? d.venture || null : null);
+const pickTasks = (d) =>
+  d?.success ? { list: d.tasks || [], byStatus: d.by_status || {} } : EMPTY_TASKS;
 import { useI18n } from "@/lib/i18n";
 
 const STATUS_ORDER = ["backlog", "todo", "in_progress", "review", "done", "blocked", "cancelled"];
@@ -28,10 +38,6 @@ export default function VentureTasksPage() {
   const { id } = useParams();
   const router = useRouter();
   const { t } = useI18n();
-  const [venture, setVenture] = useState(null);
-  const [tasks, setTasks] = useState([]);
-  const [byStatus, setByStatus] = useState({});
-  const [loading, setLoading] = useState(true);
   const [view, setView] = useState("kanban"); // kanban | list
   const [toast, setToast] = useState(null);
   const [dragOver, setDragOver] = useState(null);
@@ -59,45 +65,32 @@ export default function VentureTasksPage() {
   // Search
   const [search, setSearch] = useState("");
 
-  const fetchData = useCallback(async (bypassCache = false) => {
-    // include_archived=1: archived (soft-deleted) tasks are rendered in their
-    // own view — the page splits active vs archived client-side.
-    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/tasks?include_archived=1`];
-    const apply = (vData, tData) => {
-      if (vData.success) setVenture(vData.venture);
-      if (tData.success) {
-        setTasks(tData.tasks || []);
-        setByStatus(tData.by_status || {});
-      }
-    };
-    let painted = false;
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from
-      // fresh snapshots; mutation flows pass bypassCache=true so the board
-      // always reflects the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1]);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const [vRes, tRes] = await Promise.all([fetch(urls[0]), fetch(urls[1])]);
-      const vData = await vRes.json();
-      const tData = await tRes.json();
-      if (vData.success) cacheSet(urls[0], vData);
-      if (tData.success) cacheSet(urls[1], tData);
-      apply(vData, tData);
-    } catch (e) {
-      if (!painted) console.error("Failed to fetch tasks data:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+  // The venture and its tasks, through the shared hook: it owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the page keeps no
+  // copy of its own and reads its data during render. Archived tasks come back in
+  // the same answer and are split for display.
+  const { data: venture, loading: ventureLoading } = useApi(
+    id ? `/api/ventures/${id}` : null,
+    { defaultValue: null, transform: pickVenture, deps: [id] },
+  );
+  const {
+    data: tasksPayload,
+    loading: tasksLoading,
+    refresh: refreshTasks,
+  } = useApi(id ? `/api/ventures/${id}/tasks?include_archived=1` : null, {
+    defaultValue: EMPTY_TASKS,
+    transform: pickTasks,
+    deps: [id],
+  });
+  const tasks = tasksPayload.list;
+  const byStatus = tasksPayload.byStatus;
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const loading = ventureLoading || tasksLoading;
+
+  // Every action below re-reads what it changed.
+  const reload = useCallback(() => {
+    refreshTasks();
+  }, [refreshTasks]);
 
   const notify = (msg, type = "success") => {
     setToast({ msg, type }); setTimeout(() => setToast(null), 4000);
@@ -119,7 +112,7 @@ export default function VentureTasksPage() {
       await fetch(`/api/ventures/${id}/tasks?id=${taskId}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }),
       });
-      fetchData(true);
+      reload();
     } catch {}
   };
 
@@ -134,7 +127,7 @@ export default function VentureTasksPage() {
         body: JSON.stringify({ task_id: task.id }),
       });
       const data = await res.json();
-      if (data.success) { notify(t("vadmin.tasks.duplicateSuccess")); fetchData(true); }
+      if (data.success) { notify(t("vadmin.tasks.duplicateSuccess")); reload(); }
       else notify(data.error || t("venture.manager.duplicateStageFailed"), "error");
     } catch { notify(t("venture.manager.duplicateStageFailed"), "error"); }
     setDupBusy(null);
@@ -176,7 +169,7 @@ export default function VentureTasksPage() {
       setShowTaskModal(false);
       setEditTask(null);
       setTForm({ title: "", description: "", priority: "medium", status: "todo", due_date: "", estimated_hours: "", assigned_cid: "", assigned_name: "", labels: [], milestone_id: "" });
-      fetchData(true);
+      reload();
     } catch { notify("Error saving task", "error"); }
     setSaving(false);
   };
@@ -223,7 +216,7 @@ export default function VentureTasksPage() {
       showArchMsg(t("venture.manager.duplicateStageFailed"), "error");
     }
     setArchBusy(false);
-    await fetchData(true);
+    await reload();
   };
 
   const archiveOne = (task) => {

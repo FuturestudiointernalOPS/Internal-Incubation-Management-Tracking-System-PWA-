@@ -1,12 +1,23 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Loader2, AlertCircle, CheckCircle2, Calendar, Clock,
+ArrowLeft, Loader2, AlertCircle, CheckCircle2, Calendar, Clock,
   Flag, BarChart3, RefreshCw, Target, Route,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+
+const pickVenture = (d) => (d?.success ? d.venture || null : null);
+const pickPayload = (d) => (d?.success ? d : null);
+const pickProgress = (d) => (d?.success ? d.progress : null);
+const pickJourneyReport = (d) =>
+  d?.success ? d.journey_report || null : null;
 import { useI18n } from "@/lib/i18n";
 import {
   MILESTONE_STATUSES,
@@ -34,11 +45,6 @@ export default function VentureTimelinePage() {
   const { id } = useParams();
   const router = useRouter();
   const { t } = useI18n();
-  const [venture, setVenture] = useState(null);
-  const [data, setData] = useState(null);
-  const [progress, setProgress] = useState(null);
-  const [delays, setDelays] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [view, setView] = useState("gantt"); // gantt | timeline | progress
   const [zoom, setZoom] = useState("week"); // day | week | month
   // Snapshot the clock once per render — reading it mid-render is impure.
@@ -46,69 +52,42 @@ export default function VentureTimelinePage() {
 
   // Roadmap view state — the journey report is fetched on demand only, never
   // as part of the `view=` requests above (see the effect below fetchAll).
-  const [journeyReport, setJourneyReport] = useState(null);
-  const [journeyLoading, setJourneyLoading] = useState(false);
-  const roadmapRequested = useRef(false);
 
-  const fetchAll = useCallback(async (bypassCache = false) => {
-    const urls = [
-      `/api/ventures/${id}`,
-      `/api/ventures/${id}/timeline?view=gantt`,
-      `/api/ventures/${id}/timeline?view=progress`,
-      `/api/ventures/${id}/timeline?view=delay`,
-    ];
-    const apply = (v, t, p, d) => {
-      if (v.success) setVenture(v.venture);
-      if (t.success) setData(t);
-      if (p.success) setProgress(p.progress);
-      if (d.success) setDelays(d);
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from
-      // fresh snapshots while the network revalidates in the background.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2], cached[3]);
-          setLoading(false);
-        }
-      }
-      const [vRes, tRes, pRes, dRes] = await Promise.all(urls.map((u) => fetch(u)));
-      const v = await vRes.json();
-      const t = await tRes.json();
-      const p = await pRes.json();
-      const d = await dRes.json();
-      if (v.success) cacheSet(urls[0], v);
-      if (t.success) cacheSet(urls[1], t);
-      if (p.success) cacheSet(urls[2], p);
-      if (d.success) cacheSet(urls[3], d);
-      apply(v, t, p, d);
-    } catch {} finally { setLoading(false); }
-  }, [id]);
+  // The venture and its three timeline views, through the shared hook: it owns the
+  // cache, the cache-first paint and the discarding of a stale answer, so the page
+  // keeps no copy of its own and reads its data during render.
+  const { data: venture, loading: ventureLoading } = useApi(
+    id ? `/api/ventures/${id}` : null,
+    { defaultValue: null, transform: pickVenture, deps: [id] },
+  );
+  const { data: data, loading: dataLoading, refresh: refreshGantt } = useApi(
+    id ? `/api/ventures/${id}/timeline?view=gantt` : null,
+    { defaultValue: null, transform: pickPayload, deps: [id] },
+  );
+  const { data: progress, loading: progressLoading } = useApi(
+    id ? `/api/ventures/${id}/timeline?view=progress` : null,
+    { defaultValue: null, transform: pickProgress, deps: [id] },
+  );
+  const { data: delays, loading: delaysLoading } = useApi(
+    id ? `/api/ventures/${id}/timeline?view=delay` : null,
+    { defaultValue: null, transform: pickPayload, deps: [id] },
+  );
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  const loading =
+    ventureLoading || dataLoading || progressLoading || delaysLoading;
 
   // Roadmap view only: the journey report loads when the view is selected, and
   // again on a later visit (the ref clears once another view is active). It is
   // deliberately independent of the `view=` fetches above, so the three
   // existing views are never affected — a failure degrades to the empty state.
-  const fetchJourneyReport = useCallback(async () => {
-    setJourneyLoading(true);
-    try {
-      const res = await fetch(`/api/ventures/${id}/journey-report`);
-      const d = await res.json();
-      setJourneyReport(d.success ? d.journey_report || null : null);
-    } catch { setJourneyReport(null); }
-    finally { setJourneyLoading(false); }
-  }, [id]);
-
-  useEffect(() => {
-    if (view !== "roadmap") { roadmapRequested.current = false; return; }
-    if (roadmapRequested.current) return;
-    roadmapRequested.current = true;
-    fetchJourneyReport();
-  }, [fetchJourneyReport, view]);
+  // The roadmap view's own read. It is addressed only while that view is selected,
+  // which is what the effect this replaces expressed with a ref recording that it
+  // had already asked once for this visit - an address that says when to read needs
+  // no such record.
+  const { data: journeyReport, loading: journeyLoading } = useApi(
+    id && view === "roadmap" ? `/api/ventures/${id}/journey-report` : null,
+    { defaultValue: null, transform: pickJourneyReport, deps: [id, view] },
+  );
 
   if (loading) return (
     <>
@@ -192,7 +171,7 @@ export default function VentureTimelinePage() {
                 {t("vadmin.reports.tabJourney")}
               </button>
             </div>
-            <button onClick={fetchAll} className="p-2 hover:bg-white/5 rounded-lg"><RefreshCw className="w-4 h-4 text-slate-500" /></button>
+            <button onClick={() => refreshGantt()} className="p-2 hover:bg-white/5 rounded-lg"><RefreshCw className="w-4 h-4 text-slate-500" /></button>
           </div>
         </div>
 
