@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import {
   FolderKanban,
   Plus,
@@ -19,12 +19,21 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * PLATFORM COLLECTIONS
  * Browse, create, edit, search, and manage organizational collections.
  */
+
+// The shape the screen renders from, so a failed or malformed payload never
+// reaches an `Object.entries` / tree-walk read. Module scope keeps both values
+// stable for the hook (an inline literal would refetch on every render).
+const EMPTY_COLLECTIONS = { collections: [], tree: [] };
+const pickCollections = (d) =>
+  d?.success
+    ? { collections: d.collections || [], tree: d.tree || [] }
+    : EMPTY_COLLECTIONS;
 
 const STATUS_CONFIG = {
   active: { color: "text-emerald-500", bg: "bg-emerald-500/10", label: "platformMisc.collections.statusActive" },
@@ -38,13 +47,32 @@ function cn(...classes) {
 
 export default function CollectionsPage() {
   const { t } = useI18n();
-  const [collections, setCollections] = useState([]);
-  const [tree, setTree] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
   const [viewMode, setViewMode] = useState("grid"); // grid | tree | list
-  const [expandedIds, setExpandedIds] = useState(new Set());
+  // The tree starts fully expanded, so the screen only remembers the nodes the
+  // user collapsed. Tracking the exceptions is what lets that choice survive a
+  // refresh: the old loader re-expanded every node on each load, silently undoing
+  // it.
+  const [collapsedIds, setCollapsedIds] = useState(new Set());
+
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no list state of its own and never sets state from an effect. The search term
+  // and the status filter stay plain dependencies; create, edit and archive call
+  // refresh(), which bypasses the cache like bypassCache did.
+  const collectionQuery = new URLSearchParams();
+  if (statusFilter !== "all") collectionQuery.set("status", statusFilter);
+  if (search) collectionQuery.set("search", search);
+  const { data, loading, refresh } = useApi(
+    `/api/platform/collections?${collectionQuery}`,
+    {
+      defaultValue: EMPTY_COLLECTIONS,
+      transform: pickCollections,
+      deps: [search, statusFilter],
+    },
+  );
+  const { collections, tree } = data;
 
   // Compose modal
   const [showCreate, setShowCreate] = useState(false);
@@ -66,59 +94,13 @@ export default function CollectionsPage() {
 
   const [notification, setNotification] = useState(null);
 
-  const fetchCollections = useCallback(async (bypassCache = false) => {
-    const params = new URLSearchParams();
-    if (statusFilter !== "all") params.set("status", statusFilter);
-    if (search) params.set("search", search);
-    const url = `/api/platform/collections?${params}`;
-    const apply = (data) => {
-      setCollections(data.collections || []);
-      const t = data.tree || [];
-      setTree(t);
-      // Auto-expand all tree nodes
-      const collectIds = (nodes) => {
-        const ids = [];
-        for (const n of nodes) {
-          ids.push(n.id);
-          if (n.children?.length) ids.push(...collectIds(n.children));
-        }
-        return ids;
-      };
-      setExpandedIds(new Set(collectIds(t)));
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: the collection grid renders instantly from a fresh
-      // snapshot; create/edit/archive mutations pass bypassCache=true so the
-      // list always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (_) {}
-    setLoading(false);
-  }, [search, statusFilter]);
-
-  useEffect(() => {
-    fetchCollections();
-  }, [fetchCollections]);
-
   const notify = (msg) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3000);
   };
 
   const toggleExpand = (id) => {
-    setExpandedIds((prev) => {
+    setCollapsedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -145,7 +127,7 @@ export default function CollectionsPage() {
         setShowCreate(false);
         setEditing(null);
         setForm({ name: "", description: "", parent_id: "", visibility: "internal", tags: "", category: "", color: "#FF6600", status: "active" });
-        fetchCollections(true);
+        refresh();
       } else {
         notify(t((data.error || t("platformMisc.collections.failed")) || "") || (data.error || t("platformMisc.collections.failed")));
       }
@@ -180,7 +162,7 @@ export default function CollectionsPage() {
         });
       }
       notify(action === "archive" ? t("platformMisc.collections.archivedNotify") : t("platformMisc.collections.restoredNotify"));
-      fetchCollections(true);
+      refresh();
     } catch (_) {}
     setArchiveConfirm(null);
   };
@@ -203,7 +185,7 @@ export default function CollectionsPage() {
   const renderTreeNode = (node, depth = 0) => {
     const cfg = STATUS_CONFIG[node.status] || STATUS_CONFIG.active;
     const hasChildren = node.children && node.children.length > 0;
-    const isExpanded = expandedIds.has(node.id);
+    const isExpanded = !collapsedIds.has(node.id);
     return (
       <div key={node.id}>
         <div

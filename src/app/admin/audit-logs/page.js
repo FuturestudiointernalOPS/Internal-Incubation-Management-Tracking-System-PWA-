@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   Search,
@@ -16,7 +16,7 @@ import {
   Loader2,
   Clock,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const SEVERITY_COLORS = {
   info: "text-blue-400 bg-blue-500/10",
@@ -43,10 +43,6 @@ const EVENT_TYPE_OPTIONS = [
 
 export default function AuditLogsPage() {
   const { t } = useI18n();
-  const [logs, setLogs] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [selectedLog, setSelectedLog] = useState(null);
   const [filters, setFilters] = useState({
     event_type: "",
@@ -56,58 +52,44 @@ export default function AuditLogsPage() {
   });
   const [searchTerm, setSearchTerm] = useState("");
 
-  const fetchLogs = useCallback(async (bypassCache = false) => {
-    setLoading(true);
-    setError(null);
-    let painted = false;
-    try {
-      const params = new URLSearchParams();
-      if (filters.event_type) params.set("event_type", filters.event_type);
-      if (filters.severity) params.set("severity", filters.severity);
-      params.set("limit", filters.limit);
-      params.set("offset", filters.offset);
-
-      const logsUrl = `/api/audit-logs?${params}`;
-      const statsUrl = "/api/audit-logs?type=stats&hours=24";
-      const apply = (logsData, statsData) => {
-        if (logsData.success) {
-          setLogs(logsData.logs || []);
-          painted = true;
-        }
-        if (statsData.success) setStats(statsData);
-      };
-
-      // Cache-first paint: returning to a page/filter combo renders instantly
-      // when both snapshots are fresh.
-      if (!bypassCache) {
-        const cachedLogs = cacheGet(logsUrl);
-        const cachedStats = cacheGet(statsUrl);
-        if (cachedLogs !== null && cachedLogs.success && cachedStats !== null && cachedStats.success) {
-          apply(cachedLogs, cachedStats);
-          setLoading(false);
-        }
-      }
-
-      const [logsRes, statsRes] = await Promise.all([
-        fetch(logsUrl),
-        fetch(statsUrl),
-      ]);
-
-      const logsData = await logsRes.json();
-      const statsData = await statsRes.json();
-
-      if (logsData.success) cacheSet(logsUrl, logsData);
-      if (statsData.success) cacheSet(statsUrl, statsData);
-      apply(logsData, statsData);
-      if (!logsData.success) setError(t(logsData.error || "") || logsData.error);
-    } catch (err) {
-      if (!painted) setError(t(err.message || "") || err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, t]);
-
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  // The loader's work — each filter/page combination caching under its own URL,
+  // the cache-first paint, discarding a stale response, the background refresh —
+  // belongs to the hook, so the screen keeps no list state of its own and never
+  // sets state from an effect. Both reads stay raw because a rejected one carries
+  // the message the screen shows; the filter object is a plain dependency.
+  const auditParams = new URLSearchParams();
+  if (filters.event_type) auditParams.set("event_type", filters.event_type);
+  if (filters.severity) auditParams.set("severity", filters.severity);
+  auditParams.set("limit", filters.limit);
+  auditParams.set("offset", filters.offset);
+  const {
+    data: logsData,
+    loading: logsLoading,
+    error: logsError,
+    refresh: refreshLogs,
+  } = useApi(`/api/audit-logs?${auditParams}`, { deps: [filters] });
+  const {
+    data: statsData,
+    loading: statsLoading,
+    refresh: refreshStats,
+  } = useApi("/api/audit-logs?type=stats&hours=24");
+  const loading = logsLoading || statsLoading;
+  const logs = logsData?.success ? logsData.logs || [] : [];
+  const stats = statsData?.success ? statsData : null;
+  const loadError = logsData && !logsData.success
+    ? t(logsData.error || "") || logsData.error
+    : logsError
+      ? t(logsError) || logsError
+      : null;
+  // A failed refresh must not displace rows that are already on screen: the
+  // banner is only a fallback for the case where there is nothing to show, which
+  // is what the old loader did by checking whether the cache had painted first.
+  const error = logs.length === 0 ? loadError : null;
+  // The refresh button re-read both, as the old single loader did.
+  const refreshAll = () => {
+    refreshLogs();
+    refreshStats();
+  };
 
   const handlePrevPage = () => {
     if (filters.offset > 0) {
@@ -142,7 +124,7 @@ export default function AuditLogsPage() {
             <p className="text-sm text-gray-400 mt-1">{t("adminMisc.auditLogs.subtitle")}</p>
           </div>
           <button
-            onClick={fetchLogs}
+            onClick={refreshAll}
             className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] border border-gray-800 rounded-xl hover:bg-[#1e293b] transition-colors text-sm"
           >
             <RefreshCw size={14} />

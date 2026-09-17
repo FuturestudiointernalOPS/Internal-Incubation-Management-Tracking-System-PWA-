@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use, useCallback } from "react";
+import React, { useState, use, useCallback } from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   Users,
@@ -19,7 +19,29 @@ import {
   Star,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// Module scope on purpose: the hook keys its internal callback on these
+// functions, so inline arrows would give them a new identity on every render and
+// refetch in a loop. The assignable-staff list is filtered here rather than in
+// the loader, so the rule is stated once and a failed read cannot return
+// unfiltered contacts.
+const pickProgramName = (d) =>
+  d?.success && d.program ? d.program.name || "" : "";
+const pickTeams = (d) => (d?.success && Array.isArray(d.teams) ? d.teams : []);
+const pickParticipants = (d) =>
+  d?.success && Array.isArray(d.participants) ? d.participants : [];
+const pickStaff = (d) =>
+  d?.success && Array.isArray(d.contacts)
+    ? d.contacts.filter(
+        (c) =>
+          c &&
+          (c.role === "super_admin" ||
+            c.role === "program_manager" ||
+            c.role === "admin" ||
+            c.role === "staff"),
+      )
+    : [];
 
 export default function TeamManagementPage({ params }) {
   const unwrappedParams = use(params);
@@ -27,11 +49,31 @@ export default function TeamManagementPage({ params }) {
   const router = useRouter();
   const { t } = useI18n();
 
-  const [teams, setTeams] = useState([]);
-  const [participants, setParticipants] = useState([]);
-  const [staff, setStaff] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [programName, setProgramName] = useState("");
+  // The loaders' work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no list state of its own and never sets state from an effect. Each read
+  // carries its own loading flag so the screen leaves the spinner only once all
+  // of them have settled, as the old combined loader did. Every mutation calls
+  // refresh(), which bypasses the cache like bypassCache did.
+  const { data: programName, loading: programNameLoading } = useApi(
+    `/api/pm/full-state?id=${programId}`,
+    { defaultValue: "", transform: pickProgramName, deps: [programId] },
+  );
+  const { data: teams, loading: teamsLoading, refresh } = useApi(
+    `/api/teams?program_id=${programId}`,
+    { defaultValue: [], transform: pickTeams, deps: [programId] },
+  );
+
+  const { data: participants, loading: participantsLoading } = useApi(
+    `/api/participants?program_id=${programId}`,
+    { defaultValue: [], transform: pickParticipants, deps: [programId] },
+  );
+  const { data: staff, loading: staffLoading } = useApi(
+    "/api/contacts/full-state",
+    { defaultValue: [], transform: pickStaff },
+  );
+  const loading =
+    programNameLoading || teamsLoading || participantsLoading || staffLoading;
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -55,89 +97,6 @@ export default function TeamManagementPage({ params }) {
       new CustomEvent("impactos:notify", { detail: { type, message } }),
     );
   }, []);
-
-  const fetchProgramName = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/pm/full-state?id=${programId}`);
-      const data = await res.json();
-      if (data.success && data.program) {
-        setProgramName(data.program.name || "");
-      }
-    } catch (_) {}
-  }, [programId]);
-
-  const fetchData = useCallback(async (bypassCache = false) => {
-    const urls = [
-      `/api/teams?program_id=${programId}`,
-      `/api/participants?program_id=${programId}`,
-      "/api/contacts/full-state",
-    ];
-    const apply = (teamsData, participantsData, staffData) => {
-      if (teamsData.success) {
-        setTeams(Array.isArray(teamsData.teams) ? teamsData.teams : []);
-      }
-      if (participantsData.success) {
-        setParticipants(
-          Array.isArray(participantsData.participants)
-            ? participantsData.participants
-            : [],
-        );
-      }
-      if (staffData.success) {
-        const staffList = (
-          Array.isArray(staffData.contacts) ? staffData.contacts : []
-        ).filter(
-          (c) =>
-            c &&
-            (c.role === "super_admin" ||
-              c.role === "program_manager" ||
-              c.role === "admin" ||
-              c.role === "staff"),
-        );
-        setStaff(staffList);
-      }
-    };
-    let painted = false;
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from fresh
-      // snapshots; mutation flows pass bypassCache=true so the lists always
-      // reflect the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2]);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const [teamsRes, participantsRes, staffRes] = await Promise.all([
-        fetch(urls[0]),
-        fetch(urls[1]),
-        fetch(urls[2]),
-      ]);
-
-      const [teamsData, participantsData, staffData] = await Promise.all([
-        teamsRes.json().catch(() => ({ success: false })),
-        participantsRes.json().catch(() => ({ success: false })),
-        staffRes.json().catch(() => ({ success: false })),
-      ]);
-
-      if (teamsData.success) cacheSet(urls[0], teamsData);
-      if (participantsData.success) cacheSet(urls[1], participantsData);
-      if (staffData.success) cacheSet(urls[2], staffData);
-      apply(teamsData, participantsData, staffData);
-    } catch (e) {
-      if (!painted) console.error("Failed to fetch team data:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [programId]);
-
-  useEffect(() => {
-    fetchProgramName();
-    fetchData();
-  }, [fetchProgramName, fetchData]);
 
   // ---- Modal handlers ----
 
@@ -222,7 +181,7 @@ export default function TeamManagementPage({ params }) {
             : t("admin.teams.createSuccess"),
         );
         closeModal();
-        fetchData(true);
+        refresh();
       } else {
         setFormError(t((data.error || t("adminMisc.programTeams.operationFailed")) || "") || (data.error || t("adminMisc.programTeams.operationFailed")));
       }
@@ -246,7 +205,7 @@ export default function TeamManagementPage({ params }) {
       if (data.success) {
         notify("success", t("admin.teams.deleteSuccess"));
         setDeleteTarget(null);
-        fetchData(true);
+        refresh();
       }
     } catch {
       notify("error", t("adminMisc.programTeams.deleteFailed"));
@@ -275,7 +234,7 @@ export default function TeamManagementPage({ params }) {
             ? t("adminMisc.programTeams.ventureReadyUnmarked")
             : t("adminMisc.programTeams.markedVentureReady"),
         );
-        fetchData(true);
+        refresh();
       }
     } catch (_) {
       notify("error", t("adminMisc.programTeams.updateFailed"));

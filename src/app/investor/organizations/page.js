@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Building2, Users, Plus, Loader2, ArrowLeft, Globe,
   Save, Crown, Shield, X,
@@ -10,13 +10,16 @@ import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
+
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickOrganizations = (d) => (d?.success ? d.organizations || [] : []);
 
 export default function InvestorOrganizationsPage() {
   const goBack = useSafeBack("/investor");
   const { t } = useI18n();
-  const [orgs, setOrgs] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -29,34 +32,15 @@ export default function InvestorOrganizationsPage() {
   const [orgMembers, setOrgMembers] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  const fetchOrgs = async (bypassCache = false) => {
-    setLoading(true);
-    try {
-      const url = "/api/investor/organizations";
-      const apply = (data) => {
-        if (data.success) setOrgs(data.organizations || []);
-      };
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; mutation flows pass bypassCache=true so the list always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (_) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchOrgs(); }, []);
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no list state of its own and never sets state from an effect. Creating an
+  // organisation calls refresh(), which bypasses the cache like bypassCache did.
+  // The per-organisation detail below stays a click-driven loader of its own.
+  const { data: orgs, loading, refresh } = useApi("/api/investor/organizations", {
+    defaultValue: [],
+    transform: pickOrganizations,
+  });
 
   const fetchOrgDetail = async (orgId, bypassCache = false) => {
     setDetailLoading(true);
@@ -104,7 +88,7 @@ export default function InvestorOrganizationsPage() {
         setToast({ type: "success", message: t("investorMisc.organizations.created") });
         setShowCreate(false);
         setNewOrg({ name: "", description: "", website: "" });
-        fetchOrgs(true);
+        refresh();
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
