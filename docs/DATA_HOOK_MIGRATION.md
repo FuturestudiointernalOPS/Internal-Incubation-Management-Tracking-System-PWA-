@@ -62,11 +62,20 @@ const { data: things, loading, refresh } = useApi(URL, {
 Two rules that are easy to get wrong:
 
 - **The transformation must live at module scope.** An inline arrow changes
-  identity every render, which changes the hook's internal callback, which
-  re-runs the effect — one request per render, forever.
+  identity every render, which changes the hook's internal callback, and a
+  callback that changes every render starts a read on every render. It is not a
+  runaway loop (the hook settles as soon as a read produces no state change), but
+  it is one request per render of the screen, which is one per keystroke on a
+  screen with a search box.
 - **A screen must not keep its own copy of the data.** Converting the loader
   but resynchronising the result into local state reproduces the original
   pattern (and the rule's warning) exactly.
+
+The default value is the one thing here that does **not** have to be stable.
+`defaultValue: []` written inline is correct and is what most callers write; the
+hook gates what it returns on the address during render instead of treating the
+default as part of the read's identity. See section 3.8 for what that cost before
+it was true.
 
 For a screen that reads several endpoints whose URLs contain a runtime value
 (an id, a filter), prefer **one `useApi` call per endpoint** with the value as
@@ -114,24 +123,27 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 146 |
-| `react-hooks/set-state-in-effect` | 200 | 139 |
+| ESLint warnings, total | 2192 | 140 |
+| `react-hooks/set-state-in-effect` | 200 | 133 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` in converted files | 0 | 0 |
-| Tests | 1539 / 1539 | 1669 / 1669 |
 | Production build | passes | passes |
 
-Screens carrying a `set-state-in-effect` warning: **89**.
+Screens carrying a `set-state-in-effect` warning: **85**.
 
 | Group | Screens |
 |---|---:|
-| Application pages | 30 |
+| Application pages | 26 |
 | Shared components (`src/components/`) | 32 |
 | Venture screens | 23 |
 | `src/lib/` modules | 4 |
 
-Of these 89 screens, **62 carry a single warning**; the remaining 27 carry two
+Of these 85 screens, **60 carry a single warning**; the remaining 25 carry two
 to five.
+
+> The test count is not recorded here any more: another workstream adds and
+> renames suites in this same working tree, so any figure went stale within the
+> hour. What matters is that the suite is green when a lot is committed.
 
 > The hook itself accounts for 4 of the remaining warnings (`src/lib/hooks/useApi.js`):
 > two "state written in an effect" and two "a spread in the dependency array". They
@@ -253,8 +265,14 @@ identifier in the request is the person's:
 
 | Screen | What has to be decided first |
 |---|---|
-| `src/app/team/[id]/page.js` | Reads the session endpoint itself, then a team and three of its sub-resources. The session read is what `useSessionUser` replaces, but the sub-reads have to be untangled from the same loader first. |
-| `src/app/admin/crm/people/[cid]/page.js`, `src/app/admin/investors/relationships/page.js`, `src/app/facilitator/program/[id]/page.js` | One record plus several sub-resources, each with its own status handling. |
+| `src/app/admin/crm/people/[cid]/page.js`, `src/app/team/[id]/page.js` | One record plus several sub-resources, each with its own status handling. |
+
+Screens whose read initialises an **editable form** are a group of their own, and
+they are all still open:
+
+| Screen | What has to be decided first |
+|---|---|
+| `src/app/platform/runs/submit/[runId]/page.js`, `src/app/platform/runs/review/[submissionId]/page.js`, `src/app/facilitator/program/[id]/page.js` | The read fills in answers the person then edits. Deriving them would erase the edits, so the read and the form have to be separated first - the standard shape is a child component that owns the form and is keyed on the record, so a different record remounts it with the right starting values. |
 
 Converted out of this list:
 
@@ -267,6 +285,20 @@ Converted out of this list:
   value is now derived, and the effect is gone.
 - the **platform form list** and the **investor campaign list** — two and two
   reads through the hook.
+- the **person detail screen** — five reads, all of them display-only.
+- the **investor relations console** — its two reads through the hook, and the
+  role it asked the session endpoint for now comes from the shell's session
+  cache. Its detail and document reads stay imperative because they are opened by
+  a click rather than by arriving on the page.
+- the **access console** — its people list and module catalogue through the hook,
+  plus two derived values that were state: the filtered list (which could
+disagree with the query that made it) and the page number (which was reset in an
+  effect, so the list was drawn for one frame under the previous query's page).
+- the **team workspace** — a chain rather than a set: the team names the
+  programme, and the programme names three reads below it. Each address is
+  derived from the value above it, so an unknown value is simply an address that
+  is not known yet. Its task list is read only while its tab is open, which the
+  effect used to express by deciding whether to call its loader.
 
 The two consoles that stood here are converted:
 
@@ -316,6 +348,33 @@ Both are left on purpose, and not out of convenience:
 The counts for this file therefore do not go down as the migration proceeds, and
 should not be read as an unconverted screen.
 
+### 3.8 What the hook's own reads cost, and the defect that was found there
+
+Teaching the hook to report the status introduced a request flood, and it is
+recorded here because the way it hid is the point.
+
+`status` is state, so every response wrote it - as a fresh object, which is always
+a change. A change re-renders. And the read was keyed on `defaultValue`, which
+callers write inline (`defaultValue: []`), so that identity changed on every
+render too. Each render therefore started another read, and each read re-rendered.
+Measured on a single screen with a counter on `fetch`: **26 requests where there
+should have been 1**, and the screen looked perfectly correct throughout.
+
+Two fixes, both of them the honest one rather than a suppression:
+
+1. republishing a verdict that has not changed is not a change, so `status` is
+   only written when the address or the status actually differs;
+2. the default no longer takes part in deciding **whether** to read. What the
+   hook returns is gated on the address during render - no address means nothing
+   to read, nothing loading, no failure, and the caller's default to show. The
+   default decides what is displayed, never whether to go and look.
+
+The second one is the one that matters beyond this incident: it makes
+`defaultValue: []`, the natural thing for a caller to write, safe.
+
+`src/__tests__/use-api-hook.test.js` counts the requests in both cases, so the
+flood cannot come back unnoticed.
+
 ---
 
 ## 4. Not started
@@ -340,10 +399,11 @@ npm test                     # full suite
 npm run build                # catches things lint cannot, e.g. a missing loading boundary
 ```
 
-`src/__tests__/use-api-status.test.js` covers the hook's own failure reporting -
-the status of a success, of a 401, of a 500, of a request that never answered,
-and its clearing when the address changes - so a change to the hook cannot take
-the distinction away from the screens that now depend on it.
+`src/__tests__/use-api-hook.test.js` covers the hook's own contract - the status of
+a success, of a 401, of a 500, of a request that never answered, and its clearing
+when the address changes; and the number of requests it makes, which is where a
+mistake here is invisible on screen. A change to the hook cannot take either away
+from the screens that now depend on it.
 
 > **Concurrency note:** another workstream builds in this same working tree.
 > Two `next build` runs at once corrupt each other's output (a build manifest

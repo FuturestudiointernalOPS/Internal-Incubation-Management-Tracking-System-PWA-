@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   Users, Building2, Calendar, Loader2, Plus, CheckCircle2,
@@ -9,7 +9,21 @@ import {
 } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const RELATIONSHIPS_URL = "/api/investor/relationships";
+const STAFF_URL = "/api/contacts?role=super_admin,staff,program_manager";
+
+const pickWorkspaces = (d) => (d?.success ? d.workspaces || [] : []);
+const pickStaff = (d) => (d?.success ? d.contacts || [] : []);
+const pickIntros = (d) => (d?.success ? d.pipeline || [] : []);
+
+const PIPELINE_INTROS_URL = "/api/investor/pipeline?stage=meeting_requested";
 
 const MEETING_TYPES = [
   { value: "introductory", label: "investorAdmin.relationships.meetingIntroductory" },
@@ -33,8 +47,30 @@ const MEETING_ICONS = {
 
 export default function AdminRelationshipsPage() {
   const { t } = useI18n();
-  const [workspaces, setWorkspaces] = useState([]);
-  const [loading, setLoading] = useState(true);
+
+  // The list and the assignable staff, read through the shared hook: it owns the
+  // cache, the cache-first paint and the discarding of a stale answer, so the
+  // page keeps no copy of its own and reads during render.
+  const { data: workspaces, loading, refresh: refreshWorkspaces } = useApi(
+    RELATIONSHIPS_URL,
+    { defaultValue: [], transform: pickWorkspaces },
+  );
+  const { data: staffList } = useApi(STAFF_URL, {
+    defaultValue: [],
+    transform: pickStaff,
+  });
+  // The introductions still waiting for a workspace. Read independently, and
+  // refreshed alongside every action (see reloadWorkspaces / reloadDetail).
+  const { data: pendingIntros, refresh: refreshIntros } = useApi(
+    PIPELINE_INTROS_URL,
+    { defaultValue: [], transform: pickIntros },
+  );
+
+  // Who is signed in, from the shell's session cache. This screen used to ask the
+  // session endpoint for itself, which the shell has already done - and fell back
+  // to the browser's stored copy when that failed.
+  const { cid: currentUserCid } = useSessionUser();
+
   const [selected, setSelected] = useState(null);
   const [meetings, setMeetings] = useState([]);
   const [timeline, setTimeline] = useState([]);
@@ -45,7 +81,6 @@ export default function AdminRelationshipsPage() {
   const [showAddRequest, setShowAddRequest] = useState(false);
   const [requestForm, setRequestForm] = useState({ title: "", category: "financial", priority: "medium", due_date: "", description: "" });
   const [toast, setToast] = useState(null);
-  const [staffList, setStaffList] = useState([]);
   const [assignField, setAssignField] = useState(null);
   const [assignSearch, setAssignSearch] = useState("");
   const [expandedIntros, setExpandedIntros] = useState({});
@@ -55,63 +90,11 @@ export default function AdminRelationshipsPage() {
     meeting_type: "introductory", scheduled_date: "", scheduled_time: "",
     duration_minutes: 60, location: "", notes: "",
   });
-  const [currentUserCid, setCurrentUserCid] = useState(null);
 
   // Complete form
   const [completeForm, setCompleteForm] = useState({
     outcome: "", notes: "", action_items: "",
   });
-
-  const fetchCurrentUser = async () => {
-    try {
-      const res = await fetch("/api/auth/session");
-      const data = await res.json();
-      if (data.authenticated && data.user) setCurrentUserCid(data.user.cid || data.user.id);
-    } catch (_) {
-      // Fallback to localStorage
-      try {
-        const saved = JSON.parse(localStorage.getItem("user") || "{}");
-        setCurrentUserCid(saved.cid || saved.id);
-      } catch (_) {}
-    }
-  };
-
-  const fetchWorkspaces = async (bypassCache = false) => {
-    const url = "/api/investor/relationships";
-    const apply = (data) => {
-      if (data.success) setWorkspaces(data.workspaces || []);
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to the page renders instantly from a fresh
-      // snapshot; mutation flows pass bypassCache=true so the list always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (_) {}
-    setLoading(false);
-  };
-
-  const fetchStaff = async () => {
-    try {
-      const res = await fetch("/api/contacts?role=super_admin,staff,program_manager");
-      const data = await res.json();
-      if (data.success) setStaffList(data.contacts || []);
-    } catch (_) {}
-  };
-
-  useEffect(() => { fetchWorkspaces(); fetchStaff(); fetchCurrentUser(); }, []);
 
   const handleAssign = async (field, cid, name) => {
     try {
@@ -125,7 +108,7 @@ export default function AdminRelationshipsPage() {
         setToast({ type: "success", message: field === "relationship_manager" ? t("investorAdmin.relationships.rmAssigned") : t("investorAdmin.relationships.imAssigned") });
         setAssignField(null);
         setAssignSearch("");
-        selectWorkspace(selected, true);
+        reloadDetail();
       }
     } catch (_) {}
   };
@@ -170,6 +153,19 @@ export default function AdminRelationshipsPage() {
     } catch (_) {}
   };
 
+  // Every action below re-reads what it changed. The pending introductions are a
+  // read of their own, so they are refreshed with it: the old code got that for
+  // free by keying that read on the workspace list, which re-read it whenever the
+  // list was replaced.
+  const reloadWorkspaces = () => {
+    refreshWorkspaces();
+    refreshIntros();
+  };
+  const reloadDetail = () => {
+    selectWorkspace(selected, true);
+    refreshIntros();
+  };
+
   const handleCreateMeeting = async () => {
     if (!meetingForm.scheduled_date) {
       setToast({ type: "error", message: t("investorAdmin.relationships.dateRequired") });
@@ -186,7 +182,7 @@ export default function AdminRelationshipsPage() {
         setToast({ type: "success", message: t("investorAdmin.relationships.meetingScheduled") });
         setShowCreateMeeting(false);
         setMeetingForm({ meeting_type: "introductory", scheduled_date: "", scheduled_time: "", duration_minutes: 60, location: "", notes: "" });
-        selectWorkspace(selected, true);
+        reloadDetail();
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
@@ -211,7 +207,7 @@ export default function AdminRelationshipsPage() {
         setToast({ type: "success", message: t("investorAdmin.relationships.meetingCompleted") });
         setShowCompleteMeeting(null);
         setCompleteForm({ outcome: "", notes: "", action_items: "" });
-        selectWorkspace(selected, true);
+        reloadDetail();
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
@@ -228,7 +224,7 @@ export default function AdminRelationshipsPage() {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: t("investorAdmin.relationships.workspaceCreated") });
-        fetchWorkspaces(true);
+        reloadWorkspaces();
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
@@ -244,7 +240,7 @@ export default function AdminRelationshipsPage() {
         body: JSON.stringify({ pipeline_id: selected.pipeline_id, action: "create_workspace" }),
       });
       const data = await res.json();
-      if (data.success) { setToast({ type: "success", message: t("investorAdmin.relationships.ddWorkspaceCreated") }); selectWorkspace(selected, true); }
+      if (data.success) { setToast({ type: "success", message: t("investorAdmin.relationships.ddWorkspaceCreated") }); reloadDetail(); }
       else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
     } catch (_) {}
   };
@@ -262,7 +258,7 @@ export default function AdminRelationshipsPage() {
         setToast({ type: "success", message: t("investorAdmin.relationships.ddRequestAdded") });
         setShowAddRequest(false);
         setRequestForm({ title: "", category: "financial", priority: "medium", due_date: "", description: "" });
-        selectWorkspace(selected, true);
+        reloadDetail();
       } else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
     } catch (_) {}
   };
@@ -275,7 +271,7 @@ export default function AdminRelationshipsPage() {
         body: JSON.stringify({ pipeline_id: selected.pipeline_id, action: "update_request", request_id: requestId, status: newStatus }),
       });
       const data = await res.json();
-      if (data.success) { setToast({ type: "success", message: t("investorAdmin.relationships.requestStatusToast", { status: newStatus }) }); selectWorkspace(selected, true); }
+      if (data.success) { setToast({ type: "success", message: t("investorAdmin.relationships.requestStatusToast", { status: newStatus }) }); reloadDetail(); }
       else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
     } catch (_) {}
   };
@@ -297,7 +293,7 @@ export default function AdminRelationshipsPage() {
         if (data.success) {
           setToast({ type: "success", message: t("investorAdmin.relationships.fileUploadedToast", { fileName: file.name }) });
           setUploadReqId(null);
-          selectWorkspace(selected, true);
+          reloadDetail();
           // Fetch docs for this request
           fetchDdDocs(requestId);
         } else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
@@ -326,18 +322,6 @@ export default function AdminRelationshipsPage() {
       }
     } catch (_) {}
   };
-
-  // Check for pending introductions (meeting_requested without workspace)
-  const [pendingIntros, setPendingIntros] = useState([]);
-  useEffect(() => {
-    fetch("/api/investor/pipeline?stage=meeting_requested")
-      .then(r => r.json())
-      .then(d => {
-        if (d.success) {
-          setPendingIntros(d.pipeline || []);
-        }
-      });
-  }, [workspaces]);
 
   return (
     <>

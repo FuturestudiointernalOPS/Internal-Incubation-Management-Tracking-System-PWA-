@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use, useCallback } from "react";
+import React, { useState, use, useCallback } from "react";
 import {
   Users,
   FileText,
@@ -37,7 +37,54 @@ import AppStatusBadge from "@/components/ui/AppStatusBadge";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_MAP = {};
+const NO_DELIVERABLES = { list: [], upcoming: [] };
+
+/** Every team the endpoint returns; the one on screen is picked from them. */
+const pickTeams = (d) => (d?.success && d.teams ? d.teams : []);
+const pickFirstProgram = (d) =>
+  d?.success && d.programs ? d.programs[0] || null : null;
+
+/**
+ * The programme's deliverables, and the ones still ahead of us as a calendar.
+ * The clock is read here rather than during the render because a transform runs
+ * outside it; the loader this replaced read it in the same place.
+ */
+const pickDeliverables = (d) => {
+  const list = d?.success && d.deliverables ? d.deliverables : [];
+  const now = new Date();
+  const upcoming = list
+    .filter((x) => x.due_date || x.created_at)
+    .map((x) => ({
+      ...x,
+      _date: x.due_date ? new Date(x.due_date) : new Date(x.created_at),
+    }))
+    .filter((x) => x._date >= now)
+    .sort((a, b) => a._date - b._date);
+  return { list, upcoming };
+};
+
+/** This team's submissions, gathered under the deliverable they answer. */
+const pickSubmissionsByDeliverable = (d) => {
+  const byDeliverable = {};
+  if (!d?.success || !d.submissions) return byDeliverable;
+  for (const s of d.submissions) {
+    const key = s.deliverable_id || s.requirement_id;
+    if (!key) continue;
+    if (!byDeliverable[key]) byDeliverable[key] = [];
+    byDeliverable[key].push(s);
+  }
+  return byDeliverable;
+};
+
+const pickTasks = (d) => (d?.success ? d.tasks || [] : []);
 
 export default function TeamDashboardPage({ params }) {
   const unwrappedParams = use(params);
@@ -48,13 +95,6 @@ export default function TeamDashboardPage({ params }) {
 
   // — State —
   const [activeTab, setActiveTab] = useState("overview");
-  const [team, setTeam] = useState(null);
-  const [program, setProgram] = useState(null);
-  const [members, setMembers] = useState([]);
-  const [deliverables, setDeliverables] = useState([]);
-  const [submissions, setSubmissions] = useState({});
-  const [upcomingDeadlines, setUpcomingDeadlines] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [selectedDeliverable, setSelectedDeliverable] = useState(null);
@@ -62,11 +102,8 @@ export default function TeamDashboardPage({ params }) {
   const [submitLink, setSubmitLink] = useState("");
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState(null);
-  const [retryCount] = useState(0);
 
   // Task 4.5 — Team Workspace state
-  const [tasks, setTasks] = useState([]);
-  const [tasksLoading, setTasksLoading] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [taskForm, setTaskForm] = useState({
@@ -84,197 +121,96 @@ export default function TeamDashboardPage({ params }) {
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [followUpDate, setFollowUpDate] = useState("");
   const [reviewing, setReviewing] = useState(false);
-  const [userRole, setUserRole] = useState(null);
 
-  // — Fetch all data —
-  const fetchUserRole = async () => {
-    try {
-      const res = await fetch("/api/auth/session");
-      const data = await res.json();
-      if (data?.user?.role) setUserRole(data.user.role);
-    } catch (_) {}
-  };
+  // Who is signed in, from the shell's session cache. This screen used to ask the
+  // session endpoint for itself, which the shell has already done.
+  const { role: userRole } = useSessionUser();
 
-  const fetchTeamData = useCallback(async (bypassCache = false) => {
-    const url = `/api/teams?program_id=all&team_id=${teamId}`;
-    const apply = (teamData, progData, delData, subData) => {
-      if (teamData?.success && teamData.teams) {
-        const found = teamData.teams.find(
-          (t) => t.id === teamId || String(t.id) === String(teamId),
-        );
-        if (found) {
-          setTeam(found);
+  // — Read everything —
+  //
+  // A chain rather than a set: the team names the programme, and the programme
+  // names the three reads below it. Each one is addressed from the value the one
+  // above it returned, so a value that is not known yet is simply an address that
+  // is not known yet - there is nothing to keep in step.
+  const {
+    data: teams,
+    loading: teamsLoading,
+    refresh: refreshTeams,
+  } = useApi(`/api/teams?program_id=all&team_id=${teamId}`, {
+    defaultValue: [],
+    transform: pickTeams,
+    deps: [teamId],
+  });
 
-          if (found.program_id) {
-            // 2. Program info
-            if (progData?.success && progData.programs) {
-              setProgram(progData.programs[0] || null);
-            }
+  const team =
+    teams.find((x) => x.id === teamId || String(x.id) === String(teamId)) ||
+    null;
+  const members = team?.members || [];
+  const programId = team?.program_id || null;
 
-            // 3. Deliverables for this program
-            if (delData?.success && delData.deliverables) {
-              setDeliverables(delData.deliverables || []);
-            }
+  const {
+    data: program,
+    loading: programLoading,
+    error: programError,
+    status: programStatus,
+    refresh: refreshProgram,
+  } = useApi(programId ? `/api/programs?id=${programId}` : null, {
+    defaultValue: null,
+    transform: pickFirstProgram,
+    deps: [programId],
+  });
 
-            // 4. Submissions for this team
-            if (subData?.success && subData.submissions) {
-              const subMap = {};
-              for (const s of subData.submissions) {
-                const key = s.deliverable_id || s.requirement_id;
-                if (key) {
-                  if (!subMap[key]) subMap[key] = [];
-                  subMap[key].push(s);
-                }
-              }
-              setSubmissions(subMap);
-            }
+  const {
+    data: deliverablesPayload,
+    loading: deliverablesLoading,
+    refresh: refreshDeliverables,
+  } = useApi(programId ? `/api/deliverables?program_id=${programId}` : null, {
+    defaultValue: NO_DELIVERABLES,
+    transform: pickDeliverables,
+    deps: [programId],
+  });
+  const deliverables = deliverablesPayload.list;
+  const upcomingDeadlines = deliverablesPayload.upcoming;
 
-            // 5. Build deadlines calendar
-            try {
-              if (delData?.deliverables) {
-                const now = new Date();
-                const deadlines = delData.deliverables
-                  .filter((d) => d.due_date || d.created_at)
-                  .map((d) => ({
-                    ...d,
-                    _date: d.due_date
-                      ? new Date(d.due_date)
-                      : new Date(d.created_at),
-                  }))
-                  .filter((d) => d._date >= now)
-                  .sort((a, b) => a._date - b._date);
-                setUpcomingDeadlines(deadlines);
-              }
-            } catch (_) {}
-          }
+  const {
+    data: submissions,
+    loading: submissionsLoading,
+    refresh: refreshSubmissions,
+  } = useApi(
+    programId ? `/api/submissions?team_id=${teamId}&program_id=${programId}` : null,
+    { defaultValue: EMPTY_MAP, transform: pickSubmissionsByDeliverable, deps: [teamId, programId] },
+  );
 
-          // 6. Team members come from the teams API response
-          if (found.members) {
-            setMembers(found.members || []);
-          }
-        }
-      }
-    };
-    let painted = false;
-    if (!bypassCache) setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from fresh
-      // snapshots; mutation flows pass bypassCache=true so the page always
-      // reflects the last action without flashing the full-page spinner.
-      if (!bypassCache) {
-        const teamCached = cacheGet(url);
-        if (teamCached !== null && teamCached.success && teamCached.teams) {
-          const foundCached = teamCached.teams.find(
-            (t) => t.id === teamId || String(t.id) === String(teamId),
-          );
-          if (foundCached) {
-            if (foundCached.program_id) {
-              const urls = [
-                `/api/programs?id=${foundCached.program_id}`,
-                `/api/deliverables?program_id=${foundCached.program_id}`,
-                `/api/submissions?team_id=${teamId}&program_id=${foundCached.program_id}`,
-              ];
-              const cached = urls.map((u) => cacheGet(u));
-              if (cached.every((c) => c !== null && c.success)) {
-                apply(teamCached, cached[0], cached[1], cached[2]);
-                setLoading(false);
-                painted = true;
-              }
-            } else {
-              apply(teamCached, null, null, null);
-              setLoading(false);
-              painted = true;
-            }
-          }
-        }
-      }
+  // The tasks are read only while their tab is open, which is what the effect
+  // this replaced expressed by deciding whether to call its loader.
+  const {
+    data: tasks,
+    loading: tasksLoading,
+    refresh: refreshTasks,
+  } = useApi(
+    teamId && activeTab === "tasks" ? `/api/team-tasks?team_id=${teamId}` : null,
+    { defaultValue: [], transform: pickTasks, deps: [teamId, activeTab] },
+  );
 
-      // 1. Fetch team data
-      const teamRes = await fetch(url);
-      const teamData = await teamRes.json();
+  // One render passes with the programme known and its three reads not yet asked
+  // for: the hook's flags rise in the effect, which is after that render. Counting
+  // it as loading keeps the shell from showing empty panels for that frame.
+  const programReadPending =
+    Boolean(programId) && programStatus === null && !programError;
+  const loading =
+    teamsLoading ||
+    programReadPending ||
+    programLoading ||
+    deliverablesLoading ||
+    submissionsLoading;
 
-      if (teamData.success && teamData.teams) {
-        cacheSet(url, teamData);
-        const found = teamData.teams.find(
-          (t) => t.id === teamId || String(t.id) === String(teamId),
-        );
-        if (found) {
-          let progData = null;
-          let delData = null;
-          let subData = null;
-
-          // 2. Fetch program info
-          if (found.program_id) {
-            const progUrl = `/api/programs?id=${found.program_id}`;
-            try {
-              const progRes = await fetch(progUrl);
-              progData = await progRes.json();
-              if (progData.success) cacheSet(progUrl, progData);
-            } catch (_) {}
-
-            // 3. Fetch deliverables for this program
-            const delUrl = `/api/deliverables?program_id=${found.program_id}`;
-            try {
-              const delRes = await fetch(delUrl);
-              delData = await delRes.json();
-              if (delData.success) cacheSet(delUrl, delData);
-            } catch (_) {}
-
-            // 4. Fetch submissions for this team
-            const subUrl = `/api/submissions?team_id=${teamId}&program_id=${found.program_id}`;
-            try {
-              const subRes = await fetch(subUrl);
-              subData = await subRes.json();
-              if (subData.success) cacheSet(subUrl, subData);
-            } catch (_) {}
-          }
-
-          apply(teamData, progData, delData, subData);
-        }
-      }
-    } catch (e) {
-      if (!painted) console.error("Team dashboard fetch error:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [teamId]);
-
-  useEffect(() => {
-    fetchTeamData();
-    fetchUserRole();
-  }, [teamId, retryCount, fetchTeamData]);
-
-  // — Fetch team tasks —
-  const fetchTasks = useCallback(async (bypassCache = false) => {
-    const url = `/api/team-tasks?team_id=${teamId}`;
-    const apply = (data) => {
-      if (data.success) setTasks(data.tasks || []);
-    };
-    setTasksLoading(true);
-    try {
-      // Cache-first paint: revisiting the tab renders instantly from a fresh
-      // snapshot; task mutations pass bypassCache=true so the board always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setTasksLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (_) {}
-    setTasksLoading(false);
-  }, [teamId]);
-
-  useEffect(() => {
-    if (teamId && activeTab === "tasks") fetchTasks();
-  }, [teamId, activeTab, fetchTasks]);
+  // Every action below re-reads the chain it changed.
+  const reloadTeam = useCallback(() => {
+    refreshTeams();
+    refreshProgram();
+    refreshDeliverables();
+    refreshSubmissions();
+  }, [refreshTeams, refreshProgram, refreshDeliverables, refreshSubmissions]);
 
   // — File upload handler —
   const handleFileUpload = async (e) => {
@@ -335,7 +271,7 @@ export default function TeamDashboardPage({ params }) {
         setSelectedDeliverable(null);
         setSubmitFileUrl("");
         setSubmitLink("");
-        fetchTeamData(true);
+        reloadTeam();
       } else {
         setToast({
           type: "error",
@@ -392,7 +328,7 @@ export default function TeamDashboardPage({ params }) {
         setReviewSubData(null);
         setReviewFeedback("");
         setFollowUpDate("");
-        fetchTeamData(true);
+        reloadTeam();
       } else {
         setToast({ type: "error", message: t((data.error || t("rootMisc.team.reviewFailed")) || "") || (data.error || t("rootMisc.team.reviewFailed")) });
       }
@@ -422,7 +358,7 @@ export default function TeamDashboardPage({ params }) {
           priority: "medium",
           assigned_to: "",
         });
-        fetchTasks(true);
+        refreshTasks();
       }
     } catch (e) {
       setToast({ type: "error", message: t(e.message || "") || e.message });
@@ -438,7 +374,7 @@ export default function TeamDashboardPage({ params }) {
         body: JSON.stringify({ id: taskId, status }),
       });
       const data = await res.json();
-      if (data.success) fetchTasks(true);
+      if (data.success) refreshTasks();
     } catch (_) {}
   };
 
@@ -452,7 +388,7 @@ export default function TeamDashboardPage({ params }) {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: t("rootMisc.team.taskDeleted") });
-        fetchTasks(true);
+        refreshTasks();
       }
     } catch (e) {
       setToast({ type: "error", message: t(e.message || "") || e.message });
@@ -809,7 +745,7 @@ export default function TeamDashboardPage({ params }) {
                                 is_venture_ready: !team.is_venture_ready,
                               }),
                             });
-                            if ((await res.json()).success) fetchTeamData(true);
+                            if ((await res.json()).success) reloadTeam();
                           } catch (_) {}
                         }}
                       >

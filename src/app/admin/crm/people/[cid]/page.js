@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use, useCallback } from "react";
+import React, { useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { User, Clock, FileText, Briefcase, Rocket, Upload, Plus, ArrowLeft, Send, Mail, GraduationCap, Building2 } from "lucide-react";
 import Link from "next/link";
@@ -8,7 +8,19 @@ import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
 import { useSafeBack } from "@/lib/useSafeBack";
 import MembershipSection from "@/components/membership/MembershipSection";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const TIMELINE_LIMIT = 200;
+
+const pickContact = (d) => (d?.contacts?.length > 0 ? d.contacts[0] : null);
+const pickTimeline = (d) => (d?.success ? d.events || [] : []);
+const pickRoles = (d) => (d?.success ? d.roles || [] : []);
+const pickProgramHistory = (d) => (d?.success ? d.history || [] : []);
+const pickLearning = (d) => (d?.success ? d.learning || null : null);
 
 const MODULE_COLORS = {
   forms: "bg-purple-500/10 text-purple-400 border-purple-500/20",
@@ -62,14 +74,8 @@ export default function CrmDetailPage({ params }) {
   const { t, lang } = useI18n();
   const goBack = useSafeBack("/admin/crm");
 
-  const [contact, setContact] = useState(null);
-  const [events, setEvents] = useState([]);
-  const [roles, setRoles] = useState([]);
-  const [programs, setPrograms] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [moduleFilter, setModuleFilter] = useState("");
   const [tab, setTab] = useState("timeline");
-  const [learning, setLearning] = useState(null);
 
   // Note form
   const [noteText, setNoteText] = useState("");
@@ -90,58 +96,38 @@ export default function CrmDetailPage({ params }) {
   const [inviting, setInviting] = useState(false);
   const [inviteMessage, setInviteMessage] = useState(null);
 
-  const load = useCallback(async (bypassCache = false) => {
-    const urls = [
-      "/api/contacts?cid=" + cid,
-      `/api/contacts/${cid}/timeline?limit=200${moduleFilter ? "&module=" + moduleFilter : ""}`,
-      `/api/contacts/${cid}/roles`,
-      `/api/contacts/${cid}/programs`,
-      `/api/contacts/${cid}/learning`,
-    ];
-    const apply = (contactRes, timelineRes, rolesRes, programsRes, learningRes) => {
-      if (contactRes.contacts?.length > 0) setContact(contactRes.contacts[0]);
-      if (timelineRes.success) setEvents(timelineRes.events || []);
-      if (rolesRes.success) setRoles(rolesRes.roles || []);
-      if (programsRes.success) setPrograms(programsRes.history || []);
-      if (learningRes.success) setLearning(learningRes.learning || null);
-    };
-    let painted = false;
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; module-filter variants cache independently per URL.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2], cached[3], cached[4]);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const [contactRes, timelineRes, rolesRes, programsRes, learningRes] = await Promise.all([
-        fetch(urls[0]).then((r) => r.json()),
-        fetch(urls[1]).then((r) => r.json()),
-        fetch(urls[2]).then((r) => r.json()),
-        fetch(urls[3]).then((r) => r.json()),
-        fetch(urls[4]).then((r) => r.json()),
-      ]);
-      if (contactRes.success) cacheSet(urls[0], contactRes);
-      if (timelineRes.success) cacheSet(urls[1], timelineRes);
-      if (rolesRes.success) cacheSet(urls[2], rolesRes);
-      if (programsRes.success) cacheSet(urls[3], programsRes);
-      if (learningRes.success) cacheSet(urls[4], learningRes);
-      apply(contactRes, timelineRes, rolesRes, programsRes, learningRes);
-    } catch (e) {
-      if (!painted) console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [cid, moduleFilter]);
+  // Five reads of the same person, each through the shared hook: it owns the
+  // cache, the cache-first paint and the discarding of a stale answer, so the
+  // page keeps no copy of its own and reads its data during render.
+  const { data: contact, loading: contactLoading, refresh: refreshContact } = useApi(
+    cid ? `/api/contacts?cid=${cid}` : null,
+    { defaultValue: null, transform: pickContact, deps: [cid] },
+  );
+  const { data: events, loading: eventsLoading, setData: setEvents } = useApi(
+    cid
+      ? `/api/contacts/${cid}/timeline?limit=${TIMELINE_LIMIT}${moduleFilter ? `&module=${moduleFilter}` : ""}`
+      : null,
+    { defaultValue: [], transform: pickTimeline, deps: [cid, moduleFilter] },
+  );
+  const { data: roles, loading: rolesLoading } = useApi(
+    cid ? `/api/contacts/${cid}/roles` : null,
+    { defaultValue: [], transform: pickRoles, deps: [cid] },
+  );
+  const { data: programs, loading: programsLoading } = useApi(
+    cid ? `/api/contacts/${cid}/programs` : null,
+    { defaultValue: [], transform: pickProgramHistory, deps: [cid] },
+  );
+  const { data: learning, loading: learningLoading } = useApi(
+    cid ? `/api/contacts/${cid}/learning` : null,
+    { defaultValue: null, transform: pickLearning, deps: [cid] },
+  );
 
-  useEffect(() => {
-    if (!cid) return;
-    load();
-  }, [load, cid]);
+  const loading =
+    contactLoading ||
+    eventsLoading ||
+    rolesLoading ||
+    programsLoading ||
+    learningLoading;
 
   const currentRoles = roles.filter(r => r.is_current);
   const pastRoles = roles.filter(r => !r.is_current);
@@ -223,8 +209,8 @@ export default function CrmDetailPage({ params }) {
       const data = await res.json();
       if (data.success) {
         setInviteMessage({ type: "success", text: t("crm.contacts.invitationSent") || "Invitation sent" });
-        const contactRes = await fetch("/api/contacts?cid=" + cid).then((r) => r.json());
-        if (contactRes.contacts?.length > 0) setContact(contactRes.contacts[0]);
+        // Re-read the person so the invitation state on screen is the server's.
+        refreshContact();
       } else {
         setInviteMessage({ type: "error", text: data.error || "Failed to send invitation" });
       }

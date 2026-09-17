@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   Search,
@@ -18,7 +18,44 @@ import {
   UserCheck,
 } from "lucide-react";
 import { isResponsibilityBlockedForRole } from "@/lib/featureAccess";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const CONTACTS_URL = "/api/contacts";
+const PERMISSIONS_URL = "/api/engineering/permissions";
+
+// Stable shapes: the hook keys its internal work on these too.
+const EMPTY_MODULES = {};
+
+/**
+ * The people list, people who are active first and then by name. The payload is
+ * copied before sorting because it comes back through a shared cache: sorting it
+ * in place would reorder the cached copy for every other screen reading it.
+ */
+const pickPeople = (d) => {
+  if (!d?.success) return [];
+  return [...(d.contacts || [])].sort((a, b) => {
+    if (a.status === "active" && b.status !== "active") return -1;
+    if (a.status !== "active" && b.status === "active") return 1;
+    return (a.name || "").localeCompare(b.name || "");
+  });
+};
+
+const pickModules = (d) => (d?.success ? d.modules || {} : EMPTY_MODULES);
+
+const filterPeople = (people, query) => {
+  const q = query.trim().toLowerCase();
+  if (!q) return people;
+  return people.filter(
+    (u) =>
+      (u.name || "").toLowerCase().includes(q) ||
+      (u.email || "").toLowerCase().includes(q) ||
+      (u.cid || "").toLowerCase().includes(q),
+  );
+};
 
 const ACCESS_LEVEL_KEYS = {
   0: "adminMisc.access.accessLevelNone",
@@ -49,85 +86,31 @@ const MODULE_CATEGORIES = [
 export default function UserAccessSummary() {
   const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
-  const [allUsers, setAllUsers] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [modules, setModules] = useState({});
-  const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 20;
+
+  // The people and the module catalogue, read through the shared hook: it owns
+  // the cache, the cache-first paint and the discarding of a stale answer, so
+  // the page keeps no copy of its own and reads its data during render.
+  const { data: allUsers, refresh: refreshUsers } = useApi(CONTACTS_URL, {
+    defaultValue: [],
+    transform: pickPeople,
+  });
+  const { data: modules } = useApi(PERMISSIONS_URL, {
+    defaultValue: EMPTY_MODULES,
+    transform: pickModules,
+  });
+
+  // The visible list is the whole list filtered by what is typed, so it is
+  // derived: held as a second copy it could disagree with the query that made it.
+  const searchResults = filterPeople(allUsers, searchQuery);
   const [supervisorQuery, setSupervisorQuery] = useState("");
   const [showSupervisorPicker, setShowSupervisorPicker] = useState(false);
   const [savingSupervisor, setSavingSupervisor] = useState(false);
   const [supervisorMsg, setSupervisorMsg] = useState("");
   const [supervisorError, setSupervisorError] = useState("");
-
-  const fetchModules = async () => {
-    try {
-      const res = await fetch("/api/engineering/permissions");
-      const data = await res.json();
-      if (data.success) setModules(data.modules || {});
-    } catch (_) {}
-  };
-
-  const fetchUsers = async (bypassCache = false) => {
-    const url = "/api/contacts";
-    const apply = (data) => {
-      if (data.success) {
-        const sorted = (data.contacts || []).sort((a, b) => {
-          if (a.status === "active" && b.status !== "active") return -1;
-          if (a.status !== "active" && b.status === "active") return 1;
-          return (a.name || "").localeCompare(b.name || "");
-        });
-        setAllUsers(sorted);
-        setSearchResults(sorted);
-      }
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a
-      // fresh snapshot; mutation flows pass bypassCache=true so the list
-      // always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (_) {} finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers();
-    fetchModules();
-  }, []);
-
-  const searchUsers = (query) => {
-    setSearchQuery(query);
-    if (!query.trim()) {
-      setSearchResults(allUsers);
-      return;
-    }
-    const q = query.toLowerCase();
-    setSearchResults(
-      allUsers.filter(
-        (u) =>
-          (u.name || "").toLowerCase().includes(q) ||
-          (u.email || "").toLowerCase().includes(q) ||
-          (u.cid || "").toLowerCase().includes(q),
-      ),
-    );
-  };
 
   const fetchUserSummary = async (user) => {
     setSelectedUser(user);
@@ -254,15 +237,19 @@ export default function UserAccessSummary() {
   };
 
   // Pagination
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
+  //
+  // The page belongs to the query it was chosen under: changing the query starts
+  // again at the first page. Kept as an effect this ran after the render, so the
+  // list was drawn for one frame under the previous query's page number.
+  const [pageChoice, setPageChoice] = useState({ query: "", page: 1 });
+  const currentPage = pageChoice.query === searchQuery ? pageChoice.page : 1;
   const totalPages = Math.max(1, Math.ceil(searchResults.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const paginatedUsers = searchResults.slice(
     (safePage - 1) * PAGE_SIZE,
     safePage * PAGE_SIZE,
   );
+  const goToPage = (page) => setPageChoice({ query: searchQuery, page });
 
   // ─── RENDER ───
   return (
@@ -285,7 +272,7 @@ export default function UserAccessSummary() {
             </p>
           </div>
           <button
-            onClick={() => { setSelectedUser(null); setUserData(null); fetchUsers(); }}
+            onClick={() => { setSelectedUser(null); setUserData(null); refreshUsers(); }}
             className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5" /> {t("adminMisc.access.refresh")}
@@ -299,7 +286,7 @@ export default function UserAccessSummary() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
               <input
                 value={searchQuery}
-                onChange={(e) => searchUsers(e.target.value)}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t("adminMisc.access.searchPlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 text-sm font-bold transition-all"
               />
@@ -344,14 +331,14 @@ export default function UserAccessSummary() {
                     </p>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        onClick={() => goToPage(Math.max(1, safePage - 1))}
                         disabled={safePage === 1}
                         className="px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                       >
                         {t("common.previous")}
                       </button>
                       <button
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        onClick={() => goToPage(Math.min(totalPages, safePage + 1))}
                         disabled={safePage === totalPages}
                         className="px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                       >
