@@ -149,25 +149,25 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 67 |
-| `react-hooks/set-state-in-effect` | 200 | 63 |
+| ESLint warnings, total | 2192 | 55 |
+| `react-hooks/set-state-in-effect` | 200 | 51 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` | 2 | 0 |
 | Production build | passes | passes |
 
-Screens carrying a `set-state-in-effect` warning: **31** (plus the hook itself,
+Screens carrying a `set-state-in-effect` warning: **22** (plus the hook itself,
 which is counted separately below).
 
 | Group | Screens |
 |---|---:|
 | Application pages | 15 |
-| Shared components (`src/components/`) | 12 |
+| Shared components (`src/components/`) | 4 |
 | `src/lib/` modules | 3 |
 
-The hook itself accounts for the thirty-second file, and for four warnings rather
+The hook itself accounts for the twenty-third file, and for four warnings rather
 than two (see the note below and §3.7).
 
-Of these 31 screens, **16 carry a single warning**; the remaining 15 carry two to
+Of these 22 screens, **10 carry a single warning**; the remaining 12 carry two to
 five.
 
 ### What is left, and under which reason
@@ -183,8 +183,8 @@ unsaid, and no screen is on this list merely because it looked hard.
 | The read fills in a form | 1 | §1, the form table |
 | The loader has side effects beyond storing the result | 1 | §3.3 |
 | Large screens not yet examined one by one | 6 | §3.6 |
-| **Shared components not yet examined one by one** | 12 | §4 |
-| **`src/lib/` modules** | 3 | §3.7 and §4 |
+| The four remaining shared components | 4 | §4.0 |
+| **`src/lib/` modules** | 3 | §3.7 and §4.0 |
 
 Six of the reasons above are no longer reasons: the screens that needed a
 capability the hook did not expose (§3.1), the ones that asked for one record per
@@ -606,41 +606,43 @@ sections walked in each role, rather than as part of a warning cleanup.
 
 ### 4.0 What is left, exactly
 
-- **12 shared components** (`src/components/**`). These are rendered by several
-  roles at once, so a mistake reaches several audiences. They are handled one at
-  a time, never in bulk, and each one is checked for who renders it first:
+**Four shared components**, and they are the four that need reading before they
+are touched rather than a recipe:
 
-  | Component | Warnings |
-  |---|---:|
-  | `src/components/tasks/TaskManager.js` | 4 |
-  | `src/components/dashboard/ProgramDetail.js` | 3 |
-  | `src/components/layout/DashboardLayout.js` — THE SHELL, every role | 3 |
-  | `src/components/dashboard/ProfileView.js` | 2 |
-  | `src/components/lms/LearnerCoachingButton.js` | 2 |
-  | `src/components/lms/LearnerPlayer.js` | 2 |
-  | `src/components/messaging/MessagingChat.js` | 2 |
-  | `src/components/dashboard/StandupRetroView.js` | 1 |
-  | `src/components/dashboard/SubmissionVersionHistory.js` | 1 |
-  | `src/components/dashboard/UnifiedDashboard.js` | 1 |
-  | `src/components/membership/MembershipSection.js` | 1 |
-  | `src/components/pm/FacilitatorsPanel.js` | 1 |
-  | `src/components/views/ErrorLogsView.js` | 1 |
+| Component | Warnings | Why it is not routine |
+|---|---:|---|
+| `src/components/layout/DashboardLayout.js` — THE SHELL, every role | 3 | See §4.0.1 below: each of the three needs the plan written out, not a conversion. |
+| `src/components/tasks/TaskManager.js` | 4 | The largest of the four and used by several roles; not yet read. |
+| `src/components/dashboard/ProgramDetail.js` | 3 | Not yet read. |
+| `src/components/messaging/MessagingChat.js` | 2 | Not yet read; a chat has its own live-update needs. |
 
-  (Twelve screens plus `DashboardLayout`, which is the shell rather than a screen
-  and is listed where it will be worked on.)
+**3 `src/lib/` modules** are also left: the translation provider, the theme
+provider and the permission provider. (The reading hook is the fourth, and its own
+four warnings are deliberate - §3.7.)
 
-- **3 `src/lib/` modules**: the translation provider, the theme provider and the
-  permission provider. (The reading hook is the fourth, and its own four warnings
-  are deliberate - §3.7.)
+#### 4.0.1 The shell's three warnings, and what each needs
 
-**DONE — 19 converted:** the six participant dashboard views (`AssignmentsView`,
+`src/components/layout/DashboardLayout.js` is the one file where a mistake
+reaches every role at once, so none of its three is converted blind. Each is
+diagnosed, with the repair identified:
+
+| Warning | What it is | The repair, and what to check before making it |
+|---|---|---|
+| line 984, the `useLayoutEffect` restore | Restores the session from the in-memory cache (or the browser's stored copy) BEFORE the first paint, and writes `user` + `authChecked` to do it. | **Structural, not a conversion.** The value comes from a browser store, so it cannot be read during the render the server also produces - the same reason §3.11 gives for the section guards. The honest repair is to make `user` a value SUBSCRIBED to the session cache (`useSyncExternalStore`, as `useSessionUser` does) instead of the shell's own state, and to derive `authChecked` from it. That is a change to how the shell owns the identity, which every role depends on, so it is made deliberately and walked in each role - not as part of a warning sweep. |
+| line 1144, the "My Learning" door | Writes `setHasLmsEnrollments(false)` synchronously when the connected role is not a personal one. | **A conversion.** Address the read on the role: `useApi(PERSONAL_ROLES.includes(shellRole(user.role, role)) ? "/api/lms/my-learning?exists=1" : null, ...)`. With no address there is no read and the door is hidden, which is what the synchronous write was expressing. |
+| line 1436, the sidebar accordion | On every navigation, force-closes the sections that are not on the new route's path and opens those that are. | **A conversion, by derivation.** The user's toggles are recorded TOGETHER WITH THE ROUTE they were made on, and the effective menu map is derived during render: the route's ancestors open, everything else closed, then the toggles for THAT route laid over. Replaying the current `toggleMenu` against that derived map reproduces today's behaviour exactly, including the ability to close an ancestor by hand. Must be checked in each role, because the menu is role-built. |
+
+**DONE — 28 converted:** the six participant dashboard views (`AssignmentsView`,
 `ParticipantDashboardHome`, `ProgramListing`, `ProgressView`, `RitualsView`,
 `UnifiedOperationsView`), the ten LMS panels (`AssessmentTake`,
 `CoachingRequestsPanel`, `CourseEditor`, `CourseList`, `EnrollModal`,
 `LearnerCourse`, `LearnerLearning`, `LessonModal`, `ProgramLearningSection`,
-`SessionResourcesSection`), the membership roster (`MembershipScreen`) and the two
-UI primitives (`NavigationLoader`, `SearchableSelect`). None of them needs
-revisiting; their two non-obvious shapes are recorded in §4.3.
+`SessionResourcesSection`), the membership roster (`MembershipScreen`), the two UI
+primitives (`NavigationLoader`, `SearchableSelect`) and the nine of the second
+slice (`ProfileView`, `StandupRetroView`, `SubmissionVersionHistory`,
+`UnifiedDashboard`, `LearnerCoachingButton`, `LearnerPlayer`, `MembershipSection`,
+`FacilitatorsPanel`, `ErrorLogsView`). None of them needs revisiting; the
+non-obvious shapes are recorded in §4.3.
 
 ### 4.1 The venture group - CONVERTED
 
