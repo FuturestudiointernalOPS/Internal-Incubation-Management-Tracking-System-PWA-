@@ -149,22 +149,25 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 90 |
-| `react-hooks/set-state-in-effect` | 200 | 86 |
+| ESLint warnings, total | 2192 | 86 |
+| `react-hooks/set-state-in-effect` | 200 | 82 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` | 2 | 0 |
 | Production build | passes | passes |
 
-Screens carrying a `set-state-in-effect` warning: **54**.
+Screens carrying a `set-state-in-effect` warning: **50** (plus the hook itself,
+which is counted separately below).
 
 | Group | Screens |
 |---|---:|
 | Application pages | 15 |
 | Shared components (`src/components/`) | 32 |
-| Venture screens | 3 |
-| `src/lib/` modules | 4 |
+| `src/lib/` modules | 3 |
 
-Of these 54 screens, **37 carry a single warning**; the remaining 17 carry two to
+The hook itself accounts for the fifty-first file, and for four warnings rather
+than two (see the note below and §3.7).
+
+Of these 50 screens, **35 carry a single warning**; the remaining 15 carry two to
 five.
 
 ### What is left, and under which reason
@@ -180,15 +183,15 @@ unsaid, and no screen is on this list merely because it looked hard.
 | The read fills in a form | 1 | §1, the form table |
 | The loader has side effects beyond storing the result | 1 | §3.3 |
 | Large screens not yet examined one by one | 6 | §3.6 |
-| Venture screens needing a restructure, not the recipe | 3 | §4 |
-| **Shared components** (rendered by several roles at once) | 32 | §4 |
-| **`src/lib/` modules** | 4 | §3.7 and §4 |
+| **Shared components** (rendered by several roles at once) | 30 | §4 |
+| **`src/lib/` modules** | 3 | §3.7 and §4 |
 
-Five of the reasons above are no longer reasons: the screens that needed a
-capability the hook did not expose (§3.1), the ones that asked for one record per
-element (§3.2), the one whose read also wrote (§3.9), the standup screen's address
-mirror (§3.10, mostly) and the venture group (§4) are converted, and their sections
-record what was done.
+The whole venture group is converted, and its section records what each of the
+three needed. Six of the reasons above are therefore no longer reasons: the
+screens that needed a capability the hook did not expose (§3.1), the ones that
+asked for one record per element (§3.2), the one whose read also wrote (§3.9), the
+standup screen's address mirror (§3.10, mostly), the venture group and - no longer
+listed - the screen that republished its state from its writes (§4).
 
 > The test count is not recorded here any more: another workstream adds and
 > renames suites in this same working tree, so any figure went stale within the
@@ -596,24 +599,59 @@ sections walked in each role, rather than as part of a warning cleanup.
 
 ## 4. Not started
 
-The three groups that are not started, and why they are grouped rather than listed:
+Two groups, and the whole venture group behind them:
 
-- **3 venture screens**, of the 23 this group began with. Twenty are converted.
-  The three left each need a RESTRUCTURE rather than the recipe, and each reason is
-  specific:
+- **32 shared components** (`src/components/**`). These are rendered by several
+  roles at once, so a mistake reaches several audiences. They are handled last,
+  one at a time, never in bulk, and each one is checked for who renders it before
+  it is touched.
+- **3 `src/lib/` modules**: the translation provider, the theme provider and the
+  permission provider. (The reading hook is the fourth, and its own four warnings
+  are deliberate - §3.7.)
 
-  | Screen | Why the recipe does not apply |
-  |---|---|
-  | `src/app/participant/ventures/[id]/page.js` | Some twenty reads fanned out by one tab-keyed effect, and its read writes over an editable profile form whose setter is handed to eight child tab components through a context - the derived-base shape would change a contract those files consume. |
-  | `src/components/ventures/JourneyManagerPanel.js` | Its stages value is REPUBLISHED from the response body of five different writes, so removing that state would turn each write into an extra read and change how each behaves when that read fails. |
-  | `src/components/ventures/VentureDashboard.js` | The read's answer becomes a per-widget map that each widget rewrites for itself, failure message included; the read assigns the whole map back over those writes - exactly the case the test in section 1 says the derived-base shape is wrong for. It also cannot use a module-scope shaper, because building the map needs the translator. |
+### 4.1 The venture group - CONVERTED
 
-- **32 shared components** (`src/components/**`, ventures excluded). These are
-  rendered by several roles at once, so a mistake reaches several audiences. They
-  are handled last, one at a time, never in bulk, and each one is checked for who
-  renders it before it is touched.
-- **4 `src/lib/` modules**: the translation provider, the theme provider, the
-  permission provider, and the reading hook itself (§3.7).
+All 23 are converted. Twenty went through the recipe below; the last three each
+looked like they needed a restructure, and each one's blocker turned out to be a
+shape that the recipe already had an answer for. What each one needed, kept
+because the next group will meet the same three shapes:
+
+| Screen | What it looked like | What it actually needed |
+|---|---|---|
+| `src/components/ventures/VentureDashboard.js` | The read's answer became a per-widget map that each widget rewrote for itself, failure message included, and the read assigned the whole map back over those writes. | The map is derived from the payload **during render**; the only state kept is the transient pair a single widget goes through while being refreshed. The objection that the map needed the translator was about the SHAPER, and the shaper only had to return the payload. |
+| `src/components/ventures/JourneyManagerPanel.js` | Its stage list was REPUBLISHED from the response body of six different writes, and the note said removing that state would turn each write into an extra read. | A write publishes its OWN answer into the read it belongs to - that is what the hook's setter is for - so nothing is read twice and no successful write can be undone on screen by a re-read that then fails. |
+| `src/app/participant/ventures/[id]/page.js` | Some twenty-three reads fanned out by one tab-keyed effect, and the read that filled the profile form overwrote it, with the form's setter handed to eight child components through a context. | Only ONE of the reads was the blocker: the one that fills the form. Solving it alone made the two objecting reads stop objecting. The form is a derived base plus the person's edits, and `setForm` still accepts a whole form object - which is all the eight children ever passed - so their contract never changed. |
+
+Two things this group settled, which the rest of the work depends on:
+
+- **a write that already carries the new state should not buy a second read.**
+  The rule is: publish the answer the write returned into the read it belongs to;
+  call the read's `refresh` only from the writes whose body does NOT carry what
+  the screen shows (the milestone and deliverable writes here, which return a
+  status and not the structure).
+- **a form filled by a read is a derived base plus the edits, and the setter can
+  keep its old signature.** A child that hands over a whole form object is already
+  handing over "the base with my changes applied", so recording it as the edits
+  and laying it back over the base reproduces exactly what the child meant. The
+  contract only has to change when a child passes something other than a whole
+  form.
+
+### 4.2 What is left on the founder's venture workspace
+
+Its 22 remaining reads are still written out by hand (each one is the shared
+cache, the `fetch`, and a `setState`). None of them carries a warning, because
+they all write their state after an `await` and the rule only reports a write
+reachable synchronously from an effect. They are a mechanical conversion from
+here, and the two that need thought are already solved:
+
+1. the identity and the venture record are done;
+2. `fetchDocuments` takes `(search, category)` and builds its address from the
+   page's own filter state - so as a hook read it is addressed **on that filter
+   state**, the child's debounce and its `onKeyUp` reload both disappear, and the
+   one-request-per-keystroke behaviour the screen already had is unchanged;
+3. the rest map one-to-one: `fetchX` becomes `refreshX` under the same name in
+   the workspace context, so the ~30 call sites inside the tab components do not
+   have to change at all.
 
 ### What the venture recipe looks like, for whoever continues it
 
@@ -626,13 +664,14 @@ the shared cache written out by hand:
 2. `loading` becomes the reads' loading flags, OR-ed;
 3. the states the loader filled are deleted, and everything downstream reads the
    values directly;
-4. the reload points become the reads' own `refresh`;
+4. the reload points become the reads' own `refresh` - or its `setData`, when the
+   write's own body is what the screen shows (§4.1);
 5. a read triggered by a CLICK - a document's detail, a session's detail - stays a
    plain fetch, so the file keeps using the shared cache directly for that one;
 6. a read whose answer must not be kept by the browser says so:
    `fetchOptions: { cache: "no-store" }`, which the hook passes to the request.
 
-The three mistakes that have cost a review cycle here, so they do not cost another:
+The four mistakes that have cost a review cycle here, so they do not cost another:
 
 - a state declaration that is not part of the read set must not be swept up with
   the ones that are - replace the specific declaration lines, never a block from
@@ -641,7 +680,11 @@ The three mistakes that have cost a review cycle here, so they do not cost anoth
   the call site;
 - a helper cannot call the hook for you - React reads a hook by the shape of the
   code, not by its name, and it will refuse one called from a function that is
-  neither a component nor named `use…`. Seven reads in one file are written out.
+  neither a component nor named `use…`. Seven reads in one file are written out;
+- a screen that paints a whole object out of a read (a widget map, an updated
+  record) keeps only what is TRANSIENT about it - the spinner and the failure
+  message - and derives the rest, or a write's own answer has nowhere to go but a
+  second request.
 
 ---
 
