@@ -1,90 +1,68 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Loader2, CheckCircle, AlertCircle, Users, ArrowRight } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
-import { cacheGet, cacheSet } from '@/lib/hooks/useApi';
+import { useApi } from '@/lib/hooks/useApi';
 
 export const dynamic = 'force-dynamic';
 
-export default function RegisterParticipantPage() {
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop. This endpoint signals success by the presence of `group` — there is no
+// success flag to read.
+const pickPublicGroup = (d) => (d && d.group ? d.group : null);
+
+// The registration window is a property of the group, so the check that used to
+// run inside the loader is now a plain reading of it during render.
+function registrationWindowError(group, t) {
+  if (!group?.registration_window) return '';
+  const parts = group.registration_window.split('|');
+  if (parts.length !== 2) return '';
+  const start = new Date(parts[0]);
+  const end = new Date(parts[1]);
+  end.setHours(23, 59, 59, 999);
+  const now = new Date();
+  if (now < start)
+    return t('rootMisc.registerParticipant.registrationOpens', { date: parts[0] });
+  if (now > end) return t('rootMisc.registerParticipant.registrationClosed');
+  return '';
+}
+
+function RegisterParticipantContent() {
   const { t } = useI18n();
-  const [groupId, setGroupId] = useState(null);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setGroupId(params.get('group_id'));
-  }, []);
-
-  const [group, setGroup] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const searchParams = useSearchParams();
+  const groupId = searchParams.get('group_id');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [error, setError] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
 
-  const fetchGroup = useCallback(async (bypassCache = false) => {
-    const url = `/api/public/group-info?id=${groupId}`;
-    // This endpoint signals success by the presence of `group` (no `success` flag).
-    const apply = (data) => {
-      if (!data || !data.group) return;
-      setGroup(data.group);
-      setError('');
-      // Vérifier la fenêtre d'inscription
-      if (data.group.registration_window) {
-        const parts = data.group.registration_window.split('|');
-        if (parts.length === 2) {
-          const start = new Date(parts[0]);
-          const end = new Date(parts[1]);
-          end.setHours(23, 59, 59, 999);
-          const now = new Date();
-          if (now < start) {
-            setError(t('rootMisc.registerParticipant.registrationOpens', { date: parts[0] }));
-            setGroup(null);
-          } else if (now > end) {
-            setError(t('rootMisc.registerParticipant.registrationClosed'));
-            setGroup(null);
-          }
-        }
-      }
-    };
-    let painted = false;
-    try {
-      // Cache-first paint: revisiting the same group link paints instantly from a
-      // fresh snapshot while the network refresh below re-checks the window.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.group) {
-          apply(cached);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (!data.group) {
-        setError(t('rootMisc.registerParticipant.groupNotFound'));
-        return;
-      }
-      cacheSet(url, data);
-      apply(data);
-    } catch {
-      if (!painted) setError(t('rootMisc.registerParticipant.loadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  }, [groupId, t]);
+  // The loader's work — cache-first paint, discarding a stale response, the
+  // background refresh — belongs to the hook, so the screen keeps no group state
+  // of its own and never sets state from an effect. Without a group identifier
+  // there is nothing to ask for.
+  const {
+    data: loadedGroup,
+    loading,
+    error: fetchError,
+  } = useApi(groupId ? `/api/public/group-info?id=${groupId}` : null, {
+    transform: pickPublicGroup,
+    deps: [groupId],
+  });
 
-  useEffect(() => {
-    if (groupId) {
-      setError('');
-      fetchGroup();
-    } else {
-      setError(t('rootMisc.registerParticipant.noGroupId'));
-      setLoading(false);
-    }
-  }, [groupId, t, fetchGroup]);
+  const windowError = registrationWindowError(loadedGroup, t);
+  const group = windowError ? null : loadedGroup;
+  // The submit failure is the one part that is genuinely state; everything else
+  // is a reading of the loaded group, or of the link itself.
+  const error =
+    submitError ||
+    windowError ||
+    (!groupId ? t('rootMisc.registerParticipant.noGroupId') : '') ||
+    (fetchError ? t('rootMisc.registerParticipant.loadFailed') : '') ||
+    (!loading && !group ? t('rootMisc.registerParticipant.groupNotFound') : '');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -105,11 +83,11 @@ export default function RegisterParticipantPage() {
       if (data.success) {
         setSuccess(true);
       } else {
-        setError(t((data.error || t('rootMisc.registerParticipant.registrationFailed')) || "") || (data.error || t('rootMisc.registerParticipant.registrationFailed')));
+        setSubmitError(t((data.error || t('rootMisc.registerParticipant.registrationFailed')) || "") || (data.error || t('rootMisc.registerParticipant.registrationFailed')));
       }
     } catch {
       // Network/parse failure — the registration may still have been saved.
-      setError(t('rootMisc.registerParticipant.couldNotConfirm') || "We couldn't confirm your registration. Please check your email — if we received it, you'll hear from us shortly.");
+      setSubmitError(t('rootMisc.registerParticipant.couldNotConfirm') || "We couldn't confirm your registration. Please check your email — if we received it, you'll hear from us shortly.");
     } finally {
       setSubmitting(false);
     }
@@ -173,5 +151,19 @@ export default function RegisterParticipantPage() {
         </form>
       </motion.div>
     </div>
+  );
+}
+
+export default function RegisterParticipantPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-[#FF6600] animate-spin" />
+        </div>
+      }
+    >
+      <RegisterParticipantContent />
+    </Suspense>
   );
 }

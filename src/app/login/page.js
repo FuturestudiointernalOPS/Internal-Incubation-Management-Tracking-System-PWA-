@@ -53,7 +53,11 @@ export default function LoginPage() {
   const [devToolsOpen, setDevToolsOpen] = useState(false);
   const [impersonateUsers, setImpersonateUsers] = useState({});
   const [selectedRole, setSelectedRole] = useState("");
-  const [selectedUserCid, setSelectedUserCid] = useState("");
+  // The chosen user belongs to the role it was chosen under, so the pair is kept
+  // together: switching role then clears the choice by derivation, instead of by
+  // an effect that cleared it after the fact and cost an extra render.
+  const [userChoice, setUserChoice] = useState({ role: "", cid: "" });
+  const selectedUserCid = userChoice.role === selectedRole ? userChoice.cid : "";
   const [impersonateLoading, setImpersonateLoading] = useState(false);
   const [impersonateError, setImpersonateError] = useState("");
   const [impersonateDebug, setImpersonateDebug] = useState("");
@@ -85,11 +89,6 @@ export default function LoginPage() {
     }
     fetchUsers();
   }, [devToolsOpen, isStaging]);
-
-  // Reset user selection when role changes
-  useEffect(() => {
-    setSelectedUserCid("");
-  }, [selectedRole]);
 
   const handleImpersonate = async () => {
     if (!selectedUserCid) return;
@@ -358,7 +357,7 @@ export default function LoginPage() {
                       </label>
                       <select
                         value={selectedUserCid}
-                        onChange={(e) => setSelectedUserCid(e.target.value)}
+                        onChange={(e) => setUserChoice({ role: selectedRole, cid: e.target.value })}
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-2 px-3 text-xs font-medium outline-none focus:border-amber-500 transition-all mb-2"
                       >
                         <option value="">-- Select user --</option>

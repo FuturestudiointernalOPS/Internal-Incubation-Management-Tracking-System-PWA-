@@ -1,20 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
+
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop. This read is kept raw because both the rejection reason and the plain
+// success flag behind it are shown on screen.
+const pickVentureInvite = (d) => d;
 
 function RegisterVentureContent() {
   const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
-  const [validating, setValidating] = useState(true);
-  const [tokenValid, setTokenValid] = useState(false);
-  const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -25,36 +30,39 @@ function RegisterVentureContent() {
     founder_password_confirm: "",
   });
 
-  useEffect(() => {
-    if (!token) {
-      // The legacy public Venture registration flow is retired (Phase 1).
-      // The official Venture intake form is reached through its run URL.
-      setValidating(false);
-      setError(t("rootMisc.registerVenture.retiredMessage"));
-      return;
-    }
-    fetch(`/api/venture-invites/${token}`)
-      .then(async (r) => {
-        const d = await r.json();
-        if (d.success) {
-          setTokenValid(true);
-        } else {
-          setError(t((d.error || t("rootMisc.registerVenture.invalidInvitationLink")) || "") || (d.error || t("rootMisc.registerVenture.invalidInvitationLink")));
-        }
-      })
-      .catch(() => setError(t("rootMisc.registerVenture.unableToValidateLink")))
-      .finally(() => setValidating(false));
-  }, [token, t]);
+  // The link check — the retired-flow notice, the "this link is not valid"
+  // message and the rejection the server itself sends back — is derived from the
+  // read instead of being written by an effect, so the screen only keeps the
+  // form's own submission failure. Without a token there is nothing to ask for,
+  // which is how the retired notice appears at once.
+  const {
+    data: invite,
+    loading: inviteLoading,
+    error: inviteError,
+  } = useApi(token ? `/api/venture-invites/${token}` : null, {
+    transform: pickVentureInvite,
+    deps: [token],
+  });
+  const tokenValid = !!invite?.success;
+  const validating = !!token && inviteLoading;
+  const linkError = !token
+    ? t("rootMisc.registerVenture.retiredMessage")
+    : inviteError
+      ? t("rootMisc.registerVenture.unableToValidateLink")
+      : invite && !invite.success
+        ? t(invite.error || "rootMisc.registerVenture.invalidInvitationLink")
+        : "";
+  const error = submitError || linkError;
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError("");
+    setSubmitError("");
     if (form.founder_password.length < 6) {
-      setError(t("rootMisc.registerVenture.passwordTooShort"));
+      setSubmitError(t("rootMisc.registerVenture.passwordTooShort"));
       return;
     }
     if (form.founder_password !== form.founder_password_confirm) {
-      setError(t("rootMisc.registerVenture.passwordsMismatch"));
+      setSubmitError(t("rootMisc.registerVenture.passwordsMismatch"));
       return;
     }
     setSubmitting(true);
@@ -77,11 +85,11 @@ function RegisterVentureContent() {
         );
         setTimeout(() => router.push("/login"), 2500);
       } else {
-        setError(t((d.error || t("rootMisc.registerVenture.createFailed")) || "") || (d.error || t("rootMisc.registerVenture.createFailed")));
+        setSubmitError(t((d.error || t("rootMisc.registerVenture.createFailed")) || "") || (d.error || t("rootMisc.registerVenture.createFailed")));
         setSubmitting(false);
       }
     } catch {
-      setError(t("rootMisc.registerVenture.networkError"));
+      setSubmitError(t("rootMisc.registerVenture.networkError"));
       setSubmitting(false);
     }
   }

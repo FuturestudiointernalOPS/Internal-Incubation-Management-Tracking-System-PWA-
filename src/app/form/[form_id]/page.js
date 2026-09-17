@@ -1,12 +1,12 @@
 'use client';
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import GlobalToast from '@/components/ui/GlobalToast';
 import AppPhoneInput from "@/components/ui/AppPhoneInput";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 function PublicFormContent() {
   const { t } = useI18n();
@@ -16,52 +16,26 @@ function PublicFormContent() {
   const cid = searchParams.get('cid');
   const group_name = searchParams.get('group_name');
 
-  const [form, setForm] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  
   const [answers, setAnswers] = useState({});
   const [publicData, setPublicData] = useState({ name: '', email: '', phone: '' });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const fetchForm = async (bypassCache = false) => {
-    const url = `/api/forms/${form_id}`;
-    const apply = (data) => {
-      if (!data || !data.success) return;
-      setForm(data.form);
-    };
-    let painted = false;
-    try {
-      // Cache-first paint: revisiting the same form renders instantly from a fresh
-      // snapshot while the network refresh below keeps the form definition current.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      } else {
-        setError(t((data.error || t("rootMisc.form.formNotFound")) || "") || (data.error || t("rootMisc.form.formNotFound")));
-      }
-    } catch {
-      if (!painted) setError(t("rootMisc.form.connectionError"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchForm();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form_id]);
+  // The loader's work — cache-first paint, discarding a stale response, the
+  // background refresh — belongs to the hook, so the screen keeps no form state
+  // of its own and never sets state from an effect. The read stays raw because a
+  // rejected one carries the message the screen shows.
+  const {
+    data: formData,
+    loading,
+    error: fetchError,
+  } = useApi(`/api/forms/${form_id}`, { deps: [form_id] });
+  const form = formData?.success ? formData.form : null;
+  const error = formData && !formData.success
+    ? t(formData.error || "rootMisc.form.formNotFound")
+    : fetchError
+      ? t("rootMisc.form.connectionError")
+      : '';
 
   const handleChange = (id, val) => {
     setAnswers(prev => ({ ...prev, [id]: val }));
