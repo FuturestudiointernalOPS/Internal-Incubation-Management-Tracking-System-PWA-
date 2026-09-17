@@ -159,11 +159,13 @@ export default function ReviewPage() {
       // now, with the Re-run AI button in the header (handleReRunAI).
     } catch (e) { if (!painted) setError(t(e.message || "") || e.message); }
     setLoading(false);
-  }, [submissionId, t]);
+  }, [submissionId]);
 
-  // `load` does not depend on canReview on purpose: permissions arrive
-  // asynchronously, so depending on them re-created load and re-ran the whole
-  // fetch — which was a second route into the auto-trigger above.
+  // `load` depends on the submission alone, deliberately: `canReview` arrives
+  // asynchronously, so depending on it re-created load and re-ran the whole fetch
+  // — which was a second route into the auto-trigger above. `t` is left out for
+  // the same reason: a language switch would re-issue all four reads, and the only
+  // thing `t` is used for here is the wording of an error that no longer reloads.
 
   useEffect(() => { load(); }, [load]);
 
