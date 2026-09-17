@@ -1,9 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import { Send, DollarSign, CheckCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickBudgetLines = (d) => (d?.success ? d.lines || [] : []);
 
 export default function FinanceEntryPage() {
   const { t } = useI18n();
@@ -16,46 +21,25 @@ export default function FinanceEntryPage() {
     amount: "",
     type: "expense",
   });
-  const [budgetLines, setBudgetLines] = useState([]);
-  const [filteredLines, setFilteredLines] = useState([]);
   const [lineSearch, setLineSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
-  const loadBudgetLines = async (project, bypassCache = false) => {
-    const url = `/api/finance/budget-lines?project=${encodeURIComponent(project)}`;
-    const apply = (d) => {
-      if (d?.success) {
-        setBudgetLines(d.lines);
-        setFilteredLines(d.lines);
-      }
-    };
-    try {
-      // Cache-first paint: switching back to a previously selected project
-      // renders its budget lines instantly from a fresh snapshot.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) apply(cached);
-      }
-      const res = await fetch(url);
-      const d = await res.json();
-      if (d?.success) {
-        cacheSet(url, d);
-        apply(d);
-      }
-    } catch (_) {}
-  };
+  // The budget lines follow the selected project, so the project is a plain
+  // dependency rather than something an effect reacts to, and an empty selection
+  // asks for nothing. The cache-first paint belongs to the hook too.
+  const { data: budgetLines } = useApi(
+    form.project ? `/api/finance/budget-lines?project=${encodeURIComponent(form.project)}` : null,
+    { defaultValue: [], transform: pickBudgetLines, deps: [form.project] },
+  );
 
-  useEffect(() => {
-    if (form.project) loadBudgetLines(form.project);
-  }, [form.project]);
-
-  useEffect(() => {
-    if (!lineSearch) { setFilteredLines(budgetLines); return; }
-    const q = lineSearch.toLowerCase();
-    setFilteredLines(budgetLines.filter(l => l.name.toLowerCase().includes(q)));
-  }, [lineSearch, budgetLines]);
+  // Derived during render: the filtered list is a pure function of the lines and
+  // the search box, so keeping a copy in state only added a render where the two
+  // disagreed.
+  const filteredLines = !lineSearch
+    ? budgetLines
+    : budgetLines.filter((l) => l.name.toLowerCase().includes(lineSearch.toLowerCase()));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
