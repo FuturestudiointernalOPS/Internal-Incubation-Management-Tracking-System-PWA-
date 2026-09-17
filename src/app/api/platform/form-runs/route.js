@@ -1117,7 +1117,7 @@ async function sendResultEmailForSubmission({ submission_id }) {
  * Returns { ok: true, submission, already_approved? } or
  *         { ok: false, statusCode, error }.
  */
-async function processReviewInternal({ submission_id, decision, comment, internal_note, dimension_overrides, force, session }) {
+async function processReviewInternal({ submission_id, decision, comment, internal_note, dimension_overrides, force, session, includeResultPdf = false }) {
   // ── IDEMPOTENCY GUARD: never re-approve an already-approved submission ──
   // Manual override requires explicit force: true
   const existingSub = await getSubmissionReviewStateById(submission_id);
@@ -1127,6 +1127,29 @@ async function processReviewInternal({ submission_id, decision, comment, interna
   const prevStatus = existingSub.rows[0].status;
   if (prevStatus === "approved" && decision === "approved" && !force) {
     return { ok: true, already_approved: true, submission: existingSub.rows[0] };
+  }
+
+  // ── "Also send the AI result PDF" is a promise the submission has to be able
+  // to keep: that document IS the evaluation. Refuse the WHOLE action before any
+  // side effect — no review row, no status change, no email — and say why, so
+  // the reviewer evaluates the submission and approves again. An approval whose
+  // requested document cannot follow is never half-sent. ──
+  if (includeResultPdf && decision === "approved") {
+    const evalGate = await getLatestEvaluationBySubmissionId(submission_id);
+    const evalGateRow = evalGate.rows[0] || null;
+    let gateDims = evalGateRow?.dimensions;
+    if (typeof gateDims === "string") {
+      try { gateDims = JSON.parse(gateDims); } catch (_) { gateDims = []; }
+    }
+    const hasResult = !!evalGateRow && (evalGateRow.overall_score != null || (Array.isArray(gateDims) && gateDims.length > 0));
+    if (!hasResult) {
+      return {
+        ok: false,
+        statusCode: 409,
+        errorCode: "result_pdf_not_evaluated",
+        error: "No AI result yet — this submission has not been evaluated. Run the evaluation first, then approve with the PDF.",
+      };
+    }
   }
 
   let reviewerName = session.cid;
@@ -1174,6 +1197,20 @@ async function processReviewInternal({ submission_id, decision, comment, interna
   // Send decision email to applicant — TRACKED (never sent twice)
   await sendDecisionEmailForSubmission({ submission_id, decision, comment: comment || "" });
 
+  // The reviewer also asked for the AI result document. It goes out as its OWN
+  // email — its own type, its own guard in the Emails tab — through the exact
+  // path behind "Send Response", so the document is identical whether it is
+  // sent from the approval checkbox or by hand. The gate above guarantees an
+  // evaluation exists, so this never sends an empty document.
+  let resultPdf = null;
+  if (includeResultPdf && decision === "approved") {
+    try {
+      resultPdf = await sendResultEmailForSubmission({ submission_id });
+    } catch (e) {
+      resultPdf = { status: "failed", error: e?.message || "Result PDF failed" };
+    }
+  }
+
   // Fire automation — get run details + form config for context
   const sub = await getSubmissionRunIdById(submission_id);
   if (sub.rows.length > 0) {
@@ -1219,7 +1256,7 @@ async function processReviewInternal({ submission_id, decision, comment, interna
     }
   }
 
-  return { ok: true, submission: result.rows[0] };
+  return { ok: true, submission: result.rows[0], result_pdf: resultPdf };
 }
 
 export async function POST(req) {
@@ -1465,7 +1502,7 @@ export async function POST(req) {
       const authError = await requireAuthorization("runs", "review");
       if (authError) return authError;
 
-      const { submission_id, decision, comment, internal_note, dimension_overrides, force } = body;
+      const { submission_id, decision, comment, internal_note, dimension_overrides, force, include_result_pdf } = body;
       if (!submission_id || !decision) return NextResponse.json({ success: false, error: "submission_id and decision required" }, { status: 400 });
 
       const res = await processReviewInternal({
@@ -1476,9 +1513,10 @@ export async function POST(req) {
         dimension_overrides,
         force,
         session,
+        includeResultPdf: include_result_pdf === true,
       });
       if (!res.ok) {
-        return NextResponse.json({ success: false, error: res.error }, { status: res.statusCode || 500 });
+        return NextResponse.json({ success: false, error: res.error, error_code: res.errorCode || null }, { status: res.statusCode || 500 });
       }
       if (res.already_approved) {
         return NextResponse.json({
@@ -1488,7 +1526,7 @@ export async function POST(req) {
           message: "Submission already approved — no duplicate actions performed",
         });
       }
-      return NextResponse.json({ success: true, submission: res.submission });
+      return NextResponse.json({ success: true, submission: res.submission, result_pdf: res.result_pdf || null });
     }
 
     // ─── BULK REVIEW ACTION ───
@@ -1502,7 +1540,7 @@ export async function POST(req) {
       const authError = await requireAuthorization("runs", "review");
       if (authError) return authError;
 
-      const { run_id, submission_ids, decision, comment } = body;
+      const { run_id, submission_ids, decision, comment, include_result_pdf } = body;
       if (!run_id || !Array.isArray(submission_ids) || submission_ids.length === 0) {
         return NextResponse.json({ success: false, error: "run_id and submission_ids are required" }, { status: 400 });
       }
@@ -1540,12 +1578,15 @@ export async function POST(req) {
             decision: "approved",
             comment: comment || "Bulk approved",
             session,
+            includeResultPdf: include_result_pdf === true,
           });
           results.push({
             submission_id: id,
             status: res.ok ? (res.already_approved ? "already_approved" : "approved") : "failed",
             name: row.submitter_name || "",
             error: res.ok ? undefined : res.error,
+            result_pdf: res.result_pdf ? res.result_pdf.status : undefined,
+            result_pdf_error: res.result_pdf ? res.result_pdf.error : undefined,
           });
         } catch (e) {
           results.push({

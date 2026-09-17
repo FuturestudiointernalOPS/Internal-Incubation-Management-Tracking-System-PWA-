@@ -392,6 +392,7 @@ export default function FormRunsPage() {
   const [reviewData, setReviewData] = useState({ decision: "approved", comment: "", internal_note: "" });
   const [reviewTimeline, setReviewTimeline] = useState([]);
   const [evaluation, setEvaluation] = useState(null);  // AI evaluation loaded separately
+  const [reviewIncludeResultPdf, setReviewIncludeResultPdf] = useState(false); // opt-in: also email the AI result PDF
 
   // Assignment modal
   const [showAssign, setShowAssign] = useState(false);
@@ -759,6 +760,13 @@ export default function FormRunsPage() {
     } catch (_) {}
   };
 
+  // Closing always drops the "also send the AI result PDF" opt-in, so a tick
+  // never carries over to another submission or to the next opening.
+  const closeReview = () => {
+    setShowReview(false);
+    setReviewIncludeResultPdf(false);
+  };
+
   const handleReview = async () => {
     if (!reviewing) return;
     setSaving(true);
@@ -766,12 +774,22 @@ export default function FormRunsPage() {
       const res = await fetch("/api/platform/form-runs?action=review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submission_id: reviewing.id, ...reviewData }),
+        body: JSON.stringify({
+          submission_id: reviewing.id,
+          ...reviewData,
+          ...(reviewIncludeResultPdf && reviewData.decision === "approved" ? { include_result_pdf: true } : {}),
+        }),
       });
       const data = await res.json();
       if (data.success) {
-        notify(data.already_approved ? t("platformMisc.runs.alreadyApproved") : t("platformMisc.runs.reviewSubmitted"));
-        setShowReview(false);
+        // The decision went through; only the document could not follow. A 409
+        // refusal falls into the error branch below and shows data.error as-is.
+        if (data.result_pdf?.status === "failed") {
+          notify(t("platformMisc.runs.resultPdfSendFailed", { error: data.result_pdf.error || t("platformMisc.runs.failedFallback") }));
+        } else {
+          notify(data.already_approved ? t("platformMisc.runs.alreadyApproved") : t("platformMisc.runs.reviewSubmitted"));
+        }
+        closeReview();
         setReviewTimeline([]);
         if (selectedRun) openRun(selectedRun);
       } else {
@@ -809,6 +827,7 @@ export default function FormRunsPage() {
   const openReview = async (submission) => {
     setReviewing(submission);
     setReviewData({ decision: "approved", comment: "", internal_note: "" });
+    setReviewIncludeResultPdf(false);
     setShowReview(true);
     setReviewTimeline([]);
     setEvaluation(null);
@@ -1016,6 +1035,7 @@ export default function FormRunsPage() {
   const [selectedIds, setSelectedIds] = useState([]); // bulk-selected respondent ids
   const [bulkMenuOpen, setBulkMenuOpen] = useState(false); // bulk Actions dropdown
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false); // confirm dialog
+  const [bulkIncludeResultPdf, setBulkIncludeResultPdf] = useState(false); // opt-in: also email the AI result PDF
   const [bulkProcessing, setBulkProcessing] = useState(false); // bulk op running
   const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 });
   const [bulkSummary, setBulkSummary] = useState(null); // { approved, already_approved, failed[] }
@@ -1475,13 +1495,19 @@ export default function FormRunsPage() {
   // Bulk approve: batches of 10 through the SAME review workflow as a single
   // approval (server-side action=bulk_review → processReviewInternal).
   const BULK_BATCH = 10;
+  // The PDF opt-in needs an evaluation on EVERY selected submission — the server
+  // refuses an approval whose document cannot follow.
+  const allSelectedEvaluated = selectedIds.every((id) => evaluations.some((e) => e.submission_id === id));
   const runBulkApprove = async () => {
     if (!selectedRun || selectedIds.length === 0 || bulkProcessing) return;
     setBulkProcessing(true);
     setBulkConfirmOpen(false);
+    setBulkIncludeResultPdf(false);
     bulkAbortRef.current = false;
     const ids = [...selectedIds];
+    const includeResultPdf = bulkIncludeResultPdf;
     const agg = { approved: 0, already_approved: 0, failed: [], cancelled: 0 };
+    let pdfFailed = 0;
     setBulkProgress({ done: 0, total: ids.length });
     let aborted = false;
     let processed = 0;
@@ -1492,7 +1518,12 @@ export default function FormRunsPage() {
         const res = await fetch("/api/platform/form-runs?action=bulk_review", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ run_id: selectedRun.id, submission_ids: chunk, decision: "approved" }),
+          body: JSON.stringify({
+            run_id: selectedRun.id,
+            submission_ids: chunk,
+            decision: "approved",
+            ...(includeResultPdf ? { include_result_pdf: true } : {}),
+          }),
         });
         data = await res.json();
       } catch (_) {
@@ -1509,6 +1540,7 @@ export default function FormRunsPage() {
         if (r.status === "approved") agg.approved++;
         else if (r.status === "already_approved") agg.already_approved++;
         else agg.failed.push({ name: r.name || `#${r.submission_id}`, error: r.error || t("platformMisc.runs.failedFallback") });
+        if (r.result_pdf === "failed") pdfFailed++;
       }
       processed = Math.min(i + BULK_BATCH, ids.length);
       setBulkProgress({ done: processed, total: ids.length });
@@ -1536,6 +1568,7 @@ export default function FormRunsPage() {
     setSelectedIds([]);
     if (selectedRun) await openRun(selectedRun);
     setBulkSummary(agg);
+    if (pdfFailed > 0) notify(t("platformMisc.runs.bulkResultPdfSendFailed", { count: pdfFailed }));
   };
 
   // ─── Email delivery summary: latest row per (submission, email_type) ───
@@ -2611,7 +2644,7 @@ export default function FormRunsPage() {
                           <div className="absolute right-0 mt-1 w-56 rounded-lg border border-[var(--border-primary)] bg-secondary shadow-xl z-30">
                             <button
                               type="button"
-                              onClick={() => { setBulkMenuOpen(false); setBulkConfirmOpen(true); }}
+                              onClick={() => { setBulkMenuOpen(false); setBulkIncludeResultPdf(false); setBulkConfirmOpen(true); }}
                               className="w-full px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-emerald-400 hover:bg-emerald-500/10"
                             >
                               {t("platformMisc.runs.approve")}
@@ -2909,8 +2942,25 @@ export default function FormRunsPage() {
                     <p className="text-[10px] font-medium text-[var(--text-secondary)] leading-relaxed">
                       {t("platformMisc.runs.bulkApproveDesc")}
                     </p>
+                    <div className="rounded-xl p-3 bg-primary border border-[var(--border-primary)]">
+                      <label className={cn("flex items-start gap-2", allSelectedEvaluated ? "cursor-pointer" : "cursor-not-allowed opacity-60")}>
+                        <input
+                          type="checkbox"
+                          checked={bulkIncludeResultPdf}
+                          disabled={!allSelectedEvaluated}
+                          onChange={(e) => setBulkIncludeResultPdf(e.target.checked)}
+                          className="mt-0.5 w-3.5 h-3.5 accent-[var(--brand-orange)]"
+                        />
+                        <span>
+                          <span className="block text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runs.includeResultPdf")}</span>
+                          <span className="block text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
+                            {allSelectedEvaluated ? t("platformMisc.runs.includeResultPdfDesc") : t("platformMisc.runs.bulkIncludeResultPdfNotEvaluated")}
+                          </span>
+                        </span>
+                      </label>
+                    </div>
                     <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => setBulkConfirmOpen(false)} disabled={bulkProcessing} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">{t("platformMisc.runs.cancel")}</button>
+                      <button onClick={() => { setBulkConfirmOpen(false); setBulkIncludeResultPdf(false); }} disabled={bulkProcessing} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">{t("platformMisc.runs.cancel")}</button>
                       <button onClick={runBulkApprove} disabled={bulkProcessing} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide">
                         {t("platformMisc.runs.bulkApproveConfirm", { count: selectedIds.length })}
                       </button>
@@ -3918,7 +3968,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
 
         {/* Review Modal */}
         {showReview && reviewing && (
-          <div className="fixed inset-0 z-[400] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowReview(false)}>
+          <div className="fixed inset-0 z-[400] bg-black/60 flex items-center justify-center p-4" onClick={closeReview}>
             <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl bg-secondary border border-[var(--border-primary)] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
 
               {/* Modal Header */}
@@ -3927,7 +3977,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.reviewSubmission")}</h3>
                   <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">{reviewing.submitter_name || t("platformMisc.runs.anonymous")}</p>
                 </div>
-                <button onClick={() => setShowReview(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                <button onClick={closeReview} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -4129,12 +4179,34 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5 block">{t("platformMisc.runs.internalNote")} <span className="text-amber-500 font-bold">{t("platformMisc.runs.privateNote")}</span></label>
                     <textarea value={reviewData.internal_note} onChange={(e) => setReviewData({ ...reviewData, internal_note: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-amber-500/5 border border-amber-500/20 text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.internalNotePlaceholder")} />
                   </div>
+                  {/* The server only honours the PDF on an approval — a rejection
+                      ignores it, so the opt-in must not even appear there. */}
+                  {reviewData.decision === "approved" && (
+                    <div className="rounded-xl p-3 bg-primary border border-[var(--border-primary)]">
+                      <label className={cn("flex items-start gap-2", evaluation ? "cursor-pointer" : "cursor-not-allowed opacity-60")}>
+                        <input
+                          type="checkbox"
+                          checked={reviewIncludeResultPdf}
+                          disabled={!evaluation}
+                          onChange={(e) => setReviewIncludeResultPdf(e.target.checked)}
+                          className="mt-0.5 w-3.5 h-3.5 accent-[var(--brand-orange)]"
+                        />
+                        <span>
+                          <span className="block text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runs.includeResultPdf")}</span>
+                          <span className="block text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">{t("platformMisc.runs.includeResultPdfDesc")}</span>
+                          {!evaluation && (
+                            <span className="block text-[10px] font-bold text-amber-500 mt-0.5">{t("platformMisc.runs.includeResultPdfNotEvaluated")}</span>
+                          )}
+                        </span>
+                      </label>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Sticky Footer */}
               <div className="flex gap-3 px-6 py-4 border-t border-[var(--border-primary)] bg-secondary shrink-0">
-                <button onClick={() => setShowReview(false)} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button>
+                <button onClick={closeReview} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button>
                 {canReview && (
                 <button
                   onClick={handleReevaluate}
