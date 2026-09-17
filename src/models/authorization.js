@@ -489,6 +489,15 @@ export async function demoteContactFromSuperAdmin(userCid) {
   });
 }
 
+/** PUT grant/revoke — current individual grant level, or no rows when absent.
+ *  Read BEFORE the write so the audit trail can record the previous value. */
+export async function getUserCapabilityGrant(userCid, module, capability) {
+  return db.execute({
+    sql: "SELECT access_level FROM user_capabilities WHERE user_cid = ? AND module = ? AND capability = ?",
+    args: [userCid, module, capability],
+  });
+}
+
 /** PUT grant — upsert an individual capability grant (with expiry). */
 export async function grantUserCapability(
   userCid,
@@ -521,6 +530,22 @@ export async function revokeUserCapability(userCid, module, capability) {
   return db.execute({
     sql: "DELETE FROM user_capabilities WHERE user_cid = ? AND module = ? AND capability = ?",
     args: [userCid, module, capability],
+  });
+}
+
+/** PUT restrict/unrestrict — whether an explicit block row exists today. */
+export async function getUserCapabilityBlock(userCid, module, capability) {
+  return db.execute({
+    sql: "SELECT 1 FROM user_capability_restrictions WHERE user_cid = ? AND module = ? AND capability = ?",
+    args: [userCid, module, capability],
+  });
+}
+
+/** PUT set_role_default — current role default level, or no rows when absent. */
+export async function getRoleDefaultCapability(role, module, capability) {
+  return db.execute({
+    sql: "SELECT access_level FROM role_capabilities WHERE role = ? AND module = ? AND capability = ?",
+    args: [role, module, capability],
   });
 }
 
@@ -573,6 +598,14 @@ export async function setGroupDefaultCapability(groupName, module, capability, a
                 VALUES (?, ?, ?, ?)
                 ON CONFLICT (group_name, module, capability) DO UPDATE SET access_level = ?`,
     args: [groupName, module, capability, accessLevel, accessLevel],
+  });
+}
+
+/** PUT set_group_default — current group default level, or no rows when absent. */
+export async function getGroupDefaultCapability(groupName, module, capability) {
+  return db.execute({
+    sql: "SELECT access_level FROM group_capabilities WHERE group_name = ? AND module = ? AND capability = ?",
+    args: [groupName, module, capability],
   });
 }
 

@@ -26,10 +26,15 @@ import {
   listAccessProfileDefinitions,
   getRoleDefaultProfileMappings,
   getContactForEffectivePermissions,
+  getContactForAssignment,
   getCurrentSupervisor,
   getContactNameAndRole,
   promoteContactToSuperAdmin,
   demoteContactFromSuperAdmin,
+  getUserCapabilityGrant,
+  getUserCapabilityBlock,
+  getRoleDefaultCapability,
+  getGroupDefaultCapability,
   grantUserCapability,
   revokeUserCapability,
   restrictUserCapability,
@@ -391,7 +396,9 @@ export async function PUT(req) {
     }
 
     switch (action) {
-      case "grant":
+      case "grant": {
+        // Read the current value first so the trail records what changed.
+        const priorGrant = await getUserCapabilityGrant(user_cid, module, capability);
         await grantUserCapability(
           user_cid,
           module,
@@ -408,11 +415,16 @@ export async function PUT(req) {
           action: "granted",
           module,
           capability,
+          previousValue: priorGrant.rows[0]
+            ? String(priorGrant.rows[0].access_level)
+            : "none",
           newValue: String(access_level || 1),
         });
         break;
+      }
 
-      case "revoke":
+      case "revoke": {
+        const priorGrant = await getUserCapabilityGrant(user_cid, module, capability);
         await revokeUserCapability(user_cid, module, capability);
         await logPermissionAudit({
           actorCid: actor.cid,
@@ -422,10 +434,16 @@ export async function PUT(req) {
           action: "revoked",
           module,
           capability,
+          previousValue: priorGrant.rows[0]
+            ? String(priorGrant.rows[0].access_level)
+            : "none",
+          newValue: "none",
         });
         break;
+      }
 
-      case "restrict":
+      case "restrict": {
+        const priorBlock = await getUserCapabilityBlock(user_cid, module, capability);
         await restrictUserCapability(
           user_cid,
           module,
@@ -441,10 +459,14 @@ export async function PUT(req) {
           action: "restricted",
           module,
           capability,
+          previousValue: priorBlock.rows.length ? "blocked" : "none",
+          newValue: "blocked",
         });
         break;
+      }
 
-      case "unrestrict":
+      case "unrestrict": {
+        const priorBlock = await getUserCapabilityBlock(user_cid, module, capability);
         await unrestrictUserCapability(user_cid, module, capability);
         await logPermissionAudit({
           actorCid: actor.cid,
@@ -454,10 +476,18 @@ export async function PUT(req) {
           action: "unrestricted",
           module,
           capability,
+          previousValue: priorBlock.rows.length ? "blocked" : "none",
+          newValue: "none",
         });
         break;
+      }
 
-      case "set_role_default":
+      case "set_role_default": {
+        const priorDefault = await getRoleDefaultCapability(
+          body.role,
+          module,
+          capability,
+        );
         await setRoleDefaultCapability(body.role, module, capability, access_level || 0);
         await logPermissionAudit({
           actorCid: actor.cid,
@@ -467,15 +497,44 @@ export async function PUT(req) {
           action: "role_changed",
           module,
           capability,
+          previousValue: priorDefault.rows[0]
+            ? String(priorDefault.rows[0].access_level)
+            : "none",
           newValue: String(access_level || 0),
         });
         break;
+      }
 
-      case "set_group_default":
+      case "set_group_default": {
+        // This path wrote a group default and left NO audit record at all,
+        // which made a group-permission change the only untraceable write in
+        // this handler.
+        const priorDefault = await getGroupDefaultCapability(
+          body.group_name,
+          module,
+          capability,
+        );
         await setGroupDefaultCapability(body.group_name, module, capability, access_level || 0);
+        await logPermissionAudit({
+          actorCid: actor.cid,
+          actorName: actor.name,
+          targetCid: user_cid,
+          targetName,
+          action: "group_changed",
+          module,
+          capability,
+          previousValue: priorDefault.rows[0]
+            ? String(priorDefault.rows[0].access_level)
+            : "none",
+          newValue: String(access_level || 0),
+          details: `Group: ${body.group_name}`,
+        });
         break;
+      }
 
-      case "set_access_profile":
+      case "set_access_profile": {
+        const priorContact = await getContactForAssignment(user_cid);
+        const priorProfile = priorContact.rows[0]?.access_profile_id;
         await setUserAccessProfile(body.access_profile_id || null, user_cid);
         await logPermissionAudit({
           actorCid: actor.cid,
@@ -483,17 +542,22 @@ export async function PUT(req) {
           targetCid: user_cid,
           targetName,
           action: "access_profile_changed",
+          previousValue: priorProfile ? String(priorProfile) : "none",
+          newValue: body.access_profile_id ? String(body.access_profile_id) : "none",
           details: `Access profile set to ID ${body.access_profile_id || "none"}`,
         });
         break;
+      }
 
-      case "set_role":
+      case "set_role": {
         if (!body.role) {
           return NextResponse.json(
             { success: false, error: "role is required" },
             { status: 400 },
           );
         }
+        const priorContact = await getContactForAssignment(user_cid);
+        const priorRole = priorContact.rows[0]?.role;
         await setUserRole(body.role, user_cid);
         await logPermissionAudit({
           actorCid: actor.cid,
@@ -501,9 +565,12 @@ export async function PUT(req) {
           targetCid: user_cid,
           targetName,
           action: "role_changed",
+          previousValue: priorRole || "none",
+          newValue: body.role,
           details: `Role changed to ${body.role}`,
         });
         break;
+      }
 
       case "set_supervisor": {
         const supervisorCid = body.supervisor_cid;

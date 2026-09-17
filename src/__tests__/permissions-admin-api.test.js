@@ -14,6 +14,10 @@ let mockRoleDefaultRowsAffected = 1;
 // C2 — rows the template-impact probe returns (role defaults still granting a
 // feature's capabilities).
 let mockTemplateImpacts = [];
+// Prior-state probes used by the audit trail (read BEFORE each write).
+let mockPriorGrantLevel = null;
+let mockPriorBlockExists = false;
+let mockPriorGroupLevel = null;
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
@@ -28,6 +32,17 @@ jest.mock("@/lib/db", () => ({
       }
       if (String(sql).includes("DELETE FROM role_access_profile_defaults")) {
         return { rows: [], rowsAffected: mockRoleDefaultRowsAffected };
+      }
+      // Audit-trail prior state — read before the write so the log can say what
+      // the value was changed FROM.
+      if (String(sql).includes("FROM user_capabilities WHERE user_cid")) {
+        return { rows: mockPriorGrantLevel === null ? [] : [{ access_level: mockPriorGrantLevel }] };
+      }
+      if (String(sql).includes("FROM user_capability_restrictions WHERE user_cid")) {
+        return { rows: mockPriorBlockExists ? [{ "?column?": 1 }] : [] };
+      }
+      if (String(sql).includes("FROM group_capabilities WHERE group_name")) {
+        return { rows: mockPriorGroupLevel === null ? [] : [{ access_level: mockPriorGroupLevel }] };
       }
       return { rows: [] };
     }),
@@ -81,6 +96,9 @@ beforeEach(() => {
   mockAuthzDecision = null;
   mockRoleDefaultRowsAffected = 1;
   mockTemplateImpacts = [];
+  mockPriorGrantLevel = null;
+  mockPriorBlockExists = false;
+  mockPriorGroupLevel = null;
   jest.clearAllMocks();
 });
 
@@ -327,5 +345,105 @@ describe("PUT /api/engineering/permissions — individual grants respect eligibi
     );
     expect(res.status).toBe(200);
     expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO user_capabilities"))).toBe(true);
+  });
+});
+
+/**
+ * The permission audit trail must answer "what changed", not just "who
+ * changed what". Every individual/role/group write now reads the prior state
+ * before mutating and records both sides of the change.
+ */
+describe("PUT /api/engineering/permissions — audit trail records the change", () => {
+  test("a grant records the level it replaced", async () => {
+    getAuthorizationContext.mockResolvedValueOnce({ isSuperAdmin: true, eligibility: {} });
+    mockPriorGrantLevel = 1;
+    const res = await permissionsRoute.PUT(
+      jsonReq({
+        action: "grant",
+        user_cid: "USER_X",
+        module: "finance",
+        capability: "view",
+        access_level: 3,
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(logPermissionAudit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ action: "granted", previousValue: "1", newValue: "3" }),
+    );
+  });
+
+  test("a first-ever grant records 'none' as the previous value", async () => {
+    getAuthorizationContext.mockResolvedValueOnce({ isSuperAdmin: true, eligibility: {} });
+    mockPriorGrantLevel = null;
+    await permissionsRoute.PUT(
+      jsonReq({
+        action: "grant",
+        user_cid: "USER_X",
+        module: "finance",
+        capability: "view",
+        access_level: 1,
+      }),
+    );
+    expect(logPermissionAudit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ action: "granted", previousValue: "none", newValue: "1" }),
+    );
+  });
+
+  test("a revoke records the level that was removed", async () => {
+    getAuthorizationContext.mockResolvedValueOnce({ isSuperAdmin: true, eligibility: {} });
+    mockPriorGrantLevel = 2;
+    await permissionsRoute.PUT(
+      jsonReq({ action: "revoke", user_cid: "USER_X", module: "finance", capability: "view" }),
+    );
+    expect(logPermissionAudit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ action: "revoked", previousValue: "2", newValue: "none" }),
+    );
+  });
+
+  test("a restrict records the transition into a block", async () => {
+    getAuthorizationContext.mockResolvedValueOnce({ isSuperAdmin: true, eligibility: {} });
+    mockPriorBlockExists = false;
+    await permissionsRoute.PUT(
+      jsonReq({ action: "restrict", user_cid: "USER_X", module: "finance", capability: "view" }),
+    );
+    expect(logPermissionAudit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ action: "restricted", previousValue: "none", newValue: "blocked" }),
+    );
+  });
+
+  test("re-blocking an already blocked capability is recorded as such", async () => {
+    getAuthorizationContext.mockResolvedValueOnce({ isSuperAdmin: true, eligibility: {} });
+    mockPriorBlockExists = true;
+    await permissionsRoute.PUT(
+      jsonReq({ action: "restrict", user_cid: "USER_X", module: "finance", capability: "view" }),
+    );
+    expect(logPermissionAudit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ action: "restricted", previousValue: "blocked", newValue: "blocked" }),
+    );
+  });
+
+  test("a group-default change is audited (it used to write no record at all)", async () => {
+    getAuthorizationContext.mockResolvedValueOnce({ isSuperAdmin: true, eligibility: {} });
+    mockPriorGroupLevel = null;
+    const res = await permissionsRoute.PUT(
+      jsonReq({
+        action: "set_group_default",
+        user_cid: "USER_X",
+        group_name: "Development",
+        module: "finance",
+        capability: "view",
+        access_level: 2,
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO group_capabilities"))).toBe(true);
+    expect(logPermissionAudit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        action: "group_changed",
+        previousValue: "none",
+        newValue: "2",
+        details: "Group: Development",
+      }),
+    );
   });
 });
