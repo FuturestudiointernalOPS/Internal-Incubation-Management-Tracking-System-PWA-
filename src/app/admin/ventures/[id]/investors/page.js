@@ -1,20 +1,26 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, X, Plus, Search, RefreshCw,
   Building2, Globe, Linkedin, Target,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+const pickVenture = (d) => (d?.success ? d.venture || null : null);
+const pickMatches = (d) => (d?.success ? d.matches || [] : []);
+const pickInvestors = (d) => (d?.success ? d.investors || [] : []);
 
 export default function VentureInvestorsPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [venture, setVenture] = useState(null);
-  const [matches, setMatches] = useState([]);
-  const [allInvestors, setAllInvestors] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [activeView, setActiveView] = useState("matches");
   const [search, setSearch] = useState("");
@@ -24,49 +30,35 @@ export default function VentureInvestorsPage() {
   const [invForm, setInvForm] = useState({ name: "", email: "", organization: "", industries: "", preferred_stage: "" });
   const [saving, setSaving] = useState(false);
 
-  const fetchAll = useCallback(async (bypassCache = false) => {
-    const urls = [
-      `/api/ventures/${id}`,
-      `/api/ventures/${id}/investors?type=matches`,
-      `/api/ventures/${id}/investors?type=directory`,
-    ];
-    const apply = (v, m, i) => {
-      if (v.success) setVenture(v.venture);
-      if (m.success) setMatches(m.matches || []);
-      if (i.success) setAllInvestors(i.investors || []);
-    };
-    let painted = false;
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from
-      // fresh snapshots; mutation flows pass bypassCache=true so the
-      // investor lists always reflect the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2]);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const [vRes, mRes, iRes] = await Promise.all([
-        fetch(urls[0]),
-        fetch(urls[1]),
-        fetch(urls[2]),
-      ]);
-      const v = await vRes.json(); const m = await mRes.json(); const i = await iRes.json();
-      if (v.success) cacheSet(urls[0], v);
-      if (m.success) cacheSet(urls[1], m);
-      if (i.success) cacheSet(urls[2], i);
-      apply(v, m, i);
-    } catch (e) {
-      if (!painted) console.error("Failed to load investors data:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+  // The venture, its investor matches and the investor directory, through the
+  // shared hook: it owns the cache, the cache-first paint and the discarding of a
+  // stale answer, so the page keeps no copy of its own and reads during render.
+  const { data: venture, loading: ventureLoading, refresh: refreshVenture } = useApi(
+    id ? `/api/ventures/${id}` : null,
+    { defaultValue: null, transform: pickVenture, deps: [id] },
+  );
+  const { data: matches, loading: matchesLoading, refresh: refreshMatches } = useApi(
+    id ? `/api/ventures/${id}/investors?type=matches` : null,
+    { defaultValue: EMPTY_LIST, transform: pickMatches, deps: [id] },
+  );
+  const {
+    data: allInvestors,
+    loading: investorsLoading,
+    refresh: refreshInvestors,
+  } = useApi(id ? `/api/ventures/${id}/investors?type=directory` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickInvestors,
+    deps: [id],
+  });
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  const loading = ventureLoading || matchesLoading || investorsLoading;
+
+  // Every action below re-reads what it changed.
+  const reload = useCallback(() => {
+    refreshVenture();
+    refreshMatches();
+    refreshInvestors();
+  }, [refreshVenture, refreshMatches, refreshInvestors]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -74,9 +66,9 @@ export default function VentureInvestorsPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "generate_matches" }),
     });
-    const res = await fetch(`/api/ventures/${id}/investors?type=matches`);
-    const d = await res.json();
-    if (d.success) setMatches(d.matches || []);
+    // Re-read the matches this just produced, from the network rather than from a
+    // copy, so the list shows what the server holds.
+    await refreshMatches();
     setGenerating(false);
   };
 
@@ -85,7 +77,7 @@ export default function VentureInvestorsPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "update_match", match_id: matchId, status }),
     });
-    fetchAll(true);
+    reload();
   };
 
   const handleCreateInvestor = async () => {
@@ -98,7 +90,7 @@ export default function VentureInvestorsPage() {
     setSaving(false);
     setShowCreateModal(false);
     setInvForm({ name: "", email: "", organization: "", industries: "", preferred_stage: "" });
-    fetchAll(true);
+    reload();
   };
 
   const progressBar = (pct) => (

@@ -1,22 +1,27 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Trash2, Mail,
   BookOpen, Star,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+const pickVenture = (d) => (d?.success ? d.venture || null : null);
+const pickCoaches = (d) => (d?.success ? d.coaches || [] : []);
 
 export default function VentureCoachesPage() {
   const { id } = useParams();
   const router = useRouter();
   const { t } = useI18n();
-  const [venture, setVenture] = useState(null);
-  const [assignments, setAssignments] = useState([]);
-  const [coaches, setCoaches] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState("assigned");
 
@@ -30,61 +35,36 @@ export default function VentureCoachesPage() {
   // Create coach form
   const [cForm, setCForm] = useState({ full_name: "", email: "", coach_type: "coach", phone: "", organization: "", biography: "" });
 
-  const fetchAll = useCallback(async (bypassCache = false) => {
-    const urls = [
-      `/api/ventures/${id}`,
-      `/api/ventures/${id}/coaches`,
-      `/api/ventures/${id}/coaches?type=coach`,
-    ];
-    const apply = (v, a, c) => {
-      if (v.success) setVenture(v.venture);
-      if (a.success) setAssignments(a.coaches || []);
-      if (c.success) setCoaches(c.coaches || []);
-    };
-    let painted = false;
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from
-      // fresh snapshots; mutation flows pass bypassCache=true so the
-      // coach lists always reflect the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2]);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const [vRes, aRes, cRes] = await Promise.all([
-        fetch(urls[0]),
-        fetch(urls[1]),
-        fetch(urls[2]),
-      ]);
-      const v = await vRes.json(); const a = await aRes.json(); const c = await cRes.json();
-      if (v.success) cacheSet(urls[0], v);
-      if (a.success) cacheSet(urls[1], a);
-      if (c.success) cacheSet(urls[2], c);
-      apply(v, a, c);
-    } catch (e) {
-      if (!painted) console.error("Failed to load coaches data:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+  // The venture, the coaches attached to it and the coach directory, through the
+  // shared hook: it owns the cache, the cache-first paint and the discarding of a
+  // stale answer, so the page keeps no copy of its own and reads during render.
+  const { data: venture, loading: ventureLoading } = useApi(
+    id ? `/api/ventures/${id}` : null,
+    { defaultValue: null, transform: pickVenture, deps: [id] },
+  );
+  const {
+    data: assignments,
+    loading: assignmentsLoading,
+    refresh: refreshAssignments,
+  } = useApi(id ? `/api/ventures/${id}/coaches` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickCoaches,
+    deps: [id],
+  });
+  const {
+    data: coaches,
+    loading: coachesLoading,
+    refresh: refreshCoaches,
+  } = useApi(id ? `/api/ventures/${id}/coaches?type=coach` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickCoaches,
+    deps: [id],
+  });
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  const loading = ventureLoading || assignmentsLoading || coachesLoading;
 
   const notify = (msg, type = "success") => {
     setToast({ msg, type }); setTimeout(() => setToast(null), 4000);
-  };
-
-  // Re-fetch assignments using the assignments endpoint from lib
-  const fetchAssignments = async () => {
-    try {
-      const res = await fetch(`/api/ventures/${id}/coaches`);
-      const d = await res.json();
-      if (d.success) setAssignments(d.coaches || []);
-    } catch {}
   };
 
   const handleAssign = async () => {
@@ -96,7 +76,7 @@ export default function VentureCoachesPage() {
         body: JSON.stringify({ action: assignType === "advisor" ? "assign_advisor" : "assign_coach", coach_id: selectedCoachId, is_primary: true }),
       });
       const d = await res.json();
-      if (d.success) { notify(t(assignType === "advisor" ? "vadmin.coaches.advisorAssigned" : "vadmin.coaches.coachAssigned")); setShowAssignModal(false); setSelectedCoachId(""); fetchAssignments(); }
+      if (d.success) { notify(t(assignType === "advisor" ? "vadmin.coaches.advisorAssigned" : "vadmin.coaches.coachAssigned")); setShowAssignModal(false); setSelectedCoachId(""); refreshAssignments(); }
       else notify(t((d.error || t("vadmin.coaches.failed")) || "") || (d.error || t("vadmin.coaches.failed")), "error");
     } catch { notify(t("vadmin.coaches.networkError"), "error"); }
     setSaving(false);
@@ -109,7 +89,7 @@ export default function VentureCoachesPage() {
         body: JSON.stringify({ action: "remove_assignment", assignment_id: assignmentId }),
       });
       notify(t("vadmin.coaches.assignmentRemoved"));
-      fetchAssignments();
+      refreshAssignments();
     } catch { notify(t("vadmin.coaches.failedToRemove"), "error"); }
   };
 
@@ -122,7 +102,8 @@ export default function VentureCoachesPage() {
         body: JSON.stringify(cForm),
       });
       const d = await res.json();
-      if (d.success) { notify(t("vadmin.coaches.coachCreated")); setShowCreateModal(false); setCForm({ full_name: "", email: "", coach_type: "coach", phone: "", organization: "", biography: "" }); fetchAll(true); }
+      if (d.success) { notify(t("vadmin.coaches.coachCreated")); setShowCreateModal(false); setCForm({ full_name: "", email: "", coach_type: "coach", phone: "", organization: "", biography: "" }); refreshAssignments();
+      refreshCoaches(); }
       else notify(t((d.error || t("vadmin.coaches.failed")) || "") || (d.error || t("vadmin.coaches.failed")), "error");
     } catch { notify(t("vadmin.coaches.networkError"), "error"); }
     setSaving(false);

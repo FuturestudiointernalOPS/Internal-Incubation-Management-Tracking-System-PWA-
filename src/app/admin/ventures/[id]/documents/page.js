@@ -1,12 +1,21 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, X, Search, FileText, Upload,
   Share2, Eye, Download, History, Trash2, Link as LinkIcon,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+const pickVenture = (d) => (d?.success ? d.venture || null : null);
+const pickDocuments = (d) => (d?.success ? d.documents || [] : []);
 
 const CATEGORIES = [
   { value: "pitch_deck", label: "Pitch Deck", icon: FileText },
@@ -25,9 +34,6 @@ const CATEGORIES = [
 export default function VentureDataRoomPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [venture, setVenture] = useState(null);
-  const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("");
   const [selectedDoc, setSelectedDoc] = useState(null);
@@ -44,33 +50,31 @@ export default function VentureDataRoomPage() {
   // Share form
   const [shareForm, setShareForm] = useState({ email: "", name: "", access_type: "read", expires_in_hours: "72" });
 
-  const fetchAll = useCallback(async (bypassCache = false) => {
-    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/documents`];
-    const apply = (v, d) => {
-      if (v.success) setVenture(v.venture);
-      if (d.success) setDocuments(d.documents || []);
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from
-      // fresh snapshots; mutation flows pass bypassCache=true so the data
-      // always reflects the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1]);
-          setLoading(false);
-        }
-      }
-      const [vRes, dRes] = await Promise.all(urls.map((u) => fetch(u)));
-      const v = await vRes.json(); const d = await dRes.json();
-      if (v.success) cacheSet(urls[0], v);
-      if (d.success) cacheSet(urls[1], d);
-      apply(v, d);
-    } catch {} finally { setLoading(false); }
-  }, [id]);
+  // The venture and its documents, through the shared hook: it owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the page keeps no
+  // copy of its own and reads its data during render.
+  const { data: venture, loading: ventureLoading, refresh: refreshVenture } = useApi(
+    id ? `/api/ventures/${id}` : null,
+    { defaultValue: null, transform: pickVenture, deps: [id] },
+  );
+  const {
+    data: documents,
+    loading: documentsLoading,
+    refresh: refreshDocuments,
+  } = useApi(id ? `/api/ventures/${id}/documents` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickDocuments,
+    deps: [id],
+  });
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  const loading = ventureLoading || documentsLoading;
+
+  // Every action below re-reads what it changed. The document detail is fetched on
+  // demand below rather than on arriving: a click opens it, not the page.
+  const reload = useCallback(() => {
+    refreshVenture();
+    refreshDocuments();
+  }, [refreshVenture, refreshDocuments]);
 
   const loadDetail = async (docId, bypassCache = false) => {
     const urls = [
@@ -112,7 +116,7 @@ export default function VentureDataRoomPage() {
         body: JSON.stringify({ action: "upload", ...uForm, file_name: uForm.file_name || uForm.title + ".pdf" }),
       });
       setShowUploadModal(false); setUForm({ title: "", description: "", category: "other", file_name: "", file_url: "", is_pitch_deck: false });
-      fetchAll(true);
+      reload();
     } catch {} finally { setSaving(false); }
   };
 
@@ -146,7 +150,7 @@ export default function VentureDataRoomPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "delete", document_id: docId }),
     });
-    setShowDetail(false); setSelectedDoc(null); fetchAll(true);
+    setShowDetail(false); setSelectedDoc(null); reload();
   };
 
   const filtered = documents.filter((d) => {

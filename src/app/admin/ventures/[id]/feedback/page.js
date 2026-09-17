@@ -1,68 +1,78 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, Star, MessageCircle, TrendingUp, Users,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+const pickVenture = (d) => (d?.success ? d.venture || null : null);
+const pickPayload = (d) => (d?.success ? d : null);
+const pickFeedback = (d) => (d?.success ? d.feedback || [] : []);
+const pickAnalytics = (d) => (d?.success ? d.analytics || [] : []);
 
 export default function VentureFeedbackPage() {
   const { id } = useParams();
   const router = useRouter();
   const { t } = useI18n();
-  const [venture, setVenture] = useState(null);
-  const [feedback, setFeedback] = useState([]);
-  const [coachAnalytics, setCoachAnalytics] = useState([]);
-  const [advisorAnalytics, setAdvisorAnalytics] = useState([]);
-  const [sessionStats, setSessionStats] = useState(null);
-  const [feedbackTrend, setFeedbackTrend] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
 
-  const fetchAll = useCallback(async (bypassCache = false) => {
-    const urls = [
-      `/api/ventures/${id}`,
-      `/api/ventures/${id}/feedback`,
-      `/api/ventures/${id}/feedback?type=analytics_coaches`,
-      `/api/ventures/${id}/feedback?type=analytics_advisors`,
-      `/api/ventures/${id}/feedback?type=analytics_sessions`,
-      `/api/ventures/${id}/feedback?type=analytics_feedback`,
-    ];
-    const apply = (v, f, ca, aa, ss, ft) => {
-      if (v.success) setVenture(v.venture);
-      if (f.success) setFeedback(f.feedback || []);
-      if (ca.success) setCoachAnalytics(ca.analytics || []);
-      if (aa.success) setAdvisorAnalytics(aa.analytics || []);
-      if (ss.success) setSessionStats(ss);
-      if (ft.success) setFeedbackTrend(ft);
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from
-      // fresh snapshots while the network revalidates in the background.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2], cached[3], cached[4], cached[5]);
-          setLoading(false);
-        }
-      }
-      const [vRes, fRes, caRes, aaRes, ssRes, ftRes] = await Promise.all(urls.map((u) => fetch(u)));
-      const v = await vRes.json(); const f = await fRes.json(); const ca = await caRes.json();
-      const aa = await aaRes.json(); const ss = await ssRes.json(); const ft = await ftRes.json();
-      if (v.success) cacheSet(urls[0], v);
-      if (f.success) cacheSet(urls[1], f);
-      if (ca.success) cacheSet(urls[2], ca);
-      if (aa.success) cacheSet(urls[3], aa);
-      if (ss.success) cacheSet(urls[4], ss);
-      if (ft.success) cacheSet(urls[5], ft);
-      apply(v, f, ca, aa, ss, ft);
-    } catch {} finally { setLoading(false); }
-  }, [id]);
+  // The venture and its coaching feedback, through the shared hook: it owns the
+  // cache, the cache-first paint and the discarding of a stale answer, so the page
+  // keeps no copy of its own and reads its data during render.
+  const { data: venture, loading: ventureLoading } = useApi(
+    id ? `/api/ventures/${id}` : null,
+    { defaultValue: null, transform: pickVenture, deps: [id] },
+  );
+  const { data: feedback, loading: feedbackLoading } = useApi(
+    id ? `/api/ventures/${id}/feedback` : null,
+    { defaultValue: EMPTY_LIST, transform: pickFeedback, deps: [id] },
+  );
+  const {
+    data: coachAnalytics,
+    loading: coachAnalyticsLoading,
+  } = useApi(
+    id ? `/api/ventures/${id}/feedback?type=analytics_coaches` : null,
+    { defaultValue: EMPTY_LIST, transform: pickAnalytics, deps: [id] },
+  );
+  const {
+    data: advisorAnalytics,
+    loading: advisorAnalyticsLoading,
+  } = useApi(
+    id ? `/api/ventures/${id}/feedback?type=analytics_advisors` : null,
+    { defaultValue: EMPTY_LIST, transform: pickAnalytics, deps: [id] },
+  );
+  const {
+    data: sessionStats,
+    loading: sessionStatsLoading,
+  } = useApi(
+    id ? `/api/ventures/${id}/feedback?type=analytics_sessions` : null,
+    { defaultValue: null, transform: pickPayload, deps: [id] },
+  );
+  const {
+    data: feedbackTrend,
+    loading: feedbackTrendLoading,
+  } = useApi(
+    id ? `/api/ventures/${id}/feedback?type=analytics_feedback` : null,
+    { defaultValue: null, transform: pickPayload, deps: [id] },
+  );
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  const loading =
+    ventureLoading ||
+    feedbackLoading ||
+    coachAnalyticsLoading ||
+    advisorAnalyticsLoading ||
+    sessionStatsLoading ||
+    feedbackTrendLoading;
+
 
   const renderStars = (rating) => (
     <div className="flex gap-0.5">

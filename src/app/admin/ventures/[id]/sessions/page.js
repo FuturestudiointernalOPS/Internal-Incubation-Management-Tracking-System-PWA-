@@ -1,13 +1,23 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Calendar, Clock, User,
   Video, MapPin, BookOpen, Target,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+const pickVenture = (d) => (d?.success ? d.venture || null : null);
+const pickSessions = (d) => (d?.success ? d.sessions || [] : []);
+const pickCoaches = (d) => (d?.success ? d.coaches || [] : []);
 import { stageStatusWord, statusLabel } from "@/lib/ventureStatuses";
 
 const SESSION_TYPE_CFG = {
@@ -32,10 +42,6 @@ export default function VentureSessionsPage() {
   const { id } = useParams();
   const router = useRouter();
   const { t } = useI18n();
-  const [venture, setVenture] = useState(null);
-  const [sessions, setSessions] = useState([]);
-  const [coaches, setCoaches] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -57,35 +63,33 @@ export default function VentureSessionsPage() {
   // Action items
   const [aiTitle, setAiTitle] = useState("");
 
-  const fetchAll = useCallback(async (bypassCache = false) => {
-    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/sessions`, `/api/ventures/${id}/coaches`];
-    const apply = (v, s, c) => {
-      if (v.success) setVenture(v.venture);
-      if (s.success) setSessions(s.sessions || []);
-      if (c.success) setCoaches(c.coaches || []);
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from
-      // fresh snapshots; mutation flows pass bypassCache=true so the data
-      // always reflects the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2]);
-          setLoading(false);
-        }
-      }
-      const [vRes, sRes, cRes] = await Promise.all(urls.map((u) => fetch(u)));
-      const v = await vRes.json(); const s = await sRes.json(); const c = await cRes.json();
-      if (v.success) cacheSet(urls[0], v);
-      if (s.success) cacheSet(urls[1], s);
-      if (c.success) cacheSet(urls[2], c);
-      apply(v, s, c);
-    } catch {} finally { setLoading(false); }
-  }, [id]);
+  // The venture, its sessions and the coaches they involve, through the shared
+  // hook: it owns the cache, the cache-first paint and the discarding of a stale
+  // answer, so the page keeps no copy of its own and reads during render.
+  const { data: venture, loading: ventureLoading } = useApi(
+    id ? `/api/ventures/${id}` : null,
+    { defaultValue: null, transform: pickVenture, deps: [id] },
+  );
+  const {
+    data: sessions,
+    loading: sessionsLoading,
+    refresh: refreshSessions,
+  } = useApi(id ? `/api/ventures/${id}/sessions` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickSessions,
+    deps: [id],
+  });
+  const { data: coaches, loading: coachesLoading } = useApi(
+    id ? `/api/ventures/${id}/coaches` : null,
+    { defaultValue: EMPTY_LIST, transform: pickCoaches, deps: [id] },
+  );
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  const loading = ventureLoading || sessionsLoading || coachesLoading;
+
+  // Every action below re-reads what it changed.
+  const reload = useCallback(() => {
+    refreshSessions();
+  }, [refreshSessions]);
 
   const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 4000); };
 
@@ -159,7 +163,7 @@ export default function VentureSessionsPage() {
         }),
       });
       const d = await res.json();
-      if (d.success) { notify(t("vadmin.sessions.sessionCreated")); setShowCreateModal(false); setSForm({ ...RESET_SFORM }); fetchAll(true); }
+      if (d.success) { notify(t("vadmin.sessions.sessionCreated")); setShowCreateModal(false); setSForm({ ...RESET_SFORM }); reload(); }
       else notify(t((d.error || t("vadmin.sessions.failed")) || "") || (d.error || t("vadmin.sessions.failed")), "error");
     } catch { notify(t("vadmin.sessions.networkError"), "error"); }
     setSaving(false);
@@ -169,7 +173,7 @@ export default function VentureSessionsPage() {
     await fetch(`/api/ventures/${id}/sessions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "cancel_session", session_id: sessionId }) });
     notify(t("vadmin.sessions.sessionCancelled"));
     setShowDetail(false);
-    fetchAll(true);
+    reload();
   };
 
   const addNote = async () => {

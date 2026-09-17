@@ -1,13 +1,25 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Search, BookOpen, Bookmark,
   ExternalLink, Clock, Eye, FileText, Video, Link as LinkIcon, TrendingUp,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+const pickResources = (d) => (d?.success ? d.resources || [] : []);
+const pickCategories = (d) => (d?.success ? d.categories || [] : []);
+const pickBookmarks = (d) => (d?.success ? d.bookmarks || [] : []);
+const pickPaths = (d) => (d?.success ? d.paths || [] : []);
+const pickPayload = (d) => (d?.success ? d : null);
 
 const TYPE_ICONS = {
   article: FileText, video: Video, pdf: FileText, template: FileText,
@@ -19,12 +31,6 @@ export default function VentureKnowledgePage() {
   const { id } = useParams();
   const router = useRouter();
   const { t } = useI18n();
-  const [, setVenture] = useState(null);
-  const [resources, setResources] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [bookmarks, setBookmarks] = useState([]);
-  const [recommended, setRecommended] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("");
   const [activeView, setActiveView] = useState("browse");
@@ -34,59 +40,57 @@ export default function VentureKnowledgePage() {
   const [saving, setSaving] = useState(false);
 
   // Learning
-  const [learningProgress, setLearningProgress] = useState(null);
-  const [learningPaths, setLearningPaths] = useState([]);
 
   // Create form
   const [crForm, setCrForm] = useState({ title: "", description: "", resource_type: "article", category_id: "", url: "", tags: "" });
 
-  const fetchAll = useCallback(async (bypassCache = false) => {
-    const urls = [
-      `/api/ventures/${id}`,
-      `/api/ventures/${id}/knowledge`,
-      `/api/ventures/${id}/knowledge?type=categories`,
-      `/api/ventures/${id}/knowledge?type=bookmarks`,
-      `/api/ventures/${id}/knowledge?type=recommended`,
-      `/api/ventures/${id}/knowledge?type=learning_progress`,
-      `/api/ventures/${id}/knowledge?type=learning_paths`,
-    ];
-    const apply = (v, r, c, b, rec, lp, paths) => {
-      if (v.success) setVenture(v.venture);
-      if (r.success) setResources(r.resources || []);
-      if (c.success) setCategories(c.categories || []);
-      if (b.success) setBookmarks(b.bookmarks || []);
-      if (rec.success) setRecommended(rec.resources || []);
-      if (lp.success) setLearningProgress(lp);
-      if (paths.success) setLearningPaths(paths.paths || []);
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from
-      // fresh snapshots; mutation flows pass bypassCache=true so the data
-      // always reflects the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(...cached);
-          setLoading(false);
-        }
-      }
-      const [vRes, rRes, cRes, bRes, recRes, lpRes, pathsRes] = await Promise.all(urls.map((u) => fetch(u)));
-      const v = await vRes.json(); const r = await rRes.json(); const c = await cRes.json();
-      const b = await bRes.json(); const rec = await recRes.json();
-      const lp = await lpRes.json(); const paths = await pathsRes.json();
-      if (v.success) cacheSet(urls[0], v);
-      if (r.success) cacheSet(urls[1], r);
-      if (c.success) cacheSet(urls[2], c);
-      if (b.success) cacheSet(urls[3], b);
-      if (rec.success) cacheSet(urls[4], rec);
-      if (lp.success) cacheSet(urls[5], lp);
-      if (paths.success) cacheSet(urls[6], paths);
-      apply(v, r, c, b, rec, lp, paths);
-    } catch {} finally { setLoading(false); }
-  }, [id]);
+  // The venture and its learning resources, through the shared hook: it owns the
+  // cache, the cache-first paint and the discarding of a stale answer, so the page
+  // keeps no copy of its own and reads its data during render.
+  // `setData` is the read's own setter, used below by the two filters that ask
+  // the endpoint a narrower question and show its answer in place of the list.
+  const {
+    data: resources,
+    loading: resourcesLoading,
+    refresh: refreshResources,
+    setData: setResources,
+  } = useApi(id ? `/api/ventures/${id}/knowledge` : null, {
+      defaultValue: EMPTY_LIST,
+      transform: pickResources,
+      deps: [id],
+    });
+  const { data: categories, loading: categoriesLoading } = useApi(
+    id ? `/api/ventures/${id}/knowledge?type=categories` : null,
+    { defaultValue: EMPTY_LIST, transform: pickCategories, deps: [id] },
+  );
+  const { data: bookmarks } = useApi(
+    id ? `/api/ventures/${id}/knowledge?type=bookmarks` : null,
+    { defaultValue: EMPTY_LIST, transform: pickBookmarks, deps: [id] },
+  );
+  const { data: recommended, loading: recommendedLoading } = useApi(
+    id ? `/api/ventures/${id}/knowledge?type=recommended` : null,
+    { defaultValue: EMPTY_LIST, transform: pickResources, deps: [id] },
+  );
+  const { data: learningProgress, loading: progressLoading } = useApi(
+    id ? `/api/ventures/${id}/knowledge?type=learning_progress` : null,
+    { defaultValue: null, transform: pickPayload, deps: [id] },
+  );
+  const { data: learningPaths, loading: pathsLoading } = useApi(
+    id ? `/api/ventures/${id}/knowledge?type=learning_paths` : null,
+    { defaultValue: EMPTY_LIST, transform: pickPaths, deps: [id] },
+  );
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  const loading =
+    resourcesLoading ||
+    categoriesLoading ||
+    recommendedLoading ||
+    progressLoading ||
+    pathsLoading;
+
+  // Every action below re-reads what it changed.
+  const reload = useCallback(() => {
+    refreshResources();
+  }, [refreshResources]);
 
   const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 4000); };
 
@@ -102,7 +106,7 @@ export default function VentureKnowledgePage() {
       body: JSON.stringify({ action: "bookmark", resource_id: resourceId }),
     });
     const d = await res.json();
-    if (d.success) { notify(d.bookmarked ? t("vadmin.knowledge.bookmarked") : t("vadmin.knowledge.removed")); fetchAll(true); }
+    if (d.success) { notify(d.bookmarked ? t("vadmin.knowledge.bookmarked") : t("vadmin.knowledge.removed")); reload(); }
   };
 
   const handleComplete = async (resourceId) => {
@@ -111,7 +115,7 @@ export default function VentureKnowledgePage() {
       body: JSON.stringify({ action: "complete", resource_id: resourceId }),
     });
     notify(t("vadmin.knowledge.markedComplete"));
-    fetchAll(true);
+    reload();
   };
 
   const loadResource = async (resourceId) => {
@@ -129,7 +133,7 @@ export default function VentureKnowledgePage() {
         body: JSON.stringify({ action: "create", ...crForm, category_id: crForm.category_id ? parseInt(crForm.category_id) : null, tags: crForm.tags ? crForm.tags.split(",").map((t) => t.trim()) : [] }),
       });
       const d = await res.json();
-      if (d.success) { notify(t("vadmin.knowledge.resourceCreated")); setShowCreateModal(false); setCrForm({ title: "", description: "", resource_type: "article", category_id: "", url: "", tags: "" }); fetchAll(true); }
+      if (d.success) { notify(t("vadmin.knowledge.resourceCreated")); setShowCreateModal(false); setCrForm({ title: "", description: "", resource_type: "article", category_id: "", url: "", tags: "" }); reload(); }
       else notify(t((d.error || t("vadmin.knowledge.failed")) || "") || (d.error || t("vadmin.knowledge.failed")), "error");
     } catch { notify(t("vadmin.knowledge.networkError"), "error"); }
     setSaving(false);
@@ -137,7 +141,7 @@ export default function VentureKnowledgePage() {
 
   const filterByCategory = async (slug) => {
     setActiveCategory(slug);
-    if (!slug) { fetchAll(); return; }
+    if (!slug) { refreshResources(); return; }
     const res = await fetch(`/api/ventures/${id}/knowledge?category=${slug}`);
     const d = await res.json();
     if (d.success) setResources(d.resources || []);
