@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useRouter, useParams } from "next/navigation";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import { VentureWorkspace } from "@/components/ventures/workspace/VentureContext";
 import { ProfileTab, SettingsTab } from "@/components/ventures/workspace/tabs/ProfileSettingsTabs";
@@ -28,16 +29,37 @@ const JOURNEY_TOOLS = [
   "businessModel", "discovery", "validation", "pmf", "documents",
 ];
 
+// The venture record, and the profile form it fills in. The form is the shape
+// the Venture's stored values take in the profile editor; it is built at module
+// scope because it is a pure shaping of the answer.
+const pickVenture = (d) => (d?.success ? d.venture : null);
+
+const ventureToForm = (v) => ({
+  name: v.name || "",
+  description: v.description || "",
+  mission: v.mission || "",
+  vision: v.vision || "",
+  industry: v.industry || "",
+  sector: v.sector || "",
+  business_stage: v.business_stage || "idea",
+  website: v.website || "",
+  twitter: v.social_media?.twitter || "",
+  linkedin: v.social_media?.linkedin || "",
+  instagram: v.social_media?.instagram || "",
+  facebook: v.social_media?.facebook || "",
+  status: v.status || "active",
+  visibility: v.visibility || "private",
+  language: v.language || "en",
+  brandColor: v.branding?.color || "#f60",
+  country_code: v.country_code || "",
+});
+
 export default function VentureDetail() {
-  const [user, setUser] = useState({});
-  const [venture, setVenture] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
   // Journey view: the milestone timeline by default, or one of the Venture
   // work tools (JOURNEY_TOOLS) that live inside Journey.
   const [journeySub, setJourneySub] = useState("timeline");
-  const [form, setForm] = useState({});
 
   // Members state
   const [members, setMembers] = useState([]);
@@ -150,64 +172,31 @@ export default function VentureDetail() {
   const router = useRouter();
   const params = useParams();
 
-  useEffect(() => {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(u);
-  }, []);
+  // The signed-in identity comes from the shell's session cache rather than the
+  // browser's stored copy, so it needs no effect and no read of its own.
+  const { user: sessionUser } = useSessionUser();
+  const user = sessionUser || {};
 
-  const fetchVenture = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${params.id}`;
-    const apply = (d) => {
-      if (!d.success) return;
-      setVenture(d.venture);
-      const v = d.venture;
-      setForm({
-        name: v.name || "",
-        description: v.description || "",
-        mission: v.mission || "",
-        vision: v.vision || "",
-        industry: v.industry || "",
-        sector: v.sector || "",
-        business_stage: v.business_stage || "idea",
-        website: v.website || "",
-        twitter: v.social_media?.twitter || "",
-        linkedin: v.social_media?.linkedin || "",
-        instagram: v.social_media?.instagram || "",
-        facebook: v.social_media?.facebook || "",
-        status: v.status || "active",
-        visibility: v.visibility || "private",
-        language: v.language || "en",
-        brandColor: v.branding?.color || "#f60",
-        country_code: v.country_code || "",
-      });
-    };
-    try {
-      // Cache-first paint: returning to this page renders instantly from a
-      // fresh snapshot; mutation flows pass bypassCache=true so the venture
-      // always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const d = await res.json();
-      if (d.success) cacheSet(url, d);
-      apply(d);
-    } catch (e) {
-      console.error("Failed to load venture", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [params.id]);
+  // The venture record is read through the shared hook, which owns the cache,
+  // the cache-first paint and the discarding of a stale answer.
+  const { data: venture, loading } = useApi(
+    params.id ? `/api/ventures/${params.id}` : null,
+    { defaultValue: null, transform: pickVenture },
+  );
 
-  // Load venture
-  useEffect(() => {
-    if (!params.id) return;
-    fetchVenture();
-  }, [params.id, fetchVenture]);
+  // The profile form is the Venture's stored values with the person's UNSAVED
+  // edits laid over them, and neither half is written from an effect. A re-read
+  // therefore cannot wipe what someone is in the middle of typing, and a saved
+  // change never has to be pushed back into a copy of the record. The tabs keep
+  // calling `setForm` with a whole form object, exactly as before, so the
+  // contract they consume is unchanged.
+  const baseForm = useMemo(
+    () => (venture ? ventureToForm(venture) : null),
+    [venture],
+  );
+  const [formEdits, setFormEdits] = useState(null);
+  const form = baseForm ? { ...baseForm, ...(formEdits || {}) } : {};
+  const setForm = setFormEdits;
 
   // Navigate top-level sections. Re-entering Journey resets to the milestone
   // timeline so the primary tab always behaves predictably.

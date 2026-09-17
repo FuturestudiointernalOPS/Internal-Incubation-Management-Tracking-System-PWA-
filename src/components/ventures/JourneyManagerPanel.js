@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   stageStatusWord,
@@ -40,6 +40,7 @@ import ScopedNotes from "@/components/ventures/ScopedNotes";
 import AppModal from "@/components/ui/AppModal";
 import AppMenu from "@/components/ui/AppMenu";
 import { minSessionStartInput, isValidSessionStart, SESSION_MATERIALS_MAX, toDateInput, toTimeInput } from "@/lib/ventureSessionRules";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * JourneyManagerPanel — staff instrument for a Venture's Journey.
@@ -55,11 +56,71 @@ import { minSessionStartInput, isValidSessionStart, SESSION_MATERIALS_MAX, toDat
  * global permission matrix (`operating_plan` area) + venture-wide assignment.
  * Members only ever see the published stages on their own Journey tab.
  */
+
+// ─── Read shapers (module scope: built once, never per render) ───────────
+
+// What the journey read starts from, and what a refused answer leaves standing.
+const EMPTY_JOURNEY = {
+  stages: [],
+  access: { create: false, edit: false, manage: false },
+  templateSource: null,
+  milestoneAuthority: false,
+};
+
+const pickJourney = (d) =>
+  d?.success
+    ? {
+        stages: d.stages || [],
+        access: d.access || EMPTY_JOURNEY.access,
+        templateSource: d.template_source || null,
+        milestoneAuthority: Boolean(d.milestone_authority),
+      }
+    : EMPTY_JOURNEY;
+
+const pickSessions = (d) => (d?.success ? d.sessions || [] : []);
+
+// A report BELONGS to a journey, so the payload is grouped by the journey it is
+// anchored to. Legacy period-based reports are not journey-anchored: they stay
+// readable in history and are simply not shown against a journey.
+const pickReportsByStage = (d) => {
+  const grouped = {};
+  if (!d?.success) return grouped;
+  for (const rep of d.reports || []) {
+    const key = String(rep.journey_stage_id || "");
+    if (!key) continue;
+    (grouped[key] ||= []).push(rep);
+  }
+  return grouped;
+};
+
 export default function JourneyManagerPanel({ ventureId }) {
   const { t, lang } = useI18n();
-  const [stages, setStages] = useState([]);
-  const [access, setAccess] = useState({ create: false, edit: false, manage: false });
-  const [loading, setLoading] = useState(true);
+
+  // The journey, the sessions and the reports are three reads through the shared
+  // hook, which owns the cache, the cache-first paint and the discarding of a
+  // stale answer. A write publishes its OWN response body into the read it
+  // belongs to (setJourney / setStages below) rather than paying for a second
+  // read of what the server has just handed back, so a successful write cannot
+  // be undone on screen by a re-read that then fails.
+  const { data: journey, loading, refresh: refreshJourney, setData: setJourney } = useApi(
+    ventureId ? `/api/ventures/${ventureId}/journey?include_archived=1` : null,
+    { defaultValue: EMPTY_JOURNEY, transform: pickJourney },
+  );
+  const { stages, access, templateSource, milestoneAuthority } = journey;
+
+  const { data: ventureSessions, refresh: refreshSessions } = useApi(
+    ventureId ? `/api/ventures/${ventureId}/sessions` : null,
+    { defaultValue: [], transform: pickSessions },
+  );
+
+  const { data: reportsByStage, refresh: refreshReports } = useApi(
+    ventureId ? `/api/ventures/${ventureId}/progress-reports` : null,
+    { defaultValue: {}, transform: pickReportsByStage },
+  );
+
+  /** What a write returned replaces the stages, leaving the rest of the read be. */
+  const setStages = (next) => setJourney((prev) => ({ ...prev, stages: next }));
+
   const [toast, setToast] = useState(null);
 
   const [addOpen, setAddOpen] = useState(false);
@@ -76,7 +137,6 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [saveForm, setSaveForm] = useState({ name: "", description: "" });
   const [savingSave, setSavingSave] = useState(false);
   const [journeyTemplates, setJourneyTemplates] = useState([]);
-  const [templateSource, setTemplateSource] = useState(null);
   // Journey archive/delete: selection + archived view + busy flag.
   const [viewArchived, setViewArchived] = useState(false);
   const [selectedStageIds, setSelectedStageIds] = useState(() => new Set());
@@ -88,7 +148,6 @@ export default function JourneyManagerPanel({ ventureId }) {
   // Milestones inside a journey (Phase 1): add/edit/reorder/archive. The
   // structure controls are shown only when the server says the viewer is the
   // Lead Manager or a Super Admin (milestone_authority on the journey read).
-  const [milestoneAuthority, setMilestoneAuthority] = useState(false);
   const [msAddFor, setMsAddFor] = useState(null);
   const [msForm, setMsForm] = useState({ title: "", description: "", objective: "", target_date: "" });
   // Deliverables drafted while creating the milestone (created right after it).
@@ -125,10 +184,8 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [bookSaving, setBookSaving] = useState(false);
   const [coachOptions, setCoachOptions] = useState([]);
   // Sessions already booked on this venture, listed inside their milestone.
-  const [ventureSessions, setVentureSessions] = useState([]);
-  // Journey reports, grouped by journey. A report BELONGS to a journey, so it is
-  // shown and written where the journey lives — never in a separate module.
-  const [reportsByStage, setReportsByStage] = useState({});
+  // Journey reports are shown and written where their journey lives — never in a
+  // separate module.
   const [reportFor, setReportFor] = useState(null);
   const [reportForm, setReportForm] = useState(null);
   const [reportSaving, setReportSaving] = useState(false);
@@ -146,54 +203,6 @@ export default function JourneyManagerPanel({ ventureId }) {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 5000);
   };
-
-  const loadReports = () =>
-    fetch(`/api/ventures/${ventureId}/progress-reports`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (!d.success) return;
-        const grouped = {};
-        for (const rep of d.reports || []) {
-          // Legacy period-based reports are not journey-anchored. They stay
-          // readable in history; they are simply not shown against a journey.
-          const key = String(rep.journey_stage_id || "");
-          if (!key) continue;
-          (grouped[key] ||= []).push(rep);
-        }
-        setReportsByStage(grouped);
-      })
-      .catch(() => {});
-
-  const load = async () => {
-    try {
-      // include_archived=1: management surfaces render archived journeys in
-      // their own view (the Venture never sees them).
-      const res = await fetch(`/api/ventures/${ventureId}/journey?include_archived=1`);
-      const d = await res.json();
-      if (d.success) {
-        setStages(d.stages || []);
-        setAccess(d.access || {});
-        setTemplateSource(d.template_source || null);
-        setMilestoneAuthority(Boolean(d.milestone_authority));
-      }
-    } catch (e) {
-      console.error("Failed to load journey:", e);
-    } finally {
-      setLoading(false);
-    }
-    // Sessions load independently: a failure here must never block the journey.
-    fetch(`/api/ventures/${ventureId}/sessions`)
-      .then((r) => r.json())
-      .then((d) => { if (d.success) setVentureSessions(d.sessions || []); })
-      .catch(() => {});
-    // Reports load independently too: a journey's report is owed whether or not
-    // anything else on this screen loaded.
-    loadReports();
-  };
-
-  useEffect(() => {
-    if (ventureId) load();
-  }, [ventureId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadTemplates = async () => {
     try {
@@ -570,7 +579,7 @@ export default function JourneyManagerPanel({ ventureId }) {
         notify(t("venture.manager.sessionBooked"));
         setBookFor(null);
         // Surface the new session inside its milestone right away.
-        reloadSessions();
+        refreshSessions();
       } else {
         notify(d.error || t("venture.manager.actionFailed"), "error");
       }
@@ -620,7 +629,7 @@ export default function JourneyManagerPanel({ ventureId }) {
         setMsDeliverables([]);
         setMsAddFor(null);
         if (d.milestone_id) setMsOpenId(String(d.milestone_id));
-        await load();
+        await refreshJourney();
       } else {
         notify(d.error || t("venture.manager.actionFailed"), "error");
       }
@@ -663,7 +672,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       notify(t("venture.manager.milestoneUpdated"));
       setMsEditId(null);
       setMsEditForm({});
-      await load();
+      await refreshJourney();
     }
   };
 
@@ -676,7 +685,7 @@ export default function JourneyManagerPanel({ ventureId }) {
         body: JSON.stringify({ milestone_id: ms.id, journey_stage_id: stage.id, direction }),
       });
       const d = await res.json();
-      if (d.success) await load();
+      if (d.success) await refreshJourney();
       else notify(d.error || t("venture.manager.actionFailed"), "error");
     } catch (_) {
       notify(t("venture.manager.actionFailed"), "error");
@@ -696,7 +705,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       const d = await res.json();
       if (d.success) {
         notify(t("venture.manager.milestoneDuplicated"));
-        await load();
+        await refreshJourney();
       } else {
         notify(d.error || t("venture.manager.actionFailed"), "error");
       }
@@ -748,7 +757,7 @@ export default function JourneyManagerPanel({ ventureId }) {
           const up = await upRes.json().catch(() => ({}));
           if (!up.success) {
             notify(up.error || t("venture.manager.actionFailed"), "error");
-            await load();
+            await refreshJourney();
             return;
           }
           evidenceUrl = up.path;
@@ -766,7 +775,7 @@ export default function JourneyManagerPanel({ ventureId }) {
         setDvNewFile(null);
         setDvNewUrl("");
         setDvAddFor(null);
-        await load();
+        await refreshJourney();
       } else {
         notify(d.error || t("venture.manager.actionFailed"), "error");
       }
@@ -795,7 +804,7 @@ export default function JourneyManagerPanel({ ventureId }) {
     if (ok) {
       notify(t("venture.manager.deliverableUpdated"));
       setDvAction(null);
-      await load();
+      await refreshJourney();
     }
   };
 
@@ -826,7 +835,7 @@ export default function JourneyManagerPanel({ ventureId }) {
         setDvAction(null);
         setDvText("");
         setDvFile(null);
-        await load();
+        await refreshJourney();
       }
     } catch (_) {
       notify(t("venture.manager.actionFailed"), "error");
@@ -848,7 +857,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       notify(t("venture.manager.deliverableReviewed", { decision: t(decision === "approved" ? "venture.manager.approveDeliverable" : "venture.manager.requestChanges") }));
       setDvAction(null);
       setDvText("");
-      await load();
+      await refreshJourney();
     }
   };
 
@@ -963,7 +972,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       const ok = await patchMilestone(ids[0], { status: "completed" });
       if (ok) {
         notify(t("venture.manager.milestoneCompleted"));
-        await load();
+        await refreshJourney();
         // Completing the LAST milestone of a journey closes it, and a closed
         // journey is owed a report. The composer opens on that journey and the
         // manager can simply dismiss it — that is what keeps the automatic close
@@ -994,7 +1003,7 @@ export default function JourneyManagerPanel({ ventureId }) {
           if (archived.length) parts.push(t("venture.manager.milestoneArchived"));
           if (blocked.length) parts.push(blocked[0]?.reason || t("venture.manager.actionFailed"));
           notify(parts.join(" — ") || t("venture.manager.milestoneArchived"), blocked.length && !archived.length ? "error" : "success");
-          await load();
+          await refreshJourney();
         } else {
           notify(d.error || t("venture.manager.actionFailed"), "error");
         }
@@ -1019,12 +1028,6 @@ export default function JourneyManagerPanel({ ventureId }) {
 
   const SESSION_STATUSES = ["scheduled", "confirmed", "in_progress", "completed", "cancelled", "rescheduled", "no_show"];
   const sessionStatusKey = (s) => `venture.manager.sessionStatuses.${SESSION_STATUSES.includes(s) ? s : "scheduled"}`;
-
-  const reloadSessions = () =>
-    fetch(`/api/ventures/${ventureId}/sessions`)
-      .then((r) => r.json())
-      .then((sd) => { if (sd.success) setVentureSessions(sd.sessions || []); })
-      .catch(() => {});
 
   const reportStatusLabel = (status) =>
     t(`venture.manager.reportStatuses.${["draft", "submitted", "reviewed", "archived"].includes(status) ? status : "draft"}`);
@@ -1088,7 +1091,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       notify(t(submit ? "venture.manager.reportSubmitted" : "venture.manager.reportSaved"));
       setReportFor(null);
       setReportForm(null);
-      loadReports();
+      refreshReports();
     } catch (_) {
       notify(t("venture.manager.actionFailed"), "error");
     } finally {
@@ -1113,7 +1116,7 @@ export default function JourneyManagerPanel({ ventureId }) {
         notify(t("venture.manager.memoSaved"));
         setNoteEditFor(null);
         setNoteDraft("");
-        reloadSessions();
+        refreshSessions();
       } else {
         notify(d.error || t("venture.manager.actionFailed"), "error");
       }

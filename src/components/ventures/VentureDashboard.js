@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -28,7 +28,7 @@ import {
   Crown,
   Ban,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 // ─── Widget Components ────────────────────────────────────────────────────
 
@@ -86,132 +86,132 @@ function SkeletonCard() {
   );
 }
 
+// ─── Read shapers (module scope: built once, never per render) ───────────
+
+// The venture record.
+const pickVenture = (d) => (d?.success ? d.venture : null);
+
+// The dashboard payload, with the server's own refusal folded into the value.
+// That folded `failure` is what lets the screen tell the three failures apart:
+// the shared hook reports a request that never answered as `error`, and a body
+// that reports its own failure as data.
+const EMPTY_DASHBOARD = { dashboard: null, failure: null };
+
+const pickDashboard = (d) =>
+  d?.success
+    ? { dashboard: d.dashboard, failure: null }
+    : { dashboard: null, failure: d?.error || null };
+
+// A widget whose payload is not in hand yet.
+const WIDGET_IDLE = { loading: true, error: null, empty: false, data: null };
+
+// Whether one widget's slice of the payload counts as "nothing to show".
+function isWidgetEmpty(data) {
+  if (!data) return true;
+  if (Array.isArray(data)) return data.length === 0;
+  if (typeof data === "object") {
+    if (data.recent && Array.isArray(data.recent)) return data.recent.length === 0 && !data.unread;
+    if (data.items && Array.isArray(data.items)) return data.items.length === 0;
+    return Object.keys(data).length === 0;
+  }
+  return false;
+}
+
 // ─── Main Dashboard Component ────────────────────────────────────────────
 
 export default function VentureDashboard({ id, embedded = false }) {
   const router = useRouter();
   const { t, lang } = useI18n();
 
-  const [venture, setVenture] = useState(null);
-  const [dashboard, setDashboard] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+  // Both reads go through the shared hook, which owns the cache, the cache-first
+  // paint and the discarding of a stale answer, so this component keeps no copy
+  // of its own and reads during render. The venture is read only by the
+  // standalone route: the hub page that embeds this one has already fetched it
+  // for its own header.
+  const { data: venture, refresh: refreshVenture } = useApi(
+    embedded ? null : `/api/ventures/${id}`,
+    { defaultValue: null, transform: pickVenture },
+  );
 
-  // Individual widget states
-  const [widgetStates, setWidgetStates] = useState({});
+  const {
+    data: dashState,
+    loading,
+    error: readError,
+    status,
+    refresh: refreshDashboard,
+    setData: setDashState,
+  } = useApi(`/api/ventures/${id}/dashboard`, {
+    defaultValue: EMPTY_DASHBOARD,
+    transform: pickDashboard,
+  });
+  const dashboard = dashState.dashboard;
 
-  const fetchVenture = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${id}`;
-    const apply = (data) => {
-      if (data.success) setVenture(data.venture);
-    };
-    let painted = false;
-    try {
-      // Cache-first paint: returning to this page renders instantly from a
-      // fresh snapshot; mutation flows pass bypassCache=true so the venture
-      // always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch {
-      if (!painted) setError(t("vadmin.dashboard.loadFailed"));
+  // Three shapes of failure reach the screen: the server refusing (a status),
+  // the payload reporting its own failure (a message), and a request that never
+  // got an answer (an error).
+  const loadFailed = Boolean(
+    dashState.failure || readError || (status !== null && status >= 400),
+  );
+
+  // What each widget shows of the payload is DERIVED from it, during render. The
+  // only state kept is the transient pair a single widget goes through while it
+  // is being refreshed - spinning, then a failure message - so that a failed
+  // refresh of one widget cannot erase the slice it failed to replace, and a
+  // successful one cannot leave another widget's failure message standing.
+  const [widgetOverlay, setWidgetOverlay] = useState({});
+
+  const widgetBase = useMemo(() => {
+    const base = {};
+    for (const [key, val] of Object.entries(dashboard || {})) {
+      base[key] = {
+        loading: false,
+        error: val === null ? t("vadmin.dashboard.loadFailed") : null,
+        empty: val === null ? false : isWidgetEmpty(val),
+        data: val,
+      };
     }
-  }, [id, t]);
+    return base;
+  }, [dashboard, t]);
 
-  const isWidgetEmpty = (key, data) => {
-    if (!data) return true;
-    if (Array.isArray(data)) return data.length === 0;
-    if (typeof data === "object") {
-      if (data.recent && Array.isArray(data.recent)) return data.recent.length === 0 && !data.unread;
-      if (data.items && Array.isArray(data.items)) return data.items.length === 0;
-      return Object.keys(data).length === 0;
-    }
-    return false;
+  const ws = (key) => {
+    const base = widgetBase[key] || WIDGET_IDLE;
+    return widgetOverlay[key] ? { ...base, ...widgetOverlay[key] } : base;
   };
 
-  const fetchDashboard = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${id}/dashboard`;
-    const apply = (data) => {
-      if (!data.success) {
-        setError(t(data.error || "Failed to load dashboard") || data.error || "Failed to load dashboard");
-        return;
-      }
-      setDashboard(data.dashboard);
-      // Set individual widget states based on which data loaded
-      const states = {};
-      for (const [key, val] of Object.entries(data.dashboard)) {
-        states[key] = {
-          loading: false,
-          error: val === null ? t("vadmin.dashboard.loadFailed") : null,
-          empty: val === null ? false : isWidgetEmpty(key, val),
-          data: val,
-        };
-      }
-      setWidgetStates(states);
-    };
-    let painted = false;
-    setLoading(true);
-    setError(null);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a
-      // fresh snapshot; mutation flows pass bypassCache=true so the widgets
-      // always reflect the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch {
-      if (!painted) setError(t("vadmin.dashboard.loadFailed"));
-    } finally {
-      setLoading(false);
-    }
-  }, [id, t]);
+  const markWidget = (key, state) =>
+    setWidgetOverlay((prev) => ({ ...prev, [key]: state }));
 
-  useEffect(() => {
-    // The hub page already fetches the venture record for its own header; only
-    // the standalone route needs this component to fetch it too.
-    if (!embedded) fetchVenture();
-    fetchDashboard();
-  }, [refreshKey, embedded, id, fetchVenture, fetchDashboard]);
+  const clearWidget = (key) =>
+    setWidgetOverlay((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+
+  const reload = () => {
+    refreshVenture();
+    refreshDashboard();
+    setWidgetOverlay({});
+  };
 
   const refreshWidget = (key) => {
-    setWidgetStates((prev) => ({ ...prev, [key]: { ...prev[key], loading: true, error: null } }));
+    markWidget(key, { loading: true, error: null });
     fetch(`/api/ventures/${id}/dashboard`)
       .then((r) => r.json())
       .then((data) => {
         if (data.success) {
-          setDashboard(data.dashboard);
-          const val = data.dashboard[key];
-          setWidgetStates((prev) => ({
-            ...prev,
-            [key]: { loading: false, error: null, empty: isWidgetEmpty(key, val), data: val },
-          }));
+          // The write's own answer is published into the read rather than
+          // paying for a second read of what was just handed back.
+          setDashState({ dashboard: data.dashboard, failure: null });
+          clearWidget(key);
+        } else {
+          markWidget(key, { loading: false, error: t("vadmin.dashboard.refreshFailed") });
         }
       })
-      .catch(() => {
-        setWidgetStates((prev) => ({ ...prev, [key]: { ...prev[key], loading: false, error: t("vadmin.dashboard.refreshFailed") } }));
-      });
+      .catch(() =>
+        markWidget(key, { loading: false, error: t("vadmin.dashboard.refreshFailed") }),
+      );
   };
-
-  const ws = (key) => widgetStates[key] || { loading: true, error: null, empty: false, data: null };
 
   // Verification widget status → localized label; unknown statuses stay raw.
   const verificationStatusLabel = (status) => {
@@ -247,15 +247,15 @@ export default function VentureDashboard({ id, embedded = false }) {
   }
 
   // ── Error state (inline card — the hub header stays visible when embedded) ──
-  if (error && !dashboard) {
+  if (loadFailed && !dashboard) {
     return (
       <>
         <div className={wrapperClass}>
           <div className="text-center py-16">
             <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
             <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">{t("vadmin.dashboard.dashboardError")}</h2>
-            <p className="text-[var(--text-secondary)] mb-6">{error}</p>
-            <button onClick={() => setRefreshKey((k) => k + 1)} className="btn btn-primary gap-2">
+            <p className="text-[var(--text-secondary)] mb-6">{t("vadmin.dashboard.loadFailed")}</p>
+            <button onClick={reload} className="btn btn-primary gap-2">
               <RefreshCw className="w-4 h-4" /> {t("vadmin.dashboard.retry")}
             </button>
           </div>
@@ -290,7 +290,7 @@ export default function VentureDashboard({ id, embedded = false }) {
                 </p>
               </div>
               <button
-                onClick={() => setRefreshKey((k) => k + 1)}
+                onClick={reload}
                 className="px-4 py-2.5 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
