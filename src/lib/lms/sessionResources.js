@@ -29,7 +29,8 @@ import {
  *     EITHER the external link (source 'link') OR the public URL of the file
  *     uploaded through ImpactOS (source 'upload'), which also carries the
  *     storage path, filename, size and mime type.
- *   - Mutations are gated by `lms.assign` at the route layer (Program Course
+ *   - Mutations are gated by `lms.edit` at the route layer (the canonical
+ *     course-authoring gate; `lms.assign` is retired)
  *     Assignment) and reads by `lms.view`; learners never call this module
  *     directly — the participant surface reads the same rows through the
  *     program detail payload.

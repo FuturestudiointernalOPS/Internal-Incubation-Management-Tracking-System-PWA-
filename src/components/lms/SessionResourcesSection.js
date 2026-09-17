@@ -13,7 +13,7 @@ import SessionResourcesEditor from "./SessionResourcesEditor";
  * list) comes from SessionResourcesEditor, which the session creation form
  * reuses with buffered state — one form, two persistence strategies.
  *
- * Authorization: mutations require `lms.assign` server-side; `canEdit` only
+ * Authorization: mutations require `lms.edit` server-side; `canEdit` only
  * controls visibility.
  */
 export default function SessionResourcesSection({

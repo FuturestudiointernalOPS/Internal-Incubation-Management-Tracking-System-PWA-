@@ -20,8 +20,9 @@ export const dynamic = "force-dynamic";
  * POST /api/lms/session-resources
  *      Body: { program_id, session_id?, week_number?, kind, title, url,
  *              description?, is_recommended?, recommendation_note? }
- *      Attaches one resource to a session. Requires lms.assign (Program Course
- *      Assignment — the capability the Program Manager profile already holds).
+ *      Attaches one resource to a session. Requires lms.edit — the canonical
+ *      course-authoring gate (lms.assign was retired; see
+ *      docs/PHASE3_LMS_RETIRED_GOVERNANCE.md).
  *
  * Learners never call this endpoint: the participant surface receives the same
  * rows inside the program detail payload (read-only).
@@ -56,7 +57,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("lms", "assign");
+    const capError = await requireAuthorization("lms", "edit");
     if (capError) return capError;
 
     const session = await getSession();

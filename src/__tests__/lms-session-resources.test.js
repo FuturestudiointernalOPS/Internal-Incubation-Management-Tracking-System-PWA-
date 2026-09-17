@@ -289,7 +289,7 @@ describe("lms session resources — routes", () => {
     expect(data.resources).toHaveLength(1);
   });
 
-  test("POST is gated by lms.assign", async () => {
+  test("POST is gated by lms.edit", async () => {
     const denied = new Response("{}", { status: 403 });
     requireAuthorization.mockResolvedValueOnce(denied);
     const res = await resourcesPOST(
@@ -301,7 +301,7 @@ describe("lms session resources — routes", () => {
       }),
     );
     expect(res).toBe(denied);
-    expect(requireAuthorization).toHaveBeenCalledWith("lms", "assign");
+    expect(requireAuthorization).toHaveBeenCalledWith("lms", "edit");
   });
 
   test("POST creates the resource with the session as author", async () => {

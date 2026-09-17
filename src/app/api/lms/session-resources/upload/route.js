@@ -23,13 +23,15 @@ export const dynamic = "force-dynamic";
  * That keeps the resource row and the storage object in sync, and lets the PM
  * attach the same file metadata as a plain external link.
  *
- * Requires lms.assign. Validation (type + size per kind) happens BEFORE storage,
- * so a rejected file never becomes an orphan object.
+ * Requires lms.edit — the canonical course-authoring gate (lms.assign was
+ * retired; see docs/PHASE3_LMS_RETIRED_GOVERNANCE.md). Validation (type + size
+ * per kind) happens BEFORE storage, so a rejected file never becomes an orphan
+ * object.
  */
 export async function POST(request) {
   try {
     await initDb();
-    const capError = await requireAuthorization("lms", "assign");
+    const capError = await requireAuthorization("lms", "edit");
     if (capError) return capError;
 
     const formData = await request.formData();
@@ -51,14 +53,14 @@ export async function POST(request) {
 /**
  * DELETE /api/lms/session-resources/upload?path=<storage_path>
  *      Removes an uploaded object that was never attached to a resource
- *      (upload cancelled / file replaced in the form). Requires lms.assign.
+ *      (upload cancelled / file replaced in the form). Requires lms.edit.
  *      The path is treated as an opaque key inside the session-resource bucket —
  *      no bucket traversal is possible from the caller's side.
  */
 export async function DELETE(request) {
   try {
     await initDb();
-    const capError = await requireAuthorization("lms", "assign");
+    const capError = await requireAuthorization("lms", "edit");
     if (capError) return capError;
 
     const { searchParams } = new URL(request.url);

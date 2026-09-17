@@ -15,15 +15,17 @@ export const dynamic = "force-dynamic";
  * PUT    /api/lms/session-resources/[id]
  *        Body: { title?, description?, url?, kind?, is_recommended?,
  *                recommendation_note?, position? }
- *        Updates one resource / its recommendation. Requires lms.assign.
+ *        Updates one resource / its recommendation. Requires lms.edit — the
+ *        canonical course-authoring gate (lms.assign was retired; see
+ *        docs/PHASE3_LMS_RETIRED_GOVERNANCE.md).
  *
  * DELETE /api/lms/session-resources/[id]
- *        Removes the resource. Requires lms.assign.
+ *        Removes the resource. Requires lms.edit.
  */
 export async function PUT(req, { params }) {
   try {
     await initDb();
-    const capError = await requireAuthorization("lms", "assign");
+    const capError = await requireAuthorization("lms", "edit");
     if (capError) return capError;
 
     const { id } = await params;
@@ -51,7 +53,7 @@ export async function PUT(req, { params }) {
 export async function DELETE(req, { params }) {
   try {
     await initDb();
-    const capError = await requireAuthorization("lms", "assign");
+    const capError = await requireAuthorization("lms", "edit");
     if (capError) return capError;
 
     const { id } = await params;

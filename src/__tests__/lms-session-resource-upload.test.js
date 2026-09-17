@@ -7,7 +7,7 @@
  * The route is a storage boundary (Supabase `lms-session-resources` bucket), so
  * @supabase/supabase-js is mocked and the REAL route handler + service run
  * end-to-end. Covers:
- *   - authorization (lms.assign) on both verbs
+ *   - authorization (lms.edit) on both verbs
  *   - validation per kind (type + size) — a rejected file never reaches storage
  *   - happy path (upload + public URL + storage metadata)
  *   - bucket auto-creation on first failure, then retry
@@ -83,12 +83,12 @@ beforeEach(() => {
 });
 
 describe("POST /api/lms/session-resources/upload", () => {
-  test("403 when lms.assign is missing — nothing is uploaded", async () => {
+  test("403 when lms.edit is missing — nothing is uploaded", async () => {
     const denied = new Response("{}", { status: 403 });
     requireAuthorization.mockResolvedValueOnce(denied);
     const res = await POST(fileRequest());
     expect(res).toBe(denied);
-    expect(requireAuthorization).toHaveBeenCalledWith("lms", "assign");
+    expect(requireAuthorization).toHaveBeenCalledWith("lms", "edit");
     expect(upload).not.toHaveBeenCalled();
   });
 
