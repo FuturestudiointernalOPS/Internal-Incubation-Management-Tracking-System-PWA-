@@ -1,7 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from "react";
-import { getDashboardSession, setDashboardSession } from "@/lib/dashboardSession";
+import React, { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
+import {
+  getDashboardSession,
+  setDashboardSession,
+  subscribeDashboardSession,
+} from "@/lib/dashboardSession";
 import {
   Sun,
   Moon,
@@ -708,6 +712,42 @@ function shellRole(userRole, role) {
   return userRole || role || "admin";
 }
 
+// ─── The identity the shell paints with, as a store ─────────────────────────
+//
+// Two sources, in order: the session this shell has already published (an
+// in-memory store that survives a remount, so navigating costs no re-fetch), and
+// — on a cold load, before the session has answered — the browser's stored copy.
+// Reading it through a SUBSCRIPTION is what removes the effect that used to copy
+// it into state, and with it the cascaded render that copy caused. The server
+// snapshot is deliberately absent, so the server's render and the browser's first
+// render agree and the identity arrives on the client's own read.
+const EMPTY_USER = {};
+
+let cachedStoredUser = null;
+let storedUserRead = false;
+
+/** The browser's stored copy, read once: a snapshot must keep its identity. */
+function getStoredUserOnce() {
+  if (!storedUserRead) {
+    storedUserRead = true;
+    try {
+      const raw = localStorage.getItem("user");
+      cachedStoredUser = raw ? JSON.parse(raw) : null;
+    } catch {
+      cachedStoredUser = null;
+    }
+  }
+  return cachedStoredUser;
+}
+
+function getShellUserSnapshot() {
+  return getDashboardSession()?.user || getStoredUserOnce() || null;
+}
+
+function getShellUserServerSnapshot() {
+  return null;
+}
+
 // Roles whose shell is a PERSONAL surface (a person, not a staff function).
 // Their sidebar is relationship-driven and their learning door is derived from
 // an actual course enrollment, never from the role string.
@@ -963,8 +1003,31 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
   ]);
 
   const { theme, setTheme } = useTheme();
-  const [user, setUser] = useState({});
-  const [authChecked, setAuthChecked] = useState(false);
+  const user = useSyncExternalStore(
+    subscribeDashboardSession,
+    getShellUserSnapshot,
+    getShellUserServerSnapshot,
+  ) || EMPTY_USER;
+
+  // "We know who is signed in, or we have finished asking." The store answers the
+  // first half during render; the second is settled when the session request has
+  // answered, which is a write from that request's own continuation rather than
+  // from an effect body.
+  const [authSettled, setAuthSettled] = useState(false);
+  const authChecked = Boolean(user.cid) || authSettled;
+
+  // The ONE writer of the identity. It publishes to the store — preserving the
+  // fields other surfaces put there, such as the capability matrix — and keeps
+  // the browser's copy in step for the components that still read it.
+  const publishUser = useCallback((next) => {
+    const current = getDashboardSession() || {};
+    setDashboardSession({ ...current, user: next });
+    try {
+      localStorage.setItem("user", JSON.stringify(next));
+    } catch {
+      // A browser with storage disabled keeps the identity for this load only.
+    }
+  }, []);
   const [pmPrograms, setPmPrograms] = useState([]);
   // Whether the connected person holds at least one usable course enrollment.
   // true = show the "My Learning" door; false/null = hidden (known to be
@@ -978,30 +1041,8 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
   // value instead of firing its own request.
   const { permissions: effectiveCaps } = usePermissions();
 
-  // Fast path: restore the cached session synchronously before first paint so
-  // navigating between pages doesn't flash an empty screen while initAuth()
-  // re-validates against the server in the background.
-  useLayoutEffect(() => {
-    if (typeof window === "undefined") return;
-    // In-memory session (set by initAuth) is fresher than localStorage and
-    // survives navigation remounts — restore from it instantly while initAuth
-    // revalidates in the background.
-    const s = getDashboardSession();
-    if (s) {
-      if (s.user) setUser(s.user);
-      // The capabilities are restored by PermissionProvider (which mounts
-      // above this shell) — the sidebar reads them from that context.
-      setAuthChecked(true);
-      return;
-    }
-    try {
-      const cached = localStorage.getItem("user");
-      if (cached) {
-        setUser(JSON.parse(cached));
-        setAuthChecked(true);
-      }
-    } catch (_) {}
-  }, []);
+  // The capabilities are restored by PermissionProvider (which mounts above this
+  // shell) — the sidebar reads them from that context.
 
   // Load user from session API first, fallback to localStorage
   useEffect(() => {
@@ -1025,10 +1066,7 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
             role: sessionData.user.role,
             group_name: sessionData.user.group_name,
           };
-          setUser(userWithFullData);
-          setDashboardSession({ user: userWithFullData });
-          // Sync localStorage for components that still read from it
-          localStorage.setItem("user", JSON.stringify(userWithFullData));
+          publishUser(userWithFullData);
 
           // Fetch user groups + responsibilities + notifications in parallel
           const [groupsRes, respRes, notifRes] = await Promise.allSettled([
@@ -1046,9 +1084,7 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
                   ...userWithFullData,
                   groups: groupsData.groups,
                 };
-                setUser(updatedUser);
-                setDashboardSession({ user: updatedUser });
-                localStorage.setItem("user", JSON.stringify(updatedUser));
+                publishUser(updatedUser);
               }
             } catch (_) {}
           }
@@ -1095,30 +1131,30 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
           // Session API failed — fallback to localStorage
           const savedUser = localStorage.getItem("user");
           if (savedUser) {
-            setUser(JSON.parse(savedUser));
-            setDashboardSession({ user: JSON.parse(savedUser) });
+            publishUser(JSON.parse(savedUser));
           }
         }
       } catch {
         // Network error — fallback to localStorage
         const savedUser = localStorage.getItem("user");
         if (savedUser) {
-          setUser(JSON.parse(savedUser));
-          setDashboardSession({ user: JSON.parse(savedUser) });
+          publishUser(JSON.parse(savedUser));
         }
       } finally {
-        setAuthChecked(true);
+        setAuthSettled(true);
       }
     }
     initAuth();
-    // All five are stable callbacks (empty dependency arrays), so naming them
-    // here does not re-run the bootstrap; without them the analyser cannot tell.
+    // Every one of these is a stable callback (an empty dependency array), so
+    // naming them here does not re-run the bootstrap; without them the analyser
+    // cannot tell.
   }, [
     fetchAnnouncements,
     fetchPendingAssignments,
     fetchPendingInvites,
     fetchPendingUsersCount,
     fetchUnreadMessageCount,
+    publishUser,
   ]);
 
   // Fetch PM programs for program_manager / super_admin roles.

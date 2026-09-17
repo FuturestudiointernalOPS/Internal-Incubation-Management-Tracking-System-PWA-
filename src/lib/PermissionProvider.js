@@ -3,13 +3,18 @@
 import React, {
   createContext,
   useContext,
-  useState,
-  useEffect,
-  useLayoutEffect,
   useCallback,
+  useEffect,
   useMemo,
+  useRef,
+  useSyncExternalStore,
 } from "react";
-import { getDashboardSession, setDashboardSession } from "@/lib/dashboardSession";
+import {
+  getDashboardSession,
+  setDashboardSession,
+  subscribeDashboardSession,
+} from "@/lib/dashboardSession";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * PermissionProvider — ONE capability read shared by a whole surface.
@@ -34,49 +39,74 @@ import { getDashboardSession, setDashboardSession } from "@/lib/dashboardSession
 
 const PermissionContext = createContext(null); // null = no provider above
 
+// ─── Read shaping (module scope: built once, never per render) ───────────
+
+const EMPTY_PERMISSIONS_READ = { permissions: null, isSuperAdmin: false };
+
+const pickPermissions = (d) =>
+  d?.success
+    ? {
+        permissions: d.effective || null,
+        isSuperAdmin: Boolean(d.isSuperAdmin),
+      }
+    : EMPTY_PERMISSIONS_READ;
+
+// The matrix the shell has already answered with, taken as a snapshot of the
+// session cache. That cache IS a store, so reading it needs no effect and no
+// copy of its own - and the server snapshot is deliberately null, which is what
+// keeps the server's render and the browser's first render identical.
+const getCachedCapabilities = () => getDashboardSession()?.capabilities ?? null;
+const getCachedCapabilitiesOnServer = () => null;
+
 /** The shared read: the effective matrix + the pure `can` predicate. */
 function usePermissionSource(enabled = true) {
-  const [permissions, setPermissions] = useState(null);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const cached = useSyncExternalStore(
+    subscribeDashboardSession,
+    getCachedCapabilities,
+    getCachedCapabilitiesOnServer,
+  );
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/me/permissions");
-      const data = await res.json();
-      if (data.success) {
-        const caps = data.effective || null;
-        setPermissions(caps);
-        setIsSuperAdmin(Boolean(data.isSuperAdmin));
-        // Publish to the shell cache so a remount paints the real matrix
-        // immediately instead of the fail-open role menu.
-        const current = getDashboardSession() || {};
-        setDashboardSession({ ...current, capabilities: caps });
-      } else {
-        setPermissions(null);
-      }
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const {
+    data,
+    loading: readLoading,
+    error,
+    refresh: readRefresh,
+  } = useApi(enabled ? "/api/me/permissions" : null, {
+    defaultValue: EMPTY_PERMISSIONS_READ,
+    transform: pickPermissions,
+  });
 
-  // Fast path: seed from the cached shell session before first paint, then
-  // revalidate — the rule that keeps the sidebar from flashing the fail-open
-  // role menu on every navigation.
-  useLayoutEffect(() => {
-    if (typeof window === "undefined" || !enabled) return;
-    const cached = getDashboardSession();
-    if (cached?.capabilities) setPermissions(cached.capabilities);
-  }, [enabled]);
+  // The read's own verdict once it has one, and the shell's cached matrix until
+  // then - which is what keeps the sidebar from flashing the fail-open role menu
+  // on every navigation. A request that THREW leaves the cached matrix standing,
+  // which is what the loader did by not clearing it in its catch.
+  const answered = enabled && !readLoading;
+  const permissions = !enabled
+    ? null
+    : answered && !error
+      ? data.permissions
+      : cached;
+  const isSuperAdmin = answered && !error ? data.isSuperAdmin : false;
+  const loading = !enabled || !answered;
 
+  // A refresh whose identity does not change from render to render. The read's
+  // own refresh is rebuilt by the hook on every render, and a context value that
+  // changed with it would re-render every consumer of the matrix - the shell, and
+  // every screen that gates an action on a capability - for no reason.
+  const readRefreshRef = useRef(readRefresh);
   useEffect(() => {
-    if (enabled) refresh();
-  }, [enabled, refresh]);
+    readRefreshRef.current = readRefresh;
+  });
+  const refresh = useCallback(() => readRefreshRef.current(), []);
+
+  // Publish the answer into the shell's session cache, so a remount paints the
+  // real matrix immediately instead of the fail-open menu. It writes an EXTERNAL
+  // store rather than this provider's state, so it cascades no render here.
+  useEffect(() => {
+    if (!enabled || !answered || error) return;
+    const current = getDashboardSession() || {};
+    setDashboardSession({ ...current, capabilities: data.permissions });
+  }, [enabled, answered, error, data.permissions]);
 
   /**
    * Check if the current user has a specific capability.

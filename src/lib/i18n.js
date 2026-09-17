@@ -36,11 +36,10 @@
 "use client";
 
 import {
-  useState,
   createContext,
   useContext,
-  useEffect,
   useCallback,
+  useSyncExternalStore,
 } from "react";
 import { LOCALE_REGISTRY } from "@/lib/locales";
 
@@ -55,6 +54,75 @@ export const DEFAULT_LANGUAGE = "en";
 // ─── Language Registry ───
 // Add new languages here. Only English is required to have all keys.
 const LANGUAGES = LOCALE_REGISTRY;
+
+// ─── The chosen language, as a store ─────────────────────────────────────────
+//
+// The choice lives in the BROWSER's stores (the preference, and the signed-in
+// account's own language), so it cannot be read during the render that the
+// server also produces — which is why this provider used to copy it into state
+// from two effects, one of them watching the other. It is exposed as a
+// subscribable store instead: the server snapshot is the default, React uses that
+// snapshot for the hydration render as well, and the real choice arrives on the
+// client's own read. No state, no effect, no cascaded render.
+const languageListeners = new Set();
+let cachedLanguage = null;
+
+/** The account's language wins over the loose preference, which wins over the browser's. */
+function readLanguage() {
+  try {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (user.language && LANGUAGES[user.language]) return user.language;
+    }
+    const saved = localStorage.getItem("impactos_lang");
+    if (saved && LANGUAGES[saved]) return saved;
+  } catch {
+    // A browser with storage disabled falls through to the browser's own choice.
+  }
+  const detected =
+    typeof navigator !== "undefined"
+      ? (navigator.language || navigator.languages?.[0] || DEFAULT_LANGUAGE)
+          .toLowerCase()
+          .slice(0, 2)
+      : DEFAULT_LANGUAGE;
+  return LANGUAGES[detected] ? detected : DEFAULT_LANGUAGE;
+}
+
+function getLanguageSnapshot() {
+  // Cached, because a snapshot read on every call is only safe while it returns
+  // a value of stable identity — a string here, and the same string.
+  const stored = readLanguage();
+  if (stored !== cachedLanguage) cachedLanguage = stored;
+  return cachedLanguage;
+}
+
+function getLanguageServerSnapshot() {
+  return DEFAULT_LANGUAGE;
+}
+
+function subscribeLanguage(listener) {
+  languageListeners.add(listener);
+  return () => languageListeners.delete(listener);
+}
+
+function writeLanguage(next) {
+  try {
+    localStorage.setItem("impactos_lang", next);
+    // Keep the stored account in step: the account's language is read FIRST, so a
+    // choice that did not update it would be undone on the next read.
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      user.language = next;
+      localStorage.setItem("user", JSON.stringify(user));
+    }
+  } catch {
+    // Silent fail — the choice still holds for this session.
+  }
+  cachedLanguage = next;
+  for (const listener of languageListeners) listener();
+}
 
 // ─── Deep key resolver ───
 // t('auth.login.title') → translations.en.auth.login.title
@@ -77,26 +145,11 @@ const I18nContext = createContext({
 });
 
 export function I18nProvider({ children }) {
-  const [lang, setLang] = useState(DEFAULT_LANGUAGE);
-
-  // Load from localStorage on mount; fall back to browser language on first visit
-  useEffect(() => {
-    const saved = localStorage.getItem("impactos_lang");
-    if (saved && LANGUAGES[saved]) {
-      setLang(saved);
-      return;
-    }
-    const detected =
-      typeof navigator !== "undefined"
-        ? (navigator.language || navigator.languages?.[0] || "en")
-            .toLowerCase()
-            .slice(0, 2)
-        : "en";
-    if (LANGUAGES[detected]) {
-      setLang(detected);
-      localStorage.setItem("impactos_lang", detected);
-    }
-  }, []);
+  const lang = useSyncExternalStore(
+    subscribeLanguage,
+    getLanguageSnapshot,
+    getLanguageServerSnapshot,
+  );
 
   const t = useCallback(
     (key, params = {}) => {
@@ -119,21 +172,7 @@ export function I18nProvider({ children }) {
 
   const switchLang = useCallback((newLang) => {
     if (!LANGUAGES[newLang]) return;
-    setLang(newLang);
-    localStorage.setItem("impactos_lang", newLang);
-
-    // Keep the localStorage user object in sync so the mount override
-    // (which reads user.language) doesn't flip the language back.
-    try {
-      const userStr = localStorage.getItem("user");
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        user.language = newLang;
-        localStorage.setItem("user", JSON.stringify(user));
-      }
-    } catch {
-      // Silent fail — localStorage preference is still saved
-    }
+    writeLanguage(newLang);
 
     // If a language endpoint exists, persist to account
     try {
@@ -156,26 +195,6 @@ export function I18nProvider({ children }) {
       // Silent fail — localStorage preference is still saved
     }
   }, []);
-
-  // Sync language from user account on mount (if user object is set after login)
-  useEffect(() => {
-    try {
-      const userStr = localStorage.getItem("user");
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        if (
-          user.language &&
-          LANGUAGES[user.language] &&
-          user.language !== lang
-        ) {
-          setLang(user.language);
-          localStorage.setItem("impactos_lang", user.language);
-        }
-      }
-    } catch {
-      // Silent fail
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <I18nContext.Provider value={{ lang, t, switchLang }}>
