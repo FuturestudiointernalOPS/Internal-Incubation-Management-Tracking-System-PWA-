@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/lib/authorization";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { ensureInvitationsTable, createInvitation, listActiveInvites } from "@/models/groups";
@@ -81,6 +82,17 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
 
 export async function GET(req) {
   try {
+    // SECURITY: this handler had NO authorization at all, while the POST in the
+    // same file is gated. `listActiveInvites` does `SELECT *` on a table whose
+    // `token` column holds the LIVE invite credential, so an anonymous caller
+    // could enumerate every unexpired invite and self-enroll into any program.
+    // Reading program invitations is a program-management read the way POST is
+    // a program-management write, so it follows the same capability family
+    // (`programs.view` — held by Staff Default and Program Manager; Super Admin
+    // bypasses via the resolver).
+    const capError = await requireAuthorization("programs", "view");
+    if (capError) return capError;
+
     // Optionally fetch active invites for a specific program
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");

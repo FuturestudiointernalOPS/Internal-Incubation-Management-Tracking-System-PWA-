@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { syncSubmission, syncAllSubmissions, checkNotionHealth } from "@/lib/integrations/notion/sync";
 
 /**
@@ -10,6 +11,13 @@ import { syncSubmission, syncAllSubmissions, checkNotionHealth } from "@/lib/int
  */
 
 export async function GET(req) {
+  // Integration health discloses whether the integration is configured and
+  // which environment variables are present. It was readable anonymously while
+  // the POST beside it was gated. Same rule as the calendar probe: platform
+  // configuration state follows the System Settings read capability.
+  const capError = await requireAuthorization("settings", "view");
+  if (capError) return capError;
+
   const { searchParams } = new URL(req.url);
   const action = searchParams.get("action") || "health";
 

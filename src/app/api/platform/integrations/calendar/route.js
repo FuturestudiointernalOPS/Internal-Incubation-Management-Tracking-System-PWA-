@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { syncRunDeadlines, unsyncRunDeadlines, syncAllRunDeadlines, checkCalendarHealth } from "@/lib/integrations/calendar/sync";
 
 /**
@@ -10,6 +11,13 @@ import { syncRunDeadlines, unsyncRunDeadlines, syncAllRunDeadlines, checkCalenda
  */
 
 export async function GET(req) {
+  // Integration health discloses provider identity, whether credentials are
+  // configured, and provider error text. It was readable anonymously while the
+  // POST beside it was gated. It is platform-configuration state, so it follows
+  // the System Settings read capability.
+  const capError = await requireAuthorization("settings", "view");
+  if (capError) return capError;
+
   const { searchParams } = new URL(req.url);
   const action = searchParams.get("action") || "health";
 

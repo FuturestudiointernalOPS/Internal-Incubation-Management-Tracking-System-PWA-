@@ -22,6 +22,13 @@ import {
 export async function GET(req) {
   try {
     await initDb();
+    // Reading a form's evaluation framework is a read of that form. It was the
+    // only handler in this file without a gate — PUT and DELETE below both
+    // require forms.edit — so an anonymous caller could enumerate stored
+    // scoring rubrics per form id. Follow the same Forms capability family.
+    const capError = await requireAuthorization("forms", "view");
+    if (capError) return capError;
+
     const { searchParams } = new URL(req.url);
     const formId = searchParams.get("form_id");
     if (!formId) return NextResponse.json({ success: false, error: "form_id required" }, { status: 400 });
