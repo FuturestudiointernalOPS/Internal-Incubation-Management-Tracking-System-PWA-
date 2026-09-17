@@ -74,6 +74,27 @@ a plain dependency. `useApiMulti` needs an array whose identity is stable, so
 a parameterised list would have to be memoised; separate calls make the
 parameter a string comparison and cannot loop.
 
+### Reading the signed-in identity
+
+A screen that needs to know *who* is signed in before it can ask for anything
+should consume `src/lib/hooks/useSessionUser.js`:
+
+```js
+const { cid, role } = useSessionUser();
+const { data, loading: readLoading } = useApi(
+  cid ? `/api/tasks?user_id=${cid}` : null,
+  { defaultValue: [], transform: pickTasks, deps: [cid] },
+);
+// The identity is absent for the first moment of a cold load, so the screen must
+// keep its placeholder rather than claim there is nothing to show.
+const loading = !cid || readLoading;
+```
+
+It reads the shell's session cache through `useSyncExternalStore`, so it adds no
+request: the shell has already fetched the session, and this only observes it.
+Do **not** re-read the browser's stored copy of the user, and do not fetch the
+session endpoint again — both were the problem this replaced.
+
 ### Accepted behaviour changes
 
 These apply to every converted screen. They are deliberate, not incidents:
@@ -93,23 +114,23 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 161 |
-| `react-hooks/set-state-in-effect` | 200 | 153 |
+| ESLint warnings, total | 2192 | 158 |
+| `react-hooks/set-state-in-effect` | 200 | 149 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` in converted files | 0 | 0 |
-| Tests | 1539 / 1539 | 1566 / 1566 |
+| Tests | 1539 / 1539 | 1588 / 1588 |
 | Production build | passes | passes |
 
-Screens carrying a `set-state-in-effect` warning: **102**.
+Screens carrying a `set-state-in-effect` warning: **98**.
 
 | Group | Screens |
 |---|---:|
-| Application pages | 43 |
+| Application pages | 39 |
 | Shared components (`src/components/`) | 32 |
 | Venture screens | 23 |
 | `src/lib/` modules | 4 |
 
-Of these 102 screens, **74 carry a single warning**; the remaining 28 carry two
+Of these 98 screens, **70 carry a single warning**; the remaining 28 carry two
 to five.
 
 > Note: the repository currently reports 2 `no-unused-vars`, both in
@@ -146,25 +167,34 @@ The next step column is what a follow-up pass has to do.
 
 ### 3.4 The value is initialised from a source that is not the network
 
-These are legitimate uses of an effect: the value cannot be produced during
-render without breaking server rendering or the first paint.
+The signed-in identity used to be in this group: five screens re-read it from the
+browser's stored copy, because that is the only place it is available
+synchronously, and a browser store cannot be read during the render that the
+server also produces.
+
+**That has been solved.** The shell already fetches the session and publishes it
+through the shared shell cache (`src/lib/dashboardSession.js`), which now notifies
+its subscribers, and `src/lib/hooks/useSessionUser.js` reads it with
+`useSyncExternalStore`. Consuming the identity therefore costs **no request**, and
+the server snapshot is deliberately null — React also uses it for the hydration
+render, so the first client render matches what the server sent and the identity
+simply arrives a moment later. A screen consuming it must treat an absent
+identity as *not known yet* and keep its placeholder, not as *empty*.
+
+Moved onto it: the developer's own tasks, the developer's assigned tasks, the
+admin blockers console (whose request addresses are now a plain result of the
+identity) and the staff stand-up screen.
+
+Still to move: the staff dashboard (which keys its reads on a field the session
+endpoint does not return, so it needs a decision about which identifier it
+should use) and the programme manager's promote screen.
 
 | Screen | Source | Note |
 |---|---|---|
-| `src/app/staff/tasks/page.js` | The signed-in person, from the browser's own storage | Passed down to a shared view. |
-| `src/app/staff/dashboard/page.js` | Same, plus reads keyed on that person's id | |
-| `src/app/pm/programs/[id]/promote/page.js` | Same | |
-| `src/app/admin/blockers/page.js` | Same — and the **request URLs themselves** are built from the role read out of storage | Would need the session to come from a shared context instead. |
 | `src/app/platform/modules/page.js`, `src/app/platform/settings/page.js` | The registered-modules registry, read synchronously | Not a network read at all. |
 | `src/app/developer/retro/page.js` | The current week | Computing it during render would mismatch between the server's clock and the browser's. |
 | `src/app/investor/profile/page.js` | Server data used to **initialise an editable form** | The effect is the standard way; removing it means restructuring the form (e.g. a keyed child component). |
 | `src/app/activate/page.js` | The token and mode, read from the browser's address bar | Same shape as the registration link that was converted; converting needs the navigation-parameter route plus a derived token state. Doable, do it deliberately: this is a sign-in screen. |
-
-The first five rows share one structural fix: the signed-in person's identity
-should come from a shared source rather than being re-read from browser storage
-in each screen. That is a change to how the session is exposed, not a screen
-change, and it would unblock them together. `src/lib/PermissionProvider.js`
-exposes capabilities but not the identity, so it is not that source yet.
 
 ### 3.5 The screen would show a message that is not true
 
