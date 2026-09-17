@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Building2, Mail, Lock, User, Globe, Link, CheckCircle2, Loader2, ArrowLeft,
   ArrowRight, Target, DollarSign, MapPin, TrendingUp, FileText,
@@ -27,7 +27,6 @@ export default function InvestorWizardPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
-  const [completion, setCompletion] = useState(0);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -45,10 +44,15 @@ export default function InvestorWizardPage() {
   const [investmentExperience, setInvestmentExperience] = useState("");
   const [priorInvestments, setPriorInvestments] = useState("");
 
-  useEffect(() => {
-    const filled = [name && email && password, orgName, industries.length > 0, investmentExperience].filter(Boolean).length;
-    setCompletion(Math.round((filled / 4) * 100));
-  }, [name, email, password, orgName, industries, investmentExperience]);
+  // Derived during render instead of stored: the figure is a pure function of
+  // the answers above, so keeping a copy in state cost an extra render pass and
+  // left the one frame where the bar lagged behind what had just been typed.
+  const completion = Math.round(
+    ([name && email && password, orgName, industries.length > 0, investmentExperience]
+      .filter(Boolean).length /
+      4) *
+      100,
+  );
 
   const toggleArray = (arr, setArr, item) => {
     setArr(arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item]);
