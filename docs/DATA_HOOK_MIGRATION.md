@@ -149,30 +149,32 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 45 |
-| `react-hooks/set-state-in-effect` | 200 | 40 |
+| ESLint warnings, total | 2192 | 27 |
+| `react-hooks/set-state-in-effect` | 200 | 22 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` | 2 | 0 |
 | Production build | passes | passes |
 
 The total includes ONE `no-unused-vars` that is not this migration's: it is in a
 new test file added by the other workstream (`result-pdf-layout.test.js`). On this
-side the count is 44, and `no-unused-vars` is still 0.
+side `no-unused-vars` is still 0. Two `exhaustive-deps` and one
+`preserve-manual-memoization` are deliberate; one `<img>` waits for the image
+work.
 
-Screens carrying a `set-state-in-effect` warning: **19** (plus the hook itself,
+Screens carrying a `set-state-in-effect` warning: **15** (plus the hook itself,
 which is counted separately below).
 
 | Group | Screens |
 |---|---:|
-| Application pages | 15 |
+| Application pages | 11 |
 | The shell (`src/components/layout/DashboardLayout.js`) | 1 |
 | `src/lib/` modules | 3 |
 
-The hook itself accounts for the twentieth file, and for four warnings rather
-than two (see the note below and §3.7).
+The hook itself accounts for the sixteenth file, and for four warnings rather than
+two (see the note below and §3.7).
 
-Of these 19 screens, **11 carry a single warning**; the remaining 8 carry two to
-five.
+Of these 15 screens, **11 carry a single warning**; the remaining 4 carry two or
+three.
 
 ### What is left, and under which reason
 
@@ -181,14 +183,29 @@ unsaid, and no screen is on this list merely because it looked hard.
 
 | Reason | Screens | Where |
 |---|---:|---|
-| The address bar is the source of truth, with one read group to go | 1 | §3.10 |
+| The value comes from somewhere that is not the network | 5 | §3.4 |
+| Large screens not yet examined one by one | 2 | §3.6 |
 | A guard that runs outside the shell it guards | 2 | §3.11 |
-| The value comes from somewhere that is not the network | 4 | §3.4 |
-| The read fills in a form | 1 | §1, the form table |
+| The address bar is the source of truth, with one read group to go | 1 | §3.10 |
 | The loader has side effects beyond storing the result | 1 | §3.3 |
-| Large screens not yet examined one by one | 6 | §3.6 |
 | The shell's pre-paint session restore | 1 | §4.0.1 |
 | **`src/lib/` modules** | 3 | §3.7 and §4.0 |
+
+Named, so nothing is left in the abstract - the II application pages are:
+
+| Page | Warnings | Reason |
+|---|---:|---|
+| `src/app/pm/programs/[id]/page.js` | 3 | §3.6 - the last large screen, ~7000 lines, not yet examined one by one. |
+| `src/app/platform/runs/page.js` | 2 | §3.6 - not yet examined; the other workstream has been working in this area. |
+| `src/app/staff/op-report/page.js` | 1 | §3.10 - the one read GROUP left: the report read is what fills the report form, and the week is part of that form's address. |
+| `src/app/platform/modules/page.js` | 1 | §3.4 - the source is a registry read synchronously, not a network read at all. |
+| `src/app/platform/settings/page.js` | 1 | §3.4 - same registry. |
+| `src/app/developer/retro/page.js` | 1 | §3.4 - the source is the current WEEK; computing it during render would mismatch between the server's clock and the browser's. |
+| `src/app/investor/profile/page.js` | 1 | §3.4 - the source initialises an EDITABLE FORM; it needs the keyed-child restructure named in §1. |
+| `src/app/admin/layout.js` | 1 | §3.11 - the guard runs outside the shell it guards. |
+| `src/app/developer/layout.js` | 1 | §3.11 - same. |
+| `src/app/activate/page.js` | 1 | §3.4 - the token and mode come from the address bar, on a SIGN-IN screen: do it deliberately. |
+| `src/app/s/[runId]/page.js` | 1 | §3.3 - the loader also switches the interface language and builds a translated payload. |
 
 Seven of the reasons above are no longer reasons: the screens that needed a
 capability the hook did not expose (§3.1), the ones that asked for one record per
