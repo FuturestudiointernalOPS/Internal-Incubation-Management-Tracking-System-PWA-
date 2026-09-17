@@ -31,7 +31,12 @@ const EMPTY_LIST = [];
 
 /** The project, whole: the payload carries both the project and its refusal. */
 const pickProject = (d) => (d?.success ? d : null);
-const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
+
+// The list shapers are built HERE rather than at their call sites, which is the
+// habit the file's own note above claims: a factory called inside the component
+// returns a new function on every render.
+const pickUpdates = (d) => (d?.success ? d.updates || [] : []);
+const pickMessages = (d) => (d?.success ? d.messages || [] : []);
 import TaskManager from "@/components/tasks/TaskManager";
 
 const STATUS_COLORS = {
@@ -110,7 +115,7 @@ export default function StaffProjectDetail() {
 
   const { data: updates, refresh: refreshUpdates } = useApi(
     projectId ? `/api/admin/projects/${projectId}/updates` : null,
-    { defaultValue: EMPTY_LIST, transform: pickList("updates"), deps: [projectId] },
+    { defaultValue: EMPTY_LIST, transform: pickUpdates, deps: [projectId] },
   );
 
   const {
@@ -119,7 +124,7 @@ export default function StaffProjectDetail() {
     refresh: refreshDiscussions,
   } = useApi(projectId ? `/api/projects/discuss?project_id=${projectId}` : null, {
     defaultValue: EMPTY_LIST,
-    transform: pickList("messages"),
+    transform: pickMessages,
     deps: [projectId],
   });
 
