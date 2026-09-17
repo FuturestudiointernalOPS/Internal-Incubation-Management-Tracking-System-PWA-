@@ -417,9 +417,9 @@ ship in one move, and each has a step here.
 | 1 | **Measure.** Report unmanaged programmes and the people attached to nothing | **DONE** (§12.1) |
 | 2 | **Repair the data.** Record a manager for every running programme | **DONE** — action shipped, the administrator works the list (§12.2) |
 | 3 | **Split the template.** Separate portfolio-wide powers from assignment-derived ones | **DONE** — template created and inert; the repoint is a deliberate click (§12.3) |
-| 4 | **Ship the rule switched off.** Add the check with its strictness behind a switch | NOT STARTED |
-| 5 | **Turn it on in waves** — programme editing, then invitations/enrolment, then groups/targets | NOT STARTED |
-| 6 | **Delete the switch** once the census reads zero unscoped programme actions | NOT STARTED |
+| 4 | **Ship the rule switched off.** Add the check with its strictness behind a switch | **DONE** — guard + per-wave switch, every wave OFF (§12.4) |
+| 5 | **Turn it on in waves** — programme editing, then invitations/enrolment, then groups/targets | **READY** — the mechanism and the safety verdict exist; the flip is the administrator's, after the repair |
+| 6 | **Delete the switch** once the census reads zero unscoped programme actions | **READY** — the census exists and is enforced by a test (§12.5) |
 
 ### 12.1 Measure
 
@@ -489,3 +489,97 @@ Two properties are non-negotiable throughout: the rule **fails closed** when the
 relationship cannot be determined, and a programme with **no manager recorded**
 refuses everyone except the portfolio identity — which is exactly why 12.2 must
 be complete before 12.4 starts.
+
+### 12.4 Steps 4–5 — the guard and the rollout switch
+
+**The guard** (`src/lib/programScopedAccess.js`) adds the WHERE to whatever the
+route already decided the WHAT to be:
+
+```
+wave OFF        → allow, unchanged (default; this is what makes it shippable)
+Super Admin     → allow (resolver semantics: unscoped authority)
+capability      → only when the caller passes one (routes that authorise by
+                  role list keep their own decision and get scope only)
+program_staffed → the programme must be one they are STAFFED on
+```
+
+**`program_staffed` is a NEW scope policy, separate from `program_assigned` on
+purpose.** The latter includes a learner's ENROLLMENT, which is right for "may
+this person see this programme" and wrong for "may this person change it" —
+being enrolled never authorises editing. Writes scope on staffing: an assignment
+row of any kind, or being the named manager.
+
+Denials are explicit and diagnosable, mirroring the venture gate:
+`X-Authz-Decision: out-of-scope | capability-missing | unresolvable`, with
+`missing.scope = "program_staffed"`. A **missing programme id is a denial**, never
+a pass: an action that cannot be attributed to a programme cannot be
+scope-checked, and guessing would be worse than refusing. A bulk action requires
+**every** id to be in scope — one out-of-scope id refuses the whole request,
+because a partial write is harder to see and to undo than a refusal.
+
+**The switch** is stored per domain and read through a short-lived cache:
+
+| Wave | Covers | Fully covered? |
+|---|---|---|
+| `content` | Editing and archiving a programme's own content | **YES** |
+| `enrollment` | Programme invitations, adding/removing participants | partial — see below |
+| `groups` | Cohorts/groups and KPI weights | partial — see below |
+
+**The switch is not an authorization decision, and it fails the opposite way.**
+Authorization fails CLOSED (a lookup error denies). This rollout flag fails
+SAFE, i.e. OFF, on a read error — because "off" is what the system did before
+the mechanism existed, whereas "on" would silently strip access on a transient
+error. It only ever decides whether the CHECK runs.
+
+Changing a wave is recorded in the same audit trail as every other permission
+change, with both sides of the change.
+
+**Partial coverage must not be read as full coverage.** Two legacy V2 route files
+(`api/v2/invites`, `api/v2/groups`, `api/v2/kpis`) carry a project banner
+reserving them for V1 pages and instructing agents to leave them read-only, so
+their endpoints stay open. Enabling the `enrollment` or `groups` wave closes the
+V1 doors only. The readiness report returns `waveSafety[].partial` and
+`exempt[]` so the UI says this **prominently** rather than implying the domain is
+closed — and the census test asserts the banner is still present and no guard was
+bolted on, so the claim cannot rot into a fiction.
+
+| Wired (the guard is consulted) | Left open by project instruction |
+|---|---|
+| `api/pm/programs` (PUT, DELETE) | `api/v2/groups` |
+| `api/participant-programs` (POST, DELETE) | `api/v2/kpis` |
+| `api/participant-programs/bulk` (POST) | `api/v2/invites` |
+| `api/invites` (POST) | |
+| `api/groups` (POST, PUT, DELETE) | |
+| `api/kpis` (POST, PUT, DELETE) | |
+
+For the id-only handlers (group and KPI PUT/DELETE) the owning programme is read
+first — a write that cannot be attributed to a programme is refused.
+
+### 12.5 Step 6 — the census
+
+`src/__tests__/program-scope-coverage.test.js` is the census that decides when the
+switch can be deleted. It fails if:
+
+- a wired surface loses its guard, or a **new** write surface is added to a wave
+  without wiring it;
+- a file is wired for the **wrong** wave;
+- an exempt file gains a guard or loses its banner (either one invalidates the
+  "partial" claim);
+- a wave is declared without an entry in the census.
+
+The switch can be deleted once every wave reads FULL coverage — i.e. once the
+exempt surfaces are converted, which is the point at which the banner-protected
+legacy routes are retired.
+
+### 12.6 The operational sequence (what remains, and it is not code)
+
+1. **Work the repair list.** Give every running programme a manager
+   (Operations → Programme access → Assign manager). The report is the worklist.
+2. **Read the impact.** The panel shows how many people would be left with no
+   programme at all, and whether each wave is safe to switch on.
+3. **Repoint the role default** at the trimmed portfolio template (Templates
+   section) if the report says anyone is relying on the two misplaced powers.
+4. **Switch on `content`**, then `enrollment`, then `groups` — staging first, and
+   walk each as a programme manager, as a staff member, and as someone with no
+   attachment.
+5. **Delete the switch** once the census reads full coverage.
