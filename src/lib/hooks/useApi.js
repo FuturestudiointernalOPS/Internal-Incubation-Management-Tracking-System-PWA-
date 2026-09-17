@@ -15,6 +15,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
  * @param {any} [options.defaultValue=null]  - Default data value
  * @param {Array} [options.deps=[]]          - Re-fetch when these change
  * @param {Function} [options.transform]     - Transform raw response data
+ * @param {object}   [options.fetchOptions]  - Passed to the request itself
+ *                                             (`{ cache: "no-store" }` for an
+ *                                             answer the browser must not keep)
  * @param {number} [options.refetchInterval] - Polling interval in ms
  *
  * @returns {{ data, loading, error, status, refresh, setData }}
@@ -84,11 +87,17 @@ const inflightFetches = new Map();
  *
  * Both forms share the same in-flight entry, so a caller asking for the envelope
  * and a caller asking for the body still put one request between them.
+ *
+ * `fetchOptions` is passed to the request itself. A caller that passes any opts out
+ * of the sharing, in both directions: it does not receive another caller's request
+ * - which may have been made with different options - and it publishes nothing for
+ * others to receive. The one caller that needs this wants the browser to keep no
+ * copy of a private answer, and a shared entry would defeat that.
  */
-export function fetchJsonEnvelope(url) {
-  const existing = inflightFetches.get(url);
+export function fetchJsonEnvelope(url, fetchOptions) {
+  const existing = fetchOptions ? null : inflightFetches.get(url);
   if (existing) return existing;
-  const pending = fetch(url)
+  const pending = fetch(url, fetchOptions)
     .then(async (res) => ({
       body: await res.json(),
       status: res.status,
@@ -97,7 +106,7 @@ export function fetchJsonEnvelope(url) {
     .finally(() => {
       if (inflightFetches.get(url) === pending) inflightFetches.delete(url);
     });
-  inflightFetches.set(url, pending);
+  if (!fetchOptions) inflightFetches.set(url, pending);
   return pending;
 }
 
@@ -144,6 +153,7 @@ export function useApi(url, options = {}) {
     defaultValue = null,
     deps = [],
     transform,
+    fetchOptions,
     refetchInterval,
   } = options;
 
@@ -190,6 +200,15 @@ export function useApi(url, options = {}) {
     transformRef.current = transform;
   });
 
+  // The same for the request's own options (`{ cache: "no-store" }` and the
+  // like): a property of the request, not of what is being read, and written
+  // inline by a caller it would be a new object on every render. Mirrored rather
+  // than depended on, for the reason just above.
+  const fetchOptionsRef = useRef(fetchOptions);
+  useEffect(() => {
+    fetchOptionsRef.current = fetchOptions;
+  });
+
   const fetchData = useCallback(async (bypassCache = false) => {
     if (!url) return;
 
@@ -207,7 +226,10 @@ export function useApi(url, options = {}) {
     }
 
     try {
-      const { body: json, status: httpStatus } = await fetchJsonEnvelope(url);
+      const { body: json, status: httpStatus } = await fetchJsonEnvelope(
+        url,
+        fetchOptionsRef.current,
+      );
 
       // Discard stale responses
       if (fetchId !== fetchIdRef.current || !activeRef.current) return;

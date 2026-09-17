@@ -230,3 +230,39 @@ describe("the shared GET, in its two forms", () => {
     expect(envelope.status).toBe(200);
   });
 });
+
+describe("request options", () => {
+  it("passes them to the request, and keeps nothing to share", async () => {
+    global.fetch.mockImplementation(() =>
+      jsonResponse({ success: true, value: 1 }),
+    );
+
+    const first = await fetchJsonEnvelope("/api/options-a", {
+      cache: "no-store",
+    });
+    const second = await fetchJsonEnvelope("/api/options-a", {
+      cache: "no-store",
+    });
+
+    expect(first.status).toBe(200);
+    // Two requests, because an answer the caller asked not to be kept must not be
+    // handed to, or taken from, anybody else.
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(global.fetch).toHaveBeenLastCalledWith("/api/options-a", {
+      cache: "no-store",
+    });
+  });
+
+  it("keeps sharing for callers that pass none", async () => {
+    global.fetch.mockImplementation(() =>
+      jsonResponse({ success: true, value: 1 }),
+    );
+
+    await Promise.all([
+      fetchJsonEnvelope("/api/options-b"),
+      fetchJsonEnvelope("/api/options-b"),
+    ]);
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});
