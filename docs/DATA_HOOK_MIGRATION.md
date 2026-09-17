@@ -93,23 +93,23 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 163 |
-| `react-hooks/set-state-in-effect` | 200 | 155 |
+| ESLint warnings, total | 2192 | 161 |
+| `react-hooks/set-state-in-effect` | 200 | 153 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` in converted files | 0 | 0 |
 | Tests | 1539 / 1539 | 1566 / 1566 |
 | Production build | passes | passes |
 
-Screens carrying a `set-state-in-effect` warning: **104**.
+Screens carrying a `set-state-in-effect` warning: **102**.
 
 | Group | Screens |
 |---|---:|
-| Application pages | 45 |
+| Application pages | 43 |
 | Shared components (`src/components/`) | 32 |
 | Venture screens | 23 |
 | `src/lib/` modules | 4 |
 
-Of these 104 screens, **76 carry a single warning**; the remaining 28 carry two
+Of these 102 screens, **74 carry a single warning**; the remaining 28 carry two
 to five.
 
 > Note: the repository currently reports 2 `no-unused-vars`, both in
@@ -180,9 +180,24 @@ None left. The two that were here are resolved:
 
 | Screen | Why it is deferred |
 |---|---|
-| `src/app/admin/system/page.js` | Nine reads in one loader, one of which the health-check action also writes. |
-| `src/app/admin/security/page.js` | Seven reads: four are combined into one summary object, three feed their own lists; one list is also updated optimistically when a session is revoked. |
 | Screens over ~800 lines (`admin/programs`, `admin/projects`, `admin/tasks`, `admin/work`, `admin/access`, `admin/knowledge`, `admin/op-reports`, `pm/programs/[id]`, `pm/programs`, `pm/submissions`, `staff/op-report`, `staff/projects/[id]`, `team/[id]`, `platform/runs`, `platform/forms`, `admin/communications/contacts`, `admin/programs/[id]`, `admin/projects/[id]`) | Not examined individually yet. Several load more than one endpoint and some mix loads with mutations, so each needs a read before conversion. |
+
+The two consoles that stood here are converted:
+
+- the **admin system console** read nine endpoints, two of them the same job
+  statistics feeds two separate figures — so it now makes eight reads, one
+  fewer request on every load. Its health-check action re-reads two of them and
+  its report action re-reads one, writing through those reads' own setters. It
+  is the one screen whose loader really could throw (the others caught their own
+  failures), so its failure banner is kept, but it is only shown when the main
+  payload is absent, so a failed refresh cannot replace a console already on
+  screen.
+- the **admin security console** read seven endpoints, four of which composed
+  one summary. The summary is now derived from them and stays absent until all
+  four have answered, which is what the old loader did by applying only when
+  every response succeeded. Its failure banner was unreachable — each of the
+  four loaders swallowed its own error, so the promise combining them could
+  never reject — and was removed rather than carried forward.
 
 Resolved from this list:
 
