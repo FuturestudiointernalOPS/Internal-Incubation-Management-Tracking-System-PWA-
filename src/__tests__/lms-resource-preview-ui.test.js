@@ -156,4 +156,57 @@ describe("SessionResourcesList — a week's material", () => {
     const missing = render(<SessionResourcesList />);
     expect(missing.container.firstChild).toBeNull();
   });
+
+  test("a file that could not be signed is announced, not linked", () => {
+    // The server signs uploaded files: without a signed link there is nothing to
+    // open, and a dead link would be worse than saying so.
+    const { container } = render(
+      <SessionResourcesList resources={[uploaded({ url: null })]} />,
+    );
+
+    expect(container.querySelector("a")).toBeNull();
+    expect(screen.getByText("lms.sessionResources.fileUnavailable")).toBeTruthy();
+    expect(container.querySelector("iframe")).toBeNull();
+    expect(container.querySelector("video")).toBeNull();
+  });
+});
+
+describe("SessionResourcesList — a video the learner can play", () => {
+  const youtubeLink = (overrides = {}) => ({
+    id: "r-yt",
+    source: "link",
+    kind: "video",
+    title: "Founder interview",
+    url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    is_recommended: false,
+    ...overrides,
+  });
+
+  test("a YouTube link plays in the page — never a link the learner can copy", () => {
+    const { container } = render(<SessionResourcesList resources={[youtubeLink()]} />);
+
+    // A video the learner is meant to watch here must not become a YouTube link
+    // just because it was attached to a session rather than to a course.
+    expect(container.querySelector("a")).toBeNull();
+    // Nothing loads until the learner asks for it.
+    expect(container.querySelector("iframe")).toBeNull();
+
+    fireEvent.click(screen.getByTitle("lms.player.playVideo"));
+
+    const frame = container.querySelector("iframe");
+    expect(frame.getAttribute("src")).toContain("youtube-nocookie.com/embed/dQw4w9WgXcQ");
+    // Looping is what keeps YouTube's end screen (suggestions + copy control) away.
+    expect(frame.getAttribute("src")).toContain("loop=1");
+    expect(frame.getAttribute("title")).toBe("Founder interview");
+  });
+
+  test("a link to anywhere else keeps the plain link", () => {
+    const vimeo = youtubeLink({ url: "https://vimeo.com/123456789" });
+    const { container } = render(<SessionResourcesList resources={[vimeo]} />);
+
+    // A third-party page may refuse to be framed: a broken embed would be worse
+    // than the link the card already renders.
+    expect(container.querySelector("iframe")).toBeNull();
+    expect(container.querySelector("a").getAttribute("href")).toBe(vimeo.url);
+  });
 });

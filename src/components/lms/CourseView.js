@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { BookOpen, Film, HelpCircle, PlayCircle, X } from "lucide-react";
+import { BookOpen, Film, HelpCircle, PlayCircle } from "lucide-react";
 import CourseStatusBadge from "./CourseStatusBadge";
+import EmbeddedVideo from "./EmbeddedVideo";
 import { useI18n } from "@/lib/i18n";
-import { isValidYouTubeVideoId, buildYouTubeEmbedUrl } from "@/lib/lms/youtube";
+import { isValidYouTubeVideoId } from "@/lib/lms/youtube";
 import { formatDate } from "@/lib/constants";
 
 /**
@@ -177,82 +177,45 @@ export default function CourseView({ course }) {
 }
 
 /**
- * Inline video box for the first lesson of the course. When that lesson has a
- * YouTube video, its poster is shown with a play button; clicking embeds the
- * player right there (autoplay). A close control returns to the poster. When
- * the first lesson has no video yet (or the course is empty), an empty state
- * shows the lesson title instead.
+ * Inline video box for the first lesson of the course, through the shared embed
+ * every LMS surface uses. When that lesson has no video yet (or the course is
+ * empty), an empty state shows the lesson title instead.
  */
 function VideoPlayer({ lesson }) {
   const { t } = useI18n();
-  const [playing, setPlaying] = useState(false);
-  const videoId = lesson && isValidYouTubeVideoId(lesson.youtube_video_id) ? lesson.youtube_video_id : null;
+
+  if (lesson && isValidYouTubeVideoId(lesson.youtube_video_id)) {
+    return (
+      <EmbeddedVideo
+        videoId={lesson.youtube_video_id}
+        title={lesson.title}
+        playLabel={t("lms.courses.videoPlay")}
+      />
+    );
+  }
 
   return (
     <div
       className="relative w-full overflow-hidden rounded-2xl border"
       style={{ aspectRatio: "16 / 9", background: "#000", borderColor: "var(--border-primary)" }}
     >
-      {videoId && playing ? (
-        <>
-          <iframe
-            className="absolute inset-0 w-full h-full"
-            src={buildYouTubeEmbedUrl(videoId, { autoplay: true, loop: true })}
-            title={lesson.title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          />
-          <button
-            type="button"
-            onClick={() => setPlaying(false)}
-            title={t("common.close")}
-            className="absolute top-2 right-2 z-10 p-1.5 rounded-full transition-colors"
-            style={{ background: "rgba(0,0,0,0.6)", color: "rgba(255,255,255,0.9)" }}
+      <div
+        className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4"
+        style={{ background: "var(--surface-3)" }}
+      >
+        <Film className="w-8 h-8" style={{ color: "var(--text-tertiary)" }} />
+        {lesson?.title && (
+          <p
+            className="text-xs font-black uppercase tracking-tight text-center truncate max-w-full"
+            style={{ color: "var(--text-primary)" }}
           >
-            <X className="w-4 h-4" />
-          </button>
-        </>
-      ) : videoId ? (
-        <button
-          type="button"
-          onClick={() => setPlaying(true)}
-          title={t("lms.courses.videoPlay")}
-          className="absolute inset-0 w-full h-full flex items-center justify-center group"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
-          />
-          <span
-            className="relative z-10 flex items-center justify-center w-16 h-16 rounded-full transition-transform group-hover:scale-110"
-            style={{ background: "rgba(0,0,0,0.55)" }}
-          >
-            <PlayCircle className="w-9 h-9" style={{ color: "rgba(255,255,255,0.95)" }} />
-          </span>
-        </button>
-      ) : (
-        <div
-          className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4"
-          style={{ background: "var(--surface-3)" }}
-        >
-          <Film className="w-8 h-8" style={{ color: "var(--text-tertiary)" }} />
-          {lesson?.title && (
-            <p
-              className="text-xs font-black uppercase tracking-tight text-center truncate max-w-full"
-              style={{ color: "var(--text-primary)" }}
-            >
-              {lesson.title}
-            </p>
-          )}
-          <p className="text-[10px] font-bold uppercase tracking-wider text-center" style={{ color: "var(--text-tertiary)" }}>
-            {lesson ? t("lms.courses.videoLessonEmpty") : t("lms.courses.videoEmpty")}
+            {lesson.title}
           </p>
-        </div>
-      )}
+        )}
+        <p className="text-[10px] font-bold uppercase tracking-wider text-center" style={{ color: "var(--text-tertiary)" }}>
+          {lesson ? t("lms.courses.videoLessonEmpty") : t("lms.courses.videoEmpty")}
+        </p>
+      </div>
     </div>
   );
 }

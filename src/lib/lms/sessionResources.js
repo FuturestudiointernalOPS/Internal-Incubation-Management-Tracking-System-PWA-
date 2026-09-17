@@ -5,6 +5,7 @@ import { LMS_RESOURCE_KINDS, LMS_RESOURCE_SOURCES } from "./constants";
 import {
   isManagedStoragePath,
   removeSessionResourceFile,
+  signSessionResourcePath,
 } from "./sessionResourceFiles";
 
 /**
@@ -197,11 +198,9 @@ export async function listSessionResources({
 }
 
 /**
- * Resources grouped by session id — used by the participant program payload so
- * each week can render its material without one query per session.
+ * Group a resource list by session id ("" = program-wide items).
  */
-export async function listSessionResourcesBySession(programId) {
-  const resources = await listSessionResources({ programId });
+function groupBySession(resources) {
   const bySession = new Map();
   for (const resource of resources) {
     const key = resource.session_id != null ? String(resource.session_id) : "";
@@ -209,6 +208,45 @@ export async function listSessionResourcesBySession(programId) {
     bySession.get(key).push(resource);
   }
   return bySession;
+}
+
+/**
+ * Resources grouped by session id — used by the participant program payload so
+ * each week can render its material without one query per session.
+ */
+export async function listSessionResourcesBySession(programId) {
+  return groupBySession(await listSessionResources({ programId }));
+}
+
+/**
+ * LEARNER VIEW of one resource.
+ *
+ * An uploaded file is shown inside ImpactOS, so the learner is handed a
+ * SHORT-LIVED SIGNED URL instead of the permanent public link stored on the row,
+ * and the storage path never leaves the server — the same rule the lessons
+ * follow (see docs/LMS_ARCHITECTURE.md §10): what the learner is meant to watch
+ * or open here must not become a link they can keep and pass on. External links
+ * are the author's own and pass through untouched; the staff surfaces keep
+ * reading the stored values, where handing over a link is acceptable.
+ *
+ * A file that cannot be signed comes back with `url: null`, so the surface can
+ * say it is unavailable instead of rendering a dead link.
+ */
+async function toLearnerResource(resource) {
+  if (!resource || resource.source !== "upload") return resource;
+  const url = await signSessionResourcePath(resource.storage_path);
+  return { ...resource, url, storage_path: null };
+}
+
+/**
+ * The same grouping, seen by a LEARNER (uploaded files signed for the moment).
+ * This is what the participant program payload uses; keeping it a distinct read
+ * means a staff surface can never accidentally hand a learner the permanent
+ * link, and a learner surface can never accidentally sign for staff.
+ */
+export async function learnerSessionResourcesBySession(programId) {
+  const resources = await listSessionResources({ programId });
+  return groupBySession(await Promise.all(resources.map(toLearnerResource)));
 }
 
 export async function createSessionResource({

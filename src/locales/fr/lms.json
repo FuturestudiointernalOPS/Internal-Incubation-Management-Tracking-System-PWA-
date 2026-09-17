@@ -97,6 +97,7 @@
       "orBrowse": "ou cliquez pour parcourir",
       "showPreview": "Afficher l'aperçu",
       "hidePreview": "Masquer l'aperçu",
+      "fileUnavailable": "Ce fichier est indisponible pour le moment.",
       "openFullImage": "Ouvrir l'image dans un nouvel onglet",
       "replaceFile": "Remplacer",
       "uploading": "Envoi en cours…",

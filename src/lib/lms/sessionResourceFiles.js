@@ -28,6 +28,17 @@ import {
 
 export const SESSION_RESOURCE_BUCKET = "lms-session-resources";
 
+/**
+ * How long a learner's link to an uploaded file stays valid.
+ *
+ * Sized to a session rather than to a page view: the participant surface hands
+ * the link out in the payload of a page that can stay open for hours, so a
+ * one-hour link would expire under a learner who left the tab open — while a
+ * copied link is still worth only that window. (Evidence files sign per read of
+ * a flow fetched on demand, hence their shorter TTL.)
+ */
+export const SESSION_RESOURCE_URL_TTL_SECONDS = 60 * 60 * 6; // 6 hours
+
 // Accepted types live in ./constants (shared with the picker); these aliases
 // keep the historical server-side names.
 export const DOCUMENT_MIME_TYPES = LMS_DOCUMENT_MIME_TYPES;
@@ -137,6 +148,35 @@ export async function uploadSessionResourceFile({ file, kind, programId, session
     mime_type: file.type || null,
     kind: resolvedKind,
   };
+}
+
+/**
+ * Mint a short-lived signed URL for one stored object.
+ *
+ * This is how a learner reads an uploaded file: the permanent public URL stays
+ * on the row for the staff surfaces (where handing over a link is acceptable),
+ * while a learner is given a link that stops working (see
+ * SESSION_RESOURCE_URL_TTL_SECONDS). Returns null when there is nothing to sign
+ * or when storage refuses — the caller decides what a missing URL means.
+ */
+export async function signSessionResourcePath(
+  storagePath,
+  expiresIn = SESSION_RESOURCE_URL_TTL_SECONDS,
+) {
+  const path = String(storagePath || "").trim();
+  if (!isManagedStoragePath(path)) return null;
+  const supabase = storageClient();
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase.storage
+      .from(SESSION_RESOURCE_BUCKET)
+      .createSignedUrl(path, expiresIn);
+    if (error) return null;
+    return data?.signedUrl || null;
+  } catch (e) {
+    console.error("[LMS] session resource signing failed:", e.message);
+    return null;
+  }
 }
 
 /**

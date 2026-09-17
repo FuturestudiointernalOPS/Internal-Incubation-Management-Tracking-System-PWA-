@@ -459,6 +459,14 @@ never exposed to learners; archived courses remain accessible to enrolled learne
 - Embed built from the stored 11-char ID only: `https://www.youtube-nocookie.com/embed/<id>
   ?rel=0&modestbranding=1&playsinline=1&color=white` (privacy-enhanced domain; plays inline on
   mobile). No raw URL is ever shown; invalid/missing IDs render a graceful fallback.
+- **One box, everywhere**: every surface plays a video through the same component,
+  `src/components/lms/EmbeddedVideo.js` — the course presentation, the lesson authoring preview,
+  the learner player, and a session resource whose link is a YouTube video (§13.1). It shows a
+  poster first and only loads the embed on a click (autoplay policy), then plays it with
+  `loop=1&playlist=<id>`, so the player never reaches YouTube's end screen with its suggested
+  videos and its copy-link control. The authoring preview loops too: an embed that behaved
+  differently while authoring was how the same video could be copied in one screen and not in
+  another.
 - YouTube hides share/copy controls within its own iframe UI where supported, but **we make no
   DRM or non-copyability claims** — an Unlisted video can still be extracted or shared by a
   determined user. That limitation is intentionally documented, not hidden.
@@ -640,6 +648,17 @@ A session (program week) carries its own material as ROWS in
   to be framed; a broken embed is worse than a plain link). `resourcePreviewKind`
   (in `src/lib/lms/constants.js`) decides, falling back to the filename when the
   browser reported no mime type. Everything else opens in a new tab.
+- **Uploaded files are signed, not linked**: the learner surface reads material
+  through `learnerSessionResourcesBySession`, which swaps the permanent public
+  URL of an upload for a short-lived signed one (6 h —
+  `SESSION_RESOURCE_URL_TTL_SECONDS`) and drops the storage path; the staff read
+  (`listSessionResourcesBySession`) keeps the stored values, where handing a link
+  to a colleague is acceptable. This is §10's rule applied to material: what the
+  learner watches or opens inside ImpactOS must not become a link they can keep.
+  A file storage refuses to sign comes back with a null `url`, so the card says
+  it is unavailable instead of rendering a dead link. Note the limit: signing
+  bounds what a copied link is worth, it does not prevent someone from saving the
+  file while it plays.
 - **No orphans**: deleting a resource deletes its stored object; replacing a
   file deletes the previous one; an upload cancelled before saving is removed
   through `DELETE /api/lms/session-resources/upload?path=…`. All of these are
@@ -653,7 +672,14 @@ A session (program week) carries its own material as ROWS in
   week (`week.resources` / `week.recommendations`);
   `src/components/lms/SessionResourcesList.js` renders recommendations first
   (note included), then the remaining material, with the filename and size for
-  uploads. Links always open in a new tab.
+  uploads.
+- **A video resource is played, not linked**: when a link resource points at a
+  YouTube video, the card shows its title as plain text and plays the video
+  through the same embed a lesson uses (§10) — a video we show inside the LMS
+  must not be handed to the learner as a copyable link just because it was
+  attached to a session rather than to a course. Every other link still opens in
+  a new tab: a third-party page may refuse to be framed, and a broken embed
+  would be worse than the plain link.
 - Legitimacy rules: `title` and an http(s) `url` are required (a link-less
   resource is not a resource); an unknown `kind` is rejected; a recommendation
   note is only stored when the resource is actually flagged. The legacy

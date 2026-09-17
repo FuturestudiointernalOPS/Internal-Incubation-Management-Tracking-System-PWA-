@@ -97,6 +97,7 @@
       "orBrowse": "or click to browse",
       "showPreview": "Show preview",
       "hidePreview": "Hide preview",
+      "fileUnavailable": "This file is unavailable right now.",
       "openFullImage": "Open the image in a new tab",
       "replaceFile": "Replace",
       "uploading": "Uploading…",

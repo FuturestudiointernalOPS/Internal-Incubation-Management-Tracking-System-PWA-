@@ -2,7 +2,9 @@
 
 import { Video, FileText, Star, ExternalLink, Sparkles, Paperclip } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { extractYouTubeVideoId } from "@/lib/lms/youtube";
 import { formatFileSize } from "@/lib/lms/constants";
+import EmbeddedVideo from "./EmbeddedVideo";
 import ResourcePreview from "./ResourcePreview";
 
 /**
@@ -12,8 +14,20 @@ import ResourcePreview from "./ResourcePreview";
  * an explicit "Recommended for you" block (flagged resources + the note written
  * for them) followed by the rest of the session material. Uploaded files are
  * labelled with their filename and size, and previewed inline when the format
- * allows it (see ResourcePreview). Purely presentational — every link opens in a
- * new tab and nothing is authored here.
+ * allows it (see ResourcePreview).
+ *
+ * A resource that links to a YouTube video plays HERE, through the same
+ * embedded box a lesson uses (see EmbeddedVideo): a video the learner is
+ * supposed to watch inside ImpactOS must not become a copyable link just
+ * because it was attached to a session rather than to a course. Any other link
+ * keeps opening in a new tab — we cannot know whether a third-party page agrees
+ * to be framed, and a broken frame is worse than a plain link.
+ *
+ * Uploaded files arrive with a SHORT-LIVED SIGNED link, minted on the server
+ * (§13.1 of the LMS architecture doc): this surface never sees the permanent
+ * address of an object. When storage refuses to sign one, the resource comes
+ * back without a link and the card says so rather than showing a dead one.
+ * Nothing is authored here.
  */
 export default function SessionResourcesList({ resources = [] }) {
   const { t } = useI18n();
@@ -56,9 +70,20 @@ export default function SessionResourcesList({ resources = [] }) {
 
 /** One piece of session material: link, optional recommendation, optional preview. */
 function ResourceRow({ resource, highlighted = false }) {
+  const { t } = useI18n();
   const accent = highlighted ? "var(--brand-orange)" : "var(--brand-blue)";
+  // The video this resource points at, when we can play it in the page. Keyed on
+  // the link itself: a YouTube video stays a video whatever the author labelled
+  // it. Null for anything else, including uploaded files.
+  const videoId =
+    resource.source === "link" ? extractYouTubeVideoId(resource.url) : null;
+  // A playable video is labelled as one even when it was filed as a document.
   const Icon =
-    resource.kind === "video" ? Video : resource.source === "upload" ? Paperclip : FileText;
+    videoId || resource.kind === "video"
+      ? Video
+      : resource.source === "upload"
+        ? Paperclip
+        : FileText;
 
   return (
     <div
@@ -69,17 +94,30 @@ function ResourceRow({ resource, highlighted = false }) {
           : { borderColor: "var(--border-primary)" }
       }
     >
-      <a
-        href={resource.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-xs font-bold flex items-center gap-1.5 hover:underline"
-        style={{ color: "var(--text-primary)" }}
-      >
-        <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: accent }} />
-        <span className="truncate">{resource.title}</span>
-        <ExternalLink className="w-3 h-3 opacity-50 shrink-0" />
-      </a>
+      {videoId || !resource.url ? (
+        // Nothing to open here: either the video is played by the box below, or
+        // the file could not be signed — a link we cannot hand over is simply
+        // not rendered.
+        <span
+          className="text-xs font-bold flex items-center gap-1.5"
+          style={{ color: "var(--text-primary)" }}
+        >
+          <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: accent }} />
+          <span className="truncate">{resource.title}</span>
+        </span>
+      ) : (
+        <a
+          href={resource.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-bold flex items-center gap-1.5 hover:underline"
+          style={{ color: "var(--text-primary)" }}
+        >
+          <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: accent }} />
+          <span className="truncate">{resource.title}</span>
+          <ExternalLink className="w-3 h-3 opacity-50 shrink-0" />
+        </a>
+      )}
 
       {highlighted && resource.recommendation_note && (
         <p
@@ -100,6 +138,23 @@ function ResourceRow({ resource, highlighted = false }) {
       )}
 
       <ResourcePreview resource={resource} />
+
+      {!resource.url && (
+        <p className="text-[10px] mt-1" style={{ color: "var(--text-tertiary)" }}>
+          {t("lms.sessionResources.fileUnavailable")}
+        </p>
+      )}
+
+      {videoId && (
+        <div className="mt-2">
+          <EmbeddedVideo
+            key={videoId}
+            videoId={videoId}
+            title={resource.title}
+            playLabel={t("lms.player.playVideo")}
+          />
+        </div>
+      )}
     </div>
   );
 }

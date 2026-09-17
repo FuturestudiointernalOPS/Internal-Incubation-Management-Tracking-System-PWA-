@@ -18,7 +18,7 @@ import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { isParticipantInProgram } from "@/lib/participant-membership";
 import { getProgramLearningForParticipant } from "@/lib/lms/programRequirements";
-import { listSessionResourcesBySession } from "@/lib/lms/sessionResources";
+import { learnerSessionResourcesBySession } from "@/lib/lms/sessionResources";
 
 export const dynamic = "force-dynamic";
 
@@ -242,11 +242,14 @@ export async function GET(req, { params }) {
     // ─── Phase 8: session resources & recommendations (read-only here — the
     // participant surface never authors material; it only reads what the PM
     // attached to the session). Each week exposes the material of its own
-    // sessions plus program-wide items tagged with that week.
+    // sessions plus program-wide items tagged with that week. Uploaded files
+    // are handed over as SHORT-LIVED SIGNED URLs, never as the permanent link
+    // stored on the row — a learner must not be able to keep a link to material
+    // we show inside ImpactOS (see docs/LMS_ARCHITECTURE.md §13.1).
     // Defensive: if the Phase 8 migration has not been applied yet, the Program
     // experience must still load — weeks simply carry no resources.
     try {
-      const resourcesBySession = await listSessionResourcesBySession(programId);
+      const resourcesBySession = await learnerSessionResourcesBySession(programId);
       for (const w of weeks) {
         const programWide = (resourcesBySession.get("") || []).filter(
           (r) => r.week_number == null || Number(r.week_number) === Number(w.number),

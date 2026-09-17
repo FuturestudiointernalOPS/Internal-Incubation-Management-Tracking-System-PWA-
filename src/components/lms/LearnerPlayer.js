@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  PlayCircle,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -11,15 +10,15 @@ import {
   AlertCircle,
   ListVideo,
   Film,
-  X,
 } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
+import EmbeddedVideo from "./EmbeddedVideo";
 import LessonStateIcon from "./LessonStateIcon";
 import LearnerProgressBar from "./LearnerProgressBar";
 import LearnerCoachingButton from "./LearnerCoachingButton";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
-import { isValidYouTubeVideoId, buildYouTubeEmbedUrl } from "@/lib/lms/youtube";
+import { isValidYouTubeVideoId } from "@/lib/lms/youtube";
 import { useApi } from "@/lib/hooks/useApi";
 
 /**
@@ -55,11 +54,6 @@ export default function LearnerPlayer({ courseId, lessonId }) {
   const [completing, setCompleting] = useState(false);
   const [justCompleted, setJustCompleted] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
-  // Which lesson the learner started playing. Recorded rather than reset from an
-  // effect: the lesson is what the address shows, so "playing" is derived by
-  // comparing the two during render, and arriving at another lesson costs no
-  // state write.
-  const [playingLessonId, setPlayingLessonId] = useState(null);
   const completeTimer = useRef(null);
 
   useEffect(() => () => clearTimeout(completeTimer.current), []);
@@ -81,8 +75,6 @@ export default function LearnerPlayer({ courseId, lessonId }) {
   });
   const data = courseRead.payload;
   const error = courseRead.failure || readError || null;
-
-  const playing = playingLessonId != null && String(playingLessonId) === String(lessonId);
 
   // Ordered lesson list for prev/next navigation (assessments are not lessons).
   const lessons = useMemo(() => {
@@ -209,64 +201,28 @@ export default function LearnerPlayer({ courseId, lessonId }) {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
         {/* Main column */}
         <div className="space-y-4 min-w-0">
-          {/* Video */}
-          <div
-            className="relative w-full overflow-hidden rounded-2xl border"
-            style={{ aspectRatio: "16 / 9", background: "#000", borderColor: "var(--border-primary)" }}
-          >
-            {videoId ? (
-              playing ? (
-                <>
-                  <iframe
-                    className="absolute inset-0 w-full h-full"
-                    src={buildYouTubeEmbedUrl(videoId, { autoplay: true, loop: true })}
-                    title={lesson.title}
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setPlayingLessonId(null)}
-                    title={t("common.close")}
-                    className="absolute top-2 right-2 z-10 p-1.5 rounded-full transition-colors"
-                    style={{ background: "rgba(0,0,0,0.6)", color: "rgba(255,255,255,0.9)" }}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setPlayingLessonId(lessonId)}
-                  title={t("lms.player.playVideo")}
-                  className="absolute inset-0 w-full h-full flex items-center justify-center group"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
-                    alt=""
-                    aria-hidden="true"
-                    className="absolute inset-0 w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                  <span
-                    className="relative z-10 flex items-center justify-center w-16 h-16 rounded-full transition-transform group-hover:scale-110"
-                    style={{ background: "rgba(0,0,0,0.55)" }}
-                  >
-                    <PlayCircle className="w-9 h-9" style={{ color: "rgba(255,255,255,0.95)" }} />
-                  </span>
-                </button>
-              )
-            ) : (
+          {/* Video — the shared embed, mounted per lesson so another lesson
+              starts on its own poster. */}
+          {videoId ? (
+            <EmbeddedVideo
+              key={lesson.id}
+              videoId={videoId}
+              title={lesson.title}
+              playLabel={t("lms.player.playVideo")}
+            />
+          ) : (
+            <div
+              className="relative w-full overflow-hidden rounded-2xl border"
+              style={{ aspectRatio: "16 / 9", background: "#000", borderColor: "var(--border-primary)" }}
+            >
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                 <Film className="w-10 h-10" style={{ color: "var(--text-tertiary)" }} />
                 <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
                   {t("lms.player.videoUnavailable")}
                 </p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Lesson meta */}
           <div className="rounded-xl border p-5" style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}>
