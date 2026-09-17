@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, Download, FileText, BarChart3, Eye, Download as DownloadIcon,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const KPI_LABELS = {
   readiness_score: "Investment Readiness", total_matches: "Investor Matches", avg_match_score: "Avg Match Score",
@@ -23,39 +22,28 @@ const KPI_FORMAT = {
   pipeline_value: "currency", closed_value: "currency",
 };
 
+// Module scope on purpose: the hook keys its internal callback on these
+// functions, so inline arrows would give them a new identity on every render and
+// refetch in a loop.
+const pickVenture = (d) => (d?.success ? d.venture : null);
+const pickVentureAnalytics = (d) => (d?.success ? d : null);
+
 export default function VentureAnalyticsPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [venture, setVenture] = useState(null);
-  const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchData = useCallback(async (bypassCache = false) => {
-    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/analytics`];
-    const apply = (v, a) => {
-      if (v.success) setVenture(v.venture);
-      if (a.success) setAnalytics(a);
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from
-      // fresh snapshots while the network revalidates in the background.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1]);
-          setLoading(false);
-        }
-      }
-      const [vRes, aRes] = await Promise.all(urls.map((u) => fetch(u)));
-      const v = await vRes.json(); const a = await aRes.json();
-      if (v.success) cacheSet(urls[0], v);
-      if (a.success) cacheSet(urls[1], a);
-      apply(v, a);
-    } catch {} finally { setLoading(false); }
-  }, [id]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // Both reads — and the cache-first paint they used to gate on together —
+  // belong to the hook, so the screen keeps no data state of its own and never
+  // sets state from an effect. Two separate reads keep the venture identifier a
+  // plain dependency rather than a list rebuilt on every render.
+  const { data: venture, loading: ventureLoading } = useApi(
+    `/api/ventures/${id}`,
+    { transform: pickVenture, deps: [id] },
+  );
+  const { data: analytics, loading: analyticsLoading } = useApi(
+    `/api/ventures/${id}/analytics`,
+    { transform: pickVentureAnalytics, deps: [id] },
+  );
+  const loading = ventureLoading || analyticsLoading;
 
   const handleExport = async () => {
     const res = await fetch(`/api/ventures/${id}/analytics?type=export&format=csv`);

@@ -1,49 +1,28 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Trash2, Undo2, AlertTriangle, Loader2, RefreshCw, UserX, UserCheck, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickArchivedContacts = (d) => d?.contacts || [];
 
 export default function RecycleBinPage() {
   const { t } = useI18n();
-  const [contacts, setContacts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(null);
   const [msg, setMsg] = useState(null);
   const [search, setSearch] = useState('');
-
-  const fetchArchived = async (bypassCache = false) => {
-    setLoading(true);
-    try {
-      const url = '/api/contacts?archived=1';
-      const apply = (data) => {
-        setContacts(data.contacts || []);
-      };
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; mutation flows pass bypassCache=true so the list always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchArchived(); }, []);
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no data state of its own and never sets state from an effect. Both mutations
+  // call refresh(), which bypasses the cache like the old bypassCache did.
+  const { data: contacts, loading, refresh } = useApi('/api/contacts?archived=1', {
+    defaultValue: [],
+    transform: pickArchivedContacts,
+  });
 
   const handleRestore = async (cid, name) => {
     setProcessing(cid);
@@ -56,7 +35,7 @@ export default function RecycleBinPage() {
       const data = await res.json();
       if (data.success) {
         setMsg({ type: 'success', text: t('adminMisc.recycleBin.restoredToast', { name }) });
-        fetchArchived(true);
+        refresh();
       } else {
         setMsg({ type: 'error', text: t((data.error || t('adminMisc.recycleBin.restoreFailed')) || "") || (data.error || t('adminMisc.recycleBin.restoreFailed')) });
       }
@@ -74,7 +53,7 @@ export default function RecycleBinPage() {
       const data = await res.json();
       if (data.success) {
         setMsg({ type: 'success', text: t('adminMisc.recycleBin.permanentlyDeletedToast', { name }) });
-        fetchArchived(true);
+        refresh();
       } else {
         setMsg({ type: 'error', text: t((data.error || t('adminMisc.recycleBin.deleteFailed')) || "") || (data.error || t('adminMisc.recycleBin.deleteFailed')) });
       }
@@ -97,7 +76,7 @@ export default function RecycleBinPage() {
             <h2 className="text-2xl md:text-3xl font-black tracking-tighter uppercase mb-2">{t('adminMisc.recycleBin.title')}</h2>
             <p className="text-slate-400 font-bold text-sm tracking-tight">{t('adminMisc.recycleBin.subtitle')}</p>
           </div>
-          <button onClick={fetchArchived} className="btn-ghost p-3" title={t('adminMisc.recycleBin.refresh')}>
+          <button onClick={refresh} className="btn-ghost p-3" title={t('adminMisc.recycleBin.refresh')}>
             <RefreshCw className="w-5 h-5" />
           </button>
         </header>

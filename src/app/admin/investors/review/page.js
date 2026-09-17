@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Shield, Loader2, ArrowLeft, Building2, Globe, Link,
   Target, FileText, CheckCircle2, XCircle, MessageSquare,
@@ -10,45 +10,27 @@ import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickPendingInvestors = (d) => (d?.success ? d.investors || [] : []);
 
 export default function InvestorReviewPage() {
   const goBack = useSafeBack("/admin/investors");
   const { t } = useI18n();
-  const [investors, setInvestors] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [saving, setSaving] = useState(false);
-
-  const fetchInvestors = async (bypassCache = false) => {
-    setLoading(true);
-    try {
-      const url = "/api/investor/approval?status=pending_review";
-      const apply = (data) => {
-        if (data.success) setInvestors(data.investors || []);
-      };
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; mutation flows pass bypassCache=true so the list always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (_) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchInvestors(); }, []);
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no data state of its own and never sets state from an effect. The review
+  // action calls refresh(), which bypasses the cache like bypassCache did.
+  const { data: investors, loading, refresh } = useApi(
+    "/api/investor/approval?status=pending_review",
+    { defaultValue: [], transform: pickPendingInvestors },
+  );
 
   const fetchDetail = async (inv) => {
     setSelected(inv);
@@ -73,7 +55,7 @@ export default function InvestorReviewPage() {
         detail: { type: "success", message: action === "recommend" ? t("investorAdmin.review.recommendedForApproval") : t("investorAdmin.review.rejected") }
       }));
       setSelected(null);
-      fetchInvestors(true);
+      refresh();
     } catch (_) {}
     setSaving(false);
   };

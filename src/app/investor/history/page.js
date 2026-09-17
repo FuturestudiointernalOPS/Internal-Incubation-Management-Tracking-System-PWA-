@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import {
   Clock, TrendingUp, DollarSign, Target, XCircle, Download,
   FileText, Loader2, Building2, ArrowLeft,
@@ -9,7 +8,7 @@ import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const DECISION_COLORS = {
   invest: "bg-emerald-500/10 text-emerald-400",
@@ -31,45 +30,26 @@ const STAGE_COLORS = {
   negotiation: "text-orange-400", invested: "text-emerald-400", declined: "text-rose-400",
 };
 
+// The shape the screen renders from, so a failed or malformed payload never
+// reaches a `.map` / `.total_*` read. Module scope keeps both the value and the
+// normaliser stable for the hook (inline values would refetch every render).
+const EMPTY_DECISION_REPORT = { decisions: [], history: [], stats: {} };
+const pickDecisionReport = (d) =>
+  d?.success
+    ? { decisions: d.decisions || [], history: d.history || [], stats: d.stats || {} }
+    : EMPTY_DECISION_REPORT;
+
 export default function InvestmentHistoryPage() {
   const goBack = useSafeBack("/investor");
   const { t } = useI18n();
-  const [decisions, setDecisions] = useState([]);
-  const [history, setHistory] = useState([]);
-  const [stats, setStats] = useState({});
-  const [loading, setLoading] = useState(true);
-
-  const fetchData = async (bypassCache = false) => {
-    setLoading(true);
-    try {
-      const url = "/api/investor/decisions";
-      const apply = (data) => {
-        if (data.success) {
-          setDecisions(data.decisions || []);
-          setHistory(data.history || []);
-          setStats(data.stats || {});
-        }
-      };
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot while the report refreshes in the background.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (_) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchData(); }, []);
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no data state of its own and never sets state from an effect.
+  const { data, loading } = useApi("/api/investor/decisions", {
+    defaultValue: EMPTY_DECISION_REPORT,
+    transform: pickDecisionReport,
+  });
+  const { decisions, history, stats } = data;
 
   const exportCSV = () => {
     const headers = "Venture,Industry,Stage,Decision,Amount,Date\n";
