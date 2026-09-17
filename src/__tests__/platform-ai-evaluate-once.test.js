@@ -162,9 +162,13 @@ describe("a page load cannot run the model", () => {
     expect(posts).toHaveLength(1);
   });
 
-  test("load no longer depends on canReview, so arriving permissions cannot re-run it", () => {
+  test("no read is keyed on the reviewer's permissions, so arriving ones cannot re-run it", () => {
     const src = read(REVIEW_PAGE);
-    expect(src).toContain("}, [submissionId]);");
-    expect(src).not.toContain("}, [submissionId, canReview]);");
+    // The reads are addressed by the submission, and by what that answer names.
+    expect(src).toContain("deps: [submissionId]");
+    // `canReview` decides whether the action is OFFERED; it must never decide what
+    // is read. A permission that arrives late would otherwise re-issue every read.
+    expect(src).not.toMatch(/deps:\s*\[[^\]]*canReview/);
+    expect(src).not.toContain("submissionId, canReview");
   });
 });

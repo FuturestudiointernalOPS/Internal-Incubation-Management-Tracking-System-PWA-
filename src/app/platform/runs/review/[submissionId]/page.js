@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import {
   ArrowLeft, Loader2, User, FileText, CheckCircle2,
@@ -10,7 +10,20 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 import { formatLocaleDate } from "@/lib/constants";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+const EMPTY_OBJECT = {};
+
+/** A payload that keeps its shape, or nothing when the read was refused. */
+const pickMain = (d) => (d?.success ? d : null);
+const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
+const pickEvaluation = (d) =>
+  d?.success && d.evaluation ? d.evaluation : null;
 import { usePermissions } from "@/lib/PermissionProvider";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
@@ -50,124 +63,124 @@ export default function ReviewPage() {
   const { can } = usePermissions();
   const canReview = can("runs", "review");
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [submission, setSubmission] = useState(null);
-  const [run, setRun] = useState(null);
-  const [sections, setSections] = useState([]);
-  const [fields, setFields] = useState([]);
-  const [evaluation, setEvaluation] = useState(null);
-  const [, setEvalHistory] = useState([]);
-  const [timeline, setTimeline] = useState([]);
   const [saving, setSaving] = useState(false);
   const [notif, setNotif] = useState(null);
   const [reviewData, setReviewData] = useState({ decision: "approved", comment: "", internal_note: "" });
   const [expandedDims, setExpandedDims] = useState({});
   const [showHistory, setShowHistory] = useState(false);
-  const [workflow, setWorkflow] = useState(DEFAULT_WORKFLOW);
   const [collapsedSections, setCollapsedSections] = useState({});
 
   const notify = (msg) => { setNotif(msg); setTimeout(() => setNotif(null), 3000); };
 
-  const load = useCallback(async (bypassCache = false) => {
-    setLoading(true);
-    const mainUrl = `/api/platform/form-runs?submission_id=${submissionId}`;
-    const timelineUrl = `/api/platform/form-runs?timeline=${submissionId}`;
-    const evalUrl = `/api/platform/ai/evaluate-submission?submission_id=${submissionId}`;
-    const applyMain = (data) => {
-      setSubmission(data.submission);
-      setRun(data.run);
-    };
-    const applyForm = (formData) => {
-      if (formData.success) {
-        setSections(formData.sections || []);
-        setFields(formData.fields || []);
-        const settings = formData.form?.settings || {};
-        if (settings.workflow) setWorkflow({ ...DEFAULT_WORKFLOW, ...settings.workflow });
-      }
-    };
-    const applyTimeline = (tlData) => {
-      if (tlData.success) setTimeline(tlData.timeline || []);
-    };
-    const applyEval = (evalData) => {
-      if (evalData.success && evalData.evaluation) {
-        setEvaluation(evalData.evaluation);
-        setEvalHistory(evalData.history || [evalData.evaluation]);
-      }
-    };
-    let painted = false;
-    try {
-      // Cache-first paint: revisiting the same submission renders instantly
-      // from fresh snapshots when every GET in the chain is cached; review
-      // mutations pass bypassCache=true so the page reflects the last action.
-      if (!bypassCache) {
-        const cachedMain = cacheGet(mainUrl);
-        const cachedForm =
-          cachedMain !== null && cachedMain.success
-            ? cacheGet(`/api/platform/forms?id=${cachedMain.run?.form_id}`)
-            : null;
-        const cachedTimeline = cacheGet(timelineUrl);
-        const cachedEval = cacheGet(evalUrl);
-        if (
-          cachedMain !== null && cachedMain.success &&
-          cachedForm !== null && cachedForm.success &&
-          cachedTimeline !== null && cachedTimeline.success &&
-          cachedEval !== null && cachedEval.success && cachedEval.evaluation
-        ) {
-          applyMain(cachedMain);
-          applyForm(cachedForm);
-          applyTimeline(cachedTimeline);
-          applyEval(cachedEval);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(mainUrl);
-      if (!res.ok) throw new Error(t("platformMisc.runReview.loadFailed"));
-      const data = await res.json();
-      if (!data.success) throw new Error(t(data.error || "") || data.error);
-      cacheSet(mainUrl, data);
-      applyMain(data);
+  // ─── The submission and everything around it ────────────────────────────────
+  //
+  // Four reads: the submission with its run, the form that run uses, the
+  // submission's timeline, and its stored evaluation. Each address is derived from
+  // the value the read above it returned, so an unknown value is simply an address
+  // that is not known yet.
+  const {
+    data: main,
+    loading: mainLoading,
+    error: mainError,
+    status: mainStatus,
+    refresh: refreshMain,
+  } = useApi(`/api/platform/form-runs?submission_id=${submissionId}`, {
+    defaultValue: null,
+    transform: pickMain,
+    deps: [submissionId],
+  });
+  const submission = main?.submission || null;
+  const run = main?.run || null;
 
-      const formUrl = `/api/platform/forms?id=${data.run.form_id}`;
-      const formRes = await fetch(formUrl);
-      const formData = await formRes.json();
-      if (formData.success) {
-        cacheSet(formUrl, formData);
-        applyForm(formData);
-      }
+  const {
+    data: formPayload,
+    loading: formLoading,
+    error: formError,
+    status: formStatus,
+    refresh: refreshForm,
+  } = useApi(run?.form_id ? `/api/platform/forms?id=${run.form_id}` : null, {
+    defaultValue: null,
+    transform: pickMain,
+    deps: [run?.form_id],
+  });
+  const sections = formPayload?.sections ?? EMPTY_LIST;
+  const fields = formPayload?.fields ?? EMPTY_LIST;
+  // The form's workflow settings, which the panel's controls are shown from.
+  const workflow = formPayload?.form?.settings?.workflow
+    ? { ...DEFAULT_WORKFLOW, ...formPayload.form.settings.workflow }
+    : DEFAULT_WORKFLOW;
 
-      const tlRes = await fetch(timelineUrl);
-      const tlData = await tlRes.json();
-      if (tlData.success) {
-        cacheSet(timelineUrl, tlData);
-        applyTimeline(tlData);
-      }
+  const {
+    data: timeline,
+    loading: timelineLoading,
+    error: timelineError,
+    refresh: refreshTimeline,
+  } = useApi(`/api/platform/form-runs?timeline=${submissionId}`, {
+    defaultValue: EMPTY_LIST,
+    transform: pickList("timeline"),
+    deps: [submissionId],
+  });
 
-      const evalRes = await fetch(evalUrl);
-      const evalData = await evalRes.json();
-      if (evalData.success && evalData.evaluation) {
-        cacheSet(evalUrl, evalData);
-        applyEval(evalData);
-      }
-      // No evaluation yet? NOTHING happens here — deliberately. Opening or
-      // refreshing this page must never spend a model call. It used to
-      // auto-trigger, which re-evaluated on EVERY load: one wasted model call per
-      // view, a fresh evaluation row each time, and because a new row carries no
-      // human values it also hid whatever a reviewer had entered. The stored
-      // evaluation is the answer; if it is missing, a reviewer runs it here and
-      // now, with the Re-run AI button in the header (handleReRunAI).
-    } catch (e) { if (!painted) setError(t(e.message || "") || e.message); }
-    setLoading(false);
-  }, [submissionId]);
+  const {
+    data: storedEvaluation,
+    loading: evaluationLoading,
+    error: evaluationError,
+    refresh: refreshEvaluation,
+  } = useApi(
+    `/api/platform/ai/evaluate-submission?submission_id=${submissionId}`,
+    { defaultValue: null, transform: pickEvaluation, deps: [submissionId] },
+  );
 
-  // `load` depends on the submission alone, deliberately: `canReview` arrives
-  // asynchronously, so depending on it re-created load and re-ran the whole fetch
-  // — which was a second route into the auto-trigger above. `t` is left out for
-  // the same reason: a language switch would re-issue all four reads, and the only
-  // thing `t` is used for here is the wording of an error that no longer reloads.
+  // ─── The reviewer's own scoring, layered over the stored one ────────────────
+  //
+  // Recorded against the dimension it changes AND the evaluation it was made in,
+  // so nothing is copied into state and a re-run - which stores a NEW row - starts
+  // the reviewer clean rather than carrying over scores given to the previous one.
+  const [dimEdits, setDimEdits] = useState({ evalId: null, byDim: EMPTY_OBJECT });
+  const editsHere =
+    dimEdits.evalId === storedEvaluation?.id ? dimEdits.byDim : EMPTY_OBJECT;
+  const evaluation = useMemo(
+    () =>
+      storedEvaluation
+        ? {
+            ...storedEvaluation,
+            dimensions: (storedEvaluation.dimensions || []).map((d, i) =>
+              editsHere[i] ? { ...d, ...editsHere[i] } : d,
+            ),
+          }
+        : null,
+    [storedEvaluation, editsHere],
+  );
 
-  useEffect(() => { load(); }, [load]);
+  const editDimension = (index, patch) => {
+    const current = dimEdits.evalId === storedEvaluation?.id ? dimEdits.byDim : EMPTY_OBJECT;
+    setDimEdits({
+      evalId: storedEvaluation?.id ?? null,
+      byDim: { ...current, [index]: { ...(current[index] || {}), ...patch } },
+    });
+  };
+
+  // The read's outcome, derived. A payload that says it failed carries its own
+  // message, and a request that never got an answer is the network's.
+  const readError = mainError || formError || timelineError || evaluationError;
+  const error = readError
+    ? t(readError) || t("platformMisc.runReview.loadFailed")
+    : mainStatus !== null && !submission
+      ? t("platformMisc.runReview.loadFailed")
+      : null;
+
+  // One render passes with the run known and its form not yet asked for: the hook's
+  // flag rises in the effect, which is after that render.
+  const formPending = Boolean(run?.form_id) && formStatus === null && !formError;
+  const loading = mainLoading || formLoading || formPending || timelineLoading || evaluationLoading;
+
+  // Every action below re-reads what it changed.
+  const reload = useCallback(() => {
+    refreshMain();
+    refreshForm();
+    refreshTimeline();
+    refreshEvaluation();
+  }, [refreshMain, refreshForm, refreshTimeline, refreshEvaluation]);
 
   // Lock all editing once a review decision has been submitted (email sent to applicant)
   const isReviewLocked = ["approved", "rejected", "revision_requested"].includes(submission?.status);
@@ -187,21 +200,17 @@ export default function ReviewPage() {
   // Helper: update a single dimension's human score
   const updateDimScore = (di, val) => {
     if (isReviewLocked) return;
-    setEvaluation(prev => {
-      const dims = [...prev.dimensions];
-      dims[di] = { ...dims[di], human_score: val, human_comment: dims[di].human_comment || "", final_score: val ?? dims[di].score };
-      return { ...prev, dimensions: dims };
+    editDimension(di, {
+      human_score: val,
+      human_comment: evaluation.dimensions[di].human_comment || "",
+      final_score: val ?? evaluation.dimensions[di].score,
     });
   };
 
   // Helper: update a single dimension's human comment
   const updateDimComment = (di, val) => {
     if (isReviewLocked) return;
-    setEvaluation(prev => {
-      const dims = [...prev.dimensions];
-      dims[di] = { ...dims[di], human_comment: val };
-      return { ...prev, dimensions: dims };
-    });
+    editDimension(di, { human_comment: val });
   };
 
   const handleReRunAI = async () => {
@@ -211,7 +220,7 @@ export default function ReviewPage() {
     try {
       const res = await fetch("/api/platform/ai/evaluate-submission", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ submission_id: parseInt(submissionId) }) });
       const data = await res.json();
-      if (data.success) { notify(t("platformMisc.runReview.aiEvalComplete")); load(true); }
+      if (data.success) { notify(t("platformMisc.runReview.aiEvalComplete")); reload(); }
       else notify(t((data.error || t("platformMisc.runReview.evalFailed")) || "") || (data.error || t("platformMisc.runReview.evalFailed")));
     } catch (_) { notify(t("platformMisc.runReview.aiEvalFailed")); }
     setSaving(false);
@@ -235,7 +244,7 @@ export default function ReviewPage() {
         }),
       });
       const data = await res.json();
-      if (data.success) { notify(t("platformMisc.runReview.reviewSubmitted")); load(true); }
+      if (data.success) { notify(t("platformMisc.runReview.reviewSubmitted")); reload(); }
       else notify(t((data.error || t("platformMisc.runReview.failed")) || "") || (data.error || t("platformMisc.runReview.failed")));
     } catch (_) { notify(t("platformMisc.runReview.failed")); }
     setSaving(false);
@@ -399,6 +408,28 @@ export default function ReviewPage() {
         </div>
 
         {/* ── AI EVALUATION ── */}
+        {/* Nothing evaluated yet: said out loud, with the action that fixes it.
+            The screen used to fill this in silently, by running an evaluation as
+            a side effect of being opened, which is why the absence of one is now
+            a state the reviewer has to be told about rather than a silence. */}
+        {!evaluation?.dimensions && (
+          <div className="rounded-2xl bg-secondary border border-[var(--border-primary)] px-6 py-10 text-center">
+            <Sparkles className="w-8 h-8 mx-auto mb-3 text-purple-400 opacity-40" />
+            <p className="text-sm font-black uppercase text-[var(--text-primary)]">
+              {t("platformMisc.runReview.notEvaluatedTitle")}
+            </p>
+            <p className="mt-2 max-w-lg mx-auto text-[11px] leading-relaxed text-[var(--text-secondary)]">
+              {t("platformMisc.runReview.notEvaluatedHint")}
+            </p>
+            {canReview && (
+              <button onClick={handleReRunAI} disabled={saving || isReviewLocked} className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                <RefreshCw className={cn("w-3 h-3", saving && "animate-spin")} />{' '}
+                {t("platformMisc.runReview.runAi")}
+              </button>
+            )}
+          </div>
+        )}
+
         {evaluation?.dimensions && (
           <div className="rounded-2xl bg-secondary border border-[var(--border-primary)] overflow-hidden">
             <div className="px-6 py-4 border-b border-[var(--border-primary)] flex items-center gap-3">

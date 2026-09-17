@@ -571,7 +571,7 @@
       "addAssignment": "Ajouter une assignation",
       "targetType": "Type de cible",
       "assignTo": "Assigner à",
-            "targetOther": "Autre (saisir l'ID)",
+      "targetOther": "Autre (saisir l'ID)",
       "assignToHint": "Sélectionnez un ou plusieurs types de cible.",
       "assignErrorNoTargets": "Sélectionnez au moins un type de cible.",
       "assignErrorMissing": "Sélectionnez {type} à assigner.",
@@ -1019,7 +1019,9 @@
       "saving": "Enregistrement...",
       "submitReview": "Soumettre la révision — {decision}",
       "history": "Historique",
-      "noActivity": "Aucune activité enregistrée pour l'instant"
+      "noActivity": "Aucune activité enregistrée pour l'instant",
+      "notEvaluatedTitle": "Pas encore d'évaluation",
+      "notEvaluatedHint": "Rien n'a été évalué pour cette réponse. Une personne habilitée peut lancer l'évaluation : elle lit les réponses et propose des notes, et peut aussi approuver le candidat et lui envoyer l'email de décision."
     }
   }
 }

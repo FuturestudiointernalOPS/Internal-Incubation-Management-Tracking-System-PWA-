@@ -571,7 +571,7 @@
       "addAssignment": "Add Assignment",
       "targetType": "Target Type",
       "assignTo": "Assign To",
-            "targetOther": "Other (enter ID)",
+      "targetOther": "Other (enter ID)",
       "assignToHint": "Select one or more target types.",
       "assignErrorNoTargets": "Select at least one target type.",
       "assignErrorMissing": "Select the {type} to assign.",
@@ -1019,7 +1019,9 @@
       "saving": "Saving...",
       "submitReview": "Submit Review — {decision}",
       "history": "History",
-      "noActivity": "No activity recorded yet"
+      "noActivity": "No activity recorded yet",
+      "notEvaluatedTitle": "No evaluation yet",
+      "notEvaluatedHint": "Nothing has been evaluated for this submission. A reviewer may run the evaluation, which reads the answers and proposes scores; it can also approve the applicant and send the decision email."
     }
   }
 }
