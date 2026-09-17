@@ -20,7 +20,29 @@ import {
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { useSearchParams } from "next/navigation";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+const pickProjects = (d) => (d?.success ? d.projects || [] : []);
+
+/** The analytics summary is optional: a refusal is an absent summary. */
+const pickAnalytics = (d) => (d?.success ? d.analytics || null : null);
+
+/** The people a project lead can be chosen from. */
+const pickActiveStaff = (d) =>
+  d?.success
+    ? (d.contacts || []).filter(
+        (c) => c.status === "active" && c.role !== "participant",
+      )
+    : [];
+
 
 /**
  * SUPER ADMIN PROJECTS DASHBOARD
@@ -44,20 +66,9 @@ const STATUS_BG = {
 export default function AdminProjects() {
   const router = useRouter();
   const { t } = useI18n();
-  const [projects, setProjects] = useState([]);
-  const [, setTotals] = useState({
-    totalTasks: 0,
-    completedTasks: 0,
-    totalBlockers: 0,
-    activeBlockers: 0,
-  });
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [analytics, setAnalytics] = useState(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showMemberModal, setShowMemberModal] = useState(null);
-  const [allStaff, setAllStaff] = useState([]);
   const [projectMembers, setProjectMembers] = useState({});
   const [newProject, setNewProject] = useState({
     name: "",
@@ -72,16 +83,54 @@ export default function AdminProjects() {
   const [uploadingConcept, setUploadingConcept] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [creating, setCreating] = useState(false);
-  const [userRole, setUserRole] = useState("");
 
-  useEffect(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      setUserRole(u.role || "");
-    } catch {}
-  }, []);
-
+  // Who is signed in, from the shell's session cache: no request of its own, and
+  // no dependence on the browser's stored copy.
+  const { role: userRole } = useSessionUser();
   const canCreate = userRole === "super_admin" || userRole === "admin";
+
+  // The sidebar's "Create Project" link arrives as a query parameter, so the
+  // dialog is open because the ADDRESS says so rather than because an effect
+  // copied the address into state. Closing it tidies the address, which is a
+  // navigation and not a state write.
+  //
+  // One accepted difference: arriving from the link and then refreshing keeps the
+  // dialog open, where the old code stripped the parameter on arrival so a refresh
+  // did not reopen it. The address now describes what is on screen.
+  const searchParams = useSearchParams();
+  const wantsCreate = searchParams.get("action") === "create";
+  const [manualCreate, setManualCreate] = useState(false);
+  const showCreateModal = manualCreate || wantsCreate;
+  const openCreate = () => setManualCreate(true);
+  const closeCreate = () => {
+    setManualCreate(false);
+    if (wantsCreate) router.replace("/admin/projects");
+  };
+
+  // The projects and the optional analytics summary, through the shared hook: it
+  // owns the cache, the cache-first paint and the discarding of a stale answer, so
+  // the page keeps no copy of its own and reads its data during render.
+  const {
+    data: projects,
+    loading,
+    refresh: refreshProjects,
+  } = useApi(
+    `/api/admin/projects${filterStatus === "Archived" ? "?include_archived=true" : ""}`,
+    { defaultValue: EMPTY_LIST, transform: pickProjects, deps: [filterStatus] },
+  );
+  const { data: analytics } = useApi("/api/admin/analytics", {
+    defaultValue: null,
+    transform: pickAnalytics,
+  });
+
+  // The staff list is read while the create dialog is open, which is what the old
+  // code expressed by fetching it from the button that opens it.
+  const { data: allStaff } = useApi(showCreateModal ? "/api/contacts" : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickActiveStaff,
+    deps: [showCreateModal],
+  });
+
 
   const [editProject, setEditProject] = useState({
     id: null,
@@ -104,82 +153,6 @@ export default function AdminProjects() {
   useEffect(() => {
     if (toast) setTimeout(() => setToast(null), 3000);
   }, [toast]);
-
-  const fetchData = useCallback(async (bypassCache = false) => {
-    const archivedParam =
-      filterStatus === "Archived" ? "?include_archived=true" : "";
-    const urls = [
-      `/api/admin/projects${archivedParam}`,
-      "/api/admin/analytics",
-    ];
-    const apply = (projData, analyticsData) => {
-      if (projData?.success) {
-        setProjects(projData.projects || []);
-        setTotals(projData.totals || {});
-      }
-      // Analytics endpoint is optional - silently handle if not available
-      if (analyticsData?.success) setAnalytics(analyticsData.analytics);
-    };
-
-    setLoading(true);
-    try {
-      // Cache-first paint: switching filters / returning to the page renders
-      // instantly from fresh snapshots; mutation flows pass bypassCache=true
-      // so the list always reflects the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null)) {
-          apply(cached[0], cached[1]);
-          setLoading(false);
-        }
-      }
-      const responses = await Promise.all(
-        urls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1]);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [filterStatus]);
-
-  const fetchStaff = useCallback(async () => {
-    try {
-      const res = await fetch("/api/contacts");
-      const data = await res.json();
-      if (data.success)
-        setAllStaff(
-          data.contacts?.filter(
-            (c) => c.status === "active" && c.role !== "participant",
-          ) || [],
-        );
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Auto-open create modal if navigated from sidebar "Create Project" link
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("action") === "create") {
-      setShowCreateModal(true);
-      fetchStaff();
-      // Clean the URL so refresh doesn't re-trigger
-      window.history.replaceState({}, "", "/admin/projects");
-    }
-  }, [fetchStaff]);
 
   const fetchMembers = useCallback(async (projectId) => {
     try {
@@ -214,7 +187,7 @@ export default function AdminProjects() {
           assigned_pm_ids: editProject.leads,
         }),
       });
-      fetchData(true);
+      refreshProjects();
     } catch (e) {
       console.error(e);
     } finally {
@@ -230,7 +203,7 @@ export default function AdminProjects() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: project.id, status: "Archived" }),
       });
-      fetchData(true);
+      refreshProjects();
     } catch (e) {
       console.error(e);
     } finally {
@@ -246,7 +219,7 @@ export default function AdminProjects() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: project.id, status: "Active" }),
       });
-      fetchData(true);
+      refreshProjects();
     } catch (e) {
       console.error(e);
     } finally {
@@ -262,7 +235,7 @@ export default function AdminProjects() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: project.id, status: newStatus }),
       });
-      fetchData(true);
+      refreshProjects();
     } catch (e) {
       console.error(e);
     } finally {
@@ -304,7 +277,7 @@ export default function AdminProjects() {
             });
           } catch {}
         }
-        setShowCreateModal(false);
+        closeCreate();
         setNewProject({
           name: "",
           description: "",
@@ -314,7 +287,7 @@ export default function AdminProjects() {
         });
         setConceptNoteFile(null);
         setSelectedMembers([]);
-        fetchData(true);
+        refreshProjects();
         setToast({
           type: "success",
           msg: t("adminMisc.projectsList.projectCreatedToast", {
@@ -436,8 +409,7 @@ export default function AdminProjects() {
             {canCreate && (
               <button
                 onClick={() => {
-                  setShowCreateModal(true);
-                  fetchStaff();
+                  openCreate();
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all"
               >
@@ -446,7 +418,7 @@ export default function AdminProjects() {
               </button>
             )}
             <button
-              onClick={fetchData}
+              onClick={() => refreshProjects()}
               className="p-2 rounded-xl hover:bg-white/5 transition-all"
               title={t("common.refresh")}
             >
@@ -863,7 +835,6 @@ export default function AdminProjects() {
                                   project.meta?.concept_note_url || "",
                               });
                               fetchMembers(project.id);
-                              fetchStaff();
                             }}
                             className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)] hover:text-black transition-all"
                           >
@@ -1262,7 +1233,7 @@ export default function AdminProjects() {
       {showCreateModal && canCreate && (
         <div
           className="fixed inset-0 z-[500] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto"
-          onClick={() => setShowCreateModal(false)}
+          onClick={() => closeCreate()}
         >
           <div
             role="dialog"
@@ -1277,7 +1248,7 @@ export default function AdminProjects() {
                 {t("adminMisc.projectsList.createProject")}
               </h2>
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => closeCreate()}
                 aria-label={t("common.close")}
                 className="p-1 rounded-lg hover:bg-tertiary transition-colors"
               >
@@ -1529,7 +1500,7 @@ export default function AdminProjects() {
             {/* Sticky footer */}
             <div className="flex gap-3 shrink-0 px-5 pb-5 pt-3 border-t border-[var(--border-primary)] bg-secondary/80 backdrop-blur">
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => closeCreate()}
                 className="flex-1 btn btn-secondary py-3 text-[10px] font-black uppercase tracking-widest"
               >
                 {t("adminMisc.projectsList.cancel")}

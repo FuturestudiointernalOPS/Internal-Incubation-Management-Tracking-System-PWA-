@@ -151,22 +151,22 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 128 |
-| `react-hooks/set-state-in-effect` | 200 | 121 |
+| ESLint warnings, total | 2192 | 119 |
+| `react-hooks/set-state-in-effect` | 200 | 114 |
 | ESLint errors | 0 | 0 |
-| `no-unused-vars` in converted files | 0 | 0 |
+| `no-unused-vars` | 2 | 0 |
 | Production build | passes | passes |
 
-Screens carrying a `set-state-in-effect` warning: **79**.
+Screens carrying a `set-state-in-effect` warning: **77**.
 
 | Group | Screens |
 |---|---:|
-| Application pages | 20 |
+| Application pages | 18 |
 | Shared components (`src/components/`) | 32 |
 | Venture screens | 23 |
 | `src/lib/` modules | 4 |
 
-Of these 79 screens, **58 carry a single warning**; the remaining 21 carry two
+Of these 77 screens, **58 carry a single warning**; the remaining 19 carry two
 to five.
 
 > The test count is not recorded here any more: another workstream adds and
@@ -289,9 +289,25 @@ None left. The two that were here are resolved:
 | Screens over ~800 lines (`admin/programs`, `admin/projects`, `admin/projects/[id]`, `admin/communications/contacts`, `staff/op-report`, `staff/projects/[id]`, `pm/programs/[id]`, `admin/op-reports`) | Not examined individually yet. Several load more than one endpoint and some mix loads with mutations, so each needs a read before conversion. |
 
 A group here is **parked with the database work** on purpose: two screens ask for one
-record per element of a list they just read (`admin/reports/responses`,
-`platform/responses`). Hooks cannot be called in a loop, so the answer is a batch
-endpoint or a query that already returns the names - not a conversion.
+record per element of a list they just read.
+
+| Screen | What it asks for |
+|---|---|
+| `src/app/admin/reports/responses/page.js` | The reports feed, then **one KPI request per programme** in a serial loop, only to build a lookup of KPI names (`{id, title}`). The names live in `v2_kpis` next to the programme, so one query can return all of them. |
+| `src/app/platform/responses/page.js` | The run list, then **the detail of every active run**, one after another. |
+
+The cost is `2 + N` requests in sequence, and the screen stays on its spinner until
+the last one answers - so the wait grows with the number of programmes or runs,
+not with the amount of data shown.
+
+**A conversion does not touch this.** A hook cannot be called in a loop: the number
+of reads has to be fixed at the top of a component, not decided by the data it
+just read. And even if it could be, `N` requests would still be `N` requests. What
+removes the loop is a server answer that already carries what the loop was
+collecting - a batch parameter (`?program_ids=a,b,c`), or, better, the join the
+endpoint could do itself, since the reports feed already knows which KPI each
+report is about and the names sit in the same table as the programme. Those are
+new or changed endpoints, which is why this waits with the database work.
 
 Converted out of this list:
 
@@ -314,6 +330,20 @@ Converted out of this list:
   be display-only: choosing someone else writes to the server and updates the open
   task, and never wrote the value it displays, so the value is a consequence of the
   open task rather than state that had to be kept in step.
+- the **staff project screen** — three reads and the identity from the session
+  cache, which also removed a flag whose value was never read.
+- the **project list** — two reads, the staff list read only while the create dialog
+  is open (which the old code expressed by fetching it from the button that opened
+  it), the role from the session cache, and a dead totals holder dropped. Its
+  create dialog opens because the ADDRESS asks for it rather than because an effect
+  copied the address into state, and closing it tidies the address - a navigation,
+  not a state write.
+
+  One accepted difference there, in the address rather than the screen: arriving
+  from the sidebar's "Create Project" link and then refreshing keeps the dialog
+  open, where the old code stripped the parameter on arrival so a refresh did not
+  reopen it. The address now describes what is on screen, which is what makes the
+  dialog possible to reason about at all.
 
 Screens whose read fills in a form the person then edits. They DO convert, and
 the shape is the same in all three: the stored answers are a derived base and an
@@ -331,8 +361,8 @@ separate.
 
 | Screen | Still open, and why |
 |---|---|
-| `src/app/platform/runs/review/[submissionId]/page.js` | Its read also **writes**: finding no stored evaluation, and only for someone who may review, it triggers one - and an evaluation can auto-approve the applicant and email them. That trigger cannot be a derived value, and an effect that performs it still writes state. It has to become an explicit action with a button, which is a product decision rather than a conversion, so the screen waits. |
-| `src/app/investor/profile/page.js` | Reads the server's values into a profile form. Needs the test above applied before it is touched. |
+| `src/app/platform/runs/review/[submissionId]/page.js` | See 3.9: its read also writes, and the write needs a decision. |
+| `src/app/investor/profile/page.js` | Reads the server's values into a profile form. Needs the test in section 1 applied before it is touched. |
 | `src/app/s/[runId]/page.js` | Public form. Its loader also switches the interface language, and a second effect keeps a local draft, so the read has to be separated from those two first. |
 
 Converted:
@@ -446,6 +476,61 @@ The second one is the one that matters beyond this incident: it makes
 
 `src/__tests__/use-api-hook.test.js` counts the requests in both cases, so the
 flood cannot come back unnoticed.
+
+### 3.9 The screen whose read also writes
+
+`src/app/platform/runs/review/[submissionId]/page.js` reads a submission, and when
+the read finds **no stored evaluation** - and only for someone holding the
+`runs.review` capability - it fires a POST that triggers one. The comment already
+in the code says why that matters: an evaluation **can auto-approve the applicant
+and email them**.
+
+That single step is what keeps the screen's warning, and no reorganisation of the
+screen removes it:
+
+- the trigger cannot be a derived value, because it is not a value;
+- an effect that performs it still writes state (the evaluation it receives), so
+the warning moves rather than goes;
+- it cannot be keyed on something the read returns, because what it watches for is
+  the read's ABSENCE of a result.
+
+What has to be decided is therefore a product question, not a technical one:
+
+| Option | Consequence |
+|---|---|
+| **A button.** The read stops at "not evaluated yet" and offers the action, like every other capability-gated action on the platform. | One extra click for a reviewer. The warning goes. |
+| **Leave the trigger automatic.** | Nothing changes for anyone; the screen keeps its one warning, recorded here as deliberate. |
+| Move the trigger into the endpoint the read already calls. | Not advised: that makes a GET approve applicants and send mail, and anything that fetches URLs - a prefetch, a crawler, a retry - would do it. |
+
+Recommendation: the button. Firing an approval the applicant is told about as a
+side effect of opening a page is the kind of thing a capability gate exists to make
+deliberate, and the gate is already there to be used. But it changes what a
+reviewer does, so it is the owner's call and the screen waits until it is made.
+
+### 3.10 The screen whose source of truth is the address bar
+
+`src/app/staff/op-report/page.js` is 4000 lines and reports four warnings, but they
+come from one arrangement rather than four mistakes: the tab and the week live in
+the query string, and the screen **mirrors** the query string into state on every
+change so that browser back/forward and the sidebar's links work.
+
+That means an effect reads the address and writes two pieces of state, and every
+other warning on the screen is a consequence of that state existing:
+
+- the six reads are keyed on the mirrored state rather than on the address;
+- the standup draft is checked when the modal opens, through a timer whose comment
+  says it exists "to let the week settle" - a state that has to settle is a state
+  that is being kept in step rather than computed;
+- the identity is fetched by the screen itself, with a redirect to sign-in on
+  failure.
+
+Converting it properly is not a conversion but a change of model: the tab and the
+week become values **computed from the address**, the controls that change them
+push to the address, the reads key on the address, the draft check becomes a
+consequence of opening the dialog, and the identity comes from the session cache
+with the shell owning the redirect. That is a deliberate piece of work on a large
+screen, and a wrong turn in it locks people out of the week they are reporting on,
+so it wants doing on its own and with the screen in front of you.
 
 ---
 

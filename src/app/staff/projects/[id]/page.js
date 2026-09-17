@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import {
   ArrowLeft,
   Briefcase,
@@ -20,7 +20,18 @@ import {
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+/** The project, whole: the payload carries both the project and its refusal. */
+const pickProject = (d) => (d?.success ? d : null);
+const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
 import TaskManager from "@/components/tasks/TaskManager";
 
 const STATUS_COLORS = {
@@ -61,13 +72,8 @@ export default function StaffProjectDetail() {
   const router = useRouter();
   const params = useParams();
   const { t } = useI18n();
-  const [project, setProject] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [blockerFilter, setBlockerFilter] = useState("all");
-  const [updates, setUpdates] = useState([]);
-  const [, setUpdatesLoading] = useState(false);
   const [updateForm, setUpdateForm] = useState({
     accomplishments: "",
     current_focus: "",
@@ -77,120 +83,53 @@ export default function StaffProjectDetail() {
     notes: "",
   });
   const [savingUpdate, setSavingUpdate] = useState(false);
-  const [user, setUser] = useState(null);
-  const [discussions, setDiscussions] = useState([]);
-  const [discussionsLoading, setDiscussionsLoading] = useState(false);
   const [newDiscussion, setNewDiscussion] = useState("");
   const [postingDiscussion, setPostingDiscussion] = useState(false);
 
-  useEffect(() => {
-    try {
-      setUser(JSON.parse(localStorage.getItem("user") || "{}"));
-    } catch (_) {}
-  }, []);
+  // Who is signed in, from the shell's session cache: no request of its own, and
+  // no dependence on the browser's stored copy.
+  const { cid: userCid, user } = useSessionUser();
 
   const projectId = params?.id;
 
-  const fetchProject = useCallback(async (bypassCache = false) => {
-    if (!projectId) return;
-    const url = `/api/admin/projects/${projectId}`;
-    const apply = (data) => {
-      if (data.success) {
-        setProject(data.project);
-      } else {
-        setError(t((data.error || t("staffMisc.projectDetail.loadFailed")) || "") || (data.error || t("staffMisc.projectDetail.loadFailed")));
-      }
-    };
-    let painted = false;
-    setLoading(true);
-    setError(null);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; mutation flows pass bypassCache=true so the project always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch {
-      if (!painted) {
-        setError(t("staffMisc.projectDetail.loadNetworkError"));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId, t]);
+  // The project, its updates and its discussion, through the shared hook: it owns
+  // the cache, the cache-first paint and the discarding of a stale answer, so the
+  // page keeps no copy of its own and reads its data during render.
+  const {
+    data: projectPayload,
+    loading: projectLoading,
+    error: projectError,
+    status: projectStatus,
+    refresh: refreshProject,
+  } = useApi(projectId ? `/api/admin/projects/${projectId}` : null, {
+    defaultValue: null,
+    transform: pickProject,
+    deps: [projectId],
+  });
+  const project = projectPayload?.project || null;
 
-  const fetchUpdates = useCallback(async (bypassCache = false) => {
-    if (!projectId) return;
-    const url = `/api/admin/projects/${projectId}/updates`;
-    const apply = (data) => {
-      if (data.success) setUpdates(data.updates || []);
-    };
-    setUpdatesLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; mutation flows pass bypassCache=true so the list always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setUpdatesLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch (_) {}
-    setUpdatesLoading(false);
-  }, [projectId]);
+  const { data: updates, refresh: refreshUpdates } = useApi(
+    projectId ? `/api/admin/projects/${projectId}/updates` : null,
+    { defaultValue: EMPTY_LIST, transform: pickList("updates"), deps: [projectId] },
+  );
 
-  useEffect(() => {
-    fetchProject();
-  }, [fetchProject]);
-  useEffect(() => {
-    fetchUpdates();
-  }, [fetchUpdates]);
+  const {
+    data: discussions,
+    loading: discussionsLoading,
+    refresh: refreshDiscussions,
+  } = useApi(projectId ? `/api/projects/discuss?project_id=${projectId}` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickList("messages"),
+    deps: [projectId],
+  });
 
-  const fetchDiscussions = useCallback(async (bypassCache = false) => {
-    if (!projectId) return;
-    const url = `/api/projects/discuss?project_id=${projectId}`;
-    const apply = (data) => {
-      if (data.success) setDiscussions(data.messages || []);
-    };
-    setDiscussionsLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; posting a message passes bypassCache=true so the thread always
-      // reflects the last post.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setDiscussionsLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch (_) {}
-    setDiscussionsLoading(false);
-  }, [projectId]);
-
-  useEffect(() => {
-    fetchDiscussions();
-  }, [fetchDiscussions]);
+  // The project's own outcome, derived. A payload that says it failed carries its
+  // own message; a request that never got an answer is the network's.
+  const error = projectError
+    ? t("staffMisc.projectDetail.loadNetworkError")
+    : projectStatus !== null && !project
+      ? t(projectPayload?.error || "") || t("staffMisc.projectDetail.loadFailed")
+      : null;
 
   const handlePostDiscussion = async () => {
     if (!newDiscussion.trim()) return;
@@ -209,7 +148,7 @@ export default function StaffProjectDetail() {
       const data = await res.json();
       if (data.success) {
         setNewDiscussion("");
-        fetchDiscussions(true);
+        refreshDiscussions();
       }
     } catch (_) {}
     setPostingDiscussion(false);
@@ -224,13 +163,13 @@ export default function StaffProjectDetail() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...updateForm,
-          user_id: user?.cid || user?.id || "unknown",
+          user_id: userCid || "unknown",
           user_name: user?.name || "Staff",
         }),
       });
       const data = await res.json();
       if (data.success) {
-        fetchUpdates(true);
+        refreshUpdates();
         setUpdateForm({
           accomplishments: "",
           current_focus: "",
@@ -244,7 +183,7 @@ export default function StaffProjectDetail() {
     setSavingUpdate(false);
   };
 
-  if (loading)
+  if (projectLoading)
     return (
       <>
         <div className="flex items-center justify-center py-32">
@@ -346,7 +285,7 @@ export default function StaffProjectDetail() {
             </div>
           </div>
           <button
-            onClick={fetchProject}
+            onClick={() => refreshProject()}
             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-primary)] hover:bg-tertiary transition-all text-[10px] font-bold uppercase tracking-wide"
           >
             <RefreshCw className="w-3.5 h-3.5" /> {t("staffMisc.projectDetail.refresh")}
@@ -571,12 +510,12 @@ export default function StaffProjectDetail() {
           <TaskManager
             mode="project"
             projectId={project.id}
-            userId={user?.cid || user?.id || ""}
+            userId={userCid || ""}
             userName={user?.name || "Staff"}
             projects={[{ id: project.id, name: project.name }]}
             projectMembers={members}
             taskList={project.tasks || []}
-            onTasksChange={fetchProject}
+            onTasksChange={() => refreshProject()}
             showCarryOver={false}
           />
         )}
