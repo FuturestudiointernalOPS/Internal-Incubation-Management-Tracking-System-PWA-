@@ -149,70 +149,60 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 27 |
-| `react-hooks/set-state-in-effect` | 200 | 22 |
+| ESLint warnings, total | 2192 | 21 |
+| `react-hooks/set-state-in-effect` | 200 | 16 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` | 2 | 0 |
 | Production build | passes | passes |
 
-The total includes ONE `no-unused-vars` that is not this migration's: it is in a
-new test file added by the other workstream (`result-pdf-layout.test.js`). On this
-side `no-unused-vars` is still 0. Two `exhaustive-deps` and one
-`preserve-manual-memoization` are deliberate; one `<img>` waits for the image
-work.
+**This is the floor for conversions.** Every remaining `set-state-in-effect` is
+structural or deliberate, and each is named with its reason below. The total
+also includes ONE `no-unused-vars` that is not this migration's (a new test file
+added by the other workstream) plus the one `<img>`, the one
+`preserve-manual-memoization` and two `exhaustive-deps` that are all deliberate.
 
-Screens carrying a `set-state-in-effect` warning: **15** (plus the hook itself,
+Screens carrying a `set-state-in-effect` warning: **12** (plus the hook itself,
 which is counted separately below).
 
 | Group | Screens |
 |---|---:|
-| Application pages | 11 |
+| Application pages | 8 |
 | The shell (`src/components/layout/DashboardLayout.js`) | 1 |
 | `src/lib/` modules | 3 |
 
-The hook itself accounts for the sixteenth file, and for four warnings rather than
-two (see the note below and §3.7).
+The hook itself accounts for the thirteenth file, and for four warnings rather
+than two (see the note below and §3.7).
 
-Of these 15 screens, **11 carry a single warning**; the remaining 4 carry two or
-three.
+Of these 12 screens, **10 carry a single warning**; the remaining 2 carry two.
 
 ### What is left, and under which reason
 
-Every screen still carrying a warning is accounted for below. Nothing is left
-unsaid, and no screen is on this list merely because it looked hard.
+**Nothing is left that a conversion can remove.** Every screen still carrying a
+warning is on this list for a reason that is not "not done yet":
 
-| Reason | Screens | Where |
+| Screen | Warnings | Reason |
 |---|---:|---|
-| The value comes from somewhere that is not the network | 5 | §3.4 |
-| Large screens not yet examined one by one | 2 | §3.6 |
-| A guard that runs outside the shell it guards | 2 | §3.11 |
-| The address bar is the source of truth, with one read group to go | 1 | §3.10 |
-| The loader has side effects beyond storing the result | 1 | §3.3 |
-| The shell's pre-paint session restore | 1 | §4.0.1 |
-| **`src/lib/` modules** | 3 | §3.7 and §4.0 |
-
-Named, so nothing is left in the abstract - the II application pages are:
-
-| Page | Warnings | Reason |
-|---|---:|---|
-| `src/app/pm/programs/[id]/page.js` | 3 | §3.6 - the last large screen, ~7000 lines, not yet examined one by one. |
-| `src/app/platform/runs/page.js` | 2 | §3.6 - not yet examined; the other workstream has been working in this area. |
-| `src/app/staff/op-report/page.js` | 1 | §3.10 - the one read GROUP left: the report read is what fills the report form, and the week is part of that form's address. |
 | `src/app/platform/modules/page.js` | 1 | §3.4 - the source is a registry read synchronously, not a network read at all. |
 | `src/app/platform/settings/page.js` | 1 | §3.4 - same registry. |
 | `src/app/developer/retro/page.js` | 1 | §3.4 - the source is the current WEEK; computing it during render would mismatch between the server's clock and the browser's. |
 | `src/app/investor/profile/page.js` | 1 | §3.4 - the source initialises an EDITABLE FORM; it needs the keyed-child restructure named in §1. |
+| `src/app/activate/page.js` | 1 | §3.4 - the token and mode come from the address bar, on a SIGN-IN screen: do it deliberately. |
 | `src/app/admin/layout.js` | 1 | §3.11 - the guard runs outside the shell it guards. |
 | `src/app/developer/layout.js` | 1 | §3.11 - same. |
-| `src/app/activate/page.js` | 1 | §3.4 - the token and mode come from the address bar, on a SIGN-IN screen: do it deliberately. |
 | `src/app/s/[runId]/page.js` | 1 | §3.3 - the loader also switches the interface language and builds a translated payload. |
+| `src/components/layout/DashboardLayout.js` | 1 | §4.0.1 - the pre-paint session restore. |
+| `src/lib/PermissionProvider.js` | 2 | §4.4 - the capability matrix. |
+| `src/lib/i18n.js` | 2 | §4.4 - the translation provider. |
+| `src/lib/ThemeProvider.js` | 1 | §4.4 - the theme provider. |
 
-Seven of the reasons above are no longer reasons: the screens that needed a
+Eight reasons that were once reasons are no longer: the screens that needed a
 capability the hook did not expose (§3.1), the ones that asked for one record per
 element (§3.2), the one whose read also wrote (§3.9), the standup screen's address
-mirror (§3.10, mostly), the venture group, the screen that republished its state
-from its writes, and the whole shared-component group except the shell itself are
-converted, and their sections record what was done.
+mirror (§3.10) and its form read, the venture group, the screen that republished
+its state from its writes, the whole shared-component group except the shell, the
+four biggest console pages, the last large screen, the runs console, and the
+programme manager's workspace are all converted, and their sections record what
+was done.
 The whole venture group is converted, and its section records what each of the
 three needed. Six of the reasons above are therefore no longer reasons: the
 screens that needed a capability the hook did not expose (§3.1), the ones that
@@ -480,7 +470,26 @@ Resolved from this list:
   whole stored row, so its two local edits were already consistent and were
   preserved as they were;
 - the **invitation link** — converted by splitting the link failure from the
-  form's own submission failure, which is what this list asked for first.
+  form's own submission failure, which is what this list asked for first;
+- the **four biggest console pages** — the programmes console, the project
+  workspace, the operations report console and the contacts grid. All four carried
+  one shape: the page number, the chosen segment and the chosen sub-team were HELD
+  as state and corrected by an effect after the fact. Each is now recorded against
+  the filter combination it belongs to and read during render, which is the repair
+  the access console already used. The project workspace also gave up a helper
+  that was DEAD - kept, by its own comment, only so the compiler's rules would
+  treat one read a certain way;
+- the **portable runs console** — its run list follows the filter and the page
+  while the five reference lists beside it do not, so the filter and the page went
+  into the run read's ADDRESS and the rest stayed as they were. Its respondent
+  table carried the reset-after-the-fact shape three times (page, selection,
+  duplicates panel), and the selection is now safer than it was: a selection from
+  an earlier filter combination is unreachable rather than merely invisible, where
+  the old effect cleared it one render late;
+- the **programme manager's workspace** — its registration-form link is a read
+  whose address says which question is being asked, its reviews list is a read, and
+  its identity comes from the session cache, which also removes a second call to
+  the session endpoint.
 
 ### 3.7 The hook's own four warnings
 
@@ -574,7 +583,7 @@ reason at one remove: anything that fetches a URL - a prefetch, an indexing robo
 a retry - would then approve applicants, which is not a thing a request should be
 able to do.
 
-### 3.10 The screen whose source of truth is the address bar — MOSTLY DONE
+### 3.10 The screen whose source of truth is the address bar - DONE
 
 `src/app/staff/op-report/page.js` is 4000 lines and reported four warnings from
 ONE arrangement rather than four mistakes: the tab and the week were state, an
@@ -588,18 +597,19 @@ the screen asking the session endpoint and falling back to the browser's copy (a
 its own redirect to sign-in went with it - the request gate already does that for
 every page behind a session); the stored draft is asked for where the dialog is
 OPENED rather than by an effect watching it, with the fifty-millisecond delay that
-existed only to let the screen's own state settle; and the summary tab's three
-reads are addressed on the person and the week and asked for only while that tab is
-open.
+existed only to let the screen's own state settle; the summary tab's three reads
+are addressed on the person and the week and asked for only while that tab is
+open; and the last read group - the report, the history, the tasks, the
+assignments and the staff list - is five hook reads now.
 
-**What is left is one read group**, the five the old code called together from one
-effect: the report, the history, the tasks, the assignments and the staff list.
-Four of them are plain reads. The report read is not: **it is what fills in the
-report form**, and the week is part of that form's address - so converting it means
-moving the form to the derived-base shape (section 1), with the edits recorded
-against the week they belong to so that changing week shows that week's report
-rather than carrying the previous one's typing across. That is a piece of its own
-on the screen where a mistake would keep people from reporting at all.
+The report read was the piece this section had put aside, and it needed one thing
+the other forms did not: the person's typing is recorded WITH THE ADDRESS IT WAS
+TYPED FOR, so changing week or type shows THAT week's report rather than carrying
+the previous one's text across. Two shapes are kept apart on purpose - the form
+before the read answers is NOT the shape an empty report produces, so the screen
+cannot flicker from one to the other. One read is kept with its answer discarded
+(the Future Studio staff list): that answer has never been read on this screen,
+and dropping the request would be a change of behaviour smuggled into a cleanup.
 
 ### 3.11 The guard that runs outside the shell it guards
 
@@ -780,6 +790,39 @@ The four mistakes that have cost a review cycle here, so they do not cost anothe
   record) keeps only what is TRANSIENT about it - the spinner and the failure
   message - and derives the rest, or a write's own answer has nowhere to go but a
   second request.
+
+### 4.4 The three providers - the last family, and why it is a decision
+
+`src/lib/i18n.js` (2), `src/lib/ThemeProvider.js` (1) and
+`src/lib/PermissionProvider.js` (2) are the last five warnings a conversion could
+touch, and all three are the SAME structural problem, one layer up from the
+guards in §3.11:
+
+| Provider | What it does before the first paint | 
+|---|---|
+| the translation provider | Reads the stored language, then the stored user account's language, and stores it. |
+| the theme provider | Reads the stored preference and the `data-theme` attribute a pre-hydration script already set, and stores both plus "mounted". |
+| the permission provider | Seeds the capability matrix from the shell's session cache in a LAYOUT effect - explicitly so the sidebar never flashes the fail-open role menu - and its refresh loader writes its loading flag synchronously. |
+
+Each reads a BROWSER STORE, so the value cannot be read during the render the
+server also produces: that is why they are effects, and it is the same reason the
+shell's restore (§4.0.1) and the section guards (§3.11) are not conversions.
+
+**The repair is the same for all three, and it is not a sweep.** Make the value
+something the provider SUBSCRIBES to rather than owns - `useSyncExternalStore`
+over a small module store, with the server snapshot deliberately the default, the
+way `useSessionUser` already does it for the identity. The writes that touch the
+DOM (setting the language attribute, applying the theme) stay in effects; only the
+stored VALUE moves. That is a change to how the app owns three values that EVERY
+screen depends on at once, so it is made deliberately and the sections walked in
+each role - not as part of a warning cleanup. Nothing about them is broken today:
+the pre-hydration script and the layout-effect seed are what keep the server's
+render and the browser's first render agreeing.
+
+> Note that the translation provider's second effect carries an existing
+> `eslint-disable` for its dependency list. It is deliberately NOT removed here:
+> it goes away when the value moves to a subscription, and removing it before
+> then would only produce a new warning.
 
 ---
 
