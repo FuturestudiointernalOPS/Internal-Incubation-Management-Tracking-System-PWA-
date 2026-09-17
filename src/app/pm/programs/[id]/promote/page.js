@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Rocket,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,10 @@ export default function PromoteToVenture() {
   const goBack = useSafeBack(`/pm/programs/${id}`);
   const { t } = useI18n();
 
-  const [user, setUser] = useState({});
+  // The role comes from the shell's session cache instead of the browser's stored
+  // copy, so nothing has to be written from an effect. It is absent for the first
+  // moment of a cold load, which simply means the action is not offered yet.
+  const { role } = useSessionUser();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [program, setProgram] = useState(null);
@@ -54,11 +58,6 @@ export default function PromoteToVenture() {
   };
 
   // Fetch program data on mount
-  useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) setUser(JSON.parse(savedUser));
-  }, []);
-
   useEffect(() => {
     const fetchProgram = async (bypassCache = false) => {
       const url = `/api/pm/full-state?id=${id}`;
@@ -181,8 +180,7 @@ export default function PromoteToVenture() {
     );
   }
 
-  const canPromote =
-    user.role === "super_admin" || user.role === "program_manager";
+  const canPromote = role === "super_admin" || role === "program_manager";
 
   return (
     <>

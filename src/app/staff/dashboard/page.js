@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Clock,
   Star,
@@ -9,16 +9,19 @@ import {
 } from "lucide-react";
 import StandupRetroView from "@/components/dashboard/StandupRetroView";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
+
+// Module scope on purpose: the hook keys its internal callback on these functions,
+// so inline arrows would give them a new identity on every render and refetch in
+// a loop.
+const pickStaffAssignments = (d) => (d?.success ? d.assignments || [] : []);
+const pickStaffTasks = (d) => (d?.success ? d.tasks || [] : []);
+const pickPendingSubmissions = (d) =>
+  d?.success ? (d.submissions || []).filter((s) => s.status === "pending") : [];
 
 export default function StaffDashboard() {
   const { t } = useI18n();
-  const [, setIsLoaded] = useState(false);
-  const [user, setUser] = useState({});
-  const [assignments, setAssignments] = useState([]);
-  const [pendingSubmissions, setPendingSubmissions] = useState([]);
-  const [upcomingTasks, setUpcomingTasks] = useState([]);
-  const [tasksLoading, setTasksLoading] = useState(false);
   // Snapshot the clock once per render — reading it mid-render is impure.
   const [now] = useState(() => Date.now());
 
@@ -33,57 +36,30 @@ export default function StaffDashboard() {
     return new Date(dateStr).toLocaleDateString();
   };
 
-  const fetchData = async (uid) => {
-    const urls = [
-      `/api/program-staff?staff_id=${uid}`,
-      uid ? `/api/tasks?user_id=${uid}&status=pending&limit=5` : null,
-      `/api/participant/submissions`,
-    ];
-
-    const apply = (assignData, taskData, subData) => {
-      if (assignData?.success) setAssignments(assignData.assignments);
-      if (taskData?.success) setUpcomingTasks(taskData.tasks || []);
-      if (subData?.success)
-        setPendingSubmissions(
-          (subData.submissions || []).filter((s) => s.status === "pending"),
-        );
-    };
-
-    try {
-      // Cache-first paint: returning to the dashboard renders every section
-      // instantly from a fresh (≤30s) snapshot, then the network refresh below
-      // converges to current values.
-      const cached = urls.map((u) => (u ? cacheGet(u) : null));
-      const cachedReady = cached.every((c) => c !== null);
-      if (cachedReady) {
-        apply(cached[0], cached[1], cached[2]);
-        setIsLoaded(true);
-      }
-      if (uid && !cachedReady) setTasksLoading(true);
-
-      const responses = await Promise.all(
-        urls.map((u) =>
-          u ? fetch(u).then((r) => r.json()) : Promise.resolve(null),
-        ),
-      );
-      urls.forEach((u, i) => {
-        if (u && responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1], responses[2]);
-      setIsLoaded(true);
-    } catch (e) {
-      console.error(e);
-      setIsLoaded(true);
-    } finally {
-      setTasksLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const sessionUser = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(sessionUser);
-    fetchData(sessionUser.id);
-  }, []);
+  // The identity comes from the shell's session cache instead of the browser's
+  // stored copy, and the reads follow it as a plain dependency — so nothing is
+  // written from an effect.
+  //
+  // This also corrects what those reads were asking for: they used the person's
+  // record identifier, while the task endpoint authenticates against the SESSION
+  // identifier and refuses any other — so a staff member who is not a super admin
+  // had their task list refused rather than drawn.
+  const { user, cid } = useSessionUser();
+  const { data: assignments } = useApi(
+    cid ? `/api/program-staff?staff_id=${cid}` : null,
+    { defaultValue: [], transform: pickStaffAssignments, deps: [cid] },
+  );
+  const { data: upcomingTasks, loading: tasksReadLoading } = useApi(
+    cid ? `/api/tasks?user_id=${cid}&status=pending&limit=5` : null,
+    { defaultValue: [], transform: pickStaffTasks, deps: [cid] },
+  );
+  const { data: pendingSubmissions } = useApi("/api/participant/submissions", {
+    defaultValue: [],
+    transform: pickPendingSubmissions,
+  });
+  // "Not known yet" is not the same as "empty": the task block keeps its
+  // spinner while the identity is still on its way.
+  const tasksLoading = !cid || tasksReadLoading;
 
   return (
     <>
@@ -106,7 +82,7 @@ export default function StaffDashboard() {
 
         {/* ── STAND-UP & RETRO (Phase 7 Redesign) ── */}
         <StandupRetroView
-          user={user}
+          user={user || {}}
           context={{ context_type: "staff", context_id: null }}
           contextLabel={t("staffMisc.dashboard.standupRetroContextLabel")}
         />
