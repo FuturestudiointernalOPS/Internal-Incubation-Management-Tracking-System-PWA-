@@ -52,20 +52,30 @@ export const GET = createHandler({ roles: ["staff", "super_admin", "program_mana
   const { searchParams } = new URL(req.url);
   const program_id = searchParams.get("program_id");
 
-  // Server-side enforcement for facilitators
-  if (program_id) {
-    const session = await getSession();
-    if (session && !hasProgramManagementAccess(session.role)) {
-      const facError = await requireAssignmentAccess({
-        resource: "program",
-        contextId: program_id,
-        capability: "sessions.conduct",
-        minLevel: 1,
-      });
-      if (facError) return facError;
+  // Server-side enforcement for facilitators.
+  //
+  // Without a program_id the model listed EVERY program's sessions to any of
+  // the roles above — an external facilitator could enumerate every program's
+  // schedule by simply omitting the parameter. Contextual callers must scope
+  // the request to a program; the program-scoped check below then applies.
+  // Management roles (super_admin / program_manager) keep the unscoped read.
+  const session = await getSession();
+  if (session && !hasProgramManagementAccess(session.role)) {
+    if (!program_id) {
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
     }
+    const facError = await requireAssignmentAccess({
+      resource: "program",
+      contextId: program_id,
+      capability: "sessions.conduct",
+      minLevel: 1,
+    });
+    if (facError) return facError;
   }
 
   const { rows } = await listSessions(program_id);
   return NextResponse.json({ success: true, sessions: rows });
-});
+});;

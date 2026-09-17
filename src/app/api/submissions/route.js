@@ -278,7 +278,18 @@ export async function PATCH(req) {
       });
       if (facError) return facError;
       const scope = await getFacilitatorTeamScope(progId, session.cid);
-      if (scope.scope !== "all" && scope.teamIds.length > 0) {
+      if (scope.scope !== "all") {
+        // Fail closed: a facilitator with NO assigned teams has no record scope
+        // in this program. The previous guard only ran when teamIds was
+        // non-empty, so `scope: 'none'` (no teams, or a scope lookup error)
+        // skipped the check entirely and let them grade any submission in the
+        // program. Mirror the GET path (:525-528) — empty scope denies.
+        if (scope.teamIds.length === 0) {
+          return NextResponse.json(
+            { success: false, error: "errors.insufficientPermissions" },
+            { status: 403 },
+          );
+        }
         const inScope = await checkSubmissionInFacilitatorTeamScope(id, scope.teamIds);
         if (inScope.rows.length === 0) {
           return NextResponse.json(

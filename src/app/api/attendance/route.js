@@ -66,6 +66,21 @@ export async function POST(req) {
       });
       if (facError) return facError;
 
+      // The gate above is decided from the FIRST record's program, but each
+      // record inserts its OWN program_id. A batch whose first row names the
+      // assigned program could therefore carry later rows for a different
+      // program, writing attendance outside the scope that was just checked.
+      // Every row must belong to the program that was authorized.
+      const foreignRow = records.find(
+        (r) => r?.program_id && String(r.program_id) !== String(progId),
+      );
+      if (foreignRow) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+
       const scope = await getFacilitatorTeamScope(progId, session.cid);
       if (scope.scope === "none") {
         allowedParticipantIds = new Set();

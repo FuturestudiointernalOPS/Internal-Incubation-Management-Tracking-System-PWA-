@@ -282,8 +282,14 @@ export async function learnerHasEnrollments(userCid) {
 
 /** Enrolled courses + progress + resume point for the learner's My Learning. */
 export async function getLearnerCourses(userCid) {
+  // Suspended enrollments grant no access (`learnerHasEnrollments` and the
+  // `learning_own` scope policy both exclude them), so they must not be listed
+  // here either — otherwise the learner sees a course in My Learning that the
+  // enrolment-gated routes then refuse to open.
   const enrollRes = await db.execute({
-    sql: "SELECT * FROM lms_enrollments WHERE user_cid = ? ORDER BY enrolled_at DESC",
+    sql: `SELECT * FROM lms_enrollments
+          WHERE user_cid = ? AND status <> 'suspended'
+          ORDER BY enrolled_at DESC`,
     args: [userCid],
   });
   const enrollments = enrollRes.rows;

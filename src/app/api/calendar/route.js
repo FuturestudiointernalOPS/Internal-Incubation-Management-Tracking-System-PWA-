@@ -36,26 +36,38 @@ export async function GET(req) {
     const session = await getSession();
     const cid = session?.cid || null;
 
-    // Role-aware program scope: facilitators see their assigned programs,
-    // participants see their enrolled programs, others see everything.
+    // Program scope is derived from RELATIONSHIPS, not from the platform role
+    // label. The identity correction stopped mutating `contacts.role` when
+    // someone takes a facilitator assignment, so keying this on
+    // `role === 'facilitator'` left every other contextual identity (a
+    // `member` acting as a facilitator, for instance) falling through to
+    // `null` — which means NO restriction and every program's sessions,
+    // deliverables and follow-ups. That was a fail-open read.
+    //
+    // Internal / privileged identities keep their existing unscoped view;
+    // everyone else is restricted to the programs they are actually assigned
+    // to (facilitator) or enrolled in (participant), and an empty scope stays
+    // empty rather than silently meaning "all".
+    const PROGRAM_UNSCOPED_ROLES = [
+      "super_admin",
+      "developer",
+      "admin",
+      "staff",
+      "program_manager",
+      "team",
+    ];
     let scopedProgramIds = null; // null = no restriction
-    if (session?.role === "facilitator" && cid) {
-      const teams = await getFacilitatorProgramScopePids(cid);
-      scopedProgramIds = teams.rows.map((r) => r.pid);
-    } else if (session?.role === "participant" && cid) {
-      const pp = await getParticipantProgramScopePids(cid);
-      scopedProgramIds = pp.rows.map((r) => r.pid);
-    }
-
-    // A scoped role (facilitator/participant) with NO assignments must see NO
-    // program-scoped events — an empty scope list would silently remove the
-    // program filter below and leak every program's events. The sentinel
-    // matches no real program id.
-    if (
-      (session?.role === "facilitator" || session?.role === "participant") &&
-      (!scopedProgramIds || scopedProgramIds.length === 0)
-    ) {
-      scopedProgramIds = ["__no_program_scope__"];
+    if (cid && !PROGRAM_UNSCOPED_ROLES.includes(session?.role)) {
+      const [facPids, partPids] = await Promise.all([
+        getFacilitatorProgramScopePids(cid),
+        getParticipantProgramScopePids(cid),
+      ]);
+      const ids = new Set([
+        ...facPids.rows.map((r) => String(r.pid)),
+        ...partPids.rows.map((r) => String(r.pid)),
+      ]);
+      // Fail closed: no relationship at all means NO program-scoped events.
+      scopedProgramIds = ids.size ? [...ids] : ["__no_program_scope__"];
     }
 
     const scopePlaceholders = scopedProgramIds && scopedProgramIds.length
