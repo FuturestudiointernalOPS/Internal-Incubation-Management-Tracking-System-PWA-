@@ -22,6 +22,14 @@ import { isScopePolicyImplemented } from "@/lib/authorization/scope-catalog";
 const ROWS = [
   { policyKey: "venture_own", i18nKey: "rowVenture", icon: ShieldCheck },
   { policyKey: "program_assigned", i18nKey: "rowProgram", icon: ShieldCheck },
+  // The WRITE side of the programme question, next to the read side above: a
+  // learner's enrolment answers "may this person see this programme" and never
+  // "may this person change it", so it has its own policy.
+  {
+    policyKey: "program_staffed",
+    i18nKey: "rowProgramStaffed",
+    icon: ShieldCheck,
+  },
   { policyKey: "learning_own", i18nKey: "rowLearning", icon: ShieldCheck },
   { policyKey: "team_own", i18nKey: "rowTeam", icon: ShieldAlert },
 ];

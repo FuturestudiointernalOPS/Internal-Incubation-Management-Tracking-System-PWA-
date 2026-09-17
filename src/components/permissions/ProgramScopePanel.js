@@ -19,6 +19,7 @@ import AppEmptyState from "@/components/ui/AppEmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import PersonPicker from "./PersonPicker";
 import ProgramScopeWaves from "./ProgramScopeWaves";
+import ProgramPortfolioDefaultAction from "./ProgramPortfolioDefaultAction";
 import { PERMISSION_BASE } from "./permissionNav";
 
 /**
@@ -89,6 +90,9 @@ const PROGRAM_EDIT_CAPABILITY = "programs.edit";
  *      so the rule cannot be narrowed inside it. `removals` names exactly what a
  *      trimmed portfolio template would stop granting; the trimmed template is
  *      already created and stays inert until the role default is repointed.
+ *      The repoint itself is a click, not a migration, and it lives in its own
+ *      block (./ProgramPortfolioDefaultAction): it reads what would be removed
+ *      before it writes, and states what it removed after it wrote.
  *
  *   4. THE ROLLOUT SWITCH (./ProgramScopeWaves)
  *      The control itself, one domain at a time, with the verdict and the
@@ -549,6 +553,9 @@ export default function ProgramScopePanel() {
                 {t("engineering.permissions.programScopeRepointLink")}
               </Link>
             </div>
+
+            {/* The deliberate click at the end of the walkthrough above. */}
+            <ProgramPortfolioDefaultAction onRefresh={load} />
           </div>
 
           {/* ── 4. The rollout switch ─────────────────────────────────────── */}

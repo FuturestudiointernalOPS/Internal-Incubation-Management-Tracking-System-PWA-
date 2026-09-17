@@ -13,6 +13,10 @@ import AppButton from "@/components/ui/AppButton";
 import AppModal from "@/components/ui/AppModal";
 import AppBadge from "@/components/ui/AppBadge";
 import AppEmptyState from "@/components/ui/AppEmptyState";
+import {
+  WaveEnableRefusal,
+  WaveOverrideConfirm,
+} from "./ProgramScopeWaveRefusal";
 
 /**
  * Toast via the app-wide listener (src/components/ui/GlobalToast.js). Kept
@@ -94,20 +98,20 @@ const NO_OVERRIDES = {};
  * running programmes nobody is recorded as managing (the rule can match nobody
  * for them) and people who would be left attached to no programme at all.
  */
-function blockersFor(t, row) {
-  const blockers = row.blockers || {};
+function blockersFor(t, blockers) {
+  const counted = blockers || {};
   const items = [];
-  if ((blockers.unmanaged ?? 0) > 0) {
+  if ((counted.unmanaged ?? 0) > 0) {
     items.push(
       t("engineering.permissions.programScopeWaveBlockerUnmanaged", {
-        n: blockers.unmanaged,
+        n: counted.unmanaged,
       }),
     );
   }
-  if ((blockers.losesEverything ?? 0) > 0) {
+  if ((counted.losesEverything ?? 0) > 0) {
     items.push(
       t("engineering.permissions.programScopeWaveBlockerLosesEverything", {
-        n: blockers.losesEverything,
+        n: counted.losesEverything,
       }),
     );
   }
@@ -131,7 +135,7 @@ function WaveVerdict({ t, row }) {
         {t("engineering.permissions.programScopeWaveUnsafe")}
       </p>
       <ul className="list-disc space-y-0.5 pl-4">
-        {blockersFor(t, row).map((item) => (
+        {blockersFor(t, row.blockers).map((item) => (
           <li
             key={item}
             className="text-[10px] leading-relaxed text-[var(--text-secondary)]"
@@ -218,6 +222,14 @@ function WaveError({ t, error }) {
  *      restores access and needs none — confirmation only ever guards the
  *      harmful direction.
  *
+ *   4. THE REFUSAL (./ProgramScopeWaveRefusal). The server refuses (409) to
+ *      switch a domain on while it is unsafe, and sends the two findings back
+ *      with the refusal. That is its own state, not a generic failure: it is
+ *      printed beside the switch with the repairs to do, and it is answered
+ *      either by doing those repairs or by an explicit override — a second,
+ *      separately confirmed write. Nothing about the refusal is retried on its
+ *      own, and nothing about it is automatic.
+ *
  * The write needs `permissions.assign_capabilities`, so a 403 is a legitimate
  * answer and is rendered as an inline reason naming the capability, exactly
  * like the manager-assign repair in the parent panel.
@@ -230,6 +242,18 @@ export default function ProgramScopeWaves({ report, onRefresh }) {
   // The wave awaiting confirmation before it is switched ON.
   const [pending, setPending] = useState(null);
   /**
+   * The 409 refusal: the server declined to switch the wave ON while it is
+   * unsafe. Tagged with the report it answered, so a freshly loaded report drops
+   * the refusal instead of leaving stale counts on screen.
+   */
+  const [refusal, setRefusal] = useState(null);
+  /**
+   * The wave whose safety check the administrator chose to overrule. The
+   * override is only ever sent from this wave's own confirmation — never
+   * automatically, and never from the refusal itself.
+   */
+  const [overridePending, setOverridePending] = useState(null);
+  /**
    * `waveSafety` as the switch endpoint last reported it, tagged with the report
    * it was applied to. The server stays authoritative: once a freshly loaded
    * report arrives the tag no longer matches, so the remembered answer is dropped
@@ -238,6 +262,9 @@ export default function ProgramScopeWaves({ report, onRefresh }) {
   const [patch, setPatch] = useState({ report: null, waves: NO_OVERRIDES });
   const overrides =
     report && patch.report === report ? patch.waves : NO_OVERRIDES;
+  /** The refusal, while it still describes the report on screen. */
+  const activeRefusal =
+    refusal && refusal.report === report ? refusal : null;
 
   const rows = Array.isArray(report?.waveSafety) ? report.waveSafety : [];
   const summary = report?.summary || {};
@@ -296,7 +323,13 @@ export default function ProgramScopeWaves({ report, onRefresh }) {
     setError(null);
   }
 
-  async function applyChange(row, enabled) {
+  function closeOverride() {
+    if (busyWave) return;
+    setOverridePending(null);
+    setError(null);
+  }
+
+  async function applyChange(row, enabled, { override = false } = {}) {
     if (!row?.wave) return;
     setBusyWave(row.wave);
     setError(null);
@@ -306,7 +339,11 @@ export default function ProgramScopeWaves({ report, onRefresh }) {
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ wave: row.wave, enabled }),
+          // The override is an extra, explicit word in the body: the ordinary
+          // write is still only the wave and the direction.
+          body: override
+            ? JSON.stringify({ wave: row.wave, enabled, override: true })
+            : JSON.stringify({ wave: row.wave, enabled }),
         },
       );
       const data = await res.json().catch(() => ({}));
@@ -324,6 +361,28 @@ export default function ProgramScopeWaves({ report, onRefresh }) {
         });
         return;
       }
+
+      // The server REFUSES to switch a domain on while it is unsafe, and sends
+      // the two findings back with the refusal. That is its own state, not a
+      // generic failure and not something to retry: it says what to repair, and
+      // the only other answer is an explicit override in a second, separately
+      // confirmed write. The refusal is therefore rendered beside the switch
+      // rather than inside a dialog that would invite the same click again.
+      if (
+        res.status === 409 &&
+        enabled &&
+        data.reason === "not-safe-to-enable"
+      ) {
+        setRefusal({
+          report,
+          wave: row.wave,
+          reason: data.reason,
+          blockers: data.blockers || {},
+        });
+        setPending((current) => (current?.wave === row.wave ? null : current));
+        return;
+      }
+
       if (!res.ok || data.success === false) {
         setError({
           kind: "failed",
@@ -341,15 +400,25 @@ export default function ProgramScopeWaves({ report, onRefresh }) {
       if (data.waves && typeof data.waves === "object") {
         setPatch({ report, waves: { ...overrides, ...data.waves } });
       }
+      // The wave moved, so any refusal about it (and any override dialog for it)
+      // no longer describes the state on screen.
+      setRefusal((current) => (current?.wave === row.wave ? null : current));
+      setOverridePending(null);
       setPending(null);
       notify(
         "success",
-        t(
-          enabled
-            ? "engineering.permissions.programScopeWaveDoneOn"
-            : "engineering.permissions.programScopeWaveDoneOff",
-          { wave: waveLabel(row) },
-        ),
+        // An override is acknowledged as one: the audit record says so, and the
+        // toast should not read like an ordinary switch.
+        override
+          ? t("engineering.permissions.programScopeWaveOverrideDone", {
+              wave: waveLabel(row),
+            })
+          : t(
+              enabled
+                ? "engineering.permissions.programScopeWaveDoneOn"
+                : "engineering.permissions.programScopeWaveDoneOff",
+              { wave: waveLabel(row) },
+            ),
       );
       onRefresh?.();
     } catch (e) {
@@ -365,6 +434,8 @@ export default function ProgramScopeWaves({ report, onRefresh }) {
 
   const pendingLabel = pending ? waveLabel(pending) : "";
   const pendingBusy = !!pending && busyWave === pending.wave;
+  const overrideLabel = overridePending ? waveLabel(overridePending) : "";
+  const overrideBusy = !!overridePending && busyWave === overridePending.wave;
 
   return (
     <div className="space-y-2 border-t border-[var(--border-primary)] pt-3">
@@ -393,7 +464,8 @@ export default function ProgramScopeWaves({ report, onRefresh }) {
         />
       </div>
 
-      {error && !pending && <WaveError t={t} error={error} />}
+      {/* Inline unless a dialog is already showing the same reason. */}
+      {error && !pending && !overridePending && <WaveError t={t} error={error} />}
 
       {rows.length === 0 ? (
         <AppEmptyState
@@ -464,6 +536,19 @@ export default function ProgramScopeWaves({ report, onRefresh }) {
 
                 <WaveVerdict t={t} row={row} />
 
+                {/* The server's own refusal, stated where the switch is. */}
+                {activeRefusal?.wave === row.wave && (
+                  <WaveEnableRefusal
+                    t={t}
+                    reason={activeRefusal.reason}
+                    items={blockersFor(t, activeRefusal.blockers)}
+                    onOverride={() => {
+                      setError(null);
+                      setOverridePending(row);
+                    }}
+                  />
+                )}
+
                 {row.partial === true && <PartialCoverage t={t} row={row} />}
               </div>
             );
@@ -509,6 +594,22 @@ export default function ProgramScopeWaves({ report, onRefresh }) {
           </div>
         </div>
       </AppModal>
+
+      {/* ── Override — the deliberate second write, never automatic ───── */}
+      <WaveOverrideConfirm
+        t={t}
+        wave={overrideLabel}
+        open={!!overridePending}
+        items={blockersFor(
+          t,
+          activeRefusal?.blockers || overridePending?.blockers,
+        )}
+        busy={overrideBusy}
+        onCancel={closeOverride}
+        onConfirm={() => applyChange(overridePending, true, { override: true })}
+      >
+        <WaveError t={t} error={error} />
+      </WaveOverrideConfirm>
     </div>
   );
 }
