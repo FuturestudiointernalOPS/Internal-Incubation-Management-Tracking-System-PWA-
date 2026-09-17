@@ -149,22 +149,22 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 102 |
-| `react-hooks/set-state-in-effect` | 200 | 98 |
+| ESLint warnings, total | 2192 | 90 |
+| `react-hooks/set-state-in-effect` | 200 | 86 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` | 2 | 0 |
 | Production build | passes | passes |
 
-Screens carrying a `set-state-in-effect` warning: **66**.
+Screens carrying a `set-state-in-effect` warning: **54**.
 
 | Group | Screens |
 |---|---:|
 | Application pages | 15 |
 | Shared components (`src/components/`) | 32 |
-| Venture screens | 15 |
+| Venture screens | 3 |
 | `src/lib/` modules | 4 |
 
-Of these 66 screens, **49 carry a single warning**; the remaining 17 carry two to
+Of these 54 screens, **37 carry a single warning**; the remaining 17 carry two to
 five.
 
 ### What is left, and under which reason
@@ -180,15 +180,15 @@ unsaid, and no screen is on this list merely because it looked hard.
 | The read fills in a form | 1 | §1, the form table |
 | The loader has side effects beyond storing the result | 1 | §3.3 |
 | Large screens not yet examined one by one | 6 | §3.6 |
-| **Venture screens**, in progress: eight done, fifteen to go | 15 | §4 |
+| Venture screens needing a restructure, not the recipe | 3 | §4 |
 | **Shared components** (rendered by several roles at once) | 32 | §4 |
 | **`src/lib/` modules** | 4 | §3.7 and §4 |
 
-Four of the reasons above are no longer reasons: the screens that needed a
+Five of the reasons above are no longer reasons: the screens that needed a
 capability the hook did not expose (§3.1), the ones that asked for one record per
-element (§3.2), the one whose read also wrote (§3.9) and the standup screen's
-address mirror (§3.10, mostly) are converted, and their sections record what was
-done.
+element (§3.2), the one whose read also wrote (§3.9), the standup screen's address
+mirror (§3.10, mostly) and the venture group (§4) are converted, and their sections
+record what was done.
 
 > The test count is not recorded here any more: another workstream adds and
 > renames suites in this same working tree, so any figure went stale within the
@@ -598,29 +598,16 @@ sections walked in each role, rather than as part of a warning cleanup.
 
 The three groups that are not started, and why they are grouped rather than listed:
 
-- **15 venture screens**, of the 23 this group began with. Eight are converted:
-  the coaching, data room, feedback, investor, learning, session, task and timeline
-  consoles. **They share one shape** - a venture plus one sub-resource, all
-  display-only - so the remaining fifteen are the same recipe repeated, and they
-  are the cheapest group left. The fifteen:
+- **3 venture screens**, of the 23 this group began with. Twenty are converted.
+  The three left each need a RESTRUCTURE rather than the recipe, and each reason is
+  specific:
 
-  | Screen | Warning |
-  |---|---:|
-  | `src/app/admin/ventures/[id]/page.js` | 1 |
-  | `src/app/admin/ventures/[id]/edit/page.js` | 1 |
-  | `src/app/admin/ventures/[id]/founders/page.js` | 1 |
-  | `src/app/admin/ventures/[id]/fundraising/page.js` | 1 |
-  | `src/app/admin/ventures/[id]/reports/page.js` | 1 |
-  | `src/app/admin/ventures/permissions/page.js` | 1 |
-  | `src/app/participant/ventures/page.js` | 1 |
-  | `src/app/participant/ventures/[id]/page.js` | 2 |
-  | `src/app/staff/ventures/[id]/page.js` | 1 |
-  | the six under `src/components/ventures/**` | 1 each |
+  | Screen | Why the recipe does not apply |
+  |---|---|
+  | `src/app/participant/ventures/[id]/page.js` | Some twenty reads fanned out by one tab-keyed effect, and its read writes over an editable profile form whose setter is handed to eight child tab components through a context - the derived-base shape would change a contract those files consume. |
+  | `src/components/ventures/JourneyManagerPanel.js` | Its stages value is REPUBLISHED from the response body of five different writes, so removing that state would turn each write into an extra read and change how each behaves when that read fails. |
+  | `src/components/ventures/VentureDashboard.js` | The read's answer becomes a per-widget map that each widget rewrites for itself, failure message included; the read assigns the whole map back over those writes - exactly the case the test in section 1 says the derived-base shape is wrong for. It also cannot use a module-scope shaper, because building the map needs the translator. |
 
-  Two of them do not follow the recipe directly: the participant and staff venture
-  screens read the venture **as that person**, so they belong with the identity work
-  rather than with the admin consoles, and the fundraising console may carry a
-  write in its loader. Each is read before it is touched.
 - **32 shared components** (`src/components/**`, ventures excluded). These are
   rendered by several roles at once, so a mistake reaches several audiences. They
   are handled last, one at a time, never in bulk, and each one is checked for who
@@ -630,8 +617,9 @@ The three groups that are not started, and why they are grouped rather than list
 
 ### What the venture recipe looks like, for whoever continues it
 
-Each of these screens has one loader and one effect that calls it, and the loader
-is nothing but the shared cache written out by hand. The conversion is:
+Twenty of the twenty-three were converted with one recipe, three at a time. Each
+screen has one loader and one effect that calls it, and the loader is nothing but
+the shared cache written out by hand:
 
 1. the reads become `useApi` calls addressed on the venture's id, with named
    shapers at module scope (a list from a field, or the whole payload);
@@ -640,12 +628,20 @@ is nothing but the shared cache written out by hand. The conversion is:
    values directly;
 4. the reload points become the reads' own `refresh`;
 5. a read triggered by a CLICK - a document's detail, a session's detail - stays a
-   plain fetch, so the file keeps using the shared cache directly for that one.
+   plain fetch, so the file keeps using the shared cache directly for that one;
+6. a read whose answer must not be kept by the browser says so:
+   `fetchOptions: { cache: "no-store" }`, which the hook passes to the request.
 
-The two mistakes to avoid, both of which cost a review cycle already: a state
-declaration that is not part of the read set must not be swept up with the ones
-that are, and a shaper factory (`pickList("tasks")`) has to be built at module
-scope rather than at the call site.
+The three mistakes that have cost a review cycle here, so they do not cost another:
+
+- a state declaration that is not part of the read set must not be swept up with
+  the ones that are - replace the specific declaration lines, never a block from
+  "the first state" to "the effect";
+- a shaper factory (`pickList("tasks")`) has to be built at module scope, not at
+  the call site;
+- a helper cannot call the hook for you - React reads a hook by the shape of the
+  code, not by its name, and it will refuse one called from a function that is
+  neither a component nor named `use…`. Seven reads in one file are written out.
 
 ---
 

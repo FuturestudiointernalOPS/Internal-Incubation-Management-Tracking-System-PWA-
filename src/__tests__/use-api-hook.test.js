@@ -240,9 +240,7 @@ describe("request options", () => {
     const first = await fetchJsonEnvelope("/api/options-a", {
       cache: "no-store",
     });
-    const second = await fetchJsonEnvelope("/api/options-a", {
-      cache: "no-store",
-    });
+    await fetchJsonEnvelope("/api/options-a", { cache: "no-store" });
 
     expect(first.status).toBe(200);
     // Two requests, because an answer the caller asked not to be kept must not be
