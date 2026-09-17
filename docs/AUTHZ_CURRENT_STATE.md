@@ -577,9 +577,56 @@ legacy routes are retired.
    (Operations → Programme access → Assign manager). The report is the worklist.
 2. **Read the impact.** The panel shows how many people would be left with no
    programme at all, and whether each wave is safe to switch on.
-3. **Repoint the role default** at the trimmed portfolio template (Templates
-   section) if the report says anyone is relying on the two misplaced powers.
+3. **Repoint the role default** at the trimmed portfolio template - there is a
+   button for it in Operations -> Programme access -> The template split, which
+   reads the impact first (S12.7).
 4. **Switch on `content`**, then `enrollment`, then `groups` — staging first, and
    walk each as a programme manager, as a staff member, and as someone with no
    attachment.
 5. **Delete the switch** once the census reads full coverage.
+
+### 12.7 Finishing the loop: enforced safety, the cutover check, and the missing click
+
+Three gaps remained after 12.4–12.5, and all three were "a human has to remember
+to do this". Each is now enforced or automatic.
+
+**1. The switch refuses to remove access while it is unsafe.** The readiness
+report computes the rule's two failure modes; the switch now reads them and
+REFUSES to switch a wave on while either is non-zero, returning the blockers and
+the repair worklist with the refusal (`409`, reason `not-safe-to-enable`). So
+"read the report first" is a rule rather than a hope. It is deliberately **not a
+lock**: an explicit `override: true` proceeds, because an administrator who
+understands the consequence must be able to act — and the override is written
+into the audit record. Turning a wave **off** is never blocked; that direction
+restores access, and a guard on the safe direction only teaches people to click
+through dialogs.
+
+**2. The cutover criterion is a number, not a judgement.** The report now returns
+`covered` per wave, `summary.allWavesOn`, `summary.anyPartial` and
+`summary.readyToRemoveSwitch`. The switch can be deleted when that boolean is
+true — i.e. every wave is on **and** no wave still reports partial coverage. That
+is the whole of step 6's condition, expressed so nobody has to reconstruct it.
+
+**3. The template split has its click.** Creating the trimmed portfolio template
+changed nobody, and the repoint was left to the Templates screen — which meant the
+most consequential removal in the whole programme had no purpose-built action.
+There is now one: it **reads the impact first** (which capabilities stop being
+granted and how many people hold them), confirms, writes, and reports **what it
+took away** rather than only that it succeeded. It refuses to overwrite a default
+an administrator set by hand (`409`, reason `role-default-customized`, with the
+current template named), is idempotent, and audits the previous and new template.
+
+The fifth scope policy is also rendered now. `program_staffed` was added to the
+shared catalogue for the write side of the programme question, but the governance
+screen still listed four rows, so the catalogue advertised a rule the screen did
+not show. It reads its state from the catalogue like the other four, so it can
+never claim to be implemented when it is not.
+
+**Contract coverage added** (source-level and behavioural, so the promises above
+cannot rot):
+
+| Suite | Locks |
+|---|---|
+| `program-scope-waves-ui.test.js` | only the enabling direction is confirmed; an unsafe wave names both blockers before the click AND inside the dialog; a partial wave names the surfaces that stay open; a refusal states the missing capability; a thrown error is reported |
+| `program-scope-cutover.test.js` | enabling is refused while unsafe (with the blockers and the worklist); an override proceeds and is audited; switching off is never blocked; the repoint refuses a hand-set default; the repoint reports what it removed |
+| `program-scope-wiring.test.js` | the guard through REAL route handlers, both shapes: a programme id from the body, and one resolved from the record first. Proves the wave-off path is unchanged and that a wave-on path refuses before writing |
