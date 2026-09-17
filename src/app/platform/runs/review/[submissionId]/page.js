@@ -149,27 +149,21 @@ export default function ReviewPage() {
       if (evalData.success && evalData.evaluation) {
         cacheSet(evalUrl, evalData);
         applyEval(evalData);
-      } else if (canReview) {
-        // No evaluation yet — auto-trigger AI evaluation if the form is
-        // configured for it. Evaluating can auto-approve, so it needs
-        // runs.review: a reader without it sees "not evaluated yet" rather
-        // than firing a request the server would refuse.
-        try {
-          const triggerRes = await fetch("/api/platform/ai/evaluate-submission", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ submission_id: parseInt(submissionId) }),
-          });
-          const triggerData = await triggerRes.json();
-          if (triggerData.success && triggerData.evaluation) {
-            setEvaluation(triggerData.evaluation);
-            setEvalHistory([triggerData.evaluation]);
-          }
-        } catch (_) {}
       }
+      // No evaluation yet? NOTHING happens here — deliberately. Opening or
+      // refreshing this page must never spend a model call. It used to
+      // auto-trigger, which re-evaluated on EVERY load: one wasted model call per
+      // view, a fresh evaluation row each time, and because a new row carries no
+      // human values it also hid whatever a reviewer had entered. The stored
+      // evaluation is the answer; if it is missing, a reviewer runs it here and
+      // now, with the Re-run AI button in the header (handleReRunAI).
     } catch (e) { if (!painted) setError(t(e.message || "") || e.message); }
     setLoading(false);
-  }, [submissionId, t, canReview]);
+  }, [submissionId, t]);
+
+  // `load` does not depend on canReview on purpose: permissions arrive
+  // asynchronously, so depending on them re-created load and re-ran the whole
+  // fetch — which was a second route into the auto-trigger above.
 
   useEffect(() => { load(); }, [load]);
 
@@ -299,7 +293,7 @@ export default function ReviewPage() {
         )}
         {canReview && (
         <button onClick={handleReRunAI} disabled={saving || isReviewLocked} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-          <RefreshCw className={cn("w-3 h-3", saving && "animate-spin")} /> {t("platformMisc.runReview.rerunAi")}
+          <RefreshCw className={cn("w-3 h-3", saving && "animate-spin")} /> {evaluation ? t("platformMisc.runReview.rerunAi") : t("platformMisc.runReview.runAi")}
         </button>
         )}
       </div>

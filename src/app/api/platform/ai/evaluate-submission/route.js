@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
-import { evaluateSubmission, hasEvaluation, getEvaluation } from "@/lib/platform/ai/evaluate";
+import { evaluateSubmission, formHasAiEvaluation, getEvaluation } from "@/lib/platform/ai/evaluate";
 import {
   approveSubmissionAndReturn,
   claimEvaluationSubmission,
@@ -478,7 +478,10 @@ export async function GET(req) {
       return NextResponse.json({ success: false, error: "form_id or submission_id required" }, { status: 400 });
     }
 
-    const exists = await hasEvaluation(parseInt(formId));
+    // "Is AI configured for this FORM?" — not "has this submission been
+    // evaluated". The field name is kept for existing consumers; the wrong
+    // function is what produced duplicate evaluations.
+    const exists = await formHasAiEvaluation(parseInt(formId));
     return NextResponse.json({ success: true, has_evaluation: exists });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

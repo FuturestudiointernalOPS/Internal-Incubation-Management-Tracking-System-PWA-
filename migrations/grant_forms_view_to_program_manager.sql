@@ -1,0 +1,59 @@
+-- =============================================================================
+-- GRANT forms.view TO THE PROGRAM MANAGER TEMPLATE
+-- =============================================================================
+-- WHY
+--   A Program Manager whose contact carries an access_profile_id pointing at
+--   Program Manager could not open the Forms list: GET /api/platform/forms?
+--   status=published answers 403 errors.insufficientPermissions, because that
+--   route requires the `forms` `view` capability and this template carried NO
+--   forms capability at all — not even view.
+--
+--   Measured before this file, on production:
+--     Staff Default   -> forms.view / create / edit / delete, all level 5
+--     Program Manager -> nothing in the `forms` module
+--   So a contact whose profile override points at Program Manager has LESS
+--   Forms access than a plain staff member, whose role default is Staff
+--   Default. That is the whole bug: the override REPLACES the role default,
+--   it never adds to it.
+--
+-- WHAT IT DELIBERATELY DOES NOT DO
+--   It grants VIEW only. Authoring forms (create / edit / delete) stays with
+--   Staff Default: a Program Manager who reviews submissions needs to open the
+--   Forms list, not to rewrite the form. Adding those is the same shape — one
+--   line each — if PMs should author too.
+--
+-- NON-DISRUPTIVE
+--   * INSERT ... WHERE NOT EXISTS only: an existing row is left EXACTLY as an
+--     administrator set it, at EXACTLY its level. Never upgraded, never
+--     downgraded, never overwritten.
+--   * Nothing is deleted, and no other module, profile or role is touched.
+--   * Safe to re-run: the second run inserts nothing.
+--   * Level 1 = view, following the catalog convention (view 1, create 2,
+--     edit 3, delete 4). The route asks for minLevel 1.
+--
+-- BOTH RESOLUTION PATHS, ON PURPOSE
+--   Section 1 is the path that actually resolves: role_access_profile_defaults
+--   maps program_manager -> the Program Manager profile, and while that row
+--   exists the role_capabilities fallback is never consulted. Section 2
+--   mirrors it for a Program Manager with NO resolvable profile, exactly as
+--   migrations/grant_runs_edit.sql does for runs.edit.
+--
+-- RUN IT
+--   node scripts/db-audit/apply-schema-file.mjs migrations/grant_forms_view_to_program_manager.sql
+--   node scripts/db-audit/apply-schema-file.mjs migrations/grant_forms_view_to_program_manager.sql --apply .env.audit-staging
+--   node scripts/db-audit/apply-schema-file.mjs migrations/grant_forms_view_to_program_manager.sql --apply .env.local
+--
+-- VERIFY (expect one 'profile' row and one 'role' row, both level 1)
+--   SELECT 'profile' AS via, ap.name, c.module, c.capability, c.access_level
+--     FROM access_profile_capabilities c
+--     JOIN access_profiles ap ON ap.id = c.profile_id
+--    WHERE ap.name = 'Program Manager' AND c.module = 'forms'
+--   UNION ALL
+--   SELECT 'role', rc.role, rc.module, rc.capability, rc.access_level
+--     FROM role_capabilities rc
+--    WHERE rc.role = 'program_manager' AND rc.module = 'forms';
+-- =============================================================================
+
+INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level) SELECT ap.id, 'forms', 'view', 1 FROM access_profiles ap WHERE ap.name = 'Program Manager' AND ap.is_active = 1 AND NOT EXISTS (SELECT 1 FROM access_profile_capabilities c WHERE c.profile_id = ap.id AND c.module = 'forms' AND c.capability = 'view');
+
+INSERT INTO role_capabilities (role, module, capability, access_level) SELECT 'program_manager', 'forms', 'view', 1 WHERE NOT EXISTS (SELECT 1 FROM role_capabilities WHERE role = 'program_manager' AND module = 'forms' AND capability = 'view');

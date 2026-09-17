@@ -278,9 +278,21 @@ export async function getEvaluation(submissionId) {
 }
 
 /**
- * Check if a form has AI evaluation enabled.
+ * Is AI evaluation *configured* for this form?
+ *
+ * This used to be called `hasEvaluation`, which reads like "has this submission
+ * been evaluated?" — and two callers used it as if it meant that. It does not.
+ * It answers a FORM-level question: is there a framework, and is the AI switch
+ * on. Because the submit path treated that as "already evaluated", every
+ * re-submission of an already-evaluated response ran the model again and
+ * appended a fresh evaluation row — one wasted model call per save, and a new
+ * row each time (the new row carries no human values, so it also hid whatever a
+ * human had entered).
+ *
+ * The honest name is the point: for the per-submission question use
+ * `submissionHasEvaluation`. Never let these two be confused again.
  */
-export async function hasEvaluation(formId) {
+export async function formHasAiEvaluation(formId) {
   await initDb();
   const fwResult = await db.execute({
     sql: "SELECT 1 FROM platform_evaluation_frameworks WHERE form_id = ?",
@@ -296,4 +308,26 @@ export async function hasEvaluation(formId) {
   return settings.ai_evaluation === true;
 }
 
-export default { evaluateSubmission, hasEvaluation, getFramework, getEvaluation };
+/**
+ * Has THIS submission already been evaluated?
+ *
+ * The question the submit path actually needed. Evaluating a response that
+ * already has an evaluation is what produced duplicate rows and burned a model
+ * call for an answer that existed; this is the guard that stops it.
+ */
+export async function submissionHasEvaluation(submissionId) {
+  await initDb();
+  const r = await db.execute({
+    sql: "SELECT 1 FROM platform_submission_evaluations WHERE submission_id = ? LIMIT 1",
+    args: [parseInt(submissionId)],
+  });
+  return r.rows.length > 0;
+}
+
+export default {
+  evaluateSubmission,
+  formHasAiEvaluation,
+  submissionHasEvaluation,
+  getFramework,
+  getEvaluation,
+};

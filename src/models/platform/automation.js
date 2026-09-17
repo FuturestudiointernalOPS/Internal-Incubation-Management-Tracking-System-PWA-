@@ -15,6 +15,7 @@ import {
   notifyUser,
 } from "@/lib/platform/integrations";
 import { resolveDefaultRole } from "@/lib/platform/roles";
+import { resolveAutomationFlag } from "@/lib/platform/automationSettings";
 import { stopRoleMutationEnabled } from "@/lib/identity";
 import { resolveSubmissionEmail } from "@/lib/email";
 import { hashToken } from "@/lib/token-hashing";
@@ -102,6 +103,15 @@ const RULES = [
     action: async (ctx) => {
       const { submission, run } = ctx;
 
+      // The confirmation message is a decision, so the RUN owns it and the form
+      // supplies the default (run -> form -> on). Absent means ON, so nothing
+      // changes for a form or run that has never configured this.
+      const shouldAcknowledge = resolveAutomationFlag(
+        ctx.form?.settings,
+        ctx.run?.settings,
+        "on_submit.send_acknowledgement",
+      );
+
       await audit({
         entity_type: "submission",
         entity_id: submission.id,
@@ -119,7 +129,7 @@ const RULES = [
           sql: "SELECT name, email FROM contacts WHERE cid = ?",
           args: [submission.submitter_id],
         });
-        if (contact.rows.length > 0 && contact.rows[0].email) {
+        if (shouldAcknowledge && contact.rows.length > 0 && contact.rows[0].email) {
           await sendSubmissionConfirmation({
             to: contact.rows[0].email,
             participantName: contact.rows[0].name || submission.submitter_id,
@@ -201,7 +211,9 @@ const RULES = [
     action: async (ctx) => {
       const isApproved = ctx.review.decision === "approved";
       const runName = ctx.run?.name || "form";
-      const auto = ctx.form?.settings?.automation;
+      // Every switch below is a decision the RUN owns; the form is only its
+      // default (run -> form -> on). See lib/platform/automationSettings.
+      const flag = (path) => resolveAutomationFlag(ctx.form?.settings, ctx.run?.settings, path);
 
       // Write CRM timeline (guarded — CRM identity is NOT a prerequisite for
       // onboarding; it is only used when it already exists)
@@ -216,7 +228,7 @@ const RULES = [
       if (!isApproved) return;
 
       // ── Program enrollment (respects automation config) ──
-      const shouldEnroll = !auto || auto.on_approve?.enroll_in_program !== false;
+      const shouldEnroll = flag("on_approve.enroll_in_program");
       if (shouldEnroll && ctx.run?.form_id && ctx.submission?.submitter_id) {
         try {
           const { default: db, initDb } = await import("@/lib/db");
@@ -238,7 +250,7 @@ const RULES = [
       }
 
       // ── Group assignment from form run (respects automation config) ──
-      const shouldAssignGroup = !auto || auto.on_approve?.assign_to_group !== false;
+      const shouldAssignGroup = flag("on_approve.assign_to_group");
       if (shouldAssignGroup && ctx.run?.id && ctx.submission?.submitter_id) {
         try {
           const { default: db, initDb } = await import("@/lib/db");
@@ -285,8 +297,8 @@ const RULES = [
       // ── Create platform user + send activation email (respects workflow settings) ──
       // CRM existence is NOT a prerequisite: the submission itself can onboard
       // a brand-new person as long as a valid email can be resolved.
-      const shouldCreateUser = !auto || auto.on_approve?.create_platform_user !== false;
-      const shouldSendActivation = !auto || auto.on_approve?.send_activation_email !== false;
+      const shouldCreateUser = flag("on_approve.create_platform_user");
+      const shouldSendActivation = flag("on_approve.send_activation_email");
 
       const { recordEmailStatus } = await import("@/lib/email");
 
@@ -379,8 +391,8 @@ const RULES = [
         // Determine the Group + its Program from the run assignment.
         // The group establishes organizational/program CONTEXT:
         //  - group name exactly "Future Studio" → internal Staff
-        //  - any other group (with or without a Program) → Participant
-        //  - no group at all → neutral Member (no role yet; the person still
+        //  - group TIED TO A PROGRAM → Participant
+        //  - any other group, or none → neutral Member (the person still
         //    activates and lands on the empty workspaces hub)
         let groupName = null;
         let groupProgramId = null;
@@ -401,14 +413,15 @@ const RULES = [
         let contact = null;
         let accountExists = false;
         let accountActivated = false;
-        // Automated role:
-        //  - "Future Studio" group → internal Staff
-        //  - any other group → Participant
-        //  - no group → neutral Member (activates into the empty workspaces hub)
+        // Automated role — Participant is a PROGRAM membership, so it requires
+        // a group that is actually tied to a program:
+        //  - "Future Studio" group            → internal Staff
+        //  - any group that has a program_id  → Participant
+        //  - any other group, or no group     → neutral Member
         let targetRole =
           groupName && groupName.trim().toUpperCase() === "FUTURE STUDIO"
             ? "staff"
-            : groupName
+            : groupName && groupProgramId
               ? "participant"
               : "member";
         const existingContact = await db.execute({

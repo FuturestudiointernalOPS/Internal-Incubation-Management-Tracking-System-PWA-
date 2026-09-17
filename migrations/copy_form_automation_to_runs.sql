@@ -1,0 +1,51 @@
+-- =============================================================================
+-- COPY EACH FORM'S AUTOMATION SWITCHES ONTO ITS RUNS (one-time, additive)
+-- =============================================================================
+-- WHY
+--   The applicant-email switches (acknowledgement, approval, activation,
+--   rejection, create-user, enrol, assign-to-group) are a RUN decision from this
+--   release on: the run screen's Settings tab owns them. The FORM keeps only its
+--   scoring policy (auto-approval + cutoff), its templates and its success /
+--   redirect settings — its automation block is no longer editable.
+--
+--   The resolver still reads run → form → on (lib/platform/automationSettings.js),
+--   so nothing that was configured before stops applying. This statement makes
+--   each run SELF-CONTAINED by copying its form's stored values down, which is
+--   what "let it be on the runs" means in practice: the run's own Settings tab
+--   then shows the true, explicit value instead of an inherited one.
+--
+-- SAFE BY CONSTRUCTION
+--   * Only ADDITIVE: it writes run.settings.automation ONLY where that key is
+--     absent. A run that already has automation — including one an administrator
+--     touched in the run screen — is never overwritten.
+--   * It touches nothing else in `settings` (jsonb_set on one path).
+--   * Forms with no automation (the common case) are excluded by the WHERE.
+--   * Run it twice and the second run changes nothing.
+--
+-- WHY --allow-destructive IS REQUIRED
+--   scripts/db-audit/apply-schema-file.mjs refuses any statement matching
+--   "UPDATE … SET" by pattern, because those files are normally additive DDL.
+--   This one is a genuinely additive data copy, so the flag is expected here.
+--
+-- DRY RUN FIRST (reporting only — run these by hand and compare)
+--   SELECT r.id, r.name, f.name AS form_name, f.settings->'automation' AS would_copy
+--     FROM platform_form_runs r JOIN platform_forms f ON f.id = r.form_id
+--    WHERE f.settings->'automation' IS NOT NULL AND r.settings->'automation' IS NULL
+--    ORDER BY r.id;
+--
+--   -- After applying, every run of a configured form should carry its own copy:
+--   SELECT r.id, r.name, r.settings->'automation' AS run_automation
+--     FROM platform_form_runs r JOIN platform_forms f ON f.id = r.form_id
+--    WHERE f.settings->'automation' IS NOT NULL ORDER BY r.id;
+--
+-- ROLLBACK (removes only what this added — the run falls back to its form again)
+--   UPDATE platform_form_runs SET settings = settings - 'automation'
+--    WHERE settings->'automation' IS NOT NULL;
+--
+-- RUN IT
+--   node scripts/db-audit/apply-schema-file.mjs migrations/copy_form_automation_to_runs.sql
+--   node scripts/db-audit/apply-schema-file.mjs migrations/copy_form_automation_to_runs.sql --apply --allow-destructive .env.audit-staging
+--   node scripts/db-audit/apply-schema-file.mjs migrations/copy_form_automation_to_runs.sql --apply --allow-destructive .env.local
+-- =============================================================================
+
+UPDATE platform_form_runs r SET settings = jsonb_set(COALESCE(r.settings, '{}'::jsonb), '{automation}', f.settings->'automation', true) FROM platform_forms f WHERE f.id = r.form_id AND f.settings->'automation' IS NOT NULL AND r.settings->'automation' IS NULL;
