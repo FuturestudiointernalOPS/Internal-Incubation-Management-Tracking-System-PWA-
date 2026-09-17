@@ -43,7 +43,7 @@ import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
-import { fetchSwrJson } from "@/lib/hooks/useApi";
+import { fetchSwrJson, useApi } from "@/lib/hooks/useApi";
 import { buildAccessNav } from "@/lib/masterNavigation";
 import {
   HOVER_CAPABLE_QUERY,
@@ -713,6 +713,9 @@ function shellRole(userRole, role) {
 // an actual course enrollment, never from the role string.
 const PERSONAL_ROLES = ["member", "founder", "participant", "team"];
 
+/** Whether the connected person actually holds at least one course enrollment. */
+const pickLmsEnrollment = (d) => (d && d.success ? !!d.enrolled : false);
+
 function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = false }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -721,7 +724,10 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingInvites, setPendingInvites] = useState([]);
   const [pendingAssignments, setPendingAssignments] = useState([]);
-  const [openMenus, setOpenMenus] = useState({});
+  // The sections the person opened or closed BY HAND, recorded together with the
+  // route they were on. Nothing else about the accordion is state: the effective
+  // map is derived below, so a navigation no longer needs an effect to settle it.
+  const [menuToggles, setMenuToggles] = useState({ key: null, map: {} });
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const { lang, t, switchLang } = useI18n();
   const router = useRouter();
@@ -963,7 +969,8 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
   // Whether the connected person holds at least one usable course enrollment.
   // true = show the "My Learning" door; false/null = hidden (known to be
   // false, or the server has not answered yet).
-  const [hasLmsEnrollments, setHasLmsEnrollments] = useState(null);
+  // The learner door is derived from the enrolment read above and from nothing
+  // else, so there is no state here to keep in step with it.
 
   // Effective capability matrix for sidebar visibility, read ONCE for the whole
   // surface from the shared permission context (the server remains
@@ -1133,35 +1140,24 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
   }, [user.role, user.cid, user.id]);
 
   // "My Learning" only appears once the learner actually holds a course
-  // (self-subscribed, admin enrollment or program assignment). The shell asks
-  // on every PERSONAL surface — not only for the `participant` role — because a
+  // (self-subscribed, admin enrollment or program assignment). The shell asks on
+  // every PERSONAL surface — not only for the `participant` role — because a
   // course subscriber belongs to no program, so the relationship-driven sidebar
   // would leave them with a dashboard-only menu. Staff-side surfaces open the
   // course library from their capabilities instead (buildAccessNav).
-  useEffect(() => {
-    const sessionRole = shellRole(user.role, role);
-    if (!PERSONAL_ROLES.includes(sessionRole)) {
-      setHasLmsEnrollments(false);
-      return;
-    }
-    let active = true;
-    fetch("/api/lms/my-learning?exists=1")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!active) return;
-        setHasLmsEnrollments(data && data.success ? !!data.enrolled : null);
-      })
-      .catch(() => {
-        if (active) setHasLmsEnrollments(null);
-      });
-    return () => {
-      active = false;
-    };
-    // `pathname` re-runs the check on every navigation inside the shell: the
-    // door then opens as soon as an enrollment exists (e.g. right after
-    // subscribing to a course from another page), and a failed request heals
-    // on the next click instead of staying hidden.
-  }, [user.role, user.cid, user.id, role, pathname]);
+  //
+  // The read is addressed ON THE ROLE, so a surface that is not personal has no
+  // address at all: no request is made and the door is hidden, which is what the
+  // synchronous write this replaces was expressing. `pathname` is a dependency
+  // rather than part of the address, so navigating inside the shell re-asks —
+  // the door then opens as soon as an enrollment exists (e.g. right after
+  // subscribing to a course from another page), and a failed request heals on
+  // the next click instead of staying hidden.
+  const sessionRole = shellRole(user.role, role);
+  const { data: hasLmsEnrollments } = useApi(
+    PERSONAL_ROLES.includes(sessionRole) ? "/api/lms/my-learning?exists=1" : null,
+    { defaultValue: false, transform: pickLmsEnrollment, deps: [pathname] },
+  );
 
   // Unread counts per nav type — messages from actual unread count, others from notifications
   const unreadByType = useMemo(() => {
@@ -1428,29 +1424,18 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
     [activePathIds],
   );
 
-  // Auto-expand the active route's ancestors and close everything else, so
-  // only the section(s) containing the current page stay open (accordion).
-  useEffect(() => {
-    if (!activePathKey) return;
-    const ids = activePathKey.split("|").filter(Boolean);
-    setOpenMenus((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      for (const key of Object.keys(next)) {
-        if (!ids.includes(key)) {
-          next[key] = false;
-          changed = true;
-        }
-      }
-      for (const id of ids) {
-        if (!next[id]) {
-          next[id] = true;
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [activePathKey]);
+  // The accordion: on a new route only the sections containing the current page
+  // stay open, and whatever the person toggled ON THAT ROUTE is laid over that.
+  // Derived during render, so arriving somewhere costs no state write and cannot
+  // cascade a render — and the first paint already has the route's section open.
+  const openMenus = useMemo(() => {
+    const next = {};
+    for (const id of activePathKey.split("|").filter(Boolean)) next[id] = true;
+    if (menuToggles.key === activePathKey) {
+      for (const [id, open] of Object.entries(menuToggles.map)) next[id] = open;
+    }
+    return next;
+  }, [activePathKey, menuToggles]);
 
   // Accordion toggle: opening one section closes the other click-opened ones,
   // except sections on the active path (they stay as context). Defined AFTER
@@ -1459,20 +1444,22 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
   const toggleMenu = useCallback(
     (id) => {
       if (!id) return;
-      setOpenMenus((prev) => {
-        const next = { ...prev };
-        if (next[id]) {
-          next[id] = false;
-          return next;
+      setMenuToggles((prev) => {
+        const map = prev.key === activePathKey ? { ...prev.map } : {};
+        if (openMenus[id]) {
+          map[id] = false;
+          return { key: activePathKey, map };
         }
-        for (const key of Object.keys(next)) {
-          if (key !== id && !activePathIds.has(key)) next[key] = false;
+        // Opening one section closes the other hand-opened ones, except the
+        // sections on the active path — they stay as context.
+        for (const key of Object.keys(map)) {
+          if (key !== id && !activePathIds.has(key)) delete map[key];
         }
-        next[id] = true;
-        return next;
+        map[id] = true;
+        return { key: activePathKey, map };
       });
     },
-    [activePathIds],
+    [activePathKey, activePathIds, openMenus],
   );
 
   const handleLogout = async () => {
