@@ -1,46 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { TrendingUp, DollarSign, Users, Target, BarChart3, Megaphone, Activity, Briefcase, Loader2 } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const STAGE_COLORS = { interested: "bg-slate-500/10 text-slate-400", watching: "bg-blue-500/10 text-blue-400", meeting_requested: "bg-amber-500/10 text-amber-400", due_diligence: "bg-purple-500/10 text-purple-400", negotiation: "bg-orange-500/10 text-orange-400", invested: "bg-emerald-500/10 text-emerald-400", declined: "bg-rose-500/10 text-rose-400" };
+
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickExecutiveDashboard = (d) => (d?.success ? d : null);
 
 export default function ExecutiveDashboardPage() {
   const { t } = useI18n();
   const STAGE_LABELS = { interested: t("investorAdmin.dashboard.stageInterested"), watching: t("investorAdmin.dashboard.stageWatching"), meeting_requested: t("investorAdmin.dashboard.stageIntroRequested"), due_diligence: t("investorAdmin.dashboard.stageDueDiligence"), negotiation: t("investorAdmin.dashboard.stageNegotiation"), invested: t("investorAdmin.dashboard.invested"), declined: t("investorAdmin.dashboard.stageDeclined") };
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchDashboard = async (bypassCache = false) => {
-    setLoading(true);
-    try {
-      const url = "/api/investor/executive-dashboard";
-      const apply = (data) => {
-        if (data.success) setData(data);
-      };
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (_) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchDashboard(); }, []);
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no data state of its own and never sets state from an effect.
+  const { data, loading } = useApi("/api/investor/executive-dashboard", {
+    transform: pickExecutiveDashboard,
+  });
 
   if (loading) return <><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>;
 

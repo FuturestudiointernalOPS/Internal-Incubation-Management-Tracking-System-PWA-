@@ -1,57 +1,29 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApiMulti } from "@/lib/hooks/useApi";
 import { FileText, BarChart3, FolderKanban, CheckCircle2, Clock, Activity } from "lucide-react";
 
 function cn(...classes) { return classes.filter(Boolean).join(" "); }
 
+// Module scope on purpose: the hook keys its internal callback on this array and
+// on the transforms it carries, so inline values would give them a new identity
+// on every render and refetch in a loop.
+const pickPlatformStats = (d) => (d?.success ? d.stats : null);
+const pickPlatformActivity = (d) => (d?.success ? d.activity || [] : []);
+const PLATFORM_DASHBOARD_ENDPOINTS = [
+  { key: "stats", url: "/api/platform/form-runs?dashboard=true", transform: pickPlatformStats },
+  { key: "activity", url: "/api/platform/form-runs?activity=true", transform: pickPlatformActivity },
+];
+
 export default function PlatformDashboard() {
   const { t } = useI18n();
-  const [operationalStats, setOperationalStats] = useState(null);
-  const [recentActivity, setRecentActivity] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const loadOperationalData = async (bypassCache = false) => {
-    const statsUrl = "/api/platform/form-runs?dashboard=true";
-    const activityUrl = "/api/platform/form-runs?activity=true";
-    const apply = (statsData, activityData) => {
-      if (statsData?.success) setOperationalStats(statsData.stats);
-      if (activityData?.success)
-        setRecentActivity(activityData.activity || []);
-    };
-    // Cache-first paint: returning to this page renders instantly when both
-    // snapshots are fresh; the network refresh below converges.
-    if (!bypassCache) {
-      const cachedStats = cacheGet(statsUrl);
-      const cachedActivity = cacheGet(activityUrl);
-      if (
-        cachedStats !== null &&
-        cachedStats.success &&
-        cachedActivity !== null &&
-        cachedActivity.success
-      ) {
-        apply(cachedStats, cachedActivity);
-        setLoading(false);
-      }
-    }
-    try {
-      const [statsData, activityData] = await Promise.all(
-        [statsUrl, activityUrl].map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      if (statsData?.success) cacheSet(statsUrl, statsData);
-      if (activityData?.success) cacheSet(activityUrl, activityData);
-      apply(statsData, activityData);
-    } catch (_) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { loadOperationalData(); }, []);
+  // Both reads — including the cache-first paint that only fires once *both*
+  // snapshots are fresh — belong to the hook, so the screen keeps no data state
+  // of its own and never sets state from an effect.
+  const { data, loading } = useApiMulti(PLATFORM_DASHBOARD_ENDPOINTS);
+  const operationalStats = data.stats;
+  const recentActivity = data.activity || [];
 
   if (loading) {
     return (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   BarChart3,
   Bug,
@@ -10,7 +10,7 @@ import {
   RefreshCw,
   ListTodo,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 
 const PERIODS = [
@@ -20,45 +20,22 @@ const PERIODS = [
   { value: "year", label: "This Year" },
 ];
 
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickEngineeringReports = (j) => (j?.success ? j : null);
+
 export default function EngineeringReports() {
   const { t } = useI18n();
   const [period, setPeriod] = useState("month");
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchReports = useCallback(async (bypassCache = false) => {
-    const url = `/api/engineering/reports?period=${period}`;
-    const apply = (json) => {
-      if (json.success) setData(json);
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: each period caches under its own URL, so switching
-      // periods / returning renders instantly from fresh snapshots; the refresh
-      // button passes bypassCache=true so the view always reflects the latest.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const json = await res.json();
-      if (json.success) {
-        cacheSet(url, json);
-        apply(json);
-      }
-    } catch (e) {
-      console.error("Failed to fetch reports", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [period]);
-
-  useEffect(() => {
-    fetchReports();
-  }, [fetchReports]);
+  // The loader's work — each period caching under its own URL, the cache-first
+  // paint, discarding a stale response and the refresh button's bypass — belongs
+  // to the hook, so the screen keeps no data state of its own and never sets
+  // state from an effect.
+  const { data, loading, refresh } = useApi(
+    `/api/engineering/reports?period=${period}`,
+    { transform: pickEngineeringReports, deps: [period] },
+  );
 
   return (
     <>
@@ -95,7 +72,7 @@ export default function EngineeringReports() {
                 </button>
               ))}
             </div>
-            <button onClick={fetchReports} className="p-2.5 rounded-xl bg-secondary border border-[var(--border-primary)] hover:bg-tertiary transition-all">
+            <button onClick={refresh} className="p-2.5 rounded-xl bg-secondary border border-[var(--border-primary)] hover:bg-tertiary transition-all">
               <RefreshCw className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
             </button>
           </div>

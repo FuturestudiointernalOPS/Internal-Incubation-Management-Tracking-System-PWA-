@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { BadgeCheck, ShieldAlert, SearchX, Loader2, Award } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
 
 export const dynamic = "force-dynamic";
 
@@ -15,35 +15,26 @@ export const dynamic = "force-dynamic";
  * course title, issue date, status). Uses text labels for the status — never
  * color alone (accessibility).
  */
+
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop. An unknown, revoked-invalid or failed lookup all collapse to `null`,
+// which the screen renders as "not found".
+const pickVerifiedCertificate = (d) =>
+  d?.success && d.certificate ? d.certificate : null;
+
 export default function VerifyCertificatePage() {
   const params = useParams();
   const token = params.token;
   const { t, lang } = useI18n();
-  const [loading, setLoading] = useState(true);
-  const [certificate, setCertificate] = useState(null);
-  const [notFound, setNotFound] = useState(false);
-
-  const fetchCertificate = useCallback(async () => {
-    setLoading(true);
-    setNotFound(false);
-    try {
-      const res = await fetch(`/api/verify/certificate/${encodeURIComponent(token)}`);
-      const json = await res.json();
-      if (!json.success || !json.certificate) {
-        setNotFound(true);
-      } else {
-        setCertificate(json.certificate);
-      }
-    } catch {
-      setNotFound(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    fetchCertificate();
-  }, [fetchCertificate]);
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no state of its own and never sets state from an effect.
+  const { data: certificate, loading } = useApi(
+    `/api/verify/certificate/${encodeURIComponent(token)}`,
+    { transform: pickVerifiedCertificate, deps: [token] },
+  );
+  const notFound = !loading && !certificate;
 
   return (
     <main

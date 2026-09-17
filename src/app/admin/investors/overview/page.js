@@ -1,40 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Shield, Loader2, Users, Target, MessageSquare, X, UserPlus } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const STAGE_COLORS={invested:"bg-emerald-500/10 text-emerald-400",due_diligence:"bg-purple-500/10 text-purple-400",negotiation:"bg-orange-500/10 text-orange-400",meeting_requested:"bg-amber-500/10 text-amber-400"};
 const REQ_CAT_COLORS={general:"bg-slate-500/10 text-slate-400",financial:"bg-emerald-500/10 text-emerald-400",legal:"bg-purple-500/10 text-purple-400",product:"bg-blue-500/10 text-blue-400",team:"bg-amber-500/10 text-amber-400",market:"bg-rose-500/10 text-rose-400"};
 
+// The shape the screen renders from, so a failed or malformed payload never
+// reaches a `.length` / `.stats` read. Module scope keeps both values stable for
+// the hook (an inline literal would refetch on every render).
+const EMPTY_OVERVIEW={workspaces:[],pipelines:[],stats:{},requests:[]};
+const pickOverview=(d)=>d?.success?{workspaces:d.workspaces||[],pipelines:d.pipelines||[],stats:d.stats||{},requests:d.requests||[]}:EMPTY_OVERVIEW;
+
 export default function AdminInvestorOverview() {
   const { t } = useI18n();
   const STAGE_LABELS={invested:t("investorAdmin.overview.invested"),due_diligence:t("investorAdmin.overview.dueDiligence"),negotiation:t("investorAdmin.overview.negotiation"),meeting_requested:t("investorAdmin.overview.introductionRequested")};
-  const [data,setData]=useState({workspaces:[],pipelines:[],stats:{},requests:[]});
-  const [loading,setLoading]=useState(true);
+  // The loader's work — cache-first paint, discarding a stale response, the
+  // background refresh — belongs to the hook, so the screen keeps no data state
+  // of its own and never sets state from an effect.
+  const {data,loading}=useApi("/api/investor/admin-overview",{defaultValue:EMPTY_OVERVIEW,transform:pickOverview});
   const [detail,setDetail]=useState(null);
-
-  const fetchOverview=async(bypassCache=false)=>{
-    setLoading(true);
-    try{
-      const url="/api/investor/admin-overview";
-      const apply=(d)=>{if(d.success)setData(d);};
-      // Cache-first paint: returning to this page renders instantly from a fresh snapshot.
-      if(!bypassCache){
-        const cached=cacheGet(url);
-        if(cached!==null&&cached.success){apply(cached);setLoading(false);}
-      }
-      const res=await fetch(url);
-      const d=await res.json();
-      if(d.success){cacheSet(url,d);apply(d);}
-    }catch(_){}
-    setLoading(false);
-  };
-
-  useEffect(()=>{fetchOverview();},[]);
 
   if(loading)return<><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]"/></div></>;
 

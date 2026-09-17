@@ -1,48 +1,26 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
 import { Calendar, Clock, ExternalLink, Video, MessageSquare } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickFollowups = (d) => (d?.success ? d.followups || [] : []);
 
 export default function ParticipantFollowupsPage() {
-  const [followups, setFollowups] = useState([]);
-  const [loading, setLoading] = useState(true);
   const { t } = useI18n();
-
-  const fetchFollowups = useCallback(async (bypassCache = false) => {
-    const url = "/api/participant/followups";
-    const apply = (data) => {
-      if (data.success) setFollowups(data.followups || []);
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a
-      // fresh snapshot while data refreshes in the background.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch (e) {
-      console.error("Failed to load follow-ups", e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    // Not gated on the cached user: /api/participant/followups resolves the
-    // participant from the session, so an empty or evicted cache must not block
-    // the load and leave the page on its spinner forever.
-    fetchFollowups();
-  }, [fetchFollowups]);
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, and the background refresh — belongs to the hook, so this screen
+  // keeps no data state of its own and never sets state from an effect.
+  // Not gated on the cached user: /api/participant/followups resolves the
+  // participant from the session, so an empty or evicted cache must not block
+  // the load and leave the page on its spinner forever.
+  const { data: followups, loading } = useApi("/api/participant/followups", {
+    defaultValue: [],
+    transform: pickFollowups,
+  });
 
   const statusStyles = {
     scheduled: "bg-amber-500/10 text-amber-400 border-amber-500/20",
