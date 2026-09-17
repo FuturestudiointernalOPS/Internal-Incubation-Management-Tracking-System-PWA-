@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { AlertTriangle, Check, ArrowRight, RefreshCw, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const MERGE_FIELD_LABELS = {
   program_enrollments: "crm.duplicates.fieldProgramEnrollments",
@@ -13,11 +13,50 @@ const MERGE_FIELD_LABELS = {
   timeline_events: "crm.duplicates.fieldTimelineEvents",
 };
 
+const FLAGS_URL = "/api/contacts/duplicates";
+
+// Stable shapes: the hook keys its internal work on these, so they are made once
+// here rather than rebuilt on every render.
+const EMPTY_FLAGS = { flags: [], failure: null };
+
+/**
+ * The list of suspected duplicates, together with the reason it is missing.
+ *
+ * A refusal carries its own message, and keeping it here is deliberate: a screen
+ * that answers a failed read with "no duplicates" is telling the reader
+ * something it does not know.
+ */
+const pickFlags = (d) =>
+  d?.success
+    ? { flags: d.flags || [], failure: null }
+    : { flags: [], failure: d?.error || null };
+
 export default function DuplicatesPage() {
   const { t } = useI18n();
   const goBack = useSafeBack("/admin/crm");
-  const [flags, setFlags] = useState([]);
-  const [loading, setLoading] = useState(true);
+
+  // The list is read through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the page keeps no
+  // copy of its own and reads during render.
+  const {
+    data,
+    loading,
+    error,
+    status,
+    refresh,
+    setData,
+  } = useApi(FLAGS_URL, { defaultValue: EMPTY_FLAGS, transform: pickFlags });
+  const flags = data.flags;
+
+  // The read's outcome, derived. Three shapes of failure reach the screen: the
+  // server refusing (a status), the payload reporting its own failure (a
+  // message), and a request that never got an answer (an error).
+  const loadFailed = Boolean(
+    data.failure || error || (status !== null && status >= 400),
+  );
+  const loadFailureMessage =
+    t(data.failure || "") || t("crm.duplicates.failedToLoad");
+
   const [merging, setMerging] = useState(null);
   const [preview, setPreview] = useState(null);
   const [notification, setNotification] = useState(null);
@@ -27,50 +66,23 @@ export default function DuplicatesPage() {
     setTimeout(() => setNotification(null), 4000);
   }, []);
 
-  const fetchFlags = useCallback(async (bypassCache = false) => {
-    const url = "/api/contacts/duplicates";
-    let painted = false;
-    const apply = (data) => {
-      if (data.success) {
-        setFlags(data.flags || []);
-        painted = true;
-      }
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; mutation flows pass bypassCache=true so the list always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (res.ok && data.success) {
-        cacheSet(url, data);
-        apply(data);
-      } else {
-        notify(t(data?.error || "") || t("crm.duplicates.failedToLoad"), "error");
-      }
-    } catch (_) {
-      if (!painted) notify(t("crm.duplicates.failedToLoad"), "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [notify, t]);
-
-  useEffect(() => { fetchFlags(); }, [fetchFlags]);
+  // An action that has already succeeded removes its row without waiting for a
+  // second read: the network round trip is visible as a row that lingers.
+  const dropFlags = useCallback(
+    (keep) =>
+      setData((previous) => ({
+        ...previous,
+        flags: previous.flags.filter(keep),
+      })),
+    [setData],
+  );
 
   async function handleDismiss(flagId) {
     try {
       const res = await fetch(`/api/contacts/duplicates?id=${flagId}`, { method: "DELETE" });
       const data = await res.json();
       if (res.ok && data.success) {
-        setFlags(f => f.filter(x => x.id !== flagId));
+        dropFlags(x => x.id !== flagId);
         notify(t("crm.duplicates.duplicateFlagDismissed"), "success");
       } else {
         notify(t(data?.error || "") || t("crm.duplicates.failedToDismiss"), "error");
@@ -99,10 +111,10 @@ export default function DuplicatesPage() {
       const data = await res.json();
       if (data.success) {
         notify(t("crm.duplicates.mergedSuccess", { summary: data.summary || "" }), "success");
-        setFlags(f => f.filter(x => x.contact_cid_a !== survivor && x.contact_cid_b !== duplicate));
+        dropFlags(x => x.contact_cid_a !== survivor && x.contact_cid_b !== duplicate);
         setMerging(null);
         setPreview(null);
-        fetchFlags(true);
+        refresh();
       } else {
         notify(t((data.error || t("crm.duplicates.mergeFailed")) || "") || (data.error || t("crm.duplicates.mergeFailed")), "error");
       }
@@ -135,13 +147,21 @@ export default function DuplicatesPage() {
             <Link href="/admin/crm" className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)]">← {t("crm.duplicates.crm")}</Link>
             <h1 className="text-xl font-black uppercase mt-1">{t("crm.duplicates.title")}</h1>
           </div>
-          <button onClick={fetchFlags} className="flex items-center gap-2 px-4 py-2 bg-tertiary rounded-xl text-xs font-bold uppercase">
+          <button onClick={() => refresh()} className="flex items-center gap-2 px-4 py-2 bg-tertiary rounded-xl text-xs font-bold uppercase">
             <RefreshCw className="w-3 h-3" /> {t("crm.duplicates.refresh")}
           </button>
         </div>
 
         {loading ? (
           <p className="text-sm text-[var(--text-secondary)]">{t("crm.duplicates.loading")}</p>
+        ) : loadFailed ? (
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-10 text-center">
+            <AlertTriangle className="w-10 h-10 mx-auto mb-3 text-rose-400" />
+            <p className="text-sm font-bold text-rose-400">{loadFailureMessage}</p>
+            <button onClick={() => refresh()} className="mt-4 px-4 py-2 bg-tertiary rounded-xl text-xs font-bold uppercase">
+              {t("crm.duplicates.refresh")}
+            </button>
+          </div>
         ) : flags.length === 0 ? (
           <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-10 text-center">
             <Check className="w-10 h-10 mx-auto mb-3 text-emerald-500" />

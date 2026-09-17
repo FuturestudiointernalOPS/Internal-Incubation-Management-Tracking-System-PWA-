@@ -114,24 +114,28 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 158 |
-| `react-hooks/set-state-in-effect` | 200 | 149 |
+| ESLint warnings, total | 2192 | 151 |
+| `react-hooks/set-state-in-effect` | 200 | 144 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` in converted files | 0 | 0 |
-| Tests | 1539 / 1539 | 1588 / 1588 |
+| Tests | 1539 / 1539 | 1669 / 1669 |
 | Production build | passes | passes |
 
-Screens carrying a `set-state-in-effect` warning: **98**.
+Screens carrying a `set-state-in-effect` warning: **93**.
 
 | Group | Screens |
 |---|---:|
-| Application pages | 39 |
+| Application pages | 34 |
 | Shared components (`src/components/`) | 32 |
 | Venture screens | 23 |
 | `src/lib/` modules | 4 |
 
-Of these 98 screens, **70 carry a single warning**; the remaining 28 carry two
+Of these 93 screens, **65 carry a single warning**; the remaining 28 carry two
 to five.
+
+> The hook itself accounts for 4 of the remaining warnings (`src/lib/hooks/useApi.js`):
+> two "state written in an effect" and two "a spread in the dependency array". They
+> are left deliberately - see section 3.7.
 
 > Note: the repository currently reports 2 `no-unused-vars`, both in
 > `src/__tests__/program-assignment-grants.test.js`. They were introduced by a
@@ -146,11 +150,39 @@ The next step column is what a follow-up pass has to do.
 
 ### 3.1 The screen needs a capability the hook does not expose
 
-| Screen | Why it is deferred | Next step |
-|---|---|---|
-| `src/app/admin/finance/page.js` | The loader distinguishes a **401 (session expired)** from a **500 (server error)** by reading the response status, and shows a different message for each. `useApi` only surfaces a thrown error, so the distinction would be lost. | Teach the hook to expose the response status (or a `status`/`ok` pair) on failure, then convert. This is a hook change, so it affects every consumer — do it deliberately, with tests. |
-| `src/app/admin/crm/duplicates/page.js` | The loader doubles as a **notifier**: when the read fails it dispatches a "could not load duplicates" message. That dispatch happens inside the loader, so converting removes the feedback. | Either derive the message and surface it from the render path, or add an error callback to the hook. Do not convert until one of those exists. |
-| `src/app/admin/integrations/page.js` | Same shape as the finance dashboard: the loader reads the response status and translates a failure into a message. | Same as 3.1 row 1. |
+**Solved.** The hook now reports the HTTP status of the last response, as
+`status`, so a screen can tell the three failures apart:
+
+```js
+const { data, loading, error, status } = useApi(url, { ... });
+// 401                the session expired
+// other >= 400       the server refused
+// null, with `error` the request never got an answer
+```
+
+It is null before the first answer, after a request that threw, and again the
+moment the address changes - a screen that moves to another address must not keep
+reading the previous one's verdict. That last property is why the hook holds the
+status together with the address it came from and compares them **during render**:
+an effect that reset it would be state written from an effect, which is the
+pattern this whole migration exists to remove.
+
+Adding it changed nothing for existing callers: a field was added to the returned
+object, and `error` still means exactly what it meant before.
+
+Converted onto it:
+
+| Screen | What the status bought it |
+|---|---|
+| `src/app/admin/finance/page.js` | "your session expired" is shown instead of "the server failed", which is the whole point of the distinction. Its three reads are now three `useApi` calls, its chosen source is derived rather than stored, and its dependency-array warning is gone with the effect. |
+| `src/app/admin/integrations/page.js` | Four endpoints through `useApiMulti`. |
+| `src/app/admin/crm/duplicates/page.js` | The read failure is now a panel with a retry rather than a four-second message, and the "no duplicates" panel is no longer shown when the read failed - telling someone there are no duplicates when the page never managed to look is a statement the page cannot support. |
+
+Accepted behaviour change, on the duplicates screen only: a failed load used to
+raise a transient message; it now raises a panel that stays until a retry
+succeeds. On the finance dashboard a refused refresh now empties the cards
+instead of leaving the previous figures under a failure banner - the shared
+consequence of converting to the hook, already listed in section 1.
 
 ### 3.2 The screen asks one request per element (an existing N+1)
 
@@ -183,11 +215,15 @@ identity as *not known yet* and keep its placeholder, not as *empty*.
 
 Moved onto it: the developer's own tasks, the developer's assigned tasks, the
 admin blockers console (whose request addresses are now a plain result of the
-identity) and the staff stand-up screen.
+identity), the staff stand-up screen, the **staff dashboard** and the **programme
+manager's promote screen**.
 
-Still to move: the staff dashboard (which keys its reads on a field the session
-endpoint does not return, so it needs a decision about which identifier it
-should use) and the programme manager's promote screen.
+The staff dashboard needed a decision, and it is worth recording: it keyed its
+reads on the identifier the browser had stored, which is the person's RECORD id,
+while the task endpoint authenticates against the SESSION identifier and refuses
+any other with 403. A staff member who was not a super admin was therefore being
+refused rather than drawn - the screen showed nothing to do. Reading the identity
+from the session fixes the address as well as the effect.
 
 | Screen | Source | Note |
 |---|---|---|
@@ -239,6 +275,27 @@ Resolved from this list:
 - the **invitation link** — converted by splitting the link failure from the
   form's own submission failure, which is what this list asked for first.
 
+### 3.7 The hook's own four warnings
+
+`src/lib/hooks/useApi.js` is itself reported twice for "state written in an
+effect" (it starts a read by setting `loading` and clearing `error`) and twice
+for "a spread in the dependency array" (its `deps` option is spread, so the rule
+cannot verify the caller's list).
+
+Both are left on purpose, and not out of convenience:
+
+- the "state in an effect" reports are the hook *being* the removal target. The
+  conversion it performs is precisely "stop writing state from an effect", and it
+  cannot perform it on itself. Deferring the writes by a tick would silence the
+  rule while changing when the spinner appears and when a previous error clears,
+  for no functional gain.
+- the spread is the feature: the caller owns part of the dependency list. The
+  alternative is asking every caller to pass a memoised array, which trades a
+  warning for a foot-gun - an array rebuilt each render refetches forever.
+
+The counts for this file therefore do not go down as the migration proceeds, and
+should not be read as an unconverted screen.
+
 ---
 
 ## 4. Not started
@@ -262,6 +319,11 @@ npx eslint .                 # 0 errors; the target rule must decrease by one pe
 npm test                     # full suite
 npm run build                # catches things lint cannot, e.g. a missing loading boundary
 ```
+
+`src/__tests__/use-api-status.test.js` covers the hook's own failure reporting -
+the status of a success, of a 401, of a 500, of a request that never answered,
+and its clearing when the address changes - so a change to the hook cannot take
+the distinction away from the screens that now depend on it.
 
 > **Concurrency note:** another workstream builds in this same working tree.
 > Two `next build` runs at once corrupt each other's output (a build manifest

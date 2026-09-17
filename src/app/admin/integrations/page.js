@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   Plug,
@@ -16,7 +16,31 @@ import {
   Zap,
   X,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApiMulti } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on the list below, so it is built once
+// at module scope: rebuilt each render it would be a new identity and would put
+// the four requests back on the wire on every render. The same goes for the
+// transformations, which is why they are made here rather than written inline.
+
+/** A list from a `success` payload, empty when the read was refused. */
+const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
+
+const INTEGRATION_ENDPOINTS = [
+  {
+    key: "integrations",
+    url: "/api/integrations",
+    transform: pickList("integrations"),
+  },
+  {
+    key: "providers",
+    url: "/api/integrations?type=providers",
+    transform: pickList("providers"),
+  },
+  { key: "keys", url: "/api/api-keys", transform: pickList("keys") },
+  { key: "webhooks", url: "/api/webhooks", transform: pickList("webhooks") },
+];
 
 const PROVIDER_ICONS = {
   google_calendar: "📅",
@@ -84,23 +108,23 @@ function formatDate(d) {
 export default function IntegrationsPage() {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState("integrations");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  // Integrations state
-  const [integrations, setIntegrations] = useState([]);
-  const [providers, setProviders] = useState([]);
+  // The module's four lists, read through the shared hook: it owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the page keeps no
+  // copy of its own and reads its data during render.
+  const { data, loading, error, refresh } = useApiMulti(INTEGRATION_ENDPOINTS);
+  const integrations = data.integrations ?? [];
+  const providers = data.providers ?? [];
+  const apiKeys = data.keys ?? [];
+  const webhooks = data.webhooks ?? [];
+
   const [showAddIntegration, setShowAddIntegration] = useState(false);
   const [newIntegration, setNewIntegration] = useState({ provider: "", label: "" });
 
-  // API Keys state
-  const [apiKeys, setApiKeys] = useState([]);
   const [showAddKey, setShowAddKey] = useState(false);
   const [newKey, setNewKey] = useState({ name: "", description: "", scopes: [], expires_at: "" });
   const [newKeyResult, setNewKeyResult] = useState(null);
 
-  // Webhooks state
-  const [webhooks, setWebhooks] = useState([]);
   const [showAddWebhook, setShowAddWebhook] = useState(false);
   const [newWebhook, setNewWebhook] = useState({ name: "", url: "", events: [], secret: "" });
   const [selectedWebhook, setSelectedWebhook] = useState(null);
@@ -116,57 +140,6 @@ export default function IntegrationsPage() {
     { id: "webhooks", label: t("adminMisc.integrations.webhooks"), icon: Webhook },
   ];
 
-  const fetchData = useCallback(async (bypassCache = false) => {
-    const urls = [
-      "/api/integrations",
-      "/api/integrations?type=providers",
-      "/api/api-keys",
-      "/api/webhooks",
-    ];
-    const apply = (integData, provData, keysData, webData) => {
-      if (integData.success) setIntegrations(integData.integrations || []);
-      if (provData.success) setProviders(provData.providers || []);
-      if (keysData.success) setApiKeys(keysData.keys || []);
-      if (webData.success) setWebhooks(webData.webhooks || []);
-    };
-    let painted = false;
-    setLoading(true);
-    setError(null);
-    try {
-      // Cache-first paint: returning to this page renders instantly from
-      // fresh snapshots; mutation flows pass bypassCache=true so the lists
-      // always reflect the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2], cached[3]);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const [integRes, providersRes, keysRes, webhooksRes] = await Promise.all([
-        fetch(urls[0]),
-        fetch(urls[1]),
-        fetch(urls[2]),
-        fetch(urls[3]),
-      ]);
-      const [integData, provData, keysData, webData] = await Promise.all([
-        integRes.json(), providersRes.json(), keysRes.json(), webhooksRes.json(),
-      ]);
-      if (integData.success) cacheSet(urls[0], integData);
-      if (provData.success) cacheSet(urls[1], provData);
-      if (keysData.success) cacheSet(urls[2], keysData);
-      if (webData.success) cacheSet(urls[3], webData);
-      apply(integData, provData, keysData, webData);
-    } catch (err) {
-      if (!painted) setError(t(err.message || "") || err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-
   const handleAddIntegration = async () => {
     if (!newIntegration.provider) return;
     try {
@@ -179,7 +152,7 @@ export default function IntegrationsPage() {
       if (data.success) {
         setShowAddIntegration(false);
         setNewIntegration({ provider: "", label: "" });
-        fetchData(true);
+        refresh();
       }
     } catch (err) {
       console.error("Add integration error:", err);
@@ -192,7 +165,7 @@ export default function IntegrationsPage() {
       const data = await res.json();
       if (data.success) {
         setConfirmAction(null);
-        fetchData(true);
+        refresh();
       }
     } catch (err) {
       console.error("Remove integration error:", err);
@@ -212,7 +185,7 @@ export default function IntegrationsPage() {
         setNewKeyResult(data);
         setShowAddKey(false);
         setNewKey({ name: "", description: "", scopes: [], expires_at: "" });
-        fetchData(true);
+        refresh();
       }
     } catch (err) {
       console.error("Create API key error:", err);
@@ -225,7 +198,7 @@ export default function IntegrationsPage() {
       const data = await res.json();
       if (data.success) {
         setConfirmAction(null);
-        fetchData(true);
+        refresh();
       }
     } catch (err) {
       console.error("Revoke key error:", err);
@@ -244,7 +217,7 @@ export default function IntegrationsPage() {
       if (data.success) {
         setShowAddWebhook(false);
         setNewWebhook({ name: "", url: "", events: [], secret: "" });
-        fetchData(true);
+        refresh();
       }
     } catch (err) {
       console.error("Create webhook error:", err);
@@ -257,7 +230,7 @@ export default function IntegrationsPage() {
       const data = await res.json();
       if (data.success) {
         setConfirmAction(null);
-        fetchData(true);
+        refresh();
         if (selectedWebhook?.id === id) setSelectedWebhook(null);
       }
     } catch (err) {
@@ -294,7 +267,7 @@ export default function IntegrationsPage() {
             </h1>
             <p className="text-sm text-gray-400 mt-1">{t("adminMisc.integrations.subtitle")}</p>
           </div>
-          <button onClick={fetchData} className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] border border-gray-800 rounded-xl hover:bg-[#1e293b] transition-colors text-sm">
+          <button onClick={() => refresh()} className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] border border-gray-800 rounded-xl hover:bg-[#1e293b] transition-colors text-sm">
             <RefreshCw size={14} /> {t("adminMisc.integrations.refresh")}
           </button>
         </div>

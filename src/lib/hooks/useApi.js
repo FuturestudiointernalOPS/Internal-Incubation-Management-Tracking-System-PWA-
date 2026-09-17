@@ -17,7 +17,18 @@ import { useState, useEffect, useCallback, useRef } from "react";
  * @param {Function} [options.transform]     - Transform raw response data
  * @param {number} [options.refetchInterval] - Polling interval in ms
  *
- * @returns {{ data, loading, error, refresh, setData }}
+ * @returns {{ data, loading, error, status, refresh, setData }}
+ *
+ * `status` is the HTTP status of the last COMPLETED response for the CURRENT
+ * address, and it is what lets a screen tell the three failures apart:
+ *
+ *   401                  the session expired
+ *   other >= 400         the server refused
+ *   null, with `error`   the request never got an answer
+ *
+ * It is null before the first answer and after a request that threw. A screen
+ * that changes its address reads null again rather than the previous address's
+ * verdict (see the note where it is derived).
  *
  * @example
  *   const { data: tasks, loading, error, refresh } = useApi("/api/tasks", {
@@ -58,17 +69,34 @@ export function cacheSet(url, data) {
 // answer instead of duplicating it.
 const inflightFetches = new Map();
 
-/** GET + parse, sharing one request per URL with anyone asking at the same time. */
-export function fetchJsonShared(url) {
+/**
+ * GET + parse, resolving the response WHOLE: the parsed body together with the
+ * status the server sent it with. `fetchJsonShared` below is the body-only form,
+ * which is what most callers want; this one exists for the reads that have to
+ * act on the status.
+ *
+ * Both forms share the same in-flight entry, so a caller asking for the envelope
+ * and a caller asking for the body still put one request between them.
+ */
+export function fetchJsonEnvelope(url) {
   const existing = inflightFetches.get(url);
   if (existing) return existing;
   const pending = fetch(url)
-    .then((res) => res.json())
+    .then(async (res) => ({
+      body: await res.json(),
+      status: res.status,
+      ok: res.ok,
+    }))
     .finally(() => {
       if (inflightFetches.get(url) === pending) inflightFetches.delete(url);
     });
   inflightFetches.set(url, pending);
   return pending;
+}
+
+/** GET + parse, sharing one request per URL with anyone asking at the same time. */
+export function fetchJsonShared(url) {
+  return fetchJsonEnvelope(url).then((envelope) => envelope.body);
 }
 
 // ─── Shared SWR helpers (reused by DashboardLayout + page loaders) ───
@@ -116,6 +144,14 @@ export function useApi(url, options = {}) {
   const [loading, setLoading] = useState(immediate);
   const [error, setError] = useState(null);
 
+  // The status of the last completed response, kept WITH the address it answered.
+  // A screen that moves to another address must not keep reading the previous
+  // address's verdict, and comparing during render is how that is avoided: an
+  // effect that reset it would be state written from an effect, which is the
+  // pattern this hook exists to remove.
+  const [lastResponse, setLastResponse] = useState(null);
+  const status = lastResponse && lastResponse.url === url ? lastResponse.status : null;
+
   // Track latest request to prevent stale responses
   const fetchIdRef = useRef(0);
   const activeRef = useRef(true);
@@ -140,17 +176,21 @@ export function useApi(url, options = {}) {
     }
 
     try {
-      const json = await fetchJsonShared(url);
+      const { body: json, status: httpStatus } = await fetchJsonEnvelope(url);
 
       // Discard stale responses
       if (fetchId !== fetchIdRef.current || !activeRef.current) return;
 
+      setLastResponse({ url, status: httpStatus });
       cacheSet(url, json);
 
       const result = transform ? transform(json) : json;
       setData(result);
     } catch (err) {
       if (fetchId !== fetchIdRef.current || !activeRef.current) return;
+      // A request that threw never produced a response, so there is no status to
+      // report: the screen reads this as "no answer", not as "the server said X".
+      setLastResponse({ url, status: null });
       setError(err.message || "Failed to fetch data");
       console.error(`[useApi] Error fetching ${url}:`, err);
     } finally {
@@ -181,7 +221,7 @@ export function useApi(url, options = {}) {
     };
   }, []);
 
-  return { data, loading, error, refresh: () => fetchData(true), setData };
+  return { data, loading, error, status, refresh: () => fetchData(true), setData };
 }
 
 /**

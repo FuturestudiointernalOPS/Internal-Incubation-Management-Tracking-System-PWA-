@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { BarChart3 } from "lucide-react";
 import DataSourceSelector from "@/components/finance/DataSourceSelector";
 import SummaryCard from "@/components/finance/SummaryCard";
@@ -8,7 +8,7 @@ import BudgetExecutionGauge from "@/components/finance/BudgetExecutionGauge";
 import MonthlyTrendChart from "@/components/finance/MonthlyTrendChart";
 import LastSyncedDisplay from "@/components/finance/LastSyncedDisplay";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -20,126 +20,127 @@ function formatXOF(val) {
   }).format(val || 0);
 }
 
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they must not be rebuilt
+// every render: written inline they would be a new identity each time and would
+// put a request on the wire per render.
+
+const DATA_SOURCES_URL = "/api/admin/finance/data-sources";
+
+/** The sources the selector offers: the active ones, internal ledger excluded. */
+const pickActiveDataSources = (d) =>
+  d?.success
+    ? (d.dataSources || []).filter(
+        (ds) => ds.status === "active" && ds.sourceType !== "internal",
+      )
+    : [];
+
+/**
+ * A summary or a month series. A refusal carries no figures, and a dashboard
+ * that drew its cards from one would show noughts where it has no numbers, so
+ * absence is reported as absence.
+ */
+const pickFinancePayload = (d) => (d?.success ? d : null);
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function FinanceDashboard() {
   const { t } = useI18n();
-  // Data sources
-  const [dataSources, setDataSources] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
-  const [sourcesLoading, setSourcesLoading] = useState(true);
 
-  // Dashboard data
-  const [summary, setSummary] = useState(null);
-  const [monthlyData, setMonthlyData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // What the person picked in the selector. The first available source is the
+  // default, and a default is derived rather than stored, so the choice and the
+  // read can never disagree about which source is on screen.
+  const [chosenId, setChosenId] = useState(null);
+
+  const {
+    data: dataSources,
+    loading: sourcesLoading,
+    error: sourcesError,
+    status: sourcesStatus,
+  } = useApi(DATA_SOURCES_URL, {
+    defaultValue: [],
+    transform: pickActiveDataSources,
+  });
+
+  const selectedId = chosenId || dataSources[0]?.id || null;
+
+  const {
+    data: summary,
+    loading: summaryLoading,
+    error: summaryError,
+    status: summaryStatus,
+    refresh: refreshSummary,
+  } = useApi(
+    selectedId ? `/api/finance/summary?dataSourceId=${selectedId}` : null,
+    { defaultValue: null, transform: pickFinancePayload, deps: [selectedId] },
+  );
+
+  const {
+    data: monthlyData,
+    loading: monthlyLoading,
+    error: monthlyError,
+    status: monthlyStatus,
+    refresh: refreshMonthly,
+  } = useApi(
+    selectedId ? `/api/finance/monthly?dataSourceId=${selectedId}` : null,
+    { defaultValue: null, transform: pickFinancePayload, deps: [selectedId] },
+  );
 
   // Sync
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState(null);
+  // The sync is a WRITE, so its own 401 exists nowhere among the reads' statuses
+  // and has to be remembered here.
+  const [syncExpired, setSyncExpired] = useState(false);
 
-  // Errors
-  const [authError, setAuthError] = useState(false);
-  const [fetchError, setFetchError] = useState(null);
+  // ── The reads' verdicts, derived ─────────────────────────────────────────
+  // A 401 is an expired session, any other refusal is the server refusing, and
+  // a read that produced no response at all is the network. The three are told
+  // apart because they need three different things from the person reading them.
+  const statuses = [sourcesStatus, summaryStatus, monthlyStatus];
+  const authError = statuses.includes(401) || syncExpired;
+  const refused =
+    statuses.find((s) => s !== null && s >= 400 && s !== 401) ?? null;
+  const lost = sourcesError || summaryError || monthlyError;
+  const fetchError = authError
+    ? null
+    : refused !== null
+      ? t("finance.error.serverError")
+      : lost
+        ? t("finance.error.networkError")
+        : null;
 
-  // ── Fetch data sources on mount ──────────────────────────────────────────
+  // Every read spends exactly one render with its address chosen and its answer
+  // not yet asked for - the hook's own flag rises in the effect, which is after
+  // that render. Counting those renders as loading is what stops the empty state
+  // from flashing between the source list arriving and its figures being asked
+  // for.
+  const summaryPending =
+    Boolean(selectedId) &&
+    summary === null &&
+    summaryStatus === null &&
+    !summaryError;
+  const monthlyPending =
+    Boolean(selectedId) &&
+    monthlyData === null &&
+    monthlyStatus === null &&
+    !monthlyError;
+  const loading =
+    sourcesLoading ||
+    summaryLoading ||
+    monthlyLoading ||
+    summaryPending ||
+    monthlyPending;
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/admin/finance/data-sources");
-        if (res.status === 401) {
-          setAuthError(true);
-          setSourcesLoading(false);
-          return;
-        }
-        const json = await res.json();
-        if (json.success && json.dataSources?.length) {
-          // Filter to active external sources for the selector
-          const active = json.dataSources.filter(
-            (ds) => ds.status === "active" && ds.sourceType !== "internal",
-          );
-          setDataSources(active);
-          if (!selectedId && active.length) {
-            setSelectedId(active[0].id);
-          }
-        }
-      } catch {
-        setFetchError(t("finance.error.networkError"));
-      } finally {
-        setSourcesLoading(false);
-      }
-    })();
-  }, []);
-
-  // ── Fetch dashboard data when selectedId changes ────────────────────────
-
-  const fetchDashboard = useCallback(async (dataSourceId, bypassCache = false) => {
-    if (!dataSourceId) return;
-
-    const urls = [
-      `/api/finance/summary?dataSourceId=${dataSourceId}`,
-      `/api/finance/monthly?dataSourceId=${dataSourceId}`,
-    ];
-    const apply = (sumJson, monJson) => {
-      if (sumJson?.success) setSummary(sumJson);
-      if (monJson?.success) setMonthlyData(monJson);
-    };
-    let painted = false;
-    setLoading(true);
-    setFetchError(null);
-    setAuthError(false);
-
-    try {
-      // Cache-first paint: revisits / switching back to a previously loaded
-      // data source render instantly from fresh snapshots; the sync flow
-      // passes bypassCache=true so the cards reflect the just-synced state.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1]);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const [sumRes, monRes] = await Promise.all([
-        fetch(urls[0]),
-        fetch(urls[1]),
-      ]);
-
-      if (sumRes.status === 401 || monRes.status === 401) {
-        setAuthError(true);
-        return;
-      }
-
-      if (!sumRes.ok || !monRes.ok) {
-        if (!painted) setFetchError(t("finance.error.serverError"));
-        return;
-      }
-
-      const sumJson = await sumRes.json();
-      const monJson = await monRes.json();
-
-      if (sumJson.success) cacheSet(urls[0], sumJson);
-      if (monJson.success) cacheSet(urls[1], monJson);
-      apply(sumJson, monJson);
-    } catch {
-      if (!painted) setFetchError(t("finance.error.networkError"));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
-  useEffect(() => {
-    if (selectedId) {
-      fetchDashboard(selectedId);
-    }
-  }, [selectedId, fetchDashboard]);
+  const refreshDashboard = useCallback(
+    () => Promise.all([refreshSummary(), refreshMonthly()]),
+    [refreshSummary, refreshMonthly],
+  );
 
   // ── Handle data source change ──────────────────────────────────────────
 
   const handleDataSourceChange = (id) => {
-    setSelectedId(id);
+    setChosenId(id);
   };
 
   // ── Handle sync ─────────────────────────────────────────────────────────
@@ -149,6 +150,7 @@ export default function FinanceDashboard() {
 
     setSyncing(true);
     setSyncError(null);
+    setSyncExpired(false);
 
     try {
       const res = await fetch(
@@ -157,7 +159,7 @@ export default function FinanceDashboard() {
       );
 
       if (res.status === 401) {
-        setAuthError(true);
+        setSyncExpired(true);
         return;
       }
 
@@ -168,8 +170,9 @@ export default function FinanceDashboard() {
       }
 
       if (res.ok) {
-        // Re-fetch dashboard data after successful sync
-        await fetchDashboard(selectedId, true);
+        // Re-read the dashboard after a successful sync, from the network rather
+        // than from the cache, so the cards reflect what was just synchronised.
+        await refreshDashboard();
       } else {
         setSyncError(t("finance.dashboard.syncError"));
       }
@@ -178,7 +181,7 @@ export default function FinanceDashboard() {
     } finally {
       setSyncing(false);
     }
-  }, [selectedId, fetchDashboard, t]);
+  }, [selectedId, refreshDashboard, t]);
 
   // ── Compute card statuses ──────────────────────────────────────────────
 
@@ -277,7 +280,7 @@ export default function FinanceDashboard() {
               {fetchError}
             </span>
             <button
-              onClick={() => fetchDashboard(selectedId)}
+              onClick={() => refreshDashboard()}
               className="rounded-lg px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider"
               style={{
                 background: "var(--red)",
