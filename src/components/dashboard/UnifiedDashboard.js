@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Calendar,
@@ -27,7 +27,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
 
 // ─── CONSTANTS ─────────────────────────────────────────────────────────────
 
@@ -168,6 +168,13 @@ function hasMinRole(userRole, minRole) {
   return (ROLE_HIERARCHY[userRole] || 0) >= (ROLE_HIERARCHY[minRole] || 0);
 }
 
+// ─── MODULE-SCOPE READER ───────────────────────────────────────────────────
+// The reading hook keys its internal work on this, so it is built once here
+// rather than on every render.
+
+/** The dashboard payload, or nothing when the server refused the read. */
+const pickDashboard = (d) => (d?.success ? d : null);
+
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 
 export default function UnifiedDashboard({ role: propRole }) {
@@ -176,12 +183,6 @@ export default function UnifiedDashboard({ role: propRole }) {
 
   // ── Auth / User ──
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // ── Data ──
-  const [data, setData] = useState(null);
-  const [fetching, setFetching] = useState(true);
 
   // ── Calendar state ──
   const now = useMemo(() => new Date(), []);
@@ -276,6 +277,35 @@ export default function UnifiedDashboard({ role: propRole }) {
   // Determine effective role
   const effectiveRole = user?.role || propRole || "staff";
 
+  // ── Read data ──
+  // The payload is read through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the screen keeps
+  // no copy of its own. The address carries the identity, the role and the month
+  // under review, so each of those re-reads by itself — the effect that watched
+  // them is gone. Until the identity is known there is no address, and the screen
+  // keeps its placeholder rather than claiming there is nothing to show.
+  const dashboardUserId = user?.cid || user?.id;
+  const {
+    data,
+    loading: readLoading,
+    error: readError,
+    refresh: refreshDashboard,
+  } = useApi(
+    dashboardUserId
+      ? `/api/dashboard?user_id=${encodeURIComponent(dashboardUserId)}&role=${encodeURIComponent(effectiveRole)}&year=${calYear}&month=${calMonth + 1}`
+      : null,
+    {
+      defaultValue: null,
+      transform: pickDashboard,
+      deps: [dashboardUserId, effectiveRole, calYear, calMonth],
+    },
+  );
+  const fetching = readLoading;
+  const loading = !dashboardUserId || readLoading;
+  // The loader reported a request that never got an answer as this message, in
+  // the same panel the screen still shows it in.
+  const error = readError ? "Failed to load dashboard data" : null;
+
   // Determine what sections to show based on role & data
   const visibility = useMemo(() => {
     const isMgmt = hasMinRole(effectiveRole, "program_manager");
@@ -311,67 +341,26 @@ export default function UnifiedDashboard({ role: propRole }) {
     };
   }, [effectiveRole, data]);
 
-  // ── Fetch data ──
-  const fetchDashboardData = useCallback(async (bypassCache = false) => {
-    if (!user?.cid && !user?.id) return;
-    const userId = user.cid || user.id;
-    const role = effectiveRole;
-    const url = `/api/dashboard?user_id=${encodeURIComponent(userId)}&role=${encodeURIComponent(role)}&year=${calYear}&month=${calMonth + 1}`;
-
-    const apply = (result) => {
-      if (result.success) setData(result);
-    };
-
-    setFetching(true);
-    try {
-      // Cache-first paint: returning to the dashboard (or re-visiting a
-      // calendar month) renders instantly from a fresh snapshot; the network
-      // refresh below converges. Mutation flows can pass bypassCache=true.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setFetching(false);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const result = await res.json();
-      if (result.success) cacheSet(url, result);
-      apply(result);
-    } catch (e) {
-      console.error("Dashboard fetch error:", e);
-      setError("Failed to load dashboard data");
-    } finally {
-      setFetching(false);
-      setLoading(false);
-    }
-  }, [user, effectiveRole, calYear, calMonth]);
-
-  useEffect(() => {
-    if (user) fetchDashboardData();
-  }, [user, fetchDashboardData]);
-
   // Ticket 1.6: refetch calendar when tab becomes visible again
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === "visible" && user) {
-        fetchDashboardData();
+        refreshDashboard();
       }
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [user, fetchDashboardData]);
+  }, [user, refreshDashboard]);
 
   // Ticket 1.6: expose refresh callback for auto calendar sync
   useEffect(() => {
     if (typeof window !== "undefined") {
-      window.__refreshDashboard = fetchDashboardData;
+      window.__refreshDashboard = refreshDashboard;
     }
     return () => {
       if (typeof window !== "undefined") delete window.__refreshDashboard;
     };
-  }, [fetchDashboardData]);
+  }, [refreshDashboard]);
 
   // ── Calendar navigation ──
   const handlePrevMonth = () => {
@@ -405,7 +394,7 @@ export default function UnifiedDashboard({ role: propRole }) {
           action,
         }),
       });
-      fetchDashboardData(true);
+      refreshDashboard();
     } catch (e) {
       console.error(e);
     } finally {
@@ -426,7 +415,7 @@ export default function UnifiedDashboard({ role: propRole }) {
           resolved_by: user.cid || user.id,
         }),
       });
-      fetchDashboardData(true);
+      refreshDashboard();
     } catch (e) {
       console.error(e);
     } finally {
@@ -465,7 +454,7 @@ export default function UnifiedDashboard({ role: propRole }) {
             <AlertTriangle className="w-10 h-10 text-rose-500 mx-auto" />
             <p className="text-sm font-bold text-rose-400">{error}</p>
             <button
-              onClick={fetchDashboardData}
+              onClick={refreshDashboard}
               className="px-6 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wide"
             >
               Retry

@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import {
   Calendar, Trophy, Send, ChevronLeft, ChevronRight, ChevronDown,
   CheckCircle2, AlertTriangle, User, Paperclip,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { collapseChains } from "@/utils/taskChains";
 
 function getCurrentWeek() {
@@ -225,87 +225,100 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
   );
 }
 
+// ─── Read shapers (module scope: built once, never per render) ──────────────
+const EMPTY_STANDUP = { report: null, tasks: [] };
+
+// The week's report and its tasks arrive together, so the read's value is both.
+// Carry-over chains are displayed as ONE row (the newest copy); older weekly
+// copies stay in the database for history/reports.
+const pickStandup = (d) =>
+  d?.success
+    ? { report: d.report ?? null, tasks: collapseChains(d.tasks || []) }
+    : EMPTY_STANDUP;
+
+const pickStaffContacts = (d) => (d?.success ? d.contacts || [] : []);
+
+const EMPTY_STANDUP_FORM = { priorities: "", deliverables: "", notes: "" };
+const EMPTY_RETRO_FORM = { wentWell: "", wentWrong: "", improve: "" };
+const EMPTY_EDITS = { url: null, values: {} };
+
+// A list stored as JSON is shown one item per line; anything that is not JSON is
+// shown as the text it is.
+const storedList = (value) => {
+  let parsed = null;
+  try { parsed = JSON.parse(value || "[]"); } catch { parsed = null; }
+  return Array.isArray(parsed) ? parsed.join("\n") : (value || "");
+};
+
+// The stored report is the base each form is built from.
+const standupFormBase = (report) =>
+  report?.report_type === "standup"
+    ? {
+        priorities: storedList(report.top_priorities),
+        deliverables: report.expected_deliverables || "",
+        notes: report.additional_notes || "",
+      }
+    : EMPTY_STANDUP_FORM;
+
+const retroFormBase = (report) =>
+  report?.report_type === "retro"
+    ? {
+        wentWell: storedList(report.wins),
+        wentWrong: report.challenges || "",
+        improve: report.carryover_items || "",
+      }
+    : EMPTY_RETRO_FORM;
+
 export default function StandupRetroView({ user, context, contextLabel }) {
   const { t } = useI18n();
   const [tab, setTab] = useState("standup");
   const [week, setWeek] = useState(getCurrentWeek());
-  const [report, setReport] = useState(null);
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
   const [expandedTask, setExpandedTask] = useState(null);
-  const [standupForm, setStandupForm] = useState({ priorities: "", deliverables: "", notes: "" });
-  const [retroForm, setRetroForm] = useState({ wentWell: "", wentWrong: "", improve: "" });
+  const [standupEdits, setStandupEdits] = useState(EMPTY_EDITS);
+  const [retroEdits, setRetroEdits] = useState(EMPTY_EDITS);
   const [showNewTask, setShowNewTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [, setCreatingTask] = useState(false);
-  const [allStaff, setAllStaff] = useState([]);
 
   const ctx = context || { context_type: "staff", context_id: null };
   const userCid = user?.cid;
 
-  const fetchData = useCallback(async (bypassCache = false) => {
-    if (!userCid) { setLoading(false); return; }
+  // The week's report and its tasks read through the shared hook, which owns the
+  // cache, the cache-first paint and the discarding of a stale answer, so the
+  // screen keeps no copy of its own and reads during render.
+  let standupUrl = null;
+  if (userCid) {
     const params = new URLSearchParams({ user_id: userCid, week: week.week, year: week.year, context_type: ctx.context_type });
     if (ctx.context_id) params.set("context_id", ctx.context_id);
-    const url = `/api/standups/current?${params}`;
+    standupUrl = `/api/standups/current?${params}`;
+  }
 
-    const apply = (data) => {
-      if (!data.success) return;
-      setReport(data.report);
-      // Carry-over chains are displayed as ONE row (the newest copy); older
-      // weekly copies stay in the database for history/reports.
-      setTasks(collapseChains(data.tasks || []));
-      if (data.report?.report_type === "standup") {
-        try { const p = JSON.parse(data.report.top_priorities || "[]"); setStandupForm({ priorities: Array.isArray(p) ? p.join("\n") : (data.report.top_priorities || ""), deliverables: data.report.expected_deliverables || "", notes: data.report.additional_notes || "" }); } catch { setStandupForm({ priorities: data.report.top_priorities || "", deliverables: data.report.expected_deliverables || "", notes: data.report.additional_notes || "" }); }
-      }
-      if (data.report?.report_type === "retro") {
-        try { const w = JSON.parse(data.report.wins || "[]"); setRetroForm({ wentWell: Array.isArray(w) ? w.join("\n") : (data.report.wins || ""), wentWrong: data.report.challenges || "", improve: data.report.carryover_items || "" }); } catch { setRetroForm({ wentWell: data.report.wins || "", wentWrong: data.report.challenges || "", improve: data.report.carryover_items || "" }); }
-      }
-    };
+  const {
+    data: standup,
+    loading,
+    refresh,
+    setData: setStandup,
+  } = useApi(standupUrl, { defaultValue: EMPTY_STANDUP, transform: pickStandup });
+  const report = standup.report;
+  const tasks = standup.tasks;
 
-    setLoading(true);
-    try {
-      // Cache-first paint on reads (mount/week/tab changes). Mutations pass
-      // bypassCache=true so they always wait for the fresh server state.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (e) { console.error(e); } finally { setLoading(false); }
-  }, [userCid, week.week, week.year, ctx.context_type, ctx.context_id]);
+  // Staff for the assignment picker. The identity is absent for the first moment
+  // of a cold load, so there is nothing to read yet.
+  const { data: allStaff } = useApi(userCid ? "/api/contacts?role=staff" : null, {
+    defaultValue: [],
+    transform: pickStaffContacts,
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  /* ─── Fetch staff for assignment ─── */
-  useEffect(() => {
-    if (!user?.cid) return;
-    const url = "/api/contacts?role=staff";
-    const apply = (d) => {
-      if (d.success) setAllStaff(d.contacts || []);
-    };
-    const cached = cacheGet(url);
-    if (cached !== null && cached.success) apply(cached);
-    fetch(url)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.success) {
-          cacheSet(url, d);
-          apply(d);
-        }
-      })
-      .catch(() => {});
-  }, [user?.cid]);
+  // The stored report is the base; what the person types is recorded against the
+  // address it was typed for, so one week's edits cannot show on another week's.
+  const standupForm = { ...standupFormBase(report), ...(standupEdits.url === standupUrl ? standupEdits.values : null) };
+  const retroForm = { ...retroFormBase(report), ...(retroEdits.url === standupUrl ? retroEdits.values : null) };
+  const editStandup = (field, value) =>
+    setStandupEdits((prev) => ({ url: standupUrl, values: { ...(prev.url === standupUrl ? prev.values : null), [field]: value } }));
+  const editRetro = (field, value) =>
+    setRetroEdits((prev) => ({ url: standupUrl, values: { ...(prev.url === standupUrl ? prev.values : null), [field]: value } }));
 
   /* ─── Assignment / Blocker / Due Date handlers ─── */
   const handleAssign = async (taskId, assigneeId) => {
@@ -313,7 +326,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       const res = await fetch("/api/tasks", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: taskId, assigned_to: assigneeId, user_id: user.cid }) });
       const data = await res.json();
       if (!data.success) setToast({ type: "error", msg: t((data.error || t("staffMisc.standupRetro.assignmentFailed")) || "") || (data.error || t("staffMisc.standupRetro.assignmentFailed")) });
-      else { setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, assigned_to: assigneeId } : t)); setToast({ type: "success", msg: t("staffMisc.standupRetro.assigned") }); }
+      else { setStandup((prev) => ({ ...prev, tasks: prev.tasks.map((t) => t.id === taskId ? { ...t, assigned_to: assigneeId } : t) })); setToast({ type: "success", msg: t("staffMisc.standupRetro.assigned") }); }
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); }
   };
 
@@ -322,21 +335,21 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       const res = await fetch("/api/blockers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ task_id: taskId, user_id: user.cid, user_name: user.name, title: blockerTitle }) });
       const data = await res.json();
       if (!data.success) setToast({ type: "error", msg: t((data.error || t("staffMisc.standupRetro.blockerFailed")) || "") || (data.error || t("staffMisc.standupRetro.blockerFailed")) });
-      else { setToast({ type: "success", msg: t("staffMisc.standupRetro.blockerAdded") }); fetchData(true); }
+      else { setToast({ type: "success", msg: t("staffMisc.standupRetro.blockerAdded") }); refresh(); }
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); }
   };
 
   const handleSetDueDate = async (taskId, date) => {
     try {
       await fetch("/api/tasks", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: taskId, end_date: date, user_id: user.cid }) });
-      setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, end_date: date } : t));
+      setStandup((prev) => ({ ...prev, tasks: prev.tasks.map((t) => t.id === taskId ? { ...t, end_date: date } : t) }));
     } catch { /* silent */ }
   };
 
   const handleStatusChange = async (taskId, newStatus) => {
     try {
       await fetch("/api/tasks", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: taskId, status: newStatus, user_id: user.cid }) });
-      setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus } : t));
+      setStandup((prev) => ({ ...prev, tasks: prev.tasks.map((t) => t.id === taskId ? { ...t, status: newStatus } : t) }));
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.failedToUpdateTask") }); }
   };
 
@@ -347,7 +360,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
     try {
       const res = await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, title: newTaskTitle.trim(), created_week: week.week, created_year: week.year, context_type: ctx.context_type, context_id: ctx.context_id || null }) });
       const data = await res.json();
-      if (data.success) { setNewTaskTitle(""); setShowNewTask(false); fetchData(true); }
+      if (data.success) { setNewTaskTitle(""); setShowNewTask(false); refresh(); }
       else setToast({ type: "error", msg: t((data.error || t("staffMisc.standupRetro.failed")) || "") || (data.error || t("staffMisc.standupRetro.failed")) });
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); } finally { setCreatingTask(false); }
   };
@@ -356,7 +369,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
   const handleDelete = async (taskId) => {
     try {
       await fetch(`/api/tasks?id=${taskId}&user_id=${user.cid}`, { method: "DELETE" });
-      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      setStandup((prev) => ({ ...prev, tasks: prev.tasks.filter((t) => t.id !== taskId) }));
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.failedToDelete") }); }
   };
 
@@ -366,7 +379,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       const res = await fetch("/api/standups/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, user_role: user.role || "staff", week_number: week.week, year: week.year, top_priorities: standupForm.priorities, expected_deliverables: standupForm.deliverables, additional_notes: standupForm.notes, context_type: ctx.context_type, context_id: ctx.context_id || null }) });
       const data = await res.json();
       setToast({ type: data.success ? "success" : "error", msg: data.success ? t("staffMisc.standupRetro.standupSubmitted") : (t(data.error || "") || data.error) });
-      if (data.success) fetchData(true);
+      if (data.success) refresh();
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); } finally { setSaving(false); }
   };
 
@@ -376,7 +389,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       const res = await fetch("/api/retros/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, user_role: user.role || "staff", week_number: week.week, year: week.year, wins: retroForm.wentWell, challenges: retroForm.wentWrong, unfinished_tasks: retroForm.improve, context_type: ctx.context_type, context_id: ctx.context_id || null }) });
       const data = await res.json();
       setToast({ type: data.success ? "success" : "error", msg: data.success ? t("staffMisc.standupRetro.retroSubmitted") : (t(data.error || "") || data.error) });
-      if (data.success) fetchData(true);
+      if (data.success) refresh();
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); } finally { setSaving(false); }
   };
 
@@ -466,17 +479,17 @@ export default function StandupRetroView({ user, context, contextLabel }) {
           <>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.thisWeeksPriorities")}</label>
-              <textarea value={standupForm.priorities} onChange={(e) => setStandupForm((f) => ({ ...f, priorities: e.target.value }))} rows={3} placeholder={t("staffMisc.standupRetro.prioritiesPlaceholder")}
+              <textarea value={standupForm.priorities} onChange={(e) => editStandup("priorities", e.target.value)} rows={3} placeholder={t("staffMisc.standupRetro.prioritiesPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.expectedDeliverables")}</label>
-              <textarea value={standupForm.deliverables} onChange={(e) => setStandupForm((f) => ({ ...f, deliverables: e.target.value }))} rows={2} placeholder={t("staffMisc.standupRetro.deliverablesPlaceholder")}
+              <textarea value={standupForm.deliverables} onChange={(e) => editStandup("deliverables", e.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.deliverablesPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.blockersSupportNeeded")}</label>
-              <textarea value={standupForm.notes} onChange={(e) => setStandupForm((f) => ({ ...f, notes: e.target.value }))} rows={2} placeholder={t("staffMisc.standupRetro.supportPlaceholder")}
+              <textarea value={standupForm.notes} onChange={(e) => editStandup("notes", e.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.supportPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
           </>
@@ -484,17 +497,17 @@ export default function StandupRetroView({ user, context, contextLabel }) {
           <>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.whatWentWell")}</label>
-              <textarea value={retroForm.wentWell} onChange={(e) => setRetroForm((f) => ({ ...f, wentWell: e.target.value }))} rows={3} placeholder={t("staffMisc.standupRetro.wentWellPlaceholder")}
+              <textarea value={retroForm.wentWell} onChange={(e) => editRetro("wentWell", e.target.value)} rows={3} placeholder={t("staffMisc.standupRetro.wentWellPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.whatDidntGoWell")}</label>
-              <textarea value={retroForm.wentWrong} onChange={(e) => setRetroForm((f) => ({ ...f, wentWrong: e.target.value }))} rows={2} placeholder={t("staffMisc.standupRetro.wentWrongPlaceholder")}
+              <textarea value={retroForm.wentWrong} onChange={(e) => editRetro("wentWrong", e.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.wentWrongPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.whatWillImprove")}</label>
-              <textarea value={retroForm.improve} onChange={(e) => setRetroForm((f) => ({ ...f, improve: e.target.value }))} rows={2} placeholder={t("staffMisc.standupRetro.improvePlaceholder")}
+              <textarea value={retroForm.improve} onChange={(e) => editRetro("improve", e.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.improvePlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
           </>

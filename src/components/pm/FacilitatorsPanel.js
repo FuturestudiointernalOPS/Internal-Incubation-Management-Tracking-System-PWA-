@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import {
   ChevronLeft,
   Search,
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * PM — PROGRAM FACILITATORS
@@ -47,14 +48,45 @@ const FULL_FACILITATOR_PERMISSIONS = FACILITATOR_CAPS.reduce((acc, cap) => {
   return acc;
 }, {});
 
+// Stable read shapes: one shaper per answer, made once here rather than rebuilt
+// on every render.
+const pickProgram = (d) => (d?.success ? d.program ?? null : null);
+const pickGroups = (d) => (d?.success ? d.groups || [] : []);
+const pickReviews = (d) => (d?.success ? d.reviews || [] : []);
+const pickContacts = (d) => (d?.success ? d.contacts || [] : []);
+const pickParticipants = (d) => (d?.success ? d.participants || [] : []);
+
 export function FacilitatorsPanel({ programId }) {
   const id = programId;
   const { t } = useI18n();
 
-  const [program, setProgram] = useState(null);
-  const [groups, setGroups] = useState([]);
-  const [reviews, setReviews] = useState([]);
-  const [pool, setPool] = useState([]);
+  // The panel's reads go through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the panel keeps no
+  // copy of its own and reads during render.
+  const { data: program, refresh: refreshProgram, setData: setProgram } = useApi(
+    `/api/pm/programs/${id}`,
+    { defaultValue: null, transform: pickProgram },
+  );
+  const { data: groups, refresh: refreshGroups, setData: setGroups } = useApi(
+    `/api/v2/groups?program_id=${id}`,
+    { defaultValue: [], transform: pickGroups },
+  );
+  const { data: reviews, refresh: refreshReviews } = useApi(
+    `/api/facilitator-reviews?program_id=${id}`,
+    { defaultValue: [], transform: pickReviews },
+  );
+  // Search ALL contacts (the CRM is the source of people — no global group required)
+  const { data: pool, refresh: refreshContacts } = useApi("/api/contacts", {
+    defaultValue: [],
+    transform: pickContacts,
+  });
+  // Participants of THIS program — excluded from the facilitator search to
+  // enforce the "no participant + facilitator in the same program" rule.
+  const { data: participants, refresh: refreshParticipants } = useApi(
+    `/api/participants?program_id=${id}`,
+    { defaultValue: [], transform: pickParticipants },
+  );
+
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [decisionInputs, setDecisionInputs] = useState({});
@@ -64,48 +96,18 @@ export function FacilitatorsPanel({ programId }) {
   const [inviteResults, setInviteResults] = useState(null);
   const [inviting, setInviting] = useState(false);
   const [previewing, setPreviewing] = useState(false);
-  const [, setFacilitatorsGroup] = useState(null);
-  const [participants, setParticipants] = useState([]);
   const [conflictError, setConflictError] = useState(null);
 
-  const load = useCallback(async () => {
-    try {
-      const progRes = await fetch(`/api/pm/programs/${id}`);
-      const progData = await progRes.json();
-      if (progData.success) setProgram(progData.program);
-
-      const gRes = await fetch(`/api/v2/groups?program_id=${id}`);
-      const gData = await gRes.json();
-      if (gData.success) {
-        setGroups(gData.groups || []);
-        setFacilitatorsGroup(
-          (gData.groups || []).find((g) => g.type === "facilitators" || String(g.name).toUpperCase() === "FACILITATORS") || null,
-        );
-      }
-
-      const rRes = await fetch(`/api/facilitator-reviews?program_id=${id}`);
-      const rData = await rRes.json();
-      if (rData.success) setReviews(rData.reviews || []);
-    } catch (e) {
-      console.error(e);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    load();
-    // Search ALL contacts (the CRM is the source of people — no global group required)
-    fetch(`/api/contacts`)
-      .then((r) => r.json())
-      .then((d) => setPool(d.success ? d.contacts || [] : []))
-      .catch(() => setPool([]));
-
-    // Participants of THIS program — excluded from the facilitator search to
-    // enforce the "no participant + facilitator in the same program" rule.
-    fetch(`/api/participants?program_id=${id}`)
-      .then((r) => r.json())
-      .then((d) => setParticipants(d.success ? d.participants || [] : []))
-      .catch(() => setParticipants([]));
-  }, [id, load]);
+  // Every read the hand-written loader re-read, refreshed together: the invite
+  // batch and the PM decision below still reload the same five answers.
+  const reloadAll = () =>
+    Promise.all([
+      refreshProgram(),
+      refreshGroups(),
+      refreshReviews(),
+      refreshContacts(),
+      refreshParticipants(),
+    ]);
 
   const notify = (type, message) =>
     window.dispatchEvent(
@@ -155,9 +157,7 @@ export function FacilitatorsPanel({ programId }) {
       if (data.success) {
         setConflictError(null);
         notify("success", t("pmMisc.facilitators.addedToProgram"));
-        const progRes = await fetch(`/api/pm/programs/${id}`);
-        const progData = await progRes.json();
-        if (progData.success) setProgram(progData.program);
+        await refreshProgram();
       } else {
         if (data.error === "errors.roleConflictParticipantFacilitator") {
           setConflictError({ name: contact.name || contact.email, email: contact.email || "" });
@@ -229,7 +229,7 @@ export function FacilitatorsPanel({ programId }) {
       const data = await res.json();
       if (data.success) {
         setInviteResults(data.results || []);
-        await load();
+        await reloadAll();
       } else {
         notify("error", data.error || t("pmMisc.facilitators.inviteFailed"));
       }
@@ -318,7 +318,7 @@ export function FacilitatorsPanel({ programId }) {
     });
     if ((await res.json()).success) {
       notify("success", t("pmMisc.facilitators.decisionRecorded"));
-      load();
+      reloadAll();
     }
   };
 

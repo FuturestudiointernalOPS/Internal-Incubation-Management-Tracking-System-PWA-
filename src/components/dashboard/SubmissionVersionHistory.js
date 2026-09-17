@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import {
   FileText,
   ExternalLink,
@@ -15,6 +15,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { getServerErrorKey } from "@/lib/constants";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * SUBMISSION VERSION HISTORY
@@ -236,6 +237,16 @@ function VersionTimeline({ versions }) {
   );
 }
 
+// Stable shape: the hook keys its internal work on this, so it is made once here
+// rather than rebuilt on every render. A refusal carries its own message, which
+// is kept in the value so the screen can tell "nothing yet" from "the read failed".
+const EMPTY_HISTORY = { grouped: [], failed: false, failure: null };
+
+const pickHistory = (d) =>
+  d?.success
+    ? { grouped: d.grouped || [], failed: false, failure: null }
+    : { grouped: [], failed: true, failure: d?.error || null };
+
 export default function SubmissionVersionHistory({
   participantId,
   programId,
@@ -243,41 +254,42 @@ export default function SubmissionVersionHistory({
   compact,
 }) {
   const { t } = useI18n();
-  const [groupedData, setGroupedData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [expandedDeliverable, setExpandedDeliverable] = useState(null);
 
-  const fetchVersions = useCallback(async () => {
-    if (!participantId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      let url = `/api/submissions?participant_id=${participantId}&include_versions=true`;
-      if (programId) url += `&program_id=${programId}`;
-      if (deliverableId) {
-        url += `&deliverable_id=${deliverableId}`;
-        url += `&document_id=${deliverableId}`; // Track 2 compat
-      }
-
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        setGroupedData(data.grouped || []);
-      } else {
-        const key = getServerErrorKey(data.error);
-        setError(key ? t(key) : data.error || t("participant.failedToLoad"));
-      }
-    } catch {
-      setError(t("errors.networkError"));
-    } finally {
-      setLoading(false);
+  // The history is read through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the screen keeps
+  // no copy of its own and reads during render.
+  let url = null;
+  if (participantId) {
+    url = `/api/submissions?participant_id=${participantId}&include_versions=true`;
+    if (programId) url += `&program_id=${programId}`;
+    if (deliverableId) {
+      url += `&deliverable_id=${deliverableId}`;
+      url += `&document_id=${deliverableId}`; // Track 2 compat
     }
-  }, [participantId, programId, deliverableId, t]);
+  }
 
-  useEffect(() => {
-    fetchVersions();
-  }, [fetchVersions]);
+  const {
+    data: history,
+    loading: readLoading,
+    error: readError,
+    refresh,
+  } = useApi(url, { defaultValue: EMPTY_HISTORY, transform: pickHistory });
+
+  const groupedData = history.grouped;
+  // The identity is absent for the first moment of a cold load, so the screen
+  // keeps its placeholder rather than claiming there is nothing to show.
+  const loading = !participantId || readLoading;
+
+  // The three shapes of failure reach the screen as one message: what the server
+  // refused with, and a request that never got an answer.
+  let error = null;
+  if (history.failed) {
+    const key = getServerErrorKey(history.failure);
+    error = key ? t(key) : history.failure || t("participant.failedToLoad");
+  } else if (readError) {
+    error = t("errors.networkError");
+  }
 
   if (loading) {
     return (
@@ -298,7 +310,7 @@ export default function SubmissionVersionHistory({
         <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
         <p className="text-[10px] font-bold text-rose-400">{error}</p>
         <button
-          onClick={fetchVersions}
+          onClick={refresh}
           className="ml-auto p-1.5 rounded-lg hover:bg-rose-500/10"
         >
           <RefreshCw className="w-3 h-3 text-rose-400" />

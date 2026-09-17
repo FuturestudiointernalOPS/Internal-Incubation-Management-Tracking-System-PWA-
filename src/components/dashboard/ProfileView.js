@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   User,
   Mail,
@@ -27,6 +27,19 @@ import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import SearchableSelect from "@/components/ui/SearchableSelect";
 import { getCountries, getLanguages, resolveCountryCode } from "@/lib/profile-options";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
+
+// ─── Read shapers (module scope: built once, never per render) ──────
+const pickAltEmails = (d) =>
+  d?.success ? (d.emails || []).filter((e) => e.label !== "primary") : [];
+const pickProfile = (d) => (d?.success && d.profile ? d.profile : null);
+const pickPrograms = (d) => (d?.success ? d.programs || [] : []);
+const pickSubmissions = (d) => (d?.success ? d.submissions || [] : []);
+const pickHistory = (d) => (d?.success ? d.history || [] : []);
+const pickTimeline = (d) => (d?.success ? d.events || [] : []);
+const pickGroup = (d) =>
+  d?.success && d.groups?.length > 0 ? d.groups[0] : null;
 
 // ─── Info Row ───────────────────────────────────────────────────────
 function InfoRow({ icon: Icon, label, value, editable, onChange }) {
@@ -108,36 +121,117 @@ function HistoryGroup({ title, rows, roleLabel, activeLabel, completedLabel }) {
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ProfileView() {
   const { t, switchLang, lang } = useI18n();
-  const [, setUser] = useState(null);
-  const [contact, setContact] = useState(null);
-  const [programs, setPrograms] = useState([]);
-  const [submissions, setSubmissions] = useState([]);
-  const [groupInfo, setGroupInfo] = useState(null);
-  const [loading, setLoading] = useState(true);
+
+  // Who is signed in, from the shell's session cache: it costs no request of this
+  // screen's own and no read of the browser's stored copy.
+  const { user, cid } = useSessionUser();
+  const sessionEmail = user?.email || null;
+  const groupName = user?.group_name || null;
+  // The identity is absent for the first moment of a cold load, so the reads wait
+  // for it and the screen keeps its placeholder rather than claim there is
+  // nothing to show.
+  const identityReady = Boolean(cid || sessionEmail);
+
+  // ─── Reads ───
+  // The shared hook owns the cache, the cache-first paint, the discarding of a
+  // stale answer and the loading flag, so this screen keeps no copy of its own.
+  const {
+    data: altEmails,
+    setData: setAltEmails,
+    refresh: refreshAltEmails,
+  } = useApi("/api/contact-emails", {
+    defaultValue: [],
+    transform: pickAltEmails,
+  });
+
+  const {
+    data: profile,
+    setData: setProfile,
+    loading: profileLoading,
+  } = useApi(identityReady ? "/api/profile" : null, {
+    defaultValue: null,
+    transform: pickProfile,
+  });
+
+  const { data: programs, loading: programsLoading } = useApi(
+    identityReady ? "/api/participant/programs" : null,
+    { defaultValue: [], transform: pickPrograms },
+  );
+
+  const { data: submissions, loading: submissionsLoading } = useApi(
+    cid
+      ? `/api/participant/submissions?participant_id=${cid}`
+      : sessionEmail
+        ? `/api/participant/submissions?participant_id=${sessionEmail}`
+        : null,
+    { defaultValue: [], transform: pickSubmissions },
+  );
+
+  const { data: history, loading: historyLoading } = useApi(
+    identityReady ? "/api/profile/history" : null,
+    { defaultValue: [], transform: pickHistory },
+  );
+
+  const { data: timeline, loading: timelineLoading } = useApi(
+    identityReady ? "/api/participant/timeline?limit=20" : null,
+    { defaultValue: [], transform: pickTimeline },
+  );
+
+  const { data: groupInfo, loading: groupLoading } = useApi(
+    groupName ? `/api/groups?name=${encodeURIComponent(groupName)}` : null,
+    { defaultValue: null, transform: pickGroup },
+  );
+
+  // The stored record is the base the form is drawn from; the person's changes are
+  // recorded against the field they touch and laid back over it, so nothing has to
+  // be copied in when the read answers.
+  const contact = profile
+    ? {
+        cid: profile.cid || cid,
+        name: profile.name || "",
+        email: profile.email || sessionEmail,
+        phone: profile.phone || "",
+        address: profile.address || "",
+        language: profile.language || "en",
+        role: profile.role || "",
+        group_name: profile.group_name || "",
+        image: profile.image || "",
+        status: profile.status || "",
+        created_at: profile.created_at || "",
+        alternative_email: profile.alternative_email || "",
+        alternative_phone: profile.alternative_phone || "",
+        country: profile.country || "",
+        country_code: profile.country_code || "",
+        last_login_at: profile.last_login_at || "",
+        login_count: profile.login_count || 0,
+      }
+    : null;
+
+  // The country the form starts from, resolved from the stored record the way the
+  // loader used to.
+  const storedCountryCode =
+    contact?.country_code || resolveCountryCode(contact?.country) || "";
+
+  const loading =
+    !identityReady ||
+    profileLoading ||
+    programsLoading ||
+    submissionsLoading ||
+    historyLoading ||
+    timelineLoading ||
+    groupLoading;
+
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState(null);
-  const [editedName, setEditedName] = useState("");
-  const [history, setHistory] = useState([]);
-  const [timeline, setTimeline] = useState([]);
-  const [editedAlternativePhone, setEditedAlternativePhone] = useState("");
-  const [editedPhone, setEditedPhone] = useState("");
-  const [editedLanguage, setEditedLanguage] = useState("en");
+  const [editedName, setEditedName] = useState(null);
+  const [editedPhone, setEditedPhone] = useState(null);
+  const [editedLanguage, setEditedLanguage] = useState(null);
+  const [editedAlternativePhone, setEditedAlternativePhone] = useState(null);
 
-  // Multiple alternative emails (identity matching) — /api/contact-emails
-  const [altEmails, setAltEmails] = useState([]);
+  // Multiple alternative emails (identity matching) — edits over the read above
   const [newAltEmail, setNewAltEmail] = useState("");
   const [altBusy, setAltBusy] = useState(false);
   const [altNotice, setAltNotice] = useState("");
-
-  async function loadAltEmails() {
-    try {
-      const r = await fetch("/api/contact-emails");
-      const d = await r.json();
-      if (d.success) {
-        setAltEmails((d.emails || []).filter((e) => e.label !== "primary"));
-      }
-    } catch (_) {}
-  }
 
   async function addAltEmail() {
     const email = newAltEmail.trim();
@@ -156,7 +250,7 @@ export default function ProfileView() {
       const d = await r.json();
       if (d.success) {
         setNewAltEmail("");
-        await loadAltEmails();
+        await refreshAltEmails();
         setAltNotice(t("adminMisc.profile.altEmailsAdded"));
       } else {
         setAltNotice(d.error || t("adminMisc.profile.altEmailsError"));
@@ -187,111 +281,9 @@ export default function ProfileView() {
     }
   }
 
-  useEffect(() => {
-    loadAltEmails();
-     
-  }, []);
-  const [editedCountryCode, setEditedCountryCode] = useState("");
+  const [editedCountryCode, setEditedCountryCode] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoMessage, setPhotoMessage] = useState(null);
-
-  const fetchAllData = async (u) => {
-    try {
-      const cid = u.cid;
-      const email = u.email;
-
-      // Fetch own profile (session-based — no CRM-wide capability required),
-      // plus participant programs/submissions in parallel.
-      const [profileRes, progRes, subRes, histRes, timelineRes] = await Promise.all([
-        fetch("/api/profile"),
-        fetch("/api/participant/programs"),
-        cid
-          ? fetch(`/api/participant/submissions?participant_id=${cid}`)
-          : fetch(`/api/participant/submissions?participant_id=${email}`),
-        fetch("/api/profile/history"),
-        fetch("/api/participant/timeline?limit=20"),
-      ]);
-
-      const profileData = await profileRes.json();
-      const progData = await progRes.json();
-      const subData = await subRes.json();
-      const histData = await histRes.json();
-      const timelineData = await timelineRes.json();
-
-      if (profileData.success && profileData.profile) {
-        const p = profileData.profile;
-        setContact({
-          cid: p.cid || cid,
-          name: p.name || "",
-          email: p.email || email,
-          phone: p.phone || "",
-          address: p.address || "",
-          language: p.language || "en",
-          role: p.role || "",
-          group_name: p.group_name || "",
-          image: p.image || "",
-          status: p.status || "",
-          created_at: p.created_at || "",
-          alternative_email: p.alternative_email || "",
-          alternative_phone: p.alternative_phone || "",
-          country: p.country || "",
-          country_code: p.country_code || "",
-          last_login_at: p.last_login_at || "",
-          login_count: p.login_count || 0,
-        });
-        setEditedName(p.name || "");
-        setEditedPhone(p.phone || "");
-        setEditedLanguage(p.language || "en");
-        setEditedAlternativePhone(p.alternative_phone || "");
-        setEditedCountryCode(p.country_code || resolveCountryCode(p.country) || "");
-      }
-
-      if (progData.success) {
-        setPrograms(progData.programs || []);
-      }
-
-      if (subData.success) {
-        setSubmissions(subData.submissions || []);
-      }
-
-      if (histData.success) {
-        setHistory(histData.history || []);
-      }
-
-      if (timelineData.success) {
-        setTimeline(timelineData.events || []);
-      }
-
-      // Fetch group info if participant has a group_name
-      if (u.group_name) {
-        try {
-          const grpRes = await fetch(
-            `/api/groups?name=${encodeURIComponent(u.group_name)}`,
-          );
-          const grpData = await grpRes.json();
-          if (grpData.success && grpData.groups?.length > 0) {
-            setGroupInfo(grpData.groups[0]);
-          }
-        } catch {
-          /* ignore */
-        }
-      }
-    } catch (e) {
-      console.error("Profile fetch error:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(stored);
-    if (stored?.cid || stored?.email) {
-      fetchAllData(stored);
-    } else {
-      setLoading(false);
-    }
-  }, []);
 
   const handleSave = async () => {
     if (!contact?.cid) return;
@@ -306,8 +298,8 @@ export default function ProfileView() {
           phone: editedPhone || contact.phone,
           language: editedLanguage || contact.language,
           alternative_email: contact.alternative_email,
-          alternative_phone: editedAlternativePhone,
-          country_code: editedCountryCode,
+          alternative_phone: editedAlternativePhone ?? contact.alternative_phone,
+          country_code: editedCountryCode ?? storedCountryCode,
         }),
       });
       const data = await res.json();
@@ -375,7 +367,7 @@ export default function ProfileView() {
         throw new Error(saveData.error || t("adminMisc.profile.saveFailed"));
       }
 
-      setContact((prev) => ({ ...prev, image: uploadData.url }));
+      setProfile((prev) => (prev ? { ...prev, image: uploadData.url } : prev));
       setPhotoMessage({ type: "success", text: t("adminMisc.profile.photoUploadSuccess") });
 
       const stored = JSON.parse(localStorage.getItem("user") || "{}");
@@ -634,7 +626,7 @@ export default function ProfileView() {
               <SearchableSelect
                 label={t("adminMisc.profile.country")}
                 icon={Globe}
-                value={editedCountryCode}
+                value={editedCountryCode ?? storedCountryCode}
                 onChange={setEditedCountryCode}
                 options={countryOptions}
                 placeholder={t("common.select")}
@@ -646,7 +638,7 @@ export default function ProfileView() {
               <SearchableSelect
                 label={t("adminMisc.profile.preferredLanguage")}
                 icon={Languages}
-                value={editedLanguage || "en"}
+                value={editedLanguage ?? contact.language}
                 onChange={setEditedLanguage}
                 options={languageOptions}
                 placeholder={t("common.select")}

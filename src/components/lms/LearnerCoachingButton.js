@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { LifeBuoy, XCircle, Loader2 } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppButton from "@/components/ui/AppButton";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * ASK FOR COACHING (Phase 8 — learner surface)
@@ -24,32 +25,40 @@ import { useI18n } from "@/lib/i18n";
  * Access is enforced server-side from the enrollment table — the button never
  * grants anything by itself.
  */
+
+// ─── Module-scope reader ─────────────────────────────────────────────────────
+// The reading hook keys its internal work on this, so it is built once here
+// rather than on every render.
+
+/**
+ * The learner's own requests. The loader deliberately stayed silent when this
+ * read failed ("the button stays usable even if the status read fails"), so a
+ * read that did not answer simply leaves the list empty.
+ */
+const pickRequests = (d) => (d?.success ? d.requests || [] : []);
+
 export default function LearnerCoachingButton({ courseId = null, lessonId = null }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
-  const [requests, setRequests] = useState([]);
   const [courses, setCourses] = useState(null);
-  const [form, setForm] = useState({ courseId: courseId || "", timing: "during", topic: "", message: "" });
   const [saving, setSaving] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  // The form's values: the course this button was opened for is the base, what
+  // the person changes is recorded against the field it touches, and what is
+  // shown is the two merged. Nothing is copied, so no effect has to notice the
+  // course arriving — which is what would erase something typed in the moment
+  // before it did.
+  const [edits, setEdits] = useState({});
+  const form = { courseId: courseId || "", timing: "during", topic: "", message: "", ...edits };
 
-  const fetchRequests = useCallback(async () => {
-    try {
-      const res = await fetch("/api/lms/coaching-requests");
-      const data = await res.json();
-      if (data.success) setRequests(data.requests || []);
-    } catch {
-      /* the button stays usable even if the status read fails */
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
-
-  useEffect(() => {
-    setForm((f) => ({ ...f, courseId: courseId || f.courseId || "" }));
-  }, [courseId]);
+  // The status is read through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the button keeps
+  // no copy of its own. Opening the modal and every write re-read through
+  // `refresh`, which bypasses the cache.
+  const { data: requests, refresh: refreshRequests } = useApi(
+    "/api/lms/coaching-requests",
+    { defaultValue: [], transform: pickRequests },
+  );
 
   /** Enrolled courses — only needed when the button has no course context. */
   const loadCourses = async () => {
@@ -64,7 +73,7 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
         title: entry.course?.title,
       }));
       setCourses(list);
-      setForm((f) => ({ ...f, courseId: f.courseId || list[0]?.id || "" }));
+      setEdits((prev) => ({ ...prev, courseId: prev.courseId || list[0]?.id || "" }));
     } catch (e) {
       notify("error", e.message || "lms.errors.loadFailed");
     }
@@ -72,7 +81,7 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
 
   const openModal = async () => {
     setOpen(true);
-    await Promise.all([fetchRequests(), loadCourses()]);
+    await Promise.all([refreshRequests(), loadCourses()]);
   };
 
   const activeRequest = (requests || []).find(
@@ -99,8 +108,8 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.coaching.requested");
       setOpen(false);
-      setForm({ courseId: courseId || "", timing: "during", topic: "", message: "" });
-      fetchRequests();
+      setEdits({});
+      refreshRequests();
     } catch (e) {
       notify("error", e.message || "lms.errors.saveFailed");
     } finally {
@@ -117,7 +126,7 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.coaching.cancelled");
       setOpen(false);
-      fetchRequests();
+      refreshRequests();
     } catch (e) {
       notify("error", e.message || "lms.errors.saveFailed");
     } finally {
@@ -182,7 +191,7 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
               ) : (
                 <select
                   value={form.courseId}
-                  onChange={(e) => setForm((f) => ({ ...f, courseId: e.target.value }))}
+                  onChange={(e) => setEdits((prev) => ({ ...prev, courseId: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg outline-none border text-xs"
                   style={{
                     background: "var(--surface-2)",
@@ -212,7 +221,7 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
                 <button
                   key={timing}
                   type="button"
-                  onClick={() => setForm((f) => ({ ...f, timing }))}
+                  onClick={() => setEdits((prev) => ({ ...prev, timing }))}
                   className="py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all"
                   style={{
                     borderColor:
@@ -231,7 +240,7 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
 
           <input
             value={form.topic}
-            onChange={(e) => setForm((f) => ({ ...f, topic: e.target.value }))}
+            onChange={(e) => setEdits((prev) => ({ ...prev, topic: e.target.value }))}
             placeholder={t("lms.coaching.topicPlaceholder")}
             className="w-full px-3 py-2 rounded-lg outline-none border text-xs"
             style={{
@@ -244,7 +253,7 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
           <textarea
             rows={3}
             value={form.message}
-            onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
+            onChange={(e) => setEdits((prev) => ({ ...prev, message: e.target.value }))}
             placeholder={t("lms.coaching.messagePlaceholder")}
             className="w-full px-3 py-2 rounded-lg outline-none border text-xs"
             style={{

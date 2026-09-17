@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   PlayCircle,
@@ -20,6 +20,7 @@ import LearnerCoachingButton from "./LearnerCoachingButton";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 import { isValidYouTubeVideoId, buildYouTubeEmbedUrl } from "@/lib/lms/youtube";
+import { useApi } from "@/lib/hooks/useApi";
 
 /**
  * COURSE PLAYER (learner).
@@ -31,44 +32,57 @@ import { isValidYouTubeVideoId, buildYouTubeEmbedUrl } from "@/lib/lms/youtube";
  * - Desktop: video + course-content sidebar. Mobile: stacked with collapsible
  *   content panel.
  */
+
+// ─── Module-scope reader ─────────────────────────────────────────────────────
+// The reading hook keys its internal work on this, so it is built once here
+// rather than on every render.
+
+const EMPTY_COURSE = { payload: null, failure: null };
+
+/**
+ * The course being played, together with the message for a read that failed.
+ * The loader reported both ways of failing as one message — the payload refusing,
+ * or a request that never got an answer — and the screen still shows one panel.
+ */
+const pickCourse = (d) =>
+  d?.success
+    ? { payload: d, failure: null }
+    : { payload: null, failure: d?.error || "lms.errors.loadFailedCourse" };
+
 export default function LearnerPlayer({ courseId, lessonId }) {
   const { t } = useI18n();
   const router = useRouter();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [completing, setCompleting] = useState(false);
   const [justCompleted, setJustCompleted] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
-  const [playing, setPlaying] = useState(false);
+  // Which lesson the learner started playing. Recorded rather than reset from an
+  // effect: the lesson is what the address shows, so "playing" is derived by
+  // comparing the two during render, and arriving at another lesson costs no
+  // state write.
+  const [playingLessonId, setPlayingLessonId] = useState(null);
   const completeTimer = useRef(null);
 
   useEffect(() => () => clearTimeout(completeTimer.current), []);
 
-  // The video starts on a clean poster (no YouTube chrome); it is only
-  // embedded once the learner clicks play. Switching lessons resets it.
-  useEffect(() => {
-    setPlaying(false);
-  }, [lessonId]);
+  // The course is read through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the player keeps
+  // no copy of its own. Its address is the course, so moving to another course
+  // re-reads by itself; marking a lesson complete re-reads through `refresh`,
+  // which bypasses the cache.
+  const {
+    data: courseRead,
+    loading,
+    error: readError,
+    refresh,
+  } = useApi(`/api/lms/courses/${courseId}/learn`, {
+    defaultValue: EMPTY_COURSE,
+    transform: pickCourse,
+    deps: [courseId],
+  });
+  const data = courseRead.payload;
+  const error = courseRead.failure || readError || null;
 
-  const fetchCourse = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/lms/courses/${courseId}/learn`);
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || "lms.errors.loadFailedCourse");
-      setData(json);
-    } catch (e) {
-      setError(e.message || "lms.errors.loadFailedCourse");
-    } finally {
-      setLoading(false);
-    }
-  }, [courseId]);
-
-  useEffect(() => {
-    fetchCourse();
-  }, [fetchCourse]);
+  const playing = playingLessonId != null && String(playingLessonId) === String(lessonId);
 
   // Ordered lesson list for prev/next navigation (assessments are not lessons).
   const lessons = useMemo(() => {
@@ -83,17 +97,6 @@ export default function LearnerPlayer({ courseId, lessonId }) {
 
   const isCompleted = !!lesson && lesson.state === "completed";
 
-  /** Refresh course data in the background — no full-page loading flash. */
-  const refreshSilently = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/lms/courses/${courseId}/learn`);
-      const json = await res.json();
-      if (json.success) setData(json);
-    } catch {
-      /* best-effort background refresh */
-    }
-  }, [courseId]);
-
   const complete = async () => {
     if (!lesson || isCompleted || completing || justCompleted) return;
     setCompleting(true);
@@ -102,7 +105,7 @@ export default function LearnerPlayer({ courseId, lessonId }) {
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "lms.errors.saveFailed");
       // Update the page behind the overlay, then confirm with the check badge.
-      await refreshSilently();
+      await refresh();
       setCompleting(false);
       setJustCompleted(true);
       if (json.courseCompleted && json.certificate) {
@@ -224,7 +227,7 @@ export default function LearnerPlayer({ courseId, lessonId }) {
                   />
                   <button
                     type="button"
-                    onClick={() => setPlaying(false)}
+                    onClick={() => setPlayingLessonId(null)}
                     title={t("common.close")}
                     className="absolute top-2 right-2 z-10 p-1.5 rounded-full transition-colors"
                     style={{ background: "rgba(0,0,0,0.6)", color: "rgba(255,255,255,0.9)" }}
@@ -235,7 +238,7 @@ export default function LearnerPlayer({ courseId, lessonId }) {
               ) : (
                 <button
                   type="button"
-                  onClick={() => setPlaying(true)}
+                  onClick={() => setPlayingLessonId(lessonId)}
                   title={t("lms.player.playVideo")}
                   className="absolute inset-0 w-full h-full flex items-center justify-center group"
                 >

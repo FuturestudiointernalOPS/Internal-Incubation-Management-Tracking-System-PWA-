@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import {
   Bug,
   RefreshCw,
@@ -16,6 +16,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
 
 // ─── Constants ───
 const SEV = {
@@ -65,6 +66,21 @@ const CAT = {
     bg: "rgba(168,85,247,0.1)",
     label: "Validation",
   },
+};
+
+// ─── Read shaper / address (module scope: built once, never per render) ───
+const pickErrors = (d) => (d?.success ? d.errors || [] : []);
+
+// The address carries the filters, so a filter change is what re-issues the
+// read rather than an effect watching them.
+const buildErrorsUrl = (sev, tab, cat, q) => {
+  const p = new URLSearchParams();
+  if (sev !== "all") p.set("severity", sev);
+  if (tab === "resolved") p.set("resolved", "true");
+  else if (tab === "unresolved") p.set("resolved", "false");
+  if (cat !== "all") p.set("category", cat);
+  if (q) p.set("search", q);
+  return `/api/errors?${p.toString()}`;
 };
 
 // ─── Sub-components ───
@@ -120,8 +136,6 @@ export default function ErrorLogsView({
   const { t } = useI18n();
   const isAdmin = role === "super_admin" || role === "admin";
 
-  const [errors, setErrors] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("unresolved");
   const [sev, setSev] = useState("all");
   const [cat, setCat] = useState("all");
@@ -132,28 +146,17 @@ export default function ErrorLogsView({
   const [resolutionNotes, setResolutionNotes] = useState({});
   const [actionLoading, setActionLoading] = useState(false);
 
-  const fetchErrors = useCallback(async () => {
-    setLoading(true);
-    try {
-      const p = new URLSearchParams();
-      if (sev !== "all") p.set("severity", sev);
-      if (tab === "resolved") p.set("resolved", "true");
-      else if (tab === "unresolved") p.set("resolved", "false");
-      if (cat !== "all") p.set("category", cat);
-      if (q) p.set("search", q);
-      const res = await fetch(`/api/errors?${p.toString()}`);
-      const d = await res.json();
-      if (d.success) setErrors(d.errors || []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [sev, tab, cat, q]);
-
-  useEffect(() => {
-    fetchErrors();
-  }, [fetchErrors]);
+  // The list is read through the shared hook, which owns the cache, the
+  // cache-first paint, the discarding of a stale answer and the loading flag, so
+  // this screen keeps no copy of its own.
+  const {
+    data: errors,
+    loading,
+    refresh: refreshErrors,
+  } = useApi(buildErrorsUrl(sev, tab, cat, q), {
+    defaultValue: [],
+    transform: pickErrors,
+  });
 
   const allSel = errors.length > 0 && sel.size === errors.length;
 
@@ -196,7 +199,7 @@ export default function ErrorLogsView({
       }).catch(() => {});
     }
     setSel(new Set());
-    fetchErrors();
+    refreshErrors();
   };
 
   const handleToggleResolved = async (id, currentlyResolved) => {
@@ -213,7 +216,7 @@ export default function ErrorLogsView({
         }),
       });
       setResolutionNotes((prev) => ({ ...prev, [id]: "" }));
-      fetchErrors();
+      refreshErrors();
     } catch (e) {
       console.error("Failed to update error", e);
     }
@@ -270,7 +273,7 @@ export default function ErrorLogsView({
               </>
             )}
             <button
-              onClick={fetchErrors}
+              onClick={refreshErrors}
               className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
             >
               <RefreshCw className="w-3.5 h-3.5" />{" "}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   Shield,
   UserPlus,
@@ -15,6 +15,7 @@ import {
 import AppButton from "@/components/ui/AppButton";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import { deriveMembershipStatus, sortGroups } from "@/lib/membership-ui";
+import { useApi } from "@/lib/hooks/useApi";
 import {
   STATUS_STYLE,
   Badge,
@@ -24,6 +25,17 @@ import {
   ConfirmModal,
   HistoryModal,
 } from "@/components/membership/MembershipModals";
+
+// Stable shapes: the hook keys its internal work on these, so they are made once
+// here rather than rebuilt on every render. The roster also sources the group
+// catalogue, so both parts of the answer travel together.
+const MEMBERSHIP_URL = "/api/org-membership";
+const EMPTY_MEMBERSHIP = { memberships: [], protectedMap: {}, failure: "" };
+
+const pickMembership = (d) =>
+  d?.success
+    ? { memberships: d.memberships || [], protectedMap: d.protected || {}, failure: "" }
+    : { memberships: [], protectedMap: {}, failure: d?.error || "—" };
 
 /**
  * Organizational Membership section for the CRM contact profile.
@@ -37,37 +49,26 @@ import {
  * server-side). The UI never is the security boundary.
  */
 export default function MembershipSection({ cid, t, lang }) {
-  const [memberships, setMemberships] = useState(null); // all rows (also sources the group catalog)
-  const [protectedMap, setProtectedMap] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  // The roster is read through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the section keeps
+  // no copy of its own and reads during render.
+  const {
+    data: membership,
+    loading,
+    error: readError,
+    refresh,
+  } = useApi(MEMBERSHIP_URL, {
+    defaultValue: EMPTY_MEMBERSHIP,
+    transform: pickMembership,
+  });
+  const memberships = membership.memberships; // all rows (also sources the group catalog)
+  const protectedMap = membership.protectedMap;
+  const error = membership.failure || (readError ? "—" : "");
+
   const [addOpen, setAddOpen] = useState(false);
   const [renewMember, setRenewMember] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
   const [historyMember, setHistoryMember] = useState(null);
-
-  const fetchAll = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
-      const res = await fetch("/api/org-membership");
-      const data = await res.json();
-      if (!data.success) {
-        setError(data.error || "—");
-        return;
-      }
-      setMemberships(data.memberships || []);
-      setProtectedMap(data.protected || {});
-    } catch {
-      setError("—");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
 
   const mine = useMemo(
     () => (memberships || []).filter((m) => String(m.user_cid) === String(cid)),
@@ -117,7 +118,7 @@ export default function MembershipSection({ cid, t, lang }) {
 
   const reload = () => {
     setHistoryMember(null);
-    fetchAll();
+    refresh();
   };
 
   const handleAction = async () => {
