@@ -149,66 +149,48 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 21 |
-| `react-hooks/set-state-in-effect` | 200 | 16 |
+| ESLint warnings, total | 2192 | 9 |
+| `react-hooks/set-state-in-effect` | 200 | 4 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` | 2 | 0 |
 | Production build | passes | passes |
 
-**This is the floor for conversions.** Every remaining `set-state-in-effect` is
-structural or deliberate, and each is named with its reason below. The total
-also includes ONE `no-unused-vars` that is not this migration's (a new test file
-added by the other workstream) plus the one `<img>`, the one
-`preserve-manual-memoization` and two `exhaustive-deps` that are all deliberate.
+**Four are left, and two of those are the hook's own deliberate ones.** What
+remains is named below, one screen at a time, and the reason for each is a design
+step rather than a missing conversion.
 
-Screens carrying a `set-state-in-effect` warning: **12** (plus the hook itself,
-which is counted separately below).
+Screens carrying a `set-state-in-effect` warning: **2**.
 
-| Group | Screens |
-|---|---:|
-| Application pages | 8 |
-| The shell (`src/components/layout/DashboardLayout.js`) | 1 |
-| `src/lib/` modules | 3 |
+| Screen | Reason |
+|---|---|
+| `src/app/activate/page.js` | §3.4 - the token and mode come from the address bar, on a SIGN-IN screen. |
+| `src/app/s/[runId]/page.js` | §3.3 - the loader also switches the interface language and builds a translated payload. |
 
-The hook itself accounts for the thirteenth file, and for four warnings rather
-than two (see the note below and §3.7).
-
-Of these 12 screens, **10 carry a single warning**; the remaining 2 carry two.
+Plus the hook itself, which accounts for the other two and for two
+`exhaustive-deps` as well (§3.7). The total also includes ONE `no-unused-vars`
+that is not this migration's (a new test file added by the other workstream), the
+one `<img>` that waits for the image work, and one `preserve-manual-memoization`.
 
 ### What is left, and under which reason
 
-**Nothing is left that a conversion can remove.** Every screen still carrying a
-warning is on this list for a reason that is not "not done yet":
+**Nothing is left that a conversion can remove.** The two screens are both
+consequence-sensitive in the same way, which is why they are the last:
 
-| Screen | Warnings | Reason |
-|---|---:|---|
-| `src/app/platform/modules/page.js` | 1 | §3.4 - the source is a registry read synchronously, not a network read at all. |
-| `src/app/platform/settings/page.js` | 1 | §3.4 - same registry. |
-| `src/app/developer/retro/page.js` | 1 | §3.4 - the source is the current WEEK; computing it during render would mismatch between the server's clock and the browser's. |
-| `src/app/investor/profile/page.js` | 1 | §3.4 - the source initialises an EDITABLE FORM; it needs the keyed-child restructure named in §1. |
-| `src/app/activate/page.js` | 1 | §3.4 - the token and mode come from the address bar, on a SIGN-IN screen: do it deliberately. |
-| `src/app/admin/layout.js` | 1 | §3.11 - the guard runs outside the shell it guards. |
-| `src/app/developer/layout.js` | 1 | §3.11 - same. |
-| `src/app/s/[runId]/page.js` | 1 | §3.3 - the loader also switches the interface language and builds a translated payload. |
-| `src/components/layout/DashboardLayout.js` | 1 | §4.0.1 - the pre-paint session restore. |
-| `src/lib/PermissionProvider.js` | 2 | §4.4 - the capability matrix. |
-| `src/lib/i18n.js` | 2 | §4.4 - the translation provider. |
-| `src/lib/ThemeProvider.js` | 1 | §4.4 - the theme provider. |
+| Screen | What the next pass has to decide |
+|---|---|
+| `src/app/activate/page.js` | The token and the mode are read from the browser's address bar in an effect. Reading them during render means the navigation-parameter route (a Suspense boundary, or the page made dynamic), and the validation request becomes a hook read addressed on the token. **It is a SIGN-IN screen**: a mistake there blocks people rather than inconveniencing them, so it is walked with a real activation link, an expired one and a bad one. |
+| `src/app/s/[runId]/page.js` | Its loader does three things: reads the run, DETECTS the form's own language by scanning the content, and either switches the interface language or machine-translates the payload. The read has to be separated from the translation first - one of them has to stop being a consequence of the other - and only then can the read go through the hook. **It is a PUBLIC screen** reached without signing in, so the same caution applies. |
 
-Eight reasons that were once reasons are no longer: the screens that needed a
-capability the hook did not expose (§3.1), the ones that asked for one record per
-element (§3.2), the one whose read also wrote (§3.9), the standup screen's address
-mirror (§3.10) and its form read, the venture group, the screen that republished
-its state from its writes, the whole shared-component group except the shell, the
-four biggest console pages, the last large screen, the runs console, and the
-programme manager's workspace are all converted, and their sections record what
-was done.
-The whole venture group is converted, and its section records what each of the
-three needed. Six of the reasons above are therefore no longer reasons: the
-screens that needed a capability the hook did not expose (§3.1), the ones that
-asked for one record per element (§3.2), the one whose read also wrote (§3.9), the
-standup screen's address mirror (§3.10, mostly), the venture group and - no longer
-listed - the screen that republished its state from its writes (§4).
+The reasons that were once reasons, and are not any more: the screens that needed
+a capability the hook did not expose (§3.1); the ones that asked for one record per
+element (§3.2); the one whose read also wrote (§3.9); the standup screen's address
+mirror and its form read (§3.10); the venture group (§4.1); the screen that
+republished its state from its writes (§4.1); the whole shared-component group,
+shell included (§4.0); the four biggest console pages, the last large screen, the
+runs console and the programme manager's workspace (§3.6); the three screens whose
+value was never from the network (§3.4); the investor profile's editable form
+(§3.4); the three providers (§4.4); and the two section guards (§3.11). Their
+sections record what each one needed.
 
 > The test count is not recorded here any more: another workstream adds and
 > renames suites in this same working tree, so any figure went stale within the
@@ -286,6 +268,24 @@ run's detail, still returns exactly that. This added a way to ask for many.
 | `src/app/s/[runId]/page.js` | The loader also switches the interface language and builds a machine-translated payload; a second effect keeps a local draft of the answers. | Separate the read from the translation side effect first (translate after the payload arrives, or on demand), then convert the read. |
 
 ### 3.4 The value is initialised from a source that is not the network
+
+**Only `src/app/activate/page.js` is left** (see section 2 for what the next pass
+has to decide). The other four are converted, and the shape they turned out to
+share is worth naming: NONE of them needed the value to be fetched or moved - only
+for the thing that was in the way to be recognised as something that can be read
+during render.
+
+| Screen | What it actually needed |
+|---|---|
+| `src/app/platform/modules/page.js` | The registry is a PURE function of the role, so it is computed during render. The only browser dependency was the role, which is already a subscribed value. The registry fails CLOSED on an unknown role, so the first paint - before the session has arrived - shows nothing rather than every module. |
+| `src/app/platform/settings/page.js` | Same registry, and a service list that is pure too. Both are simply constants of the module, so both are computed during render. |
+| `src/app/developer/retro/page.js` | The current week is a fact about the CLOCK, so it is taken once through the LAZY INITIALISER the operations view already uses. It is never rendered - only sent with the submission - so the server's render and the browser's first render do not have to agree on it. |
+| `src/app/investor/profile/page.js` | The read fills ELEVEN values across TWO forms, one per tab. A keyed child per form would have unmounted the other tab's form on every switch, losing typing that survives today - so the restructure the document named would have REMOVED behaviour. One bag of edits over a base computed from the record keeps both tabs' typing in one place exactly as the eleven separate states did, and a background re-read can no longer wipe what someone is typing. |
+
+The lesson, for the last screen: "the value comes from somewhere that is not the
+network" is not by itself a reason to defer. It is a reason to ask WHICH part of it
+is not readable during render - and four times out of five, that part was only the
+identity, which was already a store.
 
 The signed-in identity used to be in this group: five screens re-read it from the
 browser's stored copy, because that is the only place it is available
@@ -611,7 +611,7 @@ cannot flicker from one to the other. One read is kept with its answer discarded
 (the Future Studio staff list): that answer has never been read on this screen,
 and dropping the request would be a change of behaviour smuggled into a cleanup.
 
-### 3.11 The guard that runs outside the shell it guards
+### 3.11 The guard that runs outside the shell it guards - CONVERTED
 
 `src/app/admin/layout.js` and `src/app/developer/layout.js` decide who may enter a
 whole section. Each does two things: restores the role from the browser's stored
@@ -620,17 +620,33 @@ and then asks the session endpoint and treats its answer as the authority -
 redirecting anyone else, refreshing the stored copy with what the server said, and
 deleting it when there is definitively no session.
 
-The reason this is not converted is structural, not convenience: this guard runs
-OUTSIDE the shell it guards, and the session the shell publishes is fetched by the
-shell. The guard therefore cannot read it before deciding whether to render the
-shell at all. And the pre-paint restore cannot be moved into the session cache,
-whose value is deliberately absent on the first render - that is what keeps the
-server's render and the browser's first render identical.
+The reason this was not converted looked structural: this guard runs OUTSIDE the
+shell it guards, and the session the shell publishes is fetched by the shell - so
+the guard could not read it before deciding whether to render the shell at all.
+And the pre-paint restore could not be moved into the session cache, whose value is
+deliberately absent on the first render.
 
-Converting it means moving the guard INSIDE the shell so that it can read the
-session the shell already has. That is a change to the section boundary on the two
-screens that decide who gets in, and it should be made deliberately, with the
-sections walked in each role, rather than as part of a warning cleanup.
+**That second half is what changed.** The session cache is not the only thing the
+identity comes from: on a cold load it comes from the browser's stored copy, read
+once and cached against the raw string so an unchanged copy keeps its identity
+(`getDashboardSessionUser`). "The session the shell published, or the stored copy
+while the session has none" is therefore readable as a STORE SNAPSHOT during
+render - by the shell, and equally by a guard that renders before it.
+
+So the guards SUBSCRIBE to it instead of copying a role into state, and the effect
+is gone. The section boundary did NOT have to move. Three behaviours are preserved
+deliberately, because the guards disagreed with each other on them:
+
+- the fast path admits the developer section by ROLE only; the intern GROUP is
+  honoured where it always was, in the check;
+- a stored role that is not admitted still goes to THAT ROLE's own dashboard,
+  not to sign-in;
+- a check that answered "no session" still removes the stored copy first, and the
+  removal is noticed immediately by the raw-string cache.
+
+> Still worth walking after any change here: entering and leaving each section as
+each role, on a COLD LOAD (not a navigation), and with an account whose role
+> changed server-side.
 
 ---
 
@@ -652,17 +668,17 @@ the chat and the shell - are done:
 provider and the permission provider. (The reading hook is the fourth, and its own
 four warnings are deliberate - §3.7.)
 
-#### 4.0.1 The shell - TWO OF THREE DONE, and the one that is not
+#### 4.0.1 The shell - CONVERTED
 
 `src/components/layout/DashboardLayout.js` is the one file where a mistake
 reaches every role at once. Its three warnings were diagnosed before any was
-touched; two are now converted and the third is deliberately not.
+touched, and all three are now done.
 
-| Warning | State |
+| Warning | What it needed |
 |---|---|
-| the "My Learning" door | **DONE.** The read is addressed ON THE ROLE, so a non-personal surface has no address and the door is hidden without any write. The route stays a DEPENDENCY rather than part of the address, so navigating still re-asks and the door still opens as soon as an enrollment exists. The state it used to write is gone: it fed one comparison, and "unknown" and "no" hid the door alike. |
-| the sidebar accordion | **DONE, by derivation.** The person's hand-toggled sections are recorded TOGETHER WITH THE ROUTE they were toggled on, and the effective map is derived during render: the route's sections open, the rest closed, then those toggles laid over. Replaying the existing toggle against that map reproduces the behaviour exactly, including closing a section on the active path by hand. It also removes a state write and a second render per navigation, and the first paint now already has the route's section open. |
-| the pre-paint session restore, line 991 | **LEFT, and it is structural.** The value comes from a browser store, so it cannot be read during the render the server also produces - the same reason §3.11 gives for the section guards. The honest repair is to make `user` a value SUBSCRIBED to the session cache (`useSyncExternalStore`, as `useSessionUser` does) instead of the shell's own state, and to derive `authChecked` from it. That is a change to how the shell owns the identity, which every role depends on, so it is made deliberately and walked in each role - not as part of a warning sweep. |
+| the "My Learning" door | The read is addressed ON THE ROLE, so a non-personal surface has no address and the door is hidden without any write. The route stays a DEPENDENCY rather than part of the address, so navigating still re-asks and the door still opens as soon as an enrollment exists. The state it used to write is gone: it fed one comparison, and "unknown" and "no" hid the door alike. |
+| the sidebar accordion | The person's hand-toggled sections are recorded TOGETHER WITH THE ROUTE they were toggled on, and the effective map is derived during render: the route's sections open, the rest closed, then those toggles laid over. Replaying the existing toggle against that map reproduces the behaviour exactly, including closing a section on the active path by hand. |
+| the pre-paint session restore | The identity is now the SHARED STORE (`getDashboardSessionUser`, section 3.11), not a second copy beside it, and "are we authenticated" is derived from "do we know who this is, or have we finished asking". One writer publishes to the store and keeps the browser's copy in step - and it now PRESERVES the fields other surfaces put in the session (the capability matrix), where the old code replaced the whole object. |
 
 > One guard test locks the learning door's rule by looking for the text of its
 gate. The variable kept the name that test knows, so the rule it locks is still
@@ -791,38 +807,50 @@ The four mistakes that have cost a review cycle here, so they do not cost anothe
   message - and derives the rest, or a write's own answer has nowhere to go but a
   second request.
 
-### 4.4 The three providers - the last family, and why it is a decision
+### 4.4 The three providers - CONVERTED
 
-`src/lib/i18n.js` (2), `src/lib/ThemeProvider.js` (1) and
-`src/lib/PermissionProvider.js` (2) are the last five warnings a conversion could
-touch, and all three are the SAME structural problem, one layer up from the
-guards in §3.11:
+`src/lib/i18n.js`, `src/lib/ThemeProvider.js` and `src/lib/PermissionProvider.js`
+were the last family, and all three were the same structural problem, one layer up
+from the guards: each copied a value out of a BROWSER store into React state from
+an effect, because it cannot be read during the render the server also produces.
 
-| Provider | What it does before the first paint | 
+**Each is now SUBSCRIBED instead of copied** - `useSyncExternalStore` over a small
+module store, with the server snapshot deliberately the default, which is what
+keeps the server's render and the browser's first render agreeing. Nothing is
+copied into state, no render is cascaded, and the writes that touch the DOM stay in
+effects.
+
+| Provider | What it needed | 
 |---|---|
-| the translation provider | Reads the stored language, then the stored user account's language, and stores it. |
-| the theme provider | Reads the stored preference and the `data-theme` attribute a pre-hydration script already set, and stores both plus "mounted". |
-| the permission provider | Seeds the capability matrix from the shell's session cache in a LAYOUT effect - explicitly so the sidebar never flashes the fail-open role menu - and its refresh loader writes its loading flag synchronously. |
+| the translation provider | The account's own language wins over the loose preference, which wins over the browser's - the precedence TWO effects used to establish between them, now expressed once in the store's read. Switching a language still writes the account's copy, for the reason the old code gave: the account's language is read first, so a choice that did not update it would be undone. |
+| the theme provider | Holds nothing at all now: the preference is the store, the resolved scheme is derived from it and a subscribed OS preference, and the DOM attribute is written by a LAYOUT effect that waits for the client - writing it during the hydration pass would undo the pre-hydration script that already resolved the real theme before the first paint. |
+| the permission provider | Seeded from the shell's session cache, which IS a store, so the seed needs neither an effect nor a render of its own; the read then reports its own verdict. A request that THREW still leaves the cached matrix standing, which is what the loader did by not clearing it in its catch. The context value keeps a STABLE refresh, so consumers are not re-rendered merely because the provider rendered. |
 
-Each reads a BROWSER STORE, so the value cannot be read during the render the
-server also produces: that is why they are effects, and it is the same reason the
-shell's restore (§4.0.1) and the section guards (§3.11) are not conversions.
+> Note that the translation provider's dependency-list suppression went with the
+effects it belonged to, as the note in the previous version of this section said it
+would.
 
-**The repair is the same for all three, and it is not a sweep.** Make the value
-something the provider SUBSCRIBES to rather than owns - `useSyncExternalStore`
-over a small module store, with the server snapshot deliberately the default, the
-way `useSessionUser` already does it for the identity. The writes that touch the
-DOM (setting the language attribute, applying the theme) stay in effects; only the
-stored VALUE moves. That is a change to how the app owns three values that EVERY
-screen depends on at once, so it is made deliberately and the sections walked in
-each role - not as part of a warning cleanup. Nothing about them is broken today:
-the pre-hydration script and the layout-effect seed are what keep the server's
-render and the browser's first render agreeing.
+### 4.5 What the four store conversions had in common
 
-> Note that the translation provider's second effect carries an existing
-> `eslint-disable` for its dependency list. It is deliberately NOT removed here:
-> it goes away when the value moves to a subscription, and removing it before
-> then would only produce a new warning.
+Every one of them - the identity, the language, the theme, the capability matrix -
+was the same shape, and the shape is the whole lesson:
+
+1. the value lives in a browser store, so it cannot be read during the render the
+   server also produces;
+2. it is exposed as a module store with `subscribe` and `getSnapshot`, and the
+   server snapshot is the DEFAULT rather than a guess;
+3. **the snapshot must keep its identity** while nothing has changed, or React
+   re-renders forever - so a snapshot that parses or rebuilds is cached: against
+   the raw string, against the day, against the store's own object;
+4. anything the value has to do to the DOM stays in an effect; the VALUE is what
+   moves.
+
+And the one trap: a browser store read at module scope has to notice a value that
+was REMOVED, not only one that changed. Sign-out is where that bites.
+
+The version of this section that stood here said the repair was a change to how the
+app owns four values "walked in each role, not swept up here". It was done
+carefully and it is done; the walk each one asks for is written where it is made.
 
 ---
 
