@@ -51,12 +51,15 @@ test("mutation-site inventory is frozen (every contacts.role write is known)", (
   // list shrinks to the true identity operations (promote/demote).
   const KNOWN_SITES = [
     "src/models/adminOps.js", // approval → participant (contextual — I2 target)
-    "src/models/authFlows.js", // v2 invite accept overwrites contact role (contextual — I2 target, no guard!)
     "src/models/authorization.js", // promote/demote super_admin/staff (TRUE identity op — keep)
     "src/models/investorRelations.js", // investor onboarding (contextual — I2 target)
     "src/models/platform/automation.js", // platform approval role set (contextual — I2 target)
     "src/models/venturePipeline.js", // venture founder (contextual — I2 target)
   ];
+  // authFlows.js used to be here: accepting a legacy V2 invite overwrote the
+  // contact's role with no guard. Both the routes and the model helpers behind
+  // them were verified unused and removed, so the site is gone rather than
+  // guarded — which is why this list shrank instead of the file gaining a flag.
   expect(findRoleMutationFiles()).toEqual(KNOWN_SITES);
 });
 
@@ -134,7 +137,6 @@ describe("I2 mutation-stop guard presence", () => {
   test("every contextual mutation site consults the stop flag", () => {
     const sites = [
       "src/models/adminOps.js",
-      "src/models/authFlows.js",
       "src/models/investorRelations.js",
       "src/models/venturePipeline.js",
       "src/models/platform/automation.js",

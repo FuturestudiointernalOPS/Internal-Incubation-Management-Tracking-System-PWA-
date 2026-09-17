@@ -67,6 +67,29 @@ const RETIRED = [
   "src/app/api/v2/invites/[token]/route.js",
 ];
 
+/**
+ * Model-layer helpers whose ONLY callers were the retired routes above. Removing
+ * a route and leaving its data access behind is the half-removal this guards
+ * against: the dead code keeps a contextual flow able to rewrite contacts.role
+ * (one of them did, unguarded), and it keeps the next reader believing the
+ * invitation path still runs through it. The live invitation path is
+ * src/app/api/invites -> src/models/groups.js.
+ */
+const RETIRED_MODEL_HELPERS = [
+  "createV2Invitation",
+  "listV2Invitations",
+  "getV2InviteWithProgramNameByHashOrToken",
+  "backfillV2InviteTokenHashOnValidate",
+  "getV2InviteByHashOrToken",
+  "backfillV2InviteTokenHashOnAccept",
+  "getContactByEmailForV2InviteAccept",
+  "updateContactByEmailForV2InviteAccept",
+  "insertContactForV2InviteAccept",
+  "getV2ParticipantByEmailAndProgram",
+  "updateV2ParticipantTeamByEmailAndProgram",
+  "insertV2ParticipantForInviteAccept",
+];
+
 describe("every declared wave is wired somewhere", () => {
   test("the census covers exactly the declared waves", () => {
     expect(Object.keys(COVERAGE).sort()).toEqual([...PROGRAM_SCOPE_WAVES].sort());
@@ -136,6 +159,34 @@ describe("removed legacy routes stay removed", () => {
           // it was removed; a fetch or an import is what must not come back.
           if (/fetch\(\s*["'`]\/api\/v2\/invites/.test(src)) {
             offenders.push(path.relative(ROOT, full));
+          }
+        }
+      }
+    })(path.join(ROOT, "src"));
+    expect(offenders).toEqual([]);
+  });
+
+  test("the retired routes' model helpers went with them", () => {
+    // The invitation model no longer lives in the auth-flows file at all. The
+    // table itself is NOT retired — the live path in src/models/groups.js still
+    // writes and reads it — so only this file is checked for the table, and the
+    // helper NAMES are checked across the whole tree.
+    expect(read("src/models/authFlows.js")).not.toContain("v2_invitations");
+
+    const offenders = [];
+    (function walk(dir) {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.[cm]?js$/.test(entry.name)) {
+          // This file names every helper in its own list, so it is the one place
+          // the names legitimately appear.
+          if (full === __filename) continue;
+          const src = fs.readFileSync(full, "utf8");
+          for (const name of RETIRED_MODEL_HELPERS) {
+            if (new RegExp(`\\b${name}\\b`).test(src)) {
+              offenders.push(`${path.relative(ROOT, full)}: ${name}`);
+            }
           }
         }
       }
