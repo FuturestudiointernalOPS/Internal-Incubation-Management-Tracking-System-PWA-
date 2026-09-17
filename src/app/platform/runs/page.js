@@ -11,6 +11,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
+import AppPdfPreview from "@/components/ui/AppPdfPreview";
 
 /**
  * PLATFORM FORM RUNS — Launch, assign, collect, review
@@ -78,6 +79,29 @@ const TARGET_LABELS = {
 };
 
 function cn(...classes) { return classes.filter(Boolean).join(" "); }
+
+/**
+ * Fetch the read-only result PDF for one submission. Reading a document has no
+ * side effects: nothing is sent and nothing is recorded, so this may be called
+ * as often as the user wants. Rejects with the server's own explanation when no
+ * document can be produced (not evaluated yet, no usable recipient…).
+ */
+async function fetchResultPdf(submissionId) {
+  const res = await fetch("/api/platform/form-runs?action=preview_result", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ submission_id: submissionId }),
+  });
+  if (!res.ok) {
+    let message = "";
+    try {
+      const data = await res.json();
+      message = data?.error || "";
+    } catch (_) {}
+    throw new Error(message);
+  }
+  return res.blob();
+}
 
 // ─── Optimized Runs Table (memoized for performance) ───
 const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, sortField, sortDir, page, perPage, total, onSort, onPage, openRun, groups, onArchive, onRestore }) {
@@ -453,6 +477,10 @@ export default function FormRunsPage() {
   const [resultConfirmOpen, setResultConfirmOpen] = useState(false);
   const [resultProcessing, setResultProcessing] = useState(false);
   const [resultProgress, setResultProgress] = useState({ done: 0, total: 0 });
+  // Read-only preview of the document about to be sent (one recipient at a time)
+  const [resultPreviewId, setResultPreviewId] = useState(null);
+  // Standalone document preview opened from a single response row
+  const [previewSubmission, setPreviewSubmission] = useState(null);
 
   // Manual message composer (Room Overview → selected participants)
   const [showMessageComposer, setShowMessageComposer] = useState(false);
@@ -706,6 +734,9 @@ export default function FormRunsPage() {
           setBulkSummary(null);
           setBulkMenuOpen(false);
           setBulkConfirmOpen(false);
+          setResultConfirmOpen(false);
+          setResultPreviewId(null);
+          setPreviewSubmission(null);
           setRetrySelected([]);
           setRetrySummary(null);
         }
@@ -1977,14 +2008,18 @@ export default function FormRunsPage() {
   // Send Result (response PDF): any non-draft selected submission that has an
   // evaluation row. Failed/never-sent results are re-attempted server-side;
   // already-sent ones are reported and skipped.
+  const evaluatedSubmissionIds = useMemo(
+    () => new Set(evaluations.map((e) => e.submission_id)),
+    [evaluations],
+  );
+
   const eligibleSendResultIds = useMemo(() => {
-    const evalIds = new Set(evaluations.map((e) => e.submission_id));
     return selectedIds.filter((id) => {
       const s = submissions.find((x) => x.id === id);
       if (!s || String(s.status || "") === "draft") return false;
-      return evalIds.has(id);
+      return evaluatedSubmissionIds.has(id);
     });
-  }, [selectedIds, submissions, evaluations]);
+  }, [selectedIds, submissions, evaluatedSubmissionIds]);
 
   const openSendResultConfirm = () => {
     setBulkMenuOpen(false);
@@ -1992,7 +2027,15 @@ export default function FormRunsPage() {
       notify(t("platformMisc.runs.noEligibleSendResult"));
       return;
     }
+    // Open on the first recipient's document — it is the one most likely to be
+    // reviewed, and any recipient can then be picked in the dialog.
+    setResultPreviewId(eligibleSendResultIds[0]);
     setResultConfirmOpen(true);
+  };
+
+  const closeSendResultConfirm = () => {
+    setResultConfirmOpen(false);
+    setResultPreviewId(null);
   };
 
   const runSendResultEmails = async () => {
@@ -2004,6 +2047,7 @@ export default function FormRunsPage() {
     const agg = { sent: 0, already_sent: 0, skipped: 0, failed: 0, total: ids.length };
     setResultProgress({ done: 0, total: ids.length });
     try {
+      setResultPreviewId(null);
       for (let i = 0; i < ids.length; i += CHUNK) {
         const chunk = ids.slice(i, i + CHUNK);
         const res = await fetch("/api/platform/form-runs?action=send_result_emails", {
@@ -2836,6 +2880,11 @@ export default function FormRunsPage() {
                                 <a href={`/platform/runs/review/${s.id}`} className="px-2 py-1 rounded-lg bg-purple-500/10 text-purple-400 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 flex items-center gap-1">
                                   <Eye className="w-3 h-3" /> {t("platformMisc.runs.full")}
                                 </a>
+                                {s.status !== "draft" && evaluatedSubmissionIds.has(s.id) && (
+                                  <button onClick={() => setPreviewSubmission(s)} className="px-2 py-1 rounded-lg bg-sky-500/10 text-sky-400 text-[10px] font-bold uppercase tracking-wide hover:bg-sky-500/20 flex items-center gap-1">
+                                    <FileText className="w-3 h-3" /> {t("platformMisc.runs.previewResult")}
+                                  </button>
+                                )}
                                 {s.status === "submitted" && (
                                   <button onClick={() => openReview(s)} className="px-2 py-1 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:bg-[var(--brand-orange)]/20">{t("platformMisc.runs.review")}</button>
                                 )}
@@ -2954,7 +3003,7 @@ export default function FormRunsPage() {
               {/* ─── SEND RESULT CONFIRM (Actions menu → response PDF email) ─── */}
               {resultConfirmOpen && (
                 <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
-                  <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-md w-full space-y-4">
+                  <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-3xl w-full space-y-4 max-h-[92vh] overflow-y-auto">
                     <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">
                       {t("platformMisc.runs.sendResponseConfirmTitle")}
                     </h4>
@@ -2966,10 +3015,94 @@ export default function FormRunsPage() {
                         {t("platformMisc.runs.sendResponseIneligible", { count: selectedIds.length - eligibleSendResultIds.length })}
                       </p>
                     )}
+
+                    {/* READ-ONLY PREVIEW — the exact document each recipient receives */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                        {t("platformMisc.runs.previewResultRecipient")}
+                      </span>
+                      {eligibleSendResultIds.length > 1 ? (
+                        <select
+                          value={resultPreviewId ?? ""}
+                          onChange={(e) => setResultPreviewId(parseInt(e.target.value))}
+                          className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                        >
+                          {eligibleSendResultIds.map((id) => {
+                            const s = submissions.find((x) => x.id === id);
+                            return (
+                              <option key={id} value={id}>
+                                {s?.display_name || s?.submitter_name || `#${id}`}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      ) : (
+                        <span className="text-[10px] font-bold text-[var(--text-primary)]">
+                          {(() => {
+                            const s = submissions.find((x) => x.id === resultPreviewId);
+                            return s?.display_name || s?.submitter_name || `#${resultPreviewId}`;
+                          })()}
+                        </span>
+                      )}
+                      <span className="text-[9px] font-medium text-[var(--text-tertiary)]">
+                        {t("platformMisc.runs.previewResultReadOnly")}
+                      </span>
+                    </div>
+
+                    <AppPdfPreview
+                      requestKey={resultPreviewId}
+                      loadPdf={() => fetchResultPdf(resultPreviewId)}
+                      title={t("platformMisc.runs.previewResultTitle")}
+                      loadingLabel={t("platformMisc.runs.previewResultLoading")}
+                      errorLabel={t("platformMisc.runs.previewResultUnavailable")}
+                      className="shrink-0"
+                    />
+
                     <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => setResultConfirmOpen(false)} disabled={resultProcessing} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">{t("platformMisc.runs.cancel")}</button>
+                      <button onClick={closeSendResultConfirm} disabled={resultProcessing} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">{t("platformMisc.runs.cancel")}</button>
                       <button onClick={runSendResultEmails} disabled={resultProcessing || eligibleSendResultIds.length === 0} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide">
                         {t("platformMisc.runs.sendResponseConfirm", { count: eligibleSendResultIds.length })}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── SINGLE RESPONSE PREVIEW (response row → read-only result PDF) ─── */}
+              {previewSubmission && (
+                <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
+                  <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-3xl w-full space-y-4 max-h-[92vh] overflow-y-auto">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">
+                          {t("platformMisc.runs.previewResultTitle")}
+                        </h4>
+                        <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
+                          {previewSubmission.display_name || previewSubmission.submitter_name || `#${previewSubmission.id}`}
+                          {" · "}
+                          {t("platformMisc.runs.previewResultReadOnly")}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setPreviewSubmission(null)}
+                        aria-label={t("common.close")}
+                        className="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <AppPdfPreview
+                      requestKey={previewSubmission.id}
+                      loadPdf={() => fetchResultPdf(previewSubmission.id)}
+                      title={t("platformMisc.runs.previewResultTitle")}
+                      loadingLabel={t("platformMisc.runs.previewResultLoading")}
+                      errorLabel={t("platformMisc.runs.previewResultUnavailable")}
+                    />
+
+                    <div className="flex justify-end">
+                      <button onClick={() => setPreviewSubmission(null)} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">
+                        {t("common.close")}
                       </button>
                     </div>
                   </div>

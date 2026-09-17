@@ -151,6 +151,7 @@ import AppBadge from "@/components/ui/AppBadge";
 import AppStatusBadge from "@/components/ui/AppStatusBadge";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import AppPagination from "@/components/ui/AppPagination";
+import AppPdfPreview from "@/components/ui/AppPdfPreview";
 
 // Feedback
 import GlobalToast from "@/components/ui/GlobalToast";
@@ -225,6 +226,15 @@ import { Skeleton, TableSkeleton, CardSkeleton } from "@/components/ui/Skeleton"
   description="Create a new task to get started"
   icon={ListTodo}
   action={<AppButton variant="primary">Create</AppButton>}
+/>
+
+// PDF Preview (read-only — loads on demand, releases the previous document)
+<AppPdfPreview
+  requestKey={submissionId}                 // new value = load that document
+  loadPdf={() => fetchResultPdf(submissionId)} // returns a Blob, may reject
+  title="Result preview"
+  loadingLabel="Building the preview…"
+  errorLabel="Preview unavailable"
 />
 ```
 
