@@ -149,25 +149,29 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 55 |
-| `react-hooks/set-state-in-effect` | 200 | 51 |
+| ESLint warnings, total | 2192 | 45 |
+| `react-hooks/set-state-in-effect` | 200 | 40 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` | 2 | 0 |
 | Production build | passes | passes |
 
-Screens carrying a `set-state-in-effect` warning: **22** (plus the hook itself,
+The total includes ONE `no-unused-vars` that is not this migration's: it is in a
+new test file added by the other workstream (`result-pdf-layout.test.js`). On this
+side the count is 44, and `no-unused-vars` is still 0.
+
+Screens carrying a `set-state-in-effect` warning: **19** (plus the hook itself,
 which is counted separately below).
 
 | Group | Screens |
 |---|---:|
 | Application pages | 15 |
-| Shared components (`src/components/`) | 4 |
+| The shell (`src/components/layout/DashboardLayout.js`) | 1 |
 | `src/lib/` modules | 3 |
 
-The hook itself accounts for the twenty-third file, and for four warnings rather
+The hook itself accounts for the twentieth file, and for four warnings rather
 than two (see the note below and §3.7).
 
-Of these 22 screens, **10 carry a single warning**; the remaining 12 carry two to
+Of these 19 screens, **11 carry a single warning**; the remaining 8 carry two to
 five.
 
 ### What is left, and under which reason
@@ -183,14 +187,15 @@ unsaid, and no screen is on this list merely because it looked hard.
 | The read fills in a form | 1 | §1, the form table |
 | The loader has side effects beyond storing the result | 1 | §3.3 |
 | Large screens not yet examined one by one | 6 | §3.6 |
-| The four remaining shared components | 4 | §4.0 |
+| The shell's pre-paint session restore | 1 | §4.0.1 |
 | **`src/lib/` modules** | 3 | §3.7 and §4.0 |
 
-Six of the reasons above are no longer reasons: the screens that needed a
+Seven of the reasons above are no longer reasons: the screens that needed a
 capability the hook did not expose (§3.1), the ones that asked for one record per
 element (§3.2), the one whose read also wrote (§3.9), the standup screen's address
-mirror (§3.10, mostly), the venture group and the screen that republished its
-state from its writes (§4) are converted, and their sections record what was done.
+mirror (§3.10, mostly), the venture group, the screen that republished its state
+from its writes, and the whole shared-component group except the shell itself are
+converted, and their sections record what was done.
 The whole venture group is converted, and its section records what each of the
 three needed. Six of the reasons above are therefore no longer reasons: the
 screens that needed a capability the hook did not expose (§3.1), the ones that
@@ -606,43 +611,49 @@ sections walked in each role, rather than as part of a warning cleanup.
 
 ### 4.0 What is left, exactly
 
-**Four shared components**, and they are the four that need reading before they
-are touched rather than a recipe:
+**Nothing is left in `src/components/` except the shell.** The four shared
+components this section used to list - the task console, the programme detail,
+the chat and the shell - are done:
 
-| Component | Warnings | Why it is not routine |
+| Component | Warnings | What it needed |
 |---|---:|---|
-| `src/components/layout/DashboardLayout.js` — THE SHELL, every role | 3 | See §4.0.1 below: each of the three needs the plan written out, not a conversion. |
-| `src/components/tasks/TaskManager.js` | 4 | The largest of the four and used by several roles; not yet read. |
-| `src/components/dashboard/ProgramDetail.js` | 3 | Not yet read. |
-| `src/components/messaging/MessagingChat.js` | 2 | Not yet read; a chat has its own live-update needs. |
+| `src/components/tasks/TaskManager.js` | 4 → 0 | The list was state synced from the prop by an effect; it is now the prop, with the one local action recording its result AGAINST THE PROP VALUE IT WAS PERFORMED ON, so a parent re-read stops the recording from applying. A single local list that never cleared would have shadowed every later update from the parent. The parent's `requestNewTask` counter became a derived half compared against the value the person last dismissed, so closing wins even while the signal is still up. |
+| `src/components/dashboard/ProgramDetail.js` | 3 → 0 | Two identity reads off the browser's copy, and the read that fills the screen. Which week is open is derived: the course's current week by default, with only the weeks the person toggled recorded over it. |
+| `src/components/messaging/MessagingChat.js` | 2 → 0 | The identity read, and four sources loaded together. The three-second poll is KEPT, now as the read's `refetchInterval` driven by a subscribed page-visibility value, so a hidden tab has no timer. |
 
-**3 `src/lib/` modules** are also left: the translation provider, the theme
+**3 `src/lib/` modules** are still left: the translation provider, the theme
 provider and the permission provider. (The reading hook is the fourth, and its own
 four warnings are deliberate - §3.7.)
 
-#### 4.0.1 The shell's three warnings, and what each needs
+#### 4.0.1 The shell - TWO OF THREE DONE, and the one that is not
 
 `src/components/layout/DashboardLayout.js` is the one file where a mistake
-reaches every role at once, so none of its three is converted blind. Each is
-diagnosed, with the repair identified:
+reaches every role at once. Its three warnings were diagnosed before any was
+touched; two are now converted and the third is deliberately not.
 
-| Warning | What it is | The repair, and what to check before making it |
-|---|---|---|
-| line 984, the `useLayoutEffect` restore | Restores the session from the in-memory cache (or the browser's stored copy) BEFORE the first paint, and writes `user` + `authChecked` to do it. | **Structural, not a conversion.** The value comes from a browser store, so it cannot be read during the render the server also produces - the same reason §3.11 gives for the section guards. The honest repair is to make `user` a value SUBSCRIBED to the session cache (`useSyncExternalStore`, as `useSessionUser` does) instead of the shell's own state, and to derive `authChecked` from it. That is a change to how the shell owns the identity, which every role depends on, so it is made deliberately and walked in each role - not as part of a warning sweep. |
-| line 1144, the "My Learning" door | Writes `setHasLmsEnrollments(false)` synchronously when the connected role is not a personal one. | **A conversion.** Address the read on the role: `useApi(PERSONAL_ROLES.includes(shellRole(user.role, role)) ? "/api/lms/my-learning?exists=1" : null, ...)`. With no address there is no read and the door is hidden, which is what the synchronous write was expressing. |
-| line 1436, the sidebar accordion | On every navigation, force-closes the sections that are not on the new route's path and opens those that are. | **A conversion, by derivation.** The user's toggles are recorded TOGETHER WITH THE ROUTE they were made on, and the effective menu map is derived during render: the route's ancestors open, everything else closed, then the toggles for THAT route laid over. Replaying the current `toggleMenu` against that derived map reproduces today's behaviour exactly, including the ability to close an ancestor by hand. Must be checked in each role, because the menu is role-built. |
+| Warning | State |
+|---|---|
+| the "My Learning" door | **DONE.** The read is addressed ON THE ROLE, so a non-personal surface has no address and the door is hidden without any write. The route stays a DEPENDENCY rather than part of the address, so navigating still re-asks and the door still opens as soon as an enrollment exists. The state it used to write is gone: it fed one comparison, and "unknown" and "no" hid the door alike. |
+| the sidebar accordion | **DONE, by derivation.** The person's hand-toggled sections are recorded TOGETHER WITH THE ROUTE they were toggled on, and the effective map is derived during render: the route's sections open, the rest closed, then those toggles laid over. Replaying the existing toggle against that map reproduces the behaviour exactly, including closing a section on the active path by hand. It also removes a state write and a second render per navigation, and the first paint now already has the route's section open. |
+| the pre-paint session restore, line 991 | **LEFT, and it is structural.** The value comes from a browser store, so it cannot be read during the render the server also produces - the same reason §3.11 gives for the section guards. The honest repair is to make `user` a value SUBSCRIBED to the session cache (`useSyncExternalStore`, as `useSessionUser` does) instead of the shell's own state, and to derive `authChecked` from it. That is a change to how the shell owns the identity, which every role depends on, so it is made deliberately and walked in each role - not as part of a warning sweep. |
 
-**DONE — 28 converted:** the six participant dashboard views (`AssignmentsView`,
-`ParticipantDashboardHome`, `ProgramListing`, `ProgressView`, `RitualsView`,
-`UnifiedOperationsView`), the ten LMS panels (`AssessmentTake`,
-`CoachingRequestsPanel`, `CourseEditor`, `CourseList`, `EnrollModal`,
-`LearnerCourse`, `LearnerLearning`, `LessonModal`, `ProgramLearningSection`,
-`SessionResourcesSection`), the membership roster (`MembershipScreen`), the two UI
-primitives (`NavigationLoader`, `SearchableSelect`) and the nine of the second
-slice (`ProfileView`, `StandupRetroView`, `SubmissionVersionHistory`,
-`UnifiedDashboard`, `LearnerCoachingButton`, `LearnerPlayer`, `MembershipSection`,
-`FacilitatorsPanel`, `ErrorLogsView`). None of them needs revisiting; the
-non-obvious shapes are recorded in §4.3.
+> One guard test locks the learning door's rule by looking for the text of its
+gate. The variable kept the name that test knows, so the rule it locks is still
+the rule the code expresses.
+
+**DONE — 28 shared components + the shell's two:** the six participant dashboard
+views (`AssignmentsView`, `ParticipantDashboardHome`, `ProgramListing`,
+`ProgressView`, `RitualsView`, `UnifiedOperationsView`), the ten LMS panels
+(`AssessmentTake`, `CoachingRequestsPanel`, `CourseEditor`, `CourseList`,
+`EnrollModal`, `LearnerCourse`, `LearnerLearning`, `LessonModal`,
+`ProgramLearningSection`, `SessionResourcesSection`), the membership roster
+(`MembershipScreen`), the two UI primitives (`NavigationLoader`,
+`SearchableSelect`), the nine of the second slice (`ProfileView`,
+`StandupRetroView`, `SubmissionVersionHistory`, `UnifiedDashboard`,
+`LearnerCoachingButton`, `LearnerPlayer`, `MembershipSection`, `FacilitatorsPanel`,
+`ErrorLogsView`) and the three of the third (`TaskManager`, `ProgramDetail`,
+`MessagingChat`). None of them needs revisiting; the non-obvious shapes are
+recorded in §4.3.
 
 ### 4.1 The venture group - CONVERTED
 
