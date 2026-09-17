@@ -157,6 +157,67 @@ export function deriveAssignmentsExpiry(assignments = []) {
   return latest;
 }
 
+// ─── Optional column: v2_program_staff.access_profile_id ────────────────────
+//
+// A per-assignment access-profile override is a REFINEMENT of the tick list
+// (JSON overrides first, then the assignment's profile, then the program
+// default). The column arrives with migration 041, and until it is applied a
+// query that NAMES it fails on the whole statement — which took the assignment
+// derivation down with it, and with it every gated request that waits on the
+// migration batch.
+//
+// So the read is tolerant: try with the column, and if the column is what is
+// missing, retry once without it and remember that for the process. The feature
+// then works on a database that has not applied 041 (overrides simply inactive),
+// and starts honouring them the moment the column exists — no deploy, no flag.
+let assignmentProfileColumn = null; // null = unknown, true/false = known
+
+/** Is this error "the column I named does not exist"? */
+export function isMissingColumnError(error, column = "access_profile_id") {
+  const message = String(error?.message || error || "").toLowerCase();
+  if (!message.includes(String(column).toLowerCase())) return false;
+  return (
+    message.includes("does not exist") ||
+    message.includes("no such column") ||
+    message.includes("unknown column")
+  );
+}
+
+/**
+ * Run a query that may name the optional profile column, falling back to the
+ * variant that does not. Returns the rows either way; only genuine failures
+ * propagate. Exported so the tick-list backfill reads the same way.
+ */
+export async function executeWithOptionalProfileColumn({
+  withColumn,
+  withoutColumn,
+  args,
+}) {
+  if (assignmentProfileColumn === false) {
+    return db.execute({ sql: withoutColumn, args });
+  }
+  try {
+    const res = await db.execute({ sql: withColumn, args });
+    assignmentProfileColumn = true;
+    return res;
+  } catch (e) {
+    if (assignmentProfileColumn === null && isMissingColumnError(e)) {
+      assignmentProfileColumn = false;
+      console.warn(
+        "[Authz] v2_program_staff.access_profile_id is absent (migration 041 not applied): " +
+          "per-assignment profile overrides are inactive until it exists; the tick list is unaffected.",
+      );
+      return db.execute({ sql: withoutColumn, args });
+    }
+    throw e;
+  }
+}
+
+/** Test seam: forget what was learned about the column. */
+export function resetAssignmentProfileColumnCache() {
+  assignmentProfileColumn = null;
+}
+
 /** Program ids where the person is the named manager. */
 export async function listManagedProgramIds(cid) {
   if (!cid) return [];
@@ -180,11 +241,24 @@ export async function listManagedProgramIds(cid) {
 export async function listActiveProgramAssignments(cid, { email = null } = {}) {
   if (!cid) return { rows: [], ended: false, error: null };
   try {
-    const staffRes = await db.execute({
-      sql: `SELECT CAST(ps.program_id AS TEXT) AS program_id,
+    const staffRes = await executeWithOptionalProfileColumn({
+      withColumn: `SELECT CAST(ps.program_id AS TEXT) AS program_id,
                    LOWER(COALESCE(ps.role, '')) AS role_key,
                    ps.permissions AS permissions,
                    ps.access_profile_id AS access_profile_id,
+                   p.end_date AS end_date,
+                   p.status AS status,
+                   p.is_archived AS is_archived
+            FROM v2_program_staff ps
+            LEFT JOIN v2_programs p
+              ON CAST(p.id AS TEXT) = CAST(ps.program_id AS TEXT)
+            WHERE (ps.staff_id = ? OR LOWER(TRIM(ps.staff_id)) = LOWER(?))`,
+      // Same query, minus the optional column: the assignment still counts, it
+      // simply carries no profile override.
+      withoutColumn: `SELECT CAST(ps.program_id AS TEXT) AS program_id,
+                   LOWER(COALESCE(ps.role, '')) AS role_key,
+                   ps.permissions AS permissions,
+                   NULL AS access_profile_id,
                    p.end_date AS end_date,
                    p.status AS status,
                    p.is_archived AS is_archived

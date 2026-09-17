@@ -194,6 +194,9 @@ jest.mock("@/models/authorization/resolver", () => ({
 
 const {
   isProgramEnded,
+  isMissingColumnError,
+  listActiveProgramAssignments,
+  resetAssignmentProfileColumnCache,
   deriveAssignmentsExpiry,
   deriveFacilitatorDesiredCaps,
   resolveAssignmentCapabilityLevel,
@@ -213,6 +216,7 @@ const CID = "USR_FACILITATOR_1";
 
 /** Far-future so "active" means active regardless of the real clock. */
 const OPEN_END = "2099-06-30";
+const OPEN_END_ID = PROGRAM_ACTIVE;
 
 const FACILITATOR_SENTINEL = contextGrantSentinel("program", "facilitator");
 
@@ -549,5 +553,81 @@ describe("eligibility ceiling — the assignment grant must not be dead on arriv
       expect(typeof level).toBe("number");
       expect(level).toBeGreaterThanOrEqual(1);
     }
+  });
+});
+
+/**
+ * RESILIENCE: the optional profile-override column.
+ *
+ * `v2_program_staff.access_profile_id` arrives with migration 041 and is only a
+ * REFINEMENT of the tick list (JSON overrides, then the assignment's profile,
+ * then the program default). Before the column exists, a query that NAMES it
+ * fails as a whole — which took the whole assignment derivation down, and with it
+ * every gated request waiting on the migration batch.
+ *
+ * The read is therefore tolerant: try with the column, and if the column is what
+ * is missing, retry once without it and remember that for the process. These
+ * tests pin both halves — the fallback works, and it does not cost a failed query
+ * on every call.
+ */
+describe("a database without the profile-override column still works", () => {
+  const MISSING = 'column "access_profile_id" does not exist';
+
+  beforeEach(() => {
+    resetAssignmentProfileColumnCache();
+  });
+
+  test("the lookup error is recognised (and only for the right shape)", () => {
+    expect(isMissingColumnError(new Error(MISSING))).toBe(true);
+    expect(isMissingColumnError(new Error("no such column: access_profile_id"))).toBe(true);
+    // Unrelated failures must keep propagating.
+    expect(isMissingColumnError(new Error("connection terminated"))).toBe(false);
+    expect(isMissingColumnError(new Error('column "other_col" does not exist'))).toBe(false);
+  });
+
+  test("the derivation falls back and still returns the assignment", async () => {
+    const db = require("@/lib/db").default;
+    let namingCalls = 0;
+    db.execute.mockImplementation(async ({ sql }) => {
+      // The real failure is NAMING the column (`ps.access_profile_id`). The
+      // fallback's `NULL AS access_profile_id` is only an alias and is fine, so
+      // the mock must distinguish the two the way Postgres does.
+      if (String(sql).includes("ps.access_profile_id")) {
+        namingCalls += 1;
+        throw new Error(MISSING);
+      }
+      if (String(sql).includes("FROM v2_program_staff")) {
+        return {
+          rows: [
+            {
+              program_id: OPEN_END_ID,
+              role_key: "facilitator",
+              permissions: JSON.stringify({ "attendance.record": 2 }),
+              access_profile_id: null,
+              end_date: OPEN_END,
+              status: "Active",
+              is_archived: 0,
+            },
+          ],
+        };
+      }
+      return { rows: [] };
+    });
+
+    const { rows } = await listActiveProgramAssignments(CID);
+
+    // The assignment survives; only the profile override is unavailable.
+    expect(rows).toHaveLength(1);
+    expect(rows[0].access_profile_id).toBeNull();
+    const { desired } = deriveFacilitatorDesiredCaps(rows, {});
+    expect(desired["facilitator.attendance.record"].level).toBe(2);
+    // Asked once, learned, never asked again in this process.
+    expect(namingCalls).toBe(1);
+
+    const second = await listActiveProgramAssignments(CID);
+    expect(second.rows).toHaveLength(1);
+    expect(namingCalls).toBe(1);
+
+    db.execute.mockImplementation(async () => ({ rows: [] }));
   });
 });

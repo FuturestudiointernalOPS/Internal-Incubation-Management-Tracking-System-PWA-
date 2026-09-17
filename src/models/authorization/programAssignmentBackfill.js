@@ -38,7 +38,10 @@ import {
   FACILITATOR_CAPABILITY_KEYS,
   parsePermissions,
 } from "@/lib/facilitator-permissions";
-import { resolveAssignmentCapabilityLevel } from "./programAssignments";
+import {
+  resolveAssignmentCapabilityLevel,
+  executeWithOptionalProfileColumn,
+} from "./programAssignments";
 import { ensureContextRoleProfilesSchema } from "./contextRoleProfiles";
 
 /** The template assignment-derived program management resolves to. */
@@ -194,10 +197,17 @@ export async function ensureAssignedProgramManagerProfile() {
  */
 export async function backfillFacilitatorTickLists() {
   await ensurePermissionsSchema();
-  const rowRes = await db.execute({
-    sql: `SELECT id, CAST(program_id AS TEXT) AS program_id, permissions, access_profile_id
+  // The profile-override column is optional here too: the tick list is what this
+  // backfill exists for, and it must not be blocked by a column that only refines
+  // the level lookup (see executeWithOptionalProfileColumn).
+  const rowRes = await executeWithOptionalProfileColumn({
+    withColumn: `SELECT id, CAST(program_id AS TEXT) AS program_id, permissions, access_profile_id
           FROM v2_program_staff
           WHERE LOWER(COALESCE(role, '')) = 'facilitator'`,
+    withoutColumn: `SELECT id, CAST(program_id AS TEXT) AS program_id, permissions, NULL AS access_profile_id
+          FROM v2_program_staff
+          WHERE LOWER(COALESCE(role, '')) = 'facilitator'`,
+    args: [],
   });
   const rows = rowRes.rows || [];
   if (rows.length === 0) return { success: true, updated: 0, scanned: 0 };
