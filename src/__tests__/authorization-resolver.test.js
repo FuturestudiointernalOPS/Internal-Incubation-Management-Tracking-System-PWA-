@@ -1353,3 +1353,37 @@ describe("restrictionsToJson (server → client wire format)", () => {
     expect(state.effective).toBe(false);
   });
 });
+
+describe("one-time migration batch (resilience)", () => {
+  test("a failing migration does not reject the batch, and is not retried per call", async () => {
+    jest.resetModules();
+    const dbMock = require("@/lib/db").default;
+    let executions = 0;
+    dbMock.execute.mockImplementation(async ({ sql } = {}) => {
+      executions += 1;
+      // The shape of the real failure: one backfill reads a column the database
+      // does not have. Before, this rejected the whole batch, which the
+      // authorization gate awaits - so one missing column returned 500 from
+      // every gated endpoint, and re-ran on every request.
+      if (String(sql || "").includes("v2_program_staff")) {
+        throw new Error('column "access_profile_id" does not exist');
+      }
+      return { rows: [] };
+    });
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    const { ensureCapabilityBackfills } = require("@/models/authorization/backfill");
+
+    await expect(ensureCapabilityBackfills()).resolves.toBeUndefined();
+    // Reported, not hidden.
+    expect(errorSpy).toHaveBeenCalled();
+
+    // Attempted once per process: a second call must not re-run the batch.
+    const before = executions;
+    await ensureCapabilityBackfills();
+    expect(executions).toBe(before);
+
+    errorSpy.mockRestore();
+    dbMock.execute.mockImplementation(async () => ({ rows: [] }));
+  });
+});

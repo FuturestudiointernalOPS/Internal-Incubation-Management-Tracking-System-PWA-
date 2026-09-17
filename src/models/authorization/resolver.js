@@ -95,10 +95,23 @@ function ensureEligibilitySeeded() {
           "eligibility-programs-assignment-v1",
           seedProgramAssignmentEligibility,
         );
-        eligibilitySeeded = true;
-      })().finally(() => {
-        eligibilitySeedPromise = null;
-      });
+      })()
+        // A one-time seed is DATA work, and the authorization gate awaits this
+        // call: a failure is reported and never propagated, so a single missing
+        // column cannot turn every gated request into a 500. The migration
+        // marker is still unwritten, so the seed does retry on the next boot.
+        .catch((e) => {
+          console.error(
+            "[Authz] one-time eligibility seed failed (not recorded, retried on the next boot):",
+            e.message,
+          );
+        })
+        .finally(() => {
+          eligibilitySeedPromise = null;
+          // Attempted once per process whatever the outcome: leaving this false
+          // would re-run the seed and its marker checks on EVERY request.
+          eligibilitySeeded = true;
+        });
     }
   }
   return eligibilitySeeded ? Promise.resolve() : eligibilitySeedPromise;

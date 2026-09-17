@@ -35,6 +35,27 @@ const KNOWLEDGE_CAPS = { view: 1, create: 2, edit: 3, delete: 4 };
 let backfillsSeeded = false;
 let backfillPromise = null;
 
+/**
+ * Report the migrations that did not apply.
+ *
+ * `runAuthzMigration` deliberately rejects — and records nothing — when its work
+ * throws (see migrations.js), so that the migration retries on the next boot.
+ * Inside this batch that must not decide the batch's outcome: the migrations are
+ * independent of one another, and they are DATA work. The authorization gate
+ * awaits this call, so letting one failure through would turn a single missing
+ * column into a 500 on every gated request.
+ */
+function reportFailedMigrations(results) {
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error(
+        "[Authz] one-time migration failed (not recorded, retried on the next boot):",
+        result.reason?.message || result.reason,
+      );
+    }
+  }
+}
+
 /** Run all capability backfills once per process (idempotent, egress-safe). */
 export function ensureCapabilityBackfills() {
   if (!backfillsSeeded) {
@@ -52,7 +73,7 @@ export function ensureCapabilityBackfills() {
         // their own name — running the checks in parallel avoids ~13
         // sequential round-trips on every cold serverless instance (timeout
         // risk on slow databases).
-        await Promise.all([
+        const results = await Promise.allSettled([
           runAuthzMigration("cap-backfill-knowledge", ensureKnowledgeBackfill),
           runAuthzMigration("cap-backfill-reports", ensureReportsBackfill),
           runAuthzMigration("cap-backfill-announcements", ensureAnnouncementsBackfill),
@@ -118,11 +139,21 @@ export function ensureCapabilityBackfills() {
             backfillFacilitatorTickLists,
           ),
         ]);
+        reportFailedMigrations(results);
 
         // Feature-key alignment (FEATURES = dashboard sections) runs AFTER the
-        // parallel backfills so it never races the rows they touch.
-        await runAuthzMigration("feature-key-alignment-v1", ensureFeatureKeyAlignment);
+        // parallel backfills so it never races the rows they touch. It gets the
+        // same treatment: a failure is reported, never propagated.
+        const alignment = await Promise.allSettled([
+          runAuthzMigration("feature-key-alignment-v1", ensureFeatureKeyAlignment),
+        ]);
+        reportFailedMigrations(alignment);
 
+        // Attempted once per process, whatever the outcome. A migration that
+        // failed is still not recorded, so it does retry on the next boot — but
+        // leaving this flag false would re-run every migration AND its marker
+        // check on EVERY REQUEST, which is what turned one failure into a storm
+        // of slow queries and an exhausted connection pool.
         backfillsSeeded = true;
       })().finally(() => {
         backfillPromise = null;
