@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
 import {
   Calendar,
   Send,
@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { useApi } from "@/lib/hooks/useApi";
 import TaskManager from "@/components/tasks/TaskManager";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
 import { formatLocaleDate } from "@/lib/constants";
@@ -51,6 +53,16 @@ function getCurrentWeek() {
   const now = new Date();
   return { week: getWeekNumber(now), year: now.getFullYear() };
 }
+
+/** The tabs, as the address may name them. Anything else means the first one. */
+const REPORT_TABS = ["standup", "retro", "summary"];
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
 
 // Returns true when a stand-up draft actually contains something the user
 // typed/added (a non-empty field or at least one task row). Empty drafts are
@@ -152,10 +164,73 @@ const statusLabelKey = (status) => {
 function StaffOpReport() {
   const router = useRouter();
   const { t, lang } = useI18n();
-  const [user, setUser] = useState(null);
-  const [reportType, setReportType] = useState("standup"); // "standup" | "retro" | "summary"
-  const [weekInfo, setWeekInfo] = useState(getCurrentWeek());
+
+  // Who is signed in, from the shell's session cache. This screen used to ask the
+  // session endpoint for itself and, failing that, read the browser's stored copy
+  // - with a redirect to sign-in on top, which the request gate already performs
+  // for every page behind a session. One identity, no request, no redirect here.
+  const { cid: userCid, user } = useSessionUser();
+
   const [existingReport, setExistingReport] = useState(null);
+
+  // ─── The address is the source of truth for the tab and the week ───
+  //
+  // These two used to be state: one effect read the query string into them and a
+  // second wrote them back out, a two-way mirror - and it is why every read on this
+  // screen was keyed on the mirror rather than on the address. They are COMPUTED
+  // from the address now, so the browser's back button, a sidebar link and the
+  // controls below all land on the same value and there is nothing to keep in step.
+  //
+  // The current week is snapshotted once, for the reason every screen here
+  // snapshots the clock: read during a render it would differ between the server's
+  // value and the browser's at a week boundary.
+  const [thisWeek] = useState(() => getCurrentWeek());
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const reportType = REPORT_TABS.includes(tabParam) ? tabParam : "standup";
+
+  const weekParam = parseInt(searchParams.get("week") || "", 10);
+  const yearParam = parseInt(searchParams.get("year") || "", 10);
+  const weekInfo = useMemo(() => {
+    if (isNaN(weekParam) || weekParam < 1 || weekParam > 53) return thisWeek;
+    return {
+      week: weekParam,
+      year: !isNaN(yearParam) && yearParam >= 2000 ? yearParam : thisWeek.year,
+    };
+  }, [weekParam, yearParam, thisWeek]);
+
+  // The controls ASK FOR another tab or week by changing the address, which is what
+  // makes the derived values above the only ones the screen reads. The two names
+  // below keep every existing call site working, including the ones that pass an
+  // updater, as the setters they replace accepted.
+  const goTo = useCallback(
+    (next) => {
+      const qs = new URLSearchParams({
+        tab: next.tab ?? reportType,
+        week: String(next.week ?? weekInfo.week),
+        year: String(next.year ?? weekInfo.year),
+      }).toString();
+      router.replace(`/staff/op-report?${qs}`, { scroll: false });
+    },
+    [router, reportType, weekInfo.week, weekInfo.year],
+  );
+
+  const setReportType = useCallback((tab) => goTo({ tab }), [goTo]);
+  const setWeekInfo = useCallback(
+    (next) => {
+      const value = typeof next === "function" ? next(weekInfo) : next;
+      goTo({ week: value.week, year: value.year });
+    },
+    [goTo, weekInfo],
+  );
+
+  // Arriving without a query string, the address is filled in once so that a
+  // refresh or a shared link describes the same view. This navigates and writes no
+  // state, which is why it is an effect that is allowed to exist.
+  useEffect(() => {
+    if (searchParams.get("tab")) return;
+    goTo({});
+  }, [searchParams, goTo]);
   const [, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
@@ -241,11 +316,7 @@ function StaffOpReport() {
   const [updatingTasks, setUpdatingTasks] = useState({}); // taskId -> boolean
   const [taskDetail, setTaskDetail] = useState(null); // task object for detail modal
 
-  // Summary tab state
-  const [summaryTasks, setSummaryTasks] = useState([]);
-  const [summaryBlockers, setSummaryBlockers] = useState([]);
-  const [summaryProjects, setSummaryProjects] = useState([]);
-  const [summaryLoading, setSummaryLoading] = useState(false);
+  // Summary tab state — the three lists themselves are read below.
   const [summaryCollapsed, setSummaryCollapsed] = useState({});
   const [summaryProjectExpanded, setSummaryProjectExpanded] = useState({});
 
@@ -258,10 +329,9 @@ function StaffOpReport() {
 
   // Build a localStorage key for the current user + current week
   const getDraftKey = useCallback(() => {
-    const uid = user?.cid || user?.id;
-    if (!uid) return null;
-    return `standup_draft_${uid}_${weekInfo.week}_${weekInfo.year}`;
-  }, [user, weekInfo.week, weekInfo.year]);
+    if (!userCid) return null;
+    return `standup_draft_${userCid}_${weekInfo.week}_${weekInfo.year}`;
+  }, [userCid, weekInfo.week, weekInfo.year]);
 
   // Save draft to localStorage after 2s of no changes
   useEffect(() => {
@@ -330,7 +400,7 @@ function StaffOpReport() {
       // ignore
     }
     setDraftAvailable(false);
-  }, [getDraftKey]);
+  }, [getDraftKey, setReportType]);
 
   // Discard draft
   const discardDraft = useCallback(() => {
@@ -354,48 +424,32 @@ function StaffOpReport() {
     setSummaryCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const userCid = user?.cid;
 
-  const fetchSummaryData = useCallback(async () => {
-    if (!userCid) return;
-    const urls = [
-      `/api/tasks?user_id=${userCid}&week=${weekInfo.week}&year=${weekInfo.year}&sort=oldest`,
-      `/api/blockers?user_id=${userCid}`,
-      `/api/projects/assignments?user_cid=${userCid}`,
-    ];
-    const apply = (tData, bData, pData) => {
-      if (tData?.success) setSummaryTasks(tData.tasks || []);
-      if (bData?.success) setSummaryBlockers(bData.blockers || []);
-      if (pData?.success) setSummaryProjects(pData.projects || []);
-    };
-    setSummaryLoading(true);
-    try {
-      // Cache-first paint: switching back to the summary tab renders from a
-      // fresh snapshot, then the network refresh below converges.
-      const cached = urls.map((u) => cacheGet(u));
-      if (cached.every((c) => c !== null)) {
-        apply(cached[0], cached[1], cached[2]);
-        setSummaryLoading(false);
-      }
-      const responses = await Promise.all(
-        urls.map((u) => fetch(u).then((r) => r.json())),
-      );
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1], responses[2]);
-    } catch (e) {
-      console.error("Summary fetch error:", e);
-    } finally {
-      setSummaryLoading(false);
-    }
-  }, [userCid, weekInfo.week, weekInfo.year]);
+  // ─── The summary tab's three reads ────────────────────────────────────
+  //
+  // Read only while that tab is open, which the effect this replaces expressed by
+  // deciding whether to call its loader, and addressed on the person and the week
+  // so a change of either re-reads.
+  const summaryOn = reportType === "summary" && Boolean(userCid);
+  const { data: summaryTasks, loading: summaryTasksLoading } = useApi(
+    summaryOn
+      ? `/api/tasks?user_id=${userCid}&week=${weekInfo.week}&year=${weekInfo.year}&sort=oldest`
+      : null,
+    { defaultValue: EMPTY_LIST, transform: pickList("tasks"), deps: [userCid, summaryOn, weekInfo.week, weekInfo.year] },
+  );
+  const { data: summaryBlockers, loading: summaryBlockersLoading } = useApi(
+    summaryOn ? `/api/blockers?user_id=${userCid}` : null,
+    { defaultValue: EMPTY_LIST, transform: pickList("blockers"), deps: [userCid, summaryOn] },
+  );
+  const { data: summaryProjects, loading: summaryProjectsLoading } = useApi(
+    summaryOn ? `/api/projects/assignments?user_cid=${userCid}` : null,
+    { defaultValue: EMPTY_LIST, transform: pickList("projects"), deps: [userCid, summaryOn] },
+  );
 
-  useEffect(() => {
-    if (reportType === "summary" && userCid) {
-      fetchSummaryData();
-    }
-  }, [reportType, userCid, fetchSummaryData]);
+  // The panel waits for all three, which is what the loader did by applying the
+  // three answers together.
+  const summaryLoading =
+    summaryTasksLoading || summaryBlockersLoading || summaryProjectsLoading;
 
   const notify = (msg, type = "success") => {
     setToast({ msg, type });
@@ -667,78 +721,6 @@ function StaffOpReport() {
     }
   }, []);
 
-  // ─── URL state sync: tab + week/year live in the query string ───
-  // Reading: reacts to browser back/forward and sidebar <Link> navigation.
-  // (The page does not remount when only the query string changes, so the
-  // tab/week must be read reactively — not just on mount.)
-  const searchParams = useSearchParams();
-  useEffect(() => {
-    const tab = searchParams.get("tab");
-    if (tab === "standup" || tab === "retro" || tab === "summary") {
-      setReportType(tab);
-    }
-    const w = parseInt(searchParams.get("week") || "", 10);
-    const y = parseInt(searchParams.get("year") || "", 10);
-    if (!isNaN(w) && w >= 1 && w <= 53) {
-      setWeekInfo((prev) => ({
-        week: w,
-        year: !isNaN(y) && y >= 2000 ? y : prev.year,
-      }));
-    }
-  }, [searchParams]);
-
-  // Writing: keep the URL in sync so refresh / share / back-forward keep context
-  useEffect(() => {
-    const qs = new URLSearchParams({
-      tab: reportType,
-      week: String(weekInfo.week),
-      year: String(weekInfo.year),
-    }).toString();
-    if (
-      typeof window !== "undefined" &&
-      window.location.search !== `?${qs}`
-    ) {
-      router.replace(`/staff/op-report?${qs}`, { scroll: false });
-    }
-  }, [reportType, weekInfo, router]);
-
-  useEffect(() => {
-    async function fetchUser() {
-      try {
-        // Try server session first for authoritative role
-        const sessionRes = await fetch("/api/auth/session");
-        if (sessionRes.ok) {
-          const sessionData = await sessionRes.json();
-          if (sessionData?.user) {
-            setUser(sessionData.user);
-            return;
-          }
-        }
-      } catch {
-        // Fall through to localStorage
-      }
-
-      // Fallback: localStorage
-      try {
-        const saved = localStorage.getItem("user");
-        if (!saved) {
-          router.push("/login");
-          return;
-        }
-        const u = JSON.parse(saved);
-        if (!u.id && !u.cid) {
-          router.push("/login");
-          return;
-        }
-        setUser(u);
-      } catch (e) {
-        console.error("Failed to parse user from localStorage:", e);
-        router.push("/login");
-      }
-    }
-    fetchUser();
-  }, [router]);
-
   useEffect(() => {
     if (user) {
       fetchReport();
@@ -756,16 +738,16 @@ function StaffOpReport() {
     fetchAllStaff,
   ]);
 
-  // Check for saved draft when the standup modal opens
-  useEffect(() => {
-    if (showStandupModal && !readOnly && !isHistorical) {
-      // Small delay to let weekInfo state settle before checking
-      const t = setTimeout(() => checkDraft(), 50);
-      return () => clearTimeout(t);
-    } else {
-      setDraftAvailable(false);
-    }
-  }, [showStandupModal, readOnly, isHistorical, checkDraft]);
+  // Opening the standup dialog asks the browser's stored draft whether there is
+  // one, and offers it. Done where the dialog is opened rather than in an effect
+  // watching it: the answer is a fact about storage, read when it is needed, and
+  // in an effect the panel appeared without it for a frame - which is what the
+  // fifty-millisecond delay in the old code was waiting for.
+  const openStandupModal = () => {
+    setShowStandupModal(true);
+    if (!readOnly && !isHistorical) checkDraft();
+    else setDraftAvailable(false);
+  };
 
   const handleSubmit = async (status = "submitted") => {
     if (!user) return;
@@ -1330,7 +1312,7 @@ function StaffOpReport() {
                             weekInfo.year !== cw.year;
                           setReadOnly(isPastWeek);
                           setIsHistorical(isPastWeek);
-                          setShowStandupModal(true);
+                          openStandupModal();
 
                           // Only the current week's "new standup" flow pre-fills
                           // carry-over tasks from previous weeks.
@@ -1655,7 +1637,7 @@ function StaffOpReport() {
                                                 }
                                               }
                                               setTaskRows(allTaskRows);
-                                              setShowStandupModal(true);
+                                              openStandupModal();
                                               setShowTaskForm(false);
                                             }}
                                             className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
@@ -1958,7 +1940,7 @@ function StaffOpReport() {
                                   weekInfo.year !== cw.year;
                                 setReadOnly(isPastWeek);
                                 setIsHistorical(isPastWeek);
-                                setShowStandupModal(true);
+                                openStandupModal();
                               }}
                               className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
                             >
