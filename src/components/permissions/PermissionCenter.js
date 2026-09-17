@@ -163,7 +163,7 @@ export default function PermissionManager({
     personLoad.current = createLatestGuard();
   }
 
-  async function selectUser(user) {
+  const selectUser = useCallback(async (user) => {
     setSelectedUser(user);
     // One person, two lenses: keep ?cid= in the URL so the "Effective access"
     // sub-tab (the read lens) opens the same person.
@@ -208,14 +208,14 @@ export default function PermissionManager({
     } finally {
       if (personLoad.current.isCurrent(token)) setLoadingPerms(false);
     }
-  };
+  }, [t]);
 
   // The screen above owns the person selection: the editor follows the cid it
   // is handed (Individual Access merged both lenses onto one selection).
   useEffect(() => {
     if (!cid) return;
     defer(() => selectUser({ cid }));
-  }, [cid]);
+  }, [cid, selectUser]);
 
   const loadAssignProfiles = async () => {
     try {
