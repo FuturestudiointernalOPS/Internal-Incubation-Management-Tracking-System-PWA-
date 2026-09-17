@@ -151,22 +151,22 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 138 |
-| `react-hooks/set-state-in-effect` | 200 | 131 |
+| ESLint warnings, total | 2192 | 128 |
+| `react-hooks/set-state-in-effect` | 200 | 121 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` in converted files | 0 | 0 |
 | Production build | passes | passes |
 
-Screens carrying a `set-state-in-effect` warning: **83**.
+Screens carrying a `set-state-in-effect` warning: **79**.
 
 | Group | Screens |
 |---|---:|
-| Application pages | 24 |
+| Application pages | 20 |
 | Shared components (`src/components/`) | 32 |
 | Venture screens | 23 |
 | `src/lib/` modules | 4 |
 
-Of these 83 screens, **58 carry a single warning**; the remaining 25 carry two
+Of these 79 screens, **58 carry a single warning**; the remaining 21 carry two
 to five.
 
 > The test count is not recorded here any more: another workstream adds and
@@ -286,14 +286,34 @@ None left. The two that were here are resolved:
 
 | Screen | Why it is deferred |
 |---|---|
-| Screens over ~800 lines (`admin/programs`, `admin/projects`, `admin/work`, `admin/access`, `admin/projects/[id]`, `admin/op-reports`, `pm/programs/[id]`, `pm/submissions`, `staff/op-report`, `staff/projects/[id]`, `team/[id]`, `platform/runs`, `platform/forms`, `admin/communications/contacts`, `admin/programs/[id]`) | Not examined individually yet. Several load more than one endpoint and some mix loads with mutations, so each needs a read before conversion. |
+| Screens over ~800 lines (`admin/programs`, `admin/projects`, `admin/projects/[id]`, `admin/communications/contacts`, `staff/op-report`, `staff/projects/[id]`, `pm/programs/[id]`, `admin/op-reports`) | Not examined individually yet. Several load more than one endpoint and some mix loads with mutations, so each needs a read before conversion. |
 
-A second group here needs a decision rather than only a conversion, because the
-identifier in the request is the person's:
+A group here is **parked with the database work** on purpose: two screens ask for one
+record per element of a list they just read (`admin/reports/responses`,
+`platform/responses`). Hooks cannot be called in a loop, so the answer is a batch
+endpoint or a query that already returns the names - not a conversion.
 
-| Screen | What has to be decided first |
-|---|---|
-| `src/app/admin/crm/people/[cid]/page.js`, `src/app/team/[id]/page.js` | One record plus several sub-resources, each with its own status handling. |
+Converted out of this list:
+
+- the **programme manager's submissions console** — its reads were keyed on the
+  browser's stored identifier, which is the person's RECORD id where the endpoint
+  authenticates against the SESSION id, so a programme manager could see a
+  silently short list. And the schedule dialog's event fields are filled where the
+  dialog is opened rather than by an effect watching it, which is what it was: an
+  event, not a consequence to be synchronised.
+- the **programme workspace** (administrator) — four reads through the hook, and
+  the public registration link resolved from the programme's own runs, with the
+  address built inside the read because it is made of the browser's own origin and
+  a render also happens on the server, where no origin exists.
+- the **work board** — its three reads through the multi-endpoint form, and the
+  role that decides whether a card may be dragged coming from the session cache
+  instead of the browser's stored copy. A dragged card still moves at once and a
+  refused move re-reads, now through the same read's own setter.
+- the **task console** — four reads, one of them addressed on the task that is
+  open and not addressed at all when none is. The assignment control turned out to
+  be display-only: choosing someone else writes to the server and updates the open
+  task, and never wrote the value it displays, so the value is a consequence of the
+  open task rather than state that had to be kept in step.
 
 Screens whose read fills in a form the person then edits. They DO convert, and
 the shape is the same in all three: the stored answers are a derived base and an

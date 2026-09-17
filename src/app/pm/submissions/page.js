@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import React, { useState } from "react";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import {
   Search,
   FileText,
@@ -16,6 +17,18 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_SUBMISSIONS = { submissions: [], programs: [] };
+
+/** One read answers with both the submissions and the programmes they belong to. */
+const pickSubmissions = (d) =>
+  d?.success
+    ? { submissions: d.submissions || [], programs: d.programs || [] }
+    : EMPTY_SUBMISSIONS;
 
 function StatusBadge({ status }) {
   const { t } = useI18n();
@@ -48,10 +61,12 @@ function StatusBadge({ status }) {
 export default function PMSubmissions() {
   const _router = useRouter();
   const { t } = useI18n();
-  const [user, setUser] = useState(null);
-  const [submissions, setSubmissions] = useState([]);
-  const [programs, setPrograms] = useState([]);
-  const [loading, setLoading] = useState(true);
+
+  // Who is signed in, from the shell's session cache: no request of its own, and
+  // no dependence on the browser's stored copy, which is the person's RECORD id
+  // where this endpoint's identifier is the SESSION one.
+  const { cid } = useSessionUser();
+
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterProgram, setFilterProgram] = useState("all");
   const [search, setSearch] = useState("");
@@ -63,61 +78,39 @@ export default function PMSubmissions() {
   const [startTime, setStartTime] = useState("");
   const [eventLocation, setEventLocation] = useState("");
 
-  useEffect(() => {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(u);
-  }, []);
+  // The list and the programmes it belongs to, read through the shared hook: it
+  // owns the cache, the cache-first paint and the discarding of a stale answer,
+  // so the page keeps no copy of its own and reads its data during render.
+  const {
+    data,
+    loading: readLoading,
+    refresh: refreshSubmissions,
+  } = useApi(
+    cid ? `/api/pm/submissions?assigned_pm_id=${encodeURIComponent(cid)}` : null,
+    { defaultValue: EMPTY_SUBMISSIONS, transform: pickSubmissions, deps: [cid] },
+  );
+  const submissions = data.submissions;
+  const programs = data.programs;
 
-  useEffect(() => {
-    if (scheduleModal) {
-      setEventTitle(
-        t("pmMisc.submissions.eventTitlePrefill", {
-          deliverable: scheduleModal.deliverable_title,
-          participant: scheduleModal.participant_name,
-        }),
-      );
-      setStartTime("");
-      setEventLocation("");
-    }
-  }, [scheduleModal, t]);
+  // An identity that has not arrived yet is not the same as an empty one, so the
+  // screen keeps its placeholder rather than claiming there is nothing to review.
+  const loading = !cid || readLoading;
 
-  const fetchSubmissions = useCallback(async (bypassCache = false) => {
-    if (!user?.cid && !user?.id) return;
-    const pmId = user.cid || user.id;
-    const url = `/api/pm/submissions?assigned_pm_id=${encodeURIComponent(pmId)}`;
-    const apply = (data) => {
-      if (data.success) {
-        setSubmissions(data.submissions || []);
-        setPrograms(data.programs || []);
-      }
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint on reads; review flows pass bypassCache=true so the
-      // list always reflects the just-reviewed server state.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch submissions", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchSubmissions();
-  }, [fetchSubmissions]);
+  // Opening the schedule dialog fills its event fields for the submission being
+  // scheduled. Done where the dialog is opened rather than in an effect watching
+  // it: the prefill is an event, not a consequence to be synchronised, and in an
+  // effect the dialog appeared empty for a frame first.
+  const openSchedule = (row) => {
+    setScheduleModal(row);
+    setEventTitle(
+      t("pmMisc.submissions.eventTitlePrefill", {
+        deliverable: row.deliverable_title,
+        participant: row.participant_name,
+      }),
+    );
+    setStartTime("");
+    setEventLocation("");
+  };
 
   const handleReview = async (submissionId, newStatus) => {
     setActionLoading(true);
@@ -142,7 +135,7 @@ export default function PMSubmissions() {
       }
       setReviewModal(null);
       setFeedback("");
-      fetchSubmissions(true);
+      refreshSubmissions();
     } catch (e) {
       console.error("Review failed", e);
       alert(t("pmMisc.submissions.reviewFailed"));
@@ -189,7 +182,7 @@ export default function PMSubmissions() {
             </p>
           </div>
           <button
-            onClick={fetchSubmissions}
+            onClick={() => refreshSubmissions()}
             className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5" /> {t("pmMisc.submissions.refresh")}
@@ -361,7 +354,7 @@ export default function PMSubmissions() {
                               : t("pmMisc.submissions.feedback")}
                           </button>
                           <button
-                            onClick={() => setScheduleModal(sub)}
+                            onClick={() => openSchedule(sub)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500 text-black rounded-lg text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                           >
                             <Calendar className="w-3 h-3" />{" "}
@@ -590,7 +583,7 @@ export default function PMSubmissions() {
                       new Date(startTime).getTime() + 60 * 60 * 1000,
                     ).toISOString(),
                     location: eventLocation,
-                    created_by: user?.cid || user?.id,
+                    created_by: cid,
                   };
                   try {
                     const res = await fetch("/api/events", {

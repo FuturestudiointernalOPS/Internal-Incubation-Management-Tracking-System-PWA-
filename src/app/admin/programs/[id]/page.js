@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, use, useCallback } from 'react';
+import React, { useState, use, useCallback } from 'react';
 import { 
   Activity, Briefcase, ChevronRight, BookOpen, 
   Target, Users, Layers, MessageSquare, Clock, CheckCircle2, AlertCircle,
@@ -8,9 +8,40 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useRouter } from 'next/navigation';
+import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+const pickFullState = (d) => (d?.success ? d : null);
+const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
+
+/**
+ * The programme's public registration link, when it has one.
+ *
+ * The address is built HERE, inside the read, rather than during a render: it is
+ * made of the browser's own origin, and a render also happens on the server,
+ * where no origin exists. A transformation runs in the browser, after the answer.
+ *
+ * The rule is the one the loader had, not the one its comment described: when the
+ * programme has an id, only the programme's own runs are consulted - there is no
+ * fallback to a group's run.
+ */
+const pickRegistrationLink = (d) => {
+  const run = (d?.success ? d.runs || [] : []).find(
+    (x) => x.status === "active" && x.public_slug,
+  );
+  if (!run) return null;
+  return {
+    link: `${window.location.origin}/s/${run.public_slug}`,
+    name: run.form_name || run.name || "Form",
+  };
+};
 
 export default function SuperAdminExecutiveView({ params }) {
   const unwrappedParams = use(params);
@@ -18,118 +49,78 @@ export default function SuperAdminExecutiveView({ params }) {
   const _router = useRouter();
   const { t } = useI18n();
 
-  const [program, setProgram] = useState(null);
-  const [sessions, setSessions] = useState([]);
-  const [requirements, setRequirements] = useState([]);
-  const [reports, setReports] = useState([]);
-  const [followups, setFollowups] = useState([]);
-  const [kpis, setKpis] = useState([]);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [participants, setParticipants] = useState([]);
-  const [submissions, setSubmissions] = useState([]);
-  const [attendance, setAttendance] = useState([]);
-  
   const [selectedSession, setSelectedSession] = useState(null);
   const [newFollowup, setNewFollowup] = useState({ week: null, session_id: null, comment: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditingKpi, setIsEditingKpi] = useState(null);
   const [kpiForm, setKpiForm] = useState({ title: '', target_value: '' });
-  // Assigned registration form (public link) - resolved from the Form assigned to the program group
-  const [regForm, setRegForm] = useState(null);
   // Snapshot the clock once per render — reading it mid-render is impure.
   const [nowMs] = useState(() => Date.now());
 
-  useEffect(() => {
-    // Prefer the Form Run assigned directly to the Program (target_type = "program");
-    // fall back to the first group-assigned run only when no program run exists.
-    const pid = program?.id;
-    if (pid) {
-      fetch(`/api/platform/form-runs?program_id=${encodeURIComponent(String(pid))}`)
-        .then((r) => r.json())
-        .then((d) => {
-          const run = (d.success ? d.runs || [] : []).find((x) => x.status === 'active' && x.public_slug);
-          if (run) {
-            setRegForm({ link: `${window.location.origin}/s/${run.public_slug}`, name: run.form_name || run.name || 'Form' });
-            return;
-          }
-          setRegForm(null);
-        })
-        .catch(() => setRegForm(null));
-      return;
-    }
-    const gid = program?.assigned_segments?.[0];
-    if (!gid) { setRegForm(null); return; }
-    fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(String(gid))}`)
-      .then((r) => r.json())
-      .then((d) => {
-        const run = (d.success ? d.runs || [] : []).find((x) => x.status === 'active' && x.public_slug);
-        setRegForm(run ? { link: `${window.location.origin}/s/${run.public_slug}`, name: run.form_name || run.name || 'Form' } : null);
-      })
-      .catch(() => setRegForm(null));
-     
-  }, [program?.id, program?.assigned_segments]);
+  // The programme and everything hanging off it, through the shared hook: it owns
+  // the cache, the cache-first paint and the discarding of a stale answer, so the
+  // page keeps no copy of its own and reads its data during render.
+  const {
+    data: fullState,
+    loading: fullStateLoading,
+    refresh: refreshFullState,
+  } = useApi(id ? `/api/pm/full-state?id=${id}` : null, {
+    defaultValue: null,
+    transform: pickFullState,
+    deps: [id],
+  });
+  const program = fullState?.program || null;
+  const sessions = fullState?.sessions ?? EMPTY_LIST;
+  const requirements = fullState?.documents ?? EMPTY_LIST;
+  const kpis = fullState?.kpis ?? EMPTY_LIST;
+  const participants = fullState?.participants ?? EMPTY_LIST;
+  const submissions = fullState?.submissions ?? EMPTY_LIST;
 
-  const fetchData = useCallback(async (bypassCache = false) => {
-    const urls = [
-      `/api/pm/full-state?id=${id}`,
-      `/api/pm/reports?program_id=${id}`,
-      `/api/followups?program_id=${id}`,
-      `/api/attendance?program_id=${id}`,
-    ];
-    const apply = (progData, reportData, followupData, attData) => {
-      // 1. Program & Curriculum
-      if (progData?.success) {
-        setProgram(progData.program);
-        setSessions(progData.sessions || []);
-        setRequirements(progData.documents || []);
-        setKpis(progData.kpis || []);
-        setParticipants(progData.participants || []);
-        setSubmissions(progData.submissions || []);
-      }
+  const { data: reports, loading: reportsLoading, refresh: refreshReports } = useApi(
+    id ? `/api/pm/reports?program_id=${id}` : null,
+    { defaultValue: EMPTY_LIST, transform: pickList('reports'), deps: [id] },
+  );
+  const {
+    data: followups,
+    loading: followupsLoading,
+    refresh: refreshFollowups,
+  } = useApi(id ? `/api/followups?program_id=${id}` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickList('followups'),
+    deps: [id],
+  });
+  const {
+    data: attendance,
+    loading: attendanceLoading,
+    refresh: refreshAttendance,
+  } = useApi(id ? `/api/attendance?program_id=${id}` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickList('attendance'),
+    deps: [id],
+  });
 
-      // 2. Weekly Reports
-      if (reportData?.success) setReports(reportData.reports || []);
+  const isLoadingData =
+    fullStateLoading || reportsLoading || followupsLoading || attendanceLoading;
 
-      // 3. Follow-ups
-      if (followupData?.success) setFollowups(followupData.followups || []);
+  // Every action below re-reads what it changed.
+  const reload = useCallback(() => {
+    refreshFullState();
+    refreshReports();
+    refreshFollowups();
+    refreshAttendance();
+  }, [refreshFullState, refreshReports, refreshFollowups, refreshAttendance]);
 
-      // 4. Attendance (presence marks per session — drives the auto "Présence" task)
-      if (attData?.success) setAttendance(attData.attendance || []);
-    };
-    let painted = false;
-    try {
-      // Cache-first paint: returning to this page renders instantly from fresh
-      // snapshots; mutation flows pass bypassCache=true so the lists always
-      // reflect the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2], cached[3]);
-          setIsLoaded(true);
-          painted = true;
-        }
-      }
-      const responses = await Promise.all(
-        urls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1], responses[2], responses[3]);
-      setIsLoaded(true);
-    } catch (e) {
-      if (!painted) console.error(e);
-      setIsLoaded(true);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // The public registration link. The programme's own runs are consulted when the
+  // programme is known; a programme without an id falls back to the run assigned
+  // to its first group, which is what the loader did.
+  const registrationSourceId = program?.id || program?.assigned_segments?.[0] || null;
+  const registrationQuery = program?.id
+    ? `program_id=${encodeURIComponent(String(program.id))}`
+    : `group_id=${encodeURIComponent(String(registrationSourceId))}`;
+  const { data: regForm } = useApi(
+    registrationSourceId ? `/api/platform/form-runs?${registrationQuery}` : null,
+    { defaultValue: null, transform: pickRegistrationLink, deps: [registrationSourceId] },
+  );
 
   const handleAddFollowup = async (wn, sid = null) => {
     if (!newFollowup.comment.trim()) return;
@@ -147,7 +138,7 @@ export default function SuperAdminExecutiveView({ params }) {
       });
       if ((await res.json()).success) {
         setNewFollowup({ week: null, session_id: null, comment: '' });
-        fetchData(true);
+        reload();
       }
     } catch (e) {
       console.error(e);
@@ -183,7 +174,7 @@ export default function SuperAdminExecutiveView({ params }) {
       if (res && (await res.json()).success) {
         setKpiForm({ title: '', target_value: '' });
         setIsEditingKpi(null);
-        fetchData(true);
+        reload();
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: action === 'create' ? t("adminMisc.programDetail.kpiCreated") : action === 'update' ? t("adminMisc.programDetail.kpiUpdated") : t("adminMisc.programDetail.kpiDeleted") } }));
       }
     } catch (e) {
@@ -193,7 +184,7 @@ export default function SuperAdminExecutiveView({ params }) {
     }
   };
 
-  if (!isLoaded || !program) return (
+  if (isLoadingData || !program) return (
     <div className="min-h-screen bg-primary flex items-center justify-center">
       <div className="w-12 h-12 border-4 border-[#FF6600]/20 border-t-[#FF6600] rounded-full animate-spin" />
     </div>

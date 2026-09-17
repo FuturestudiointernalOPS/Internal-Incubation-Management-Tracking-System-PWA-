@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   Search,
@@ -20,7 +20,16 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_LIST = [];
+
+const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
 
 /**
  * SUPER ADMIN TASKS DASHBOARD
@@ -90,114 +99,78 @@ function getStatusBg(status) {
 
 export default function AdminTasks() {
   const router = useRouter();
-  const [tasks, setTasks] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterUser, setFilterUser] = useState("All Users");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterProject, setFilterProject] = useState("All Projects");
   const [sortBy, setSortBy] = useState("newest");
   const [viewingTask, setViewingTask] = useState(null);
-  const [allUsers, setAllUsers] = useState([]);
-  const [comments, setComments] = useState([]);
   const [commentInput, setCommentInput] = useState("");
-  const [assignValue, setAssignValue] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
   const [statusUpdating, setStatusUpdating] = useState(null);
   const [assigningUser, setAssigningUser] = useState(false);
   const { t } = useI18n();
 
-  const fetchTasks = useCallback(async (bypassCache = false) => {
-    const urls = [`/api/tasks?sort=${sortBy}`, "/api/projects"];
-    const apply = (taskData, projectData) => {
-      if (taskData?.success) setTasks(taskData.tasks || []);
-      if (projectData?.success) setProjects(projectData.projects || []);
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: switching sorts / returning to the page renders
-      // instantly from fresh snapshots; status mutations pass bypassCache=true
-      // so the list always reflects the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1]);
-          setLoading(false);
-        }
-      }
-      const responses = await Promise.all(
-        urls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1]);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [sortBy]);
+  // The tasks, the projects they belong to, the people they can be assigned to and
+  // the open task's comments, all through the shared hook: it owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the page keeps no
+  // copy of its own and reads its data during render.
+  const {
+    data: tasks,
+    loading: tasksLoading,
+    refresh: refreshTasks,
+  } = useApi(`/api/tasks?sort=${sortBy}`, {
+    defaultValue: EMPTY_LIST,
+    transform: pickList("tasks"),
+    deps: [sortBy],
+  });
+  const {
+    data: projects,
+    loading: projectsLoading,
+    refresh: refreshProjects,
+  } = useApi("/api/projects", {
+    defaultValue: EMPTY_LIST,
+    transform: pickList("projects"),
+  });
+  const { data: allUsers } = useApi("/api/contacts", {
+    defaultValue: EMPTY_LIST,
+    transform: pickList("contacts"),
+  });
 
-  useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+  // The comments are read for the task that is open, and not addressed at all when
+  // none is.
+  const {
+    data: comments,
+    refresh: refreshComments,
+  } = useApi(
+    viewingTask?.id ? `/api/tasks/comments?task_id=${viewingTask.id}` : null,
+    {
+      defaultValue: EMPTY_LIST,
+      transform: pickList("comments"),
+      deps: [viewingTask?.id],
+    },
+  );
 
-  // Load current user from localStorage (set by DashboardLayout)
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("user");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setCurrentUser(parsed);
-      }
-    } catch (_) {}
-  }, []);
+  // Who is signed in, from the shell's session cache: no request of its own, and
+  // no dependence on the browser's stored copy.
+  const { cid: currentUserCid, user: currentUser } = useSessionUser();
 
-  // Fetch all users for assignment dropdown
-  useEffect(() => {
-    fetch("/api/contacts")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.success) setAllUsers(data.contacts || []);
-      })
-      .catch(() => {});
-  }, []);
+  const loading = tasksLoading || projectsLoading;
 
-  // Fetch comments when viewingTask changes
-  const fetchComments = useCallback(async (taskId) => {
-    try {
-      const res = await fetch(`/api/tasks/comments?task_id=${taskId}`);
-      const data = await res.json();
-      if (data.success) {
-        setComments(data.comments || []);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
+  // The assignment control shows who holds the open task, and choosing someone
+  // else writes to the server and updates the task - it never writes this value.
+  // So it is a plain consequence of the open task, not state of its own.
+  const assignValue = viewingTask?.assigned_to || "";
 
-  useEffect(() => {
-    if (viewingTask) {
-      setAssignValue(viewingTask.assigned_to || "");
-      fetchComments(viewingTask.id);
-    }
-  }, [viewingTask, fetchComments]);
 
   const handleAddComment = async () => {
-    if (!commentInput.trim() || !currentUser || !viewingTask) return;
+    if (!commentInput.trim() || !currentUserCid || !viewingTask) return;
     try {
       const res = await fetch("/api/tasks/comments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           task_id: viewingTask.id,
-          sender_id: currentUser.cid || currentUser.id,
+          sender_id: currentUserCid,
           sender_name: currentUser.name,
           body: commentInput.trim(),
         }),
@@ -205,7 +178,7 @@ export default function AdminTasks() {
       const data = await res.json();
       if (data.success) {
         setCommentInput("");
-        fetchComments(viewingTask.id);
+        refreshComments();
       }
     } catch (e) {
       console.error(e);
@@ -271,7 +244,8 @@ export default function AdminTasks() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchTasks(true);
+        refreshTasks();
+        refreshProjects();
       } else if (data.hasActiveBlockers) {
         // Attempt with force_complete
         const retryRes = await fetch("/api/tasks", {
@@ -284,7 +258,7 @@ export default function AdminTasks() {
           }),
         });
         const retryData = await retryRes.json();
-        if (retryData.success) fetchTasks(true);
+        if (retryData.success) { refreshTasks(); refreshProjects(); }
       }
     } catch (e) {
       console.error(e);
@@ -337,7 +311,7 @@ export default function AdminTasks() {
               </span>
             </div>
             <button
-              onClick={fetchTasks}
+              onClick={() => { refreshTasks(); refreshProjects(); }}
               className="p-2 rounded-xl hover:bg-white/5 transition-all"
               title={t("common.refresh")}
             >

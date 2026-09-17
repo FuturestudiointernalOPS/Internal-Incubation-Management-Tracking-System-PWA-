@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   LayoutGrid,
   ListTodo,
@@ -19,7 +19,27 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApiMulti } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on the list below, so it is built once
+// at module scope: rebuilt each render it would be a new identity and would put
+// all three requests back on the wire on every render.
+
+const EMPTY_LIST = [];
+
+const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
+
+const WORK_BOARD_ENDPOINTS = [
+  { key: "programs", url: "/api/programs", transform: pickList("programs") },
+  { key: "projects", url: "/api/admin/projects", transform: pickList("projects") },
+  {
+    key: "tasks",
+    url: "/api/tasks?brief=true&limit=500",
+    transform: pickList("tasks"),
+  },
+];
 
 /**
  * INTERNAL OPS — HIERARCHICAL KANBAN BOARD
@@ -83,71 +103,25 @@ export default function ProjectKanbanBoard() {
   const { t } = useI18n();
 
   // ── Data ──
-  const [programs, setPrograms] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [allTasks, setAllTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [user, setUser] = useState(null);
+
+  // The three lists the board is built from, through the shared hook: it owns the
+  // cache, the cache-first paint and the discarding of a stale answer, so the page
+  // keeps no copy of its own and reads its data during render.
+  const { data, loading, refresh, setData } = useApiMulti(WORK_BOARD_ENDPOINTS);
+  const programs = data.programs ?? EMPTY_LIST;
+  const projects = data.projects ?? EMPTY_LIST;
+  const allTasks = data.tasks ?? EMPTY_LIST;
+
+  // Who is signed in, from the shell's session cache: no request of its own, and
+  // no dependence on the browser's stored copy.
+  const { role } = useSessionUser();
+
   const [expandedPrograms, setExpandedPrograms] = useState({});
   const [expandedProjects, setExpandedProjects] = useState({});
 
   // ── Drag state ──
   const [dragOverCol, setDragOverCol] = useState(null);
-
-  useEffect(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      setUser(u);
-    } catch {}
-  }, []);
-
-  const fetchData = useCallback(async (bypassCache = false) => {
-    const urls = [
-      "/api/programs",
-      "/api/admin/projects",
-      "/api/tasks?brief=true&limit=500",
-    ];
-    const apply = (progData, projData, taskData) => {
-      if (progData?.success) setPrograms(progData.programs || []);
-      if (projData?.success) setProjects(projData.projects || []);
-      if (taskData?.success) setAllTasks(taskData.tasks || []);
-    };
-
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to the board renders instantly from fresh
-      // snapshots while the network refresh below converges in the background;
-      // mutation flows pass bypassCache=true so the board always reflects the
-      // last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null)) {
-          apply(cached[0], cached[1], cached[2]);
-          setLoading(false);
-        }
-      }
-      const responses = await Promise.all(
-        urls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1], responses[2]);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   // ── Drag handlers ──
   const handleDragStart = (e, taskId) => {
@@ -180,9 +154,15 @@ export default function ProjectKanbanBoard() {
     const newStatus = COLUMN_TO_STATUS[targetColId];
     if (!newStatus) return;
 
-    setAllTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)),
-    );
+    // The moved task takes its new column at once; the server is told after. A
+    // refused move re-reads, so the board cannot keep a column the server did not
+    // accept.
+    setData((prev) => ({
+      ...prev,
+      tasks: (prev.tasks ?? EMPTY_LIST).map((t) =>
+        t.id === taskId ? { ...t, status: newStatus } : t,
+      ),
+    }));
 
     try {
       await fetch("/api/tasks", {
@@ -192,7 +172,7 @@ export default function ProjectKanbanBoard() {
       });
     } catch (e) {
       console.error("Move failed:", e);
-      fetchData(true);
+      refresh();
     }
   };
 
@@ -205,7 +185,10 @@ export default function ProjectKanbanBoard() {
       const res = await fetch(`/api/tasks?id=${taskId}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
-        setAllTasks((prev) => prev.filter((t) => t.id !== taskId));
+        setData((prev) => ({
+          ...prev,
+          tasks: (prev.tasks ?? EMPTY_LIST).filter((t) => t.id !== taskId),
+        }));
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || t("adminMisc.work.deleteTaskFailed")) || "") || (data.error || t("adminMisc.work.deleteTaskFailed")) } }));
       }
@@ -215,10 +198,10 @@ export default function ProjectKanbanBoard() {
     } finally {
       setDeletingTaskId(null);
     }
-  }, [t]);
+  }, [t, setData]);
 
   const isSuperAdmin =
-    user?.role === "super_admin" || user?.role === "developer";
+    role === "super_admin" || role === "developer";
 
   // ── Build hierarchical column data ──
   const columns = useMemo(() => {
