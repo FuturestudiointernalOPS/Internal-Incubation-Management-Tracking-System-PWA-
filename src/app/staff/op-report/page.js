@@ -26,11 +26,10 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
-import { useApi } from "@/lib/hooks/useApi";
+import { useApi, useApiMulti } from "@/lib/hooks/useApi";
 import TaskManager from "@/components/tasks/TaskManager";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
 import { formatLocaleDate } from "@/lib/constants";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * STAFF OPERATIONAL REPORT PAGE
@@ -63,6 +62,149 @@ const REPORT_TABS = ["standup", "retro", "summary"];
 
 const EMPTY_LIST = [];
 const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
+
+// ─── The op-report read, and the form it fills ───────────────────────────
+
+const TASK_STATUSES = [
+  "pending",
+  "in_progress",
+  "blocked",
+  "carried_over",
+  "completed",
+];
+
+// Before the report read has answered, the form is exactly the shape this screen
+// has always started from — which is NOT the shape an empty report produces, so
+// the two are kept apart rather than merged into one "empty".
+const INITIAL_FORM = {
+  top_priorities: [],
+  expected_deliverables: [],
+  projects_tasks: "",
+  has_dependencies: null,
+  dependency_note: "",
+  has_blockers: null,
+  blocker_description: "",
+  needs_support: null,
+  support_note: "",
+  additional_notes: "",
+  completed_work: [],
+  unfinished_tasks: [],
+  challenges: "",
+  week_status: "",
+  had_blockers: null,
+  blocker_type: "",
+  blocker_desc: "",
+  wins: [],
+  major_achievement: "",
+  carryover_items: [],
+  retro_notes: "",
+};
+
+// What a week with no report yet produces, matching the loader's empty branch.
+const EMPTY_REPORT_FORM = {
+  top_priorities: [],
+  expected_deliverables: [],
+  projects_tasks: "",
+  has_dependencies: null,
+  dependency_note: "",
+  has_blockers: null,
+  blocker_description: "",
+  needs_support: null,
+  support_note: "",
+  additional_notes: "",
+  completed_work: "",
+  unfinished_tasks: "",
+  challenges: "",
+  wins: [],
+  carryover_items: [],
+  retro_notes: "",
+};
+
+const EMPTY_REPORT = { report: null, answered: false };
+
+/** A stored report as the form reads it: its JSON-encoded lists decoded. */
+function shapeReport(report) {
+  if (!report) return null;
+  const asList = (value) => {
+    try {
+      const parsed = typeof value === "string" ? JSON.parse(value) : value;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+  const asListOrText = (value) => {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : value || "";
+    } catch {
+      return value || "";
+    }
+  };
+  return {
+    ...report,
+    top_priorities: asList(report.top_priorities),
+    expected_deliverables: asList(report.expected_deliverables),
+    wins: asList(report.wins),
+    carryover_items: asListOrText(report.carryover_items),
+  };
+}
+
+// A refusal is reported as "not answered" rather than as an empty week: the form
+// then keeps the shape it has always had while the read is outstanding.
+const pickReport = (d) =>
+  d?.success
+    ? { report: shapeReport(d.reports?.[0] || null), answered: true }
+    : EMPTY_REPORT;
+
+/** The form values a stored report — or no report at all — produces. */
+const reportToForm = (report) =>
+  report
+    ? {
+        top_priorities: report.top_priorities || [],
+        expected_deliverables: report.expected_deliverables || [],
+        projects_tasks: report.projects_tasks || "",
+        has_dependencies:
+          report.has_dependencies != null ? Boolean(report.has_dependencies) : null,
+        dependency_note: report.dependency_note || "",
+        has_blockers:
+          report.has_blockers != null ? Boolean(report.has_blockers) : null,
+        blocker_description: report.blocker_description || "",
+        needs_support: report.needs_support != null ? Boolean(report.needs_support) : null,
+        support_note: report.support_note || "",
+        additional_notes: report.additional_notes || "",
+        completed_work: report.completed_work || "",
+        unfinished_tasks: report.unfinished_tasks || "",
+        challenges: report.challenges || "",
+        wins: report.wins || [],
+        carryover_items: report.carryover_items || [],
+        retro_notes: report.retro_notes || "",
+      }
+    : EMPTY_REPORT_FORM;
+
+/** Every project this person is on, deduplicated: the flat list the picker uses. */
+const pickAssignments = (d) => {
+  if (!d?.success) return EMPTY_LIST;
+  const all = [...(d.owned || []), ...(d.collab || []), ...(d.all_active || [])];
+  const seen = new Set();
+  return all.filter((p) => {
+    if (seen.has(String(p.id))) return false;
+    seen.add(String(p.id));
+    return true;
+  });
+};
+
+/** The Future Studio staff the collaborator picker offers. */
+const pickStudioStaff = (d) =>
+  (d?.success ? d.contacts || [] : [])
+    .filter(
+      (c) =>
+        c.status === "active" &&
+        c.role !== "super_admin" &&
+        c.group_name?.toUpperCase() === "FUTURE STUDIO",
+    )
+    .map((c) => ({ id: c.cid || c.id, name: c.name, email: c.email }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
 // Returns true when a stand-up draft actually contains something the user
 // typed/added (a non-empty field or at least one task row). Empty drafts are
@@ -171,8 +313,6 @@ function StaffOpReport() {
   // for every page behind a session. One identity, no request, no redirect here.
   const { cid: userCid, user } = useSessionUser();
 
-  const [existingReport, setExistingReport] = useState(null);
-
   // ─── The address is the source of truth for the tab and the week ───
   //
   // These two used to be state: one effect read the query string into them and a
@@ -231,10 +371,79 @@ function StaffOpReport() {
     if (searchParams.get("tab")) return;
     goTo({});
   }, [searchParams, goTo]);
-  const [, setLoading] = useState(true);
+  // ─── The five reads the old effect called together ───
+  //
+  // Addressed on the person and, for the report, on the report's OWN address — so
+  // a change of week or of type is what re-reads, and so the form below has an
+  // address to belong to. No address means "not asked yet" and issues nothing.
+  const userId = userCid || user?.id || null;
+  const reportUrl = userId
+    ? `/api/op-reports?user_id=${userId}&type=${reportType}&week=${weekInfo.week}&year=${weekInfo.year}`
+    : null;
+  const { data: reportRead, refresh: refreshReport } = useApi(reportUrl, {
+    defaultValue: EMPTY_REPORT,
+    transform: pickReport,
+  });
+  const existingReport = reportRead.report;
+
+  const { data: history, refresh: refreshHistory } = useApi(
+    userId ? `/api/op-reports?user_id=${userId}` : null,
+    { defaultValue: EMPTY_LIST, transform: pickList("reports") },
+  );
+  const { data: assignedProjects } = useApi(
+    userId ? `/api/projects/assignments?user_cid=${userId}` : null,
+    { defaultValue: EMPTY_LIST, transform: pickAssignments },
+  );
+
+  // The task list is one read per status plus the tasks assigned TO this person,
+  // issued together; the merge below is what the loader did by hand.
+  const taskEndpoints = useMemo(
+    () =>
+      userId
+        ? [
+            ...TASK_STATUSES.map((s) => ({
+              key: s,
+              url: `/api/tasks?user_id=${userId}&status=${s}`,
+              transform: pickList("tasks"),
+            })),
+            {
+              key: "assigned",
+              url: `/api/tasks?assigned_to=${userId}`,
+              transform: pickList("tasks"),
+            },
+          ]
+        : [],
+    [userId],
+  );
+  const { data: taskAnswers, refresh: refreshTasks } = useApiMulti(taskEndpoints);
+  const tasks = useMemo(() => {
+    const merged = new Map();
+    for (const status of TASK_STATUSES) {
+      for (const task of taskAnswers[status] || []) {
+        if (!merged.has(task.id)) merged.set(task.id, task);
+      }
+    }
+    for (const task of taskAnswers.assigned || []) {
+      if (!merged.has(task.id)) merged.set(task.id, task);
+    }
+    return Array.from(merged.values());
+  }, [taskAnswers]);
+
+  // The task list feeds the dashboard's calendar; the loader signalled that on
+  // every load, and that signal is the only thing left in an effect - it writes
+  // no state, which is why it is allowed to be one.
+  useEffect(() => {
+    window.__refreshDashboard?.();
+  }, [tasks]);
+
+  // The Future Studio staff list the collaborator picker was built from. Its
+  // answer has never been READ on this screen - the picker was not carried over -
+  // so the request is kept and its answer discarded, rather than quietly dropped
+  // as part of a warning cleanup.
+  useApi("/api/contacts", { defaultValue: EMPTY_LIST, transform: pickStudioStaff });
+
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
-  const [history, setHistory] = useState([]);
   const [showStandupModal, setShowStandupModal] = useState(false);
   const [readOnly, setReadOnly] = useState(false);
   const [isHistorical, setIsHistorical] = useState(false);
@@ -254,32 +463,32 @@ function StaffOpReport() {
     show_dropdown: false,
   });
 
-  // Form state
-  const [form, setForm] = useState({
-    // Stand-up (structured)
-    top_priorities: [],
-    expected_deliverables: [],
-    projects_tasks: "",
-    has_dependencies: null,
-    dependency_note: "",
-    has_blockers: null,
-    blocker_description: "",
-    needs_support: null,
-    support_note: "",
-    additional_notes: "",
-    // Retro fields (structured)
-    completed_work: [],
-    unfinished_tasks: [],
-    challenges: "",
-    week_status: "",
-    had_blockers: null,
-    blocker_type: "",
-    blocker_desc: "",
-    wins: [],
-    major_achievement: "",
-    carryover_items: [],
-    retro_notes: "",
-  });
+  // Form state. The report the read returned is the BASE, and the person's typing
+  // is recorded WITH THE ADDRESS IT WAS TYPED FOR - so changing week or type shows
+  // THAT week's report instead of carrying the previous one's text across, and a
+  // re-read can never wipe what someone is in the middle of writing.
+  const [formOverride, setFormOverride] = useState({ key: null, value: null });
+  const baseForm = useMemo(
+    () => (reportRead.answered ? reportToForm(reportRead.report) : INITIAL_FORM),
+    [reportRead],
+  );
+  const form =
+    formOverride.key === reportUrl && formOverride.value
+      ? formOverride.value
+      : baseForm;
+  const setForm = useCallback(
+    (next) => {
+      setFormOverride((prev) => {
+        const current =
+          prev.key === reportUrl && prev.value ? prev.value : baseForm;
+        return {
+          key: reportUrl,
+          value: typeof next === "function" ? next(current) : next,
+        };
+      });
+    },
+    [reportUrl, baseForm],
+  );
 
   // Temporary input for adding bullet items
   const [newPriority, setNewPriority] = useState("");
@@ -288,8 +497,6 @@ function StaffOpReport() {
   const [newCarryover, setNewCarryover] = useState("");
 
   // Task integration state (Phase 4)
-  const [tasks, setTasks] = useState([]);
-  const [, setLoadingTasks] = useState(false);
   // Increment to ask the TaskManager inside the standup to open its new-task
   // form directly ("Add Task" shortcut at the bottom of the task list).
   const [newTaskRequest] = useState(0);
@@ -298,10 +505,6 @@ function StaffOpReport() {
   const [taskReasons, setTaskReasons] = useState({});
 
   // Structured task row state
-  const [assignedProjects, setAssignedProjects] = useState([]);
-  const [, setOwnedProjects] = useState([]);
-  const [, setCollabProjects] = useState([]);
-  const [, setAllStaff] = useState([]);
   const [taskRows, setTaskRows] = useState([]);
   const [blockerModal, setBlockerModal] = useState(null); // { taskRowIndex } or null
   const [confirmTarget, setConfirmTarget] = useState(null); // { id, message, onConfirm } or null
@@ -400,7 +603,7 @@ function StaffOpReport() {
       // ignore
     }
     setDraftAvailable(false);
-  }, [getDraftKey, setReportType]);
+  }, [getDraftKey, setReportType, setForm]);
 
   // Discard draft
   const discardDraft = useCallback(() => {
@@ -455,288 +658,6 @@ function StaffOpReport() {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   };
-
-  const fetchReport = useCallback(async (bypassCache = false) => {
-    if (!user) return;
-    const url = `/api/op-reports?user_id=${user.cid || user.id}&type=${reportType}&week=${weekInfo.week}&year=${weekInfo.year}`;
-
-    const applyReport = (data) => {
-      if (!data.success) return;
-      const report = data.reports[0] || null;
-      setExistingReport(report);
-      if (report) {
-        // Parse JSON arrays safely
-        try {
-          report.top_priorities =
-            typeof report.top_priorities === "string"
-              ? JSON.parse(report.top_priorities)
-              : report.top_priorities || [];
-        } catch {
-          report.top_priorities = [];
-        }
-        try {
-          report.expected_deliverables =
-            typeof report.expected_deliverables === "string"
-              ? JSON.parse(report.expected_deliverables)
-              : report.expected_deliverables || [];
-        } catch {
-          report.expected_deliverables = [];
-        }
-
-        setForm({
-          top_priorities: report.top_priorities || [],
-          expected_deliverables: report.expected_deliverables || [],
-          projects_tasks: report.projects_tasks || "",
-          has_dependencies:
-            report.has_dependencies != null
-              ? Boolean(report.has_dependencies)
-              : null,
-          dependency_note: report.dependency_note || "",
-          has_blockers:
-            report.has_blockers != null ? Boolean(report.has_blockers) : null,
-          blocker_description: report.blocker_description || "",
-          needs_support:
-            report.needs_support != null
-              ? Boolean(report.needs_support)
-              : null,
-          support_note: report.support_note || "",
-          additional_notes: report.additional_notes || "",
-          completed_work: report.completed_work || "",
-          unfinished_tasks: report.unfinished_tasks || "",
-          challenges: report.challenges || "",
-          wins: (() => {
-            try {
-              const p = JSON.parse(report.wins);
-              return Array.isArray(p) ? p : [];
-            } catch {
-              return [];
-            }
-          })(),
-          carryover_items: (() => {
-            try {
-              const p = JSON.parse(report.carryover_items);
-              return Array.isArray(p) ? p : report.carryover_items || "";
-            } catch {
-              return report.carryover_items || "";
-            }
-          })(),
-          retro_notes: report.retro_notes || "",
-        });
-      } else {
-        setForm({
-          top_priorities: [],
-          expected_deliverables: [],
-          projects_tasks: "",
-          has_dependencies: null,
-          dependency_note: "",
-          has_blockers: null,
-          blocker_description: "",
-          needs_support: null,
-          support_note: "",
-          additional_notes: "",
-          completed_work: "",
-          unfinished_tasks: "",
-          challenges: "",
-          wins: [],
-          carryover_items: [],
-          retro_notes: "",
-        });
-      }
-    };
-
-    setLoading(true);
-    try {
-      // Cache-first paint on reads; mutation flows pass bypassCache=true so the
-      // form is always refreshed from the just-saved server state.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          applyReport(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      applyReport(data);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [user, reportType, weekInfo]);
-
-  const fetchHistory = useCallback(async (bypassCache = false) => {
-    if (!user) return;
-    const url = `/api/op-reports?user_id=${user.cid || user.id}`;
-    const apply = (data) => {
-      if (data.success) setHistory(data.reports || []);
-    };
-    if (!bypassCache) {
-      const cached = cacheGet(url);
-      if (cached !== null && cached.success) apply(cached);
-    }
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch {}
-  }, [user]);
-
-  const fetchTasks = useCallback(async (bypassCache = false) => {
-    if (!user) return;
-    const userId = user.cid || user.id;
-    const statuses = [
-      "pending",
-      "in_progress",
-      "blocked",
-      "carried_over",
-      "completed",
-    ];
-    // Own tasks (per status) first, then tasks assigned TO the user.
-    const urls = [
-      ...statuses.map((s) => `/api/tasks?user_id=${userId}&status=${s}`),
-      `/api/tasks?assigned_to=${userId}`,
-    ];
-
-    const apply = (results) => {
-      const ownResults = results.slice(0, statuses.length);
-      const assignedData = results[statuses.length];
-      const ownTasks = ownResults.flatMap((data) => {
-        if (!data || typeof data !== "object") return [];
-        return Array.isArray(data) ? data : data.tasks || [];
-      });
-      const assignedTasks = assignedData?.success
-        ? assignedData.tasks || []
-        : [];
-
-      // Merge and deduplicate by id
-      const taskMap = new Map();
-      [...ownTasks, ...assignedTasks].forEach((t) => {
-        if (!taskMap.has(t.id)) taskMap.set(t.id, t);
-      });
-
-      setTasks(Array.from(taskMap.values()));
-      // Ticket 1.6: notify dashboard calendar of changes
-      if (typeof window !== "undefined") window.__refreshDashboard?.();
-    };
-
-    setLoadingTasks(true);
-    try {
-      // Cache-first paint on reads; mutation flows pass bypassCache=true so the
-      // list always reflects the just-changed server state.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null)) {
-          apply(cached);
-          setLoadingTasks(false);
-        }
-      }
-      const results = await Promise.all(
-        urls.map((u) => fetch(u).then((r) => r.json())),
-      );
-      urls.forEach((u, i) => {
-        if (results[i]?.success) cacheSet(u, results[i]);
-      });
-      apply(results);
-    } catch (e) {
-      console.error("Failed to fetch tasks:", e);
-    } finally {
-      setLoadingTasks(false);
-    }
-  }, [user]);
-
-  // Fetch grouped projects for dropdown (owned, collab, all_active)
-  const fetchAssignedProjects = useCallback(async () => {
-    if (!user?.cid && !user?.id) return;
-    const userId = user.cid || user.id;
-    const url = `/api/projects/assignments?user_cid=${userId}`;
-    const apply = (data) => {
-      if (!data.success) return;
-      const owned = data.owned || [];
-      const collab = data.collab || [];
-      const allActive = data.all_active || [];
-      setOwnedProjects(owned);
-      setCollabProjects(collab);
-
-      // Combine all as flat list (deduped) for backward compat
-      const allProjects = [...owned, ...collab, ...allActive];
-      const seen = new Set();
-      const deduped = allProjects.filter((p) => {
-        if (seen.has(String(p.id))) return false;
-        seen.add(String(p.id));
-        return true;
-      });
-      setAssignedProjects(deduped);
-    };
-    const cached = cacheGet(url);
-    if (cached !== null && cached.success) apply(cached);
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch assigned projects:", e);
-    }
-  }, [user]);
-
-  // Fetch Future Studio staff for collaborator selection
-  const fetchAllStaff = useCallback(async () => {
-    const url = "/api/contacts";
-    const apply = (data) => {
-      if (!data.success) return;
-      // Only active staff from FUTURE STUDIO group
-      const staff = (data.contacts || [])
-        .filter(
-          (c) =>
-            c.status === "active" &&
-            c.role !== "super_admin" &&
-            c.group_name?.toUpperCase() === "FUTURE STUDIO",
-        )
-        .map((c) => ({
-          id: c.cid || c.id,
-          name: c.name,
-          email: c.email,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-      setAllStaff(staff);
-    };
-    const cached = cacheGet(url);
-    if (cached !== null && cached.success) apply(cached);
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch staff:", e);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (user) {
-      fetchReport();
-      fetchHistory();
-      fetchTasks();
-      fetchAssignedProjects();
-      fetchAllStaff();
-    }
-  }, [
-    user,
-    fetchReport,
-    fetchHistory,
-    fetchTasks,
-    fetchAssignedProjects,
-    fetchAllStaff,
-  ]);
 
   // Opening the standup dialog asks the browser's stored draft whether there is
   // one, and offers it. Done where the dialog is opened rather than in an effect
@@ -877,9 +798,9 @@ function StaffOpReport() {
         clearDraft();
         setTaskRows([]);
         setShowTaskForm(false);
-        fetchReport(true);
-        fetchHistory(true);
-        fetchTasks(true);
+        refreshReport();
+        refreshHistory();
+        refreshTasks();
       } else {
         notify(t((data.error || t("reports.failedToSave")) || "") || (data.error || t("reports.failedToSave")), "error");
       }
@@ -1047,7 +968,7 @@ function StaffOpReport() {
           show_dropdown: false,
         });
         notify(t("staff.opReport.tasksCreated", { count: 1 }));
-        fetchTasks(true);
+        refreshTasks();
       } else {
         notify(
           t(data.error || "Failed to create task") || data.error || "Failed to create task",
@@ -2281,7 +2202,7 @@ function StaffOpReport() {
                                                                     "error",
                                                                   );
                                                                 } else {
-                                                                  fetchTasks();
+                                                                  refreshTasks();
                                                                 }
                                                               }
                                                             } catch (e) {
@@ -2441,7 +2362,7 @@ function StaffOpReport() {
                                                                                 "error",
                                                                               );
                                                                             } else {
-                                                                              fetchTasks();
+                                                                              refreshTasks();
                                                                             }
                                                                           } catch (e) {
                                                                             console.error(
@@ -2576,7 +2497,7 @@ function StaffOpReport() {
                                                                   ),
                                                                 },
                                                               );
-                                                              fetchTasks();
+                                                              refreshTasks();
                                                             } catch (err) {
                                                               console.error(
                                                                 err,
@@ -3787,7 +3708,7 @@ function StaffOpReport() {
                   userName={user?.name || ""}
                   projects={assignedProjects}
                   taskList={tasks}
-                  onTasksChange={fetchTasks}
+                  onTasksChange={refreshTasks}
                   weekInfo={weekInfo}
                   showCarryOver={true}
                   readOnly={readOnly || isHistorical}
@@ -3920,7 +3841,7 @@ function StaffOpReport() {
                                   resolved_by: user?.cid || user?.id,
                                 }),
                               });
-                              fetchTasks();
+                              refreshTasks();
                             } else {
                               resolveBlocker(blockerModal, b.id);
                             }
@@ -4037,7 +3958,7 @@ function StaffOpReport() {
                         setNewBlockerPriority("medium");
                         setNewBlockerRefUrl("");
                         setNewBlockerNotes("");
-                        fetchTasks();
+                        refreshTasks();
                       } else {
                         addBlockerToRow(blockerModal, newBlockerTitle.trim());
                         setNewBlockerTitle("");

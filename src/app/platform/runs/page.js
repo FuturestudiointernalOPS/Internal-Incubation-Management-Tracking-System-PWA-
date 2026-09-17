@@ -9,7 +9,7 @@ import {
   StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, Info, Sparkles, Mail, Key, LogIn, Download,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
 import AppPdfPreview from "@/components/ui/AppPdfPreview";
 
@@ -369,6 +369,27 @@ function MiniCalendar({ value, onChange, onClose }) {
 }
 
 
+// ─── Stable module-scope shapes ──────────────────────────────────────────────
+// Built once here rather than on every render: the reading hook keys its internal
+// work on these, and the respondent table reads EMPTY_SELECTION whenever the
+// filter combination a selection was recorded under is not the current one, so a
+// hidden selection is unreachable rather than merely invisible.
+
+const EMPTY_RUN_LIST = { runs: [], total: 0, failure: null };
+
+const EMPTY_SELECTION = [];
+
+/**
+ * A page of runs together with the message for a read that failed: the server's
+ * own refusal, kept as the read's value rather than raised in the loader. A
+ * request that never answered is reported by the hook's error, which the
+ * notification beside the read folds back in.
+ */
+const pickRunList = (d) =>
+  d?.success
+    ? { runs: d.runs || [], total: d.total || 0, failure: null }
+    : { runs: [], total: 0, failure: d?.error || null };
+
 export default function FormRunsPage() {
   const { t } = useI18n();
   // The AI evaluation controls follow `runs.review` — the same capability the
@@ -378,12 +399,10 @@ export default function FormRunsPage() {
   // panel stays visible to everyone who can open the run.
   const { can } = usePermissions();
   const canReview = can("runs", "review");
-  const [runs, setRuns] = useState([]);
   const [forms, setForms] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [groups, setGroups] = useState([]);
   const [programs, setPrograms] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -391,7 +410,6 @@ export default function FormRunsPage() {
   const [perPage] = useState(50);
   const [sortField, setSortField] = useState("created_at");
   const [sortDir, setSortDir] = useState("desc");
-  const [totalRuns, setTotalRuns] = useState(0);
 
   // Detail view
   const [selectedRun, setSelectedRun] = useState(null);
@@ -465,12 +483,59 @@ export default function FormRunsPage() {
   const [accountStatusFilter, setAccountStatusFilter] = useState("");
   const [fieldLabels, setFieldLabels] = useState({}); // field id → label (from the run's form)
   const [filterableFields, setFilterableFields] = useState([]); // form fields that carry options
-  const [respPage, setRespPage] = useState(1); // respondent table pagination
-  const [showDuplicates, setShowDuplicates] = useState(false); // duplicates-only view
   const [filterPickerOpen, setFilterPickerOpen] = useState(false); // Add Filter dropdown
   const [filterPickerMode, setFilterPickerMode] = useState(null); // null | "score" | { type: "field", label }
   const filterRowRef = useRef(null); // closes the picker when clicking outside
-  const [selectedIds, setSelectedIds] = useState([]); // bulk-selected respondent ids
+
+  // One key for the filter combination the respondent table is showing. The
+  // table's page, its selected rows and the duplicates-only view are each
+  // remembered TOGETHER WITH the combination they belong to and read during
+  // render, so a search or filter change needs no effect to reset them: the
+  // reset IS the comparison (§4.3 — a reset reachable during render is derived,
+  // not written). Each setter takes its identity from the combination in force,
+  // because the record it writes is keyed on that combination.
+  const respFilterKey = JSON.stringify([
+    respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, subFilter,
+    approvalEmailFilter, activationEmailFilter, reviewFilter, accountStatusFilter,
+  ]);
+  const [respPageState, setRespPageState] = useState({ key: respFilterKey, page: 1 });
+  const respPage = respPageState.key === respFilterKey ? respPageState.page : 1; // respondent table pagination
+  const setRespPage = useCallback(
+    (next) =>
+      setRespPageState({
+        key: respFilterKey,
+        page: typeof next === "function" ? next(respPage) : next,
+      }),
+    [respFilterKey, respPage],
+  );
+
+  // The selection is remembered the same way, and this is a SAFETY property
+  // rather than tidiness: a row selected under a filter combination that is no
+  // longer in force reads as NOT SELECTED, so a hidden selection can never be
+  // bulk-approved, bulk-messaged or exported. The recorded ids stay in state but
+  // are unreachable while their combination is not the current one.
+  const [selectionState, setSelectionState] = useState({ key: respFilterKey, ids: EMPTY_SELECTION });
+  const selectedIds = selectionState.key === respFilterKey ? selectionState.ids : EMPTY_SELECTION; // bulk-selected respondent ids
+  const setSelectedIds = useCallback(
+    (next) =>
+      setSelectionState({
+        key: respFilterKey,
+        ids: typeof next === "function" ? next(selectedIds) : next,
+      }),
+    [respFilterKey, selectedIds],
+  );
+
+  // The duplicates panel is open only while the combination it was opened under
+  // is the current one.
+  const [duplicatesKey, setDuplicatesKey] = useState(null); // duplicates-only view
+  const showDuplicates = duplicatesKey === respFilterKey;
+  const setShowDuplicates = useCallback(
+    (next) => {
+      const open = typeof next === "function" ? next(showDuplicates) : next;
+      setDuplicatesKey(open ? respFilterKey : null);
+    },
+    [respFilterKey, showDuplicates],
+  );
   const [bulkMenuOpen, setBulkMenuOpen] = useState(false); // bulk Actions dropdown
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false); // confirm dialog
   const [bulkProcessing, setBulkProcessing] = useState(false); // bulk op running
@@ -518,49 +583,51 @@ export default function FormRunsPage() {
 
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
-  const fetchRuns = useCallback(async (bypassCache = false) => {
-    const params = new URLSearchParams();
-    if (statusFilter !== "all") params.set("status", statusFilter);
-    params.set("page", String(page));
-    params.set("per_page", String(perPage));
-    const url = `/api/platform/form-runs?${params}`;
-    const apply = (data) => {
-      if (data.success) {
-        setRuns(data.runs || []);
-        setTotalRuns(data.total || 0);
-      }
-    };
-    let painted = false;
-    setLoading(true);
-    try {
-      // Cache-first paint: revisiting the same page/filter renders instantly
-      // from a fresh snapshot; mutations pass bypassCache=true so the list
-      // always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json().catch(() => ({}));
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      } else {
-        console.error("[runs] list error:", data.error || res.status);
-        notify(t("platformMisc.runs.loadError", { error: data.error || res.status }));
-      }
-    } catch (e) {
-      if (!painted) {
-        console.error("[runs] list fetch failed:", e);
-        notify(t("platformMisc.runs.loadError", { error: e.message || "network" }));
-      }
-    }
-    setLoading(false);
-  }, [statusFilter, page, perPage, t]);
+  // The run list follows the status filter and the page; the reference lists
+  // beside it (forms, contacts, groups, programs, stats) do not. Splitting them
+  // means a filter or page change re-issues the runs read alone instead of firing
+  // all six requests again.
+  const runsParams = new URLSearchParams();
+  if (statusFilter !== "all") runsParams.set("status", statusFilter);
+  runsParams.set("page", String(page));
+  runsParams.set("per_page", String(perPage));
+  const runsUrl = `/api/platform/form-runs?${runsParams}`;
+  const {
+    data: runList,
+    loading,
+    error: runListError,
+    status: runListStatus,
+    refresh: refreshRuns,
+  } = useApi(runsUrl, {
+    defaultValue: EMPTY_RUN_LIST,
+    transform: pickRunList,
+    deps: [statusFilter, page, perPage],
+  });
+  const runs = runList.runs;
+  const totalRuns = runList.total;
+
+  // The loader raised ONE toast whichever way a read failed, and logged which way
+  // it was. The hook reports a refusal as a VALUE and a request that never got an
+  // answer as an error, so the two are folded back together here. What the toast
+  // SHOWS is derived from the read during render - the refusal is not copied into
+  // state - and the only thing the page remembers is that this refusal has had its
+  // three seconds, which is the toast's own timer.
+  const runListRefusal =
+    runList.failure ||
+    (runListStatus !== null && runListStatus >= 400 ? String(runListStatus) : null);
+  const runListFailure = runListRefusal || runListError || null;
+  const [dismissedRunListFailure, setDismissedRunListFailure] = useState(null);
+  const runListNotice =
+    runListFailure && runListFailure !== dismissedRunListFailure
+      ? t("platformMisc.runs.loadError", { error: runListFailure })
+      : null;
+  useEffect(() => {
+    if (!runListNotice) return;
+    if (runListRefusal) console.error("[runs] list error:", runListRefusal);
+    else console.error("[runs] list fetch failed:", runListError);
+    const timer = setTimeout(() => setDismissedRunListFailure(runListFailure), 3000);
+    return () => clearTimeout(timer);
+  }, [runListNotice, runListFailure, runListRefusal, runListError]);
 
   const fetchForms = useCallback(async (bypassCache = false) => {
     const url = "/api/platform/forms?status=published";
@@ -695,12 +762,6 @@ export default function FormRunsPage() {
     } catch (_) {}
   }, []);
 
-  // The run list follows the status filter and the page; the reference lists
-  // beside it (forms, contacts, groups, programs, stats) do not. Splitting them
-  // means a filter or page change refetches the runs alone instead of firing all
-  // six requests again.
-  useEffect(() => { fetchRuns(); }, [fetchRuns]);
-
   useEffect(() => {
     fetchForms();
     fetchContacts();
@@ -767,7 +828,10 @@ export default function FormRunsPage() {
       } catch (_) {}
     } catch (_) {}
     setSubLoading(false);
-  }, []);
+    // The three records this reset writes are DERIVED from the filter combination
+    // in force (see the respondent table's view records), so resetting them for a
+    // fresh run genuinely depends on the combination they belong to.
+  }, [setRespPage, setSelectedIds, setShowDuplicates]);
 
   const handleCreate = async () => {
     if (!createData.form_id || !createData.name.trim()) return;
@@ -788,7 +852,7 @@ export default function FormRunsPage() {
       if (data.success) {
         notify(t("platformMisc.runs.formRunCreated"));
         setShowCreate(false);
-        fetchRuns(true);
+        refreshRuns();
         openRun(data.run);
       }
     } catch (_) {}
@@ -805,7 +869,7 @@ export default function FormRunsPage() {
       const data = await res.json();
       if (data.success) {
         notify(t("platformMisc.runs.runLaunched"));
-        fetchRuns(true);
+        refreshRuns();
         setSelectedRun(data.run);
       }
     } catch (_) {}
@@ -822,7 +886,7 @@ export default function FormRunsPage() {
       if (data.success) {
         notify(t("platformMisc.runs.runStatusChanged", { status: newStatus }));
         setSelectedRun(data.run);
-        fetchRuns(true);
+        refreshRuns();
       }
     } catch (_) {}
   };
@@ -835,7 +899,7 @@ export default function FormRunsPage() {
       if (data.success) {
         notify(t("platformMisc.runs.runDeleted"));
         setSelectedRun(null);
-        fetchRuns(true);
+        refreshRuns();
       }
     } catch (_) {}
   };
@@ -851,7 +915,7 @@ export default function FormRunsPage() {
       const data = await res.json();
       if (data.success) {
         notify(t("platformMisc.runs.runStatusChanged", { status: "archived" }));
-        fetchRuns(true);
+        refreshRuns();
       }
     } catch (_) {}
   };
@@ -867,7 +931,7 @@ export default function FormRunsPage() {
       const data = await res.json();
       if (data.success) {
         notify(t("platformMisc.runs.runStatusChanged", { status: "draft" }));
-        fetchRuns(true);
+        refreshRuns();
       }
     } catch (_) {}
   };
@@ -1336,14 +1400,6 @@ export default function FormRunsPage() {
     reviewFilter ||
     accountStatusFilter
   );
-
-  // Any search/filter change returns the respondent table to page 1 AND
-  // clears the selection — hidden selections must never be bulk-approved.
-  useEffect(() => {
-    setRespPage(1);
-    setSelectedIds([]);
-    setShowDuplicates(false);
-  }, [respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, subFilter, approvalEmailFilter, activationEmailFilter, reviewFilter, accountStatusFilter]);
 
   const clearRunFilters = () => {
     setRespSearch("");
@@ -2245,7 +2301,7 @@ export default function FormRunsPage() {
 
     return (
       <div className="flex flex-col h-screen overflow-hidden">
-        {notification && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-bold uppercase animate-in">{notification}</div>}
+        {(notification || runListNotice) && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-bold uppercase animate-in">{notification || runListNotice}</div>}
         {/* Header */}
         <div className="flex items-center gap-4 px-6 py-3 border-b border-[var(--border-primary)] bg-secondary shrink-0">
           <button onClick={() => setSelectedRun(null)} className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><ArrowLeft className="w-3 h-3 inline mr-1" /> {t("platformMisc.runs.back")}</button>
@@ -4486,7 +4542,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
 
   return (
     <div className="p-6 space-y-6 animate-in">
-      {notification && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-bold uppercase">{notification}</div>}
+      {(notification || runListNotice) && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-bold uppercase">{notification || runListNotice}</div>}
 
       {/* Operational Dashboard */}
       {dashboardStats && (

@@ -45,7 +45,8 @@ import SessionResourcesEditor, {
   discardUnsavedUploads,
 } from "@/components/lms/SessionResourcesEditor";
 import CoachingRequestsPanel from "@/components/lms/CoachingRequestsPanel";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,27 @@ export const dynamic = "force-dynamic";
  * IMPACTOS OPERATIONAL CONTROL — PROGRAM WORKSPACE
  * Performance-first, modular data loading, and clean data-first UI.
  */
+
+// Shapes the assigned registration-form read: the active Form Run becomes the
+// public link shown in the header, or null when there is none to show.
+// Module scope on purpose - the read keys on the address, never on this.
+function pickRegForm(d) {
+  const run = (d?.success ? d.runs || [] : []).find(
+    (x) => x.status === "active" && x.public_slug,
+  );
+  return run
+    ? {
+        link: `${window.location.origin}/s/${run.public_slug}`,
+        name: run.form_name || run.name || "Form",
+      }
+    : null;
+}
+
+// Shapes the facilitator-reviews read: the list, or empty when the server
+// refused - the screen shows its empty state for that, as its first load did.
+function pickReviews(d) {
+  return d?.success ? d.reviews || [] : [];
+}
 
 function ProgramWorkspace() {
   const { id } = useParams();
@@ -65,7 +87,12 @@ function ProgramWorkspace() {
   const [loading, setLoading] = useState(true);
 
   // State Modules
-  const [user, setUser] = useState({});
+  // Who is signed in comes from the session the shell already publishes, so it
+  // needs no effect and no read of its own. An absent identity is "not known
+  // yet" rather than "empty", which is why the empty object is kept as the
+  // shape the screen has always rendered against.
+  const { user: sessionUser } = useSessionUser();
+  const user = sessionUser || {};
   const [program, setProgram] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -73,8 +100,6 @@ function ProgramWorkspace() {
   const [submissions, setSubmissions] = useState([]);
   const [requirements, setRequirements] = useState([]);
   const [reports, setReports] = useState([]);
-  const [facilitatorReviews, setFacilitatorReviews] = useState([]);
-  const [reviewsLoading, setReviewsLoading] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState("individuals");
   const [selectedParticipants, setSelectedParticipants] = useState([]);
   const [newTeam, setNewTeam] = useState({
@@ -114,36 +139,20 @@ function ProgramWorkspace() {
   const [activePDF, setActivePDF] = useState(null);
   const [families, setFamilies] = useState([]);
   // Assigned registration form (public link) - resolved from the Form Run
-  // assigned directly to this Program (target_type = "program").
-  const [regForm, setRegForm] = useState(null);
-
-  useEffect(() => {
-    if (id) {
-      fetch(`/api/platform/form-runs?program_id=${encodeURIComponent(String(id))}`)
-        .then((r) => r.json())
-        .then((d) => {
-          const run = (d.success ? d.runs || [] : []).find((x) => x.status === "active" && x.public_slug);
-          if (run) {
-            setRegForm({ link: `${window.location.origin}/s/${run.public_slug}`, name: run.form_name || run.name || "Form" });
-            return;
-          }
-          setRegForm(null);
-        })
-        .catch(() => setRegForm(null));
-      return;
-    }
-    const fam = families[0];
-    if (!fam) { setRegForm(null); return; }
-    const gid = fam.registration_id || fam.id;
-    fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(String(gid))}`)
-      .then((r) => r.json())
-      .then((d) => {
-        const run = (d.success ? d.runs || [] : []).find((x) => x.status === "active" && x.public_slug);
-        setRegForm(run ? { link: `${window.location.origin}/s/${run.public_slug}`, name: run.form_name || run.name || "Form" } : null);
-      })
-      .catch(() => setRegForm(null));
-     
-  }, [id, families]);
+  // assigned directly to this Program (target_type = "program"), or to the
+  // person's family when the screen has no program id. The ADDRESS says which of
+  // the two questions is being asked, so "nothing to ask" is simply no address
+  // and the read's default (null) is what the header shows.
+  const regGroupId = families[0]?.registration_id || families[0]?.id;
+  const regFormUrl = id
+    ? `/api/platform/form-runs?program_id=${encodeURIComponent(String(id))}`
+    : regGroupId
+      ? `/api/platform/form-runs?group_id=${encodeURIComponent(String(regGroupId))}`
+      : null;
+  const { data: regForm } = useApi(regFormUrl, {
+    defaultValue: null,
+    transform: pickRegForm,
+  });
 
   // Compute program team members from Super Admin's approved list (assigned_assistant_id)
   const assignedAssistantId = program?.assigned_assistant_id;
@@ -1220,33 +1229,17 @@ function ProgramWorkspace() {
     }
   };
 
-  const loadReviews = async (bypassCache = false) => {
-    const url = `/api/facilitator-reviews?program_id=${encodeURIComponent(id)}`;
-    const apply = (data) => {
-      if (data?.success) setFacilitatorReviews(data.reviews || []);
-    };
-    setReviewsLoading(true);
-    try {
-      // Cache-first paint: returning to the tab renders instantly from a fresh
-      // snapshot; mutation flows pass bypassCache=true so the list always
-      // reflects the last decision.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setReviewsLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data?.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (_) {} finally {
-      setReviewsLoading(false);
-    }
-  };
+  // The reviews list is read through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer. A decision reloads it
+  // with `refresh()`, which bypasses the cache exactly as loadReviews(true) did.
+  const {
+    data: facilitatorReviews,
+    loading: reviewsLoading,
+    refresh: refreshReviews,
+  } = useApi(
+    id ? `/api/facilitator-reviews?program_id=${encodeURIComponent(id)}` : null,
+    { defaultValue: [], transform: pickReviews },
+  );
 
   const reviewRatingLabel = (v) =>
     FACILITATOR_REVIEW_OPTIONS.ratings.includes(v)
@@ -1271,7 +1264,7 @@ function ProgramWorkspace() {
       const data = await res.json();
       if (data.success) {
         notify(t("pmMisc.workspace.reviewDecided") || "Review updated");
-        loadReviews(true);
+        refreshReviews();
       } else {
         notify(data.error || "Failed to update review", "error");
       }
@@ -1279,11 +1272,6 @@ function ProgramWorkspace() {
       notify(t("pmMisc.workspace.networkError"), "error");
     }
   };
-
-  useEffect(() => {
-    if (id) loadReviews();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
 
   const handleScheduleFollowup = async () => {
     if (!selectedSubmission) return;
@@ -1380,25 +1368,6 @@ function ProgramWorkspace() {
       setIsSaving(false);
     }
   };
-
-  useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    const parsed = savedUser ? JSON.parse(savedUser) : {};
-    if (savedUser) setUser(parsed);
-    // Prefer the server session for the role so a stale localStorage value
-    // (from an old login or impersonation) can't hide role-gated UI like the
-    // curriculum "create" button or the configuration tab.
-    fetch("/api/auth/session")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.authenticated && d.user) {
-          const merged = { ...parsed, ...d.user };
-          setUser(merged);
-          localStorage.setItem("user", JSON.stringify(merged));
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   const fetchProgramData = useCallback(
     async (bypassCache = false) => {
@@ -3349,7 +3318,7 @@ function ProgramWorkspace() {
                 <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
                   {t("pmMisc.workspace.tabReviews")}
                 </h3>
-                <button onClick={loadReviews} className="text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:underline">
+                <button onClick={refreshReviews} className="text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:underline">
                   {t("common.refresh") || "Refresh"}
                 </button>
               </div>
