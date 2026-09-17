@@ -149,23 +149,45 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 119 |
-| `react-hooks/set-state-in-effect` | 200 | 114 |
+| ESLint warnings, total | 2192 | 110 |
+| `react-hooks/set-state-in-effect` | 200 | 106 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` | 2 | 0 |
 | Production build | passes | passes |
 
-Screens carrying a `set-state-in-effect` warning: **77**.
+Screens carrying a `set-state-in-effect` warning: **74**.
 
 | Group | Screens |
 |---|---:|
-| Application pages | 18 |
+| Application pages | 15 |
 | Shared components (`src/components/`) | 32 |
 | Venture screens | 23 |
 | `src/lib/` modules | 4 |
 
-Of these 77 screens, **58 carry a single warning**; the remaining 19 carry two
-to five.
+Of these 74 screens, **57 carry a single warning**; the remaining 17 carry two to
+five.
+
+### What is left, and under which reason
+
+Every screen still carrying a warning is accounted for below. Nothing is left
+unsaid, and no screen is on this list merely because it looked hard.
+
+| Reason | Screens | Where |
+|---|---:|---|
+| The address bar is the source of truth, with one read group to go | 1 | §3.10 |
+| A guard that runs outside the shell it guards | 2 | §3.11 |
+| The value comes from somewhere that is not the network | 4 | §3.4 |
+| The read fills in a form | 1 | §1, the form table |
+| The loader has side effects beyond storing the result | 1 | §3.3 |
+| Large screens not yet examined one by one | 6 | §3.6 |
+| **Shared components** (rendered by several roles at once) | 32 | §4 |
+| **Venture screens** (postponed at the owner's request) | 23 | §4 |
+| **`src/lib/` modules** | 4 | §3.7 and §4 |
+
+Two of the reasons above are no longer reasons: the screens that needed a
+capability the hook did not expose (§3.1), the ones that asked for one record per
+element (§3.2) and the one whose read also wrote (§3.9) are all converted, and
+their sections record what was done rather than what remains.
 
 > The test count is not recorded here any more: another workstream adds and
 > renames suites in this same working tree, so any figure went stale within the
@@ -222,12 +244,19 @@ succeeds. On the finance dashboard a refused refresh now empties the cards
 instead of leaving the previous figures under a failure banner - the shared
 consequence of converting to the hook, already listed in section 1.
 
-### 3.2 The screen asks one request per element (an existing N+1)
+### 3.2 The screen asks one request per element — CONVERTED
 
-| Screen | Why it is deferred | Next step |
-|---|---|---|
-| `src/app/admin/reports/responses/page.js` | After loading the program list it issues **one request per program** to resolve KPI names, in a loop, and stores the merged result. | This is a performance matter (a batch endpoint, or a single query that already returns the names). Parked with the database work; converting the loop into a hook is not possible anyway (hooks cannot be called in a loop). |
-| `src/app/platform/responses/page.js` | Loads the run list, then the detail of **every active run**, and merges them. | Same as row 1. |
+These two were the screens that asked for one record per element of a list they
+had just read. Both now ask once, and the answer carries what the loop was
+collecting:
+
+| Screen | What it asks for now |
+|---|---|
+| `src/app/admin/reports/responses/page.js` | The reports feed, which now carries the names of the KPIs its rows cite. The screen used to ask the KPI endpoint once per programme on the page - and that endpoint RECALCULATES when it holds no cached progress, so opening the screen could write once per programme. One query for every programme in the answer, and a read that recalculates nothing. |
+| `src/app/platform/responses/page.js` | One answer with every submission of every open run, instead of the FULL detail of each open run in sequence - each detail carrying assignments, reviews, evaluations, email logs, activation logs and the form's fields. |
+
+Both answers keep their per-item forms: asking for one programme's KPIs, or one
+run's detail, still returns exactly that. This added a way to ask for many.
 
 ### 3.3 The loader has side effects beyond storing the result
 
@@ -282,30 +311,25 @@ None left. The two that were here are resolved:
 
 ### 3.6 Structural or large
 
-| Screen | Why it is deferred |
-|---|---|
-| Screens over ~800 lines (`admin/programs`, `admin/projects`, `admin/projects/[id]`, `admin/communications/contacts`, `staff/op-report`, `staff/projects/[id]`, `pm/programs/[id]`, `admin/op-reports`) | Not examined individually yet. Several load more than one endpoint and some mix loads with mutations, so each needs a read before conversion. |
+The screens that have not been read one by one yet. All are over 800 lines and
+several read more than one address and mix reads with mutations, so each needs a
+reading before it is converted rather than a recipe.
 
-A group here is **parked with the database work** on purpose: two screens ask for one
-record per element of a list they just read.
+| Screen | Warning | Note |
+|---|---:|---|
+| `src/app/admin/programs/page.js` | 5 | The programme list; several reads and the archive actions. |
+| `src/app/admin/projects/[id]/page.js` | 5 | One project plus its sub-resources. |
+| `src/app/admin/op-reports/page.js` | 4 | The operational reports console. |
+| `src/app/admin/communications/contacts/page.js` | 4 | Messaging console; overlaps the shared messaging component. |
+| `src/app/pm/programs/[id]/page.js` | 3 | Nearly 7000 lines; the programme manager's workspace. |
+| `src/app/platform/runs/page.js` | 2 | The runs console. **Another workstream was editing this one at the time of writing** — check with them before touching it. |
 
-| Screen | What it asks for |
-|---|---|
-| `src/app/admin/reports/responses/page.js` | The reports feed, then **one KPI request per programme** in a serial loop, only to build a lookup of KPI names (`{id, title}`). The names live in `v2_kpis` next to the programme, so one query can return all of them. |
-| `src/app/platform/responses/page.js` | The run list, then **the detail of every active run**, one after another. |
+Of the eight originally here, `staff/projects/[id]` and `staff/op-report` are
+converted (the second is under §3.10, with one read group left), and `platform/forms`
+and `admin/reports/responses` are converted elsewhere in this document.
 
-The cost is `2 + N` requests in sequence, and the screen stays on its spinner until
-the last one answers - so the wait grows with the number of programmes or runs,
-not with the amount of data shown.
-
-**A conversion does not touch this.** A hook cannot be called in a loop: the number
-of reads has to be fixed at the top of a component, not decided by the data it
-just read. And even if it could be, `N` requests would still be `N` requests. What
-removes the loop is a server answer that already carries what the loop was
-collecting - a batch parameter (`?program_ids=a,b,c`), or, better, the join the
-endpoint could do itself, since the reports feed already knows which KPI each
-report is about and the names sit in the same table as the programme. Those are
-new or changed endpoints, which is why this waits with the database work.
+A group that used to sit here — the two screens that asked for one record per
+element — is converted; see §3.2.
 
 Converted out of this list:
 
@@ -392,7 +416,7 @@ Converted out of this list:
   a click rather than by arriving on the page.
 - the **access console** — its people list and module catalogue through the hook,
   plus two derived values that were state: the filtered list (which could
-disagree with the query that made it) and the page number (which was reset in an
+  disagree with the query that made it) and the page number (which was reset in an
   effect, so the list was drawn for one frame under the previous query's page).
 - the **team workspace** — a chain rather than a set: the team names the
   programme, and the programme names three reads below it. Each address is
@@ -489,72 +513,100 @@ a rule that will be forgotten at one of them.
 `src/__tests__/use-api-hook.test.js` counts the requests in both cases, so the
 flood cannot come back unnoticed.
 
-### 3.9 The screen whose read also writes
+### 3.9 The screen whose read also writes — RESOLVED
 
-`src/app/platform/runs/review/[submissionId]/page.js` reads a submission, and when
-the read finds **no stored evaluation** - and only for someone holding the
-`runs.review` capability - it fires a POST that triggers one. The comment already
-in the code says why that matters: an evaluation **can auto-approve the applicant
-and email them**.
+`src/app/platform/runs/review/[submissionId]/page.js` used to fire an evaluation
+as a side effect of being opened. **Another workstream removed that** before this
+account was written, and their reasoning is the one worth keeping: it ran on EVERY
+load, so a view spent a model call and appended a fresh evaluation row - and
+because a fresh row carries no human values, it also hid whatever a reviewer had
+entered. The action moved to a button in the header, labelled for what it does
+("Run AI evaluation" when there is none, "Re-run AI" when there is), offered only
+to someone who holds the capability.
 
-That single step is what keeps the screen's warning, and no reorganisation of the
-screen removes it:
+The screen was then converted like any other: four reads through the hook, the
+reviewer's scores recorded against the dimension they change and the evaluation
+they were given in, and - since the action is now deliberate - the absence of an
+evaluation said out loud, with the button that resolves it. Two keys added in both
+languages.
 
-- the trigger cannot be a derived value, because it is not a value;
-- an effect that performs it still writes state (the evaluation it receives), so
-the warning moves rather than goes;
-- it cannot be keyed on something the read returns, because what it watches for is
-  the read's ABSENCE of a result.
+The automated check that guards the rule (a page load is a read) still holds, and
+is now stated against the new shape: no read is keyed on the reviewer's
+permissions, so a permission arriving late cannot re-issue them.
 
-What has to be decided is therefore a product question, not a technical one:
+The reason this one mattered, kept because it is the durable lesson: a read must
+not have consequences. Firing it automatically was considered defensible as a
+convenience, and it is not - it spent a model call on every view and it could
+approve a person and write to them because somebody looked. The third option, moving
+the trigger into the endpoint the read already calls, was rejected for the same
+reason at one remove: anything that fetches a URL - a prefetch, an indexing robot,
+a retry - would then approve applicants, which is not a thing a request should be
+able to do.
 
-| Option | Consequence |
-|---|---|
-| **A button.** The read stops at "not evaluated yet" and offers the action, like every other capability-gated action on the platform. | One extra click for a reviewer. The warning goes. |
-| **Leave the trigger automatic.** | Nothing changes for anyone; the screen keeps its one warning, recorded here as deliberate. |
-| Move the trigger into the endpoint the read already calls. | Not advised: that makes a GET approve applicants and send mail, and anything that fetches URLs - a prefetch, a crawler, a retry - would do it. |
+### 3.10 The screen whose source of truth is the address bar — MOSTLY DONE
 
-Recommendation: the button. Firing an approval the applicant is told about as a
-side effect of opening a page is the kind of thing a capability gate exists to make
-deliberate, and the gate is already there to be used. But it changes what a
-reviewer does, so it is the owner's call and the screen waits until it is made.
+`src/app/staff/op-report/page.js` is 4000 lines and reported four warnings from
+ONE arrangement rather than four mistakes: the tab and the week were state, an
+effect read them out of the query string and a second wrote them back into it. A
+two-way mirror - and every read on the screen was keyed on the mirror rather than
+on the address.
 
-### 3.10 The screen whose source of truth is the address bar
+Done: the tab and the week are computed from the address and the controls ask for
+another one by changing it; the identity comes from the session cache instead of
+the screen asking the session endpoint and falling back to the browser's copy (and
+its own redirect to sign-in went with it - the request gate already does that for
+every page behind a session); the stored draft is asked for where the dialog is
+OPENED rather than by an effect watching it, with the fifty-millisecond delay that
+existed only to let the screen's own state settle; and the summary tab's three
+reads are addressed on the person and the week and asked for only while that tab is
+open.
 
-`src/app/staff/op-report/page.js` is 4000 lines and reports four warnings, but they
-come from one arrangement rather than four mistakes: the tab and the week live in
-the query string, and the screen **mirrors** the query string into state on every
-change so that browser back/forward and the sidebar's links work.
+**What is left is one read group**, the five the old code called together from one
+effect: the report, the history, the tasks, the assignments and the staff list.
+Four of them are plain reads. The report read is not: **it is what fills in the
+report form**, and the week is part of that form's address - so converting it means
+moving the form to the derived-base shape (section 1), with the edits recorded
+against the week they belong to so that changing week shows that week's report
+rather than carrying the previous one's typing across. That is a piece of its own
+on the screen where a mistake would keep people from reporting at all.
 
-That means an effect reads the address and writes two pieces of state, and every
-other warning on the screen is a consequence of that state existing:
+### 3.11 The guard that runs outside the shell it guards
 
-- the six reads are keyed on the mirrored state rather than on the address;
-- the standup draft is checked when the modal opens, through a timer whose comment
-  says it exists "to let the week settle" - a state that has to settle is a state
-  that is being kept in step rather than computed;
-- the identity is fetched by the screen itself, with a redirect to sign-in on
-  failure.
+`src/app/admin/layout.js` and `src/app/developer/layout.js` decide who may enter a
+whole section. Each does two things: restores the role from the browser's stored
+copy BEFORE the first paint, so entering the section never flashes a blank screen,
+and then asks the session endpoint and treats its answer as the authority -
+redirecting anyone else, refreshing the stored copy with what the server said, and
+deleting it when there is definitively no session.
 
-Converting it properly is not a conversion but a change of model: the tab and the
-week become values **computed from the address**, the controls that change them
-push to the address, the reads key on the address, the draft check becomes a
-consequence of opening the dialog, and the identity comes from the session cache
-with the shell owning the redirect. That is a deliberate piece of work on a large
-screen, and a wrong turn in it locks people out of the week they are reporting on,
-so it wants doing on its own and with the screen in front of you.
+The reason this is not converted is structural, not convenience: this guard runs
+OUTSIDE the shell it guards, and the session the shell publishes is fetched by the
+shell. The guard therefore cannot read it before deciding whether to render the
+shell at all. And the pre-paint restore cannot be moved into the session cache,
+whose value is deliberately absent on the first render - that is what keeps the
+server's render and the browser's first render identical.
+
+Converting it means moving the guard INSIDE the shell so that it can read the
+session the shell already has. That is a change to the section boundary on the two
+screens that decide who gets in, and it should be made deliberately, with the
+sections walked in each role, rather than as part of a warning cleanup.
 
 ---
 
 ## 4. Not started
 
-- **23 venture screens** (`src/app/admin/ventures/**`, `src/app/participant/ventures/**`).
-  Deliberately postponed at the owner's request; they share a uniform shape
-  (a venture plus one sub-resource) and the recipe above applies directly.
-- **32 shared components** (`src/components/**`). These are rendered by several
-  roles at once, so a mistake reaches several audiences — they are handled last,
-  one at a time, never in bulk.
-- **4 `src/lib/` modules.**
+The three groups that are not started, and why they are grouped rather than listed:
+
+- **23 venture screens** (`src/app/admin/ventures/**`, `src/app/participant/ventures/**`,
+  `src/components/ventures/**`). Deliberately postponed at the owner's request.
+  They share one shape - a venture plus a single sub-resource - so the recipe
+  applies directly, and they are the cheapest large group left.
+- **32 shared components** (`src/components/**`, ventures excluded). These are
+  rendered by several roles at once, so a mistake reaches several audiences. They
+  are handled last, one at a time, never in bulk, and each one is checked for who
+  renders it before it is touched.
+- **4 `src/lib/` modules**: the translation provider, the theme provider, the
+  permission provider, and the reading hook itself (§3.7).
 
 ---
 
