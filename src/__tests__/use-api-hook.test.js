@@ -1,14 +1,19 @@
 /**
  * @jest-environment jsdom
  *
- * The reading hook's failure reporting.
+ * The reading hook's contract, as the screens that use it depend on it.
  *
- * `error` has always carried the MESSAGE of a request that threw. It could not
- * carry the STATUS, so a screen had no way to tell an expired session (401) from
- * a server fault (500) - it saw the same silence for both. `status` is that
- * missing distinction, and these tests pin its three readings: a number when the
- * server answered, null when it never did, and null again the moment the screen
- * moves to another address.
+ * First, its failure reporting. `error` has always carried the MESSAGE of a
+ * request that threw. It could not carry the STATUS, so a screen had no way to
+ * tell an expired session (401) from a server fault (500) - it saw the same
+ * silence for both. `status` is that missing distinction, and these tests pin its
+ * three readings: a number when the server answered, null when it never did, and
+ * null again the moment the screen moves to another address.
+ *
+ * Second, how many times it reads. A hook whose effect re-runs on every render
+ * turns one screen into a request flood, and it does so silently - the screen
+ * looks right. The counts below are the guard against that, because the two ways
+ * to cause it are both things a caller writes without thinking.
  */
 
 import { renderHook, waitFor } from "@testing-library/react";
@@ -109,6 +114,64 @@ describe("useApi — the status of the last response", () => {
 
     expect(result.current.status).toBeNull();
     expect(result.current.loading).toBe(true);
+  });
+});
+
+describe("how many times it reads", () => {
+  const listTransform = (d) => (d?.success ? d.things || [] : []);
+
+  // Both of these are the natural thing to write, and both of them gave the
+  // default a new identity on every render. While that identity was a dependency
+  // of the read, the effect re-ran on every render, and every re-run put another
+  // request on the wire - twenty-six of them for one screen in the measurement
+  // that found this.
+  const inlineDefaults = [
+    ["an empty array", () => []],
+    ["an empty object", () => ({})],
+  ];
+
+  it.each(inlineDefaults)(
+    "reads once when the default is %s written inline",
+    async (_label, makeDefault) => {
+      global.fetch.mockImplementation(() =>
+        jsonResponse({ success: true, things: [1] }),
+      );
+
+      const { result } = renderHook(() =>
+        useApi(`/api/read-count-${_label}`, {
+          defaultValue: makeDefault(),
+          transform: listTransform,
+        }),
+      );
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      // Long enough for a runaway effect to have fired several times.
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(result.current.data).toEqual([1]);
+    },
+  );
+
+  it("reads once when the identical answer arrives again", async () => {
+    global.fetch.mockImplementation(() =>
+      jsonResponse({ success: true, things: [1] }),
+    );
+
+    const { result } = renderHook(() =>
+      useApi("/api/read-count-stable", {
+        defaultValue: [],
+        transform: listTransform,
+      }),
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    // A refresh bypasses the cache, so this one DOES go to the network.
+    await result.current.refresh();
+    const afterRefresh = global.fetch.mock.calls.length;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    expect(global.fetch.mock.calls.length).toBe(afterRefresh);
   });
 });
 

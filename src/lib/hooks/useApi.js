@@ -140,8 +140,8 @@ export function useApi(url, options = {}) {
     refetchInterval,
   } = options;
 
-  const [data, setData] = useState(defaultValue);
-  const [loading, setLoading] = useState(immediate);
+  const [readData, setData] = useState(defaultValue);
+  const [readLoading, setLoading] = useState(immediate);
   const [error, setError] = useState(null);
 
   // The status of the last completed response, kept WITH the address it answered.
@@ -150,18 +150,29 @@ export function useApi(url, options = {}) {
   // effect that reset it would be state written from an effect, which is the
   // pattern this hook exists to remove.
   const [lastResponse, setLastResponse] = useState(null);
-  const status = lastResponse && lastResponse.url === url ? lastResponse.status : null;
+
+  // What the caller sees is decided during render, and gated on the address:
+  // with no address there is nothing to read, so there is nothing loading, no
+  // failure to report and nothing to show but the caller's default.
+  //
+  // Deciding it here rather than inside the read is the important part. The
+  // default is what the caller wants to see when a read has nothing to offer - a
+  // shape, not an event - and callers write `defaultValue: []`, which is a new
+  // array on every render. While it was a dependency of the read, every render
+  // started another read; the measurement that found this counted twenty-six
+  // requests for one screen.
+  const data = url ? readData : defaultValue;
+  const loading = url ? readLoading : false;
+  const visibleError = url ? error : null;
+  const status =
+    url && lastResponse && lastResponse.url === url ? lastResponse.status : null;
 
   // Track latest request to prevent stale responses
   const fetchIdRef = useRef(0);
   const activeRef = useRef(true);
 
   const fetchData = useCallback(async (bypassCache = false) => {
-    if (!url) {
-      setLoading(false);
-      setData(defaultValue);
-      return;
-    }
+    if (!url) return;
 
     const fetchId = ++fetchIdRef.current;
     setError(null);
@@ -181,7 +192,14 @@ export function useApi(url, options = {}) {
       // Discard stale responses
       if (fetchId !== fetchIdRef.current || !activeRef.current) return;
 
-      setLastResponse({ url, status: httpStatus });
+      // Republishing what is already known must not count as a change: a fresh
+      // object here would re-render on every response, and a re-render is what
+      // the read above reacts to.
+      setLastResponse((previous) =>
+        previous && previous.url === url && previous.status === httpStatus
+          ? previous
+          : { url, status: httpStatus },
+      );
       cacheSet(url, json);
 
       const result = transform ? transform(json) : json;
@@ -190,7 +208,11 @@ export function useApi(url, options = {}) {
       if (fetchId !== fetchIdRef.current || !activeRef.current) return;
       // A request that threw never produced a response, so there is no status to
       // report: the screen reads this as "no answer", not as "the server said X".
-      setLastResponse({ url, status: null });
+      setLastResponse((previous) =>
+        previous && previous.url === url && previous.status === null
+          ? previous
+          : { url, status: null },
+      );
       setError(err.message || "Failed to fetch data");
       console.error(`[useApi] Error fetching ${url}:`, err);
     } finally {
@@ -198,7 +220,7 @@ export function useApi(url, options = {}) {
         setLoading(false);
       }
     }
-  }, [url, transform, defaultValue]);
+  }, [url, transform]);
 
   // Fetch on mount / dependency change
   useEffect(() => {
@@ -221,7 +243,7 @@ export function useApi(url, options = {}) {
     };
   }, []);
 
-  return { data, loading, error, status, refresh: () => fetchData(true), setData };
+  return { data, loading, error: visibleError, status, refresh: () => fetchData(true), setData };
 }
 
 /**
