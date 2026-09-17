@@ -974,6 +974,7 @@
       "locked": "Verrouillé",
       "adjusted": "ajusté",
       "rerunAi": "Relancer l'IA",
+      "runAi": "Lancer l'évaluation IA",
       "applicant": "Candidat",
       "submittedOn": "Soumise le {date}",
       "submissionLabel": "Soumission",

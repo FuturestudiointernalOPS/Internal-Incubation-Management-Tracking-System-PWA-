@@ -1307,15 +1307,17 @@ export async function POST(req) {
 
       // Build final data with optional scoring
       let finalData = { ...(data || {}) };
-      let shouldEvaluate = false;
+      // Is AI evaluation switched ON for this form? A FORM-level question: it says
+      // nothing about whether THIS response already carries an evaluation. The
+      // two were confused, so every re-save re-ran the model and appended a row.
+      let formAiEnabled = false;
       if (newStatus === "submitted") {
         const scores = await calculateSubmissionScores(run_id, finalData);
         if (scores) finalData._scores = scores;
-        // Check if AI evaluation should run
         try {
-          const { hasEvaluation } = await import("@/lib/platform/ai/evaluate");
+          const { formHasAiEvaluation } = await import("@/lib/platform/ai/evaluate");
           const runInfo = await getRunFormIdForEvaluationById(run_id);
-          if (runInfo.rows.length > 0) shouldEvaluate = await hasEvaluation(runInfo.rows[0].form_id);
+          if (runInfo.rows.length > 0) formAiEnabled = await formHasAiEvaluation(runInfo.rows[0].form_id);
         } catch (_) {}
       }
 
@@ -1341,13 +1343,20 @@ export async function POST(req) {
             formRow = f.rows[0] || null;
           }
           onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
-          // Reliable AI evaluation (awaited)
-          if (shouldEvaluate) {
+          // AI evaluation — but ONLY when this response has never been evaluated.
+          // Re-evaluating appends a duplicate row AND spends a model call to
+          // answer a question that is already answered; the new row carries no
+          // human values, so it would also hide whatever a human had entered.
+          // If we cannot tell whether it was evaluated, we do NOT evaluate.
+          if (formAiEnabled) {
             const subId = result.rows[0].id;
             try {
-              const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
-              await evaluateSubmission(subId);
-              logTimeline(subId, "ai_evaluated", "system", "System", {});
+              const { submissionHasEvaluation, evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
+              const alreadyEvaluated = await submissionHasEvaluation(subId).catch(() => true);
+              if (!alreadyEvaluated) {
+                await evaluateSubmission(subId);
+                logTimeline(subId, "ai_evaluated", "system", "System", {});
+              }
             } catch (e) {
               console.error("[form-runs] AI eval failed for submission", subId, ":", e.message);
               logTimeline(subId, "ai_eval_failed", "system", "System", { error: e.message });
@@ -1374,8 +1383,9 @@ export async function POST(req) {
             formRow = f.rows[0] || null;
           }
           onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
-          // Reliable AI evaluation (awaited)
-          if (shouldEvaluate) {
+          // A brand-new response cannot already have an evaluation, so the
+          // form-level switch is the whole question here.
+          if (formAiEnabled) {
             const subId = result.rows[0].id;
             try {
               const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
@@ -1447,14 +1457,16 @@ export async function POST(req) {
       const newStatus = subStatus || "approved";
 
       let finalData = { ...(data || {}) };
-      let shouldEvaluate = false;
+      // manual_add CREATES a response, so the form-level switch is the whole
+      // question — there is nothing that could already have been evaluated.
+      let formAiEnabled = false;
       if (newStatus === "submitted") {
         const scores = await calculateSubmissionScores(run_id, finalData);
         if (scores) finalData._scores = scores;
         try {
-          const { hasEvaluation } = await import("@/lib/platform/ai/evaluate");
+          const { formHasAiEvaluation } = await import("@/lib/platform/ai/evaluate");
           const runInfo = await getRunFormIdForManualEvaluationById(run_id);
-          if (runInfo.rows.length > 0) shouldEvaluate = await hasEvaluation(runInfo.rows[0].form_id);
+          if (runInfo.rows.length > 0) formAiEnabled = await formHasAiEvaluation(runInfo.rows[0].form_id);
         } catch (_) {}
       }
 
@@ -1475,7 +1487,7 @@ export async function POST(req) {
           formRow = f.rows[0] || null;
         }
         onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
-        if (shouldEvaluate) {
+        if (formAiEnabled) {
           const subId = result.rows[0].id;
           try {
             const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");

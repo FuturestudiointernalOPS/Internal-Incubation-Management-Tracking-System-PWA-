@@ -974,6 +974,7 @@
       "locked": "Locked",
       "adjusted": "adjusted",
       "rerunAi": "Re-run AI",
+      "runAi": "Run AI evaluation",
       "applicant": "Applicant",
       "submittedOn": "Submitted {date}",
       "submissionLabel": "Submission",
