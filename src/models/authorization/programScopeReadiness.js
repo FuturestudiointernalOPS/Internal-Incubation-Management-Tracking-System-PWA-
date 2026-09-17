@@ -33,6 +33,11 @@
 
 import db, { initDb } from "@/lib/db";
 import { isProgramEnded } from "./programAssignments";
+import {
+  PROGRAM_SCOPE_WAVES,
+  PROGRAM_SCOPE_WAVE_INFO,
+  getProgramScopeWaves,
+} from "./programScopeStrictness";
 
 /** A runaway programme table must not turn this report into an unbounded scan. */
 const MAX_PROGRAMS = 500;
@@ -288,6 +293,28 @@ export async function buildProgramScopeReadiness() {
     holders: holderRows.filter((h) => h.profileId === String(t.id)).length,
   }));
 
+  // The switch state and, per wave, whether it is SAFE to turn on yet. The rule
+  // is only safe when nobody is left without a program AND every running program
+  // can be matched — the two findings above are exactly its two failure modes.
+  const strictness = await getProgramScopeWaves();
+  const blockers = {
+    unmanaged: unmanaged.length,
+    losesEverything: holderRows.filter((h) => h.losesEverything).length,
+  };
+  const waveSafety = PROGRAM_SCOPE_WAVES.map((wave) => {
+    const info = PROGRAM_SCOPE_WAVE_INFO[wave];
+    return {
+      wave,
+      label: info.label,
+      covers: info.covers,
+      enabled: strictness[wave] === true,
+      safe: blockers.unmanaged === 0 && blockers.losesEverything === 0,
+      blockers,
+      partial: info.partial === true,
+      exempt: info.exempt || [],
+    };
+  });
+
   return {
     success: true,
     unmanaged,
@@ -296,6 +323,8 @@ export async function buildProgramScopeReadiness() {
       .sort((a, b) => a.keptCount - b.keptCount || String(a.name).localeCompare(String(b.name))),
     portfolioTemplates,
     removals,
+    strictness,
+    waveSafety,
     summary: {
       runningPrograms: running.length,
       unmanaged: unmanaged.length,
@@ -305,6 +334,8 @@ export async function buildProgramScopeReadiness() {
       // would be left with NO programme at all.
       losesEverything: holderRows.filter((h) => h.losesEverything).length,
       keptSome: holderRows.filter((h) => !h.losesEverything).length,
+      safeToEnable: blockers.unmanaged === 0 && blockers.losesEverything === 0,
+      wavesEnabled: PROGRAM_SCOPE_WAVES.filter((w) => strictness[w] === true).length,
     },
   };
 }
