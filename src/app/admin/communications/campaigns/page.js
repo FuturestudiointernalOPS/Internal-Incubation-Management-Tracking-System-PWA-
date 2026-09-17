@@ -1,22 +1,56 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Plus, Send, CheckCircle, Search, Rocket, X, Loader2, Trash2, Settings2, ArrowRight, Save, ChevronRight, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { cacheGet, cacheSet } from '@/lib/hooks/useApi';
+import { useApi } from '@/lib/hooks/useApi';
 import { useI18n } from '@/lib/i18n';
 import { formatLocaleDate } from '@/lib/constants';
 import { useSafeBack } from '@/lib/useSafeBack';
 
 const GROUP_LABELS = { UNASSIGNED: 'crm.contacts.unassigned' };
 
+// Module scope on purpose: the hook keys its internal callback on these
+// functions, so inline arrows would give them a new identity on every render and
+// refetch in a loop.
+const pickCampaigns = (d) => (d?.success ? d.campaigns || [] : []);
+const pickContacts = (d) => (d?.success ? d.contacts || [] : []);
+const pickForms = (d) => (d?.success ? d.forms || [] : []);
+const pickFamilies = (d) => (d?.success ? d.families || [] : []);
+
 export default function CampaignsPage() {
   const { t, lang } = useI18n();
   const goBack = useSafeBack('/admin/crm');
-  const [campaigns, setCampaigns] = useState([]);
-  const [contacts, setContacts] = useState([]);
-  const [families, setFamilies] = useState([]);
-  const [forms, setForms] = useState([]);
-  const [loading, setLoading] = useState(true);
+
+  // Four reads, each carrying its own loading flag so the screen leaves the
+  // spinner only once all four have settled, exactly as the old combined loader
+  // did. Their cache-first paint and stale-response handling belong to the hook,
+  // so the screen keeps no data state of its own and never sets state from an
+  // effect.
+  const { data: campaigns, loading: campaignsLoading, refresh: refreshCampaigns } = useApi(
+    '/api/campaigns',
+    { defaultValue: [], transform: pickCampaigns },
+  );
+  const { data: contacts, loading: contactsLoading, refresh: refreshContacts } = useApi(
+    '/api/contacts',
+    { defaultValue: [], transform: pickContacts },
+  );
+  const { data: forms, loading: formsLoading, refresh: refreshForms } = useApi(
+    '/api/forms',
+    { defaultValue: [], transform: pickForms },
+  );
+  const { data: families, loading: familiesLoading, refresh: refreshFamilies } = useApi(
+    '/api/families',
+    { defaultValue: [], transform: pickFamilies },
+  );
+  const loading = campaignsLoading || contactsLoading || formsLoading || familiesLoading;
+  // Mutation flows must not read back from the cache, so every read is refreshed
+  // the way the old bypassCache argument did.
+  const refreshAll = () => {
+    refreshCampaigns();
+    refreshContacts();
+    refreshForms();
+    refreshFamilies();
+  };
   
   // Modals & UI State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -60,51 +94,6 @@ export default function CampaignsPage() {
     minutes: t('crm.campaigns.minutes'),
   };
 
-  const fetchData = async (bypassCache = false) => {
-    const urls = ['/api/campaigns', '/api/contacts', '/api/forms', '/api/families'];
-    const apply = (campData, contData, formData, famData) => {
-      // 1. Prioritize core campaign list for instant dashboard display
-      if (campData?.success) setCampaigns(campData.campaigns || []);
-      // 2. Hydrate background data units so the create/details modals render instantly
-      if (contData?.success) setContacts(contData.contacts || []);
-      if (formData?.success) setForms(formData.forms || []);
-      if (famData?.success) setFamilies(famData.families || []);
-    };
-
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to the page renders instantly from fresh
-      // snapshots; mutation flows pass bypassCache=true so the dashboard always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2], cached[3]);
-          setLoading(false);
-        }
-      }
-      const responses = await Promise.all(
-        urls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1], responses[2], responses[3]);
-    } catch (err) { 
-      console.error(err); 
-    } finally {
-      setLoading(false); 
-    }
-  };
-
-  useEffect(() => { 
-    fetchData(); 
-  }, []);
-
   const openDetails = async (campaign) => {
     try {
       window.dispatchEvent(new CustomEvent('impactos:notify', { 
@@ -145,7 +134,7 @@ export default function CampaignsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchData(true);
+        refreshAll();
         setShowDetailsModal(false);
         // Force sync automation
         fetch('/api/send-pending').catch(() => {});
@@ -171,7 +160,7 @@ export default function CampaignsPage() {
       const data = await res.json();
       if (data.success) {
         setShowDetailsModal(false);
-        fetchData(true);
+        refreshAll();
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
            detail: { type: 'success', message: t('crm.campaigns.deleted') } 
         }));
@@ -198,7 +187,7 @@ export default function CampaignsPage() {
       if (data.success) {
         setShowCreateModal(false);
         setForm({ name: '', form_id: '', cids: [], steps: form.steps });
-        fetchData(true);
+        refreshAll();
         // Force sync automation
         fetch('/api/send-pending').catch(() => {});
         window.dispatchEvent(new CustomEvent('impactos:notify', { 

@@ -1,65 +1,56 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   Loader2, CheckCircle2, AlertCircle, Settings, ToggleLeft, Shield,
   Activity, Server,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// Module scope on purpose: the hook keys its internal callback on these
+// functions, so inline arrows would give them a new identity on every render and
+// refetch in a loop.
+const pickSettings = (d) => (d?.success ? d.settings : null);
+const pickFeatures = (d) => (d?.success ? d.features || [] : []);
+const pickRoles = (d) => (d?.success ? d.roles || [] : []);
+const pickSystemInfo = (d) => (d?.success ? d : null);
+const pickLogs = (d) => (d?.success ? d.logs || [] : []);
 
 export default function VentureAdminPage() {
-  const _router = useRouter();
-  const [settings, setSettings] = useState(null);
-  const [features, setFeatures] = useState([]);
-  const [roles, setRoles] = useState([]);
-  const [systemInfo, setSystemInfo] = useState(null);
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("settings");
   const [saving, setSaving] = useState({});
   const [toast, setToast] = useState(null);
 
-  const fetchAll = async (bypassCache = false) => {
-    setLoading(true);
-    const urls = [
-      "/api/admin/ventures?type=settings",
-      "/api/admin/ventures?type=features",
-      "/api/admin/ventures?type=roles",
-      "/api/admin/ventures?type=system",
-      "/api/admin/ventures?type=logs",
-    ];
-    const apply = (s, f, r, sys, l) => {
-      if (s.success) setSettings(s.settings);
-      if (f.success) setFeatures(f.features || []);
-      if (r.success) setRoles(r.roles || []);
-      if (sys.success) setSystemInfo(sys);
-      if (l.success) setLogs(l.logs || []);
-    };
-    try {
-      // Cache-first paint: returning to this page renders instantly only when
-      // every endpoint has a fresh snapshot.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(...cached);
-          setLoading(false);
-        }
-      }
-      const [sRes, fRes, rRes, sysRes, lRes] = await Promise.all(urls.map((u) => fetch(u)));
-      const s = await sRes.json(); const f = await fRes.json(); const r = await rRes.json();
-      const sys = await sysRes.json(); const l = await lRes.json();
-      if (s.success) cacheSet(urls[0], s);
-      if (f.success) cacheSet(urls[1], f);
-      if (r.success) cacheSet(urls[2], r);
-      if (sys.success) cacheSet(urls[3], sys);
-      if (l.success) cacheSet(urls[4], l);
-      apply(s, f, r, sys, l);
-    } catch (_) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchAll(); }, []);
+  // Five reads of the same endpoint, each filtered by its query parameter. Their
+  // loaders' work — cache-first paint, discarding a stale response, the
+  // background refresh — belongs to the hook, so the screen keeps no data state
+  // of its own and never sets state from an effect. The feature toggle writes
+  // through the feature read's own setter, exactly as it did before.
+  const { data: settings, loading: settingsLoading } = useApi(
+    "/api/admin/ventures?type=settings",
+    { transform: pickSettings },
+  );
+  const {
+    data: features,
+    loading: featuresLoading,
+    setData: setFeatures,
+  } = useApi("/api/admin/ventures?type=features", {
+    defaultValue: [],
+    transform: pickFeatures,
+  });
+  const { data: roles, loading: rolesLoading } = useApi(
+    "/api/admin/ventures?type=roles",
+    { defaultValue: [], transform: pickRoles },
+  );
+  const { data: systemInfo, loading: systemInfoLoading } = useApi(
+    "/api/admin/ventures?type=system",
+    { transform: pickSystemInfo },
+  );
+  const { data: logs, loading: logsLoading } = useApi("/api/admin/ventures?type=logs", {
+    defaultValue: [],
+    transform: pickLogs,
+  });
+  const loading = settingsLoading || featuresLoading || rolesLoading || systemInfoLoading || logsLoading;
 
   const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 

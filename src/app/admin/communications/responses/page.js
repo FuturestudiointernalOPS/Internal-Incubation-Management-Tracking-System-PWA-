@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Rocket,
   Search,
@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 
@@ -19,21 +19,59 @@ const RESPONSE_STATUS_LABELS = {
   pending_response: "crm.responses.statusPendingResponse",
 };
 
+// The shape the screen renders from, so a failed or malformed payload never
+// reaches a `.length` / `.find` read. Module scope keeps the values and both
+// normalisers stable for the hook (inline values would refetch on every render).
+const EMPTY_RESPONSES = {
+  campaignStats: [],
+  detailedResponses: [],
+  contactsDetailed: [],
+  flaggedResponses: [],
+};
+const pickResponses = (d) =>
+  d?.success
+    ? {
+        ...d,
+        campaignStats: d.campaignStats || [],
+        detailedResponses: d.detailedResponses || [],
+        contactsDetailed: d.contactsDetailed || [],
+        flaggedResponses: d.flaggedResponses || [],
+      }
+    : EMPTY_RESPONSES;
+const pickGlobalContacts = (d) => (d?.success ? d.contacts || [] : []);
+
 export default function ResponsesPage() {
   const router = useRouter();
   const { t } = useI18n();
   const goBack = useSafeBack("/admin/crm");
-  const [data, setData] = useState({
-    campaignStats: [],
-    detailedResponses: [],
-    contactsDetailed: [],
-    flaggedResponses: [],
-  });
-  const [globalContacts, setGlobalContacts] = useState([]);
-  const [loading, setLoading] = useState(true);
+
+  // Both reads' loaders — cache-first paint, discarding a stale response, the
+  // background refresh — belong to the hook, so the screen keeps no data state
+  // of its own and never sets state from an effect.
+  const {
+    data,
+    loading: responsesLoading,
+    refresh: refreshResponses,
+  } = useApi("/api/responses", { defaultValue: EMPTY_RESPONSES, transform: pickResponses });
+  const {
+    data: globalContacts,
+    loading: contactsLoading,
+    refresh: refreshContacts,
+  } = useApi("/api/contacts", { defaultValue: [], transform: pickGlobalContacts });
+  const loading = responsesLoading || contactsLoading;
+  // Mutation flows must not read back from the cache, so both reads are refreshed
+  // the way the old bypassCache argument did.
+  const refreshAll = () => {
+    refreshResponses();
+    refreshContacts();
+  };
 
   const [view, setView] = useState("analytics"); // analytics | review
-  const [activeCampaign, setActiveCampaign] = useState(null);
+  const [activeCampaignChoice, setActiveCampaignChoice] = useState(null);
+  // The first campaign is the default by derivation rather than something the
+  // loader writes into state, which is also what lets the choice survive a
+  // refresh: the old effect reset it to the first campaign on every load.
+  const activeCampaign = activeCampaignChoice ?? data.campaignStats[0]?.id ?? null;
   const [filterMode, setFilterMode] = useState("all"); // all | yes | no | pending_response
   const [search, setSearch] = useState("");
 
@@ -41,47 +79,6 @@ export default function ResponsesPage() {
   const [showRetargetModal, setShowRetargetModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newCampaignName, setNewCampaignName] = useState("");
-
-  const fetchData = async (bypassCache = false) => {
-    const urls = ["/api/responses", "/api/contacts"];
-    const apply = (json, contactsJson) => {
-      if (json?.success) setData(json);
-      if (contactsJson?.success) setGlobalContacts(contactsJson.contacts || []);
-      if (json?.campaignStats?.length > 0)
-        setActiveCampaign(json.campaignStats[0].id);
-    };
-    try {
-      // Cache-first paint: returning to this page renders instantly from fresh
-      // snapshots; mutation flows pass bypassCache=true so the list always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1]);
-          setLoading(false);
-        }
-      }
-      const responses = await Promise.all(
-        urls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1]);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const resolveMatch = async (response_id, cid) => {
     if (!cid) return;
@@ -98,7 +95,7 @@ export default function ResponsesPage() {
             detail: { type: "success", message: t("crm.responses.matched") },
           }),
         );
-        fetchData(true);
+        refreshAll();
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
@@ -314,7 +311,7 @@ export default function ResponsesPage() {
                   <button
                     key={c.id}
                     onClick={() => {
-                      setActiveCampaign(c.id);
+                      setActiveCampaignChoice(c.id);
                       setFilterMode("all");
                     }}
                     className={`w-full text-left p-4 rounded-2xl border transition-all ${activeCampaign === c.id ? "bg-[#FF6600]/80/10 border-[#FF6600]/80 text-white" : "bg-white/5 border-white/5 hover:bg-white/10 text-slate-400"}`}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -20,63 +20,42 @@ import {
   Archive,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+
+// The shape the screen renders from, so a failed or malformed payload never
+// reaches an `Object.keys` / `Object.entries` read. Module scope keeps both the
+// value and the normaliser stable for the hook (inline values would refetch on
+// every render).
+const EMPTY_PENDING_USERS = { pendingUsers: [], grouped: {}, total: 0 };
+const pickPendingUsers = (d) =>
+  d?.success
+    ? { pendingUsers: d.pendingUsers || [], grouped: d.grouped || {}, total: d.total || 0 }
+    : EMPTY_PENDING_USERS;
 
 export default function PendingUsersPage() {
   const router = useRouter();
   const { t } = useI18n();
-  const [loading, setLoading] = useState(true);
-  const [pendingUsers, setPendingUsers] = useState([]);
-  const [grouped, setGrouped] = useState({});
-  const [total, setTotal] = useState(0);
   const [processingId, setProcessingId] = useState(null);
-  const [expandedGroups, setExpandedGroups] = useState({});
+  const [collapsedGroups, setCollapsedGroups] = useState({});
   const [actionMsg, setActionMsg] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const fetchPendingUsers = useCallback(async (bypassCache = false) => {
-    const url = "/api/admin/pending-users";
-    const apply = (data) => {
-      if (data.success) {
-        setPendingUsers(data.pendingUsers);
-        setGrouped(data.grouped);
-        setTotal(data.total);
-        // Auto-expand all groups
-        const expanded = {};
-        Object.keys(data.grouped).forEach((g) => {
-          expanded[g] = true;
-        });
-        setExpandedGroups(expanded);
-      }
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a
-      // fresh snapshot; approve/archive/reject flows pass bypassCache=true so
-      // the list always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch pending users:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no list state of its own and never sets state from an effect. Approve,
+  // archive, reject and the refresh button call refresh(), which bypasses the
+  // cache exactly like the old bypassCache argument did.
+  const { data, loading, refresh } = useApi("/api/admin/pending-users", {
+    defaultValue: EMPTY_PENDING_USERS,
+    transform: pickPendingUsers,
+  });
+  const { pendingUsers, grouped, total } = data;
 
-  useEffect(() => {
-    fetchPendingUsers();
-  }, [fetchPendingUsers]);
+  // Groups start expanded, so the screen only remembers the ones the user
+  // collapsed. Tracking the exceptions is what lets that choice survive a
+  // refresh: the old effect re-expanded every group on each load, silently
+  // undoing it.
+  const isExpanded = (groupName) => !collapsedGroups[groupName];
 
   const handleApprove = async (userCid, userName) => {
     setProcessingId(userCid);
@@ -101,7 +80,7 @@ export default function PendingUsersPage() {
               : t("adminMisc.pendingUsers.emailQueued"),
           }),
         });
-        fetchPendingUsers(true);
+        refresh();
       } else {
         setActionMsg({
           type: "error",
@@ -133,7 +112,7 @@ export default function PendingUsersPage() {
           type: "success",
           text: t("adminMisc.pendingUsers.archivedToast", { name: userName }),
         });
-        fetchPendingUsers(true);
+        refresh();
       } else {
         setActionMsg({
           type: "error",
@@ -196,7 +175,7 @@ export default function PendingUsersPage() {
           type: "info",
           text: t("adminMisc.pendingUsers.rejectedToast", { name: userName }),
         });
-        fetchPendingUsers(true);
+        refresh();
       } else {
         setActionMsg({
           type: "error",
@@ -254,7 +233,7 @@ export default function PendingUsersPage() {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={fetchPendingUsers}
+              onClick={refresh}
               className="btn p-3"
               title={t("adminMisc.pendingUsers.refresh")}
             >
@@ -372,7 +351,7 @@ export default function PendingUsersPage() {
               {/* Group header */}
               <button
                 onClick={() =>
-                  setExpandedGroups((prev) => ({
+                  setCollapsedGroups((prev) => ({
                     ...prev,
                     [groupName]: !prev[groupName],
                   }))
@@ -388,7 +367,7 @@ export default function PendingUsersPage() {
                     {users.length}
                   </span>
                 </div>
-                {expandedGroups[groupName] ? (
+                {isExpanded(groupName) ? (
                   <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
                 ) : (
                   <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
@@ -396,7 +375,7 @@ export default function PendingUsersPage() {
               </button>
 
               <AnimatePresence>
-                {expandedGroups[groupName] && (
+                {isExpanded(groupName) && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}

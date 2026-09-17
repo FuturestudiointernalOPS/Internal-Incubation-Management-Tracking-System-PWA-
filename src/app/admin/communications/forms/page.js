@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -15,17 +15,33 @@ import {
   Edit3,
   Trash2,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 import { formatLocaleDate } from "@/lib/constants";
+
+// Module scope on purpose: the hook keys its internal callback on these
+// functions, so inline arrows would give them a new identity on every render and
+// refetch in a loop.
+const pickForms = (d) => (d?.success ? d.forms || [] : []);
+const pickFamilies = (d) => (d?.success ? d.families || [] : []);
 
 export default function FormsPage() {
   const { t, lang } = useI18n();
   const goBack = useSafeBack("/admin/crm");
 
-  const [forms, setForms] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Both reads' loaders — cache-first paint, discarding a stale response, the
+  // background refresh — belong to the hook, so the screen keeps no list state
+  // of its own and never sets state from an effect. Only the form list drives the
+  // spinner, exactly as before: the group list was always a background read.
+  const { data: forms, loading, refresh: refreshForms } = useApi("/api/forms", {
+    defaultValue: [],
+    transform: pickForms,
+  });
+  const { data: families, refresh: refreshFamilies } = useApi("/api/families", {
+    defaultValue: [],
+    transform: pickFamilies,
+  });
 
   // Modals & UI State
   const [view, setView] = useState("list"); // list, builder, responses
@@ -34,7 +50,6 @@ export default function FormsPage() {
   const [selectedResponse, setSelectedResponse] = useState(null);
   const [showResponseDetails, setShowResponseDetails] = useState(false);
   const [searchForms, setSearchForms] = useState("");
-  const [families, setFamilies] = useState([]);
   const [schema, setSchema] = useState([]);
   const [formName, setFormName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,65 +58,6 @@ export default function FormsPage() {
   const [selectedGroupName, setSelectedGroupName] = useState("");
   const [newGroupName, setNewGroupName] = useState("");
   const [showNewGroupInput, setShowNewGroupInput] = useState(false);
-
-  const fetchFamilies = async (bypassCache = false) => {
-    const url = "/api/families";
-    const apply = (data) => {
-      if (data.success) setFamilies(data.families || []);
-    };
-    try {
-      // Cache-first paint: the group dropdown renders instantly from a fresh
-      // snapshot; creating a new family passes bypassCache=true so the new
-      // group shows up right away.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) apply(cached);
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const fetchForms = async (bypassCache = false) => {
-    const url = "/api/forms";
-    const apply = (data) => {
-      if (data.success) setForms(data.forms || []);
-    };
-    setLoading(true);
-    try {
-      // Cache-first paint: returning to the page renders instantly from a fresh
-      // snapshot; form mutations pass bypassCache=true so the list always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchForms();
-    fetchFamilies();
-  }, []);
 
   const addField = (type) => {
     const newField = {
@@ -150,7 +106,7 @@ export default function FormsPage() {
           body: JSON.stringify({ name: newGroupName }),
         });
         finalGroupName = newGroupName;
-        fetchFamilies(true);
+        refreshFamilies();
       }
 
       const res = await fetch("/api/forms", {
@@ -172,7 +128,7 @@ export default function FormsPage() {
         setSelectedGroupName("");
         setNewGroupName("");
         setShowNewGroupInput(false);
-        fetchForms(true);
+        refreshForms();
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
             detail: { type: "success", message: t("crm.forms.saved") },
@@ -201,7 +157,7 @@ export default function FormsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchForms(true);
+        refreshForms();
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
             detail: { type: "success", message: t("crm.forms.archived") },
@@ -222,8 +178,10 @@ export default function FormsPage() {
     }
   };
 
+  // The spinner this used to toggle is the form list's, and the responses view
+  // never rendered through it — the flag had no visible effect here. It is left
+  // out rather than given a second flag that nothing would read.
   const fetchResponses = async (formId) => {
-    setLoading(true);
     try {
       const res = await fetch(`/api/responses?form_id=${formId}`);
       const data = await res.json();
@@ -235,8 +193,6 @@ export default function FormsPage() {
       }
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoading(false);
     }
   };
 

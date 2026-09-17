@@ -1,11 +1,18 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Filter, Rocket, Save, X, Loader2, Plus, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
 import { useSafeBack } from '@/lib/useSafeBack';
-import { cacheGet, cacheSet } from '@/lib/hooks/useApi';
+import { useApi } from '@/lib/hooks/useApi';
+
+// Module scope on purpose: the hook keys its internal callback on these
+// functions, so inline arrows would give them a new identity on every render and
+// refetch in a loop.
+const pickSegments = (d) => (d?.success ? d.segments || [] : []);
+const pickCampaigns = (d) => (d?.success ? d.campaigns || [] : []);
+const pickForms = (d) => (d?.success ? d.forms || [] : []);
 
 const SEGMENT_KEY_LABELS = {
   campaign_id: 'crm.segments.filterKeyCampaign',
@@ -22,10 +29,31 @@ export default function SegmentsPage() {
   const { t } = useI18n();
   const router = useRouter();
   const goBack = useSafeBack('/admin/crm');
-  const [segments, setSegments] = useState([]);
-  const [campaigns, setCampaigns] = useState([]);
-  const [forms, setForms] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Three reads, each carrying its own loading flag so the screen leaves the
+  // spinner only once all three have settled, exactly as the old combined loader
+  // did. Their cache-first paint and stale-response handling belong to the hook,
+  // so the screen keeps no data state of its own and never sets state from an
+  // effect.
+  const { data: segments, loading: segmentsLoading, refresh: refreshSegments } = useApi(
+    '/api/segments',
+    { defaultValue: [], transform: pickSegments },
+  );
+  const { data: campaigns, loading: campaignsLoading, refresh: refreshCampaigns } = useApi(
+    '/api/campaigns',
+    { defaultValue: [], transform: pickCampaigns },
+  );
+  const { data: forms, loading: formsLoading, refresh: refreshForms } = useApi(
+    '/api/forms',
+    { defaultValue: [], transform: pickForms },
+  );
+  const loading = segmentsLoading || campaignsLoading || formsLoading;
+  // Saving a segment must not read back from the cache, so all three reads are
+  // refreshed the way the old bypassCache argument did.
+  const refreshAll = () => {
+    refreshSegments();
+    refreshCampaigns();
+    refreshForms();
+  };
   
   // State for segment builder
   const [showBuilder, setShowBuilder] = useState(false);
@@ -39,48 +67,6 @@ export default function SegmentsPage() {
   const [activeSegment, setActiveSegment] = useState(null);
   const [campaignConfig, setCampaignConfig] = useState({ name: '', form_id: '' });
   const [isLaunching, setIsLaunching] = useState(false);
-
-  const fetchData = async (bypassCache = false) => {
-    try {
-      const urls = ['/api/segments', '/api/campaigns', '/api/forms'];
-      const apply = (segs, camps, fms) => {
-        if (segs?.success) setSegments(segs.segments || []);
-        if (camps?.success) setCampaigns(camps.campaigns || []);
-        if (fms?.success) setForms(fms.forms || []);
-      };
-
-      setLoading(true);
-      // Cache-first paint: returning to this page renders instantly from fresh
-      // snapshots; saving a segment passes bypassCache=true so the list always
-      // reflects the just-saved state.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2]);
-          setLoading(false);
-        }
-      }
-      const responses = await Promise.all(
-        urls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1], responses[2]);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { 
-    fetchData(); 
-  }, []);
 
   const runPreview = async (currentFilters) => {
     setIsPreviewing(true);
@@ -129,7 +115,7 @@ export default function SegmentsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchData(true);
+        refreshAll();
         setShowBuilder(false);
         setFilters({ campaign_id: '', status: '' });
         setSegmentName('');
