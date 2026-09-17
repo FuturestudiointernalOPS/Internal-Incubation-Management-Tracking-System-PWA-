@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { getRegisteredModules } from "@/lib/platform/registry";
 import { listServices } from "@/lib/platform/services";
 import { useI18n } from "@/lib/i18n";
@@ -18,14 +18,12 @@ function cn(...classes) {
 
 export default function PlatformSettings() {
   const { t } = useI18n();
-  const [modules, setModules] = useState([]);
-  const [services, setServices] = useState([]);
+  // The registry and the service list are pure module reads: they are the same
+  // answer on the server and in the browser, so they are computed during render
+  // rather than copied into state from an effect.
+  const modules = getRegisteredModules("super_admin");
+  const services = listServices();
   const [activeTab, setActiveTab] = useState("modules");
-
-  useEffect(() => {
-    setModules(getRegisteredModules("super_admin"));
-    setServices(listServices());
-  }, []);
 
   return (
     <div className="p-6 space-y-6 animate-in">

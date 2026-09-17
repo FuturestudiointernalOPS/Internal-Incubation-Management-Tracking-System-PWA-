@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Trophy,
   Send,
@@ -18,7 +18,15 @@ export default function DeveloperRetro() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
-  const [weekInfo, setWeekInfo] = useState({ week: 0, year: 0 });
+  // The current week is a fact about the CLOCK, so it is taken once when the
+  // screen first renders rather than written from an effect — the same lazy
+  // initialiser the operations view uses. It is never rendered, only sent with the
+  // submission, so the server's render and the browser's first render need not
+  // agree on it.
+  const [weekInfo] = useState(() => {
+    const now = new Date();
+    return { week: getWeekNumber(now), year: now.getFullYear() };
+  });
 
   const [completedWork, setCompletedWork] = useState([]);
   const [newCompleted, setNewCompleted] = useState("");
@@ -32,11 +40,6 @@ export default function DeveloperRetro() {
   const [newCarryover, setNewCarryover] = useState("");
   const [lessonsLearned, setLessonsLearned] = useState("");
   const [retroNotes, setRetroNotes] = useState("");
-
-  useEffect(() => {
-    const now = new Date();
-    setWeekInfo({ week: getWeekNumber(now), year: now.getFullYear() });
-  }, []);
 
   const addBullet = (list, setter, input, setInput) => {
     if (input.trim()) {

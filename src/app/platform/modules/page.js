@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { getRegisteredModules } from "@/lib/platform/registry";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useI18n } from "@/lib/i18n";
 import {
   FolderKanban,
@@ -23,12 +24,13 @@ const ICON_MAP = {
 
 export default function ModulesPage() {
   const { t } = useI18n();
-  const [modules, setModules] = useState([]);
-
-  useEffect(() => {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    setModules(getRegisteredModules(u.role || "super_admin"));
-  }, []);
+  // The list is a pure function of the connected role: no request, no effect and
+  // nothing copied into state. The role comes from the session the shell already
+  // publishes, and the registry itself fails CLOSED on an unknown role - so the
+  // first paint, before the session has arrived, shows nothing rather than every
+  // module.
+  const { role } = useSessionUser();
+  const modules = getRegisteredModules(role);
 
   return (
     <div className="p-6 space-y-6 animate-in">
