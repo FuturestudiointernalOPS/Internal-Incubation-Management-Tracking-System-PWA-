@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import {
   Activity,
   HeartPulse,
@@ -73,22 +73,123 @@ const REPORT_TYPE_KEYS = {
   monthly: "adminMisc.system.reportTypeMonthly",
 };
 
+// Module scope on purpose: the hook keys its internal callback on these
+// functions, so inline arrows would give them a new identity on every render and
+// refetch in a loop. A read that fails reports null, so the summary parts cannot
+// be assembled out of a half-failed set.
+const pickPayload = (d) => (d?.success ? d : null);
+const pickHealthResults = (d) => (d?.success ? d.results || d.checks || [] : []);
+const pickJobs = (d) => (d?.success ? d.jobs || [] : []);
+const pickReports = (d) => (d?.success ? d.reports || [] : []);
+
+// The endpoints this console reads, at module scope for the same reason.
+// The job statistics fed two separate states, so they are read once and shared.
+const STATUS_URL = "/api/system/status";
+const HEALTH_URL = "/api/system/health?type=latest";
+const JOB_STATS_URL = "/api/system/jobs?type=stats";
+const API_MONITOR_URL = "/api/system/metrics?type=recent";
+const STORAGE_URL = "/api/system/storage";
+const DATABASE_URL = "/api/system/database";
+const JOBS_URL = "/api/system/jobs?limit=20";
+const REPORTS_URL = "/api/system/reports?limit=10";
+
 export default function SystemMonitoringPage() {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState("overview");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [health, setHealth] = useState([]);
-  const [status, setStatus] = useState(null);
-  const [alerts, setAlerts] = useState([]);
-  const [apiMonitor, setApiMonitor] = useState(null);
-  const [storage, setStorage] = useState(null);
-  const [dbInfo, setDbInfo] = useState(null);
-  const [jobs, setJobs] = useState([]);
-  const [jobStats, setJobStats] = useState(null);
-  const [reports, setReports] = useState([]);
   const [runningHealth, setRunningHealth] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
+
+  // Every loader's work — cache-first paint, discarding a stale response, the
+  // background refresh — belongs to the hook, so the screen keeps no data state
+  // of its own and never sets state from an effect. The health check re-reads
+  // two of them and generating a report re-reads one, writing through those
+  // reads' own setters exactly as before.
+  const {
+    data: status,
+    loading: statusLoading,
+    error: statusError,
+    setData: setStatus,
+    refresh: refreshStatus,
+  } = useApi(STATUS_URL, { transform: pickPayload });
+  const {
+    data: health,
+    loading: healthLoading,
+    error: healthError,
+    setData: setHealth,
+    refresh: refreshHealth,
+  } = useApi(HEALTH_URL, { defaultValue: [], transform: pickHealthResults });
+  const {
+    data: jobStats,
+    loading: jobStatsLoading,
+    error: jobStatsError,
+    refresh: refreshJobStats,
+  } = useApi(JOB_STATS_URL, { transform: pickPayload });
+  const {
+    data: apiMonitor,
+    loading: apiMonitorLoading,
+    error: apiMonitorError,
+  } = useApi(API_MONITOR_URL, { transform: pickPayload });
+  const {
+    data: storage,
+    loading: storageLoading,
+    error: storageError,
+  } = useApi(STORAGE_URL, { transform: pickPayload });
+  const {
+    data: dbInfo,
+    loading: dbLoading,
+    error: dbError,
+  } = useApi(DATABASE_URL, { transform: pickPayload });
+  const {
+    data: jobs,
+    loading: jobsLoading,
+    error: jobsError,
+    refresh: refreshJobs,
+  } = useApi(JOBS_URL, { defaultValue: [], transform: pickJobs });
+  const {
+    data: reports,
+    loading: reportsLoading,
+    error: reportsError,
+    setData: setReports,
+    refresh: refreshReports,
+  } = useApi(REPORTS_URL, { defaultValue: [], transform: pickReports });
+
+  // The job statistics answer both the alerts count and the jobs tab.
+  const alerts = jobStats;
+
+  const loading =
+    statusLoading ||
+    healthLoading ||
+    jobStatsLoading ||
+    apiMonitorLoading ||
+    storageLoading ||
+    dbLoading ||
+    jobsLoading ||
+    reportsLoading;
+
+  // This loader really could throw where the others caught their own failures,
+  // so the banner is kept — but it stays a fallback: it is only shown when the
+  // main payload is absent, so a failed refresh cannot replace a console that is
+  // already on screen. That is what the old `painted` flag guarded for.
+  const loadError =
+    statusError ||
+    healthError ||
+    jobStatsError ||
+    apiMonitorError ||
+    storageError ||
+    dbError ||
+    jobsError ||
+    reportsError;
+  const error =
+    status === null && loadError ? t(loadError) || loadError : null;
+
+  // The refresh button re-reads every source, as the old single loader did.
+  const refreshAll = () => {
+    refreshStatus();
+    refreshHealth();
+    refreshJobStats();
+    refreshJobs();
+    refreshReports();
+  };
 
   const tabs = [
     { id: "overview", label: "adminMisc.system.tabs.overview", icon: HeartPulse },
@@ -100,57 +201,6 @@ export default function SystemMonitoringPage() {
     { id: "jobs", label: "adminMisc.system.tabs.jobs", icon: Cpu },
     { id: "reports", label: "adminMisc.system.tabs.reports", icon: FileText },
   ];
-
-  const fetchAll = useCallback(async (bypassCache = false) => {
-    const urls = [
-      "/api/system/status",
-      "/api/system/health?type=latest",
-      "/api/system/jobs?type=stats",
-      "/api/system/metrics?type=recent",
-      "/api/system/storage",
-      "/api/system/database",
-      "/api/system/jobs?limit=20",
-      "/api/system/jobs?type=stats",
-      "/api/system/reports?limit=10",
-    ];
-    const apply = (statusData, healthData, alertStatsData, apiData, storageData, dbData, jobsData, jobStatsData, reportsData) => {
-      if (statusData.success) setStatus(statusData);
-      if (healthData.success) setHealth(healthData.results || healthData.checks || []);
-      if (apiData.success) setApiMonitor(apiData);
-      if (storageData.success) setStorage(storageData);
-      if (dbData.success) setDbInfo(dbData);
-      if (jobsData.success) setJobs(jobsData.jobs || []);
-      if (jobStatsData.success) setJobStats(jobStatsData);
-      if (reportsData.success) setReports(reportsData.reports || []);
-      setAlerts(alertStatsData);
-    };
-    let painted = false;
-    setLoading(true);
-    setError(null);
-    try {
-      // Cache-first paint: returning to this page renders instantly from fresh
-      // snapshots; the refresh button / bypassCache=true always fetches fresh.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2], cached[3], cached[4], cached[5], cached[6], cached[7], cached[8]);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const responses = await Promise.all(urls.map((u) => fetch(u).then((r) => r.json())));
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1], responses[2], responses[3], responses[4], responses[5], responses[6], responses[7], responses[8]);
-    } catch (err) {
-      if (!painted) setError(t(err.message || "") || err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
-  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const runHealthCheck = async () => {
     setRunningHealth(true);
@@ -195,7 +245,7 @@ export default function SystemMonitoringPage() {
               {runningHealth ? <Loader2 className="animate-spin" size={14} /> : <Activity size={14} />}
               {runningHealth ? t("adminMisc.system.running") : t("adminMisc.system.runHealthCheck")}
             </button>
-            <button onClick={fetchAll}
+            <button onClick={refreshAll}
               className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] border border-gray-800 rounded-xl hover:bg-[#1e293b] transition-colors text-sm">
               <RefreshCw size={14} /> {t("adminMisc.system.refresh")}
             </button>

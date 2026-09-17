@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   Shield,
   AlertTriangle,
-  AlertCircle,
   Monitor,
   CheckCircle2,
   XCircle,
@@ -14,7 +13,7 @@ import {
   LogOut,
   Activity,
 } from "lucide-react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const SEVERITY_COLORS = {
   info: "text-blue-400 bg-blue-500/10",
@@ -31,166 +30,105 @@ function formatDate(d) {
   });
 }
 
+// Module scope on purpose: the hook keys its internal callback on these
+// functions, so inline arrows would give them a new identity on every render and
+// refetch in a loop. The four summary reads keep their payload because the
+// summary combines parts of each; a failed one reports null, which is what keeps
+// the summary from being assembled out of a half-failed set.
+const pickPayload = (d) => (d?.success ? d : null);
+const pickSessions = (d) => (d?.success ? d.sessions || [] : []);
+const pickEvents = (d) => (d?.success ? d.events || [] : []);
+const pickLoginHistory = (d) => (d?.success ? d.history || [] : []);
+
+// The seven reads this console needs, at module scope for the same reason as the
+// transformations above.
+const SUMMARY_SESSIONS_URL = "/api/security/sessions?limit=10";
+const SUMMARY_EVENTS_URL = "/api/security/events?type=stats&hours=24";
+const SUMMARY_LOGINS_URL = "/api/security/login-history?type=stats&hours=24";
+const SUMMARY_AUDIT_URL = "/api/audit-logs?type=stats&hours=24";
+const SESSIONS_URL = "/api/security/sessions?limit=50";
+const EVENTS_URL = "/api/security/events?limit=50";
+const LOGIN_HISTORY_URL = "/api/security/login-history?limit=50";
+
 export default function SecurityPage() {
   const { t } = useI18n();
-  // Dashboard summary state
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
-
-  // Sessions state
-  const [sessions, setSessions] = useState([]);
-  const [sessionsLoading, setSessionsLoading] = useState(false);
-
-  // Events state
-  const [events, setEvents] = useState([]);
-  const [eventsLoading, setEventsLoading] = useState(false);
-
-  // Login history state
-  const [loginHistory, setLoginHistory] = useState([]);
-  const [loginLoading, setLoginLoading] = useState(false);
 
   // Confirm dialog
   const [confirmAction, setConfirmAction] = useState(null);
 
-  const fetchSummary = useCallback(async (bypassCache = false) => {
-    const urls = [
-      "/api/security/sessions?limit=10",
-      "/api/security/events?type=stats&hours=24",
-      "/api/security/login-history?type=stats&hours=24",
-      "/api/audit-logs?type=stats&hours=24",
-    ];
-    const apply = (sessionsData, eventsData, loginData, auditData) => {
-      setSummary({
-        active_sessions: sessionsData.sessions?.length || 0,
-        ...eventsData,
-        ...loginData,
-        audit_total: auditData.total || auditData.audit_logs_24h || 0,
-      });
-    };
+  // Every loader's work — cache-first paint, discarding a stale response, the
+  // background refresh — belongs to the hook, so the screen keeps no data state
+  // of its own and never sets state from an effect. The summary used to be
+  // written by combining four responses; it is derived from them instead, and
+  // stays absent until all four have answered, which is what the old loader did
+  // by applying only when every response succeeded.
+  const {
+    data: summarySessions,
+    loading: summarySessionsLoading,
+    refresh: refreshSummarySessions,
+  } = useApi(SUMMARY_SESSIONS_URL, { transform: pickPayload });
+  const {
+    data: summaryEvents,
+    loading: summaryEventsLoading,
+    refresh: refreshSummaryEvents,
+  } = useApi(SUMMARY_EVENTS_URL, { transform: pickPayload });
+  const {
+    data: summaryLogins,
+    loading: summaryLoginsLoading,
+    refresh: refreshSummaryLogins,
+  } = useApi(SUMMARY_LOGINS_URL, { transform: pickPayload });
+  const {
+    data: summaryAudit,
+    loading: summaryAuditLoading,
+    refresh: refreshSummaryAudit,
+  } = useApi(SUMMARY_AUDIT_URL, { transform: pickPayload });
+  const {
+    data: sessions,
+    loading: sessionsLoading,
+    setData: setSessions,
+    refresh: refreshSessions,
+  } = useApi(SESSIONS_URL, { defaultValue: [], transform: pickSessions });
+  const {
+    data: events,
+    loading: eventsLoading,
+    refresh: refreshEvents,
+  } = useApi(EVENTS_URL, { defaultValue: [], transform: pickEvents });
+  const {
+    data: loginHistory,
+    loading: loginLoading,
+    refresh: refreshLoginHistory,
+  } = useApi(LOGIN_HISTORY_URL, { defaultValue: [], transform: pickLoginHistory });
 
-    try {
-      // Cache-first paint: returning to the page renders instantly from fresh
-      // snapshots while the network refresh below converges in the background.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2], cached[3]);
+  const loading =
+    summarySessionsLoading ||
+    summaryEventsLoading ||
+    summaryLoginsLoading ||
+    summaryAuditLoading ||
+    sessionsLoading ||
+    eventsLoading ||
+    loginLoading;
+
+  const summary =
+    summarySessions && summaryEvents && summaryLogins && summaryAudit
+      ? {
+          active_sessions: summarySessions.sessions?.length || 0,
+          ...summaryEvents,
+          ...summaryLogins,
+          audit_total: summaryAudit.total || summaryAudit.audit_logs_24h || 0,
         }
-      }
-      const responses = await Promise.all(
-        urls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      if (responses.every((r) => r?.success)) {
-        urls.forEach((u, i) => cacheSet(u, responses[i]));
-        apply(responses[0], responses[1], responses[2], responses[3]);
-      }
-    } catch (err) {
-      console.error("Summary error:", err);
-    }
-  }, []);
+      : null;
 
-  const fetchSessions = useCallback(async (bypassCache = false) => {
-    const url = "/api/security/sessions?limit=50";
-    const apply = (data) => {
-      if (data.success) setSessions(data.sessions || []);
-    };
-    setSessionsLoading(true);
-    try {
-      // Cache-first paint: returning to the page renders instantly from a
-      // fresh snapshot; mutation flows pass bypassCache=true so the list
-      // always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setSessionsLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (err) {
-      console.error("Sessions error:", err);
-    } finally {
-      setSessionsLoading(false);
-    }
-  }, []);
-
-  const fetchEvents = useCallback(async (bypassCache = false) => {
-    const url = "/api/security/events?limit=50";
-    const apply = (data) => {
-      if (data.success) setEvents(data.events || []);
-    };
-    setEventsLoading(true);
-    try {
-      // Cache-first paint: returning to the page renders instantly from a
-      // fresh snapshot; mutation flows pass bypassCache=true so the list
-      // always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setEventsLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (err) {
-      console.error("Events error:", err);
-    } finally {
-      setEventsLoading(false);
-    }
-  }, []);
-
-  const fetchLoginHistory = useCallback(async (bypassCache = false) => {
-    const url = "/api/security/login-history?limit=50";
-    const apply = (data) => {
-      if (data.success) setLoginHistory(data.history || []);
-    };
-    setLoginLoading(true);
-    try {
-      // Cache-first paint: returning to the page renders instantly from a
-      // fresh snapshot; mutation flows pass bypassCache=true so the list
-      // always reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoginLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (err) {
-      console.error("Login history error:", err);
-    } finally {
-      setLoginLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([fetchSummary(), fetchSessions(), fetchEvents(), fetchLoginHistory()])
-      .catch((err) => setError(t(err.message || "") || err.message))
-      .finally(() => setLoading(false));
-  }, [fetchSummary, fetchSessions, fetchEvents, fetchLoginHistory, t]);
+  // The refresh button re-reads all seven, as the old single loader did.
+  const refreshAll = () => {
+    refreshSummarySessions();
+    refreshSummaryEvents();
+    refreshSummaryLogins();
+    refreshSummaryAudit();
+    refreshSessions();
+    refreshEvents();
+    refreshLoginHistory();
+  };
 
   const handleRevokeSession = async (token) => {
     try {
@@ -218,7 +156,7 @@ export default function SecurityPage() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchEvents(true);
+        refreshEvents();
         setConfirmAction(null);
       }
     } catch (err) {
@@ -246,7 +184,7 @@ export default function SecurityPage() {
             <p className="text-sm text-gray-400 mt-1">{t("adminMisc.security.subtitle")}</p>
           </div>
           <button
-            onClick={() => { setLoading(true); Promise.all([fetchSummary(), fetchSessions(), fetchEvents(), fetchLoginHistory()]).finally(() => setLoading(false)); }}
+            onClick={refreshAll}
             className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] border border-gray-800 rounded-xl hover:bg-[#1e293b] transition-colors text-sm"
           >
             <RefreshCw size={14} />
@@ -282,15 +220,14 @@ export default function SecurityPage() {
           </div>
         )}
 
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-8 text-center">
-            <AlertCircle className="mx-auto mb-3 text-red-400" size={40} />
-            <p className="text-red-400">{error}</p>
-          </div>
-        )}
+        {/* The failure banner that stood here was unreachable: each of the four
+            loaders swallowed its own error, so the promise combining them could
+            never reject and this message could never be set. A read that fails
+            now leaves its own list empty, which is what the screen already did
+            in practice. */}
 
         {/* ─── OVERVIEW TAB ──────────────────────────────────────────────── */}
-        {!loading && !error && activeTab === "overview" && (
+        {!loading && activeTab === "overview" && (
           <div className="space-y-6">
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -379,7 +316,7 @@ export default function SecurityPage() {
         )}
 
         {/* ─── SESSIONS TAB ──────────────────────────────────────────────── */}
-        {!loading && !error && activeTab === "sessions" && (
+        {!loading && activeTab === "sessions" && (
           <div>
             {sessionsLoading ? (
               <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[var(--brand-orange)]" size={24} /></div>
@@ -450,7 +387,7 @@ export default function SecurityPage() {
         )}
 
         {/* ─── SECURITY EVENTS TAB ───────────────────────────────────────── */}
-        {!loading && !error && activeTab === "events" && (
+        {!loading && activeTab === "events" && (
           <div>
             {eventsLoading ? (
               <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[var(--brand-orange)]" size={24} /></div>
@@ -515,7 +452,7 @@ export default function SecurityPage() {
         )}
 
         {/* ─── LOGIN HISTORY TAB ─────────────────────────────────────────── */}
-        {!loading && !error && activeTab === "login_history" && (
+        {!loading && activeTab === "login_history" && (
           <div>
             {loginLoading ? (
               <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[var(--brand-orange)]" size={24} /></div>
