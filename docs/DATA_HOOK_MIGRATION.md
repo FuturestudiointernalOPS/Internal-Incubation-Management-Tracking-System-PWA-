@@ -59,23 +59,21 @@ const { data: things, loading, refresh } = useApi(URL, {
 // Actions that used to call load(true) now call refresh().
 ```
 
-Two rules that are easy to get wrong:
+One rule that is easy to get wrong, and one that used to be:
 
-- **The transformation must live at module scope.** An inline arrow changes
-  identity every render, which changes the hook's internal callback, and a
-  callback that changes every render starts a read on every render. It is not a
-  runaway loop (the hook settles as soon as a read produces no state change), but
-  it is one request per render of the screen, which is one per keystroke on a
-  screen with a search box.
 - **A screen must not keep its own copy of the data.** Converting the loader
   but resynchronising the result into local state reproduces the original
   pattern (and the rule's warning) exactly.
+- **Build the transformation once, at module scope** - a habit rather than a
+  requirement. Neither the transformation nor the default value is part of what
+  the hook reads, so neither can put a request on the wire any more: the read is
+  keyed on the ADDRESS, both of those are mirrored, and the address is the only
+  thing that decides whether to go and look. Building them once is still what
+  makes a screen easiest to read, and a factory called inside a component
+  (`pickList("tasks")` rather than at the top of the file) is the shape that
+  looks correct and is not.
 
-The default value is the one thing here that does **not** have to be stable.
-`defaultValue: []` written inline is correct and is what most callers write; the
-hook gates what it returns on the address during render instead of treating the
-default as part of the read's identity. See section 3.8 for what that cost before
-it was true.
+See section 3.8 for what the two of them cost before the hook was repaired.
 
 ### A read that fills in a form: a derived base plus the edits
 
@@ -473,6 +471,20 @@ Two fixes, both of them the honest one rather than a suppression:
 
 The second one is the one that matters beyond this incident: it makes
 `defaultValue: []`, the natural thing for a caller to write, safe.
+
+The **same mistake was then found in the transformation**, which is a factory in
+most conversions - `pickList("tasks")` written at the call site rather than at the
+top of the file, inside a component, is a new function on every render. Ten reads
+across three consoles were re-issuing a request per round trip, each re-running
+its SQL, for as long as the screen stayed open; the stale-response guard could not
+absorb it because the guard discards a late ANSWER and cannot un-send a request.
+The hook now mirrors the transformation and applies the current one at fetch time,
+so the read is keyed on the address - the same repair as the default, for the same
+reason.
+
+Both repairs are in the hook rather than at the call sites on purpose: the two
+mistakes have one shape, and a rule that has to be remembered at every call site is
+a rule that will be forgotten at one of them.
 
 `src/__tests__/use-api-hook.test.js` counts the requests in both cases, so the
 flood cannot come back unnoticed.
