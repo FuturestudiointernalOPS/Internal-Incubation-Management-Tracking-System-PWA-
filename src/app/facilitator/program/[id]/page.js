@@ -18,9 +18,45 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { getLocalToday, FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 export const dynamic = "force-dynamic";
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_OBJECT = {};
+const EMPTY_LIST = [];
+
+const pickFullState = (d) => (d?.success ? d : null);
+const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
+
+/** Saved attendance, keyed the way the sheet addresses it. */
+const pickAttendance = (d) => {
+  const bySessionAndParticipant = {};
+  if (!d?.success) return bySessionAndParticipant;
+  for (const a of d.attendance || []) {
+    bySessionAndParticipant[`${a.session_id}:${a.participant_id}`] = a.status;
+  }
+  return bySessionAndParticipant;
+};
+
+/**
+ * Which week of the programme a day falls in. The day is a parameter rather than
+ * read from the clock in here: called during a render, reading the clock is what
+ * makes a value differ between the server's render and the browser's.
+ */
+const programWeekOn = (program, day) => {
+  if (!program?.start_date) return 1;
+  const start = new Date(String(program.start_date).slice(0, 10) + "T00:00:00");
+  const today = new Date(day + "T00:00:00");
+  if (Number.isNaN(start.getTime()) || Number.isNaN(today.getTime())) return 1;
+  const diffDays = Math.floor((today - start) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return 1;
+  const max = Number(program.duration_weeks) || 13;
+  return Math.min(Math.max(Math.floor(diffDays / 7) + 1, 1), max);
+};
 
 /**
  * FACILITATOR PROGRAM WORKSPACE
@@ -34,13 +70,102 @@ export default function FacilitatorProgram({ params }) {
   const { t } = useI18n();
 
   const [tab, setTab] = useState("participants");
-  const [program, setProgram] = useState(null);
-  const [participants, setParticipants] = useState([]);
-  const [sessions, setSessions] = useState([]);
-  const [submissions, setSubmissions] = useState([]);
-  const [attendance, setAttendance] = useState({});
   const [attendanceDate, setAttendanceDate] = useState(() => getLocalToday());
-  const [loading, setLoading] = useState(true);
+
+  // The five reads, through the shared hook: it owns the cache, the cache-first
+  // paint and the discarding of a stale answer, so the page keeps no copy of its
+  // own and reads its data during render.
+  const {
+    data: fullState,
+    loading: fullStateLoading,
+    refresh: refreshFullState,
+  } = useApi(id ? `/api/pm/full-state?id=${id}` : null, {
+    defaultValue: null,
+    transform: pickFullState,
+    deps: [id],
+  });
+  const program = fullState?.program || null;
+  const sessions = fullState?.sessions ?? EMPTY_LIST;
+
+  const {
+    data: participants,
+    loading: participantsLoading,
+    refresh: refreshParticipants,
+  } = useApi(id ? `/api/participants?program_id=${id}` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickList("participants"),
+    deps: [id],
+  });
+  const {
+    data: submissions,
+    loading: submissionsLoading,
+    refresh: refreshSubmissions,
+  } = useApi(id ? `/api/submissions?program_id=${id}` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickList("submissions"),
+    deps: [id],
+  });
+  const {
+    data: myReviews,
+    loading: reviewsLoading,
+    refresh: refreshReviews,
+  } = useApi(id ? `/api/facilitator-reviews?program_id=${id}` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickList("reviews"),
+    deps: [id],
+  });
+  const {
+    data: storedAttendance,
+    loading: attendanceLoading,
+    refresh: refreshAttendance,
+  } = useApi(
+    id ? `/api/attendance?program_id=${id}&date=${attendanceDate}` : null,
+    { defaultValue: EMPTY_OBJECT, transform: pickAttendance, deps: [id, attendanceDate] },
+  );
+
+  const loading =
+    fullStateLoading ||
+    participantsLoading ||
+    submissionsLoading ||
+    reviewsLoading ||
+    attendanceLoading;
+
+  // Every action below re-reads what it changed.
+  const reload = useCallback(() => {
+    refreshFullState();
+    refreshParticipants();
+    refreshSubmissions();
+    refreshReviews();
+    refreshAttendance();
+  }, [
+    refreshFullState,
+    refreshParticipants,
+    refreshSubmissions,
+    refreshReviews,
+    refreshAttendance,
+  ]);
+
+  // ── Forms: a derived base, plus what the person changed ───────────────────
+
+  // The week being reviewed defaults to the week the programme is in, and the
+  // person can choose another. Recorded as a CHOICE rather than copied, so a
+  // background refresh no longer throws the choice away - which it did, by
+  // reassigning the computed week on every load.
+  const [chosenWeek, setChosenWeek] = useState(null);
+  // The clock is snapshotted once, for the reason programWeekOn explains.
+  const [today] = useState(() => getLocalToday());
+  const reviewWeek = chosenWeek ?? programWeekOn(program, today);
+
+  // The sheet's marks are the saved ones plus the person's, and a mark is
+  // recorded WITH the date it was made on. The saved marks are addressed by the
+  // date in the request, so a mark that outlived a date change would show on a
+  // day it does not belong to.
+  const [marks, setMarks] = useState({ date: null, byKey: EMPTY_OBJECT });
+  const marksForDate = marks.date === attendanceDate ? marks.byKey : EMPTY_OBJECT;
+  const attendance = { ...storedAttendance, ...marksForDate };
+  const setMark = (key, value) =>
+    setMarks({ date: attendanceDate, byKey: { ...marksForDate, [key]: value } });
+
   const [review, setReview] = useState({
     overall_rating: "",
     went_well: "",
@@ -51,89 +176,9 @@ export default function FacilitatorProgram({ params }) {
     focus_next_week: "",
     additional_notes: "",
   });
-  const [reviewWeek, setReviewWeek] = useState(1);
   const [savingReview, setSavingReview] = useState(false);
   const [savingAtt, setSavingAtt] = useState(false);
-  const [myReviews, setMyReviews] = useState([]);
 
-  const computeProgramWeek = (program) => {
-    if (!program?.start_date) return 1;
-    const start = new Date(String(program.start_date).slice(0, 10) + "T00:00:00");
-    const today = new Date(getLocalToday() + "T00:00:00");
-    if (Number.isNaN(start.getTime()) || Number.isNaN(today.getTime())) return 1;
-    const diffDays = Math.floor((today - start) / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) return 1;
-    const max = Number(program.duration_weeks) || 13;
-    return Math.min(Math.max(Math.floor(diffDays / 7) + 1, 1), max);
-  };
-
-  const load = useCallback(async (bypassCache = false) => {
-    const urls = [
-      `/api/pm/full-state?id=${id}`,
-      `/api/participants?program_id=${id}`,
-      `/api/submissions?program_id=${id}`,
-      `/api/facilitator-reviews?program_id=${id}`,
-      `/api/attendance?program_id=${id}&date=${attendanceDate}`,
-    ];
-    const apply = (progData, parData, subData, revData, attData) => {
-      if (progData.success) {
-        setProgram(progData.program);
-        setSessions(progData.sessions || []);
-        setReviewWeek(computeProgramWeek(progData.program));
-      }
-      if (parData.success) setParticipants(parData.participants || []);
-      if (subData.success) setSubmissions(subData.submissions || []);
-      if (revData.success) setMyReviews(revData.reviews || []);
-
-      // Load saved attendance so selections persist across refreshes.
-      if (attData.success) {
-        const map = {};
-        (attData.attendance || []).forEach((a) => {
-          map[`${a.session_id}:${a.participant_id}`] = a.status;
-        });
-        setAttendance(map);
-      }
-    };
-    let painted = false;
-    // Post-mutation reloads pass bypassCache=true — they never flash the
-    // full-page spinner and always fetch fresh data.
-    if (!bypassCache) setLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from
-      // fresh snapshots; mutation flows pass bypassCache=true so the lists
-      // always reflect the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2], cached[3], cached[4]);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const [progRes, parRes, subRes, revRes, attRes] = await Promise.all(
-        urls.map((u) => fetch(u)),
-      );
-      const progData = await progRes.json();
-      const parData = await parRes.json();
-      const subData = await subRes.json();
-      const revData = await revRes.json();
-      const attData = await attRes.json();
-      if (progData.success) cacheSet(urls[0], progData);
-      if (parData.success) cacheSet(urls[1], parData);
-      if (subData.success) cacheSet(urls[2], subData);
-      if (revData.success) cacheSet(urls[3], revData);
-      if (attData.success) cacheSet(urls[4], attData);
-      apply(progData, parData, subData, revData, attData);
-    } catch (e) {
-      if (!painted) console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [id, attendanceDate]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   const notify = (type, message) =>
     window.dispatchEvent(
@@ -185,7 +230,7 @@ export default function FacilitatorProgram({ params }) {
           focus_next_week: "",
           additional_notes: "",
         });
-        load(true);
+        reload();
       } else {
         notify("error", data.error || t("pmMisc.facilitators.weeklyReview.submitError"));
       }
@@ -267,7 +312,7 @@ export default function FacilitatorProgram({ params }) {
       const data = await res.json();
       if (data.success) {
         notify("success", "Submission updated");
-        load(true);
+        reload();
       } else {
         notify("error", data.error || "Failed to update submission");
       }
@@ -488,7 +533,7 @@ export default function FacilitatorProgram({ params }) {
                           value={attendance[key] || ""}
                           onChange={(e) => {
                             const v = e.target.value;
-                            setAttendance({ ...attendance, [key]: v });
+                            setMark(key, v);
                             saveAttendanceForParticipant(s.id, p.id || p.user_id, v);
                           }}
                           className="bg-secondary border border-[var(--border-primary)] rounded px-1.5 py-1 text-[10px] font-bold uppercase outline-none cursor-pointer"
@@ -546,7 +591,7 @@ export default function FacilitatorProgram({ params }) {
                     type="number"
                     min="1"
                     value={reviewWeek}
-                    onChange={(e) => setReviewWeek(parseInt(e.target.value) || 1)}
+                    onChange={(e) => setChosenWeek(parseInt(e.target.value) || 1)}
                     className="w-16 bg-transparent text-center text-[11px] font-black text-[var(--text-primary)] outline-none"
                   />
                 </div>

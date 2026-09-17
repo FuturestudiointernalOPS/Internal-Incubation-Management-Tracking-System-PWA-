@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Loader2, Send, Save, ArrowLeft, CheckCircle2, AlertTriangle,
@@ -9,9 +9,20 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 import AppPhoneInput from "@/components/ui/AppPhoneInput";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
+
+// ─── Module-scope readers ────────────────────────────────────────────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+const EMPTY_OBJECT = {};
+const EMPTY_LIST = [];
+
+/** The run and the person's own submission, whole: both are read from one body. */
+const pickRunPayload = (d) => (d?.success ? d : null);
+const pickFormPayload = (d) => (d?.success ? d : null);
 
 export default function SubmitFormPage() {
   const params = useParams();
@@ -20,95 +31,79 @@ export default function SubmitFormPage() {
   const { t } = useI18n();
   const runId = params.runId;
 
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [notification, setNotification] = useState(null);
 
-  // Run + Form data
-  const [run, setRun] = useState(null);
-  const [form, setForm] = useState(null);
-  const [sections, setSections] = useState([]);
-  const [fields, setFields] = useState([]);
-  const [existingSubmission, setExistingSubmission] = useState(null);
+  // Run + form definition, read through the shared hook: it owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the page keeps no
+  // copy of its own and reads its data during render.
+  const {
+    data: runPayload,
+    loading: runLoading,
+    error: runError,
+    status: runStatus,
+  } = useApi(
+    runId ? `/api/platform/form-runs?id=${runId}&participant=true` : null,
+    { defaultValue: null, transform: pickRunPayload, deps: [runId] },
+  );
+  const run = runPayload?.run || null;
+
+  const {
+    data: formPayload,
+    loading: formLoading,
+    error: formError,
+    status: formStatus,
+  } = useApi(
+    run?.form_id ? `/api/platform/forms?id=${run.form_id}` : null,
+    { defaultValue: null, transform: pickFormPayload, deps: [run?.form_id] },
+  );
+  const form = formPayload?.form || null;
+  const sections = formPayload?.sections ?? EMPTY_LIST;
+  const fields = formPayload?.fields ?? EMPTY_LIST;
+
+  // The stored submission, and what this screen's own writes replaced it with.
+  // A save or a submit answers with the stored row, so it goes here rather than
+  // over the read: nothing is copied, and a background re-read cannot undo it.
+  const [savedSubmission, setSavedSubmission] = useState(null);
+  const submission = savedSubmission || runPayload?.submission || null;
+
+  // The answers are a DERIVED BASE PLUS EDITS: what the server has stored, and
+  // what the person typed, recorded against the field it changes. Nothing is
+  // copied into state, so no effect has to notice the answers arriving - which is
+  // what would erase an edit typed in the moment before the read answered.
+  const [answerEdits, setAnswerEdits] = useState(EMPTY_OBJECT);
+  const answers = { ...(submission?.data || EMPTY_OBJECT), ...answerEdits };
 
   // Form state
-  const [formData, setFormData] = useState({});
-  const [errors, setErrors] = useState({});
-  const [expandedSections, setExpandedSections] = useState({});
+  const [errors, setErrors] = useState(EMPTY_OBJECT);
+
+  // A section is open until it is CLOSED, so the closed ones are what is
+  // recorded. Copied the other way round, a section that arrives after the read
+  // would be shut until an effect opened it.
+  const [closedSections, setClosedSections] = useState(EMPTY_OBJECT);
 
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
-  const loadRun = useCallback(async (bypassCache = false) => {
-    setLoading(true);
-    setError(null);
-    const mainUrl = `/api/platform/form-runs?id=${runId}&participant=true`;
-    const applyRun = (runData) => {
-      setRun(runData.run);
+  // The read's outcome, derived. A payload that says it failed carries its own
+  // message, and a request that never got an answer is the network's.
+  const readFailure = runError || formError || null;
+  const error =
+    runStatus !== null && !run && !readFailure
+      ? t(runPayload?.error || "") || t("platformMisc.runSubmitDetail.runNotFound")
+      : formStatus !== null && !form && !readFailure
+        ? t("platformMisc.runSubmitDetail.formNotFound")
+        : readFailure
+          ? t(readFailure) || t("platformMisc.runSubmitDetail.runNotFound")
+          : null;
 
-      // Set existing submission if any
-      if (runData.submission) {
-        setExistingSubmission(runData.submission);
-        if (runData.submission.data) {
-          setFormData(runData.submission.data);
-        }
-      }
-    };
-    const applyForm = (formData) => {
-      setForm(formData.form);
-      setSections(formData.sections || []);
-      setFields(formData.fields || []);
-
-      // Initialize expanded sections
-      const expanded = {};
-      (formData.sections || []).forEach((s) => { expanded[s.id] = true; });
-      setExpandedSections(expanded);
-    };
-    let painted = false;
-    try {
-      // Cache-first paint: revisiting the same run renders instantly from
-      // fresh snapshots when both GETs in the chain are cached; the network
-      // refresh keeps the run/form definition current in the background.
-      if (!bypassCache) {
-        const cachedRun = cacheGet(mainUrl);
-        const cachedForm =
-          cachedRun !== null && cachedRun.success
-            ? cacheGet(`/api/platform/forms?id=${cachedRun.run?.form_id}`)
-            : null;
-        if (cachedRun !== null && cachedRun.success && cachedForm !== null && cachedForm.success) {
-          applyRun(cachedRun);
-          applyForm(cachedForm);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      // Load run detail + user's submission (participant endpoint)
-      const runRes = await fetch(mainUrl);
-      const runData = await runRes.json();
-      if (!runData.success) throw new Error(t((runData.error || t("platformMisc.runSubmitDetail.runNotFound")) || "") || (runData.error || t("platformMisc.runSubmitDetail.runNotFound")));
-      cacheSet(mainUrl, runData);
-      applyRun(runData);
-
-      // Load form definition (participant can access single form)
-      const formUrl = `/api/platform/forms?id=${runData.run.form_id}`;
-      const formRes = await fetch(formUrl);
-      const formData = await formRes.json();
-      if (!formData.success) throw new Error(t("platformMisc.runSubmitDetail.formNotFound"));
-      cacheSet(formUrl, formData);
-      applyForm(formData);
-    } catch (err) {
-      if (!painted) setError(t(err.message || "") || err.message);
-    }
-    setLoading(false);
-  }, [runId, t]);
-
-  useEffect(() => {
-    loadRun();
-  }, [loadRun]);
+  // One render passes with the run known and its form not yet asked for: the
+  // hook's flag rises in the effect, which is after that render.
+  const formPending = Boolean(run?.form_id) && formStatus === null && !formError;
+  const loading = runLoading || formLoading || formPending;
 
   const updateField = (fieldId, value) => {
-    setFormData((prev) => ({ ...prev, [fieldId]: value }));
+    setAnswerEdits((prev) => ({ ...prev, [fieldId]: value }));
     // Clear error for this field
     setErrors((prev) => {
       const next = { ...prev };
@@ -120,28 +115,28 @@ export default function SubmitFormPage() {
   const validate = () => {
     const newErrors = {};
     fields.forEach((f) => {
-      if (f.required && (!formData[f.id] || (typeof formData[f.id] === "string" && !formData[f.id].trim()))) {
+      if (f.required && (!answers[f.id] || (typeof answers[f.id] === "string" && !answers[f.id].trim()))) {
         newErrors[f.id] = t("platformMisc.runSubmitDetail.fieldRequired", { label: f.label });
       }
       // Validate based on field type and validation rules
-      if (formData[f.id] && f.validation) {
+      if (answers[f.id] && f.validation) {
         const v = f.validation;
-        if (f.field_type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData[f.id])) {
+        if (f.field_type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(answers[f.id])) {
           newErrors[f.id] = t("platformMisc.runSubmitDetail.invalidEmail");
         }
-        if (v.minLength && String(formData[f.id]).length < v.minLength) {
+        if (v.minLength && String(answers[f.id]).length < v.minLength) {
           newErrors[f.id] = t("platformMisc.runSubmitDetail.minLength", { count: v.minLength });
         }
-        if (v.maxLength && String(formData[f.id]).length > v.maxLength) {
+        if (v.maxLength && String(answers[f.id]).length > v.maxLength) {
           newErrors[f.id] = t("platformMisc.runSubmitDetail.maxLength", { count: v.maxLength });
         }
-        if (v.min !== undefined && Number(formData[f.id]) < v.min) {
+        if (v.min !== undefined && Number(answers[f.id]) < v.min) {
           newErrors[f.id] = t("platformMisc.runSubmitDetail.minValue", { value: v.min });
         }
-        if (v.max !== undefined && Number(formData[f.id]) > v.max) {
+        if (v.max !== undefined && Number(answers[f.id]) > v.max) {
           newErrors[f.id] = t("platformMisc.runSubmitDetail.maxValue", { value: v.max });
         }
-        if (v.pattern && !new RegExp(v.pattern).test(formData[f.id])) {
+        if (v.pattern && !new RegExp(v.pattern).test(answers[f.id])) {
           newErrors[f.id] = v.message || t("platformMisc.runSubmitDetail.invalidFormat");
         }
       }
@@ -156,11 +151,11 @@ export default function SubmitFormPage() {
       const res = await fetch("/api/platform/form-runs?action=submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: parseInt(runId), data: formData, status: "draft" }),
+        body: JSON.stringify({ run_id: parseInt(runId), data: answers, status: "draft" }),
       });
       const data = await res.json();
       if (data.success) {
-        setExistingSubmission(data.submission);
+        setSavedSubmission(data.submission);
         notify(t("platformMisc.runSubmitDetail.draftSaved"));
       } else {
         notify(t((data.error || t("platformMisc.runSubmitDetail.saveDraftFailed")) || "") || (data.error || t("platformMisc.runSubmitDetail.saveDraftFailed")));
@@ -176,11 +171,11 @@ export default function SubmitFormPage() {
       const res = await fetch("/api/platform/form-runs?action=submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: parseInt(runId), data: formData, status: "submitted" }),
+        body: JSON.stringify({ run_id: parseInt(runId), data: answers, status: "submitted" }),
       });
       const data = await res.json();
       if (data.success) {
-        setExistingSubmission(data.submission);
+        setSavedSubmission(data.submission);
         setSuccess(true);
         notify(t("platformMisc.runSubmitDetail.submissionReceived"));
       } else {
@@ -190,14 +185,14 @@ export default function SubmitFormPage() {
     setSaving(false);
   };
 
-  const isSubmitted = existingSubmission?.status === "submitted" || existingSubmission?.status === "approved" || existingSubmission?.status === "rejected" || existingSubmission?.status === "revision_requested";
-  const isApproved = existingSubmission?.status === "approved";
-  const isRejected = existingSubmission?.status === "rejected";
-  const needsRevision = existingSubmission?.status === "revision_requested";
-  const isDraft = existingSubmission?.status === "draft";
+  const isSubmitted = submission?.status === "submitted" || submission?.status === "approved" || submission?.status === "rejected" || submission?.status === "revision_requested";
+  const isApproved = submission?.status === "approved";
+  const isRejected = submission?.status === "rejected";
+  const needsRevision = submission?.status === "revision_requested";
+  const isDraft = submission?.status === "draft";
 
   const renderField = (field) => {
-    const value = formData[field.id] || field.default_value || "";
+    const value = answers[field.id] || field.default_value || "";
     const hasError = errors[field.id];
     const isDisabled = isSubmitted && !needsRevision;
 
@@ -439,11 +434,11 @@ export default function SubmitFormPage() {
               {run?.settings?.confirmation_message || t("platformMisc.runSubmitDetail.confirmationMessage")}
             </p>
           </div>
-          {existingSubmission && (
+          {submission && (
             <div className="p-4 rounded-xl bg-secondary border border-[var(--border-primary)] text-left space-y-1">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runSubmitDetail.submissionDetails")}</p>
-              <p className="text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runSubmitDetail.status")}: <span className="text-[var(--brand-orange)]">{existingSubmission.status?.toUpperCase()}</span></p>
-              <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runSubmitDetail.submittedOn", { date: new Date(existingSubmission.submitted_at || existingSubmission.updated_at).toLocaleString() })}</p>
+              <p className="text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runSubmitDetail.status")}: <span className="text-[var(--brand-orange)]">{submission.status?.toUpperCase()}</span></p>
+              <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runSubmitDetail.submittedOn", { date: new Date(submission.submitted_at || submission.updated_at).toLocaleString() })}</p>
             </div>
           )}
           <button onClick={() => router.push("/platform/runs/submit")} className="px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110">
@@ -536,7 +531,7 @@ export default function SubmitFormPage() {
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500">{t("platformMisc.runSubmitDetail.alreadySubmitted")}</p>
               <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                {t("platformMisc.runSubmitDetail.submittedNotice", { date: new Date(existingSubmission.submitted_at || existingSubmission.updated_at).toLocaleString() })}
+                {t("platformMisc.runSubmitDetail.submittedNotice", { date: new Date(submission.submitted_at || submission.updated_at).toLocaleString() })}
                 {isApproved && ` ${t("platformMisc.runSubmitDetail.approvedNotice")}`}
                 {isRejected && ` ${t("platformMisc.runSubmitDetail.rejectedNotice")}`}
               </p>
@@ -561,13 +556,13 @@ export default function SubmitFormPage() {
           sections.map((section) => {
             const sectionFields = fields.filter((f) => f.section_id === section.id);
             if (sectionFields.length === 0) return null;
-            const isExpanded = expandedSections[section.id] !== false;
+            const isExpanded = !closedSections[section.id];
 
             return (
               <div key={section.id} className="rounded-2xl bg-secondary border border-[var(--border-primary)] overflow-hidden">
                 <button
                   type="button"
-                  onClick={() => setExpandedSections((prev) => ({ ...prev, [section.id]: !isExpanded }))}
+                  onClick={() => setClosedSections((prev) => ({ ...prev, [section.id]: isExpanded }))}
                   className="w-full flex items-center justify-between px-5 py-4 hover:bg-tertiary/50 transition-colors"
                 >
                   <div className="text-left">

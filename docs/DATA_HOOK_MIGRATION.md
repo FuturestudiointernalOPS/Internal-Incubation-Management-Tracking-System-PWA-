@@ -77,6 +77,34 @@ hook gates what it returns on the address during render instead of treating the
 default as part of the read's identity. See section 3.8 for what that cost before
 it was true.
 
+### A read that fills in a form: a derived base plus the edits
+
+A form whose starting values come from a read is **not** a reason to leave the
+screen alone, and it does not need an effect either. The stored values are the
+base, the person's changes are recorded against the field they touch, and what is
+shown is the two merged:
+
+```js
+const [edits, setEdits] = useState({});
+const answers = { ...(stored?.data || {}), ...edits };
+// and on a change:  setEdits((prev) => ({ ...prev, [fieldId]: value }))
+```
+
+Nothing is copied, so no effect has to notice the values arriving - which is what
+would erase something typed in the moment before they did.
+
+Two shapes of the same idea are worth knowing, because they are the ones that
+actually come up:
+
+| Shape | When |
+|---|---|
+| An **explicit override** over a computed default | A value that is usually derived but that the person can choose - the week under review, which source is selected. Storing the *choice* rather than the result also stops a background refresh throwing the choice away. |
+| An **edit recorded with the address it belongs to** | A value read for one address and edited for that address - a day's attendance sheet. Without the address, a mark made for one day shows on another. |
+
+The test to apply **before** choosing this shape: **is the stored value ever
+assigned back over the edits?** If it is - a discard-changes button, a reset, a
+reload - the shape is wrong for that value and the read has to be separated from	he form instead.
+
 For a screen that reads several endpoints whose URLs contain a runtime value
 (an id, a filter), prefer **one `useApi` call per endpoint** with the value as
 a plain dependency. `useApiMulti` needs an array whose identity is stable, so
@@ -123,22 +151,22 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 140 |
-| `react-hooks/set-state-in-effect` | 200 | 133 |
+| ESLint warnings, total | 2192 | 138 |
+| `react-hooks/set-state-in-effect` | 200 | 131 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` in converted files | 0 | 0 |
 | Production build | passes | passes |
 
-Screens carrying a `set-state-in-effect` warning: **85**.
+Screens carrying a `set-state-in-effect` warning: **83**.
 
 | Group | Screens |
 |---|---:|
-| Application pages | 26 |
+| Application pages | 24 |
 | Shared components (`src/components/`) | 32 |
 | Venture screens | 23 |
 | `src/lib/` modules | 4 |
 
-Of these 85 screens, **60 carry a single warning**; the remaining 25 carry two
+Of these 83 screens, **58 carry a single warning**; the remaining 25 carry two
 to five.
 
 > The test count is not recorded here any more: another workstream adds and
@@ -267,12 +295,36 @@ identifier in the request is the person's:
 |---|---|
 | `src/app/admin/crm/people/[cid]/page.js`, `src/app/team/[id]/page.js` | One record plus several sub-resources, each with its own status handling. |
 
-Screens whose read initialises an **editable form** are a group of their own, and
-they are all still open:
+Screens whose read fills in a form the person then edits. They DO convert, and
+the shape is the same in all three: the stored answers are a derived base and an
+edit is recorded against the one field it changes, so the answer for a field is
+the edit if there is one and the stored value otherwise. Nothing is copied into
+state, so there is no effect and nothing to resynchronise. Section 1 has the two
+variations this takes when the value is a choice or belongs to an address.
 
-| Screen | What has to be decided first |
+The test to apply first: **is the stored value ever assigned back over the
+edits?** If it is - a discard-changes button, a reset - the base-and-edits shape
+is wrong and the read has to be separated from the form instead (a child that
+owns the form and is keyed on the record, so a different record remounts it). In
+the three below, every write is already a per-field merge, so there is nothing to
+separate.
+
+| Screen | Still open, and why |
 |---|---|
-| `src/app/platform/runs/submit/[runId]/page.js`, `src/app/platform/runs/review/[submissionId]/page.js`, `src/app/facilitator/program/[id]/page.js` | The read fills in answers the person then edits. Deriving them would erase the edits, so the read and the form have to be separated first - the standard shape is a child component that owns the form and is keyed on the record, so a different record remounts it with the right starting values. |
+| `src/app/platform/runs/review/[submissionId]/page.js` | Its read also **writes**: finding no stored evaluation, and only for someone who may review, it triggers one - and an evaluation can auto-approve the applicant and email them. That trigger cannot be a derived value, and an effect that performs it still writes state. It has to become an explicit action with a button, which is a product decision rather than a conversion, so the screen waits. |
+| `src/app/investor/profile/page.js` | Reads the server's values into a profile form. Needs the test above applied before it is touched. |
+| `src/app/s/[runId]/page.js` | Public form. Its loader also switches the interface language, and a second effect keeps a local draft, so the read has to be separated from those two first. |
+
+Converted:
+
+- the **platform submission screen** — the stored answers are the base and a
+  collapsed section is recorded as a collapse, so a section that arrives later is
+  open rather than shut until an effect opens it.
+- the **facilitator's programme workspace** — five reads, an attendance sheet
+  whose marks are recorded with the day they were made on, and the week under
+  review recorded as a choice. That last one changes a visible behaviour: the
+  computed week used to be reassigned on every load, so a background refresh threw
+  away the week the person had picked.
 
 Converted out of this list:
 
