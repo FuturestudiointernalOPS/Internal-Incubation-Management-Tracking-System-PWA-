@@ -27,6 +27,7 @@ import {
   seedVenturesMemberEligibility,
   seedVenturesFounderEligibility,
   seedTemplateCeilingEligibility,
+  seedProgramAssignmentEligibility,
   evaluateEligibility,
 } from "./eligibility";
 import { ensureCapabilityBackfills } from "./backfill";
@@ -85,6 +86,14 @@ function ensureEligibilitySeeded() {
         await runAuthzMigration(
           "eligibility-template-ceiling-v1",
           seedTemplateCeilingEligibility,
+        );
+        // Assignment-derived PROGRAM access (facilitator / program manager).
+        // Same gap as the ventures/member row above: the ceiling must allow the
+        // baseline identities these contextual roles resolve to, or the
+        // assignment-derived capability is refused before it is ever read.
+        await runAuthzMigration(
+          "eligibility-programs-assignment-v1",
+          seedProgramAssignmentEligibility,
         );
         eligibilitySeeded = true;
       })().finally(() => {

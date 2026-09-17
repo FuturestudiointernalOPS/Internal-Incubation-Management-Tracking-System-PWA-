@@ -1328,6 +1328,26 @@ export async function seedDefaultAccessProfiles() {
           lms: { view: 1 },
         },
       },
+      // ASSIGNMENT-DERIVED program management.
+      //
+      // A person assigned as the manager of ONE program must get what managing
+      // THAT program needs — not the whole portfolio template above, which also
+      // carries venture editing, reporting and CRM access. This profile is what
+      // the Context Roles registry points `program:program_manager` at, and it
+      // is deliberately limited to the program module: no `create` (bringing a
+      // program into existence is not a property of an existing assignment) and
+      // no `delete` (destructive, and the highest risk in the catalog).
+      //
+      // It does NOT replace the "Program Manager" role default above: a person
+      // whose platform role is program_manager keeps that template exactly as
+      // before. This one is about the assignment.
+      "Assigned Program Manager": {
+        description:
+          "Assignment-derived program management — the program you are assigned to",
+        capabilities: {
+          programs: { view: 1, edit: 3, publish: 4 },
+        },
+      },
       "Project Owner": {
         description: "Project management — own projects, tasks, team reporting",
         capabilities: {

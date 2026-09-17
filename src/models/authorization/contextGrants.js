@@ -34,8 +34,45 @@
 
 import db, { initDb } from "@/lib/db";
 import { getContextRoleProfile } from "./contextRoleProfiles";
+import {
+  listActiveProgramAssignments,
+  listProgramAssignmentContacts,
+  assignmentsForRole,
+  loadAssignmentLookups,
+  deriveFacilitatorDesiredCaps,
+  deriveAssignmentsExpiry,
+} from "./programAssignments";
 
 let contextAppliedGrantsSchemaPromise = null;
+
+/**
+ * Context × role combinations the reconcile machinery can justify and resolve.
+ *
+ *   venture:founder        — active venture membership, "Founder" profile
+ *   program:facilitator    — active program assignment; the PER-PROGRAM TICK
+ *                            LIST decides which capabilities it really grants
+ *   program:program_manager— active program assignment (named manager or a
+ *                            program_manager staff row); registry-mapped profile
+ *
+ * `team` and venture-side consolidation are deliberately out of scope.
+ */
+export const SUPPORTED_CONTEXT_ROLES = [
+  { context: "venture", roleKey: "founder" },
+  { context: "program", roleKey: "facilitator" },
+  { context: "program", roleKey: "program_manager" },
+];
+
+/** ISO date (YYYY-MM-DD) from a Date or a timestamp string; null when absent. */
+function isoDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime())
+      ? null
+      : value.toISOString().slice(0, 10);
+  }
+  const s = String(value).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+}
 
 /** granted_by stamp for grants this module owns — the only rows it may remove. */
 export function contextGrantSentinel(context, roleKey) {
@@ -89,6 +126,10 @@ export function ensureContextAppliedGrantsSchema() {
  * @param {Array}  args.existing   current user_capabilities rows [{module, capability, granted_by}]
  * @param {Array}  args.provenance rows this module applied before [{module, capability}]
  * @param {string} args.sentinel   granted_by stamp owned by this mechanism
+ * @param {string|null} [args.expiresAt]  when provided (even null), the grant's
+ *   expiry is managed by the caller: a row whose level AND expiry already match
+ *   is left alone, so a program whose end date moved is picked up as a change.
+ *   When omitted, expiry is out of scope and the previous comparison applies.
  * @returns {{ toApply: Array, toRevoke: Array }}
  */
 export function planContextGrantChanges({
@@ -96,11 +137,16 @@ export function planContextGrantChanges({
   existing = [],
   provenance = [],
   sentinel,
+  expiresAt,
 }) {
   const desiredKeys = new Set(Object.keys(desired));
   const existingByKey = new Map(
     (existing || []).map((r) => [`${r.module}.${r.capability}`, r]),
   );
+
+  const managesExpiry = expiresAt !== undefined;
+  const expiryMatches = (row) =>
+    !managesExpiry || isoDate(row?.expires_at) === isoDate(expiresAt);
 
   const toApply = [];
   for (const item of Object.values(desired)) {
@@ -109,13 +155,20 @@ export function planContextGrantChanges({
     // A manual grant (or another mechanism's grant) always wins: never
     // overwrite it, never claim it as ours.
     if (current && current.granted_by !== sentinel) continue;
-    // Already applied at this level — nothing to write (keeps the reconcile
-    // report honest and the writes minimal).
-    if (current && Number(current.access_level) === Number(item.level ?? 1)) continue;
+    // Already applied at this level (and expiry, when managed) — nothing to
+    // write (keeps the reconcile report honest and the writes minimal).
+    if (
+      current &&
+      Number(current.access_level) === Number(item.level ?? 1) &&
+      expiryMatches(current)
+    ) {
+      continue;
+    }
     toApply.push({
       module: item.module,
       capability: item.capability,
       level: Number(item.level ?? 1),
+      expiresAt: managesExpiry ? expiresAt : undefined,
     });
   }
 
@@ -141,7 +194,7 @@ export async function listActiveFounderVentures(cid) {
 }
 
 /** Capabilities the registry says this context role should provide. */
-async function resolveContextDesiredCaps(context, roleKey) {
+export async function resolveContextDesiredCaps(context, roleKey) {
   const mapping = await getContextRoleProfile(context, roleKey);
   const row = mapping?.rows?.[0];
   if (!row || Number(row.is_active) !== 1 || !row.profile_id) {
@@ -173,13 +226,97 @@ async function invalidateUserContext(cid) {
 }
 
 /**
+ * Why do these grants exist, and what should they be? One place for the three
+ * supported context roles, so the reconcile path stays identical for all of
+ * them. Returns null for an unsupported pair (the caller reports it rather than
+ * silently revoking).
+ *
+ * `expiresAt` is only produced for the PROGRAM contexts: program access ends
+ * with the program, so the grant carries the latest program end date and the
+ * resolver stops honouring it on its own once that date passes.
+ */
+async function resolveContextJustification(cid, { context, roleKey, email }) {
+  if (context === "venture" && roleKey === "founder") {
+    const ventures = await listActiveFounderVentures(cid);
+    if (ventures.length === 0) {
+      return {
+        sourceIds: [],
+        profile: null,
+        desired: {},
+        reason: "no active relationship",
+        managesExpiry: false,
+        expiresAt: null,
+      };
+    }
+    const resolved = await resolveContextDesiredCaps(context, roleKey);
+    return {
+      sourceIds: ventures,
+      profile: resolved.profile,
+      desired: resolved.desired,
+      reason: resolved.reason,
+      managesExpiry: false,
+      expiresAt: null,
+    };
+  }
+
+  if (
+    context === "program" &&
+    (roleKey === "facilitator" || roleKey === "program_manager")
+  ) {
+    const { rows } = await listActiveProgramAssignments(cid, { email });
+    const mine = assignmentsForRole(rows, roleKey);
+    const sourceIds = mine.map((r) => String(r.program_id));
+    if (mine.length === 0) {
+      return {
+        sourceIds,
+        profile: null,
+        desired: {},
+        reason: "no active relationship",
+        managesExpiry: true,
+        expiresAt: null,
+      };
+    }
+    const expiresAt = deriveAssignmentsExpiry(mine);
+    if (roleKey === "facilitator") {
+      // The FACILITATOR's per-program tick list is the source of truth: the
+      // grant must reflect what the assignments actually grant, never a
+      // blanket default. A capability ticked off in every program disappears
+      // from the grant on the next reconcile.
+      const lookups = await loadAssignmentLookups(mine);
+      const { desired } = deriveFacilitatorDesiredCaps(mine, lookups);
+      return {
+        sourceIds,
+        profile: "Facilitator assignment (per-program permissions)",
+        desired,
+        reason: Object.keys(desired).length ? "assigned" : "no per-program rights",
+        managesExpiry: true,
+        expiresAt,
+      };
+    }
+    // Program manager: the Context Roles registry decides the profile.
+    const resolved = await resolveContextDesiredCaps(context, roleKey);
+    return {
+      sourceIds,
+      profile: resolved.profile,
+      desired: resolved.desired,
+      reason: resolved.reason,
+      managesExpiry: true,
+      expiresAt,
+    };
+  }
+
+  return null;
+}
+
+/**
  * Reconcile one person's context grants. Idempotent, never throws.
  *
- * @returns {{ success, cid, context, roleKey, profile, ventures, applied, revoked, reason }}
+ * @returns {{ success, cid, context, roleKey, profile, applied, revoked, reason,
+ *             expiresAt?, programs?, ventures? }}
  */
 export async function syncContextGrantsForUser(
   cid,
-  { context = "venture", roleKey = "founder" } = {},
+  { context = "venture", roleKey = "founder", email = null } = {},
 ) {
   try {
     if (!cid) return { success: false, error: "cid is required" };
@@ -187,21 +324,31 @@ export async function syncContextGrantsForUser(
     await ensureContextAppliedGrantsSchema();
     const sentinel = contextGrantSentinel(context, roleKey);
 
-    // 1. Is the relationship that justifies these grants still active?
-    const supportedContext =
-      context === "venture" && roleKey === "founder";
-    const ventures = supportedContext ? await listActiveFounderVentures(cid) : [];
-    const justified = ventures.length > 0;
-
-    // 2. What should the mapped profile provide?
-    const resolved = justified
-      ? await resolveContextDesiredCaps(context, roleKey)
-      : { profile: null, desired: {}, reason: "no active relationship" };
+    // 1 + 2. Is the justifying relationship still active, and what should the
+    //        grant be? (One dispatch for venture founder / program facilitator
+    //        / program manager.)
+    const support = await resolveContextJustification(cid, {
+      context,
+      roleKey,
+      email,
+    });
+    if (!support) {
+      return {
+        success: false,
+        cid: String(cid),
+        context,
+        roleKey,
+        error: "unsupported context role",
+      };
+    }
+    const { sourceIds, profile, desired, reason, managesExpiry } = support;
+    const expiresAt = managesExpiry ? support.expiresAt : null;
+    const resolved = { profile, desired, reason };
 
     // 3. What exists today (manual grants + what we applied before)?
     const [existingRes, provenanceRes] = await Promise.all([
       db.execute({
-        sql: "SELECT module, capability, access_level, granted_by FROM user_capabilities WHERE user_cid = ?",
+        sql: "SELECT module, capability, access_level, granted_by, expires_at FROM user_capabilities WHERE user_cid = ?",
         args: [String(cid)],
       }),
       db.execute({
@@ -214,18 +361,28 @@ export async function syncContextGrantsForUser(
       existing: existingRes?.rows || [],
       provenance: provenanceRes?.rows || [],
       sentinel,
+      // Only the program contexts own an expiry. Passing undefined (not null)
+      // keeps the venture path's comparison exactly as it was.
+      expiresAt: managesExpiry ? expiresAt : undefined,
     });
 
     // 4. Apply (additive; manual grants are never overwritten by the planner).
     for (const item of plan.toApply) {
       await db.execute({
         sql: `INSERT INTO user_capabilities (user_cid, module, capability, access_level, granted_by, expires_at)
-              VALUES (?, ?, ?, ?, ?, NULL)
+              VALUES (?, ?, ?, ?, ?, ?)
               ON CONFLICT (user_cid, module, capability) DO UPDATE SET
                 access_level = EXCLUDED.access_level,
                 granted_by = EXCLUDED.granted_by,
-                expires_at = NULL`,
-        args: [String(cid), item.module, item.capability, item.level, sentinel],
+                expires_at = EXCLUDED.expires_at`,
+        args: [
+          String(cid),
+          item.module,
+          item.capability,
+          item.level,
+          sentinel,
+          managesExpiry ? expiresAt : null,
+        ],
       });
       await db.execute({
         sql: `INSERT INTO context_applied_grants (user_cid, context, role_key, source_ref, module, capability, access_level)
@@ -238,7 +395,7 @@ export async function syncContextGrantsForUser(
           String(cid),
           context,
           roleKey,
-          ventures.join(",") || null,
+          sourceIds.join(",") || null,
           item.module,
           item.capability,
           item.level,
@@ -258,12 +415,21 @@ export async function syncContextGrantsForUser(
       });
     }
 
-    // 6. Keep the venture list fresh even when nothing else changed.
-    if (justified && plan.toApply.length === 0 && plan.toRevoke.length === 0) {
+    // 6. Keep the justifying-relationship list AND the expiry fresh even when
+    //    nothing else changed — a program whose end date moved must re-date the
+    //    grant even though the capability set did not change.
+    if (sourceIds.length > 0 && plan.toApply.length === 0 && plan.toRevoke.length === 0) {
       await db.execute({
         sql: "UPDATE context_applied_grants SET source_ref = ?, updated_at = NOW() WHERE user_cid = ? AND context = ? AND role_key = ?",
-        args: [ventures.join(","), String(cid), context, roleKey],
+        args: [sourceIds.join(","), String(cid), context, roleKey],
       });
+      if (managesExpiry) {
+        await db.execute({
+          sql: `UPDATE user_capabilities SET expires_at = ?
+                WHERE user_cid = ? AND granted_by = ? AND expires_at IS DISTINCT FROM ?`,
+          args: [expiresAt, String(cid), sentinel, expiresAt],
+        });
+      }
     }
 
     const changed = plan.toApply.length > 0 || plan.toRevoke.length > 0;
@@ -275,7 +441,12 @@ export async function syncContextGrantsForUser(
       context,
       roleKey,
       profile: resolved.profile,
-      ventures,
+      // Venture callers read `ventures`; program callers read `programs`. The
+      // field name keeps the original contract intact.
+      ...(context === "venture"
+        ? { ventures: sourceIds }
+        : { programs: sourceIds }),
+      ...(managesExpiry ? { expiresAt } : {}),
       applied: plan.toApply.map((i) => `${i.module}.${i.capability}`),
       revoked: plan.toRevoke.map((i) => `${i.module}.${i.capability}`),
       reason: resolved.reason,
@@ -305,6 +476,10 @@ export async function syncAllContextGrants(
               WHERE removed_at IS NULL AND ${FOUNDER_MATCH_SQL}`,
       });
       for (const r of relRes.rows || []) if (r.cid) cids.add(String(r.cid));
+    } else if (context === "program") {
+      // Everyone who currently holds a program assignment (any role — the
+      // per-role split happens inside the per-user reconcile).
+      for (const cid of await listProgramAssignmentContacts()) cids.add(cid);
     }
     // People whose relationship ended still need a pass so their applied rows
     // are removed.
@@ -333,6 +508,119 @@ export async function syncAllContextGrants(
     };
   } catch (e) {
     console.warn("[Authz] syncAllContextGrants failed:", e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Reconcile EVERY supported context for ONE person. This is the "connect and
+ * receive the changes" path: a facilitator or program manager who was already
+ * in production when this mechanism shipped gets their assignment-derived
+ * grants applied the moment their permissions are read — additively, so nothing
+ * they hold today is taken away by the act of connecting.
+ *
+ * Cost-bounded by ON_CONNECT_TTL_MS: the caller is a hot read path, and a
+ * reconcile is 3 × (a few queries). Once per window is enough — grants only
+ * change when an assignment, a tick list, a profile or a program end date
+ * changes, and the write paths already reconcile directly.
+ */
+const ON_CONNECT_TTL_MS = 5 * 60 * 1000;
+const _lastOnConnectSync = new Map();
+
+export async function syncContextGrantsOnConnect(cid, { email = null, force = false } = {}) {
+  if (!cid) return { success: false, error: "cid is required" };
+  const key = String(cid);
+  const last = _lastOnConnectSync.get(key);
+  if (!force && last && Date.now() - last < ON_CONNECT_TTL_MS) {
+    return { success: true, skipped: true, reason: "within-ttl" };
+  }
+  _lastOnConnectSync.set(key, Date.now());
+
+  const results = [];
+  for (const spec of SUPPORTED_CONTEXT_ROLES) {
+    results.push(
+      await syncContextGrantsForUser(cid, { ...spec, email }),
+    );
+  }
+  const applied = results.flatMap((r) => r.applied || []);
+  const revoked = results.flatMap((r) => r.revoked || []);
+  return {
+    success: true,
+    cid: key,
+    contexts: results,
+    applied,
+    revoked,
+    changes: applied.length + revoked.length,
+  };
+}
+
+/**
+ * Sweep every supported context across every relationship holder — the
+ * backfill and the drift repair. This is what a scheduled run calls, and it is
+ * also how access ENDS: when a program's end date passes, or its status is set
+ * to completed/archived, the assignment stops being active and this pass
+ * withdraws the grants it justified.
+ *
+ * Aggregates the per-context reports into the flat shape the earlier phases
+ * returned (`evaluated` / `applied` / `revoked` / `changes`) so existing
+ * consumers keep working, and adds `contexts` for the per-context detail.
+ */
+export async function syncAllContextGrantsEverywhere() {
+  const contexts = [];
+  for (const spec of SUPPORTED_CONTEXT_ROLES) {
+    contexts.push(await syncAllContextGrants(spec));
+  }
+  const applied = contexts.flatMap((c) => c.applied || []);
+  const revoked = contexts.flatMap((c) => c.revoked || []);
+  return {
+    success: contexts.every((c) => c.success !== false),
+    contexts: contexts.map((c) => ({
+      context: c.context,
+      roleKey: c.roleKey,
+      evaluated: c.evaluated ?? 0,
+      applied: c.applied || [],
+      revoked: c.revoked || [],
+      changes: c.changes ?? 0,
+    })),
+    evaluated: contexts.reduce((n, c) => n + (c.evaluated ?? 0), 0),
+    applied,
+    revoked,
+    changes: applied.length + revoked.length,
+  };
+}
+
+/**
+ * Withdraw every grant this mechanism applied for ONE context/role, regardless
+ * of whether the relationship still exists. Used when an administrator clears
+ * or disables a mapping and wants the effect applied immediately rather than
+ * waiting for the next reconcile to notice.
+ */
+export async function revokeAllContextGrants(cid, { context, roleKey }) {
+  const sentinel = contextGrantSentinel(context, roleKey);
+  try {
+    if (!cid) return { success: false, error: "cid is required" };
+    await initDb();
+    await ensureContextAppliedGrantsSchema();
+    const prov = await db.execute({
+      sql: "SELECT module, capability FROM context_applied_grants WHERE user_cid = ? AND context = ? AND role_key = ?",
+      args: [String(cid), context, roleKey],
+    });
+    const removed = [];
+    for (const row of prov.rows || []) {
+      await db.execute({
+        sql: "DELETE FROM user_capabilities WHERE user_cid = ? AND module = ? AND capability = ? AND granted_by = ?",
+        args: [String(cid), row.module, row.capability, sentinel],
+      });
+      removed.push(`${row.module}.${row.capability}`);
+    }
+    await db.execute({
+      sql: "DELETE FROM context_applied_grants WHERE user_cid = ? AND context = ? AND role_key = ?",
+      args: [String(cid), context, roleKey],
+    });
+    if (removed.length) await invalidateUserContext(cid);
+    return { success: true, cid: String(cid), context, roleKey, revoked: removed };
+  } catch (e) {
+    console.warn(`[Authz] revokeAllContextGrants(${cid}) failed:`, e.message);
     return { success: false, error: e.message };
   }
 }

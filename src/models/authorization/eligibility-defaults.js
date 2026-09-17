@@ -62,6 +62,16 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
   // Programs — programs, participants, submissions (facilitator module)
   // Mentor / Investor resolve to the Mentor template, which reads program
   // progress — same invariant as `communication` above.
+  //
+  // `facilitator` and `member` are here for the ASSIGNMENT-derived model: an
+  // external facilitator is a baseline Member (or carries the facilitator
+  // label) whose program access comes from the per-program assignment, never
+  // from a global role default. Eligibility is a CEILING — being listed grants
+  // nothing by itself; without the row the assignment-derived capability would
+  // be dead on arrival (the resolver checks eligibility first and fails
+  // closed), which is exactly the "already in production, must not be blocked"
+  // case. Seeded insert-only for existing databases by
+  // seedProgramAssignmentEligibility().
   programs: [
     "super_admin",
     "staff",
@@ -69,6 +79,8 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "participant",
     "mentor",
     "investor",
+    "facilitator",
+    "member",
   ],
   // Ventures — incubated businesses (founder eligible for own-venture access).
   ventures: [

@@ -17,6 +17,10 @@ import { ensurePermissionsSchema } from "@/lib/auth";
 import { runAuthzMigration } from "./migrations";
 import { ensureMembershipBootstrap } from "./membership";
 import { backfillContextRoleProfileMappings } from "./contextRoleProfiles";
+import {
+  ensureAssignedProgramManagerProfile,
+  backfillFacilitatorTickLists,
+} from "./programAssignmentBackfill";
 import { ensureEligibilitySchema } from "./eligibility";
 
 // Phase 2: Knowledge Base.
@@ -83,6 +87,24 @@ export function ensureCapabilityBackfills() {
           runAuthzMigration(
             "context-role-profile-mappings-v1",
             backfillContextRoleProfileMappings,
+          ),
+          // ASSIGNMENT-DERIVED PROGRAM ACCESS.
+          //
+          // (a) Create the narrow "Assigned Program Manager" template and point
+          //     the registry's program:program_manager row at it — only while it
+          //     still points at the seeded profile, so an administrator's own
+          //     choice is never overwritten.
+          // (b) Fill the missing entries of every facilitator assignment's
+          //     tick list at the level today's resolution already produces, so
+          //     turning on per-program enforcement cannot deny a facilitator
+          //     who is already working. Never rewrites an existing entry.
+          runAuthzMigration(
+            "assigned-program-manager-profile-v1",
+            ensureAssignedProgramManagerProfile,
+          ),
+          runAuthzMigration(
+            "facilitator-tick-list-backfill-v1",
+            backfillFacilitatorTickLists,
           ),
         ]);
 

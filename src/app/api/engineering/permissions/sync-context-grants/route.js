@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
-import { syncAllContextGrants } from "@/models/authorization/contextGrants";
+import { syncAllContextGrantsEverywhere } from "@/models/authorization/contextGrants";
 
 export const dynamic = "force-dynamic";
 
@@ -8,27 +8,31 @@ export const dynamic = "force-dynamic";
  * GET /api/engineering/permissions/sync-context-grants
  *     requires permissions.view_matrix
  *
- * PHASE 6 — CONTEXT → PROFILE APPLICATION (idempotent reconcile).
+ * CONTEXT → PROFILE APPLICATION (idempotent reconcile, every context).
  *
- * Applies the Context Roles registry at the membership boundary: an active
- * venture founder receives the mapped profile's capabilities as additive
- * individual grants (`granted_by = ctx:venture:founder`), and grants whose
- * justifying relationship ended are removed. Manual grants are never touched.
+ * Applies the Context Roles registry at the membership boundary:
  *
- * Safe to re-run. After running it, re-check
- * GET /api/engineering/permissions/venture-strict-audit — `viewMissing`
- * should be empty for founders.
+ *   venture:founder         — active venture membership → mapped profile caps
+ *   program:facilitator     — active program assignment → the PER-PROGRAM TICK
+ *                             LIST's capabilities (union, strongest level)
+ *   program:program_manager — active program assignment → registry-mapped profile
  *
- * Report shape:
- *   { success, context, roleKey, evaluated, applied: [...], revoked: [...],
- *     changes, results: [{ cid, profile, ventures, applied, revoked, reason }] }
+ * Program-derived grants carry the program's end date as an expiry, so the
+ * access they justify ends with the program. Grants whose justifying
+ * relationship ended are removed. Manual grants and administrator blocks are
+ * never touched — a block is applied by the resolver AFTER the merge, so it
+ * wins over anything this reconcile writes.
+ *
+ * Safe to re-run. Report shape:
+ *   { success, contexts: [{ context, roleKey, evaluated, applied, revoked,
+ *     changes }], evaluated, applied, revoked, changes }
  */
 export async function GET() {
   try {
     const capError = await requireAuthorization("permissions", "view_matrix");
     if (capError) return capError;
 
-    const result = await syncAllContextGrants();
+    const result = await syncAllContextGrantsEverywhere();
     return NextResponse.json(result);
   } catch (err) {
     console.error("[Sync Context Grants] error:", err);

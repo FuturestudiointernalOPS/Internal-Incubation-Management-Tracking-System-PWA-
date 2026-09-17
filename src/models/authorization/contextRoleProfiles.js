@@ -52,15 +52,16 @@ export const CONTEXT_ROLE_SEED = [
   {
     context: "program",
     role_key: "program_manager",
-    profile_name: "Program Manager",
-    notes: "Mirrors the existing role default (program_manager → Program Manager).",
+    profile_name: "Assigned Program Manager",
+    notes:
+      "Assignment-derived: managing ONE program needs the program module only, not the whole portfolio template (which also carries venture, reporting and CRM access). The role default program_manager → 'Program Manager' is untouched — this mapping is about the assignment.",
   },
   {
     context: "program",
     role_key: "facilitator",
     profile_name: null,
     notes:
-      "No facilitator profile seeded yet — program access currently resolves per program from v2_program_staff.permissions. Default pending review.",
+      "INTENTIONALLY unmapped to a profile: a facilitator's grant is DERIVED from the per-program tick list (union of the levels the assignments actually grant), not from a template — see src/models/authorization/programAssignments.js. Pointing this row at a profile would grant capabilities the program manager never ticked. Left NULL on purpose; the reconcile reports the derivation.",
   },
   {
     context: "venture",

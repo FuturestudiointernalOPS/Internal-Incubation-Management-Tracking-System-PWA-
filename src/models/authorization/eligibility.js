@@ -199,6 +199,31 @@ export async function seedTemplateCeilingEligibility() {
 }
 
 /**
+ * Assignment-derived program access: the eligibility rows the per-program
+ * assignment model needs on databases that bootstrapped before it existed.
+ *
+ * A facilitator / program manager receives capabilities from the program
+ * assignment (Context Roles → profile → additive grants). Eligibility is
+ * checked BEFORE capability and fails closed, so without these rows the grant
+ * would look inert and the person would be refused — the opposite of the
+ * "already in production, must not be blocked" requirement.
+ *
+ * Insert-only (ON CONFLICT DO NOTHING): an administrator's decision — including
+ * an explicit deny — is never overwritten. MIRRORS FEATURE_ELIGIBILITY_DEFAULTS.programs.
+ */
+export const PROGRAM_ASSIGNMENT_ROWS = {
+  programs: ["facilitator", "member"],
+};
+
+export async function seedProgramAssignmentEligibility() {
+  for (const [featureKey, roles] of Object.entries(PROGRAM_ASSIGNMENT_ROWS)) {
+    const result = await seedFeatureRows(featureKey, roles);
+    if (!result.success) return result;
+  }
+  return { success: true };
+}
+
+/**
  * Pure eligibility evaluation over pre-loaded rows.
  *
  * @param {Array<{feature_key, eligible}>} rows
