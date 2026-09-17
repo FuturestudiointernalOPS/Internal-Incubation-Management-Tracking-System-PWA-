@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
 import {
@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
 
 /**
  * SUPER ADMIN OPERATIONAL REPORTS DASHBOARD
@@ -70,11 +71,16 @@ const MONTHS = [
   "December",
 ];
 
+// ─── Read shapers (module scope: built once, never per render) ──────────────
+// Each one returns the value the screen shows, and the empty shape when the
+// server refuses: the shared hook reports a refusal as a value, not an event.
+const pickReports = (d) => (d?.success ? d.reports || [] : []);
+const pickProjects = (d) => (d?.success ? d.projects || [] : []);
+const pickBlockers = (d) => (d?.success ? d.blockers || [] : []);
+const pickTasks = (d) => (d?.success ? d.tasks || [] : []);
+
 export default function AdminOpReports() {
   const router = useRouter();
-  const [reports, setReports] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterUser, setFilterUser] = useState("All Users");
   const [filterType, setFilterType] = useState("all");
@@ -87,17 +93,15 @@ export default function AdminOpReports() {
   const [filterBlocker, setFilterBlocker] = useState("all");
   const [filterCarryOver, setFilterCarryOver] = useState("all");
   const [filterWorkspace, setFilterWorkspace] = useState("main");
-  const [allProjects, setAllProjects] = useState([]);
-  const [blockersList, setBlockersList] = useState([]);
   const [blockerFilterWeek, setBlockerFilterWeek] = useState("all");
   const [blockerFilterStatus, setBlockerFilterStatus] = useState("all");
   const PAGE_SIZE = 20;
-  const [reportsPage, setReportsPage] = useState(1);
-  const [blockersPage, setBlockersPage] = useState(1);
 
-  useEffect(() => {
-    setReportsPage(1);
-  }, [
+  // Which page of the feed is shown is remembered TOGETHER WITH the filter
+  // combination it was turned to: choosing a filter therefore shows the first
+  // page again by derivation, and no effect has to watch the filters to write
+  // that reset (§4.3 - a reset reachable during render is derived, not written).
+  const reportsFilterKey = JSON.stringify([
     search,
     filterUser,
     filterType,
@@ -108,119 +112,87 @@ export default function AdminOpReports() {
     filterCarryOver,
     filterWorkspace,
   ]);
-  // Tasks tab state
-  const [allTasks, setAllTasks] = useState([]);
-  const [tasksLoading, setTasksLoading] = useState(false);
+  const [reportsPageState, setReportsPageState] = useState({
+    key: reportsFilterKey,
+    page: 1,
+  });
+  const reportsPage =
+    reportsPageState.key === reportsFilterKey ? reportsPageState.page : 1;
+  const setReportsPage = (next) =>
+    setReportsPageState({
+      key: reportsFilterKey,
+      page: typeof next === "function" ? next(reportsPage) : next,
+    });
+  const [blockersPage, setBlockersPage] = useState(1);
   const { t, lang } = useI18n();
 
-  const fetchData = useCallback(async (bypassCache = false) => {
-    setLoading(true);
-    try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const isSA = user.role === "super_admin";
-      const userId = user.cid || user.id;
+  // Who is signed in comes from the shell's session cache rather than the
+  // browser's stored copy, so the request addresses below can be a plain result
+  // of it - and no read has to wait on an effect to learn the identity.
+  const { user: sessionUser, cid, role } = useSessionUser();
+  const isSA = role === "super_admin";
+  const userId = cid || sessionUser?.id || null;
 
-      const blockerUrl = isSA
-        ? "/api/blockers"
-        : `/api/blockers?user_id=${userId}`;
-      const urls = [
-        `/api/op-reports?workspace=${filterWorkspace}`,
-        "/api/projects",
-        blockerUrl,
-      ];
-      const apply = (data, pData, bData) => {
-        if (data.success) {
-          setReports(data.reports || []);
-          const userMap = {};
-          (data.reports || []).forEach((r) => {
-            if (r.user_id && !userMap[r.user_id]) {
-              userMap[r.user_id] = {
-                id: r.user_id,
-                name: r.user_name,
-                role: r.user_role,
-              };
-            }
-          });
-          setUsers(Object.values(userMap));
-        }
-        if (pData.success) setAllProjects(pData.projects || []);
-        if (bData.success) setBlockersList(bData.blockers || []);
-      };
+  // ─── Reads ────────────────────────────────────────────────────────────────
+  // The shared hook owns the cache, the cache-first paint and the discarding of
+  // a stale answer, so the screen keeps no copy of any of these values.
+  const { data: reports, loading: reportsLoading } = useApi(
+    `/api/op-reports?workspace=${filterWorkspace}`,
+    { defaultValue: [], transform: pickReports },
+  );
+  const { data: allProjects, loading: projectsLoading } = useApi(
+    "/api/projects",
+    {
+      defaultValue: [],
+      transform: pickProjects,
+      // The old loader re-asked for all three reads when the workspace filter
+      // changed; this address does not carry it, so that re-ask is kept here.
+      deps: [filterWorkspace],
+    },
+  );
+  const blockersUrl = isSA
+    ? "/api/blockers"
+    : userId
+      ? `/api/blockers?user_id=${userId}`
+      : null;
+  // The blockers read waits for the identity, so it is not part of the feed's
+  // gate: the feed is not waiting on it, and counting it would drop the skeleton
+  // back over the feed a second time, in the moment the identity arrives.
+  const { data: blockersList } = useApi(blockersUrl, {
+    defaultValue: [],
+    transform: pickBlockers,
+    deps: [isSA, userId, filterWorkspace],
+  });
+  const loading = reportsLoading || projectsLoading;
 
-      // Cache-first paint: returning to this page renders instantly from fresh
-      // snapshots; mutation flows pass bypassCache=true so the view always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
-          apply(cached[0], cached[1], cached[2]);
-          setLoading(false);
-        }
+  // The task list is read only while a tab that shows it is open: a closed tab
+  // has no address, so nothing is read and nothing is loading.
+  const tasksTabOpen = activeTab === "tasks" || activeTab === "blockers";
+  const allTasksUrl = isSA
+    ? "/api/tasks?brief=true&limit=200"
+    : userId
+      ? `/api/tasks?user_id=${userId}&brief=true&limit=200`
+      : null;
+  const { data: allTasks, loading: tasksLoading } = useApi(
+    tasksTabOpen ? allTasksUrl : null,
+    { defaultValue: [], transform: pickTasks, deps: [isSA, userId] },
+  );
+
+  // The member list the filters offer is not stored: it is the reports' own
+  // authors, derived during render from the read's value.
+  const users = useMemo(() => {
+    const userMap = {};
+    reports.forEach((r) => {
+      if (r.user_id && !userMap[r.user_id]) {
+        userMap[r.user_id] = {
+          id: r.user_id,
+          name: r.user_name,
+          role: r.user_role,
+        };
       }
-      const responses = await Promise.all(
-        urls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1], responses[2]);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [filterWorkspace]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Fetch tasks when tasks tab is active
-  const fetchTasks = useCallback(async (bypassCache = false) => {
-    setTasksLoading(true);
-    try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const isSA = user.role === "super_admin";
-      const userId = user.cid || user.id;
-
-      const taskUrl = isSA
-        ? "/api/tasks?brief=true&limit=200"
-        : `/api/tasks?user_id=${userId}&brief=true&limit=200`;
-      const apply = (data) => {
-        if (data.success) setAllTasks(data.tasks || []);
-      };
-
-      // Cache-first paint on reads; mutation flows pass bypassCache=true so the
-      // task list always reflects the just-changed server state.
-      if (!bypassCache) {
-        const cached = cacheGet(taskUrl);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setTasksLoading(false);
-        }
-      }
-      const res = await fetch(taskUrl);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(taskUrl, data);
-        apply(data);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setTasksLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === "tasks" || activeTab === "blockers") {
-      if (allTasks.length === 0) fetchTasks();
-    }
-  }, [activeTab, fetchTasks, allTasks.length]);
+    });
+    return Object.values(userMap);
+  }, [reports]);
 
   const filteredReports = useMemo(() => {
     return reports
@@ -1705,31 +1677,26 @@ function TrendsDashboard({ allReports }) {
 
 function ReportDetailModal({ report, onClose }) {
   const { t, lang } = useI18n();
-  const [weekTasks, setWeekTasks] = useState([]);
-  const [weekTasksLoading, setWeekTasksLoading] = useState(false);
-  const [projects, setProjects] = useState([]);
+  // Both reads come from the shared hook, which owns the cache, the cache-first
+  // paint and the discarding of a stale answer. The week's tasks are addressed on
+  // the report they belong to: with no report there is nothing to read.
+  const { data: weekTasks, loading: weekTasksLoading } = useApi(
+    report?.user_id && report?.week_number && report?.year
+      ? `/api/tasks?user_id=${report.user_id}&week=${report.week_number}&year=${report.year}&sort=oldest`
+      : null,
+    {
+      defaultValue: [],
+      transform: pickTasks,
+      deps: [report?.user_id, report?.week_number, report?.year],
+    },
+  );
+  const { data: projects } = useApi("/api/projects", {
+    defaultValue: [],
+    transform: pickProjects,
+  });
   const [expandedTaskMeta] = useState(null);
   const [taskLogs, setTaskLogs] = useState({});
   const pdfContentRef = useRef(null);
-
-  useEffect(() => {
-    if (!report?.user_id || !report?.week_number || !report?.year) return;
-    setWeekTasksLoading(true);
-    Promise.all([
-      fetch(
-        `/api/tasks?user_id=${report.user_id}&week=${report.week_number}&year=${report.year}&sort=oldest`,
-      ),
-      fetch("/api/projects"),
-    ])
-      .then(async ([tRes, pRes]) => {
-        const tData = await tRes.json();
-        const pData = await pRes.json();
-        if (tData.success) setWeekTasks(tData.tasks || []);
-        if (pData.success) setProjects(pData.projects || []);
-        setWeekTasksLoading(false);
-      })
-      .catch(() => setWeekTasksLoading(false));
-  }, [report]);
 
   const projectMap = {};
   projects.forEach((p) => {

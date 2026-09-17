@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   Briefcase,
@@ -23,7 +23,8 @@ import {
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import TaskManager from "@/components/tasks/TaskManager";
 
 /**
@@ -51,18 +52,49 @@ const STATUS_BG = {
   Archived: "bg-slate-500/10",
 };
 
+// ─── Read shapers (module scope: built once, never per render) ──────────────
+// The reading hook mirrors these, so an inline arrow would be a new function on
+// every render and would read as a change to the read.
+
+// The project read keeps the server's refusal with it: the screen answers a
+// failed read with the server's own message, or the loader's own when the
+// payload carried none. The message is translated where it is shown.
+const pickProject = (d) =>
+  d?.success
+    ? { project: d.project, failure: null }
+    : {
+        project: null,
+        failure: d?.error || "adminMisc.projectDetail.loadProjectFailed",
+      };
+
+const pickStaff = (d) =>
+  d?.success
+    ? (d.contacts || []).filter(
+        (c) => c.status === "active" && c.role !== "participant",
+      )
+    : [];
+
+const pickApprovals = (d) => (d?.success ? d.requests || [] : []);
+
+const pickUpdates = (d) => (d?.success ? d.updates || [] : []);
+
+const pickDiscussions = (d) => (d?.success ? d.messages || [] : []);
+
+const EMPTY_PROJECT = { project: null, failure: null };
+const EMPTY_LIST = [];
+
 export default function ProjectDetail() {
   const router = useRouter();
   const params = useParams();
   const { t } = useI18n();
-  const [project, setProject] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // The signed-in role, observed from the session the shell already publishes
+  // rather than re-read from the browser's stored copy. "super_admin" is the
+  // same fallback the stored copy's absence used to produce.
+  const { role } = useSessionUser();
+  const userRole = role || "super_admin";
   const [activeTab, setActiveTab] = useState("overview");
 
   const [blockerFilter, setBlockerFilter] = useState("all");
-  const [updates, setUpdates] = useState([]);
-  const [updatesLoading, setUpdatesLoading] = useState(false);
   const [updateForm, setUpdateForm] = useState({
     accomplishments: "",
     current_focus: "",
@@ -72,132 +104,55 @@ export default function ProjectDetail() {
     notes: "",
   });
   const [savingUpdate, setSavingUpdate] = useState(false);
-  const [allStaff, setAllStaff] = useState([]);
-  const [approvalRequests, setApprovalRequests] = useState([]);
-  const [approvalsLoading, setApprovalsLoading] = useState(false);
-  const [userRole, setUserRole] = useState("super_admin");
-  const [discussions, setDiscussions] = useState([]);
-  const [discussionsLoading, setDiscussionsLoading] = useState(false);
   const [newDiscussion, setNewDiscussion] = useState("");
   const [postingDiscussion, setPostingDiscussion] = useState(false);
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("user");
-      if (saved) {
-        const u = JSON.parse(saved);
-        setUserRole(u.role || "super_admin");
-      }
-    } catch (_) {}
-  }, []);
-
-  // Kept (unused) so the effect-invoked fetchers keep their non-effect call site;
-  // removing it changes how the react-hooks compiler rules treat fetchProject.
-  const _handleTaskStatusChange = async (taskId, newStatus) => {
-    try {
-      await fetch("/api/tasks", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: taskId,
-          status: newStatus,
-          user_id: project.owner_id || "sa",
-          user_name: project.owner_name || "Project Owner",
-        }),
-      });
-      fetchProject(true);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   const projectId = params?.id;
 
-  const fetchProject = useCallback(async (bypassCache = false) => {
-    if (!projectId) return;
-    const url = `/api/admin/projects/${projectId}`;
-    const apply = (data) => {
-      if (data.success) {
-        setProject(data.project);
-      } else {
-        setError(t((data.error || t("adminMisc.projectDetail.loadProjectFailed")) || "") || (data.error || t("adminMisc.projectDetail.loadProjectFailed")));
-      }
-    };
-    let painted = false;
-    setLoading(true);
-    setError(null);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; mutation flows pass bypassCache=true so the project always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch (e) {
-      if (!painted) {
-        setError(t("adminMisc.projectDetail.loadProjectNetworkError"));
-        console.error(e);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId, t]);
+  // ── The reads ──
+  // Each loader — the cache-first paint, the discarding of a stale answer, the
+  // background refresh — belongs to the hook, so the screen keeps no copy of any
+  // of them and reads them during render.
 
-  const fetchStaff = useCallback(async () => {
-    try {
-      const res = await fetch("/api/contacts");
-      const data = await res.json();
-      if (data.success) {
-        setAllStaff(
-          data.contacts?.filter(
-            (c) => c.status === "active" && c.role !== "participant",
-          ) || [],
-        );
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
+  const {
+    data: projectData,
+    loading: projectLoading,
+    error: projectReadError,
+    refresh: refreshProject,
+  } = useApi(projectId ? `/api/admin/projects/${projectId}` : null, {
+    defaultValue: EMPTY_PROJECT,
+    transform: pickProject,
+    deps: [projectId],
+  });
+  const project = projectData.project;
 
-  const fetchApprovals = useCallback(async (bypassCache = false) => {
-    if (!projectId) return;
-    const url = `/api/admin/projects/${projectId}/approvals`;
-    const apply = (data) => {
-      if (data.success) setApprovalRequests(data.requests || []);
-    };
-    let painted = false;
-    setApprovalsLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; approval actions pass bypassCache=true so the list always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setApprovalsLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch (e) {
-      if (!painted) console.error("Failed to fetch approvals:", e);
-    } finally {
-      setApprovalsLoading(false);
-    }
-  }, [projectId]);
+  // The refusal the loader used to paint into its own error state: the server's
+  // own message when the payload carried one, the network's otherwise.
+  const error = projectData.failure
+    ? t(projectData.failure)
+    : projectReadError
+      ? t("adminMisc.projectDetail.loadProjectNetworkError")
+      : null;
+
+  // The skeleton is for not knowing the project yet, which is the only moment
+  // the loader left it up. A re-read — the task console asks for one after every
+  // edit — must not blank a page that is already on screen.
+  const loading = !projectId || (projectLoading && !project);
+
+  const { data: allStaff } = useApi("/api/contacts", {
+    defaultValue: EMPTY_LIST,
+    transform: pickStaff,
+  });
+
+  const {
+    data: approvalRequests,
+    loading: approvalsLoading,
+    refresh: refreshApprovals,
+  } = useApi(projectId ? `/api/admin/projects/${projectId}/approvals` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickApprovals,
+    deps: [projectId],
+  });
 
   const handleApprovalAction = async (requestId, action, rejectionReason) => {
     try {
@@ -213,94 +168,55 @@ export default function ProjectDetail() {
         }),
       });
       const data = await res.json();
-      if (data.success) fetchApprovals(true);
+      if (data.success) refreshApprovals();
     } catch (e) {
       console.error("Approval action error:", e);
     }
   };
 
-  const fetchUpdates = useCallback(async (bypassCache = false) => {
+  const {
+    data: updates,
+    loading: updatesLoading,
+    refresh: refreshUpdates,
+  } = useApi(projectId ? `/api/admin/projects/${projectId}/updates` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickUpdates,
+    deps: [projectId],
+  });
+
+  // Asking the server to write this week's report when it is missing used to
+  // precede the updates read, and it still does: that request keeps nothing, so
+  // it stays an effect whose only job is the request, and the read is re-asked
+  // once it has settled. The read is mirrored into a ref because it is a new
+  // function on every render and the effect must not re-run for that.
+  const refreshUpdatesRef = useRef(refreshUpdates);
+  useEffect(() => {
+    refreshUpdatesRef.current = refreshUpdates;
+  });
+  useEffect(() => {
     if (!projectId) return;
-    const url = `/api/admin/projects/${projectId}/updates`;
-    const apply = (data) => {
-      if (data.success) setUpdates(data.updates || []);
+    let active = true;
+    fetch(`/api/admin/projects/${projectId}/reports/generate`, {
+      method: "POST",
+    })
+      .catch(() => {})
+      .then(() => {
+        if (active) refreshUpdatesRef.current();
+      });
+    return () => {
+      active = false;
     };
-    let painted = false;
-    setUpdatesLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; mutation flows pass bypassCache=true so the list always
-      // reflects the last action.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setUpdatesLoading(false);
-          painted = true;
-        }
-      }
-      // Auto-generate report if none exists for current week
-      try {
-        await fetch(`/api/admin/projects/${projectId}/reports/generate`, {
-          method: "POST",
-        });
-      } catch (_) {}
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch (e) {
-      if (!painted) console.error("Failed to fetch updates:", e);
-    } finally {
-      setUpdatesLoading(false);
-    }
   }, [projectId]);
 
-  useEffect(() => {
-    fetchProject();
-  }, [fetchProject]);
-
-  useEffect(() => {
-    fetchStaff();
-  }, [fetchStaff]);
-
-  useEffect(() => {
-    fetchApprovals();
-  }, [fetchApprovals]);
-
-  useEffect(() => {
-    fetchUpdates();
-  }, [fetchUpdates]);
-
-  const fetchDiscussions = useCallback(async (bypassCache = false) => {
-    if (!projectId) return;
-    const url = `/api/projects/discuss?project_id=${projectId}`;
-    const apply = (data) => {
-      if (data.success) setDiscussions(data.messages || []);
-    };
-    setDiscussionsLoading(true);
-    try {
-      // Cache-first paint: returning to this page renders instantly from a fresh
-      // snapshot; posting a message passes bypassCache=true so the thread always
-      // reflects the last post.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setDiscussionsLoading(false);
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch (_) {}
-    setDiscussionsLoading(false);
-  }, [projectId]);
-
-  useEffect(() => {
-    fetchDiscussions();
-  }, [fetchDiscussions]);
+  const {
+    data: discussions,
+    loading: discussionsLoading,
+    refresh: refreshDiscussions,
+  } = useApi(projectId ? `/api/projects/discuss?project_id=${projectId}` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickDiscussions,
+    deps: [projectId],
+  });
 
   const handlePostDiscussion = async () => {
     if (!newDiscussion.trim()) return;
@@ -319,7 +235,7 @@ export default function ProjectDetail() {
       const data = await res.json();
       if (data.success) {
         setNewDiscussion("");
-        fetchDiscussions(true);
+        refreshDiscussions();
       }
     } catch (_) {}
     setPostingDiscussion(false);
@@ -340,7 +256,7 @@ export default function ProjectDetail() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchUpdates(true);
+        refreshUpdates();
         setUpdateForm({
           accomplishments: "",
           current_focus: "",
@@ -519,7 +435,7 @@ export default function ProjectDetail() {
             </div>
           </div>
           <button
-            onClick={fetchProject}
+            onClick={refreshProject}
             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-primary)] hover:bg-tertiary transition-all text-[10px] font-bold uppercase tracking-wide"
           >
             <RefreshCw className="w-3.5 h-3.5" /> {t("adminMisc.projectDetail.refresh")}
@@ -771,7 +687,7 @@ export default function ProjectDetail() {
               projects={[{ id: project.id, name: project.name }]}
               projectMembers={members}
               taskList={project.tasks || []}
-              onTasksChange={fetchProject}
+              onTasksChange={refreshProject}
               showCarryOver={false}
             />
           </div>
@@ -1002,7 +918,7 @@ export default function ProjectDetail() {
                               `/api/projects/members?project_id=${project.id}&user_cid=${member.member_id}`,
                               { method: "DELETE" },
                             );
-                            fetchProject(true);
+                            refreshProject();
                           } catch (e) {
                             console.error(e);
                           }
@@ -1059,7 +975,7 @@ export default function ProjectDetail() {
                             }),
                           });
                           sel.value = "";
-                          fetchProject(true);
+                          refreshProject();
                         } catch (e) {
                           console.error(e);
                         }
@@ -1094,7 +1010,7 @@ export default function ProjectDetail() {
                       );
                       const data = await res.json();
                       if (data.success) {
-                        fetchUpdates(true);
+                        refreshUpdates();
                         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: t("adminMisc.projectDetail.reportGenerated", { week: data.week }) } }));
                       } else window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || t("adminMisc.projectDetail.generateFailed")) || "") || (data.error || t("adminMisc.projectDetail.generateFailed")) } }));
                     } catch (_) {}

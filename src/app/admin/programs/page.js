@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Plus,
   Search,
@@ -25,7 +25,8 @@ import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { uploadFile } from "@/lib/storage";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
 
 const FACILITATOR_CAPS = [
   { key: "participants.view", labelKey: "capParticipantsView" },
@@ -53,10 +54,56 @@ const toDateInputValue = (value) => {
   return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
 };
 
+// ─── Read shapers (module scope: built once, never per render) ──────────────
+// The reading hook keys its internal work on these, so they are made once here
+// rather than rebuilt on every render.
+
+// With no assigned group there are no links to show; the empty map is a shape,
+// so it is made once rather than on every render.
+const EMPTY_GROUP_REG_LINKS = {};
+
+const pickPrograms = (d) =>
+  d?.success && Array.isArray(d.programs) ? d.programs : [];
+
+const pickTeams = (d) => {
+  const contacts = d?.success && Array.isArray(d.contacts) ? d.contacts : [];
+  return contacts.filter(
+    (c) => c && c.group_name?.toUpperCase() === "FUTURE STUDIO",
+  );
+};
+
+const pickFamilies = (d) =>
+  d?.success && Array.isArray(d.families) ? d.families : [];
+
+const pickKnowledgeItems = (d) => {
+  if (!d?.success) return [];
+  const items = d.conceptNotes || d.knowledgeItems || d.notes || [];
+  return Array.isArray(items) ? items : [];
+};
+
+const pickEditingKpis = (d) => (d?.success ? d.kpis || [] : []);
+
+/**
+ * The Form Run assigned directly to a programme (target_type = "program"), which
+ * is the canonical participant intake link, distinct from group-level links.
+ *
+ * The address is built HERE, inside the read, rather than during a render: it is
+ * made of the browser's own origin, and a render also happens on the server,
+ * where no origin exists. A transformation runs in the browser, after the answer.
+ */
+const pickProgramRegLink = (d) => {
+  const run = (d?.success ? d.runs || [] : []).find(
+    (x) => x.status === "active" && x.public_slug,
+  );
+  if (!run) return null;
+  return {
+    name: run.form_name || run.name || "Registration Form",
+    url: `${window.location.origin}/s/${run.public_slug}`,
+  };
+};
+
 export default function ProgramManagement() {
   const { t } = useI18n();
-  const [programs, setPrograms] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeTab, setTab] = useState("all");
   const [editingProgram, setEditingProgram] = useState(null);
@@ -97,36 +144,26 @@ export default function ProgramManagement() {
     type: "cohort",
     default_role: "",
   });
-  const [notes, setNotes] = useState([]);
-  const [teams, setTeams] = useState([]);
-  const [knowledgeItems, setKnowledgeItems] = useState([]);
   const [showCreateNote, setShowCreateNote] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState("");
   const [creatingNote, setCreatingNote] = useState(false);
 
-  const [editingKpis, setEditingKpis] = useState([]);
   const [editKpiInput, setEditKpiInput] = useState({
     title: "",
     target_value: 80,
   });
   const [isKpiSubmitting, setIsKpiSubmitting] = useState(false);
-  const [groupRegLinks, setGroupRegLinks] = useState({});
-  const [programRegLink, setProgramRegLink] = useState(null); // { name, url } for the Program-assigned Form Run
+  const [groupRegLinksBySegment, setGroupRegLinks] = useState({});
 
   // ── Facilitator management state ──
   const [facilitatorPool, setFacilitatorPool] = useState([]);
   const [facilitatorSearch, setFacilitatorSearch] = useState("");
   const [facBusy, setFacBusy] = useState(false);
-  const [userRole, setUserRole] = useState("");
 
-  // Load the stored role once (safe JSON parse). Used to gate the
-  // per-group default-role editor — never parse localStorage in render.
-  useEffect(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      if (u.role) setUserRole(u.role);
-    } catch (_) {}
-  }, []);
+  // Who is signed in, from the shell's session cache: it costs no request of its
+  // own, and the browser's stored copy no longer has to be read in an effect. It
+  // gates the per-group default-role editor below.
+  const { role: userRole } = useSessionUser();
 
   useEffect(() => {
     if (!editingProgram?.id) return;
@@ -407,12 +444,15 @@ export default function ProgramManagement() {
   const assignedSegmentKey = (editingProgram?.assigned_segments || [])
     .filter(Boolean)
     .join("|");
+  // The map is keyed on the assigned groups, so with none assigned there is
+  // nothing to show. That is a consequence of the assigned list rather than
+  // something an effect has to write: the empty map is derived during render.
+  const groupRegLinks = assignedSegmentKey
+    ? groupRegLinksBySegment
+    : EMPTY_GROUP_REG_LINKS;
   useEffect(() => {
     const gids = assignedSegmentKey ? assignedSegmentKey.split("|") : [];
-    if (gids.length === 0) {
-      setGroupRegLinks({});
-      return;
-    }
+    if (gids.length === 0) return;
     let cancelled = false;
     Promise.all(
       gids.map(async (gid) => {
@@ -452,47 +492,22 @@ export default function ProgramManagement() {
 
   // Fetch the Form Run assigned directly to this PROGRAM (target_type = "program").
   // This is the canonical participant intake link, distinct from group-level links.
-  useEffect(() => {
-    if (!editingProgram?.id) {
-      setProgramRegLink(null);
-      return;
-    }
-    fetch(`/api/platform/form-runs?program_id=${encodeURIComponent(editingProgram.id)}`)
-      .then((r) => r.json())
-      .then((d) => {
-        const runs = (d.success ? d.runs || [] : []);
-        const run = runs.find((x) => x.status === "active" && x.public_slug);
-        if (run) {
-          setProgramRegLink({
-            name: run.form_name || run.name || "Registration Form",
-            url: `${window.location.origin}/s/${run.public_slug}`,
-          });
-        } else {
-          setProgramRegLink(null);
-        }
-      })
-      .catch(() => setProgramRegLink(null));
-  }, [editingProgram?.id]);
+  // The read has an address only while a programme is being edited, so closing the
+  // dialog leaves nothing to read rather than a null to write.
+  const { data: programRegLink } = useApi(
+    editingProgram?.id
+      ? `/api/platform/form-runs?program_id=${encodeURIComponent(editingProgram.id)}`
+      : null,
+    { defaultValue: null, transform: pickProgramRegLink },
+  );
 
-  const fetchEditingKpis = async (programId) => {
-    try {
-      const res = await fetch(`/api/v2/kpis?program_id=${programId}`);
-      const data = await res.json();
-      if (data.success) {
-        setEditingKpis(data.kpis || []);
-      }
-    } catch (e) {
-      console.error("Failed to fetch KPIs:", e);
-    }
-  };
-
-  useEffect(() => {
-    if (editingProgram?.id) {
-      fetchEditingKpis(editingProgram.id);
-    } else {
-      setEditingKpis([]);
-    }
-  }, [editingProgram?.id]);
+  // The editing programme's KPIs, through the shared hook. The address exists
+  // only while a programme is being edited, so no dialog means nothing to read
+  // and nothing to show.
+  const { data: editingKpis, refresh: refreshEditingKpis } = useApi(
+    editingProgram?.id ? `/api/v2/kpis?program_id=${editingProgram.id}` : null,
+    { defaultValue: [], transform: pickEditingKpis },
+  );
 
   const handleAddEditKpi = async () => {
     if (!editKpiInput.title.trim() || !editingProgram?.id) return;
@@ -510,7 +525,7 @@ export default function ProgramManagement() {
       const data = await res.json();
       if (data.success) {
         setEditKpiInput({ title: "", target_value: 80 });
-        fetchEditingKpis(editingProgram.id);
+        refreshEditingKpis();
       }
     } catch (e) {
       console.error(e);
@@ -528,7 +543,7 @@ export default function ProgramManagement() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchEditingKpis(editingProgram.id);
+        refreshEditingKpis();
       }
     } catch (e) {
       console.error(e);
@@ -537,69 +552,62 @@ export default function ProgramManagement() {
 
   const router = useRouter();
 
-  const fetchData = useCallback(async (bypassCache = false) => {
-    const urls = [
-      `/api/pm/programs?show_archived=${activeTab === "archived"}&status=${activeTab === "all" ? "all" : activeTab}`,
-      "/api/contacts/full-state",
-      "/api/families",
-      "/api/knowledge",
-    ];
-    const apply = (progData, managerData, segmentData, kbData) => {
-      if (progData?.success)
-        setPrograms(Array.isArray(progData.programs) ? progData.programs : []);
-      if (managerData?.success) {
-        const managers = (
-          Array.isArray(managerData.contacts) ? managerData.contacts : []
-        ).filter(
-          (c) =>
-            c &&
-            c.group_name?.toUpperCase() === "FUTURE STUDIO",
-        );
-        setTeams(managers);
-      }
-      if (segmentData?.success)
-        setNotes(
-          Array.isArray(segmentData.families) ? segmentData.families : [],
-        );
-      if (kbData?.success) {
-        const items =
-          kbData.conceptNotes || kbData.knowledgeItems || kbData.notes || [];
-        setKnowledgeItems(Array.isArray(items) ? items : []);
-      }
-    };
+  // ── Reads ─────────────────────────────────────────────────────────────────
+  // The shared hook owns the 30 s cache, the cache-first paint and the
+  // discarding of a stale answer, so the page keeps no copy of its own. The
+  // programme list is addressed on the tab (part of its own address, which is
+  // why nothing declares it as a dependency); the other three are plain reads.
+  const {
+    data: programs,
+    loading: programsLoading,
+    refresh: refreshPrograms,
+  } = useApi(
+    `/api/pm/programs?show_archived=${activeTab === "archived"}&status=${activeTab === "all" ? "all" : activeTab}`,
+    { defaultValue: [], transform: pickPrograms },
+  );
 
-    setLoading(true);
-    try {
-      // Cache-first paint: switching tabs / returning to the page renders
-      // instantly from fresh snapshots; mutation flows pass bypassCache=true.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null)) {
-          apply(cached[0], cached[1], cached[2], cached[3]);
-          setLoading(false);
-        }
-      }
-      const responses = await Promise.all(
-        urls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1], responses[2], responses[3]);
-    } catch (e) {
-      console.error("Sync Failure:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeTab]);
+  const {
+    data: teams,
+    loading: teamsLoading,
+    refresh: refreshTeams,
+  } = useApi("/api/contacts/full-state", {
+    defaultValue: [],
+    transform: pickTeams,
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // The groups list is also the one local write of the four: the lead-facilitator
+  // control publishes its own answer through this read's setter.
+  const {
+    data: notes,
+    loading: notesLoading,
+    setData: setNotes,
+    refresh: refreshNotes,
+  } = useApi("/api/families", {
+    defaultValue: [],
+    transform: pickFamilies,
+  });
+
+  const {
+    data: knowledgeItems,
+    loading: knowledgeLoading,
+    refresh: refreshKnowledge,
+  } = useApi("/api/knowledge", {
+    defaultValue: [],
+    transform: pickKnowledgeItems,
+  });
+
+  // The four are read together, so the table keeps its placeholder until the
+  // last of them has answered - which is what the one loader did.
+  const loading =
+    programsLoading || teamsLoading || notesLoading || knowledgeLoading;
+
+  // Every action below re-reads what it changed.
+  const reload = () => {
+    refreshPrograms();
+    refreshTeams();
+    refreshNotes();
+    refreshKnowledge();
+  };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -629,7 +637,7 @@ export default function ProgramManagement() {
       if (json.success) {
         setEditingProgram(null);
         setIsCreatingGroup(false);
-        fetchData(true);
+        reload();
         // Fire success notification
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
@@ -692,7 +700,7 @@ export default function ProgramManagement() {
         }),
       });
       const data = await res.json();
-      if (data.success) fetchData(true);
+      if (data.success) reload();
       else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
@@ -800,7 +808,7 @@ export default function ProgramManagement() {
         body: JSON.stringify({ id }),
       });
       const data = await res.json();
-      if (data.success) fetchData(true);
+      if (data.success) reload();
       else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
@@ -872,17 +880,8 @@ export default function ProgramManagement() {
         if (createdId) {
           // Assign the new note to the program
           setEditingProgram({ ...editingProgram, note_id: createdId });
-          // Refresh the knowledge items list
-          const kbRes = await fetch("/api/knowledge");
-          const kbData = await kbRes.json();
-          if (kbData.success) {
-            const items =
-              kbData.conceptNotes ||
-              kbData.knowledgeItems ||
-              kbData.notes ||
-              [];
-            setKnowledgeItems(Array.isArray(items) ? items : []);
-          }
+          // Re-read the knowledge items list through the read that holds it.
+          refreshKnowledge();
           window.dispatchEvent(
             new CustomEvent("impactos:notify", {
               detail: {

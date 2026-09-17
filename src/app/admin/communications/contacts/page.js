@@ -1,7 +1,7 @@
 "use client";
 // Updated Role Override per user request
 
-import React, { useState, useEffect, useCallback, Suspense } from "react";
+import React, { useState, Suspense } from "react";
 import {
   Plus,
   Users,
@@ -30,7 +30,7 @@ import { useSafeBack } from "@/lib/useSafeBack";
 import { INTERNAL_OPS_ROLES } from "@/lib/platform/roles";
 import { motion, AnimatePresence } from "framer-motion";
 import { TableSkeleton } from "@/components/ui/Skeleton";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const STATUS_FILTER_LABELS = {
   All: "crm.contacts.filterAll",
@@ -67,20 +67,46 @@ const isInternalContact = (c) =>
   INTERNAL_ROLE_SET.has(String(c.role || "").toLowerCase()) ||
   String(c.group_name || "").toUpperCase() === "FUTURE STUDIO";
 
+const PROGRAMS_URL = "/api/pm/programs";
+
+// Module scope on purpose: the hook mirrors what the caller passes, so these are
+// built once here rather than on every render.
+const EMPTY_REGISTRY = { contacts: [], families: [], teams: [] };
+
+/**
+ * The registry rows for the current status filter.
+ *
+ * The loader this replaces painted the contacts, the families and the teams from
+ * ONE answer, so they are shaped together: one read, and the three lists the rest
+ * of the screen already reads separately.
+ */
+const pickRegistry = (d) => {
+  if (!d?.success) return EMPTY_REGISTRY;
+  return {
+    contacts: (d.contacts || []).map((c) => ({
+      ...c,
+      invitation_status:
+        c.invitation_status ||
+        (c.status === "active" ? "activated" : "not_invited"),
+    })),
+    families: d.families || [],
+    teams: d.teams || [],
+  };
+};
+
+const pickPrograms = (d) => (d?.success ? d.programs || [] : []);
+
 function ContactsPageContent() {
   const searchParams = useSearchParams();
   const roleParam = searchParams.get("role");
   const { t } = useI18n();
   const goBack = useSafeBack("/admin/crm");
 
-  const [contacts, setContacts] = useState([]);
-  const [families, setFamilies] = useState([]);
-  const [teams, setTeams] = useState([]);
-  const [programs, setPrograms] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [selectedGroup, setSelectedGroup] = useState("All Contacts");
-  const [selectedTeamTab, setSelectedTeamTab] = useState("All Teams");
+  // The group and the team tab are DERIVED, so what is stored here is only the
+  // person's choice, recorded against what it was chosen under (see below).
+  const [groupChoice, setGroupChoice] = useState(null);
+  const [teamChoice, setTeamChoice] = useState(null);
   const [copiedGroup, setCopiedGroup] = useState(null);
 
   // Modals
@@ -114,71 +140,61 @@ function ContactsPageContent() {
 
   // Pagination
   const PAGE_SIZE = 50;
-  const [currentPage, setCurrentPage] = useState(1);
+  // What is stored is the page chosen under a set of filters; which page is
+  // current is derived (see below).
+  const [pageChoice, setPageChoice] = useState(null);
 
-  useEffect(() => {
-    if (roleParam) {
-      const normalized =
-        roleParam.toLowerCase() === "staff" ? "Future Studio" : roleParam;
-      setSelectedGroup(normalized);
-    }
-  }, [roleParam]);
+  // The group under review comes from the address (`?role=`), and the person's
+  // choice is recorded WITH the parameter it was made under: a new address shows
+  // that address's group, and nothing has to be written from an effect.
+  const groupFromAddress = roleParam
+    ? roleParam.toLowerCase() === "staff"
+      ? "Future Studio"
+      : roleParam
+    : "All Contacts";
+  const selectedGroup =
+    groupChoice && groupChoice.roleParam === roleParam
+      ? groupChoice.group
+      : groupFromAddress;
+  const setSelectedGroup = (group) => setGroupChoice({ roleParam, group });
 
-  useEffect(() => {
-    setSelectedTeamTab("All Teams");
-  }, [selectedGroup]);
+  // The team tab belongs to the group it was chosen under for the same reason, so
+  // changing group cannot leave the grid filtered by the previous group's team.
+  const selectedTeamTab =
+    teamChoice && teamChoice.group === selectedGroup ? teamChoice.team : "All Teams";
+  const setSelectedTeamTab = (team) => setTeamChoice({ group: selectedGroup, team });
 
-  const fetchData = useCallback(async (bypassCache = false) => {
-    const statusParam = statusFilter === "Archived" ? "?status=archived" : "";
-    const urls = [`/api/contacts/full-state${statusParam}`, "/api/pm/programs"];
-    const apply = (contData, progData) => {
-      if (contData.success) {
-        const rows = (contData.contacts || []).map((c) => ({
-          ...c,
-          invitation_status:
-            c.invitation_status ||
-            (c.status === "active" ? "activated" : "not_invited"),
-        }));
-        setContacts(rows);
-        setFamilies(contData.families || []);
-        setTeams(contData.teams || []);
-      }
-      if (progData.success) setPrograms(progData.programs || []);
-    };
+  // Both reads go through the shared hook, which owns the cache, the cache-first
+  // paint and the discarding of a stale answer, so the screen keeps no copy of its
+  // own and never sets state from an effect. The registry's address carries the
+  // status filter, so switching it asks for that filter's rows.
+  const {
+    data: registry,
+    loading: registryLoading,
+    refresh: refreshRegistry,
+  } = useApi(
+    `/api/contacts/full-state${statusFilter === "Archived" ? "?status=archived" : ""}`,
+    { defaultValue: EMPTY_REGISTRY, transform: pickRegistry },
+  );
+  const {
+    data: programs,
+    loading: programsLoading,
+    refresh: refreshPrograms,
+  } = useApi(PROGRAMS_URL, { defaultValue: [], transform: pickPrograms });
 
-    setLoading(true);
-    try {
-      // Cache-first paint: switching filters / returning to the registry
-      // renders instantly from fresh snapshots; mutation flows pass
-      // bypassCache=true so the list always reflects the last action.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null)) {
-          apply(cached[0], cached[1]);
-          setLoading(false);
-        }
-      }
-      const responses = await Promise.all(
-        urls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1]);
-    } catch (e) {
-      console.error("Registry Sync Failure:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter]);
+  const contacts = registry.contacts;
+  const families = registry.families;
+  const teams = registry.teams;
+  // The grid leaves its spinner once both reads have settled, exactly as the old
+  // combined loader did.
+  const loading = registryLoading || programsLoading;
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // Mutation flows must not read back from the cache, so both reads are refreshed
+  // the way the old bypassCache argument did.
+  const refreshAll = () => {
+    refreshRegistry();
+    refreshPrograms();
+  };
 
   const toggleStatus = async (cid, currentStatus, _currentGroup) => {
     const newStatus =
@@ -193,7 +209,7 @@ function ContactsPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      fetchData(true);
+      refreshAll();
     } catch (e) {
       console.error(e);
     }
@@ -211,7 +227,7 @@ function ContactsPageContent() {
       const data = await res.json();
       if (data.success) {
         setNotification({ type: "success", text: t("crm.contacts.activationSent") || "Activation email sent" });
-        fetchData(true);
+        refreshAll();
       } else {
         setNotification({ type: "error", text: data.error || "Failed to send email" });
       }
@@ -237,7 +253,7 @@ function ContactsPageContent() {
       const data = await res.json();
       if (data.success) {
         setNotification({ type: "success", text: t("crm.contacts.invitationSent") || "Invitation sent" });
-        fetchData(true);
+        refreshAll();
       } else {
         setNotification({ type: "error", text: data.error || "Failed to send invitation" });
       }
@@ -265,7 +281,7 @@ function ContactsPageContent() {
       if (data.success) {
         setNotification({ type: "success", message: t("crm.contacts.saved") });
         setShowManualModal(false);
-        fetchData(true);
+        refreshAll();
       }
     } finally {
       setIsProcessing(false);
@@ -291,7 +307,7 @@ function ContactsPageContent() {
       if ((await res.json()).success) {
         setNotification({ type: "success", message: t("crm.contacts.saved") });
         setShowGroupModal(null);
-        fetchData(true);
+        refreshAll();
       }
     } finally {
       setIsProcessing(false);
@@ -318,7 +334,7 @@ function ContactsPageContent() {
         setNotification({ type: "success", message: t("crm.contacts.inviteSent") });
         setShowInviteModal(null);
         setInviteForm({ name: "", email: "", phone: "", role: "member" });
-        fetchData(true);
+        refreshAll();
       } else {
         setNotification({ type: "error", message: data.error || t("crm.contacts.inviteFailed") });
       }
@@ -352,7 +368,7 @@ function ContactsPageContent() {
             detail: { type: "success", message: t("crm.contacts.archivedToast", { name: c.name }) },
           }),
         );
-        fetchData(true);
+        refreshAll();
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
@@ -393,7 +409,7 @@ function ContactsPageContent() {
             detail: { type: "success", message: t("crm.contacts.restoredToast", { name: c.name }) },
           }),
         );
-        fetchData(true);
+        refreshAll();
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
@@ -436,7 +452,7 @@ function ContactsPageContent() {
             detail: { type: "success", message: t("crm.contacts.permanentlyDeletedToast", { name: c.name }) },
           }),
         );
-        fetchData(true);
+        refreshAll();
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
@@ -478,8 +494,27 @@ function ContactsPageContent() {
     setTimeout(() => setCopiedGroup(null), 2000);
   };
 
-  // Reset page when any filter changes
-  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, selectedGroup, selectedTeamTab]);
+  // Pagination
+  //
+  // The page belongs to the filters it was chosen under: changing the search, the
+  // status, the group or the team tab starts again at the first page. Kept as an
+  // effect this ran after the render, so the grid was drawn for one frame under the
+  // previous filter's page number.
+  const pageIsChosenForCurrentFilters =
+    !!pageChoice &&
+    pageChoice.search === search &&
+    pageChoice.status === statusFilter &&
+    pageChoice.group === selectedGroup &&
+    pageChoice.team === selectedTeamTab;
+  const currentPage = pageIsChosenForCurrentFilters ? pageChoice.page : 1;
+  const setCurrentPage = (next) =>
+    setPageChoice({
+      search,
+      status: statusFilter,
+      group: selectedGroup,
+      team: selectedTeamTab,
+      page: typeof next === "function" ? next(currentPage) : next,
+    });
 
   const filtered = contacts.filter((c) => {
     const lowerSearch = search.toLowerCase();
@@ -543,7 +578,7 @@ function ContactsPageContent() {
         body: JSON.stringify({ cid: c.cid, group_name: entityName }),
       });
       setNotification({ type: "success", message: t("crm.contacts.done") });
-      fetchData(true);
+      refreshAll();
     } catch (e) {
       console.error("Pivot Error:", e);
     } finally {
@@ -1450,7 +1485,7 @@ function ContactsPageContent() {
                       });
                       setShowBulkProgramModal(false);
                       setBulkSelected([]);
-                      fetchData(true);
+                      refreshAll();
                     }
                   } catch {
                     setNotification({
