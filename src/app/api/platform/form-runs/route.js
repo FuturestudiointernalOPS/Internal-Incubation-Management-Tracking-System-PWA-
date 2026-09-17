@@ -851,19 +851,19 @@ function formatResultAnswer(value) {
 }
 
 /**
- * Send the participant-facing RESULT email (PDF attachment) for a submission.
- * The PDF contains the applicant's answers, the evaluation feedback and the
- * final score. The copy and the document never reference how the evaluation
- * was produced — the applicant must not learn an automated evaluation ran.
+ * Build the participant-facing RESULT document for a submission — the
+ * applicant's answers, the evaluation feedback and the final score. The
+ * document never references how the evaluation was produced (the applicant
+ * must not learn an automated evaluation ran).
  *
- * Recipient/name resolution follows the SAME chain as the decision email so
- * the UI and the sender can never disagree; the send is tracked exactly once
- * per submission (email_type "result") and respects the per-run
- * duplicate-recipient guard used by the other workflow emails.
+ * Nothing is sent and nothing is recorded: the sender AND the read-only
+ * preview shown before sending both call this builder, so what the reviewer
+ * sees and what the applicant receives can never disagree.
  *
- * Returns { status: "sent"|"already_sent"|"skipped"|"failed"|"not_found", error?, to? }.
+ * Returns { status: "ok", pdfBytes, lang, applicantName, to, row }
+ *      or { status: "not_found"|"failed", error }.
  */
-async function sendResultEmailForSubmission({ submission_id }) {
+async function buildResultDocument({ submission_id }) {
   const subRes = await getDecisionEmailSubmissionById(submission_id);
   if (subRes.rows.length === 0) return { status: "not_found", error: "Submission not found" };
   const row = subRes.rows[0];
@@ -920,31 +920,6 @@ async function sendResultEmailForSubmission({ submission_id }) {
       contactEmail: crmEmail,
     });
     if (!applicantEmail) return { status: "failed", error: "No real email address found in the submission data" };
-
-    // Already emailed for THIS submission → polite already_sent (re-click).
-    const existingLog = await getEmailLogRow(parseInt(submission_id), "result");
-    if (existingLog && existingLog.status === "sent") {
-      return { status: "already_sent", to: existingLog.recipient || applicantEmail };
-    }
-
-    // Duplicate-recipient guard: when the same email address appears in
-    // multiple submissions of this run, only ONE result email is ever sent.
-    const alreadyEmailed = await hasSentEmailToRecipientInRun({
-      run_id: row.run_id,
-      email_type: "result",
-      recipient: applicantEmail,
-    });
-    if (alreadyEmailed) {
-      await recordEmailStatus({
-        submission_id: parseInt(submission_id),
-        contact_cid: row.submitter_id || null,
-        email_type: "result",
-        status: "skipped",
-        error: "Skipped — duplicate recipient: a result email was already sent to this address for this run",
-        to: applicantEmail,
-      });
-      return { status: "skipped", error: "Duplicate recipient — already emailed in this run", to: applicantEmail };
-    }
 
     // Best real name — resolved deterministically with the form's actual
     // question labels (submission data is keyed by field id).
@@ -1044,7 +1019,7 @@ async function sendResultEmailForSubmission({ submission_id }) {
       outcome = { decision: row.status, comment };
     }
 
-    // ── Build the PDF + send it (tracked, once per submission) ──
+    // ── Build the PDF document (nothing is sent from here) ──
     const { buildSubmissionResultPdf } = await import("@/models/platform/resultPdf");
     const pdfBytes = buildSubmissionResultPdf({
       lang,
@@ -1056,6 +1031,54 @@ async function sendResultEmailForSubmission({ submission_id }) {
       dimensions,
       sections,
     });
+
+    return { status: "ok", pdfBytes, lang, applicantName: applicantName || "", to: applicantEmail, row };
+  } catch (e) {
+    console.error("[form-runs] Result document error:", e);
+    return { status: "failed", error: e?.message || "Document error" };
+  }
+}
+
+/**
+ * Send the participant-facing RESULT email (PDF attachment) for a submission.
+ *
+ * Recipient/name resolution follows the SAME chain as the decision email so
+ * the UI and the sender can never disagree; the send is tracked exactly once
+ * per submission (email_type "result") and respects the per-run
+ * duplicate-recipient guard used by the other workflow emails.
+ *
+ * Returns { status: "sent"|"already_sent"|"skipped"|"failed"|"not_found", error?, to? }.
+ */
+async function sendResultEmailForSubmission({ submission_id }) {
+  try {
+    const doc = await buildResultDocument({ submission_id });
+    if (doc.status !== "ok") return { status: doc.status, error: doc.error };
+    const { row, to: applicantEmail, applicantName, lang, pdfBytes } = doc;
+
+    // Already emailed for THIS submission → polite already_sent (re-click).
+    const existingLog = await getEmailLogRow(parseInt(submission_id), "result");
+    if (existingLog && existingLog.status === "sent") {
+      return { status: "already_sent", to: existingLog.recipient || applicantEmail };
+    }
+
+    // Duplicate-recipient guard: when the same email address appears in
+    // multiple submissions of this run, only ONE result email is ever sent.
+    const alreadyEmailed = await hasSentEmailToRecipientInRun({
+      run_id: row.run_id,
+      email_type: "result",
+      recipient: applicantEmail,
+    });
+    if (alreadyEmailed) {
+      await recordEmailStatus({
+        submission_id: parseInt(submission_id),
+        contact_cid: row.submitter_id || null,
+        email_type: "result",
+        status: "skipped",
+        error: "Skipped — duplicate recipient: a result email was already sent to this address for this run",
+        to: applicantEmail,
+      });
+      return { status: "skipped", error: "Duplicate recipient — already emailed in this run", to: applicantEmail };
+    }
 
     const { sendResultEmail, sendTrackedEmail } = await import("@/lib/email");
     const tracked = await sendTrackedEmail({
@@ -1766,6 +1789,36 @@ export async function POST(req) {
         return NextResponse.json({ success: true, assignments: await enrichAssignments(assignments.rows) });
       }
       return NextResponse.json({ success: true, assignments: [] });
+    }
+
+    // ─── PREVIEW RESULT ACTION (read-only PDF before sending) ───
+    // Renders the exact document the applicant would receive — built by the
+    // same helper the sender uses — and returns it inline so it can be reviewed
+    // in place. Nothing is sent and no email log row is written, so previewing
+    // is always safe to repeat.
+    if (action === "preview_result") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const authError = await requireAuthorization("runs", "edit");
+      if (authError) return authError;
+
+      const { submission_id } = body;
+      if (!submission_id) return NextResponse.json({ success: false, error: "submission_id required" }, { status: 400 });
+
+      const doc = await buildResultDocument({ submission_id });
+      if (doc.status !== "ok") {
+        return NextResponse.json(
+          { success: false, error: doc.error || "Result document unavailable" },
+          { status: doc.status === "not_found" ? 404 : 400 },
+        );
+      }
+      return new NextResponse(doc.pdfBytes, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `inline; filename="result-${parseInt(submission_id)}.pdf"`,
+          "Cache-Control": "no-store",
+        },
+      });
     }
 
     // ─── SEND RESULT EMAILS ACTION (Actions menu → response PDF per submission) ───
