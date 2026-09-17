@@ -32,6 +32,12 @@ const EMPTY_LIST = [];
 const pickFullState = (d) => (d?.success ? d : null);
 const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
 
+// Called once, here: `pickList` is a factory, so calling it at the call site would
+// hand the read a new identity on every render and re-issue its request.
+const pickParticipants = pickList("participants");
+const pickSubmissions = pickList("submissions");
+const pickReviews = pickList("reviews");
+
 /** Saved attendance, keyed the way the sheet addresses it. */
 const pickAttendance = (d) => {
   const bySessionAndParticipant = {};
@@ -93,7 +99,7 @@ export default function FacilitatorProgram({ params }) {
     refresh: refreshParticipants,
   } = useApi(id ? `/api/participants?program_id=${id}` : null, {
     defaultValue: EMPTY_LIST,
-    transform: pickList("participants"),
+    transform: pickParticipants,
     deps: [id],
   });
   const {
@@ -102,7 +108,7 @@ export default function FacilitatorProgram({ params }) {
     refresh: refreshSubmissions,
   } = useApi(id ? `/api/submissions?program_id=${id}` : null, {
     defaultValue: EMPTY_LIST,
-    transform: pickList("submissions"),
+    transform: pickSubmissions,
     deps: [id],
   });
   const {
@@ -111,7 +117,7 @@ export default function FacilitatorProgram({ params }) {
     refresh: refreshReviews,
   } = useApi(id ? `/api/facilitator-reviews?program_id=${id}` : null, {
     defaultValue: EMPTY_LIST,
-    transform: pickList("reviews"),
+    transform: pickReviews,
     deps: [id],
   });
   const {

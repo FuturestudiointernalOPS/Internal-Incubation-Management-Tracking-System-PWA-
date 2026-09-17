@@ -30,10 +30,17 @@ import { useState, useEffect, useCallback, useRef } from "react";
  * that changes its address reads null again rather than the previous address's
  * verdict (see the note where it is derived).
  *
+ * `transform` shapes the answer, so its identity is deliberately NOT a dependency
+ * of the read: written inline (as below) it is a new function on every render,
+ * and an identity that keyed the read would put the request back on the wire
+ * every render. Building it once at module scope is still the clearer habit.
+ *
  * @example
+ *   const pickTasks = (d) => d.tasks || [];   // module scope, built once
+ *
  *   const { data: tasks, loading, error, refresh } = useApi("/api/tasks", {
  *     defaultValue: [],
- *     transform: (d) => d.tasks || [],
+ *     transform: pickTasks,
  *     deps: [filterStatus],
  *   });
  */
@@ -171,6 +178,18 @@ export function useApi(url, options = {}) {
   const fetchIdRef = useRef(0);
   const activeRef = useRef(true);
 
+  // `transform` shapes the answer; it is not part of WHAT is being read. Callers
+  // naturally write it inline, which is a new identity on every render - and
+  // while that identity was a dependency of the read, every render started
+  // another read, exactly as `defaultValue` did above. The newest one is mirrored
+  // here instead, so the read stays keyed on the address while the transform in
+  // force at fetch time is still the current one. Declared before the read's own
+  // effect so it is updated first.
+  const transformRef = useRef(transform);
+  useEffect(() => {
+    transformRef.current = transform;
+  });
+
   const fetchData = useCallback(async (bypassCache = false) => {
     if (!url) return;
 
@@ -180,7 +199,8 @@ export function useApi(url, options = {}) {
     // Stale-while-revalidate: show cached data instantly, refresh in background.
     const cached = bypassCache ? null : cacheGet(url);
     if (cached !== null) {
-      setData(transform ? transform(cached) : cached);
+      const shape = transformRef.current;
+      setData(shape ? shape(cached) : cached);
       setLoading(false);
     } else {
       setLoading(true);
@@ -202,7 +222,8 @@ export function useApi(url, options = {}) {
       );
       cacheSet(url, json);
 
-      const result = transform ? transform(json) : json;
+      const shape = transformRef.current;
+      const result = shape ? shape(json) : json;
       setData(result);
     } catch (err) {
       if (fetchId !== fetchIdRef.current || !activeRef.current) return;
@@ -220,7 +241,7 @@ export function useApi(url, options = {}) {
         setLoading(false);
       }
     }
-  }, [url, transform]);
+  }, [url]);
 
   // Fetch on mount / dependency change
   useEffect(() => {

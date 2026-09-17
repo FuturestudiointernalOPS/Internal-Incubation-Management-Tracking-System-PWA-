@@ -21,6 +21,12 @@ const EMPTY_LIST = [];
 const pickFullState = (d) => (d?.success ? d : null);
 const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
 
+// Called once, here: `pickList` is a factory, so calling it at the call site would
+// hand the read a new identity on every render and re-issue its request.
+const pickReports = pickList("reports");
+const pickFollowups = pickList("followups");
+const pickAttendance = pickList("attendance");
+
 /**
  * The programme's public registration link, when it has one.
  *
@@ -78,7 +84,7 @@ export default function SuperAdminExecutiveView({ params }) {
 
   const { data: reports, loading: reportsLoading, refresh: refreshReports } = useApi(
     id ? `/api/pm/reports?program_id=${id}` : null,
-    { defaultValue: EMPTY_LIST, transform: pickList('reports'), deps: [id] },
+    { defaultValue: EMPTY_LIST, transform: pickReports, deps: [id] },
   );
   const {
     data: followups,
@@ -86,7 +92,7 @@ export default function SuperAdminExecutiveView({ params }) {
     refresh: refreshFollowups,
   } = useApi(id ? `/api/followups?program_id=${id}` : null, {
     defaultValue: EMPTY_LIST,
-    transform: pickList('followups'),
+    transform: pickFollowups,
     deps: [id],
   });
   const {
@@ -95,7 +101,7 @@ export default function SuperAdminExecutiveView({ params }) {
     refresh: refreshAttendance,
   } = useApi(id ? `/api/attendance?program_id=${id}` : null, {
     defaultValue: EMPTY_LIST,
-    transform: pickList('attendance'),
+    transform: pickAttendance,
     deps: [id],
   });
 

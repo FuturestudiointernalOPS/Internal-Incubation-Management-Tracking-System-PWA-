@@ -31,6 +31,15 @@ const EMPTY_LIST = [];
 
 const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
 
+// `pickList(...)` has to be CALLED here, once, rather than at the call site: it is
+// a factory, so `pickList("tasks")` written inline is a new function on every
+// render, and that new identity re-keyed the read and put its request back on the
+// wire every render.
+const pickTasks = pickList("tasks");
+const pickProjects = pickList("projects");
+const pickContacts = pickList("contacts");
+const pickComments = pickList("comments");
+
 /**
  * SUPER ADMIN TASKS DASHBOARD
  *
@@ -120,7 +129,7 @@ export default function AdminTasks() {
     refresh: refreshTasks,
   } = useApi(`/api/tasks?sort=${sortBy}`, {
     defaultValue: EMPTY_LIST,
-    transform: pickList("tasks"),
+    transform: pickTasks,
     deps: [sortBy],
   });
   const {
@@ -129,11 +138,11 @@ export default function AdminTasks() {
     refresh: refreshProjects,
   } = useApi("/api/projects", {
     defaultValue: EMPTY_LIST,
-    transform: pickList("projects"),
+    transform: pickProjects,
   });
   const { data: allUsers } = useApi("/api/contacts", {
     defaultValue: EMPTY_LIST,
-    transform: pickList("contacts"),
+    transform: pickContacts,
   });
 
   // The comments are read for the task that is open, and not addressed at all when
@@ -145,7 +154,7 @@ export default function AdminTasks() {
     viewingTask?.id ? `/api/tasks/comments?task_id=${viewingTask.id}` : null,
     {
       defaultValue: EMPTY_LIST,
-      transform: pickList("comments"),
+      transform: pickComments,
       deps: [viewingTask?.id],
     },
   );

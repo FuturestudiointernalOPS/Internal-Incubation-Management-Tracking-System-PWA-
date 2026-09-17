@@ -173,6 +173,29 @@ describe("how many times it reads", () => {
 
     expect(global.fetch.mock.calls.length).toBe(afterRefresh);
   });
+
+  it("reads once when the transform is written inline", async () => {
+    global.fetch.mockImplementation(() =>
+      jsonResponse({ success: true, things: [1] }),
+    );
+
+    const { result } = renderHook(() =>
+      useApi("/api/read-count-inline-transform", {
+        defaultValue: [],
+        // A fresh function identity on every render, which is what a caller gets
+        // by writing the transform at the call site. This is the third way to put
+        // the read back on the wire once per render.
+        transform: (d) => (d?.success ? d.things || [] : []),
+      }),
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    // Long enough for a runaway effect to have fired several times.
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(result.current.data).toEqual([1]);
+  });
 });
 
 describe("the shared GET, in its two forms", () => {
