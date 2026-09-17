@@ -149,25 +149,25 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 86 |
-| `react-hooks/set-state-in-effect` | 200 | 82 |
+| ESLint warnings, total | 2192 | 67 |
+| `react-hooks/set-state-in-effect` | 200 | 63 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` | 2 | 0 |
 | Production build | passes | passes |
 
-Screens carrying a `set-state-in-effect` warning: **50** (plus the hook itself,
+Screens carrying a `set-state-in-effect` warning: **31** (plus the hook itself,
 which is counted separately below).
 
 | Group | Screens |
 |---|---:|
 | Application pages | 15 |
-| Shared components (`src/components/`) | 32 |
+| Shared components (`src/components/`) | 12 |
 | `src/lib/` modules | 3 |
 
-The hook itself accounts for the fifty-first file, and for four warnings rather
+The hook itself accounts for the thirty-second file, and for four warnings rather
 than two (see the note below and §3.7).
 
-Of these 50 screens, **35 carry a single warning**; the remaining 15 carry two to
+Of these 31 screens, **16 carry a single warning**; the remaining 15 carry two to
 five.
 
 ### What is left, and under which reason
@@ -183,9 +183,14 @@ unsaid, and no screen is on this list merely because it looked hard.
 | The read fills in a form | 1 | §1, the form table |
 | The loader has side effects beyond storing the result | 1 | §3.3 |
 | Large screens not yet examined one by one | 6 | §3.6 |
-| **Shared components** (rendered by several roles at once) | 30 | §4 |
+| **Shared components not yet examined one by one** | 12 | §4 |
 | **`src/lib/` modules** | 3 | §3.7 and §4 |
 
+Six of the reasons above are no longer reasons: the screens that needed a
+capability the hook did not expose (§3.1), the ones that asked for one record per
+element (§3.2), the one whose read also wrote (§3.9), the standup screen's address
+mirror (§3.10, mostly), the venture group and the screen that republished its
+state from its writes (§4) are converted, and their sections record what was done.
 The whole venture group is converted, and its section records what each of the
 three needed. Six of the reasons above are therefore no longer reasons: the
 screens that needed a capability the hook did not expose (§3.1), the ones that
@@ -597,17 +602,45 @@ sections walked in each role, rather than as part of a warning cleanup.
 
 ---
 
-## 4. Not started
+## 4. Remaining groups
 
-Two groups, and the whole venture group behind them:
+### 4.0 What is left, exactly
 
-- **32 shared components** (`src/components/**`). These are rendered by several
-  roles at once, so a mistake reaches several audiences. They are handled last,
-  one at a time, never in bulk, and each one is checked for who renders it before
-  it is touched.
+- **12 shared components** (`src/components/**`). These are rendered by several
+  roles at once, so a mistake reaches several audiences. They are handled one at
+  a time, never in bulk, and each one is checked for who renders it first:
+
+  | Component | Warnings |
+  |---|---:|
+  | `src/components/tasks/TaskManager.js` | 4 |
+  | `src/components/dashboard/ProgramDetail.js` | 3 |
+  | `src/components/layout/DashboardLayout.js` — THE SHELL, every role | 3 |
+  | `src/components/dashboard/ProfileView.js` | 2 |
+  | `src/components/lms/LearnerCoachingButton.js` | 2 |
+  | `src/components/lms/LearnerPlayer.js` | 2 |
+  | `src/components/messaging/MessagingChat.js` | 2 |
+  | `src/components/dashboard/StandupRetroView.js` | 1 |
+  | `src/components/dashboard/SubmissionVersionHistory.js` | 1 |
+  | `src/components/dashboard/UnifiedDashboard.js` | 1 |
+  | `src/components/membership/MembershipSection.js` | 1 |
+  | `src/components/pm/FacilitatorsPanel.js` | 1 |
+  | `src/components/views/ErrorLogsView.js` | 1 |
+
+  (Twelve screens plus `DashboardLayout`, which is the shell rather than a screen
+  and is listed where it will be worked on.)
+
 - **3 `src/lib/` modules**: the translation provider, the theme provider and the
   permission provider. (The reading hook is the fourth, and its own four warnings
   are deliberate - §3.7.)
+
+**DONE — 19 converted:** the six participant dashboard views (`AssignmentsView`,
+`ParticipantDashboardHome`, `ProgramListing`, `ProgressView`, `RitualsView`,
+`UnifiedOperationsView`), the ten LMS panels (`AssessmentTake`,
+`CoachingRequestsPanel`, `CourseEditor`, `CourseList`, `EnrollModal`,
+`LearnerCourse`, `LearnerLearning`, `LessonModal`, `ProgramLearningSection`,
+`SessionResourcesSection`), the membership roster (`MembershipScreen`) and the two
+UI primitives (`NavigationLoader`, `SearchableSelect`). None of them needs
+revisiting; their two non-obvious shapes are recorded in §4.3.
 
 ### 4.1 The venture group - CONVERTED
 
@@ -652,6 +685,38 @@ here, and the two that need thought are already solved:
 3. the rest map one-to-one: `fetchX` becomes `refreshX` under the same name in
    the workspace context, so the ~30 call sites inside the tab components do not
    have to change at all.
+
+### 4.3 The two shapes the shared-component slice settled, and the toast rule
+
+Two of the nineteen were not conversions at all, and both are general rather than
+one-off:
+
+- **State reset when a CONTROL OPENS belongs to the action, not to an effect.**
+  The searchable select cleared its search and its highlight from an effect
+  watching `open`, which could only ever be one render late - the popover's first
+  paint still carried the previous search. Clearing them is part of opening the
+  popover, so it happens in the handler that opens it. What remains in an effect
+  is the focus, which is a DOM side effect and writes no state. **This is the fix
+  for every "reset a transient field when the dialog opens" warning.**
+- **A completion driven by the ADDRESS is derived, not written.** The global
+  navigation bar wrote 100% from an effect keyed on the route. It now records the
+  address the navigation STARTED FROM and derives "finished" during render by
+  comparing that with the current address, so arriving costs no state write and
+  cannot cascade a render. The effect keeps only the timers and the exit
+  animation. **This is the fix for every "when X changes, finish/close/reset"
+  warning where X is reachable during render** - the op-report screen's address
+  mirror (§3.10) is the same repair.
+
+And the rule for a failure signal the loader used to raise as an EVENT:
+
+- the hook reports a failure as a **value**, so a loader's error toast cannot be
+  carried over as it stands. Fold the refusal into the read's own value
+  (`{ payload, failure }`, the shape `src/app/admin/crm/duplicates/page.js` uses)
+  and raise the toast from a small effect whose ONLY job is the notification. That
+  keeps the signal without inventing state. Do not silently drop the toast, and do
+  not add an effect whose job is to copy the read into other state.
+- consequence to expect: a failure is CACHED for its 30 s life, so a screen
+  revisited inside that window re-raises the toast for the same refusal.
 
 ### What the venture recipe looks like, for whoever continues it
 
