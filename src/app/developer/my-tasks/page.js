@@ -1,66 +1,36 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import {
   CheckSquare,
   ChevronRight,
   RefreshCw,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
+
+// Module scope on purpose: the hook keys its internal callback on this function,
+// so an inline arrow would give it a new identity on every render and refetch in
+// a loop.
+const pickMyTasks = (d) => (d?.success ? d.tasks || [] : []);
 
 export default function MyTasks() {
-  const _router = useRouter();
   const { t } = useI18n();
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchTasks = useCallback(async (bypassCache = false) => {
-    setLoading(true);
-    try {
-      // The /developer layout guard has already authenticated the session, so
-      // cid is available locally and the page no longer waits on a duplicate
-      // /api/auth/session round-trip before showing tasks.
-      let cid = null;
-      try {
-        const saved = localStorage.getItem("user");
-        if (saved) cid = JSON.parse(saved).cid;
-      } catch (_) {}
-      if (!cid) {
-        const sessionRes = await fetch("/api/auth/session");
-        const sessionData = await sessionRes.json();
-        if (sessionData.authenticated && sessionData.user)
-          cid = sessionData.user.cid;
-      }
-      if (!cid) return;
-
-      const url = `/api/tasks?user_id=${cid}&sort=priority`;
-      const apply = (data) => {
-        if (data.success) setTasks(data.tasks || []);
-      };
-      // Cache-first paint on reads; the network refresh below converges.
-      const cached = cacheGet(url);
-      if (!bypassCache && cached !== null && cached.success) {
-        apply(cached);
-        setLoading(false);
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch tasks", e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+  // The identity now comes from the shell's session cache instead of the
+  // browser's stored copy, so nothing has to be written from an effect. The
+  // tasks follow it, and the screen keeps its spinner while that identity is
+  // still on its way rather than briefly claiming there is nothing to do.
+  const { cid } = useSessionUser();
+  const {
+    data: tasks,
+    loading: tasksLoading,
+    refresh,
+  } = useApi(cid ? `/api/tasks?user_id=${cid}&sort=priority` : null, {
+    defaultValue: [],
+    transform: pickMyTasks,
+    deps: [cid],
+  });
+  const loading = !cid || tasksLoading;
 
   return (
     <>
@@ -81,7 +51,7 @@ export default function MyTasks() {
             </p>
           </div>
           <button
-            onClick={fetchTasks}
+            onClick={refresh}
             className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5" /> {t("developerMisc.myTasks.refresh")}

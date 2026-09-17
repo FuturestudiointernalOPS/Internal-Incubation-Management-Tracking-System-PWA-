@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   ListTodo,
   RefreshCw,
@@ -13,57 +13,41 @@ import {
   Send,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
+
+// Module scope on purpose: the hook keys its internal callback on these functions,
+// so inline arrows would give them a new identity on every render and refetch in
+// a loop.
+const pickAssignedTasks = (d) => (d?.success ? d.tasks || [] : []);
+const pickPendingAssignments = (d) => (d?.success ? d.assignments || [] : []);
 
 export default function AssignedTasks() {
   const { t } = useI18n();
-  const [tasks, setTasks] = useState([]);
-  const [pendingAssignments, setPendingAssignments] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [responding, setResponding] = useState(null);
 
-  const fetchData = useCallback(async (bypassCache = false) => {
-    setLoading(true);
-    try {
-      const sessionRes = await fetch("/api/auth/session");
-      const sessionData = await sessionRes.json();
-      if (!sessionData.authenticated || !sessionData.user) return;
-      const userId = sessionData.user.cid;
-
-      // Fetch accepted/active assigned tasks
-      const tasksUrl = `/api/tasks?assigned_to=${userId}&sort=priority`;
-
-      // Fetch pending assignments (accept/decline workflow)
-      const assignUrl = `/api/tasks/assignments?assignee_id=${userId}&status=pending`;
-
-      const apply = (tasksData, assignData) => {
-        if (tasksData?.success) setTasks(tasksData.tasks || []);
-        if (assignData?.success)
-          setPendingAssignments(assignData.assignments || []);
-      };
-
-      // Cache-first paint on reads; the network refresh below converges.
-      const cached = [cacheGet(tasksUrl), cacheGet(assignUrl)];
-      if (!bypassCache && cached.every((c) => c !== null)) {
-        apply(cached[0], cached[1]);
-        setLoading(false);
-      }
-
-      const responses = await Promise.all([fetch(tasksUrl), fetch(assignUrl)]);
-      const jsons = await Promise.all(responses.map((r) => r.json()));
-      if (jsons[0]?.success) cacheSet(tasksUrl, jsons[0]);
-      if (jsons[1]?.success) cacheSet(assignUrl, jsons[1]);
-      apply(jsons[0], jsons[1]);
-    } catch (e) {
-      console.error("Failed to fetch data", e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // The identity comes from the shell's session cache rather than from a session
+  // request of this screen's own, and both lists follow it, so no effect sets
+  // state. The screen keeps its spinner while that identity is still on its way.
+  const { cid } = useSessionUser();
+  const {
+    data: tasks,
+    loading: tasksLoading,
+    refresh: refreshTasks,
+  } = useApi(cid ? `/api/tasks?assigned_to=${cid}&sort=priority` : null, {
+    defaultValue: [],
+    transform: pickAssignedTasks,
+    deps: [cid],
+  });
+  const {
+    data: pendingAssignments,
+    loading: pendingLoading,
+    refresh: refreshAssignments,
+  } = useApi(
+    cid ? `/api/tasks/assignments?assignee_id=${cid}&status=pending` : null,
+    { defaultValue: [], transform: pickPendingAssignments, deps: [cid] },
+  );
+  const loading = !cid || tasksLoading || pendingLoading;
 
   const handleResponse = async (assignmentId, action) => {
     setResponding(assignmentId);
@@ -75,7 +59,8 @@ export default function AssignedTasks() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchData(true);
+        refreshTasks();
+        refreshAssignments();
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t(data.error || "Failed to respond") || data.error || "Failed to respond" } }));
       }
@@ -154,7 +139,10 @@ export default function AssignedTasks() {
             </p>
           </div>
           <button
-            onClick={fetchData}
+            onClick={() => {
+              refreshTasks();
+              refreshAssignments();
+            }}
             className="btn btn-secondary gap-2 !px-4 !py-2.5"
           >
             <RefreshCw className="w-4 h-4" /> {t("developer.refresh")}

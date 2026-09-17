@@ -10,6 +10,7 @@
  */
 
 let session = null;
+const listeners = new Set();
 
 export function getDashboardSession() {
   return session;
@@ -17,4 +18,19 @@ export function getDashboardSession() {
 
 export function setDashboardSession(value) {
   session = value;
+  // The shell is the only writer. Anything rendering from this cache subscribes
+  // (see useSessionUser), so a screen can pick up the identity as soon as the
+  // shell has fetched it instead of re-reading the browser's stored copy.
+  for (const listener of listeners) listener();
+}
+
+/**
+ * Subscribe to changes of the cached session; returns an unsubscribe function,
+ * which is the shape useSyncExternalStore expects.
+ */
+export function subscribeDashboardSession(listener) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }

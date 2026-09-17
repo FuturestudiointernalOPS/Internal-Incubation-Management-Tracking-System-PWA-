@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   Search,
@@ -15,7 +15,14 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
+
+// Module scope on purpose: the hook keys its internal callback on these functions,
+// so inline arrows would give them a new identity on every render and refetch in
+// a loop.
+const pickBlockers = (d) => (d?.success ? d.blockers || [] : []);
+const pickBlockerTasks = (d) => (d?.success ? d.tasks || [] : []);
 
 /**
  * SUPER ADMIN BLOCKERS DASHBOARD
@@ -65,63 +72,28 @@ function getSeverityBg(severity) {
 
 export default function AdminBlockers() {
   const router = useRouter();
-  const [blockers, setBlockers] = useState([]);
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterUser, setFilterUser] = useState("All Users");
   const [viewingBlocker, setViewingBlocker] = useState(null);
   const { t } = useI18n();
 
-  const fetchData = useCallback(async (bypassCache = false) => {
-    const apply = (blockerData, taskData) => {
-      if (blockerData.success) setBlockers(blockerData.blockers || []);
-      if (taskData.success) setTasks(taskData.tasks || []);
-    };
-
-    setLoading(true);
-    try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const userId = user.cid || user.id;
-      const isSA = user.role === "super_admin";
-
-      // Phase 6: Non-SA users see only their own blockers/tasks
-      const urls = [
-        isSA ? "/api/blockers" : `/api/blockers?user_id=${userId}`,
-        isSA ? "/api/tasks" : `/api/tasks?user_id=${userId}`,
-      ];
-
-      // Cache-first paint: returning to the page renders instantly from fresh
-      // snapshots while the network refresh below converges in the background.
-      if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null)) {
-          apply(cached[0], cached[1]);
-          setLoading(false);
-        }
-      }
-      const responses = await Promise.all(
-        urls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ),
-      );
-      urls.forEach((u, i) => {
-        if (responses[i]?.success) cacheSet(u, responses[i]);
-      });
-      apply(responses[0], responses[1]);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // The identity comes from the shell's session cache instead of the browser's
+  // stored copy, which is what allows the request addresses themselves to be a
+  // plain result of it. Phase 6: anyone but a super admin sees only their own
+  // blockers and tasks, so those reads wait for the identity.
+  const { cid, role } = useSessionUser();
+  const isSuperAdmin = role === "super_admin";
+  const ready = isSuperAdmin || !!cid;
+  const { data: blockers, loading: blockersLoading } = useApi(
+    isSuperAdmin ? "/api/blockers" : cid ? `/api/blockers?user_id=${cid}` : null,
+    { defaultValue: [], transform: pickBlockers, deps: [isSuperAdmin, cid] },
+  );
+  const { data: tasks, loading: tasksLoading } = useApi(
+    isSuperAdmin ? "/api/tasks" : cid ? `/api/tasks?user_id=${cid}` : null,
+    { defaultValue: [], transform: pickBlockerTasks, deps: [isSuperAdmin, cid] },
+  );
+  const loading = !ready || blockersLoading || tasksLoading;
 
   // Build task lookup
   const taskMap = useMemo(() => {
