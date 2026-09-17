@@ -9,6 +9,10 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import Badge from "./ui/Badge";
 import EffectiveBadge from "./ui/EffectiveBadge";
 import WhyDrawer from "./ui/WhyDrawer";
+import PersonScopePanel from "./PersonScopePanel";
+import PersonRecentChanges from "./PersonRecentChanges";
+import RiskConfirmDialog from "./RiskConfirmDialog";
+import { riskyChanges } from "./riskGate";
 import { collectContextModules, deriveUserCapState, deriveDenialReason, describeCapOrigins } from "./matrixHelpers";
 import {
   ACCESS_LEVEL_KEYS,
@@ -70,12 +74,19 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
   const [moduleToFeature, setModuleToFeature] = useState({});
   const [loadingCtx, setLoadingCtx] = useState(false);
   const [err, setErr] = useState("");
+  // Scope reads: one entry per policy run against the engine's verification
+  // endpoint ({ policy, count, ids }). `ids` are the actual records the policy
+  // resolves to, which the panel below names via the person's own contexts.
   const [scope, setScope] = useState([]);
+  const [scopeBusy, setScopeBusy] = useState(false);
   const [why, setWhy] = useState(null);
   // In-place granting. `busyKey` is scoped to one capability row so a second
   // click elsewhere is still possible; the write itself is server-authoritative.
   const [busyKey, setBusyKey] = useState(null);
   const [actionErr, setActionErr] = useState("");
+  // A change about to be applied that the catalog rates high or critical.
+  // Confirmed, never blocked (see ./RiskConfirmDialog).
+  const [riskGate, setRiskGate] = useState(null);
   const [query, setQuery] = useState("");
   const [onlyGranted, setOnlyGranted] = useState(false);
 
@@ -106,6 +117,39 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
   if (ctxLoad.current == null) {
     ctxLoad.current = createLatestGuard();
   }
+  // Scope has its own line of succession: re-reading it (the panel's own
+  // control, or a write) must not cancel an access read still on the wire.
+  const scopeLoad = useRef(null);
+  if (scopeLoad.current == null) {
+    scopeLoad.current = createLatestGuard();
+  }
+
+  /**
+   * What each implemented scope policy resolves for ONE person, right now.
+   * Read-only: this is the engine's own verification endpoint (nothing is
+   * granted), and the resolved ids come back with the count because a number
+   * alone cannot answer "which records?".
+   */
+  const readScope = useCallback(async (cid) => {
+    const implemented = SCOPE_POLICY_KEYS.filter(
+      (k) => SCOPE_POLICIES[k]?.implemented,
+    );
+    return Promise.all(
+      implemented.map(async (policy) => {
+        try {
+          const r = await fetch(
+            `/api/engineering/permissions/scope-check?policy=${policy}&cid=${encodeURIComponent(cid)}`,
+          );
+          const sd = await r.json();
+          return sd.success
+            ? { policy, count: sd.resolved_count ?? 0, ids: sd.resolved_ids || [] }
+            : { policy, count: null, ids: [] };
+        } catch {
+          return { policy, count: null, ids: [] };
+        }
+      }),
+    );
+  }, []);
 
   const pick = useCallback(
     async (u) => {
@@ -114,6 +158,7 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
       setErr("");
       setLoadingCtx(true);
       const token = ctxLoad.current.begin();
+      const scopeToken = scopeLoad.current.begin();
       try {
         const res = await fetch(
           `/api/engineering/permissions/user-context?cid=${encodeURIComponent(u.cid)}`,
@@ -125,26 +170,9 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
 
         // Scope panel — read-only: what each implemented policy resolves for
         // this person right now (no record id ⇒ nothing is decided).
-        const implemented = SCOPE_POLICY_KEYS.filter(
-          (k) => SCOPE_POLICIES[k]?.implemented,
-        );
-        const settled = await Promise.all(
-          implemented.map(async (policy) => {
-            try {
-              const r = await fetch(
-                `/api/engineering/permissions/scope-check?policy=${policy}&cid=${encodeURIComponent(u.cid)}`,
-              );
-              const sd = await r.json();
-              return sd.success
-                ? { policy, count: sd.resolved_count ?? 0 }
-                : { policy, count: null };
-            } catch {
-              return { policy, count: null };
-            }
-          }),
-        );
-        if (!ctxLoad.current.isCurrent(token)) return; // a newer person won
-        setScope(settled);
+        const resolved = await readScope(u.cid);
+        if (!scopeLoad.current.isCurrent(scopeToken)) return; // a newer person won
+        setScope(resolved);
       } catch (e) {
         if (!ctxLoad.current.isCurrent(token)) return;
         setErr(e.message);
@@ -152,7 +180,39 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
         if (ctxLoad.current.isCurrent(token)) setLoadingCtx(false);
       }
     },
-    [],
+    [readScope],
+  );
+
+  /** Re-read ONLY the resolved scope of the person on screen. */
+  const refreshScope = useCallback(async () => {
+    if (!selected?.cid) return;
+    const token = scopeLoad.current.begin();
+    setScopeBusy(true);
+    try {
+      const resolved = await readScope(selected.cid);
+      if (scopeLoad.current.isCurrent(token)) setScope(resolved);
+    } finally {
+      if (scopeLoad.current.isCurrent(token)) setScopeBusy(false);
+    }
+  }, [selected, readScope]);
+
+  /**
+   * Run the scope verification for ONE record, for this person. Same read-only
+   * endpoint the verification bench uses; the answer is returned to the caller
+   * so a failed read stays a failed read rather than becoming a verdict.
+   */
+  const runScopeCheck = useCallback(
+    async (policy, resourceId) => {
+      if (!selected?.cid) return null;
+      const params = new URLSearchParams({ policy, cid: selected.cid });
+      if (resourceId) params.set("resource_id", resourceId);
+      const res = await fetch(
+        `/api/engineering/permissions/scope-check?${params.toString()}`,
+      );
+      const d = await res.json();
+      return d?.success ? d : null;
+    },
+    [selected],
   );
 
   // Follow the selection made above (including the first paint, when a ?cid=
@@ -218,6 +278,32 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
       }
     },
     [selected, refreshCtx, onAccessChanged, t],
+  );
+
+  /**
+   * The gate in front of `writeAccess`: a capability the catalog rates high or
+   * critical is CONFIRMED, never blocked. `critical` was already colour-coded in
+   * the matrix, but nothing said which capability the click was about — and on a
+   * list this long, the one red chip among forty is exactly the one that gets
+   * mis-clicked. Low and medium writes stay one click: a confirmation nobody
+   * reads protects nothing.
+   */
+  const requestAccess = useCallback(
+    (action, module, capability, accessLevel) => {
+      const risky = riskyChanges([{ module, capability }]);
+      if (risky.length > 0) {
+        setRiskGate({
+          action,
+          module,
+          capability,
+          accessLevel,
+          risky,
+        });
+        return;
+      }
+      writeAccess(action, module, capability, accessLevel);
+    },
+    [writeAccess],
   );
 
   const modules = useMemo(() => {
@@ -343,7 +429,7 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
               disabled={held || busy}
               onClick={(e) => {
                 e.stopPropagation();
-                writeAccess("grant", module, capability, lvl);
+                requestAccess("grant", module, capability, lvl);
               }}
               title={t("engineering.permissions.titleSetTo", {
                 level: t(ACCESS_LEVEL_KEYS[lvl]),
@@ -362,7 +448,7 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
             disabled={busy}
             onClick={(e) => {
               e.stopPropagation();
-              writeAccess("revoke", module, capability);
+              requestAccess("revoke", module, capability);
             }}
             title={t("engineering.permissions.titleRevokeGrant")}
             className="p-1 rounded-md hover:bg-red-500/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
@@ -485,30 +571,18 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
               </p>
             </div>
 
-            {/* Scope panel — what the engine resolves today (read-only) */}
-            <div className="rounded-xl border border-[var(--border-primary)] bg-secondary/40 p-3 space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                {t("engineering.permissions.peopleScopeTitle")}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {scope.map((s) => (
-                  <span
-                    key={s.policy}
-                    className="px-2 py-0.5 rounded-md bg-primary border border-[var(--border-primary)] text-[10px] font-mono text-[var(--text-secondary)]"
-                  >
-                    {s.policy} · {s.count === null ? "—" : s.count}
-                  </span>
-                ))}
-                {scope.length === 0 && (
-                  <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                    {t("engineering.permissions.peopleScopeEmpty")}
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] font-bold text-[var(--text-secondary)] opacity-70">
-                {t("engineering.permissions.peopleScopeNote")}
-              </p>
-            </div>
+            {/* Scope panel — what the engine resolves today, with the records
+                named and the verification bench for THIS person in place (see
+                ./PersonScopePanel). Keyed on the cid so a probe run against the
+                previous person can never be read as an answer about this one. */}
+            <PersonScopePanel
+              key={`scope-${selected.cid}`}
+              policies={scope}
+              contexts={ctx.contexts || []}
+              checkPolicy={runScopeCheck}
+              onRefresh={refreshScope}
+              refreshing={scopeBusy}
+            />
           </div>
 
           {/* Sources matrix — one card, filtered, with the four rights of a
@@ -775,6 +849,10 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
               )}
             </div>
           </div>
+
+          {/* The same question as the History door, asked about the person on
+              screen: what has been done to THIS account lately? (./PersonRecentChanges) */}
+          <PersonRecentChanges key={`recent-${selected.cid}`} person={selected} />
         </>
       )}
 
@@ -823,6 +901,21 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
           </div>
         </WhyDrawer>
       )}
+
+      {/* Critical/high-risk confirmation — the write is applied on confirm. */}
+      <RiskConfirmDialog
+        open={Boolean(riskGate)}
+        changes={riskGate?.risky || []}
+        subject={selected?.name || selected?.cid || ""}
+        onCancel={() => setRiskGate(null)}
+        onConfirm={() => {
+          const gate = riskGate;
+          setRiskGate(null);
+          if (gate) {
+            writeAccess(gate.action, gate.module, gate.capability, gate.accessLevel);
+          }
+        }}
+      />
     </div>
   );
 }

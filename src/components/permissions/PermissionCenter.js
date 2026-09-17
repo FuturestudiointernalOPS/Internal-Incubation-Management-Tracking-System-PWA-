@@ -44,6 +44,9 @@ import WhyDrawer from "@/components/permissions/ui/WhyDrawer";
 import PendingChangesList from "@/components/permissions/ui/PendingChangesList";
 import { diffCapabilities } from "@/components/permissions/pendingChanges";
 import { splitAuditReason } from "@/components/permissions/auditHelpers";
+import RiskConfirmDialog from "@/components/permissions/RiskConfirmDialog";
+import AuditPersonFilter from "@/components/permissions/AuditPersonFilter";
+import { riskyChanges } from "@/components/permissions/riskGate";
 import { deriveProfileBadges } from "@/components/permissions/profileBadges";
 import FeatureMatrixSection from "@/components/permissions/FeatureMatrixSection";
 import AdvancedCapabilities from "@/components/permissions/AdvancedCapabilities";
@@ -83,6 +86,9 @@ export default function PermissionManager({
   const [expandedModules, setExpandedModules] = useState({});
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
+  // A pending write whose capability the catalog rates high or critical. It is
+  // CONFIRMED, never blocked — see ./RiskConfirmDialog.
+  const [riskGate, setRiskGate] = useState(null);
   const [whyTarget, setWhyTarget] = useState(null); // { module, capability } for the explanation modal
   const [showAssignForm, setShowAssignForm] = useState(false);
   const [assignProfileId, setAssignProfileId] = useState("");
@@ -361,7 +367,7 @@ export default function PermissionManager({
     (section) => !section.eligible,
   ).length;
 
-  const handleQuickAction = async (action, module, capability, level) => {
+  const applyQuickAction = async (action, module, capability, level) => {
     setActionMsg("");
     setActionError("");
 
@@ -465,6 +471,22 @@ export default function PermissionManager({
       setUserPerms(prevPerms);
       setActionError(t("engineering.permissions.networkError"));
     }
+  };
+
+  /**
+   * The gate in front of `applyQuickAction`. `critical` and `high` capabilities
+   * were already colour-coded in the matrix, but the click carried no name: this
+   * states which capability is about to change and at what risk, then applies it
+   * on confirm. Low and medium writes stay one click — confirming everything is
+   * how a confirmation stops being read.
+   */
+  const handleQuickAction = async (action, module, capability, level) => {
+    const risky = riskyChanges([{ module, capability }]);
+    if (risky.length > 0) {
+      setRiskGate({ action, module, capability, level, risky });
+      return;
+    }
+    await applyQuickAction(action, module, capability, level);
   };
 
   const refreshUserPerms = async () => {
@@ -1098,6 +1120,26 @@ export default function PermissionManager({
             onClose={() => setWhyTarget(null)}
           />
         )}
+
+        {/* Critical/high-risk confirmation: the write is applied on confirm. */}
+        <RiskConfirmDialog
+          open={Boolean(riskGate)}
+          changes={riskGate?.risky || []}
+          subject={selectedUser?.name || selectedUser?.cid || ""}
+          onCancel={() => setRiskGate(null)}
+          onConfirm={() => {
+            const gate = riskGate;
+            setRiskGate(null);
+            if (gate) {
+              applyQuickAction(
+                gate.action,
+                gate.module,
+                gate.capability,
+                gate.level,
+              );
+            }
+          }}
+        />
       </div>
     </>
   );
@@ -3714,6 +3756,18 @@ const AUDIT_ACTIONS = [
   "role_changed",
 ];
 
+const AUDIT_FILTER_DEFAULTS = {
+  q: "",
+  actor: "",
+  target: "",
+  action: "",
+  module: "",
+  capability: "",
+  target_cid: "",
+  from: "",
+  to: "",
+};
+
 function AuditView() {
   const { t } = useI18n();
   const [entries, setEntries] = useState([]);
@@ -3722,9 +3776,37 @@ function AuditView() {
   const [pageSize] = useState(25);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filters, setFilters] = useState({ q: "", action: "", module: "", capability: "", from: "", to: "" });
-  const [applied, setApplied] = useState(filters);
+  // Every filter the audit endpoint supports and the screen exposes. `applied`
+  // is what has been SENT (the fetch depends on it), `filters` is what the admin
+  // is typing — so a half-typed name never issues a request.
+  const [filters, setFilters] = useState(AUDIT_FILTER_DEFAULTS);
+  const [applied, setApplied] = useState(AUDIT_FILTER_DEFAULTS);
   const [detail, setDetail] = useState(null);
+  // The fetch waits for the URL read below: a ?target_cid= deep link must be
+  // part of the FIRST request, not a second one after an unfiltered paint.
+  const [ready, setReady] = useState(false);
+
+  // Deep link from the person screen: "show me THIS person's whole history".
+  // Deferred (project convention: an effect performs no synchronous state
+  // write), and reading the URL is not part of the authorization decision — the
+  // server filters and authorizes the same request either way.
+  useEffect(() => {
+    defer(() => {
+      const seeded = { ...AUDIT_FILTER_DEFAULTS };
+      try {
+        const params = new URLSearchParams(window.location.search);
+        for (const key of Object.keys(AUDIT_FILTER_DEFAULTS)) {
+          const value = params.get(key);
+          if (value) seeded[key] = value;
+        }
+      } catch {
+        /* no deep link — start unfiltered */
+      }
+      setFilters(seeded);
+      setApplied(seeded);
+      setReady(true);
+    });
+  }, []);
 
   const updateFilter = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -3733,7 +3815,14 @@ function AuditView() {
 
   const applyFilters = () => setApplied(filters);
 
+  const clearFilters = () => {
+    setFilters({ ...AUDIT_FILTER_DEFAULTS });
+    setApplied({ ...AUDIT_FILTER_DEFAULTS });
+    setPage(1);
+  };
+
   useEffect(() => {
+    if (!ready) return;
     let cancelled = false;
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     for (const [k, v] of Object.entries(applied)) {
@@ -3776,7 +3865,7 @@ function AuditView() {
     return () => {
       cancelled = true;
     };
-  }, [applied, page, pageSize]);
+  }, [applied, page, pageSize, ready]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const moduleOptions = Object.keys(CAPABILITY_CATALOG).sort();
@@ -3796,6 +3885,9 @@ function AuditView() {
 
   return (
     <div className="space-y-4">
+      {/* Filters: the free-text box searches everything at once; the fields next
+          to it answer the narrower, more common questions — who made the change,
+          who it was about, which capability, and one person's whole history. */}
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex-1 min-w-[200px]">
           <input
@@ -3803,13 +3895,39 @@ function AuditView() {
             onChange={(e) => updateFilter("q", e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && applyFilters()}
             placeholder={t("engineering.permissions.auditSearch")}
-            className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+            aria-label={t("engineering.permissions.auditSearch")}
+            className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40 transition-all"
           />
         </div>
+        <input
+          value={filters.actor}
+          onChange={(e) => updateFilter("actor", e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+          placeholder={t("engineering.permissions.auditFilterActor")}
+          aria-label={t("engineering.permissions.auditFilterActor")}
+          className="w-40 bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+        />
+        <input
+          value={filters.target}
+          onChange={(e) => updateFilter("target", e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+          placeholder={t("engineering.permissions.auditFilterTarget")}
+          aria-label={t("engineering.permissions.auditFilterTarget")}
+          className="w-40 bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+        />
+        <input
+          value={filters.capability}
+          onChange={(e) => updateFilter("capability", e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+          placeholder={t("engineering.permissions.auditFilterCapability")}
+          aria-label={t("engineering.permissions.auditFilterCapability")}
+          className="w-40 bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+        />
         <select
           value={filters.action}
           onChange={(e) => updateFilter("action", e.target.value)}
-          className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none"
+          aria-label={t("engineering.permissions.auditFilterActionAria")}
+          className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
         >
           <option value="">{t("engineering.permissions.auditAllActions")}</option>
           {AUDIT_ACTIONS.map((a) => (
@@ -3821,7 +3939,8 @@ function AuditView() {
         <select
           value={filters.module}
           onChange={(e) => updateFilter("module", e.target.value)}
-          className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none"
+          aria-label={t("engineering.permissions.auditFilterModuleAria")}
+          className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
         >
           <option value="">{t("engineering.permissions.auditAllModules")}</option>
           {moduleOptions.map((m) => (
@@ -3830,25 +3949,51 @@ function AuditView() {
             </option>
           ))}
         </select>
-        <input
-          type="date"
-          value={filters.from}
-          onChange={(e) => updateFilter("from", e.target.value)}
-          className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none"
+        <AuditPersonFilter
+          value={filters.target_cid}
+          onChange={(cid) => updateFilter("target_cid", cid)}
         />
-        <input
-          type="date"
-          value={filters.to}
-          onChange={(e) => updateFilter("to", e.target.value)}
-          className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none"
-        />
+        <label className="flex flex-col gap-1">
+          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+            {t("engineering.permissions.auditFilterFrom")}
+          </span>
+          <input
+            type="date"
+            value={filters.from}
+            onChange={(e) => updateFilter("from", e.target.value)}
+            className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+            {t("engineering.permissions.auditFilterTo")}
+          </span>
+          <input
+            type="date"
+            value={filters.to}
+            onChange={(e) => updateFilter("to", e.target.value)}
+            className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+          />
+        </label>
         <button
           onClick={applyFilters}
-          className="px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all"
+          className="px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
         >
-          {t("engineering.permissions.eligibilitySave")}
+          {t("engineering.permissions.auditApplyFilters")}
+        </button>
+        <button
+          onClick={clearFilters}
+          className="px-4 py-2.5 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+        >
+          {t("engineering.permissions.auditClearFilters")}
         </button>
       </div>
+
+      {applied.target_cid && (
+        <p className="rounded-xl border border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/5 px-3 py-2 text-[10px] font-bold text-[var(--text-primary)]">
+          {t("engineering.permissions.auditFilterPersonActive")}
+        </p>
+      )}
 
       {error && (
         <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
