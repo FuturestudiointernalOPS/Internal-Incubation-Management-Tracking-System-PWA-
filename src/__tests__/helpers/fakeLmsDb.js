@@ -40,6 +40,7 @@ const TABLES = [
   "v2_notifications",
   "participant_programs",
   "contacts",
+  "participant_program_audit",
 ];
 
 // Column defaults applied when an INSERT omits a column (mirrors the real
@@ -213,25 +214,28 @@ export function createFakeDb() {
 
   function remove(sql, args) {
     const table = /delete from (\w+)/i.exec(sql)[1];
-    const id = args[0];
-    state[table] = state[table].filter((r) => String(r.id) !== String(id));
+    // The WHERE decides which rows go: one id, or a whole chunk of them.
+    const doomed = state[table].filter((r) => evalWhere(sql, args, r));
+    const gone = new Set(doomed.map((r) => String(r.id)));
+    state[table] = state[table].filter((r) => !gone.has(String(r.id)));
+
     if (table === "lms_course_sections") {
       const lessonIds = state.lms_lessons
-        .filter((l) => String(l.section_id) === String(id))
+        .filter((l) => gone.has(String(l.section_id)))
         .map((l) => String(l.id));
       state.lms_lessons = state.lms_lessons.filter((l) => lessonIds.includes(String(l.id)) === false);
       state.lms_assessments = state.lms_assessments.filter(
-        (a) => String(a.section_id) !== String(id),
+        (a) => !gone.has(String(a.section_id)),
       );
     }
     if (table === "lms_assessments") {
       state.lms_assessment_questions = state.lms_assessment_questions.filter(
-        (q) => String(q.assessment_id) !== String(id),
+        (q) => !gone.has(String(q.assessment_id)),
       );
     }
     if (table === "lms_lessons") {
       state.lms_lesson_progress = state.lms_lesson_progress.filter(
-        (p) => String(p.lesson_id) !== String(id),
+        (p) => !gone.has(String(p.lesson_id)),
       );
     }
     return { rows: [], rowsAffected: 1 };

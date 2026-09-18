@@ -515,6 +515,11 @@ export async function insertWithdrawalTimeline(participantId, programId) {
 }
 
 // ── POST /api/participant-programs/bulk ──────────────────────────────────────
+//
+// These are GROUPED forms: the controller walks its participants in chunks (see
+// src/lib/participantBatches.js) and each function writes a whole chunk in ONE
+// statement. Asking the same question per person is what made a bulk action of a
+// few hundred people into a few hundred round trips inside one request.
 
 /** Program existence check before a bulk add. */
 export async function getBulkProgramById(programId) {
@@ -524,38 +529,72 @@ export async function getBulkProgramById(programId) {
   });
 }
 
-/** Conflict check for a bulk add: is this contact already a facilitator? */
-export async function checkBulkFacilitatorConflict(programId, participantId) {
+/**
+ * Conflict check for a bulk add: which of these contacts are ALREADY
+ * facilitators of the programme? One statement for the chunk.
+ *
+ * The list leads and is parenthesised because it is the selective part; the
+ * programme and the role then narrow it. The `LOWER(TRIM(...))` half keeps the
+ * email-tolerant match the single-person form had (legacy rows hold an address
+ * in `staff_id`), which is why both the raw and the lowercase ids are bound.
+ */
+export async function checkBulkFacilitatorConflicts(programId, participantIds) {
+  const ids = participantIds || [];
+  if (ids.length === 0) return { rows: [] };
+  const placeholders = ids.map(() => "?").join(", ");
   return db.execute({
-    sql: "SELECT 1 FROM v2_program_staff WHERE CAST(program_id AS TEXT) = ? AND role = 'facilitator' AND (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(TRIM(?))) LIMIT 1",
-    args: [String(programId), participantId, participantId],
+    sql: `SELECT staff_id FROM v2_program_staff
+          WHERE (staff_id IN (${placeholders})
+                 OR LOWER(TRIM(staff_id)) IN (${placeholders}))
+            AND CAST(program_id AS TEXT) = ?
+            AND role = 'facilitator'`,
+    args: [
+      ...ids,
+      ...ids.map((id) => String(id).toLowerCase()),
+      String(programId),
+    ],
   });
 }
 
-/** Bulk-enroll a participant in a program (idempotent). */
-export async function insertBulkParticipantProgram(participantId, programId) {
+/** Bulk-enroll a chunk of participants in a program (idempotent, one statement). */
+export async function insertBulkParticipantPrograms(participantIds, programId) {
+  const ids = participantIds || [];
+  if (ids.length === 0) return { rows: [], rowsAffected: 0 };
+  const values = ids.map(() => "(?, ?)").join(", ");
   return db.execute({
     sql: `INSERT INTO participant_programs (participant_id, program_id)
-                  VALUES (?, ?)
+                  VALUES ${values}
                   ON CONFLICT (participant_id, program_id) DO NOTHING`,
-    args: [participantId, programId],
+    args: ids.flatMap((id) => [id, programId]),
   });
 }
 
-/** Bulk-remove a participant from a program. */
-export async function deleteBulkParticipantProgram(participantId, programId) {
+/** Bulk-remove a chunk of participants from a program (one statement). */
+export async function deleteBulkParticipantPrograms(participantIds, programId) {
+  const ids = participantIds || [];
+  if (ids.length === 0) return { rows: [], rowsAffected: 0 };
+  const placeholders = ids.map(() => "?").join(", ");
   return db.execute({
-    sql: "DELETE FROM participant_programs WHERE participant_id = ? AND program_id = ?",
-    args: [participantId, programId],
+    sql: `DELETE FROM participant_programs
+          WHERE program_id = ? AND participant_id IN (${placeholders})`,
+    args: [programId, ...ids],
   });
 }
 
-/** Audit-log a bulk add/remove (action passed by the controller). */
-export async function insertBulkAudit(participantId, programId, auditAction, performedBy) {
+/** Audit-log a chunk of bulk add/remove (action passed by the controller). */
+export async function insertBulkAudits(
+  participantIds,
+  programId,
+  auditAction,
+  performedBy,
+) {
+  const ids = participantIds || [];
+  if (ids.length === 0) return { rows: [], rowsAffected: 0 };
+  const values = ids.map(() => "(?, ?, ?, ?)").join(", ");
   return db.execute({
     sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by)
-                VALUES (?, ?, ?, ?)`,
-    args: [participantId, programId, auditAction, performedBy],
+                VALUES ${values}`,
+    args: ids.flatMap((id) => [id, programId, auditAction, performedBy]),
   });
 }
 

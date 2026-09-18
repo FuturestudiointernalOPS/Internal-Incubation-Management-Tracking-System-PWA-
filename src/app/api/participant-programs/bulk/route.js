@@ -2,13 +2,14 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireProgramScope } from "@/lib/programScopedAccess";
+import { participantBatches } from "@/lib/participantBatches";
 import { ensureProgramEnrollments } from "@/lib/lms/programRequirements";
 import {
   getBulkProgramById,
-  checkBulkFacilitatorConflict,
-  insertBulkParticipantProgram,
-  deleteBulkParticipantProgram,
-  insertBulkAudit,
+  checkBulkFacilitatorConflicts,
+  insertBulkParticipantPrograms,
+  deleteBulkParticipantPrograms,
+  insertBulkAudits,
 } from "@/models/participantPortal";
 export const dynamic = "force-dynamic";
 
@@ -85,48 +86,85 @@ export async function POST(req) {
     const results = [];
     const errors = [];
 
-    for (const participant_id of participant_ids) {
+    // The participants are APPLIED IN CHUNKS of 30, as a queue.
+    //
+    // Per person this used to cost three statements plus one per required course
+    // (a conflict check, the assignment, the audit entry, then the enrolment) -
+    // so a few hundred people made a few hundred round trips inside this one
+    // request. Per chunk it is a handful, and the enrolment adds one more per
+    // chunk per course instead of one per person per course.
+    //
+    // The chunk is therefore also the unit that lands or fails: a database error
+    // is reported for the chunk's people rather than for the one row that
+    // happened to be written when it occurred.
+    for (const chunk of participantBatches(participant_ids)) {
+      let added = [];
+
       try {
         if (action === "add") {
-          const facConflict = await checkBulkFacilitatorConflict(program_id, participant_id);
-          if (facConflict.rows.length > 0) {
-            errors.push({ participant_id, error: "errors.roleConflictFacilitatorParticipant" });
-            continue;
+          // One query decides who in this chunk is already a facilitator of the
+          // programme. They are refused as before; the rest of the chunk is not
+          // held up by them.
+          const conflicts = await checkBulkFacilitatorConflicts(
+            program_id,
+            chunk,
+          );
+          const blocked = new Set(
+            (conflicts.rows || []).map((row) =>
+              String(row.staff_id).trim().toLowerCase(),
+            ),
+          );
+          added = chunk.filter(
+            (id) => !blocked.has(String(id).trim().toLowerCase()),
+          );
+          for (const id of chunk) {
+            if (!added.includes(id)) {
+              errors.push({
+                participant_id: id,
+                error: "errors.roleConflictFacilitatorParticipant",
+              });
+            }
           }
+          if (added.length === 0) continue;
 
-          await insertBulkParticipantProgram(participant_id, program_id);
+          await insertBulkParticipantPrograms(added, program_id);
         } else {
-          await deleteBulkParticipantProgram(participant_id, program_id);
+          await deleteBulkParticipantPrograms(chunk, program_id);
+          added = chunk;
         }
 
-        // Audit log
-        await insertBulkAudit(
-          participant_id,
+        // Audit log — one entry per person, written in one statement.
+        await insertBulkAudits(
+          added,
           program_id,
           action === "add" ? "assigned" : "removed",
           assigned_by || null,
         );
 
-        // Phase 6: auto-enroll added participants in every PUBLISHED course
-        // the program requires (server-side, idempotent).
-        if (action === "add") {
-          try {
-            await ensureProgramEnrollments(program_id, [participant_id]);
-          } catch (lmsErr) {
-            console.error(
-              `[participant-programs/bulk] auto LMS enrollment failed for ${participant_id} in ${program_id}:`,
-              lmsErr.message,
-            );
-          }
-        }
-
-        results.push(participant_id);
+        results.push(...added);
       } catch (err) {
         console.error(
-          `Bulk ${action} error for ${participant_id}:`,
+          `Bulk ${action} error for a chunk of ${chunk.length} in ${program_id}:`,
           err.message,
         );
-        errors.push({ participant_id, error: err.message });
+        for (const participant_id of chunk) {
+          errors.push({ participant_id, error: err.message });
+        }
+        continue;
+      }
+
+      // Phase 6: auto-enroll added participants in every PUBLISHED course
+      // the program requires (server-side, idempotent). One call for the chunk —
+      // the enrolment groups its own writes in turn.
+      if (action === "add" && added.length > 0) {
+        try {
+          await ensureProgramEnrollments(program_id, added);
+        } catch (lmsErr) {
+          console.error(
+            `[participant-programs/bulk] auto LMS enrollment failed for a chunk in ${program_id}:`,
+            lmsErr.message,
+          );
+        }
       }
     }
 
