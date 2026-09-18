@@ -209,6 +209,20 @@ needed.
 > `src/__tests__/result-pdf-layout.test.js` (a single unused constant). It was
 > introduced by a different workstream and is unrelated to this migration.
 
+### Everything still open, in one place
+
+The sections below carry the reasoning; this is the index, so nothing is lost in
+the length of the account.
+
+| Open item | Where | Next step |
+|---|---|---|
+| The hook's own four warnings | `src/lib/hooks/useApi.js` | Nothing to do: they are the hook BEING the removal target. §3.7. |
+| A `try/finally` in the scores reader | `src/app/admin/platform/scores/page.js` | Three lines - clear the loading flag after the block. The compiler cannot build HIR for a `finally`. §3.12. |
+| 22 hand-written reads on the founder's venture workspace | `src/app/participant/ventures/[id]/page.js` and its group | Mechanical (cache + fetch + setState each). Parked by decision; the recipe is at the end of §4. |
+| One unused constant in another workstream's suite | `src/__tests__/result-pdf-layout.test.js` | Not this migration's to remove. |
+| The screens that must be walked by hand | §5.1 | Four families, listed there. |
+| The database work (queries, migrations, cache, pool) | - | Parked by decision, separate from this migration. |
+
 ---
 
 ## 3. Deliberately deferred — with the reason and the next step
@@ -700,9 +714,10 @@ the chat and the shell - are done:
 | `src/components/dashboard/ProgramDetail.js` | 3 → 0 | Two identity reads off the browser's copy, and the read that fills the screen. Which week is open is derived: the course's current week by default, with only the weeks the person toggled recorded over it. |
 | `src/components/messaging/MessagingChat.js` | 2 → 0 | The identity read, and four sources loaded together. The three-second poll is KEPT, now as the read's `refetchInterval` driven by a subscribed page-visibility value, so a hidden tab has no timer. |
 
-**3 `src/lib/` modules** are still left: the translation provider, the theme
-provider and the permission provider. (The reading hook is the fourth, and its own
-four warnings are deliberate - §3.7.)
+**Nothing is left in `src/lib/` either, except the reading hook itself.** The
+translation provider, the theme provider and the permission provider were the last
+family, and they are done (§4.4). The hook's own four warnings are deliberate
+(§3.7): it is the one thing that cannot convert itself.
 
 #### 4.0.1 The shell - CONVERTED
 
