@@ -106,16 +106,39 @@ describe("milestone ordering inside a journey", () => {
   });
 });
 
-describe("milestone structure authority (Lead Manager / Super Admin only)", () => {
-  function authDb({ codeRow = { id: "db-1", venture_id: "VNT-1" }, assignment = false, failCode = false } = {}) {
+describe("milestone structure authority (matrix `milestones.edit` / Super Admin only)", () => {
+  // The authority now comes from the permission MATRIX, so the double models the
+  // two queries hasVentureCapability makes: the assignment (responsibility +
+  // scope) and the matrix cell for that responsibility. It mirrors the seeded
+  // truth — a Lead Manager holds `milestones.edit`, a Coach does not.
+  const MATRIX = { lead_manager: true, coach: false };
+
+  function authDb({
+    codeRow = { id: "db-1", venture_id: "VNT-1" },
+    responsibility = null,
+    scope = "venture_wide",
+    failCode = false,
+  } = {}) {
     return {
-      execute: async ({ sql }) => {
+      execute: async ({ sql, args }) => {
         if (sql.includes("FROM ventures WHERE venture_id = ? OR id::text = ?")) {
           if (failCode) throw new Error("no ventures table");
           return { rows: codeRow ? [codeRow] : [] };
         }
         if (sql.includes("FROM venture_staff_assignments")) {
-          return { rows: assignment ? [{ "?column?": 1 }] : [] };
+          return {
+            rows: responsibility
+              ? [{
+                  responsibility_code: responsibility,
+                  scope_type: scope,
+                  scope_ref_type: null,
+                  scope_ref_id: null,
+                }]
+              : [],
+          };
+        }
+        if (sql.includes("venture_permission_matrix")) {
+          return { rows: [{ allowed: MATRIX[args?.[0]] ? 1 : 0 }] };
         }
         return { rows: [] };
       },
@@ -127,11 +150,49 @@ describe("milestone structure authority (Lead Manager / Super Admin only)", () =
   });
 
   test("an assigned Lead Manager may manage milestones", async () => {
-    expect(await canManageMilestones(authDb({ assignment: true }), { id: "VNT-1", cid: "lm-1", role: "staff" })).toBe(true);
+    expect(
+      await canManageMilestones(authDb({ responsibility: "lead_manager" }), {
+        id: "VNT-1",
+        cid: "lm-1",
+        role: "staff",
+      }),
+    ).toBe(true);
   });
 
-  test("staff without a lead_manager assignment may not", async () => {
-    expect(await canManageMilestones(authDb({ assignment: false }), { id: "VNT-1", cid: "coach-1", role: "staff" })).toBe(false);
+  test("a COACH may not restructure the roadmap, even with a real assignment", async () => {
+    // The defect this closes: the matrix said a coach could create/edit a
+    // milestone, and the engine's old hand-rolled check disagreed with it. A
+    // coach holds a genuine assignment, so the old check's shape was right for a
+    // lead manager and wrong here.
+    expect(
+      await canManageMilestones(authDb({ responsibility: "coach" }), {
+        id: "VNT-1",
+        cid: "coach-1",
+        role: "staff",
+      }),
+    ).toBe(false);
+  });
+
+  test("a milestone-scoped Lead Manager does not confer roadmap restructuring", async () => {
+    // The cell is venture-wide: scope narrows where you work, not whether you
+    // may rewrite the plan.
+    expect(
+      await canManageMilestones(authDb({ responsibility: "lead_manager", scope: "milestone" }), {
+        id: "VNT-1",
+        cid: "lm-2",
+        role: "staff",
+      }),
+    ).toBe(false);
+  });
+
+  test("staff with no assignment at all may not", async () => {
+    expect(
+      await canManageMilestones(authDb({ responsibility: null }), {
+        id: "VNT-1",
+        cid: "nobody",
+        role: "staff",
+      }),
+    ).toBe(false);
   });
 
   test("members (no cid) may not", async () => {

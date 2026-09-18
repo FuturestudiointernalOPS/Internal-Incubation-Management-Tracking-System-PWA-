@@ -15,7 +15,7 @@ const STAGE = "ST-1";
 
 function db({ assignments = [], lead = false, failAssignments = false } = {}) {
   return {
-    execute: async ({ sql }) => {
+    execute: async ({ sql, args = [] }) => {
       if (sql.includes("FROM venture_staff_assignments")) {
         if (failAssignments) throw new Error("assignments unavailable");
         if (lead) {
@@ -31,6 +31,11 @@ function db({ assignments = [], lead = false, failAssignments = false } = {}) {
           };
         }
         return { rows: assignments };
+      }
+      // Definition authority is the matrix cell `milestones.edit`: the Lead
+      // Manager holds it; nobody else in the seeded set does.
+      if (sql.includes("venture_permission_matrix")) {
+        return { rows: [{ allowed: args[0] === "lead_manager" ? 1 : 0 }] };
       }
       if (sql.includes("FROM ventures WHERE")) return { rows: [{ venture_id: VENTURE }] };
       return { rows: [] };

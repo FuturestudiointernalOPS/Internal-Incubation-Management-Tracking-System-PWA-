@@ -27,11 +27,19 @@ import { hasVentureCapability } from "@/lib/venturePermissions";
  * promises something the server does not honour. Each wire that lands adds its
  * key to `matrix_enforced` and to `matrix`, and nothing else.
  *
- * Today exactly one cell is enforced: `calendar.schedule`, read by the sessions
- * route wherever the CALENDAR is defined — booking, moving, cancelling and
- * deleting a session. A Coach supports a Venture and attends; a manager
- * schedules it. Writing the Memo, recording attendance and raising action items
- * are participation, not management, and stay open to the Coach.
+ * Two cells are enforced today:
+ *
+ *   `calendar.schedule` — read by the sessions route wherever the CALENDAR is
+ *   defined: booking, moving, cancelling and deleting a session. A Coach
+ *   supports a Venture and attends; a manager schedules it. Writing the Memo,
+ *   recording attendance and raising action items are participation, not
+ *   management, and stay open to the Coach.
+ *
+ *   `milestones.edit` — read by the milestone routes for structure (add,
+ *   duplicate, reorder, archive) and for completion, and by the Journey GET,
+ *   which hands the same answer to the UI as `milestoneAuthority`. A Coach
+ *   reviews milestones; a manager restructures them and decides when one is
+ *   done.
  *
  * `assignments` is NOT a judgement — it is the raw active assignment rows, so a
  * surface can show "your assignment" without interpreting anything.
@@ -51,7 +59,7 @@ const REPORTED_CAPABILITIES = ["view", "edit"];
  * enforcement and this payload: a cell may be published here only once a route
  * consults it, and wiring a route means adding its cell here in the same change.
  */
-const ENFORCED_MATRIX_CELLS = ["calendar.schedule"];
+const ENFORCED_MATRIX_CELLS = ["calendar.schedule", "milestones.edit"];
 
 /** Resolve the canonical code, or null when no such Venture exists. */
 async function findVentureCode(id) {

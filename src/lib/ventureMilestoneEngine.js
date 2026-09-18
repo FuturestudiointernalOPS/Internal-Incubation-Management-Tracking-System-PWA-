@@ -4,10 +4,16 @@
  * Sequential gating inside each Journey stage:
  *   - the FIRST milestone of a stage starts available ('not_started');
  *   - every following milestone starts 'locked';
- *   - a milestone may ONLY be marked completed by the Venture's assigned
- *     Lead Manager (active lead_manager assignment) or a Super Admin;
+ *   - a milestone may ONLY be created, restructured or marked completed by a
+ *     holder of the permission matrix cell `milestones.edit` — which the seeded
+ *     Lead Manager holds and a Coach does not — or by a Super Admin;
  *   - completion automatically unlocks the next locked milestone in the
  *     same stage (first by display_order).
+ *
+ * Authority is read from the matrix and nowhere else. It used to be decided here
+ * by querying `venture_staff_assignments` for a `lead_manager` responsibility —
+ * a SECOND answer to a question the matrix already answered. Two answers is how
+ * a Coach could rewrite a milestone while the matrix said they could not.
  *
  * Founders never see locked milestones (journey API filters them), so
  * unreleased work is invisible until the manager/coach progression reaches
@@ -16,24 +22,31 @@
  */
 
 import { isMilestoneComplete } from "@/lib/ventureStatuses";
+import { hasVentureCapability } from "@/lib/venturePermissions";
 
 function rowsOf(result) {
   return (result && result.rows) || [];
 }
 
-/** Lead Manager (active assignment) or Super Admin — the ONLY completion authority. */
+/**
+ * The ONE milestone authority: the matrix cell `milestones.edit`, or a Super
+ * Admin. Structure and completion are the same act of authority, so both read
+ * this same cell.
+ *
+ * Scope follows the other matrix consumers: the cell is venture-wide, so a
+ * milestone-scoped assignment does not confer the right to restructure the
+ * roadmap.
+ */
 export async function isMilestoneLeadAuthority(db, { code, cid, role }) {
   if (role === "super_admin") return true;
-  if (!cid) return false;
+  if (!cid || !code) return false;
   try {
-    const r = await db.execute({
-      sql: `SELECT 1 FROM venture_staff_assignments
-            WHERE venture_id = ? AND staff_contact_id = ?
-              AND responsibility_code = 'lead_manager' AND status = 'active'
-            LIMIT 1`,
-      args: [code, cid],
+    return await hasVentureCapability(db, {
+      ventureId: code,
+      contactId: cid,
+      area: "milestones",
+      action: "edit",
     });
-    return (rowsOf(r).length || 0) > 0;
   } catch (_) {
     return false;
   }
@@ -53,9 +66,11 @@ export async function resolveVentureCode(db, id) {
 }
 
 /**
- * Milestone STRUCTURE authority (add / remove / duplicate / reorder): the
- * Venture's assigned Lead Manager or a Super Admin. Progress transitions are
- * deliberately NOT gated here — only completion is (see the milestones route).
+ * Milestone STRUCTURE authority (add / remove / duplicate / reorder): the matrix
+ * cell `milestones.edit`, or a Super Admin — the same cell that guards
+ * completion (see isMilestoneLeadAuthority). Progress transitions are
+ * deliberately NOT gated here — only structure and completion are (see the
+ * milestones route).
  */
 export async function canManageMilestones(db, { id, cid, role }) {
   if (role === "super_admin") return true;

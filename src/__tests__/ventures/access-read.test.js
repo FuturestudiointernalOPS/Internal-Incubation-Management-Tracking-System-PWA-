@@ -313,8 +313,8 @@ describe("it reports only what is enforced", () => {
     ];
     const read = await callRead();
     // The list is the contract: a cell appears only when a route reads it.
-    expect(read.body.matrix_enforced).toEqual(["calendar.schedule"]);
-    expect(Object.keys(read.body.matrix)).toEqual(["calendar.schedule"]);
+    expect(read.body.matrix_enforced).toEqual(["calendar.schedule", "milestones.edit"]);
+    expect(Object.keys(read.body.matrix)).toEqual(["calendar.schedule", "milestones.edit"]);
   });
 
   test("a broken resolver fails closed on both paths — never a silent allow", async () => {

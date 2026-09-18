@@ -38,8 +38,27 @@ function makeFakeDb() {
     if (sql.includes("SELECT id FROM ventures WHERE venture_id = ?") && !sql.includes("OR")) {
       return { rows: [{ id: VENTURE_DB_ID }] };
     }
-    if (sql.includes("FROM venture_staff_assignments") && sql.includes("lead_manager")) {
-      return { rows: flags.assignment === "lead" ? [{ 1: 1 }] : [] };
+    // Milestone authority is read from the permission MATRIX: the assignment
+    // supplies the responsibility, the matrix decides the cell. The seeded truth
+    // this mirrors — a Lead Manager holds `milestones.edit`, a Coach does not.
+    if (sql.includes("FROM venture_staff_assignments")) {
+      const responsibility =
+        flags.assignment === "lead" ? "lead_manager" : flags.assignment === "coach" ? "coach" : null;
+      return {
+        rows: responsibility
+          ? [
+              {
+                responsibility_code: responsibility,
+                scope_type: "venture_wide",
+                scope_ref_type: null,
+                scope_ref_id: null,
+              },
+            ]
+          : [],
+      };
+    }
+    if (sql.includes("venture_permission_matrix")) {
+      return { rows: [{ allowed: args[0] === "lead_manager" ? 1 : 0 }] };
     }
     // computeInitialMilestoneStatus: latest milestone in the stage
     if (sql.includes("ORDER BY COALESCE(display_order, 0) DESC, created_at DESC")) {
