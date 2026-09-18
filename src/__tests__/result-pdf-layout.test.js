@@ -14,7 +14,6 @@ const { buildSubmissionResultPdf } = require("@/models/platform/resultPdf");
 const M = 46; // page margin used by the builder
 const TOL = 0.75;
 const PAGE_W = 595.28; // A4 width in pt
-const PAGE_H = 841.89;
 
 const FAMILY = {
   Helvetica: ["helvetica", "normal"],
