@@ -101,6 +101,33 @@ production**. The wall-clock figures are derived from the 130ms cost observed in
 the log; they must be confirmed on a representative environment before being
 quoted as results.
 
+### The navigation list is cached, per person
+
+The shell's call asks for the same list every time it mounts, and that list is a
+function of the person's access and NOTHING else: it changes when their access
+changes, which is rare. It is now cached per person and per scope
+(`src/lib/workspaceContextCache.js`), and it is dropped by the SAME calls that
+drop the authorization context — so the rule stays "whoever changes access drops
+the cached understanding of it", and a future writer cannot drop one view without
+the other.
+
+| Workspaces                    | Statements | Waves | Burst |
+| ----------------------------- | ---------- | ----- | ----- |
+| first navigation (hub / shell) | 8 / 6     | 1     | 8 / 6 |
+| every navigation after that    | **1**     | 1     | **1** |
+
+The one statement left is deliberate, and it is why this is a cache of the
+navigation list and not of the whole answer: the identity chip's stored role is
+read FRESH, never from the cache, so a cached list can never mislabel the person
+it belongs to. It rides in the SAME wave as the navigation read, which is why a
+first navigation is still one wave rather than two.
+
+The 30s TTL is the BACKSTOP rather than the mechanism. It covers the writes that
+do not pass through the invalidation calls — assigning somebody to a programme,
+adding a venture membership — which therefore appear on the next mount after the
+window instead of immediately. Both the cached call and the post-invalidation
+call are asserted, so neither the cache nor its invalidation can be lost quietly.
+
 ## Runtime schema maintenance
 
 About forty `ensure*` helpers keep older databases usable by issuing idempotent
