@@ -149,37 +149,6 @@ export default function ScoresPage() {
     setSelected((prev) => ({ ...prev, [submissionId]: !prev[submissionId] }));
   };
 
-  const exportCSV = () => {
-    const rows = filteredRespondents;
-    if (!rows.length) return;
-    const headers = [
-      t("adminMisc.platformScores.csvName"),
-      t("adminMisc.platformScores.csvEmail"),
-      t("adminMisc.platformScores.csvScore"),
-      t("adminMisc.platformScores.csvRanking"),
-      t("adminMisc.platformScores.csvRecommendation"),
-      t("adminMisc.platformScores.csvStatus"),
-    ];
-    const bodyRows = rows.map((r) =>
-      [
-        `"${(r.name || "").replace(/"/g, '""')}"`,
-        `"${(r.email || "").replace(/"/g, '""')}"`,
-        r.score ?? "",
-        `"${(r.ranking || "").replace(/"/g, '""')}"`,
-        `"${(r.recommendation || "").replace(/"/g, '""')}"`,
-        r.status || "",
-      ].join(",")
-    );
-    const csv = [headers.join(","), ...bodyRows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `evaluation_scores_run_${selectedRunId || selectedFormId}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   // ── Client-side search + filtering (against the actual fetched dataset) ──
   const scoreFilterLabel = useMemo(() => {
     if (!scoreOp || scoreVal === "") return "All";
@@ -240,6 +209,42 @@ export default function ScoresPage() {
       average: Math.round((sum / rows.length) * 10) / 10,
     };
   }, [filteredRespondents]);
+
+  // The export reads the filtered list, so it is declared after it. A plain
+  // function declared BEFORE the memo it reads made the React Compiler merge
+  // both into one reactive scope, where its own internal marker landed inside
+  // a scope the memoisation check had not registered yet - so the check
+  // reported the memo as "not preserved" and skipped the component.
+  const exportCSV = () => {
+    const rows = filteredRespondents;
+    if (!rows.length) return;
+    const headers = [
+      t("adminMisc.platformScores.csvName"),
+      t("adminMisc.platformScores.csvEmail"),
+      t("adminMisc.platformScores.csvScore"),
+      t("adminMisc.platformScores.csvRanking"),
+      t("adminMisc.platformScores.csvRecommendation"),
+      t("adminMisc.platformScores.csvStatus"),
+    ];
+    const bodyRows = rows.map((r) =>
+      [
+        `"${(r.name || "").replace(/"/g, '""')}"`,
+        `"${(r.email || "").replace(/"/g, '""')}"`,
+        r.score ?? "",
+        `"${(r.ranking || "").replace(/"/g, '""')}"`,
+        `"${(r.recommendation || "").replace(/"/g, '""')}"`,
+        r.status || "",
+      ].join(",")
+    );
+    const csv = [headers.join(","), ...bodyRows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `evaluation_scores_run_${selectedRunId || selectedFormId}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const hasActiveFilters = !!(
     search.trim() ||
