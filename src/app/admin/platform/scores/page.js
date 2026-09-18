@@ -136,9 +136,12 @@ export default function ScoresPage() {
       }
     } catch {
       if (!painted) setError(t("adminMisc.platformScores.networkError"));
-    } finally {
-      setLoading(false);
     }
+    // The loading flag is cleared here rather than in a `finally`: the `catch`
+    // above absorbs every failure, so the two are equivalent - and a `finally`
+    // is a construct the React Compiler cannot build HIR for, which is what
+    // kept this reader out of compilation.
+    setLoading(false);
   }, [selectedRunId, selectedFormId, sort, t]);
 
   const toggleExpand = (idx) => {
