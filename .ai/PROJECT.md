@@ -7,7 +7,7 @@
 
 - **App:** ImpactOS — startup development & innovation ecosystem operating system (incubation, acceleration, venture tracking, investor intelligence).
 - **Stack:** Next.js 16 (App Router) · React 19 · JavaScript (ES modules) · Tailwind CSS 3 · PostgreSQL (via `pg`) + Supabase (storage/admin).
-- **Key libs:** `@supabase/supabase-js`, `bcryptjs`, `framer-motion`, `lucide-react`, `recharts`, `xlsx`, `jspdf` + `html2canvas` (PDF exports), `resend` + `googleapis` (email), `@google/generative-ai` (AI), `papaparse`, `uuid`.
+- **Key libs:** `@supabase/supabase-js`, `bcryptjs`, `framer-motion`, `lucide-react`, `recharts`, `read-excel-file` + `write-excel-file` (spreadsheet import/export), `jspdf` + `html2canvas` (PDF exports), `resend` + `googleapis` (email), `papaparse`, `uuid`.
 - **Scripts:** `npm run dev` · `build` · `start` · `lint` (ESLint 9 + `next/core-web-vitals`) · `sync-finance` (Google Sheets sync).
 - **Deployment:** Vercel. Two branches: `main` (production, auto-deploys), `dev` (staging, preview deploys).
 
@@ -53,7 +53,7 @@ Sidebar navigation is defined once in `src/lib/masterNavigation.js` (`MASTER_NAV
 - **Investor OS** (`src/app/investor/`, `src/app/api/investor/`): deal pipeline, startup discovery, due diligence center, portfolio tracking. Pillar 4 — planned.
 - **Messaging** (`src/components/messaging/MessagingChat.js`, `src/app/api/messages/`, `internal-comms/`): DM, group, program, and broadcast messaging.
 - **Finance** (`src/lib/finance.js`, `src/app/finance/`, `src/app/api/finance/`): budget tracking, Google Sheets integration, transaction management.
-- **AI** (`src/lib/deepseek.js`, `src/lib/gemini.js`): mentor feedback parsing (DeepSeek), general AI (Gemini).
+- **AI** (`src/lib/deepseek.js`): mentor feedback parsing, program insights, investor reports.
 - **i18n** (`src/lib/i18n.js`, `src/lib/locales.js`, `src/locales/en/`, `src/locales/fr/`): custom `t()` translation engine, English + French mandatory.
 - **Design system** (`src/components/ui/`, `src/lib/ThemeProvider.js`, `src/lib/constants.js`): CSS variable–driven theme, reusable components (AppCard, AppButton, AppTable, etc.).
 - **Integrations** (`src/lib/integrations/`): Microsoft Graph Calendar sync, Notion sync.

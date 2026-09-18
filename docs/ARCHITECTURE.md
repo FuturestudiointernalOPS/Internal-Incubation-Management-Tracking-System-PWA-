@@ -58,7 +58,6 @@ Custom translation engine (`src/lib/i18n.js`), **not** `next-intl` or similar �
 |---|---|---|
 | Email | `src/lib/email.js`, `src/lib/mailer.js` | Resend (primary) + Gmail API via `googleapis`; templates rendered by `email.js` |
 | AI — mentor feedback parsing | `src/lib/deepseek.js` | DeepSeek API (`deepseek-chat`) — parses mentor recording transcriptions into structured feedback |
-| AI — other | `src/lib/gemini.js` | Google Generative AI |
 | File storage | `src/lib/storage.js` | Supabase Storage |
 | Auth/admin storage | `src/lib/supabase.js`, `src/lib/supabase-admin.js` | Supabase |
 | Audit trail | `src/lib/audit.js`, `src/lib/taskAudit.js` | Internal — writes to an audit log table, surfaced via `/api/audit-log` |
@@ -70,4 +69,4 @@ Authenticated dashboard routes use `export const dynamic = "force-dynamic"` at t
 
 ## Reporting & Exports
 
-Reports support export to Excel (`xlsx`) and PDF (`jspdf` + `html2canvas` for chart/DOM capture). Charting via Recharts. Weekly op-reports (`src/app/staff/op-report/`) and admin-side aggregated reports (`src/app/admin/op-reports/`) are the two largest pages in the app by line count — see [MODULES.md](MODULES.md) for specifics if working in that area.
+Reports support export to Excel and PDF (`jspdf` + `html2canvas` for chart/DOM capture). Charting via Recharts. Weekly op-reports (`src/app/staff/op-report/`) and admin-side aggregated reports (`src/app/admin/op-reports/`) are the two largest pages in the app by line count — see [MODULES.md](MODULES.md) for specifics if working in that area.
