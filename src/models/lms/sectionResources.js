@@ -4,37 +4,32 @@ import { nextPosition } from "./helpers";
 import { LMS_RESOURCE_KINDS, LMS_RESOURCE_SOURCES } from "./constants";
 import {
   isManagedStoragePath,
-  removeSessionResourceFile,
-  signSessionResourcePath,
-} from "./sessionResourceFiles";
+  removeSectionResourceFile,
+  signSectionResourcePath,
+} from "@/lib/lms/sectionResourceFiles";
 
 /**
- * SESSION RESOURCES & RECOMMENDATIONS (Phase 8)
+ * SECTION RESOURCES & RECOMMENDATIONS
  *
- * Course content lives in the LMS (`lms_courses`); a PROGRAM session is the
- * moment where learners need supporting material. This module stores that
- * material as first-class rows instead of opaque JSON:
+ * A course SECTION (an "LMS session") carries its own supporting material as
+ * first-class rows instead of opaque JSON:
  *
- *   program session → lms_session_resources (kind: 'video' | 'document')
- *                     └─ is_recommended + recommendation_note = the
- *                        "recommended for this session" signal learners see.
+ *   course section → lms_section_resources (kind: 'video' | 'document')
+ *                    └─ is_recommended + recommendation_note = the
+ *                       "recommended for this section" signal learners see.
  *
  * Rules:
- *   - Additive domain: nothing is derived from `v2_sessions.extra_materials`
- *     (that legacy JSON stays untouched) — resources are queryable rows.
- *   - `program_id` / `session_id` carry TEXT ids without FK (see
- *     docs/LMS_ARCHITECTURE.md §8) — existence is validated here, in service
- *     code, exactly like `lms_program_requirements`.
+ *   - `section_id` is a real UUID FK (ON DELETE CASCADE) — the material dies
+ *     with its section, so there is no orphan row to clean up.
  *   - A resource WITHOUT a link is useless, so `url` is required and must be an
  *     absolute http(s) URL (no `javascript:`, no relative path). `url` holds
  *     EITHER the external link (source 'link') OR the public URL of the file
  *     uploaded through ImpactOS (source 'upload'), which also carries the
  *     storage path, filename, size and mime type.
  *   - Mutations are gated by `lms.edit` at the route layer (the canonical
- *     course-authoring gate; `lms.assign` is retired)
- *     Assignment) and reads by `lms.view`; learners never call this module
- *     directly — the participant surface reads the same rows through the
- *     program detail payload.
+ *     course-authoring gate) and reads by `lms.view`. Learners never call this
+ *     module directly — the learner course payload reads the same rows through
+ *     `learnerSectionResourcesByCourse`.
  */
 
 export const RESOURCE_KINDS = LMS_RESOURCE_KINDS;
@@ -48,9 +43,7 @@ function parseResource(row) {
   if (!row) return null;
   return {
     id: row.id,
-    program_id: row.program_id,
-    session_id: row.session_id ?? null,
-    week_number: row.week_number ?? null,
+    section_id: row.section_id ?? null,
     kind: row.kind,
     title: row.title,
     description: row.description ?? null,
@@ -127,95 +120,76 @@ function assertUploadMetadata(source, url, storagePath) {
   }
 }
 
-/** Program must exist (v2_programs; TEXT id — validated in service code, no FK). */
-async function assertProgramExists(programId) {
+/**
+ * The section must exist; its row also tells the caller which course it belongs
+ * to (used to shape the upload path). Queried directly rather than through the
+ * sections module so this file stays free of an import cycle.
+ */
+async function assertSectionExists(sectionId) {
   const res = await db.execute({
-    sql: "SELECT id FROM v2_programs WHERE id = ?",
-    args: [String(programId)],
+    sql: "SELECT id, course_id FROM lms_course_sections WHERE id = ?",
+    args: [String(sectionId)],
   });
-  if (res.rows.length === 0) {
-    throw new LmsError("lms.errors.programNotFound", 404);
-  }
+  const section = res.rows[0];
+  if (!section) throw new LmsError("lms.errors.sectionNotFound", 404);
+  return section;
 }
 
-/** Session must exist and belong to the program; returns its week number. */
-async function assertSessionBelongsToProgram(sessionId, programId) {
+export async function getSectionResource(resourceId) {
   const res = await db.execute({
-    sql: "SELECT id, program_id, week_number FROM v2_sessions WHERE id = ?",
-    args: [String(sessionId)],
-  });
-  const session = res.rows[0];
-  if (!session) throw new LmsError("lms.errors.sessionNotFound", 404);
-  if (programId != null && String(session.program_id) !== String(programId)) {
-    throw new LmsError("lms.errors.sessionNotFound", 404);
-  }
-  return session;
-}
-
-export async function getSessionResource(resourceId) {
-  const res = await db.execute({
-    sql: "SELECT * FROM lms_session_resources WHERE id = ?",
+    sql: "SELECT * FROM lms_section_resources WHERE id = ?",
     args: [resourceId],
   });
   return parseResource(res.rows[0]);
 }
 
 /**
- * Resources for a program, optionally narrowed to one session or week.
- * Recommendations are always returned and flagged — callers decide whether to
- * split them into their own section (`is_recommended`).
+ * Resources of one section. Recommendations are always returned and flagged —
+ * callers decide whether to split them into their own block.
  */
-export async function listSessionResources({
-  programId,
-  sessionId,
-  weekNumber,
-  onlyRecommended,
-} = {}) {
-  if (!programId) throw new LmsError("lms.errors.programIdRequired", 400);
-
-  const clauses = ["program_id = ?"];
-  const args = [String(programId)];
-  if (sessionId) {
-    clauses.push("session_id = ?");
-    args.push(String(sessionId));
-  }
-  if (weekNumber != null && weekNumber !== "") {
-    clauses.push("week_number = ?");
-    args.push(Number(weekNumber));
-  }
-  if (onlyRecommended) {
-    clauses.push("is_recommended = ?");
-    args.push(true);
-  }
-
+export async function listSectionResources({ sectionId } = {}) {
+  if (!sectionId) throw new LmsError("lms.errors.sectionNotFound", 400);
   const res = await db.execute({
-    sql: `SELECT * FROM lms_session_resources WHERE ${clauses.join(
-      " AND ",
-    )} ORDER BY position, created_at`,
-    args,
+    sql: `SELECT * FROM lms_section_resources
+          WHERE section_id = ?
+          ORDER BY position, created_at`,
+    args: [String(sectionId)],
   });
   return res.rows.map(parseResource);
 }
 
-/**
- * Group a resource list by session id ("" = program-wide items).
- */
-function groupBySession(resources) {
-  const bySession = new Map();
+/** Group a resource list by section id. */
+function groupBySection(resources) {
+  const bySection = new Map();
   for (const resource of resources) {
-    const key = resource.session_id != null ? String(resource.session_id) : "";
-    if (!bySession.has(key)) bySession.set(key, []);
-    bySession.get(key).push(resource);
+    const key = String(resource.section_id);
+    if (!bySection.has(key)) bySection.set(key, []);
+    bySection.get(key).push(resource);
   }
-  return bySession;
+  return bySection;
 }
 
 /**
- * Resources grouped by session id — used by the participant program payload so
- * each week can render its material without one query per session.
+ * Every section's material for one course, grouped by section id — the read used
+ * by the course structure payload, so a course page needs one query rather than
+ * one per section. The section ids are resolved first (no JOIN: the domain reads
+ * stay within one table each).
  */
-export async function listSessionResourcesBySession(programId) {
-  return groupBySession(await listSessionResources({ programId }));
+export async function listSectionResourcesByCourse(courseId) {
+  const sectionsRes = await db.execute({
+    sql: "SELECT id FROM lms_course_sections WHERE course_id = ?",
+    args: [String(courseId)],
+  });
+  const sectionIds = sectionsRes.rows.map((s) => String(s.id));
+  if (sectionIds.length === 0) return new Map();
+
+  const res = await db.execute({
+    sql: `SELECT * FROM lms_section_resources
+          WHERE section_id IN (${sectionIds.map(() => "?").join(",")})
+          ORDER BY position, created_at`,
+    args: sectionIds,
+  });
+  return groupBySection(res.rows.map(parseResource));
 }
 
 /**
@@ -234,25 +208,27 @@ export async function listSessionResourcesBySession(programId) {
  */
 async function toLearnerResource(resource) {
   if (!resource || resource.source !== "upload") return resource;
-  const url = await signSessionResourcePath(resource.storage_path);
+  const url = await signSectionResourcePath(resource.storage_path);
   return { ...resource, url, storage_path: null };
 }
 
 /**
  * The same grouping, seen by a LEARNER (uploaded files signed for the moment).
- * This is what the participant program payload uses; keeping it a distinct read
- * means a staff surface can never accidentally hand a learner the permanent
- * link, and a learner surface can never accidentally sign for staff.
+ * Keeping it a distinct read means a staff surface can never accidentally hand a
+ * learner the permanent link, and a learner surface can never accidentally sign
+ * for staff.
  */
-export async function learnerSessionResourcesBySession(programId) {
-  const resources = await listSessionResources({ programId });
-  return groupBySession(await Promise.all(resources.map(toLearnerResource)));
+export async function learnerSectionResourcesByCourse(courseId) {
+  const grouped = await listSectionResourcesByCourse(courseId);
+  const signed = new Map();
+  for (const [sectionId, resources] of grouped) {
+    signed.set(sectionId, await Promise.all(resources.map(toLearnerResource)));
+  }
+  return signed;
 }
 
-export async function createSessionResource({
-  programId,
-  sessionId,
-  weekNumber,
+export async function createSectionResource({
+  sectionId,
   kind,
   title,
   description,
@@ -266,35 +242,23 @@ export async function createSessionResource({
   recommendationNote,
   createdBy,
 }) {
-  if (!programId) throw new LmsError("lms.errors.programIdRequired", 400);
-  await assertProgramExists(programId);
+  if (!sectionId) throw new LmsError("lms.errors.sectionNotFound", 400);
+  await assertSectionExists(sectionId);
 
-  let resolvedWeek = weekNumber != null && weekNumber !== "" ? Number(weekNumber) : null;
-  if (sessionId) {
-    const session = await assertSessionBelongsToProgram(sessionId, programId);
-    if (resolvedWeek == null) resolvedWeek = session.week_number ?? null;
-  }
-
-  const position = await nextPosition(
-    "lms_session_resources",
-    sessionId ? "session_id" : "program_id",
-    sessionId ? String(sessionId) : String(programId),
-  );
+  const position = await nextPosition("lms_section_resources", "section_id", String(sectionId));
 
   const recommended = isRecommended === true;
   const resolvedSource = normalizeSource(source);
   assertUploadMetadata(resolvedSource, url, storagePath);
 
   const res = await db.execute({
-    sql: `INSERT INTO lms_session_resources
-            (program_id, session_id, week_number, kind, title, description, url,
+    sql: `INSERT INTO lms_section_resources
+            (section_id, kind, title, description, url,
              source, storage_path, file_name, file_size, mime_type,
              is_recommended, recommendation_note, position, created_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
     args: [
-      String(programId),
-      sessionId ? String(sessionId) : null,
-      resolvedWeek,
+      String(sectionId),
       normalizeKind(kind),
       normalizeTitle(title),
       description ? String(description).trim() : null,
@@ -313,8 +277,8 @@ export async function createSessionResource({
   return parseResource(res.rows[0]);
 }
 
-export async function updateSessionResource(resourceId, fields = {}) {
-  const existing = await getSessionResource(resourceId);
+export async function updateSectionResource(resourceId, fields = {}) {
+  const existing = await getSectionResource(resourceId);
   if (!existing) throw new LmsError("lms.errors.resourceNotFound", 404);
 
   const sets = [];
@@ -375,11 +339,11 @@ export async function updateSessionResource(resourceId, fields = {}) {
   sets.push("updated_at = NOW()");
   args.push(resourceId);
   await db.execute({
-    sql: `UPDATE lms_session_resources SET ${sets.join(", ")} WHERE id = ?`,
+    sql: `UPDATE lms_section_resources SET ${sets.join(", ")} WHERE id = ?`,
     args,
   });
 
-  const updated = await getSessionResource(resourceId);
+  const updated = await getSectionResource(resourceId);
 
   // Replacing an uploaded file leaves the previous object orphaned in storage:
   // drop it (best-effort — the row is already correct).
@@ -388,21 +352,21 @@ export async function updateSessionResource(resourceId, fields = {}) {
     existing.storage_path &&
     String(existing.storage_path) !== String(updated.storage_path || "")
   ) {
-    await removeSessionResourceFile(existing.storage_path);
+    await removeSectionResourceFile(existing.storage_path);
   }
   return updated;
 }
 
-export async function deleteSessionResource(resourceId) {
-  const existing = await getSessionResource(resourceId);
+export async function deleteSectionResource(resourceId) {
+  const existing = await getSectionResource(resourceId);
   if (!existing) throw new LmsError("lms.errors.resourceNotFound", 404);
   await db.execute({
-    sql: "DELETE FROM lms_session_resources WHERE id = ?",
+    sql: "DELETE FROM lms_section_resources WHERE id = ?",
     args: [resourceId],
   });
   // The row is gone; the file should not outlive it (best-effort, never throws).
   if (existing.source === "upload" && existing.storage_path) {
-    await removeSessionResourceFile(existing.storage_path);
+    await removeSectionResourceFile(existing.storage_path);
   }
   return { success: true, id: resourceId };
 }

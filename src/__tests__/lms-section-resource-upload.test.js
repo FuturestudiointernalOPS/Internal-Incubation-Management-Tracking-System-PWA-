@@ -1,8 +1,8 @@
 /**
- * LMS SESSION RESOURCE FILE UPLOADS — Phase 8.1 tests
+ * LMS SECTION RESOURCE FILE UPLOADS — Phase 8.1 tests
  *
- * POST   /api/lms/session-resources/upload  (multipart)
- * DELETE /api/lms/session-resources/upload?path=…
+ * POST   /api/lms/section-resources/upload  (multipart)
+ * DELETE /api/lms/section-resources/upload?path=…
  *
  * The route is a storage boundary (Supabase `lms-session-resources` bucket), so
  * @supabase/supabase-js is mocked and the REAL route handler + service run
@@ -40,17 +40,17 @@ jest.mock("@/lib/authorization", () => ({
 }));
 
 const { requireAuthorization } = require("@/lib/authorization");
-const { POST, DELETE } = require("@/app/api/lms/session-resources/upload/route");
+const { POST, DELETE } = require("@/app/api/lms/section-resources/upload/route");
 const {
-  createSessionResource,
-  deleteSessionResource,
-} = require("@/lib/lms/sessionResources");
+  createSectionResource,
+  deleteSectionResource,
+} = require("@/lib/lms/sectionResources");
 
-const PUBLIC_URL = "https://cdn.impactos.test/lms-session-resources/sessions/P-1/S-1/123-handout.pdf";
+const PUBLIC_URL = "https://cdn.impactos.test/lms-session-resources/sections/C-1/S-1/123-handout.pdf";
 const readJson = async (res) => res.json();
 
-const PROGRAM = "P-2026-001";
-const SESSION = "S-1";
+const COURSE = "C-1";
+const SECTION = "S-1";
 
 /** FormData request with a browser-like File. */
 function fileRequest({ name = "handout.pdf", type = "application/pdf", bytes, kind = "document" } = {}) {
@@ -60,9 +60,9 @@ function fileRequest({ name = "handout.pdf", type = "application/pdf", bytes, ki
     new File([bytes || Buffer.from("fake-file-bytes")], name, { type }),
   );
   fd.append("kind", kind);
-  fd.append("program_id", PROGRAM);
-  fd.append("session_id", SESSION);
-  return new Request("http://localhost/api/lms/session-resources/upload", {
+  fd.append("course_id", COURSE);
+  fd.append("section_id", SECTION);
+  return new Request("http://localhost/api/lms/section-resources/upload", {
     method: "POST",
     body: fd,
   });
@@ -82,7 +82,7 @@ beforeEach(() => {
   process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
 });
 
-describe("POST /api/lms/session-resources/upload", () => {
+describe("POST /api/lms/section-resources/upload", () => {
   test("403 when lms.edit is missing — nothing is uploaded", async () => {
     const denied = new Response("{}", { status: 403 });
     requireAuthorization.mockResolvedValueOnce(denied);
@@ -96,7 +96,7 @@ describe("POST /api/lms/session-resources/upload", () => {
     const fd = new FormData();
     fd.append("kind", "document");
     const res = await POST(
-      new Request("http://localhost/api/lms/session-resources/upload", {
+      new Request("http://localhost/api/lms/section-resources/upload", {
         method: "POST",
         body: fd,
       }),
@@ -152,7 +152,7 @@ describe("POST /api/lms/session-resources/upload", () => {
 
     expect(data.success).toBe(true);
     expect(data.url).toBe(PUBLIC_URL);
-    expect(data.storage_path).toMatch(/^sessions\/P-2026-001\/S-1\/\d+-handout\.pdf$/);
+    expect(data.storage_path).toMatch(/^sections\/C-1\/S-1\/\d+-handout\.pdf$/);
     expect(data.file_name).toBe("handout.pdf");
     expect(data.kind).toBe("document");
     expect(data.mime_type).toBe("application/pdf");
@@ -195,10 +195,10 @@ describe("POST /api/lms/session-resources/upload", () => {
   });
 });
 
-describe("DELETE /api/lms/session-resources/upload", () => {
+describe("DELETE /api/lms/section-resources/upload", () => {
   const delReq = (path) =>
     new Request(
-      `http://localhost/api/lms/session-resources/upload${
+      `http://localhost/api/lms/section-resources/upload${
         path ? `?path=${encodeURIComponent(path)}` : ""
       }`,
       { method: "DELETE" },
@@ -210,58 +210,65 @@ describe("DELETE /api/lms/session-resources/upload", () => {
     expect(remove).not.toHaveBeenCalled();
   });
 
-  test("400 for a path outside the session-resource folder", async () => {
+  test("400 for a path outside the section-resource folder", async () => {
     const res = await DELETE(delReq("course-thumbnails/123-thumb.png"));
+    expect(res.status).toBe(400);
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  test("400 for the retired program-session prefix", async () => {
+    // Objects from the retired feature live under sessions/ and must never be
+    // reachable through this endpoint.
+    const res = await DELETE(delReq("sessions/P-1/S-1/123-draft.pdf"));
     expect(res.status).toBe(400);
     expect(remove).not.toHaveBeenCalled();
   });
 
   test("removes the orphan object", async () => {
     remove.mockResolvedValue({ error: null });
-    const res = await DELETE(delReq("sessions/P-1/S-1/123-draft.pdf"));
+    const res = await DELETE(delReq("sections/C-1/S-1/123-draft.pdf"));
     expect(res.status).toBe(200);
     const data = await readJson(res);
     expect(data).toMatchObject({ success: true, removed: true });
     expect(from).toHaveBeenCalledWith("lms-session-resources");
-    expect(remove).toHaveBeenCalledWith(["sessions/P-1/S-1/123-draft.pdf"]);
+    expect(remove).toHaveBeenCalledWith(["sections/C-1/S-1/123-draft.pdf"]);
   });
 });
 
-describe("session resources — storage lifecycle", () => {
-  function seedProgramAndSession() {
-    mockFake.seed("v2_programs", [{ id: PROGRAM, name: "Track" }]);
-    mockFake.seed("v2_sessions", [
-      { id: SESSION, program_id: PROGRAM, title: "Week 1", week_number: 1 },
+describe("section resources — storage lifecycle", () => {
+  function seedCourseAndSection() {
+    mockFake.seed("lms_courses", [{ id: COURSE, title: "Track", status: "published" }]);
+    mockFake.seed("lms_course_sections", [
+      { id: SECTION, course_id: COURSE, title: "Week 1", position: 0 },
     ]);
   }
 
   test("an uploaded resource keeps its file metadata", async () => {
-    seedProgramAndSession();
-    const resource = await createSessionResource({
-      programId: PROGRAM,
-      sessionId: SESSION,
+    seedCourseAndSection();
+    const resource = await createSectionResource({
+      sectionId: SECTION,
       kind: "document",
       title: "Handout",
       url: PUBLIC_URL,
       source: "upload",
-      storagePath: "sessions/P-2026-001/S-1/123-handout.pdf",
+      storagePath: "sections/C-1/S-1/123-handout.pdf",
       fileName: "handout.pdf",
       fileSize: 2048,
       mimeType: "application/pdf",
     });
     expect(resource.source).toBe("upload");
-    expect(resource.storage_path).toBe("sessions/P-2026-001/S-1/123-handout.pdf");
+    expect(resource.section_id).toBe(SECTION);
+    expect(resource.storage_path).toBe("sections/C-1/S-1/123-handout.pdf");
     expect(resource.file_name).toBe("handout.pdf");
     expect(resource.file_size).toBe(2048);
     expect(resource.mime_type).toBe("application/pdf");
   });
 
   test("an upload without a storage path is rejected", async () => {
-    seedProgramAndSession();
+    seedCourseAndSection();
     await expect(
-      createSessionResource({
-        programId: PROGRAM,
-        sessionId: SESSION,
+      createSectionResource({
+        sectionId: SECTION,
         title: "Handout",
         url: PUBLIC_URL,
         source: "upload",
@@ -269,12 +276,11 @@ describe("session resources — storage lifecycle", () => {
     ).rejects.toThrow("lms.errors.resourceFileRequired");
   });
 
-  test("an upload pointing outside the session-resource folder is rejected", async () => {
-    seedProgramAndSession();
+  test("an upload pointing outside the section-resource folder is rejected", async () => {
+    seedCourseAndSection();
     await expect(
-      createSessionResource({
-        programId: PROGRAM,
-        sessionId: SESSION,
+      createSectionResource({
+        sectionId: SECTION,
         title: "Handout",
         url: PUBLIC_URL,
         source: "upload",
@@ -283,12 +289,24 @@ describe("session resources — storage lifecycle", () => {
     ).rejects.toThrow("lms.errors.resourceFileRequired");
   });
 
-  test("an unknown source is rejected", async () => {
-    seedProgramAndSession();
+  test("an upload pointing at the retired program-session prefix is rejected", async () => {
+    seedCourseAndSection();
     await expect(
-      createSessionResource({
-        programId: PROGRAM,
-        sessionId: SESSION,
+      createSectionResource({
+        sectionId: SECTION,
+        title: "Handout",
+        url: PUBLIC_URL,
+        source: "upload",
+        storagePath: "sessions/P-2026-001/S-1/123-handout.pdf",
+      }),
+    ).rejects.toThrow("lms.errors.resourceFileRequired");
+  });
+
+  test("an unknown source is rejected", async () => {
+    seedCourseAndSection();
+    await expect(
+      createSectionResource({
+        sectionId: SECTION,
         title: "Handout",
         url: PUBLIC_URL,
         source: "ftp",
@@ -297,33 +315,31 @@ describe("session resources — storage lifecycle", () => {
   });
 
   test("deleting an uploaded resource deletes the stored object", async () => {
-    seedProgramAndSession();
+    seedCourseAndSection();
     remove.mockResolvedValue({ error: null });
-    const resource = await createSessionResource({
-      programId: PROGRAM,
-      sessionId: SESSION,
+    const resource = await createSectionResource({
+      sectionId: SECTION,
       title: "Handout",
       url: PUBLIC_URL,
       source: "upload",
-      storagePath: "sessions/P-2026-001/S-1/123-handout.pdf",
+      storagePath: "sections/C-1/S-1/123-handout.pdf",
       fileName: "handout.pdf",
       fileSize: 2048,
       mimeType: "application/pdf",
     });
 
-    await deleteSessionResource(resource.id);
-    expect(remove).toHaveBeenCalledWith(["sessions/P-2026-001/S-1/123-handout.pdf"]);
+    await deleteSectionResource(resource.id);
+    expect(remove).toHaveBeenCalledWith(["sections/C-1/S-1/123-handout.pdf"]);
   });
 
   test("a link resource never touches storage", async () => {
-    seedProgramAndSession();
-    const resource = await createSessionResource({
-      programId: PROGRAM,
-      sessionId: SESSION,
+    seedCourseAndSection();
+    const resource = await createSectionResource({
+      sectionId: SECTION,
       title: "Reader",
       url: "https://example.test/reader.pdf",
     });
-    await deleteSessionResource(resource.id);
+    await deleteSectionResource(resource.id);
     expect(remove).not.toHaveBeenCalled();
   });
 });
@@ -393,16 +409,12 @@ describe("resource preview + accepted-type helpers (learner/library rules)", () 
   });
 });
 
-describe("Phase 8 migrations vs domain constants (drift guard)", () => {
+describe("Section resources migration vs domain constants (drift guard)", () => {
   const fs = require("fs");
   const path = require("path");
   const MIGRATIONS = path.join(__dirname, "../../supabase/migrations");
-  const resourcesMigration = fs.readFileSync(
-    path.join(MIGRATIONS, "20260916_lms_session_resources_and_coaching.sql"),
-    "utf8",
-  );
-  const uploadsMigration = fs.readFileSync(
-    path.join(MIGRATIONS, "20260917_lms_session_resource_uploads.sql"),
+  const sectionMigration = fs.readFileSync(
+    path.join(MIGRATIONS, "20260918_lms_section_resources.sql"),
     "utf8",
   );
 
@@ -411,16 +423,15 @@ describe("Phase 8 migrations vs domain constants (drift guard)", () => {
     LMS_RESOURCE_SOURCES,
   } = require("@/lib/lms/constants");
 
-  test("kinds and sources match the CHECK values in lms_session_resources", () => {
-    const block = resourcesMigration.match(
-      /CREATE TABLE IF NOT EXISTS lms_session_resources \(([\s\S]*?)\n\);/,
+  test("kinds and sources match the CHECK values in lms_section_resources", () => {
+    const block = sectionMigration.match(
+      /CREATE TABLE IF NOT EXISTS lms_section_resources \(([\s\S]*?)\n\);/,
     )[1];
     for (const value of LMS_RESOURCE_KINDS) expect(block).toContain(`'${value}'`);
     for (const value of LMS_RESOURCE_SOURCES) expect(block).toContain(`'${value}'`);
   });
 
-  test("the uploads migration is additive and runs after the table is created", () => {
-    expect(uploadsMigration).not.toMatch(/DROP TABLE/);
+  test("the section table carries the upload columns and cascades with its section", () => {
     for (const column of [
       "source TEXT",
       "storage_path TEXT",
@@ -428,11 +439,12 @@ describe("Phase 8 migrations vs domain constants (drift guard)", () => {
       "file_size BIGINT",
       "mime_type TEXT",
     ]) {
-      expect(uploadsMigration).toContain(`ADD COLUMN IF NOT EXISTS ${column}`);
+      expect(sectionMigration).toContain(column);
     }
-    // Filename order IS apply order: 20260917 must sort after 20260916.
-    expect("20260917_lms_session_resource_uploads.sql" > "20260916_lms_session_resources_and_coaching.sql").toBe(
-      true,
-    );
+    // A section's material dies with the section.
+    expect(sectionMigration).toContain("REFERENCES lms_course_sections(id) ON DELETE CASCADE");
+    // Filename order IS apply order: 20260918 must sort after the LMS
+    // foundation (20260827) that creates lms_course_sections.
+    expect("20260918_lms_section_resources.sql" > "20260827_lms_foundation.sql").toBe(true);
   });
 });

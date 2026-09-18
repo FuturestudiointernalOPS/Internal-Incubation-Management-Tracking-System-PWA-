@@ -3,8 +3,8 @@
  *
  * LEARNER RESOURCE PREVIEW — component tests
  *
- * Covers what the learner actually gets from a session's material
- * (src/components/lms/SessionResourcesList.js + ResourcePreview.js):
+ * Covers what the learner actually gets from a section's material
+ * (src/components/lms/SectionResourcesList.js + ResourcePreview.js):
  *   - an uploaded image shows up directly;
  *   - a PDF or a video is only revealed on request — nothing loads by itself;
  *   - external links and non-renderable documents (Office) show a plain link.
@@ -15,7 +15,7 @@
 
 import { fireEvent, render, screen } from "@testing-library/react";
 
-const SessionResourcesList = require("@/components/lms/SessionResourcesList").default;
+const SectionResourcesList = require("@/components/lms/SectionResourcesList").default;
 const ResourcePreview = require("@/components/lms/ResourcePreview").default;
 
 const url = (path) => `https://cdn.impactos.test/lms-session-resources/${path}`;
@@ -25,7 +25,7 @@ const uploaded = (overrides = {}) => ({
   source: "upload",
   kind: "document",
   title: "Handout",
-  url: url("sessions/P/S/handout.pdf"),
+  url: url("sections/C-1/S-1/handout.pdf"),
   file_name: "handout.pdf",
   file_size: 2048,
   mime_type: "application/pdf",
@@ -58,7 +58,7 @@ describe("ResourcePreview — one resource", () => {
     const resource = uploaded();
     const { container } = render(<ResourcePreview resource={resource} />);
 
-    // Nothing is loaded up front — a week can hold several files.
+    // Nothing is loaded up front — a section can hold several files.
     expect(container.querySelector("iframe")).toBeNull();
 
     fireEvent.click(screen.getByText("lms.sessionResources.showPreview"));
@@ -106,7 +106,7 @@ describe("ResourcePreview — one resource", () => {
         resource={uploaded({
           mime_type: "application/msword",
           file_name: "plan.doc",
-          url: url("sessions/P/S/plan.doc"),
+          url: url("sections/C-1/S-1/plan.doc"),
         })}
       />,
     );
@@ -114,7 +114,7 @@ describe("ResourcePreview — one resource", () => {
   });
 });
 
-describe("SessionResourcesList — a week's material", () => {
+describe("SectionResourcesList — a section's material", () => {
   test("recommended material comes first, with its note and file details", () => {
     const recommended = uploaded({
       id: "r-rec",
@@ -128,10 +128,10 @@ describe("SessionResourcesList — a week's material", () => {
       mime_type: "application/pdf",
       file_name: "slides.pdf",
       file_size: 4 * 1024 * 1024,
-      url: url("sessions/P/S/slides.pdf"),
+      url: url("sections/C-1/S-1/slides.pdf"),
     });
 
-    render(<SessionResourcesList resources={[other, recommended]} />);
+    render(<SectionResourcesList resources={[other, recommended]} />);
 
     expect(screen.getByText("lms.sessionResources.recommendationsTitle")).toBeTruthy();
     expect(screen.getByText("lms.sessionResources.learnerTitle")).toBeTruthy();
@@ -146,14 +146,14 @@ describe("SessionResourcesList — a week's material", () => {
 
   test("an image inside the list is previewed inline", () => {
     const image = uploaded({ mime_type: "image/jpeg", file_name: "photo.jpg", title: "Photo" });
-    const { container } = render(<SessionResourcesList resources={[image]} />);
+    const { container } = render(<SectionResourcesList resources={[image]} />);
     expect(container.querySelector("img")).toBeTruthy();
   });
 
   test("nothing renders for an empty or missing list", () => {
-    const empty = render(<SessionResourcesList resources={[]} />);
+    const empty = render(<SectionResourcesList resources={[]} />);
     expect(empty.container.firstChild).toBeNull();
-    const missing = render(<SessionResourcesList />);
+    const missing = render(<SectionResourcesList />);
     expect(missing.container.firstChild).toBeNull();
   });
 
@@ -161,7 +161,7 @@ describe("SessionResourcesList — a week's material", () => {
     // The server signs uploaded files: without a signed link there is nothing to
     // open, and a dead link would be worse than saying so.
     const { container } = render(
-      <SessionResourcesList resources={[uploaded({ url: null })]} />,
+      <SectionResourcesList resources={[uploaded({ url: null })]} />,
     );
 
     expect(container.querySelector("a")).toBeNull();
@@ -171,7 +171,7 @@ describe("SessionResourcesList — a week's material", () => {
   });
 });
 
-describe("SessionResourcesList — a video the learner can play", () => {
+describe("SectionResourcesList — a video the learner can play", () => {
   const youtubeLink = (overrides = {}) => ({
     id: "r-yt",
     source: "link",
@@ -183,10 +183,10 @@ describe("SessionResourcesList — a video the learner can play", () => {
   });
 
   test("a YouTube link plays in the page — never a link the learner can copy", () => {
-    const { container } = render(<SessionResourcesList resources={[youtubeLink()]} />);
+    const { container } = render(<SectionResourcesList resources={[youtubeLink()]} />);
 
     // A video the learner is meant to watch here must not become a YouTube link
-    // just because it was attached to a session rather than to a course.
+    // just because it was attached to a section rather than to a course.
     expect(container.querySelector("a")).toBeNull();
     // Nothing loads until the learner asks for it.
     expect(container.querySelector("iframe")).toBeNull();
@@ -202,7 +202,7 @@ describe("SessionResourcesList — a video the learner can play", () => {
 
   test("a link to anywhere else keeps the plain link", () => {
     const vimeo = youtubeLink({ url: "https://vimeo.com/123456789" });
-    const { container } = render(<SessionResourcesList resources={[vimeo]} />);
+    const { container } = render(<SectionResourcesList resources={[vimeo]} />);
 
     // A third-party page may refuse to be framed: a broken embed would be worse
     // than the link the card already renders.

@@ -1,8 +1,12 @@
 /**
- * LMS SESSION RESOURCES — Phase 8 tests
+ * LMS SECTION RESOURCES — Phase 8 tests
  *
- * The material attached to a Program session (videos + documents, with the
- * "recommended" flag and note), as authored by a Program Manager.
+ * The material attached to a COURSE SECTION of an LMS course (videos +
+ * documents, with the "recommended" flag and note), as authored by a course
+ * editor / Program Manager.
+ *
+ * A resource belongs to a section (`section_id`); there is no program or
+ * program-session scope any more, and no week inheritance.
  *
  * Runs the REAL services + routes against the shared fake LMS DB.
  */
@@ -29,17 +33,17 @@ const { requireAuthorization } = require("@/lib/authorization");
 const { getSession } = require("@/lib/auth");
 
 const {
-  createSessionResource,
-  listSessionResources,
-  updateSessionResource,
-  deleteSessionResource,
-} = require("@/lib/lms/sessionResources");
+  createSectionResource,
+  listSectionResources,
+  updateSectionResource,
+  deleteSectionResource,
+} = require("@/lib/lms/sectionResources");
 
-const { GET: resourcesGET, POST: resourcesPOST } = require("@/app/api/lms/session-resources/route");
+const { GET: resourcesGET, POST: resourcesPOST } = require("@/app/api/lms/section-resources/route");
 const {
   PUT: resourcePUT,
   DELETE: resourceDELETE,
-} = require("@/app/api/lms/session-resources/[id]/route");
+} = require("@/app/api/lms/section-resources/[id]/route");
 
 const jsonReq = (body, url = "http://localhost/api/lms/test") =>
   new Request(url, {
@@ -50,22 +54,22 @@ const jsonReq = (body, url = "http://localhost/api/lms/test") =>
 
 const readJson = async (res) => res.json();
 
-const PROGRAM = "P-2026-001";
-const SESSION = "S-1";
+const COURSE = "C-1";
+const SECTION = "S-1";
 
-function seedProgram() {
-  mockFake.seed("v2_programs", [
-    { id: PROGRAM, name: "Advanced Venture Creation Track", assigned_pm_id: "U-PM" },
+function seedCourse() {
+  mockFake.seed("lms_courses", [
+    { id: COURSE, title: "Advanced Venture Creation Track", status: "published" },
   ]);
 }
 
-function seedSession(overrides = {}) {
-  mockFake.seed("v2_sessions", [
+function seedSection(overrides = {}) {
+  mockFake.seed("lms_course_sections", [
     {
-      id: SESSION,
-      program_id: PROGRAM,
+      id: SECTION,
+      course_id: COURSE,
       title: "Week 1 — Discovery",
-      week_number: 1,
+      position: 0,
       ...overrides,
     },
   ]);
@@ -78,63 +82,57 @@ beforeEach(() => {
   getSession.mockResolvedValue({ cid: "U-LEARNER", name: "Learner", role: "participant" });
 });
 
-// ─── Session resources ─────────────────────────────────────────────────────
+// ─── Section resources ─────────────────────────────────────────────────────
 
-describe("lms session resources — service", () => {
-  test("a resource requires a program id", async () => {
+describe("lms section resources — service", () => {
+  test("a resource requires a section id", async () => {
     await expect(
-      createSessionResource({ programId: "", sessionId: SESSION, title: "T", url: "https://x.test/a.pdf" }),
-    ).rejects.toThrow("lms.errors.programIdRequired");
+      createSectionResource({ sectionId: "", title: "T", url: "https://x.test/a.pdf" }),
+    ).rejects.toThrow("lms.errors.sectionNotFound");
   });
 
-  test("the program must exist", async () => {
+  test("the section must exist", async () => {
     await expect(
-      createSessionResource({ programId: "P-MISSING", title: "T", url: "https://x.test/a.pdf" }),
-    ).rejects.toThrow("lms.errors.programNotFound");
+      createSectionResource({ sectionId: "S-MISSING", title: "T", url: "https://x.test/a.pdf" }),
+    ).rejects.toThrow("lms.errors.sectionNotFound");
   });
 
-  test("the session must belong to the program", async () => {
-    seedProgram();
-    seedSession({ program_id: "P-OTHER" });
-    await expect(
-      createSessionResource({ programId: PROGRAM, sessionId: SESSION, title: "T", url: "https://x.test/a.pdf" }),
-    ).rejects.toThrow("lms.errors.sessionNotFound");
+  test("listing without a section id fails fast", async () => {
+    await expect(listSectionResources({})).rejects.toThrow("lms.errors.sectionNotFound");
   });
 
   test("a title is required", async () => {
-    seedProgram();
-    seedSession();
+    seedCourse();
+    seedSection();
     await expect(
-      createSessionResource({ programId: PROGRAM, sessionId: SESSION, title: "  ", url: "https://x.test/a.pdf" }),
+      createSectionResource({ sectionId: SECTION, title: "  ", url: "https://x.test/a.pdf" }),
     ).rejects.toThrow("lms.errors.resourceTitleRequired");
   });
 
   test("a link is required and must be http(s)", async () => {
-    seedProgram();
-    seedSession();
+    seedCourse();
+    seedSection();
     await expect(
-      createSessionResource({ programId: PROGRAM, sessionId: SESSION, title: "Doc" }),
+      createSectionResource({ sectionId: SECTION, title: "Doc" }),
     ).rejects.toThrow("lms.errors.resourceUrlRequired");
     await expect(
-      createSessionResource({
-        programId: PROGRAM,
-        sessionId: SESSION,
+      createSectionResource({
+        sectionId: SECTION,
         title: "Doc",
         url: "javascript:alert(1)",
       }),
     ).rejects.toThrow("lms.errors.resourceUrlInvalid");
     await expect(
-      createSessionResource({ programId: PROGRAM, sessionId: SESSION, title: "Doc", url: "not-a-url" }),
+      createSectionResource({ sectionId: SECTION, title: "Doc", url: "not-a-url" }),
     ).rejects.toThrow("lms.errors.resourceUrlInvalid");
   });
 
   test("an unknown kind is rejected", async () => {
-    seedProgram();
-    seedSession();
+    seedCourse();
+    seedSection();
     await expect(
-      createSessionResource({
-        programId: PROGRAM,
-        sessionId: SESSION,
+      createSectionResource({
+        sectionId: SECTION,
         kind: "podcast",
         title: "Doc",
         url: "https://x.test/a.pdf",
@@ -142,12 +140,11 @@ describe("lms session resources — service", () => {
     ).rejects.toThrow("lms.errors.invalidResourceKind");
   });
 
-  test("creates a video resource and inherits the week from the session", async () => {
-    seedProgram();
-    seedSession();
-    const resource = await createSessionResource({
-      programId: PROGRAM,
-      sessionId: SESSION,
+  test("creates a video resource scoped to its section", async () => {
+    seedCourse();
+    seedSection();
+    const resource = await createSectionResource({
+      sectionId: SECTION,
       kind: "video",
       title: "Founder interview",
       url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
@@ -156,7 +153,7 @@ describe("lms session resources — service", () => {
       createdBy: "U-PM",
     });
     expect(resource.kind).toBe("video");
-    expect(resource.week_number).toBe(1);
+    expect(resource.section_id).toBe(SECTION);
     expect(resource.is_recommended).toBe(true);
     expect(resource.recommendation_note).toBe("Watch before the workshop");
     expect(resource.created_by).toBe("U-PM");
@@ -164,11 +161,10 @@ describe("lms session resources — service", () => {
   });
 
   test("a recommendation note is dropped when the resource is not recommended", async () => {
-    seedProgram();
-    seedSession();
-    const resource = await createSessionResource({
-      programId: PROGRAM,
-      sessionId: SESSION,
+    seedCourse();
+    seedSection();
+    const resource = await createSectionResource({
+      sectionId: SECTION,
       title: "Slides",
       url: "https://x.test/slides.pdf",
       recommendationNote: "should not be stored",
@@ -178,53 +174,48 @@ describe("lms session resources — service", () => {
     expect(resource.kind).toBe("document"); // default kind
   });
 
-  test("listing is scoped to the session and can isolate recommendations", async () => {
-    seedProgram();
-    seedSession();
-    seedSession({ id: "S-2", title: "Week 2", week_number: 2 });
-    await createSessionResource({
-      programId: PROGRAM,
-      sessionId: SESSION,
+  test("listing is scoped to the section and flags recommendations", async () => {
+    seedCourse();
+    seedSection();
+    seedSection({ id: "S-2", title: "Week 2", position: 1 });
+    await createSectionResource({
+      sectionId: SECTION,
       title: "Reader",
       url: "https://x.test/reader.pdf",
     });
-    await createSessionResource({
-      programId: PROGRAM,
-      sessionId: SESSION,
+    const toolkit = await createSectionResource({
+      sectionId: SECTION,
       title: "Toolkit",
       url: "https://x.test/toolkit.pdf",
       isRecommended: true,
       recommendationNote: "Bring it filled in",
     });
-    await createSessionResource({
-      programId: PROGRAM,
-      sessionId: "S-2",
-      title: "Other week",
+    await createSectionResource({
+      sectionId: "S-2",
+      title: "Other section",
       url: "https://x.test/other.pdf",
     });
 
-    const forSession = await listSessionResources({ programId: PROGRAM, sessionId: SESSION });
-    expect(forSession.map((r) => r.title)).toEqual(["Reader", "Toolkit"]);
+    const forSection = await listSectionResources({ sectionId: SECTION });
+    expect(forSection.map((r) => r.title)).toEqual(["Reader", "Toolkit"]);
 
-    const recommended = await listSessionResources({
-      programId: PROGRAM,
-      sessionId: SESSION,
-      onlyRecommended: true,
-    });
+    // Recommendations stay in the list, flagged — the surface decides how to
+    // present them (the learner view pulls them into their own block).
+    const recommended = forSection.filter((r) => r.is_recommended);
     expect(recommended).toHaveLength(1);
     expect(recommended[0].title).toBe("Toolkit");
+    expect(recommended[0].id).toBe(toolkit.id);
   });
 
   test("update toggles the recommendation and rewrites the link", async () => {
-    seedProgram();
-    seedSession();
-    const resource = await createSessionResource({
-      programId: PROGRAM,
-      sessionId: SESSION,
+    seedCourse();
+    seedSection();
+    const resource = await createSectionResource({
+      sectionId: SECTION,
       title: "Reader",
       url: "https://x.test/reader.pdf",
     });
-    const updated = await updateSessionResource(resource.id, {
+    const updated = await updateSectionResource(resource.id, {
       is_recommended: true,
       recommendation_note: "Start here",
       url: "https://x.test/reader-v2.pdf",
@@ -235,54 +226,53 @@ describe("lms session resources — service", () => {
   });
 
   test("update rejects an invalid link and an unknown resource", async () => {
-    seedProgram();
-    seedSession();
-    const resource = await createSessionResource({
-      programId: PROGRAM,
-      sessionId: SESSION,
+    seedCourse();
+    seedSection();
+    const resource = await createSectionResource({
+      sectionId: SECTION,
       title: "Reader",
       url: "https://x.test/reader.pdf",
     });
-    await expect(updateSessionResource(resource.id, { url: "ftp://x.test/a" })).rejects.toThrow(
+    await expect(updateSectionResource(resource.id, { url: "ftp://x.test/a" })).rejects.toThrow(
       "lms.errors.resourceUrlInvalid",
     );
-    await expect(updateSessionResource("nope", { title: "X" })).rejects.toThrow(
+    await expect(updateSectionResource("nope", { title: "X" })).rejects.toThrow(
       "lms.errors.resourceNotFound",
     );
   });
 
   test("delete removes the row", async () => {
-    seedProgram();
-    seedSession();
-    const resource = await createSessionResource({
-      programId: PROGRAM,
-      sessionId: SESSION,
+    seedCourse();
+    seedSection();
+    const resource = await createSectionResource({
+      sectionId: SECTION,
       title: "Reader",
       url: "https://x.test/reader.pdf",
     });
-    await deleteSessionResource(resource.id);
-    expect(mockFake.state.lms_session_resources).toHaveLength(0);
-    await expect(deleteSessionResource(resource.id)).rejects.toThrow("lms.errors.resourceNotFound");
+    await deleteSectionResource(resource.id);
+    expect(mockFake.state.lms_section_resources).toHaveLength(0);
+    await expect(deleteSectionResource(resource.id)).rejects.toThrow("lms.errors.resourceNotFound");
   });
 });
 
-describe("lms session resources — routes", () => {
-  test("GET without a program id fails fast", async () => {
-    const res = await resourcesGET(new Request("http://localhost/api/lms/session-resources"));
+describe("lms section resources — routes", () => {
+  test("GET without a section id fails fast", async () => {
+    const res = await resourcesGET(new Request("http://localhost/api/lms/section-resources"));
     expect(res.status).toBe(400);
+    const data = await readJson(res);
+    expect(data.error).toBe("lms.errors.sectionNotFound");
   });
 
-  test("GET returns the program's resources", async () => {
-    seedProgram();
-    seedSession();
-    await createSessionResource({
-      programId: PROGRAM,
-      sessionId: SESSION,
+  test("GET returns the section's resources", async () => {
+    seedCourse();
+    seedSection();
+    await createSectionResource({
+      sectionId: SECTION,
       title: "Reader",
       url: "https://x.test/reader.pdf",
     });
     const res = await resourcesGET(
-      new Request(`http://localhost/api/lms/session-resources?program_id=${PROGRAM}`),
+      new Request(`http://localhost/api/lms/section-resources?section_id=${SECTION}`),
     );
     const data = await readJson(res);
     expect(data.success).toBe(true);
@@ -294,8 +284,7 @@ describe("lms session resources — routes", () => {
     requireAuthorization.mockResolvedValueOnce(denied);
     const res = await resourcesPOST(
       jsonReq({
-        program_id: PROGRAM,
-        session_id: SESSION,
+        section_id: SECTION,
         title: "Reader",
         url: "https://x.test/reader.pdf",
       }),
@@ -305,13 +294,12 @@ describe("lms session resources — routes", () => {
   });
 
   test("POST creates the resource with the session as author", async () => {
-    seedProgram();
-    seedSession();
+    seedCourse();
+    seedSection();
     getSession.mockResolvedValueOnce({ cid: "U-PM", name: "PM", role: "program_manager" });
     const res = await resourcesPOST(
       jsonReq({
-        program_id: PROGRAM,
-        session_id: SESSION,
+        section_id: SECTION,
         title: "Reader",
         url: "https://x.test/reader.pdf",
       }),
@@ -319,15 +307,15 @@ describe("lms session resources — routes", () => {
     expect(res.status).toBe(200);
     const data = await readJson(res);
     expect(data.resource.title).toBe("Reader");
+    expect(data.resource.section_id).toBe(SECTION);
     expect(data.resource.created_by).toBe("U-PM");
   });
 
   test("PUT and DELETE round out the authoring lifecycle", async () => {
-    seedProgram();
-    seedSession();
-    const resource = await createSessionResource({
-      programId: PROGRAM,
-      sessionId: SESSION,
+    seedCourse();
+    seedSection();
+    const resource = await createSectionResource({
+      sectionId: SECTION,
       title: "Reader",
       url: "https://x.test/reader.pdf",
     });

@@ -2,6 +2,7 @@ import db from "@/lib/db";
 import { LmsError } from "./errors";
 import { groupBy } from "./helpers";
 import { validateCourseForPublish } from "./validation";
+import { listSectionResourcesByCourse } from "./sectionResources";
 
 /**
  * Course lifecycle + structure assembly.
@@ -95,6 +96,9 @@ export async function getCourseStructure(courseId) {
   const lessonsBySection = groupBy(lessons, "section_id");
   const questionsByAssessment = groupBy(questions, "assessment_id");
 
+  // Each section's material (videos + documents) — one query for the course.
+  const resourcesBySection = await listSectionResourcesByCourse(courseId);
+
   const sectionAssessments = new Map();
   const courseAssessments = [];
   for (const a of assessments) {
@@ -111,6 +115,7 @@ export async function getCourseStructure(courseId) {
     sections: sections.map((s) => ({
       ...s,
       lessons: lessonsBySection.get(String(s.id)) || [],
+      resources: resourcesBySection.get(String(s.id)) || [],
       assessment: sectionAssessments.get(String(s.id)) || null,
     })),
     courseAssessments,

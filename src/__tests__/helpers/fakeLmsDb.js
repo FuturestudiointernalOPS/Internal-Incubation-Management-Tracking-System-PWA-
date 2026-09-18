@@ -32,7 +32,7 @@ const TABLES = [
   "lms_assessment_attempts",
   "lms_certificates",
   "lms_program_requirements",
-  "lms_session_resources",
+  "lms_section_resources",
   "lms_coaching_requests",
   "v2_programs",
   "v2_sessions",
@@ -226,6 +226,10 @@ export function createFakeDb() {
       state.lms_lessons = state.lms_lessons.filter((l) => lessonIds.includes(String(l.id)) === false);
       state.lms_assessments = state.lms_assessments.filter(
         (a) => !gone.has(String(a.section_id)),
+      );
+      // Mirrors the real FK: a section's material dies with the section.
+      state.lms_section_resources = state.lms_section_resources.filter(
+        (r) => !gone.has(String(r.section_id)),
       );
     }
     if (table === "lms_assessments") {

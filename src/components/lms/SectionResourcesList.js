@@ -8,18 +8,19 @@ import EmbeddedVideo from "./EmbeddedVideo";
 import ResourcePreview from "./ResourcePreview";
 
 /**
- * SESSION RESOURCES (learner, read-only)
+ * SECTION RESOURCES (learner, read-only)
  *
- * Renders the material a Program session depends on, as the learner sees it:
+ * Renders the material a COURSE SECTION depends on, as the learner sees it:
  * an explicit "Recommended for you" block (flagged resources + the note written
- * for them) followed by the rest of the session material. Uploaded files are
+ * for them) followed by the rest of the section material. Uploaded files are
  * labelled with their filename and size, and previewed inline when the format
  * allows it (see ResourcePreview).
  *
  * A resource that links to a YouTube video plays HERE, through the same
  * embedded box a lesson uses (see EmbeddedVideo): a video the learner is
  * supposed to watch inside ImpactOS must not become a copyable link just
- * because it was attached to a session rather than to a course. Any other link
+ * because it was attached to a section rather than to a course.
+ * Any other link
  * keeps opening in a new tab — we cannot know whether a third-party page agrees
  * to be framed, and a broken frame is worse than a plain link.
  *
@@ -29,7 +30,7 @@ import ResourcePreview from "./ResourcePreview";
  * back without a link and the card says so rather than showing a dead one.
  * Nothing is authored here.
  */
-export default function SessionResourcesList({ resources = [] }) {
+export default function SectionResourcesList({ resources = [] }) {
   const { t } = useI18n();
   if (!Array.isArray(resources) || resources.length === 0) return null;
 

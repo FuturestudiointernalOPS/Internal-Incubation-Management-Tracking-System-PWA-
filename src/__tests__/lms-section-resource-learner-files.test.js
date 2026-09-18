@@ -1,5 +1,5 @@
 /**
- * LMS SESSION RESOURCES — the learner's view of uploaded files.
+ * LMS SECTION RESOURCES — the learner's view of uploaded files.
  *
  * An uploaded file is material shown INSIDE ImpactOS, so the participant surface
  * must never receive the permanent public URL stored on the row: it is handed a
@@ -33,24 +33,27 @@ jest.mock("@/lib/db", () => ({
 }));
 
 const {
-  listSessionResourcesBySession,
-  learnerSessionResourcesBySession,
-} = require("@/lib/lms/sessionResources");
+  listSectionResourcesByCourse,
+  learnerSectionResourcesByCourse,
+} = require("@/lib/lms/sectionResources");
 const {
-  SESSION_RESOURCE_URL_TTL_SECONDS,
-} = require("@/lib/lms/sessionResourceFiles");
+  SECTION_RESOURCE_URL_TTL_SECONDS,
+} = require("@/lib/lms/sectionResourceFiles");
 
-const PROGRAM = "P-2026-001";
-const SESSION = "S-1";
-const STORAGE_PATH = "sessions/P-2026-001/S-1/123-handout.pdf";
+const COURSE = "C-1";
+const SECTION = "S-1";
+const STORAGE_PATH = "sections/C-1/S-1/123-handout.pdf";
 const PUBLIC_URL = `https://cdn.impactos.test/lms-session-resources/${STORAGE_PATH}`;
 const SIGNED_URL = `https://supabase.test/storage/v1/object/sign/lms-session-resources/${STORAGE_PATH}?token=abc`;
 
+const seedSection = (id = SECTION, overrides = {}) =>
+  mockFake.seed("lms_course_sections", [
+    { id, course_id: COURSE, title: `Section ${id}`, position: 0, ...overrides },
+  ]);
+
 const uploaded = (overrides = {}) => ({
   id: "R-1",
-  program_id: PROGRAM,
-  session_id: SESSION,
-  week_number: 2,
+  section_id: SECTION,
   kind: "document",
   title: "Handout",
   url: PUBLIC_URL,
@@ -65,8 +68,8 @@ const uploaded = (overrides = {}) => ({
 });
 
 const learnerById = async (id) => {
-  const bySession = await learnerSessionResourcesBySession(PROGRAM);
-  return [...bySession.values()].flat().find((r) => r.id === id);
+  const byCourse = await learnerSectionResourcesByCourse(COURSE);
+  return [...byCourse.values()].flat().find((r) => r.id === id);
 };
 
 beforeEach(() => {
@@ -80,11 +83,12 @@ beforeEach(() => {
 });
 
 test("an uploaded file reaches the learner as a signed link, never the public one", async () => {
-  mockFake.seed("lms_session_resources", [uploaded()]);
+  seedSection();
+  mockFake.seed("lms_section_resources", [uploaded()]);
 
   const resource = await learnerById("R-1");
 
-  expect(mockCreateSignedUrl).toHaveBeenCalledWith(STORAGE_PATH, SESSION_RESOURCE_URL_TTL_SECONDS);
+  expect(mockCreateSignedUrl).toHaveBeenCalledWith(STORAGE_PATH, SECTION_RESOURCE_URL_TTL_SECONDS);
   expect(resource.url).toBe(SIGNED_URL);
   expect(resource.url).not.toBe(PUBLIC_URL);
   // The permanent address of the object stays on the server.
@@ -96,16 +100,18 @@ test("an uploaded file reaches the learner as a signed link, never the public on
 });
 
 test("the learner's link is short-lived", async () => {
-  mockFake.seed("lms_session_resources", [uploaded()]);
+  seedSection();
+  mockFake.seed("lms_section_resources", [uploaded()]);
   await learnerById("R-1");
 
   // Long enough for a viewing session, far from a durable bypass.
-  expect(SESSION_RESOURCE_URL_TTL_SECONDS).toBeGreaterThan(60 * 60);
-  expect(SESSION_RESOURCE_URL_TTL_SECONDS).toBeLessThanOrEqual(60 * 60 * 12);
+  expect(SECTION_RESOURCE_URL_TTL_SECONDS).toBeGreaterThan(60 * 60);
+  expect(SECTION_RESOURCE_URL_TTL_SECONDS).toBeLessThanOrEqual(60 * 60 * 12);
 });
 
 test("an external link is the author's own and passes through untouched", async () => {
-  mockFake.seed("lms_session_resources", [
+  seedSection();
+  mockFake.seed("lms_section_resources", [
     uploaded({
       id: "R-2",
       source: "link",
@@ -121,7 +127,8 @@ test("an external link is the author's own and passes through untouched", async 
 });
 
 test("a file storage cannot sign comes back without a link", async () => {
-  mockFake.seed("lms_session_resources", [uploaded()]);
+  seedSection();
+  mockFake.seed("lms_section_resources", [uploaded()]);
   mockCreateSignedUrl.mockResolvedValue({ data: null, error: { message: "nope" } });
 
   const resource = await learnerById("R-1");
@@ -131,35 +138,39 @@ test("a file storage cannot sign comes back without a link", async () => {
 });
 
 test("the staff read keeps the stored values — signing is the learner's alone", async () => {
-  mockFake.seed("lms_session_resources", [uploaded()]);
+  seedSection();
+  mockFake.seed("lms_section_resources", [uploaded()]);
 
-  const bySession = await listSessionResourcesBySession(PROGRAM);
-  const resource = bySession.get(SESSION)[0];
+  const bySection = await listSectionResourcesByCourse(COURSE);
+  const resource = bySection.get(SECTION)[0];
 
   expect(resource.url).toBe(PUBLIC_URL);
   expect(resource.storage_path).toBe(STORAGE_PATH);
   expect(mockCreateSignedUrl).not.toHaveBeenCalled();
 });
 
-test("grouping by session still separates program-wide material", async () => {
-  mockFake.seed("lms_session_resources", [
-    uploaded({ id: "R-wide", session_id: null, storage_path: null, source: "link" }),
-    uploaded({ id: "R-session" }),
+test("grouping by section still separates material per section", async () => {
+  seedSection(SECTION);
+  seedSection("S-2", { title: "Week 2", position: 1 });
+  mockFake.seed("lms_section_resources", [
+    uploaded({ id: "R-1" }),
+    uploaded({ id: "R-2", section_id: "S-2" }),
   ]);
 
-  const bySession = await learnerSessionResourcesBySession(PROGRAM);
+  const bySection = await learnerSectionResourcesByCourse(COURSE);
 
-  expect(bySession.get("").map((r) => r.id)).toEqual(["R-wide"]);
-  expect(bySession.get(SESSION).map((r) => r.id)).toEqual(["R-session"]);
+  expect([...bySection.keys()].sort()).toEqual(["S-1", "S-2"]);
+  expect(bySection.get("S-1").map((r) => r.id)).toEqual(["R-1"]);
+  expect(bySection.get("S-2").map((r) => r.id)).toEqual(["R-2"]);
 });
 
-test("the participant program payload reads material through the learner view", () => {
+test("the learner course payload reads material through the learner view", () => {
   // Wiring check: the payload is what reaches a learner, so it must not read the
   // staff view — that is where the permanent link still lives.
   const source = fs.readFileSync(
-    path.join(__dirname, "../app/api/participant/programs/[id]/route.js"),
+    path.join(__dirname, "../models/lms/learning.js"),
     "utf8",
   );
-  expect(source).toContain("learnerSessionResourcesBySession");
-  expect(source).not.toContain("listSessionResourcesBySession");
+  expect(source).toContain("learnerSectionResourcesByCourse");
+  expect(source).not.toContain("listSectionResourcesByCourse");
 });

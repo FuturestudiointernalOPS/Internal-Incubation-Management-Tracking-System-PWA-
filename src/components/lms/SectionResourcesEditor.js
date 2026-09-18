@@ -26,27 +26,25 @@ import {
 } from "@/lib/lms/constants";
 
 /**
- * SESSION RESOURCES EDITOR (Phase 8)
+ * SECTION RESOURCES EDITOR
  *
  * The resource form itself — list, add, edit, delete — with no persistence of
- * its own. Two hosts use it, which is why it is controlled:
+ * its own. It is controlled so the course editor can host it directly:
  *
- *   - the session card panel (SessionResourcesSection) persists every change
- *     immediately through /api/lms/session-resources;
- *   - the Program Manager's session form (creating a session) buffers the
- *     resources in component state and saves them once the session exists.
+ *   - the section panel (SectionResourcesPanel) persists every change
+ *     immediately through /api/lms/section-resources.
  *
- * Whatever the host, files are uploaded to storage as soon as they are picked
- * (that is the only way to obtain a URL) — hence `discardUnsavedUploads()`,
- * which hosts call when they abandon buffered resources.
+ * Files are uploaded to storage as soon as they are picked (that is the only way
+ * to obtain a URL) — hence `discardUnsavedUploads()`, which the host calls when
+ * it abandons buffered resources.
  *
  * Props:
- *   resources     — the current list (server rows and/or buffered entries)
+ *   resources     — the current list
  *   onCreate(values)               — add a resource
  *   onUpdate(resource, values)     — change one
  *   onDelete(resource)             — remove one
  *   title, accent, badge, canEdit, busy, loading, inlineForm,
- *   programId, sessionId
+ *   courseId, sectionId
  */
 
 const EMPTY_FORM = {
@@ -77,13 +75,13 @@ export function discardUnsavedUploads(resources = []) {
   for (const resource of resources || []) {
     if (!resource?.localId || !resource.storage_path) continue;
     fetch(
-      `/api/lms/session-resources/upload?path=${encodeURIComponent(resource.storage_path)}`,
+      `/api/lms/section-resources/upload?path=${encodeURIComponent(resource.storage_path)}`,
       { method: "DELETE" },
     ).catch(() => {});
   }
 }
 
-export default function SessionResourcesEditor({
+export default function SectionResourcesEditor({
   resources = [],
   onCreate,
   onUpdate,
@@ -95,8 +93,8 @@ export default function SessionResourcesEditor({
   busy = false,
   loading = false,
   inlineForm = false,
-  programId,
-  sessionId,
+  courseId,
+  sectionId,
 }) {
   const { t } = useI18n();
   const [form, setForm] = useState(EMPTY_FORM);
@@ -153,7 +151,7 @@ export default function SessionResourcesEditor({
     if (!upload?.storage_path) return;
     try {
       await fetch(
-        `/api/lms/session-resources/upload?path=${encodeURIComponent(upload.storage_path)}`,
+        `/api/lms/section-resources/upload?path=${encodeURIComponent(upload.storage_path)}`,
         { method: "DELETE" },
       );
     } catch {
@@ -208,9 +206,9 @@ export default function SessionResourcesEditor({
       const body = new FormData();
       body.append("file", file);
       body.append("kind", form.kind);
-      if (programId) body.append("program_id", programId);
-      if (sessionId) body.append("session_id", sessionId);
-      const res = await fetch("/api/lms/session-resources/upload", {
+      if (courseId) body.append("course_id", courseId);
+      if (sectionId) body.append("section_id", sectionId);
+      const res = await fetch("/api/lms/section-resources/upload", {
         method: "POST",
         body,
       });

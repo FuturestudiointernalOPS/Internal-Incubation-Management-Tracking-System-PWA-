@@ -18,7 +18,6 @@ import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { isParticipantInProgram } from "@/lib/participant-membership";
 import { getProgramLearningForParticipant } from "@/lib/lms/programRequirements";
-import { learnerSessionResourcesBySession } from "@/lib/lms/sessionResources";
 
 export const dynamic = "force-dynamic";
 
@@ -237,39 +236,6 @@ export async function GET(req, { params }) {
     }
     for (const w of weeks) {
       w.learning = learningByWeek.get(Number(w.number)) || [];
-    }
-
-    // ─── Phase 8: session resources & recommendations (read-only here — the
-    // participant surface never authors material; it only reads what the PM
-    // attached to the session). Each week exposes the material of its own
-    // sessions plus program-wide items tagged with that week. Uploaded files
-    // are handed over as SHORT-LIVED SIGNED URLs, never as the permanent link
-    // stored on the row — a learner must not be able to keep a link to material
-    // we show inside ImpactOS (see docs/LMS_ARCHITECTURE.md §13.1).
-    // Defensive: if the Phase 8 migration has not been applied yet, the Program
-    // experience must still load — weeks simply carry no resources.
-    try {
-      const resourcesBySession = await learnerSessionResourcesBySession(programId);
-      for (const w of weeks) {
-        const programWide = (resourcesBySession.get("") || []).filter(
-          (r) => r.week_number == null || Number(r.week_number) === Number(w.number),
-        );
-        w.sessions = w.sessions.map((s) => ({
-          ...s,
-          resources: resourcesBySession.get(String(s.id)) || [],
-        }));
-        w.resources = [
-          ...programWide,
-          ...w.sessions.flatMap((s) => s.resources || []),
-        ];
-        w.recommendations = w.resources.filter((r) => r.is_recommended);
-      }
-    } catch (resourcesError) {
-      console.error("[participant/programs] resources unavailable:", resourcesError.message);
-      for (const w of weeks) {
-        w.resources = [];
-        w.recommendations = [];
-      }
     }
 
     // Build resources with real attachment URLs

@@ -31,7 +31,7 @@ import { useI18n } from "@/lib/i18n";
 import { getServerErrorKey } from "@/lib/constants";
 import SubmissionVersionHistory from "./SubmissionVersionHistory";
 import CourseThumb from "@/components/lms/CourseThumb";
-import SessionResourcesList from "@/components/lms/SessionResourcesList";
+import RichTextContent from "@/components/ui/RichTextContent";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 
@@ -190,9 +190,11 @@ function WeekCard({ week, isExpanded, onToggle, onSubmit, t }) {
                       {session.title}
                     </p>
                     {session.description && (
-                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                        {session.description}
-                      </p>
+                      <RichTextContent
+                        value={session.description}
+                        className="text-xs mt-0.5"
+                        style={{ color: "var(--text-secondary)" }}
+                      />
                     )}
                     {/* Weekly Materials from PM */}
                     {(() => {
@@ -416,12 +418,6 @@ function WeekCard({ week, isExpanded, onToggle, onSubmit, t }) {
                 );
               })}
             </div>
-          )}
-
-          {/* Session resources & recommendations (Phase 8). Attached by the PM
-              to the session; read-only for the learner. */}
-          {week.resources && week.resources.length > 0 && (
-            <SessionResourcesList resources={week.resources} />
           )}
         </div>
       )}

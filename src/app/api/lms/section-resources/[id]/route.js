@@ -3,24 +3,24 @@ import { initDb } from "@/lib/db";
 import { requireAuthorization } from "@/lib/authorization";
 import { lmsErrorResponse } from "@/lib/lms/errors";
 import {
-  updateSessionResource,
-  deleteSessionResource,
-} from "@/lib/lms/sessionResources";
+  updateSectionResource,
+  deleteSectionResource,
+} from "@/lib/lms/sectionResources";
 
 export const dynamic = "force-dynamic";
 
 /**
- * SESSION RESOURCE — Phase 8
+ * SECTION RESOURCE
  *
- * PUT    /api/lms/session-resources/[id]
- *        Body: { title?, description?, url?, kind?, is_recommended?,
+ * PUT    /api/lms/section-resources/[id]
+ *        Body: { title?, description?, url?, kind?, source?, storage_path?,
+ *                file_name?, file_size?, mime_type?, is_recommended?,
  *                recommendation_note?, position? }
- *        Updates one resource / its recommendation. Requires lms.edit — the
- *        canonical course-authoring gate (lms.assign was retired; see
- *        docs/PHASE3_LMS_RETIRED_GOVERNANCE.md).
+ *        Updates one resource / its recommendation. Requires lms.edit.
  *
- * DELETE /api/lms/session-resources/[id]
- *        Removes the resource. Requires lms.edit.
+ * DELETE /api/lms/section-resources/[id]
+ *        Removes the resource (and its uploaded object, best-effort).
+ *        Requires lms.edit.
  */
 export async function PUT(req, { params }) {
   try {
@@ -30,7 +30,7 @@ export async function PUT(req, { params }) {
 
     const { id } = await params;
     const body = await req.json();
-    const resource = await updateSessionResource(id, {
+    const resource = await updateSectionResource(id, {
       title: body.title,
       description: body.description,
       url: body.url,
@@ -57,7 +57,7 @@ export async function DELETE(req, { params }) {
     if (capError) return capError;
 
     const { id } = await params;
-    const result = await deleteSessionResource(id);
+    const result = await deleteSectionResource(id);
     return NextResponse.json(result);
   } catch (e) {
     return lmsErrorResponse(e);

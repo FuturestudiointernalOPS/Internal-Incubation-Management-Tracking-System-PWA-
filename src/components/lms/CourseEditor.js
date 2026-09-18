@@ -297,7 +297,7 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
             <p className="text-[10px] font-black uppercase tracking-wider mb-3" style={{ color: "var(--text-secondary)" }}>
               {t("lms.preview.content")}
             </p>
-            <SectionsManager course={course} onChange={refresh} />
+            <SectionsManager course={course} onChange={refresh} canEdit={allow("edit")} />
           </AppCard>
         </>
       ) : (

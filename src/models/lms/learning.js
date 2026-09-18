@@ -4,6 +4,7 @@ import { getCourse } from "./courses";
 import { getAssessment } from "./assessments";
 import { scoreAssessment, DEFAULT_PASS_MARK } from "./scoring";
 import { ensureCertificateForEnrollment } from "./certificates";
+import { learnerSectionResourcesByCourse } from "./sectionResources";
 
 /**
  * LMS learner experience services.
@@ -353,17 +354,23 @@ export async function getLearnerCourse(courseId, userCid) {
   const continueLesson = courseProgress.complete ? null : findContinueLesson(structure, progress);
   const certificate = await finalizeCourseCompletion({ course, enrollment, courseProgress });
 
+  // Section material, signed for the learner (uploads get a short-lived link).
+  const resourcesBySection = await learnerSectionResourcesByCourse(courseId);
+
   const sections = structure.map((s) => {
     const completedInSection = s.lessons.filter((l) => progress[String(l.id)] === "completed").length;
     return {
       id: s.id,
       title: s.title,
+      description: s.description ?? null,
       position: s.position,
+      resources: resourcesBySection.get(String(s.id)) || [],
       assessment: s.assessment ? learnerAssessment(assessmentStates.get(String(s.assessment.id))) : null,
       progress: { completed: completedInSection, total: s.lessons.length },
       lessons: s.lessons.map((l) => ({
         id: l.id,
         title: l.title,
+        description: l.description ?? null,
         position: l.position,
         is_required: l.is_required,
         duration_minutes: l.duration_minutes,

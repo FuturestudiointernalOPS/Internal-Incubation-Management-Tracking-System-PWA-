@@ -1,11 +1,11 @@
 /**
  * @jest-environment jsdom
  *
- * SESSION RESOURCES EDITOR — add / edit forms (Phase 8)
+ * SECTION RESOURCES EDITOR — add / edit forms (Phase 8)
  *
- * The editor is the single resource form, used both by the session card panel
- * (which saves every change immediately) and by the session creation form
- * (which buffers the resources until the session exists). These tests drive it
+ * The editor is the single resource form, used both by the section panel
+ * (which saves every change immediately) and by a course/section creation form
+ * (which buffers the resources until the section exists). These tests drive it
  * in its BUFFERED mode with `inlineForm`: the form must hand the values to its
  * host and never talk to the resources API itself.
  *
@@ -15,17 +15,17 @@
 
 import { fireEvent, render, screen } from "@testing-library/react";
 
-const SessionResourcesEditor = require("@/components/lms/SessionResourcesEditor").default;
-const { discardUnsavedUploads } = require("@/components/lms/SessionResourcesEditor");
+const SectionResourcesEditor = require("@/components/lms/SectionResourcesEditor").default;
+const { discardUnsavedUploads } = require("@/components/lms/SectionResourcesEditor");
 
-const PROGRAM = "P-2026-001";
+const COURSE = "C-1";
 
 const jsonResponse = (body) => Promise.resolve({ ok: true, status: 200, json: async () => body });
 
-/** A host that behaves like the session form: buffered resources, no API. */
-function renderEditor({ resources = [], onCreate, onUpdate, onDelete, sessionId = null } = {}) {
+/** A host that behaves like the section panel: buffered resources, no API. */
+function renderEditor({ resources = [], onCreate, onUpdate, onDelete, sectionId = null } = {}) {
   return render(
-    <SessionResourcesEditor
+    <SectionResourcesEditor
       inlineForm
       canEdit
       title="lms.sessionResources.title"
@@ -33,8 +33,8 @@ function renderEditor({ resources = [], onCreate, onUpdate, onDelete, sessionId 
       onCreate={onCreate}
       onUpdate={onUpdate}
       onDelete={onDelete}
-      programId={PROGRAM}
-      sessionId={sessionId}
+      courseId={COURSE}
+      sectionId={sectionId}
     />,
   );
 }
@@ -68,7 +68,7 @@ beforeEach(() => {
   window.confirm = jest.fn(() => true);
 });
 
-describe("session resources editor — add form", () => {
+describe("section resources editor — add form", () => {
   test("a link resource is handed to the host and never saved by the editor", () => {
     const onCreate = jest.fn();
     renderEditor({ onCreate });
@@ -150,8 +150,8 @@ describe("session resources editor — add form", () => {
       if (String(url).includes("/upload")) {
         return jsonResponse({
           success: true,
-          url: "https://cdn.test/lms-session-resources/sessions/P/S/handout.pdf",
-          storage_path: "sessions/P-2026-001/program/handout.pdf",
+          url: "https://cdn.test/lms-session-resources/sections/C-1/S-1/handout.pdf",
+          storage_path: "sections/C-1/S-1/handout.pdf",
           file_name: "handout.pdf",
           file_size: 2048,
           mime_type: "application/pdf",
@@ -173,15 +173,15 @@ describe("session resources editor — add form", () => {
 
     expect(await screen.findByText("handout.pdf")).toBeTruthy();
     const [, options] = global.fetch.mock.calls.find(([url]) => String(url).includes("/upload"));
-    expect(options.body.get("program_id")).toBe(PROGRAM);
-    // No session yet — the object lands in the program folder until it exists.
-    expect(options.body.get("session_id")).toBeNull();
+    expect(options.body.get("course_id")).toBe(COURSE);
+    // No section yet — only the course scope is sent until the section exists.
+    expect(options.body.get("section_id")).toBeNull();
 
     fireEvent.click(screen.getByText("lms.sessionResources.addResource"));
     expect(onCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "upload",
-        storage_path: "sessions/P-2026-001/program/handout.pdf",
+        storage_path: "sections/C-1/S-1/handout.pdf",
         file_name: "handout.pdf",
         file_size: 2048,
         mime_type: "application/pdf",
@@ -192,7 +192,7 @@ describe("session resources editor — add form", () => {
   });
 });
 
-describe("session resources editor — edit and delete", () => {
+describe("section resources editor — edit and delete", () => {
   const buffered = {
     localId: "pending-1",
     kind: "document",
@@ -246,14 +246,14 @@ describe("discardUnsavedUploads", () => {
   test("only objects that were never saved are deleted", () => {
     global.fetch = jest.fn(() => jsonResponse({ success: true }));
     discardUnsavedUploads([
-      { localId: "pending-1", storage_path: "sessions/P/S/draft.pdf" },
-      { id: "r-1", storage_path: "sessions/P/S/saved.pdf" },
+      { localId: "pending-1", storage_path: "sections/C-1/S-1/draft.pdf" },
+      { id: "r-1", storage_path: "sections/C-1/S-1/saved.pdf" },
       { localId: "pending-2" }, // no upload at all
     ]);
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
     const [url, options] = global.fetch.mock.calls[0];
     expect(options.method).toBe("DELETE");
-    expect(String(url)).toContain(encodeURIComponent("sessions/P/S/draft.pdf"));
+    expect(String(url)).toContain(encodeURIComponent("sections/C-1/S-1/draft.pdf"));
   });
 });

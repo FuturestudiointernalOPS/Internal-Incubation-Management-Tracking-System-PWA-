@@ -1,10 +1,10 @@
 /**
  * @jest-environment jsdom
  *
- * SESSION RESOURCES — uploader UI (drag & drop)
+ * SECTION RESOURCES — uploader UI (drag & drop)
  *
- * Component tests for the Program Manager picker in
- * src/components/lms/SessionResourcesSection.js. The network is mocked, so what
+ * Component tests for the course-editor panel in
+ * src/components/lms/SectionResourcesPanel.js. The network is mocked, so what
  * is asserted is the CONTRACT:
  *   - what the panel sends when a file is dropped (form fields, kind, scope)
  *   - the drop feedback (drag over / drag leave)
@@ -56,12 +56,12 @@ jest.mock("framer-motion", () => {
   };
 });
 
-const SessionResourcesSection = require("@/components/lms/SessionResourcesSection").default;
+const SectionResourcesPanel = require("@/components/lms/SectionResourcesPanel").default;
 
-const PROGRAM = "P-2026-001";
-const SESSION = "S-1";
-const UPLOAD_URL = "/api/lms/session-resources/upload";
-const STORAGE_PATH = "sessions/P-2026-001/S-1/123-handout.pdf";
+const COURSE = "C-1";
+const SECTION = "S-1";
+const UPLOAD_URL = "/api/lms/section-resources/upload";
+const STORAGE_PATH = "sections/C-1/S-1/123-handout.pdf";
 const PUBLIC_URL = `https://cdn.impactos.test/lms-session-resources/${STORAGE_PATH}`;
 
 const jsonResponse = (body) => Promise.resolve({ ok: true, status: 200, json: async () => body });
@@ -85,7 +85,7 @@ function mockNetwork() {
       if (options.method === "DELETE") return jsonResponse({ success: true, removed: true });
       return jsonResponse(uploads.shift() || { success: false, error: "lms.errors.fileUploadFailed" });
     }
-    if (String(url).includes("/api/lms/session-resources")) {
+    if (String(url).includes("/api/lms/section-resources")) {
       return jsonResponse({ success: true, resources: [] });
     }
     return jsonResponse({ success: true });
@@ -100,7 +100,7 @@ const pdf = (name = "handout.pdf", bytes = 16) =>
 /** Render the panel and wait for the initial resource list to settle. */
 async function renderPanel() {
   const result = render(
-    <SessionResourcesSection programId={PROGRAM} sessionId={SESSION} weekNumber={1} canEdit />,
+    <SectionResourcesPanel courseId={COURSE} sectionId={SECTION} canEdit />,
   );
   await waitFor(() => expect(global.fetch).toHaveBeenCalled());
   return result;
@@ -122,8 +122,8 @@ beforeEach(() => {
   mockNetwork();
 });
 
-describe("session resources panel — saving", () => {
-  test("a resource saved from the panel is scoped to the program and its session", async () => {
+describe("section resources panel — saving", () => {
+  test("a resource saved from the panel is scoped to its section", async () => {
     const fetchMock = mockNetwork();
     await renderPanel();
 
@@ -141,13 +141,11 @@ describe("session resources panel — saving", () => {
     await waitFor(() => {
       const call = fetchMock.mock.calls.find(
         ([url, options]) =>
-          String(url) === "/api/lms/session-resources" && options?.method === "POST",
+          String(url) === "/api/lms/section-resources" && options?.method === "POST",
       );
       expect(call).toBeTruthy();
       expect(JSON.parse(call[1].body)).toMatchObject({
-        program_id: PROGRAM,
-        session_id: SESSION,
-        week_number: 1,
+        section_id: SECTION,
         kind: "document",
         title: "Reader",
         url: "https://example.test/reader.pdf",
@@ -158,7 +156,7 @@ describe("session resources panel — saving", () => {
   });
 });
 
-describe("session resource uploader — drag & drop", () => {
+describe("section resource uploader — drag & drop", () => {
   test("dragging over the zone switches it to the drop state, leaving restores it", async () => {
     await renderPanel();
     const zone = openFilePicker();
@@ -171,7 +169,7 @@ describe("session resource uploader — drag & drop", () => {
     expect(screen.getByText("lms.sessionResources.chooseFile")).toBeTruthy();
   });
 
-  test("a dropped file is uploaded with the session scope and the chosen kind", async () => {
+  test("a dropped file is uploaded with the section scope and the chosen kind", async () => {
     await renderPanel();
     const zone = openFilePicker();
 
@@ -187,8 +185,8 @@ describe("session resource uploader — drag & drop", () => {
     expect(body.get("file")).toBeInstanceOf(File);
     expect(body.get("file").name).toBe("handout.pdf");
     expect(body.get("kind")).toBe("document");
-    expect(body.get("program_id")).toBe(PROGRAM);
-    expect(body.get("session_id")).toBe(SESSION);
+    expect(body.get("course_id")).toBe(COURSE);
+    expect(body.get("section_id")).toBe(SECTION);
   });
 
   test("the uploaded file becomes the resource, titled after its filename", async () => {
@@ -213,7 +211,7 @@ describe("session resource uploader — drag & drop", () => {
       {
         success: true,
         url: PUBLIC_URL,
-        storage_path: "sessions/P-2026-001/S-1/123-intro.mp4",
+        storage_path: "sections/C-1/S-1/123-intro.mp4",
         file_name: "intro.mp4",
         file_size: 4096,
         mime_type: "video/mp4",
@@ -265,7 +263,7 @@ describe("session resource uploader — drag & drop", () => {
       {
         success: true,
         url: PUBLIC_URL,
-        storage_path: "sessions/P-2026-001/S-1/456-handout-v2.pdf",
+        storage_path: "sections/C-1/S-1/456-handout-v2.pdf",
         file_name: "handout-v2.pdf",
         file_size: 2048,
         mime_type: "application/pdf",

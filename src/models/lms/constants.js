@@ -24,9 +24,9 @@ export const LMS_QUESTION_TYPES = ["multiple_choice", "true_false"];
 
 export const LMS_CERTIFICATE_STATUSES = ["valid", "revoked"];
 
-// ── Session resources (Phase 8) ────────────────────────────────────────────
+// ── Section resources ──────────────────────────────────────────────────────
 // Mirrors the CHECK constraints in
-// supabase/migrations/20260916_lms_session_resources_and_coaching.sql.
+// supabase/migrations/20260918_lms_section_resources.sql.
 export const LMS_RESOURCE_KINDS = ["video", "document"];
 
 export const LMS_RESOURCE_SOURCES = ["link", "upload"];
@@ -44,7 +44,7 @@ export function lmsMaxBytesForKind(kind) {
 
 /**
  * Accepted MIME types per resource kind. Declared here (pure, client-safe) so the
- * picker and the server enforce the SAME rules — see sessionResourceFiles.js.
+ * picker and the server enforce the SAME rules — see sectionResourceFiles.js.
  */
 export const LMS_DOCUMENT_MIME_TYPES = [
   "application/pdf",

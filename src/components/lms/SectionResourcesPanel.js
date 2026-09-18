@@ -4,51 +4,47 @@ import { useEffect, useState } from "react";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
-import SessionResourcesEditor from "./SessionResourcesEditor";
+import SectionResourcesEditor from "./SectionResourcesEditor";
 
 // ─── Read shapers (module scope: built once, never per render) ───────────
 
 // The hook keys its internal work on the address alone, so the default and the
 // shaper are made once here rather than on every render.
-const EMPTY_SESSION_RESOURCES = { resources: null, failure: null };
+const EMPTY_SECTION_RESOURCES = { resources: null, failure: null };
 
 /**
- * The session's material, together with the reason it is missing. A refusal
+ * The section's material, together with the reason it is missing. A refusal
  * carries the server's own i18n key, which is what the toast already showed.
  */
-const pickSessionResources = (d) =>
+const pickSectionResources = (d) =>
   d?.success
     ? { resources: d.resources || [], failure: null }
     : { resources: [], failure: d?.error || "lms.errors.loadFailed" };
 
 /**
- * SESSION RESOURCES — session card panel (Phase 8)
+ * SECTION RESOURCES — panel of the course editor.
  *
- * The Phase 3 "Resources" block of a Program session: it loads the session's
- * material and persists every change immediately. The form itself (and the
- * list) comes from SessionResourcesEditor, which the session creation form
- * reuses with buffered state — one form, two persistence strategies.
+ * Material (documents + videos) attached to one COURSE SECTION. It loads the
+ * section's resources and persists every change immediately. The form itself
+ * (and the list) comes from SectionResourcesEditor, which is controlled.
  *
  * Authorization: mutations require `lms.edit` server-side; `canEdit` only
  * controls visibility.
  */
-export default function SessionResourcesSection({
-  programId,
-  sessionId,
-  weekNumber,
-  canEdit = false,
-}) {
+export default function SectionResourcesPanel({ courseId, sectionId, canEdit = false }) {
   const { t } = useI18n();
   const [saving, setSaving] = useState(false);
 
   // The read goes through the shared hook, which owns the cache, the cache-first
   // paint and the discarding of a stale answer, so the panel keeps no copy of
   // its own. Its address is built from the scope this panel edits.
-  const params = new URLSearchParams({ program_id: programId });
-  if (sessionId) params.set("session_id", sessionId);
   const { data, error: readError, refresh } = useApi(
-    programId ? `/api/lms/session-resources?${params.toString()}` : null,
-    { defaultValue: EMPTY_SESSION_RESOURCES, transform: pickSessionResources },
+    sectionId ? `/api/lms/section-resources?section_id=${encodeURIComponent(sectionId)}` : null,
+    {
+      defaultValue: EMPTY_SECTION_RESOURCES,
+      transform: pickSectionResources,
+      deps: [sectionId],
+    },
   );
 
   // The payload's own refusal, or a request that never got an answer. Either
@@ -77,7 +73,7 @@ export default function SessionResourcesSection({
       await refresh();
       return true;
     } catch (e) {
-      // Rethrown so the editor keeps the form open: nothing the PM typed is lost.
+      // Rethrown so the editor keeps the form open: nothing the author typed is lost.
       notify("error", e.message || "lms.errors.saveFailed");
       throw e;
     } finally {
@@ -85,25 +81,18 @@ export default function SessionResourcesSection({
     }
   };
 
-  const scope = (values) => ({
-    ...values,
-    program_id: programId,
-    session_id: sessionId || null,
-    week_number: weekNumber ?? null,
-  });
-
   const create = async (values) => {
     await write({
-      url: "/api/lms/session-resources",
+      url: "/api/lms/section-resources",
       method: "POST",
-      body: scope(values),
+      body: { ...values, section_id: sectionId },
     });
     notify("success", "lms.sessionResources.created");
   };
 
   const update = async (resource, values) => {
     await write({
-      url: `/api/lms/session-resources/${resource.id}`,
+      url: `/api/lms/section-resources/${resource.id}`,
       method: "PUT",
       body: values,
     });
@@ -112,35 +101,27 @@ export default function SessionResourcesSection({
 
   const remove = async (resource) => {
     await write({
-      url: `/api/lms/session-resources/${resource.id}`,
+      url: `/api/lms/section-resources/${resource.id}`,
       method: "DELETE",
     });
     notify("success", "lms.sessionResources.deleted");
   };
 
   return (
-    <div className="space-y-4">
-      {/* PHASE 3: RESOURCES (THE SUPPORT) */}
-      <div className="pb-3 border-b border-blue-500/20">
-        <SessionResourcesEditor
-          badge={
-            <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center text-[9px] font-black text-blue-500 border border-blue-500/20 shadow-sm shrink-0">
-              3
-            </div>
-          }
-          title={t("lms.sessionResources.title")}
-          accent="var(--brand-blue)"
-          resources={resources || []}
-          loading={resources === null}
-          canEdit={canEdit}
-          busy={saving}
-          programId={programId}
-          sessionId={sessionId}
-          onCreate={create}
-          onUpdate={update}
-          onDelete={remove}
-        />
-      </div>
+    <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--border-primary)" }}>
+      <SectionResourcesEditor
+        title={t("lms.sessionResources.title")}
+        accent="var(--brand-blue)"
+        resources={resources || []}
+        loading={resources === null}
+        canEdit={canEdit}
+        busy={saving}
+        courseId={courseId}
+        sectionId={sectionId}
+        onCreate={create}
+        onUpdate={update}
+        onDelete={remove}
+      />
     </div>
   );
 }
