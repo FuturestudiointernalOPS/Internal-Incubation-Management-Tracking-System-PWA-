@@ -140,13 +140,16 @@ describe("GET /api/workspaces", () => {
     describeReport("hub  ", report);
 
     expect(report.status).toBe(200);
-    // The group-name read that used to depend on the group resolution is gone:
-    // the resolved groups are the list now. Ten reads, one wave.
+    // Ten reads used to go out here, two of them asking a table that was already
+    // being read: the ended group memberships ride along with the group
+    // resolution, and the active enrollments are filtered out of the membership
+    // list. Eight reads, one wave.
     expect(report.waves).toBe(1);
-    expect(report.statements).toBe(10);
-    // The burst is the whole pool. This is the number to watch
-    // (docs/PERFORMANCE.md): one hub load leaves no connection free.
-    expect(report.maxInFlight).toBeLessThanOrEqual(10);
+    expect(report.statements).toBe(8);
+    // Eight of the ten connections, so a hub load now leaves two free. The
+    // remaining margin is thin on purpose (docs/PERFORMANCE.md): splitting the
+    // wave would buy more, at the cost of a wave on every hub load.
+    expect(report.maxInFlight).toBeLessThanOrEqual(8);
   });
 
   test("the shell's call asks only for the context list", async () => {

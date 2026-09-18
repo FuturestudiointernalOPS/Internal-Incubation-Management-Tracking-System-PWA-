@@ -9,7 +9,6 @@ import db from "@/lib/db";
  * Route → function map:
  *  - /api/workspaces    → getStaffAssignmentsForUser, getActiveParticipantEnrollments,
  *                         getProgramAssignmentsFromContactRoles, getParticipantProgramMemberships,
- *                         getInactiveGroupMembershipHistory,
  *                         getActiveResponsibilitiesForUser, getActiveVentureMembershipsForContact,
  *                         getContactStoredRole
  *  - /api/calendar      → getFacilitatorProgramScopePids, getParticipantProgramScopePids,
@@ -95,28 +94,27 @@ export async function getProgramAssignmentsFromContactRoles(cid) {
   });
 }
 
-/** All participant memberships with lifecycle status (incl. completed). */
+/**
+ * All participant memberships with lifecycle status (incl. completed).
+ *
+ * The two extra columns exist so the hub can answer a SECOND question from these
+ * same rows instead of sending the same table again: `program_exists` is the
+ * INNER-join test the active-enrollment query made, and `program_id_text` is the
+ * cast it returned (the id spaces differ, so the text form is what a comparison
+ * against an assignment is made in).
+ */
 export async function getParticipantProgramMemberships(cid) {
   return db.execute({
     sql: `SELECT pp.participant_id, pp.program_id, pp.status, pp.screening_status,
                      pp.accepted_at, pp.completed_at, pp.outcome, pp.certificate_issued,
-                     p.name AS program_name, p.status AS program_status
+                     p.name AS program_name, p.status AS program_status,
+                     (p.id IS NOT NULL) AS program_exists,
+                     CAST(pp.program_id AS TEXT) AS program_id_text
               FROM participant_programs pp
               LEFT JOIN v2_programs p ON p.id::text = pp.program_id::text
               WHERE pp.participant_id = ?
               ORDER BY pp.assigned_at DESC`,
     args: [cid],
-  });
-}
-
-/** Historical (non-active) group memberships for a user, newest first. */
-export async function getInactiveGroupMembershipHistory(userCid) {
-  return db.execute({
-    sql: `SELECT group_name, status, started_at, expires_at
-              FROM group_memberships
-              WHERE user_cid = ? AND status != 'active'
-              ORDER BY started_at DESC`,
-    args: [userCid],
   });
 }
 

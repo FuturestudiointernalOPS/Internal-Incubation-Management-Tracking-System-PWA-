@@ -240,27 +240,65 @@ export async function isGroupProtected(groupName) {
 }
 
 /**
- * Effective groups for a user (single query, egress-neutral):
- * active memberships + legacy user_groups edges without a membership record.
+ * Effective groups AND the ended memberships, from ONE query.
+ *
+ * Both questions read the SAME rows for the same person: which groups count
+ * right now, and which memberships have ended. Asking them separately sent the
+ * same table twice, and then discarded the ended rows the first read had already
+ * fetched - a whole statement on the widest burst of the post-login screen. The
+ * extra columns are carried for the history; the resolution still sees exactly
+ * the rows it saw before.
+ *
+ * @returns {Promise<{groups: string[], history: Array<{group_name: string, status: string, started_at: any, expires_at: any}>}>}
  */
-export async function getEffectiveGroupsForUser(cid) {
+export async function getEffectiveGroupsAndHistory(cid) {
   await ensureMembershipSchema();
   const r = await db.execute({
-    sql: `SELECT gm.group_name AS group_name, 'membership' AS source
+    sql: `SELECT gm.group_name AS group_name, 'membership' AS source,
+                 gm.status AS status, gm.started_at AS started_at, gm.expires_at AS expires_at
           FROM group_memberships gm
           WHERE gm.user_cid = ?
           UNION ALL
-          SELECT ug.group_name, 'legacy'
+          SELECT ug.group_name, 'legacy', NULL, NULL, NULL
           FROM user_groups ug
           LEFT JOIN group_memberships gm2
             ON gm2.user_cid = ug.user_cid AND gm2.group_name = ug.group_name
           WHERE ug.user_cid = ? AND gm2.user_cid IS NULL`,
     args: [cid, cid],
   });
-  return selectEffectiveGroups(
-    r.rows.filter((x) => x.source === "membership"),
-    r.rows.filter((x) => x.source === "legacy"),
-  );
+
+  const membershipRows = r.rows.filter((x) => x.source === "membership");
+  const legacyRows = r.rows.filter((x) => x.source === "legacy");
+
+  // The ended memberships, newest first. Two details are carried over from the
+  // query this replaces rather than re-decided here: a NULL status was EXCLUDED
+  // by `status != 'active'` in SQL, so it is excluded here too; and Postgres puts
+  // NULLs FIRST on a descending order, so an absent start date sorts to the top
+  // rather than the bottom.
+  const startedAt = (v) => (v == null ? Infinity : new Date(v).getTime());
+  const history = membershipRows
+    .filter((row) => row.status != null && row.status !== "active")
+    .map((row) => ({
+      group_name: row.group_name,
+      status: row.status,
+      started_at: row.started_at,
+      expires_at: row.expires_at,
+    }))
+    .sort((a, b) => startedAt(b.started_at) - startedAt(a.started_at));
+
+  return {
+    groups: selectEffectiveGroups(membershipRows, legacyRows),
+    history,
+  };
+}
+
+/**
+ * Effective groups for a user (single query, egress-neutral):
+ * active memberships + legacy user_groups edges without a membership record.
+ */
+export async function getEffectiveGroupsForUser(cid) {
+  const { groups } = await getEffectiveGroupsAndHistory(cid);
+  return groups;
 }
 
 /** Current membership row for a user+group (or null). */

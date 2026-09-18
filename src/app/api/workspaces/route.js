@@ -2,13 +2,11 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { roleHomeHref } from "@/lib/platform/roles";
-import { getEffectiveGroupsForUser } from "@/lib/authorization/membership";
+import { getEffectiveGroupsAndHistory } from "@/lib/authorization/membership";
 import {
   getStaffAssignmentsForUser,
-  getActiveParticipantEnrollments,
   getProgramAssignmentsFromContactRoles,
   getParticipantProgramMemberships,
-  getInactiveGroupMembershipHistory,
   getActiveResponsibilitiesForUser,
   getActiveVentureMembershipsForContact,
   getContactStoredRole,
@@ -48,11 +46,11 @@ export async function GET(request) {
     // ── Scope ──────────────────────────────────────────────────────────────
     // The context switcher in the page shell calls this endpoint on EVERY page,
     // but reads only `contexts` (org memberships, responsibilities, program
-    // participations, ventures, learning) and the identity chip. Four of the
-    // reads below serve the hub page alone: the flat assignment list, the
-    // generalized program assignments, the past-membership history and the
-    // legacy active-enrollment list. Serving them to the shell put four
-    // statements on the widest burst of every navigation, for data nobody read.
+    // participations, ventures, learning) and the identity chip. Two of the
+    // reads below serve the hub page alone: the flat assignment list and the
+    // generalized program assignments. Two more that used to sit here are not
+    // skipped but DERIVED (see below), because the rows they needed were already
+    // being read for another question.
     const contextsOnly =
       new URL(request.url).searchParams.get("scope") === "contexts";
     /** A read this scope does not use: answered locally, never sent. */
@@ -64,13 +62,15 @@ export async function GET(request) {
     // observed environment) before the hub could render. allSettled keeps the
     // original fail-open behaviour: a missing table or a failing read
     // contributes an empty list instead of breaking the endpoint.
+    //
+    // Eight reads, not ten: the ended group memberships ride along with the group
+    // resolution, and the active enrollments are filtered out of the membership
+    // list. Both used to send a table that was already being read.
     const [
       staffSettled,
-      partSettled,
       contactRolesSettled,
       membershipsSettled,
-      activeGroupsSettled,
-      historySettled,
+      groupsSettled,
       responsibilitiesSettled,
       venturesSettled,
       learningSettled,
@@ -79,15 +79,11 @@ export async function GET(request) {
       contextsOnly
         ? notNeeded()
         : getStaffAssignmentsForUser(session.cid, session.email || session.cid),
-      contextsOnly ? notNeeded() : getActiveParticipantEnrollments(session.cid),
       contextsOnly
         ? notNeeded()
         : getProgramAssignmentsFromContactRoles(session.cid),
       getParticipantProgramMemberships(session.cid),
-      getEffectiveGroupsForUser(session.cid),
-      contextsOnly
-        ? notNeeded()
-        : getInactiveGroupMembershipHistory(session.cid),
+      getEffectiveGroupsAndHistory(session.cid),
       getActiveResponsibilitiesForUser(session.cid),
       getActiveVentureMembershipsForContact(session.cid),
       learnerHasEnrollments(session.cid),
@@ -102,7 +98,20 @@ export async function GET(request) {
       settled.status === "fulfilled" ? settled.value : fallback;
 
     const staffRows = rowsOf(staffSettled);
-    const partRows = rowsOf(partSettled);
+    const memberships = rowsOf(membershipsSettled);
+
+    // The active participant enrollments are DERIVED from the membership rows
+    // already in hand, reproducing the query they used to be read by: the
+    // programme has to exist (that query's inner join), the status has to be
+    // active or absent, and the list is ordered by programme name. `filter`
+    // copies before `sort`, so the membership order below is untouched.
+    const partRows = memberships
+      .filter(
+        (r) => r.program_exists && (r.status == null || r.status === "active"),
+      )
+      .sort((a, b) =>
+        String(a.program_name || "").localeCompare(String(b.program_name || "")),
+      );
 
     // 1. Program staff assignments (facilitator / staff / ...)
     // 2. Participant enrollments (excluded when already a staff member there)
@@ -122,12 +131,12 @@ export async function GET(request) {
     }
 
     for (const r of partRows) {
-      if (staffProgramIds.has(r.program_id)) continue;
+      if (staffProgramIds.has(r.program_id_text)) continue;
       workspaces.push({
         type: "program",
         title: "participant",
-        program_id: r.program_id,
-        program_name: r.program_name || r.program_id,
+        program_id: r.program_id_text,
+        program_name: r.program_name || r.program_id_text,
         href: "/participant",
       });
     }
@@ -195,18 +204,22 @@ export async function GET(request) {
 
     // 2. All participant memberships with lifecycle status (incl. completed).
     try {
-      contexts.program_participations = rowsOf(membershipsSettled).map((r) => {
-        const completed =
-          String(r.status || "").toLowerCase() === "completed" ||
-          !!r.completed_at ||
-          String(r.program_status || "").toLowerCase() === "completed";
-        return {
-          ...r,
-          completed,
-          readonly: completed,
-          href: `/participant/${r.program_id}`,
-        };
-      });
+      // The two columns the active-enrollment list is derived from are internal
+      // to this endpoint and are not part of a context's shape.
+      contexts.program_participations = memberships.map(
+        ({ program_exists: _pe, program_id_text: _pit, ...r }) => {
+          const completed =
+            String(r.status || "").toLowerCase() === "completed" ||
+            !!r.completed_at ||
+            String(r.program_status || "").toLowerCase() === "completed";
+          return {
+            ...r,
+            completed,
+            readonly: completed,
+            href: `/participant/${r.program_id}`,
+          };
+        },
+      );
     } catch (_) {}
 
     // 3. Organizational memberships — ACTIVE memberships only (Phase 1:
@@ -220,8 +233,13 @@ export async function GET(request) {
     //    legacy table by name was a second round trip for one field
     //    (role_in_group) that no consumer reads.
     try {
-      const activeGroups = valueOf(activeGroupsSettled, []);
-      contexts.org_memberships = [...activeGroups].sort().map((groupName) => {
+      // The group resolution now carries the ended memberships with it, so this
+      // block answers both of the group questions from one read.
+      const { groups, history } = valueOf(groupsSettled, {
+        groups: [],
+        history: [],
+      });
+      contexts.org_memberships = [...groups].sort().map((groupName) => {
         const isIntern = /intern/i.test(String(groupName || ""));
         return {
           group_name: groupName,
@@ -230,8 +248,7 @@ export async function GET(request) {
             : roleHomeHref(session.role) || "/workspaces",
         };
       });
-      const pastRes = rowsOf(historySettled);
-      contexts.org_history = pastRes;
+      contexts.org_history = history;
     } catch (_) {}
 
     // 4. Responsibilities.
