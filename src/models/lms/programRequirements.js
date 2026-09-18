@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { participantBatches } from "@/lib/participantBatches";
 import { LmsError } from "./errors";
 import { getCourse } from "./courses";
 import {
@@ -200,6 +201,15 @@ async function getRequirement(requirementId) {
  * Server-side, idempotent (UNIQUE(course_id, user_cid) + ON CONFLICT). Runs
  * whenever a participant is added to a program, and whenever a course is
  * attached to a program.
+ *
+ * The work is GROUPED and QUEUED. One statement writes a whole chunk of
+ * participants for one course, and the chunks are applied in order, so the cost
+ * is (published courses x one statement per 30 people) instead of one statement
+ * per person per course. A programme with 200 people used to cost 200 round
+ * trips each time a course was attached to it; it now costs 7 - which is the
+ * difference between a request that answers and one that times out half done.
+ *
+ * Every statement stays idempotent, so a retry after a partial failure is safe.
  */
 export async function ensureProgramEnrollments(programId, cids) {
   const participantIds = Array.isArray(cids)
@@ -214,21 +224,26 @@ export async function ensureProgramEnrollments(programId, cids) {
   if (published.length === 0) return { enrolled: 0, skipped: participantIds.length };
 
   let enrolled = 0;
-  let skipped = 0;
   for (const req of published) {
-    for (const cid of participantIds) {
+    for (const chunk of participantBatches(participantIds)) {
+      const values = chunk.map(() => "(?, ?, 'program', ?)").join(", ");
+      const args = chunk.flatMap((cid) => [
+        req.course_id,
+        cid,
+        String(programId),
+      ]);
       await db.execute({
         sql: `INSERT INTO lms_enrollments (course_id, user_cid, source, program_id)
-              VALUES (?, ?, 'program', ?)
+              VALUES ${values}
               ON CONFLICT (course_id, user_cid) DO NOTHING`,
-        args: [req.course_id, cid, String(programId)],
+        args,
       });
       // A conflict (already enrolled via admin/self/purchase) still counts as
       // access present; a suspended enrollment is left untouched.
-      enrolled += 1;
+      enrolled += chunk.length;
     }
   }
-  return { enrolled, skipped };
+  return { enrolled, skipped: 0 };
 }
 
 /**

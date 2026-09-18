@@ -205,6 +205,41 @@ describe("lms program requirements — auto enrollment", () => {
   });
 });
 
+describe("lms program requirements — auto enrollment is grouped, not one row at a time", () => {
+  test("writes one statement per 30 participants per course, and keeps every person", async () => {
+    seedCourse({ id: "crs-a", status: "published" });
+    seedCourse({ id: "crs-b", status: "published" });
+    seedProgram();
+    await attachCourseToProgram({ programId: "P-2026-001", courseId: "crs-a" });
+    await attachCourseToProgram({ programId: "P-2026-001", courseId: "crs-b" });
+
+    const cids = Array.from({ length: 65 }, (_, i) => `U-${i + 1}`);
+    mockFake.executed.length = 0;
+    const res = await ensureProgramEnrollments("P-2026-001", cids);
+
+    const inserts = mockFake.executed.filter((c) =>
+      /insert into lms_enrollments/i.test(c.sql),
+    );
+    console.log(
+      `enrollment: ${cids.length} participants x 2 courses -> ${inserts.length} statement(s)`,
+    );
+
+    // 65 people is 30 + 30 + 5, so three statements per course and six in all,
+    // where one statement per person per course would be 130.
+    expect(inserts).toHaveLength(6);
+    // A full chunk binds three values per row; the tail chunk carries five rows.
+    expect(inserts[0].args).toHaveLength(30 * 3);
+    expect(inserts[2].args).toHaveLength(5 * 3);
+    // Nothing is lost in the grouping: every person, in both courses, once.
+    expect(res.enrolled).toBe(130);
+    const enrolled = mockFake.state.lms_enrollments;
+    expect(enrolled).toHaveLength(130);
+    expect(
+      new Set(enrolled.map((e) => `${e.course_id}|${e.user_cid}`)).size,
+    ).toBe(130);
+  });
+});
+
 describe("lms program requirements — participant learning view", () => {
   function seedCourseWithLesson(courseId, lessonId, isRequired = true) {
     seedCourse({ id: courseId });

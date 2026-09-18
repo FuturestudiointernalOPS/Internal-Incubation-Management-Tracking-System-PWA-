@@ -49,6 +49,56 @@ const TABLE_DEFAULTS = {
   lms_coaching_requests: { status: "pending", timing: "during" },
 };
 
+/**
+ * Split one VALUES tuple ("a, 'b', c") on the commas that SEPARATE values,
+ * not the ones inside a quoted literal.
+ */
+function splitValueTokens(tuple) {
+  const out = [];
+  let current = "";
+  let inQuote = false;
+  for (const ch of tuple) {
+    if (ch === "'") inQuote = !inQuote;
+    if (ch === "," && !inQuote) {
+      out.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  out.push(current.trim());
+  return out;
+}
+
+/**
+ * The tuples of a VALUES clause, in order: "(a, b), (c, d)" → ["a, b", "c, d"].
+ * A single-tuple INSERT yields one entry, which is what the interpreter handled
+ * before multi-row writes existed; the caller no longer has to care which it is.
+ */
+function valueTuples(sql) {
+  const match = /VALUES\s*(.+?)(?:\s+ON CONFLICT|\s+RETURNING|;|$)/is.exec(sql);
+  if (!match) return [];
+  const tuples = [];
+  let depth = 0;
+  let current = "";
+  for (const ch of match[1]) {
+    if (ch === "(") {
+      depth += 1;
+      if (depth === 1) continue;
+    }
+    if (ch === ")") {
+      depth -= 1;
+      if (depth === 0) {
+        tuples.push(current);
+        current = "";
+        continue;
+      }
+    }
+    if (depth >= 1) current += ch;
+  }
+  return tuples;
+}
+
 export function createFakeDb() {
   let state = Object.fromEntries(TABLES.map((t) => [t, []]));
   let seq = 1;
@@ -82,38 +132,50 @@ export function createFakeDb() {
     const columns = /\(([^)]+)\)\s*VALUES/i.exec(sql)[1]
       .split(",")
       .map((c) => c.trim());
-    const valueTokens = /VALUES\s*\(([^)]+)\)/i.exec(sql)[1]
-      .split(",")
-      .map((t) => t.trim());
+    const tuples = valueTuples(sql);
+    const conflictCols = /on conflict/i.test(sql)
+      ? (/on conflict \(([^)]+)\)/i.exec(sql)?.[1] || "")
+          .split(",")
+          .map((c) => c.trim())
+      : null;
 
-    const row = rowFor(table);
+    const written = [];
+    // ONE cursor across every tuple: the placeholders are bound in the order
+    // they appear in the statement, so a second tuple continues where the first
+    // stopped - exactly what the driver does.
     let argIndex = 0;
-    columns.forEach((column, i) => {
-      const token = valueTokens[i] || "?";
-      if (token === "?" || token.startsWith("?")) {
-        row[column] = args[argIndex++];
-      } else {
-        row[column] = token.replace(/^'|'$/g, "");
+
+    for (const tuple of tuples) {
+      const valueTokens = splitValueTokens(tuple);
+      const row = rowFor(table);
+      columns.forEach((column, i) => {
+        const token = valueTokens[i] || "?";
+        if (token === "?" || token.startsWith("?")) {
+          row[column] = args[argIndex++];
+        } else {
+          row[column] = token.replace(/^'|'$/g, "");
+        }
+      });
+      // Apply schema defaults for omitted columns (e.g. certificate status).
+      for (const [col, val] of Object.entries(TABLE_DEFAULTS[table] || {})) {
+        if (row[col] === undefined) row[col] = val;
       }
-    });
-    // Apply schema defaults for omitted columns (e.g. certificate status).
-    for (const [col, val] of Object.entries(TABLE_DEFAULTS[table] || {})) {
-      if (row[col] === undefined) row[col] = val;
+
+      if (conflictCols) {
+        const existing = state[table].find((r) =>
+          conflictCols.every((c) => String(r[c]) === String(row[c])),
+        );
+        if (existing) {
+          written.push(existing); // DO NOTHING — the row that is already there
+          continue;
+        }
+      }
+
+      state[table].push(row);
+      written.push(row);
     }
 
-    if (/on conflict/i.test(sql)) {
-      const conflictMatch = /on conflict \(([^)]+)\)/i.exec(sql);
-      const conflictCols = conflictMatch
-        ? conflictMatch[1].split(",").map((c) => c.trim())
-        : [];
-      const existing = state[table].find((r) =>
-        conflictCols.every((c) => String(r[c]) === String(row[c])),
-      );
-      if (existing) return { rows: [existing] }; // DO NOTHING
-    }
-
-    state[table].push(row);
-    return { rows: [row] };
+    return { rows: written };
   }
 
   function update(sql, args) {
