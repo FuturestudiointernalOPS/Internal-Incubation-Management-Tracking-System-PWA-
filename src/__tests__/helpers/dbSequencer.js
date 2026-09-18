@@ -27,6 +27,9 @@ export function createSequencer({ rows = [], rowsFor = null } = {}) {
   let inFlight = 0;
   let waves = 0;
   let maxInFlight = 0;
+  // Answers can be replaced between phases of one measurement - e.g. to answer a
+  // second run with a database that already has what the first run recorded.
+  let respond = rowsFor;
 
   const execute = (query = {}) => {
     const sql = typeof query === "string" ? query : query.sql || "";
@@ -44,7 +47,7 @@ export function createSequencer({ rows = [], rowsFor = null } = {}) {
       setTimeout(() => {
         if (!schema) inFlight -= 1;
         resolve({
-          rows: rowsFor ? rowsFor(sql, args) || [] : rows,
+          rows: respond ? respond(sql, args) || [] : rows,
           columns: [],
           rowsAffected: 0,
           lastInsertRowid: null,
@@ -55,6 +58,10 @@ export function createSequencer({ rows = [], rowsFor = null } = {}) {
 
   return {
     execute,
+    /** Replace the answers given to subsequent statements. */
+    setRowsFor(fn) {
+      respond = fn;
+    },
     reset() {
       calls.length = 0;
       waves = 0;
@@ -74,6 +81,8 @@ export function createSequencer({ rows = [], rowsFor = null } = {}) {
         maxInFlight,
         schemaStatements: calls.length - data.length,
         calls: data.map((c) => c.sql.replace(/\s+/g, " ").trim().slice(0, 70)),
+        /** The full records, for a test that needs the arguments too. */
+        records: data.map((c) => ({ ...c })),
       };
     },
   };

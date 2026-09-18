@@ -170,3 +170,98 @@ describe("authorization resolution", () => {
     expect(report.maxInFlight).toBeLessThanOrEqual(6);
   });
 });
+
+// ─── The migration ledger — read once per process, not once per migration ───
+
+// The boot batch asks "has this one been applied?" about thirty times. Asking the
+// database each time is thirty round trips to learn one small list that only
+// changes on deploy; reading it whole is one. On an already-migrated database
+// that single read is the batch's ENTIRE cost, which is why this is asserted
+// rather than assumed - the symptom it came from was a burst of identical slow
+// queries against the ledger on the first gated request of a process.
+
+describe("the authorization migration ledger", () => {
+  test("the batch reads it once, and an applied migration costs nothing to ask about", async () => {
+    jest.resetModules();
+    mockSequencer.reset();
+    const { runAuthzMigration } = require("@/lib/authorization");
+    const { resolveAuthorizationContext } = require(
+      "@/models/authorization/resolver",
+    );
+
+    // A FRESH database: the capability backfills and the eligibility seed both
+    // run, and between them they ask about a name each for thirty migrations.
+    await resolveAuthorizationContext({ cid: "USER_SEQ_BOOT", role: "staff" });
+
+    const batch = mockSequencer.report();
+    describeReport("authz cold gate (fresh)", batch);
+    const ledgerReads = batch.calls.filter(
+      (sql) => sql.includes("authz_migrations") && sql.includes("SELECT"),
+    );
+    console.log(
+      `ledger reads for the whole batch: ${ledgerReads.length} (the batch asks about ~25 migrations)`,
+    );
+
+    // ONE read answers every "has this been applied?" the batch asks.
+    expect(ledgerReads).toHaveLength(1);
+    // and nothing asks about a single name one at a time
+    expect(
+      batch.calls.filter((sql) => /authz_migrations\s+where\s+name/i.test(sql)),
+    ).toHaveLength(0);
+
+    // A migration this process applied is not asked about again - not even for
+    // the price of one round trip.
+    mockSequencer.reset();
+    const fn = jest.fn(async () => {});
+    const again = await runAuthzMigration("cap-backfill-tasks", fn);
+    const after = mockSequencer.report();
+    expect(again.applied).toBe(false);
+    expect(fn).not.toHaveBeenCalled();
+    expect(after.statements).toBe(0);
+
+    // ── The case production is in: the database already holds every marker ──
+    // The names the batch just recorded are exactly the ones a migrated
+    // database would answer with.
+    const recorded = batch.records
+      .filter((r) => r.sql.includes("INSERT INTO authz_migrations"))
+      .flatMap((r) => r.args || []);
+    console.log(`migrations the batch recorded: ${recorded.length}`);
+    expect(recorded.length).toBeGreaterThan(20);
+
+    // ── The case production is in: the database already holds every marker ──
+    // The names the fresh run recorded are exactly what a migrated database
+    // answers with.
+    mockSequencer.setRowsFor((sql) =>
+      sql.includes("authz_migrations") && sql.includes("SELECT")
+        ? recorded.map((name) => ({ name }))
+        : [],
+    );
+    jest.resetModules();
+    mockSequencer.reset();
+    const { resolveAuthorizationContext: coldGate } = require(
+      "@/models/authorization/resolver",
+    );
+    await coldGate({ cid: "USER_SEQ_MIGRATED", role: "staff" });
+
+    const migrated = mockSequencer.report();
+    describeReport("authz cold gate (migrated)", migrated);
+    const ledgerReadsOnMigrated = migrated.calls.filter(
+      (sql) => sql.includes("authz_migrations") && sql.includes("SELECT"),
+    );
+    const reApplied = migrated.records.filter((r) =>
+      r.sql.includes("INSERT INTO authz_migrations"),
+    );
+    console.log(
+      `migrated database: ${ledgerReadsOnMigrated.length} ledger read(s) for the whole cold gate, ` +
+        `${reApplied.length} migration(s) re-applied`,
+    );
+
+    // ONE read answers the capability backfills AND the six seed checks - the
+    // six that used to be six sequential round trips of their own.
+    expect(ledgerReadsOnMigrated).toHaveLength(1);
+    expect(reApplied).toHaveLength(0);
+    // With nothing to apply, the gate's ledger traffic is that single read, so
+    // the widest burst is what the resolution itself needs (budget: 6).
+    expect(migrated.maxInFlight).toBeLessThanOrEqual(6);
+  });
+});
