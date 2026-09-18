@@ -8,8 +8,41 @@ import { Pool } from "pg";
  */
 
 let pgPool = null;
-let poolErrorCount = 0;
+
+// ── Pool failure tracking: a SLIDING window, not a lifetime tally ───────────
+//
+// This used to be a plain counter, cleared only by a full teardown, so it
+// measured "failures since the last rebuild" rather than "is something wrong
+// right now". Five idle connections dying one at a time, hours apart — each
+// invisible to users because the failed query is retried once — reached the
+// same value as five sockets dropping in the same instant and tore down all ten
+// connections for no reason.
+//
+// The threshold only means something as a BURST detector: several sockets
+// failing together is the signature of a pool that is genuinely broken
+// (provider restarted, network gone), and rebuilding is then worth the latency
+// it costs. So we keep the timestamps of recent failures and count only those
+// inside a short window. Older entries are dropped as the window advances — no
+// timer is involved, pruning happens when the next failure arrives — so a slow
+// drift decays back to zero while a real cascade still reaches the threshold.
 const MAX_POOL_ERRORS = 5;
+const POOL_ERROR_WINDOW_MS = 30000; // failures further apart than this are unrelated
+
+/** Timestamps of pool failures still inside the window (oldest first). */
+let recentPoolErrors = [];
+
+/** Forget failures older than the window, relative to `now`. */
+const prunePoolErrors = (now) => {
+  const cutoff = now - POOL_ERROR_WINDOW_MS;
+  recentPoolErrors = recentPoolErrors.filter((at) => at > cutoff);
+};
+
+/** Record one failure; return how many recent ones remain (including it). */
+const recordPoolError = (now = Date.now()) => {
+  prunePoolErrors(now);
+  recentPoolErrors.push(now);
+  return recentPoolErrors.length;
+};
 
 /**
  * RUNTIME SCHEMA MAINTENANCE — executed at most ONCE per process.
@@ -120,7 +153,7 @@ const resetPool = () => {
     } catch (_) {}
     pgPool = null;
   }
-  poolErrorCount = 0;
+  recentPoolErrors = []; // a rebuild starts from a clean slate
   lastFullResetAt = now;
   return true;
 };
@@ -165,16 +198,20 @@ const getPool = () => {
 
     // Prevent uncaughtException when idle connections fail (e.g. read ETIMEDOUT)
     pgPool.on("error", (err) => {
-      poolErrorCount++;
-      if (poolErrorCount <= 3) {
+      const recentErrors = recordPoolError();
+      if (recentErrors <= 3) {
         console.error(
           ` forensics | Pool connection dropped: ${err.message}. ` +
-          `Auto-recovery active (${poolErrorCount}/${MAX_POOL_ERRORS}).`,
+          `Auto-recovery active (${recentErrors}/${MAX_POOL_ERRORS} in the last ${
+            POOL_ERROR_WINDOW_MS / 1000
+          }s).`,
         );
       }
-      if (poolErrorCount >= MAX_POOL_ERRORS) {
+      if (recentErrors >= MAX_POOL_ERRORS) {
         console.warn(
-          " forensics | Too many pool errors. Recycling connection pool.",
+          ` forensics | ${recentErrors} pool errors within ${
+            POOL_ERROR_WINDOW_MS / 1000
+          }s. Recycling connection pool.`,
         );
         resetPool();
       }
