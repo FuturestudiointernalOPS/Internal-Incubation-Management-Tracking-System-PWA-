@@ -63,12 +63,32 @@ To re-measure a screen, call it through the sequencer and read `report()`.
 | Responsibilities (first call) | 25 → **3** | 25 → **3**    | 1 → 1         |
 | Responsibilities (warm)       | 25 → **1** | 25 → **1**    | 1 → 1         |
 | Internal messaging (inbox)    | 8 → 8      | 8 → **4**     | 1 → **5**     |
-| Workspaces hub                | 10 → 10    | 10 → **2**    | 1 → **9**     |
+| Workspaces hub                | 10 → 10    | 10 → **1**    | 1 → **10**    |
 | Authorization (cold)          | 7 → 7      | 4 → **3**     | 2 → **4**     |
 
 Same statement counts for the inbox and the hub — the reads are the same, they
 now go out together. At 130ms per wave: the responsibilities screen goes from
-~3.3s to ~0.13s, the hub from ~1.3s to ~0.26s, the inbox from ~1.0s to ~0.5s.
+~3.3s to ~0.13s, the hub from ~1.3s to ~0.13s, the inbox from ~1.0s to ~0.5s.
+
+### The shell's call, and the burst that is left
+
+The context switcher lives in the page shell, so its request runs on **every**
+page, not only on the hub. It renders just the context list and the identity
+chip, so it now asks for `?scope=contexts` and the four hub-only reads — the
+flat assignment list, the generalized program assignments, the past memberships
+and the legacy active-enrollment fallback — are answered locally instead of
+being sent:
+
+| Workspaces, shell call (`?scope=contexts`) | Statements | Waves | Burst |
+| ------------------------------------------ | ---------- | ----- | ----- |
+| before (the parameter was ignored)         | 11         | 2     | 10    |
+| now                                        | **6**      | **1** | **6** |
+
+The hub's own call keeps its ten reads, because it renders all of them. It did
+lose one dependent read: the organizational memberships are built from the
+groups the authorization resolution already returned, rather than re-reading
+the legacy table for them. That is why it is one wave and not two — and why its
+burst is now the full pool rather than nine of ten.
 
 These are **round-trip counts and wave depths, not response times measured in
 production**. The wall-clock figures are derived from the 130ms cost observed in
@@ -156,12 +176,21 @@ applied, and no re-application on a migrated database.
   second is answered by the 15s session cache (or the in-flight share), so it
   costs **zero** round trips. Refactoring fifteen files would add risk for no
   measurable gain.
-- **Two reads of participant membership on the hub.** One returns active rows,
-  the other every status with different joins. They are in the same wave, so
-  merging them would save no latency — only a connection.
-- **The widest burst is 9 against a pool of 10** on the hub. Within limits, but
-  it is the number to watch if concurrent page loads ever contend for
-  connections. The harness reports `maxInFlight` so this can be re-checked.
+- **Two reads of participant membership on the hub** — still two, and now the
+  first candidate to revisit. One returns active rows, the other every status
+  with different joins. They are in the same wave, so merging them saves a
+  connection and not a wave, which used to read as "not worth it". It reads
+  differently now that the hub's burst is the whole pool: the connection is the
+  scarce resource. Note the active-rows read only feeds the flat fallback list,
+  which the hub renders only when every context list is empty.
+- **The widest burst is 10 against a pool of 10** on the hub itself: one hub
+  load takes every connection, so anything else in flight at that instant waits.
+  The shell's call is 6, which is what every other page pays. The hub's number is
+  the one to watch, and the threshold is not the count alone: two simultaneous
+  hub loads ask for 20 connections out of 10, and the surplus only drains as fast
+  as the reads finish, against the 5s a request may wait for a free connection
+  before it fails. Reducing the count buys tolerance to that; it does not remove
+  the ceiling. The harness reports `maxInFlight` so this can be re-checked.
 
 ## When a screen is slow again
 
