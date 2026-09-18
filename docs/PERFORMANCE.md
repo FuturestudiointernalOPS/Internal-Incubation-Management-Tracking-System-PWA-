@@ -63,7 +63,7 @@ To re-measure a screen, call it through the sequencer and read `report()`.
 | Responsibilities (first call) | 25 → **3** | 25 → **3**    | 1 → 1         |
 | Responsibilities (warm)       | 25 → **1** | 25 → **1**    | 1 → 1         |
 | Internal messaging (inbox)    | 8 → 8      | 8 → **4**     | 1 → **5**     |
-| Workspaces hub                | 10 → 10    | 10 → **1**    | 1 → **10**    |
+| Workspaces hub                | 10 → **8** | 10 → **1**    | 1 → **8**     |
 | Authorization (cold)          | 7 → 7      | 4 → **3**     | 2 → **4**     |
 
 Same statement counts for the inbox and the hub — the reads are the same, they
@@ -84,11 +84,17 @@ being sent:
 | before (the parameter was ignored)         | 11         | 2     | 10    |
 | now                                        | **6**      | **1** | **6** |
 
-The hub's own call keeps its ten reads, because it renders all of them. It did
-lose one dependent read: the organizational memberships are built from the
-groups the authorization resolution already returned, rather than re-reading
-the legacy table for them. That is why it is one wave and not two — and why its
-burst is now the full pool rather than nine of ten.
+The hub's own call renders all of it. It lost one dependent read — the
+organizational memberships are built from the groups the authorization resolution
+already returned, rather than re-reading the legacy table for them — which is why
+it is one wave and not two.
+
+It then went from ten reads to EIGHT, by asking two of its questions of rows it
+was already holding: the ended group memberships ride along with the group
+resolution, and the active enrollments are a FILTERED SUBSET of the membership
+list. Reducing the burst without adding a wave is the only kind of reduction that
+is free, and the burst is now eight of the ten connections rather than the whole
+pool.
 
 These are **round-trip counts and wave depths, not response times measured in
 production**. The wall-clock figures are derived from the 130ms cost observed in
@@ -226,17 +232,29 @@ learning already granted.
   first candidate to revisit. One returns active rows, the other every status
   with different joins. They are in the same wave, so merging them saves a
   connection and not a wave, which used to read as "not worth it". It reads
-  differently now that the hub's burst is the whole pool: the connection is the
-  scarce resource. Note the active-rows read only feeds the flat fallback list,
-  which the hub renders only when every context list is empty.
-- **The widest burst is 10 against a pool of 10** on the hub itself: one hub
-  load takes every connection, so anything else in flight at that instant waits.
-  The shell's call is 6, which is what every other page pays. The hub's number is
-  the one to watch, and the threshold is not the count alone: two simultaneous
-  hub loads ask for 20 connections out of 10, and the surplus only drains as fast
-  as the reads finish, against the 5s a request may wait for a free connection
-  before it fails. Reducing the count buys tolerance to that; it does not remove
-  the ceiling. The harness reports `maxInFlight` so this can be re-checked.
+  differently now that the hub's burst is eight of the ten connections: the
+  connection is the scarce resource. Note the active-rows read only feeds the flat
+  fallback list, which the hub renders only when every context list is empty.
+- **The widest burst is 8 against a pool of 10** on the hub itself: it was 10, and
+  the two statements that came off were tables being read TWICE for the same
+  person. One hub load no longer takes every connection, so a second request
+  arriving at that instant finds a slot rather than waiting for one.
+
+  Where the two came from, since the pair is a pattern and not a one-off: the
+  ended group memberships were a second read of the same group rows the group
+  resolution had already fetched and then discarded, and the active enrollments
+  are a FILTERED SUBSET of the membership list (same table, same join, same
+  person) — so both are now derived from the read that was already happening. See
+  `getEffectiveGroupsAndHistory` and `getParticipantProgramMemberships`.
+
+  The shell's call is 6, which is what every other page pays, and it did not
+  change. The threshold is not the count alone: two simultaneous hub loads ask
+  for 16 connections out of 10, and the surplus only drains as fast as the reads
+  finish, against the 5s a request may wait for a free connection before it
+  fails. Reducing the count buys tolerance to that; it does not remove the
+  ceiling — and the ceiling is really set by the SLOWEST read, because one query
+  may hold its connection for 30s. The harness reports `maxInFlight` so this can
+  be re-checked.
 
 ## When a screen is slow again
 
