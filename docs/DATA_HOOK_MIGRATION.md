@@ -149,29 +149,29 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 5 |
+| ESLint warnings, total | 2192 | 4 |
 | `react-hooks/set-state-in-effect` | 200 | 2 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` | 2 | 0 |
 | Production build | passes | passes |
 
-**NO SCREEN CARRIES THIS WARNING ANY MORE.** The two that remain are inside the
+**NO SCREEN CARRIES THIS WARNING ANY MORE.** The four that remain are inside the
 reading hook itself, and they are the ones §3.7 records as deliberate: the hook is
 what PERFORMS the conversion - "stop writing state from an effect" - and it cannot
 perform it on itself. Its two `exhaustive-deps` are deliberate for the same reason
 (the caller owns part of its dependency list).
 
-The remaining five, in full:
+The remaining four, in full - and they are all in one file:
 
 | File | Rule | Why it is not a screen to convert |
 |---|---|---|
 | `src/lib/hooks/useApi.js` | `set-state-in-effect` ×2 | §3.7 - the hook is the removal target and cannot remove this from itself. |
 | `src/lib/hooks/useApi.js` | `exhaustive-deps` ×2 | §3.7 - the spread IS the feature: the caller owns part of the list. |
-| `src/__tests__/result-pdf-layout.test.js` | `no-unused-vars` | Not this migration's: a test file added by the other workstream (one unused constant). |
 
-The two that stood in this table as "not a conversion" - the scores
-memoisation note and the operational report's image - are both gone. §3.12
-records what each one actually needed.
+Three warnings that stood in this table are gone, and none of them was silenced:
+the scores memoisation note and the operational report's image are §3.12, and the
+one unused constant in the other workstream's suite was removed once that file was
+committed and stable. **Nothing outside the hook is left any more.**
 
 ### What is left, and under which reason
 
@@ -201,13 +201,9 @@ needed.
 > renames suites in this same working tree, so any figure went stale within the
 > hour. What matters is that the suite is green when a lot is committed.
 
-> The hook itself accounts for 4 of the remaining warnings (`src/lib/hooks/useApi.js`):
-> two "state written in an effect" and two "a spread in the dependency array". They
-> are left deliberately - see section 3.7.
-
-> Note: the repository currently reports one `no-unused-vars`, in
-> `src/__tests__/result-pdf-layout.test.js` (a single unused constant). It was
-> introduced by a different workstream and is unrelated to this migration.
+> The hook itself accounts for all 4 of the remaining warnings
+> (`src/lib/hooks/useApi.js`): two "state written in an effect" and two "a spread in
+> the dependency array". They are left deliberately - see section 3.7.
 
 ### Everything still open, in one place
 
@@ -219,7 +215,6 @@ the length of the account.
 | The hook's own four warnings | `src/lib/hooks/useApi.js` | Nothing to do: they are the hook BEING the removal target. §3.7. |
 | A `try/finally` in the scores reader | `src/app/admin/platform/scores/page.js` | Three lines - clear the loading flag after the block. The compiler cannot build HIR for a `finally`. §3.12. |
 | 22 hand-written reads on the founder's venture workspace | `src/app/participant/ventures/[id]/page.js` and its group | Mechanical (cache + fetch + setState each). Parked by decision; the recipe is at the end of §4. |
-| One unused constant in another workstream's suite | `src/__tests__/result-pdf-layout.test.js` | Not this migration's to remove. |
 | The screens that must be walked by hand | §5.1 | Four families, listed there. |
 | The database work (queries, migrations, cache, pool) | - | Parked by decision, separate from this migration. |
 
@@ -351,9 +346,18 @@ None left. The two that were here are resolved:
 
 ### 3.6 Structural or large
 
-The screens that have not been read one by one yet. All are over 800 lines and
-several read more than one address and mix reads with mutations, so each needs a
-reading before it is converted rather than a recipe.
+**This section is a record of how this family was triaged, not a list of work
+offering.** The table below is the state at the time of writing, and every row in
+it has since been converted - the "Converted out of this list" notes below name
+what each one took. Nothing here is pending.
+
+The screens were the ones that had not been read one by one yet. All are over 800
+lines and several read more than one address and mix reads with mutations, so each
+needed a reading before it was converted rather than a recipe.
+
+> The table below describes the screens as they were **when they were triaged**.
+> Their warning counts are historical: the current count, and the only file that
+> still carries one, is in §2.
 
 | Screen | Warning | Note |
 |---|---:|---|
@@ -365,7 +369,7 @@ reading before it is converted rather than a recipe.
 | `src/app/platform/runs/page.js` | 2 | The runs console. **Another workstream was editing this one at the time of writing** — check with them before touching it. |
 
 Of the eight originally here, `staff/projects/[id]` and `staff/op-report` are
-converted (the second is under §3.10, with one read group left), and `platform/forms`
+converted (the second is the stand-up screen of §3.10, done), and `platform/forms`
 and `admin/reports/responses` are converted elsewhere in this document.
 
 A group that used to sit here — the two screens that asked for one record per
