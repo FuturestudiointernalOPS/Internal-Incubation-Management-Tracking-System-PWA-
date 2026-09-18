@@ -9,7 +9,7 @@
  * wrapping) or if content is written below the bottom of the page.
  */
 const { jsPDF } = require("jspdf");
-const { buildSubmissionResultPdf } = require("@/models/platform/resultPdf");
+const { buildSubmissionResultPdf, buildComposedReportPdf } = require("@/models/platform/resultPdf");
 
 const M = 46; // page margin used by the builder
 const TOL = 0.75;
@@ -168,6 +168,62 @@ describe("result PDF layout", () => {
       }),
     );
     expect((pdf.match(/\/Type \/Page[^s]/g) || []).length).toBeGreaterThan(1);
+    expect(outOfMargin(runs, fonts)).toEqual([]);
+  });
+});
+
+/**
+ * The AI-composed report (a run with an Output Instruction) is drawn by a
+ * different renderer but must carry the same layout guarantees: an
+ * administrator's instruction can change the structure, never break the page.
+ * Its text is model output, so it is at least as hostile as form free text.
+ */
+describe("composed report PDF layout", () => {
+  test("a long composed report fits the margins and paginates", () => {
+    const composed = {
+      title: long("Rapport Founder Fit personnalisé", 6),
+      sections: Array.from({ length: 6 }, (_, i) => ({
+        heading: long(`Section ${i + 1} — ce que vos réponses révèlent`, 5),
+        blocks: [
+          { type: "paragraph", text: long("Votre réponse montre une compréhension claire du problème client.", 40) },
+          { type: "bullet", text: long("Point à documenter", 12) },
+          { type: "bullet", text: "https://exemple.test/" + "x".repeat(600) },
+        ],
+      })),
+    };
+
+    const { pdf, runs, fonts } = drawnRuns(
+      buildComposedReportPdf({
+        lang: "fr",
+        applicantName: long("Prénom-Nom-Très-Long-De-Candidat", 8),
+        submittedAt: "2026-09-17T10:00:00Z",
+        document: composed,
+      }),
+    );
+
+    expect((pdf.match(/\/Type \/Page[^s]/g) || []).length).toBeGreaterThan(1);
+    expect(outOfMargin(runs, fonts)).toEqual([]);
+  });
+
+  test("a section heading and a paragraph longer than a page still wrap", () => {
+    const { pdf, runs, fonts } = drawnRuns(
+      buildComposedReportPdf({
+        lang: "en",
+        document: {
+          title: "Executive Summary",
+          sections: [{ heading: long("Key findings", 30), blocks: [{ type: "paragraph", text: long("word", 3000) }] }],
+        },
+      }),
+    );
+    expect((pdf.match(/\/Type \/Page[^s]/g) || []).length).toBeGreaterThan(1);
+    expect(outOfMargin(runs, fonts)).toEqual([]);
+  });
+
+  test("an empty composed document is still a valid, margin-safe PDF", () => {
+    const { pdf, runs, fonts } = drawnRuns(
+      buildComposedReportPdf({ lang: "en", document: { title: null, sections: [] } }),
+    );
+    expect(pdf.startsWith("%PDF")).toBe(true);
     expect(outOfMargin(runs, fonts)).toEqual([]);
   });
 });

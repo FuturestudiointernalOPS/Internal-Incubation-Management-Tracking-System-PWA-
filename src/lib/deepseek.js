@@ -23,16 +23,30 @@ const DEFAULT_MODEL = "deepseek-chat";
  * Generic chat completion — send any prompt, get a text response.
  * API Reference: https://api-docs.deepseek.com/api/create-chat-completion
  *
- * @param {string} prompt
+ * `prompt` is either a plain string (a single `user` message — every existing
+ * caller) or a full messages array. The array form exists so a caller can put
+ * trusted platform guardrails in a `system` message and keep untrusted content
+ * (an applicant's answers) in the `user` message, where it cannot promote
+ * itself to an instruction.
+ *
+ * @param {string|Array<{role: string, content: string}>} prompt
  * @param {string} [modelName] — defaults to "deepseek-chat"
+ * @param {number} [maxTokens]
+ * @param {{temperature?: number}} [options]
  * @returns {Promise<string>} text response
  */
-async function chat(prompt, modelName = DEFAULT_MODEL, maxTokens = 4096) {
+async function chat(prompt, modelName = DEFAULT_MODEL, maxTokens = 4096, options = {}) {
   if (!DEEPSEEK_API_KEY) {
     throw new Error("[DeepSeek] DEEPSEEK_API_KEY is not set in environment variables.");
   }
 
-  console.log(`[DeepSeek] Sending request — model: ${modelName}, prompt length: ${prompt.length}, max_tokens: ${maxTokens}`);
+  const messages = Array.isArray(prompt)
+    ? prompt
+    : [{ role: "user", content: String(prompt ?? "") }];
+  const promptLength = messages.reduce((n, m) => n + String(m?.content ?? "").length, 0);
+  const temperature = typeof options.temperature === "number" ? options.temperature : 0.3;
+
+  console.log(`[DeepSeek] Sending request — model: ${modelName}, prompt length: ${promptLength}, max_tokens: ${maxTokens}`);
 
   const res = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
     method: "POST",
@@ -42,8 +56,8 @@ async function chat(prompt, modelName = DEFAULT_MODEL, maxTokens = 4096) {
     },
     body: JSON.stringify({
       model: modelName,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.3,
+      messages,
+      temperature,
       max_tokens: maxTokens,
     }),
   });

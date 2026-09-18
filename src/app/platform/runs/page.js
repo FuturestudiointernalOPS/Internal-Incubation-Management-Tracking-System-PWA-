@@ -560,6 +560,9 @@ export default function FormRunsPage() {
   const [resultPreviewId, setResultPreviewId] = useState(null);
   // Standalone document preview opened from a single response row
   const [previewSubmission, setPreviewSubmission] = useState(null);
+  // Bumped to force the open preview to reload after a regeneration
+  const [previewNonce, setPreviewNonce] = useState(0);
+  const [reportRegenerating, setReportRegenerating] = useState(null); // submission id while composing
 
   // Manual message composer (Room Overview → selected participants)
   const [showMessageComposer, setShowMessageComposer] = useState(false);
@@ -1153,9 +1156,41 @@ export default function FormRunsPage() {
         setRunSettings(data.run.settings || {});
         notify(t("platformMisc.runs.settingsSaved"));
         setEditingSettings(false);
+      } else {
+        // Server errors are i18n keys when they are ours; `t` passes anything
+        // else through unchanged.
+        notify(data.error ? t(data.error) : t("platformMisc.runs.settingsSaveFailed"));
       }
-    } catch (_) {}
+    } catch (_) {
+      notify(t("platformMisc.runs.settingsSaveFailed"));
+    }
     setSaving(false);
+  };
+
+  // Re-roll the AI-composed report for an unchanged instruction. Meaningful
+  // only when this run carries an Output Instruction — otherwise the server
+  // keeps answering with the default document and this is a no-op.
+  const regenerateReport = async (submissionId) => {
+    if (reportRegenerating) return;
+    setReportRegenerating(submissionId);
+    try {
+      const res = await fetch("/api/platform/form-runs?action=regenerate_report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submission_id: submissionId }),
+      });
+      if (res.ok) {
+        notify(t("platformMisc.runs.regenerateReportDone"));
+        setPreviewNonce((n) => n + 1); // reload the preview with the new document
+      } else {
+        let message = "";
+        try { const data = await res.json(); message = data?.error || ""; } catch (_) {}
+        notify(message ? t(message) : t("platformMisc.runs.regenerateReportFailed"));
+      }
+    } catch (_) {
+      notify(t("platformMisc.runs.regenerateReportFailed"));
+    }
+    setReportRegenerating(null);
   };
 
   // Run automation switches — same resolution order as the server (run → form →
@@ -3224,17 +3259,33 @@ export default function FormRunsPage() {
                           {t("platformMisc.runs.previewResultReadOnly")}
                         </p>
                       </div>
-                      <button
-                        onClick={() => setPreviewSubmission(null)}
-                        aria-label={t("common.close")}
-                        className="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {/* Re-roll the AI report — only when this run has an instruction. */}
+                        {(runSettings?.output_instruction || "").trim() ? (
+                          <button
+                            onClick={() => regenerateReport(previewSubmission.id)}
+                            disabled={reportRegenerating === previewSubmission.id}
+                            title={t("platformMisc.runs.regenerateReportDesc")}
+                            className="px-3 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50 flex items-center gap-1.5"
+                          >
+                            {reportRegenerating === previewSubmission.id
+                              ? <Loader2 className="w-3 h-3 animate-spin" />
+                              : <RefreshCw className="w-3 h-3" />}
+                            {t("platformMisc.runs.regenerateReport")}
+                          </button>
+                        ) : null}
+                        <button
+                          onClick={() => setPreviewSubmission(null)}
+                          aria-label={t("common.close")}
+                          className="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
                     <AppPdfPreview
-                      requestKey={previewSubmission.id}
+                      requestKey={`${previewSubmission.id}:${previewNonce}`}
                       loadPdf={() => fetchResultPdf(previewSubmission.id)}
                       title={t("platformMisc.runs.previewResultTitle")}
                       loadingLabel={t("platformMisc.runs.previewResultLoading")}
@@ -3963,6 +4014,29 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     <textarea value={runSettings.instructions || ""} onChange={(e) => setRunSettings({ ...runSettings, instructions: e.target.value })} rows={3} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.instructionsPlaceholder")} />
                   ) : (
                     <span className="text-[10px] font-medium text-[var(--text-secondary)] whitespace-pre-wrap">{runSettings.instructions || "—"}</span>
+                  )}
+                </SettingRow>
+
+                {/* Output Instructions — optional AI instruction for this run's report */}
+                <SettingRow label={t("platformMisc.runs.settingOutputInstruction")} icon={Sparkles} desc={t("platformMisc.runs.settingOutputInstructionDesc")}>
+                  {editingSettings ? (
+                    <div className="space-y-1 w-full">
+                      <textarea
+                        value={runSettings.output_instruction || ""}
+                        onChange={(e) => setRunSettings({ ...runSettings, output_instruction: e.target.value })}
+                        rows={6}
+                        maxLength={4000}
+                        className="w-full rounded-xl px-4 py-3 text-sm font-medium outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-y"
+                        placeholder={t("platformMisc.runs.outputInstructionPlaceholder")}
+                      />
+                      <p className="text-[9px] font-medium text-[var(--text-secondary)] text-right">
+                        {t("platformMisc.runs.outputInstructionCount", { count: (runSettings.output_instruction || "").length, max: 4000 })}
+                      </p>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] font-medium text-[var(--text-secondary)] whitespace-pre-wrap">
+                      {(runSettings.output_instruction || "").trim() || t("platformMisc.runs.outputInstructionNone")}
+                    </span>
                   )}
                 </SettingRow>
 

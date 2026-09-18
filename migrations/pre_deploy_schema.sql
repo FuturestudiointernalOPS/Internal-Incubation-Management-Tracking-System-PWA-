@@ -190,6 +190,24 @@ CREATE TABLE IF NOT EXISTS platform_submission_evaluations (
   UNIQUE(submission_id, evaluated_at)
 );
 
+-- AI-composed reports for runs that carry an Output Instruction. Additive; see
+-- src/migrations/047_submission_reports.sql for the rationale.
+CREATE TABLE IF NOT EXISTS platform_submission_reports (
+  id SERIAL PRIMARY KEY,
+  submission_id INTEGER NOT NULL REFERENCES platform_form_submissions(id) ON DELETE CASCADE,
+  evaluation_id INTEGER,
+  decision TEXT,
+  instruction_hash TEXT NOT NULL,
+  instruction_snapshot TEXT,
+  lang TEXT,
+  document JSONB NOT NULL,
+  model TEXT DEFAULT 'deepseek-chat',
+  generated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_submission_reports_lookup
+  ON platform_submission_reports (submission_id, generated_at DESC);
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 2. EMAIL LOG (idempotency + activation/access tracking)
 -- ═══════════════════════════════════════════════════════════════════════════

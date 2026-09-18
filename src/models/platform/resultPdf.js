@@ -372,3 +372,137 @@ export function buildSubmissionResultPdf(data) {
 
   return new Uint8Array(doc.output("arraybuffer"));
 }
+
+/**
+ * Build the AI-COMPOSED report PDF bytes.
+ *
+ * The fixed renderer above draws one agreed document. This one draws whatever
+ * structure the Run's Output Instruction produced: a title, then sections of
+ * headings and paragraph/bullet blocks. Only the layout guarantees are fixed —
+ * nothing past the margins, paginate on every page, Latin-1 safe — which is what
+ * lets an administrator change the tone and structure of the report without a
+ * code change.
+ *
+ * The document is the STORED composed report, not a live model call, so the
+ * previewed document and the sent document are the same bytes.
+ *
+ * @param {object} data
+ * @param {string} data.lang                      "en" | "fr"
+ * @param {string} [data.applicantName]
+ * @param {string} [data.submittedAt]             ISO date
+ * @param {{title?: string|null, sections: Array<{heading?: string|null, blocks: Array<{type: string, text: string}>}>}} data.document
+ * @returns {Uint8Array} PDF bytes
+ */
+export function buildComposedReportPdf(data) {
+  const L = { ...LABELS.en, ...(LABELS[data.lang] || {}) };
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const W = pageW - M * 2;
+  let y = M;
+
+  const text = (value) => sanitize(value);
+
+  const ensure = (needed) => {
+    if (y + needed > pageH - M) {
+      doc.addPage();
+      y = M + 8;
+    }
+  };
+
+  // Same contract as the fixed renderer: the caller sets the font, size and
+  // colour first, because the wrap is measured against those metrics.
+  const drawWrapped = ({ value, x = M, width = W, lineStep = BODY_STEP, gap = 0, prefix = null } = {}) => {
+    const lines = doc.splitTextToSize(text(value), width);
+    for (let i = 0; i < lines.length; i += 1) {
+      if (y + lineStep > pageH - M) {
+        doc.addPage();
+        y = M + 8;
+      }
+      if (i === 0 && prefix) doc.text(prefix, M + 2, y);
+      doc.text(lines[i], x, y);
+      y += lineStep;
+    }
+    y += gap;
+    return lines.length;
+  };
+
+  // ─── Header (report title + applicant/date only) ────────────────────────────
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(22);
+  doc.setTextColor(...INK);
+  y += 6;
+  drawWrapped({ value: data.document?.title || L.title, lineStep: 24 });
+
+  const idParts = [];
+  if (data.applicantName) idParts.push(`${L.applicant}: ${text(data.applicantName)}`);
+  if (data.submittedAt) {
+    let d = null;
+    try {
+      d = new Date(data.submittedAt);
+    } catch (_) {}
+    if (d && !Number.isNaN(d.getTime())) {
+      idParts.push(`${L.submitted}: ${text(d.toLocaleDateString(data.lang === "fr" ? "fr-FR" : "en-GB", { year: "numeric", month: "long", day: "numeric" }))}`);
+    }
+  }
+  if (idParts.length > 0) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10.5);
+    doc.setTextColor(...MUTED);
+    drawWrapped({ value: idParts.join("   ·   "), lineStep: 16 });
+    y += 6;
+  } else {
+    y += 14;
+  }
+
+  // ─── Composed sections ──────────────────────────────────────────────────────
+  const sections = Array.isArray(data.document?.sections) ? data.document.sections : [];
+  for (const section of sections) {
+    const heading = typeof section?.heading === "string" ? section.heading.trim() : "";
+    if (heading) {
+      ensure(56);
+      y += 10;
+      doc.setDrawColor(...BRAND_ORANGE);
+      doc.setLineWidth(2);
+      doc.line(M, y, M + 38, y);
+      y += 14;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(15);
+      doc.setTextColor(...INK);
+      drawWrapped({ value: heading, lineStep: 20, gap: 8 });
+    }
+
+    for (const block of Array.isArray(section?.blocks) ? section.blocks : []) {
+      const value = typeof block?.text === "string" ? block.text : "";
+      if (!value.trim()) continue;
+      if (block?.type === "bullet") {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(...MUTED);
+        drawWrapped({ value, x: M + 14, width: W - 20, gap: 7, prefix: "•" });
+      } else {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10.5);
+        doc.setTextColor(...MUTED);
+        drawWrapped({ value, gap: 12 });
+      }
+    }
+    y += 8;
+  }
+
+  // ─── Footer (identical to the fixed renderer) ───────────────────────────────
+  if (y + 60 < pageH - M) {
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.5);
+    doc.line(M, pageH - 46, pageW - M, pageH - 46);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...FAINT);
+    doc.text(text(L.thankYou), M, pageH - 32);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...BRAND_ORANGE);
+    doc.text("Impact OS", pageW - M, pageH - 32, { align: "right" });
+  }
+
+  return new Uint8Array(doc.output("arraybuffer"));
+}

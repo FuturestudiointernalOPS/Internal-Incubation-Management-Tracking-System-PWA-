@@ -125,6 +125,7 @@ import {
 } from "@/models/formRuns";
 
 import { getPlatformFormSections, getPlatformFormFields } from "@/models/forms";
+import { MAX_OUTPUT_INSTRUCTION } from "@/models/platform/ai/report";
 
 /**
  * PLATFORM FORM RUNS API — Run creation, submissions, reviews, timeline, assignments
@@ -892,8 +893,14 @@ function formatResultAnswer(value) {
  *
  * Returns { status: "ok", pdfBytes, lang, applicantName, to, row }
  *      or { status: "not_found"|"failed", error }.
+ *
+ * When the run carries an Output Instruction, the report is composed by AI from
+ * the same run data and shaped by that instruction. The composed document is
+ * STORED and reused while the state and instruction are unchanged, so this — the
+ * single builder both preview and send call — still yields identical bytes for
+ * both. Without an instruction nothing changes.
  */
-async function buildResultDocument({ submission_id }) {
+async function buildResultDocument({ submission_id, forceReport = false }) {
   const subRes = await getDecisionEmailSubmissionById(submission_id);
   if (subRes.rows.length === 0) return { status: "not_found", error: "Submission not found" };
   const row = subRes.rows[0];
@@ -1049,18 +1056,66 @@ async function buildResultDocument({ submission_id }) {
       outcome = { decision: row.status, comment };
     }
 
+    // ── Optional run-specific Output Instruction ──
+    // Present → the report is written by AI from this same data, shaped by the
+    // instruction, and stored so preview and send render the same document.
+    // Absent/blank → the fixed renderer, exactly as before.
+    const outputInstruction = typeof ctx?.run_settings?.output_instruction === "string"
+      ? ctx.run_settings.output_instruction.trim()
+      : "";
+    let composedReport = null;
+    if (outputInstruction) {
+      const { getOrCreateSubmissionReport } = await import("@/models/platform/ai/report");
+      const composed = await getOrCreateSubmissionReport({
+        submissionId: parseInt(submission_id),
+        evaluationId: evalRow.id ?? null,
+        decision: row.status || null,
+        instruction: outputInstruction,
+        lang,
+        force: forceReport,
+        payload: {
+          runName: ctx?.run_name || "",
+          formName: ctx?.form_name || "",
+          applicantName: applicantName || "",
+          submittedAt: row.submitted_at || row.updated_at || null,
+          finalScore: finalScore != null ? Number(finalScore) : 0,
+          ranking: evalRow.ranking || "",
+          outcome,
+          dimensions,
+          sections,
+        },
+      });
+      if (composed?.error || !composed?.report) {
+        return {
+          status: "failed",
+          error: `This run has an Output Instruction, but the report could not be generated (${composed?.error || "empty result"})`,
+        };
+      }
+      composedReport = composed.report;
+      if (composed.generated) {
+        logTimeline(parseInt(submission_id), "report_generated", "system", "System", { model: "deepseek-chat" });
+      }
+    }
+
     // ── Build the PDF document (nothing is sent from here) ──
-    const { buildSubmissionResultPdf } = await import("@/models/platform/resultPdf");
-    const pdfBytes = buildSubmissionResultPdf({
-      lang,
-      applicantName: applicantName || "",
-      submittedAt: row.submitted_at || row.updated_at || null,
-      finalScore: finalScore != null ? Number(finalScore) : 0,
-      ranking: evalRow.ranking || "",
-      outcome,
-      dimensions,
-      sections,
-    });
+    const { buildSubmissionResultPdf, buildComposedReportPdf } = await import("@/models/platform/resultPdf");
+    const pdfBytes = composedReport
+      ? buildComposedReportPdf({
+          lang,
+          applicantName: applicantName || "",
+          submittedAt: row.submitted_at || row.updated_at || null,
+          document: composedReport,
+        })
+      : buildSubmissionResultPdf({
+          lang,
+          applicantName: applicantName || "",
+          submittedAt: row.submitted_at || row.updated_at || null,
+          finalScore: finalScore != null ? Number(finalScore) : 0,
+          ranking: evalRow.ranking || "",
+          outcome,
+          dimensions,
+          sections,
+        });
 
     return { status: "ok", pdfBytes, lang, applicantName: applicantName || "", to: applicantEmail, row };
   } catch (e) {
@@ -1904,6 +1959,37 @@ export async function POST(req) {
       });
     }
 
+    // ─── REGENERATE REPORT ACTION (re-roll the composed report) ───
+    // The composer reuses a stored document while the state and instruction are
+    // unchanged. This action explicitly discards that and composes again, for
+    // when a reviewer wants different wording from the same instruction, and
+    // returns the fresh document the same way preview does.
+    if (action === "regenerate_report") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const authError = await requireAuthorization("runs", "edit");
+      if (authError) return authError;
+
+      const { submission_id } = body;
+      if (!submission_id) return NextResponse.json({ success: false, error: "submission_id required" }, { status: 400 });
+
+      const doc = await buildResultDocument({ submission_id, forceReport: true });
+      if (doc.status !== "ok") {
+        return NextResponse.json(
+          { success: false, error: doc.error || "Result document unavailable" },
+          { status: doc.status === "not_found" ? 404 : 400 },
+        );
+      }
+      logTimeline(parseInt(submission_id), "report_regenerated", "system", "System", {});
+      return new NextResponse(doc.pdfBytes, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `inline; filename="result-${parseInt(submission_id)}.pdf"`,
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
     // ─── SEND RESULT EMAILS ACTION (Actions menu → response PDF per submission) ───
     // Emails each selected applicant a PDF with their answers, the evaluation
     // feedback and their final score. Runs through the same per-submission
@@ -2246,7 +2332,27 @@ export async function PUT(req) {
     const { id, name, description, status, opens_at, closes_at, settings } = await req.json();
     if (!id) return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
 
-    const result = await updateFormRunMetadataById({ id, name, description, status, opens_at, closes_at, settings });
+    // The Output Instruction is a prompt an administrator writes, so it is
+    // validated here and not only in the form: bound its length, keep it a
+    // string, and store it trimmed (blank means "no instruction, default
+    // report" — never a whitespace prompt).
+    let safeSettings = settings;
+    if (settings && typeof settings === "object" && settings.output_instruction !== undefined) {
+      const raw = settings.output_instruction;
+      if (raw !== null && typeof raw !== "string") {
+        return NextResponse.json({ success: false, error: "platformMisc.runs.outputInstructionInvalid" }, { status: 400 });
+      }
+      const trimmed = typeof raw === "string" ? raw.trim() : "";
+      if (trimmed.length > MAX_OUTPUT_INSTRUCTION) {
+        return NextResponse.json(
+          { success: false, error: "platformMisc.runs.outputInstructionTooLong" },
+          { status: 400 },
+        );
+      }
+      safeSettings = { ...settings, output_instruction: trimmed };
+    }
+
+    const result = await updateFormRunMetadataById({ id, name, description, status, opens_at, closes_at, settings: safeSettings });
     return NextResponse.json({ success: true, run: result.rows[0] });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
