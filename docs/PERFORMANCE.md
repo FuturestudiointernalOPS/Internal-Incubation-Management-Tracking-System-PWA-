@@ -106,29 +106,37 @@ process paid **28 round trips** to learn one small list that only changes on
 deploy. That is rule 4 below, and it was not being followed.
 
 `src/models/authorization/migrations.js` now reads the ledger WHOLE, once per
-process, and answers every later check from what it read. Measured through the
-sequencer, cold gate on an already-migrated database:
+process, and answers every later check from what it read.
 
-|                                   | Ledger statements | Widest burst |
-| --------------------------------- | ----------------: | -----------: |
-| before                            |                28 |           22 |
-| now                               |            **1** |        **1** |
+Measured through the sequencer. The "before" figures for the ledger are the same
+count measured on a FRESH database, where every check misses: the reads are issued
+identically either way - they only find their name instead of not finding it, so
+the count is the same on a migrated one.
+
+|                                   | Ledger statements | Widest ledger burst |
+| --------------------------------- | ----------------: | ------------------: |
+| before                            |                28 |                  22 |
+| now                               |            **1** |               **1** |
+
+The cold gate AS A WHOLE, measured after the change: **8 statements in 5 waves** on
+a migrated database - the resolution's own work (its budget is 7 statements and 3
+waves) plus that single read. Before, the same gate added 28 ledger reads to it,
+22 of them issued at once.
 
 The burst is why this showed up as *slowness* rather than as a count: 22
 concurrent reads against a pool of 10 means most of them wait for a connection,
 and a statement that waits for a connection is timed as a slow one. That is
-exactly what the production log showed — `SELECT name FROM authz_migrations
+exactly what the production log showed - `SELECT name FROM authz_migrations
 WHERE name = $1` taking 1.6-3.9s, a query with nothing slow about it.
-
-On a migrated database the whole cold gate is now **8 statements in 5 waves**
-(measured), and a fresh one still runs its 28 migrations inside ONE ledger read.
 
 Two properties worth keeping:
 
 - the read is memoised through a promise, so callers that arrive while it is in
   flight share it rather than each starting their own;
-- if it cannot be read at all, the per-name query is used exactly as before — an
+- if it cannot be read at all, the per-name query is used exactly as before - an
   unreadable ledger costs speed, not correctness.
+
+A fresh database still runs its 28 migrations, inside that one ledger read.
 
 `src/__tests__/db-sequencing.test.js` asserts all three: one read for the whole
 cold gate, zero round trips to ask again about a migration this process already
