@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useRouter, useParams } from "next/navigation";
@@ -54,6 +54,43 @@ const ventureToForm = (v) => ({
   country_code: v.country_code || "",
 });
 
+// ── The answer shapers for this screen's reads ─────────────────────────────
+// One per read, built ONCE here: a shaper written inline is a new function on
+// every render, which is the foot-gun the hook mirrors rather than depends on,
+// and building it at module scope is the clearer habit besides.
+//
+// A shaper reports the EMPTY value on a refusal, not on a success that happens
+// to be missing its field: a read that failed must not leave the previous
+// screenful standing as though it were still the answer.
+const pickList = (key) => (d) => (d?.success ? d[key] || [] : []);
+const pickThing = (key) => (d) => (d?.success ? d[key] : null);
+
+const pickMembers = pickList("members");
+const pickDashboard = pickThing("dashboard");
+const pickBm = pickThing("business_model");
+const pickInterviews = pickList("interviews");
+const pickValidations = pickList("validations");
+const pickAssessments = pickList("assessments");
+const pickMilestones = pickList("milestones");
+const pickCalendar = pickList("events");
+const pickProgress = pickThing("progress");
+const pickDocuments = pickList("documents");
+const pickKpis = pickList("kpis");
+const pickKpiDefinitions = pickList("kpi_definitions");
+const pickJourney = pickList("stages");
+const pickInvestmentReadiness = (d) =>
+  d?.success
+    ? { ...d.investment_readiness, roadmap_readiness: d.roadmap_readiness }
+    : null;
+const pickOptionLists = (d) => {
+  if (!d?.success) return {};
+  const byType = {};
+  for (const o of d.options || []) {
+    (byType[o.option_type] = byType[o.option_type] || []).push(o.value);
+  }
+  return byType;
+};
+
 export default function VentureDetail() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -61,17 +98,11 @@ export default function VentureDetail() {
   // work tools (JOURNEY_TOOLS) that live inside Journey.
   const [journeySub, setJourneySub] = useState("timeline");
 
-  // Members state
-  const [members, setMembers] = useState([]);
-  const [dashboardData, setDashboardData] = useState(null);
+  // The screen's reads are declared further down, together with the addresses
+  // that say which of them the open screen is asking for.
   const [historyData] = useState(null);
 
   // Track 2 state
-  const [bmData, setBmData] = useState(null);
-  const [interviews, setInterviews] = useState([]);
-  const [validations, setValidations] = useState([]);
-  const [assessments, setAssessments] = useState([]);
-  const [milestones, setMilestones] = useState([]);
   const [actionPlans, setActionPlans] = useState([]);
   const [showAddInterview, setShowAddInterview] = useState(false);
   const [showAddValidation, setShowAddValidation] = useState(false);
@@ -89,8 +120,6 @@ export default function VentureDetail() {
   const [standups, setStandups] = useState([]);
   const [retros, setRetros] = useState([]);
   const [blockers, setBlockers] = useState([]);
-  const [calendarEvents, setCalendarEvents] = useState([]);
-  const [progressData, setProgressData] = useState(null);
   const [showAddTask, setShowAddTask] = useState(false);
   const [showAddStandup, setShowAddStandup] = useState(false);
   const [showAddRetro, setShowAddRetro] = useState(false);
@@ -100,27 +129,7 @@ export default function VentureDetail() {
   const [retroForm, setRetroForm] = useState({});
   const [blockerForm, setBlockerForm] = useState({});
 
-  // Configurable taxonomies (Phase 4 — Venture Setup): fall back to built-ins
-  const [optionLists, setOptionLists] = useState({ business_stage: [], industry: [] });
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/venture-options");
-        const d = await res.json();
-        if (d.success) {
-          const byType = {};
-          for (const o of d.options || []) {
-            (byType[o.option_type] = byType[o.option_type] || []).push(o.value);
-          }
-          setOptionLists(byType);
-        }
-      } catch (_) {}
-    })();
-  }, []);
-
   // Track 4 state
-  const [documents, setDocuments] = useState([]);
   const [showAddDocument, setShowAddDocument] = useState(false);
   const [documentForm, setDocumentForm] = useState({});
   const [showVersions, setShowVersions] = useState(false);
@@ -133,9 +142,7 @@ export default function VentureDetail() {
   const [showPermissions, setShowPermissions] = useState(false);
   const [permissionsDoc, setPermissionsDoc] = useState(null);
   const [permissions, setPermissions] = useState([]);
-  const [journeyStages, setJourneyStages] = useState([]);
   const [playbookEntries, setPlaybookEntries] = useState([]);
-  const [investmentReadiness, setInvestmentReadiness] = useState(null);
   const [currentWeekStandup, setCurrentWeekStandup] = useState(true);
   const [currentWeekRetro, setCurrentWeekRetro] = useState(true);
   const [currentWeekNum, setCurrentWeekNum] = useState(null);
@@ -144,8 +151,6 @@ export default function VentureDetail() {
   // Track 5 state
   const [advisors, setAdvisors] = useState([]);
   const [coachingSessions, setCoachingSessions] = useState([]);
-  const [kpis, setKpis] = useState([]);
-  const [kpiDefinitions, setKpiDefinitions] = useState([]);
   const [showAddAdvisor, setShowAddAdvisor] = useState(false);
   const [showAddCoaching, setShowAddCoaching] = useState(false);
   const [showAddKpi, setShowAddKpi] = useState(false);
@@ -206,64 +211,72 @@ export default function VentureDetail() {
     if (sec === "journey") setJourneySub("timeline");
   }
 
-  const loadMembers = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${params.id}/members`;
-    const apply = (d) => { if (d.success) setMembers(d.members); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const res = await fetch(url); const d = await res.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch (e) { console.error(e); }
-  }, [params.id]);
+  // ── The screen's reads ───────────────────────────────────────────────────
+  // Arriving on a section IS the request, so nothing has to decide WHEN to
+  // load: each read's ADDRESS says which section is asking, and a section that
+  // is not open reads nothing. `ready` is the guard the old loader effect used
+  // - the Venture record has to be known before its sub-resources are asked for.
+  const ready = !!params.id && !!venture;
+  const onDashboard = ready && activeTab === "dashboard";
+  const onJourney = ready && activeTab === "journey";
 
-  const loadDashboard = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${params.id}/dashboard`;
-    const apply = (d) => { if (d.success) setDashboardData(d.dashboard); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const res = await fetch(url); const d = await res.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch (e) { console.error(e); }
-  }, [params.id]);
+  const { data: members, refresh: loadMembers } = useApi(
+    ready && (activeTab === "team" || activeTab === "dashboard")
+      ? `/api/ventures/${params.id}/members`
+      : null,
+    { defaultValue: [], transform: pickMembers },
+  );
 
-  const fetchBm = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${params.id}/business-model`;
-    const apply = (d) => { if (d.success) setBmData(d.business_model); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch{}
-  }, [params.id]);
-  const fetchInterviews = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${params.id}/interviews`;
-    const apply = (d) => { if (d.success) setInterviews(d.interviews); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch{}
-  }, [params.id]);
-  const fetchValidations = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${params.id}/validations`;
-    const apply = (d) => { if (d.success) setValidations(d.validations); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch{}
-  }, [params.id]);
-  const fetchPmf = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${params.id}/pmf`;
-    const apply = (d) => { if (d.success) setAssessments(d.assessments); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch{}
-  }, [params.id]);
-  const fetchMilestones = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${params.id}/milestones`;
-    const apply = (d) => { if (d.success) setMilestones(d.milestones); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch{}
-  }, [params.id]);
+  const { data: dashboardData } = useApi(
+    onDashboard ? `/api/ventures/${params.id}/dashboard` : null,
+    { defaultValue: null, transform: pickDashboard },
+  );
+
+  const { data: progressData, refresh: fetchProgress } = useApi(
+    onDashboard ? `/api/ventures/${params.id}/progress` : null,
+    { defaultValue: null, transform: pickProgress },
+  );
+
+  const { data: calendarEvents, refresh: fetchCalendar } = useApi(
+    onDashboard ? `/api/ventures/${params.id}/calendar` : null,
+    { defaultValue: [], transform: pickCalendar },
+  );
+
+  const { data: journeyStages, refresh: fetchJourney } = useApi(
+    ready && (activeTab === "dashboard" || activeTab === "journey")
+      ? `/api/ventures/${params.id}/journey`
+      : null,
+    { defaultValue: [], transform: pickJourney },
+  );
+
+  const { data: bmData, setData: setBmData, refresh: fetchBm } = useApi(
+    onJourney && journeySub === "businessModel"
+      ? `/api/ventures/${params.id}/business-model`
+      : null,
+    { defaultValue: null, transform: pickBm },
+  );
+  const { data: interviews, refresh: fetchInterviews } = useApi(
+    onJourney && journeySub === "discovery"
+      ? `/api/ventures/${params.id}/interviews`
+      : null,
+    { defaultValue: [], transform: pickInterviews },
+  );
+  const { data: validations, refresh: fetchValidations } = useApi(
+    onJourney && journeySub === "validation"
+      ? `/api/ventures/${params.id}/validations`
+      : null,
+    { defaultValue: [], transform: pickValidations },
+  );
+  const { data: assessments, refresh: fetchPmf } = useApi(
+    onJourney && journeySub === "pmf" ? `/api/ventures/${params.id}/pmf` : null,
+    { defaultValue: [], transform: pickAssessments },
+  );
+  const { data: milestones, refresh: fetchMilestones } = useApi(
+    onJourney && journeySub === "milestones"
+      ? `/api/ventures/${params.id}/milestones`
+      : null,
+    { defaultValue: [], transform: pickMilestones },
+  );
   async function fetchActionPlans(bypassCache = false) {
     const url = `/api/ventures/${params.id}/action-plans`;
     const apply = (d) => { if (d.success) setActionPlans(d.action_plans); };
@@ -304,14 +317,8 @@ export default function VentureDetail() {
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
   }
-  const fetchCalendar = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${params.id}/calendar`;
-    const apply = (d) => { if (d.success) setCalendarEvents(d.events || []); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch{}
-  }, [params.id]);
+  // (progressData and calendarEvents are read above, with the section they
+  // belong to.)
   async function handleTaskStatusChange(taskId, newStatus) {
     try {
       const r = await fetch(`/api/ventures/${params.id}/tasks?id=${taskId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
@@ -319,20 +326,19 @@ export default function VentureDetail() {
       if (d.success) { fetchTasks(true); fetchProgress(true); }
     } catch {}
   }
-  const fetchProgress = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${params.id}/progress`;
-    const apply = (d) => { if (d.success) setProgressData(d.progress); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch{}
-  }, [params.id]);
-  const fetchDocuments = useCallback(async (search, cat, bypassCache = false) => {
-    try { const p = new URLSearchParams(); if (search||documentSearch) p.set('search', search||documentSearch); if (cat||documentCategory) p.set('category', cat||documentCategory);
-    const url = `/api/ventures/${params.id}/documents?${p.toString()}`; const apply = (d) => { if (d.success) setDocuments(d.documents || []); };
-    if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-    const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d); } catch{}
-  }, [params.id, documentSearch, documentCategory]);
+  // The document list is ADDRESSED on the two filters, so writing in the search
+  // box or choosing a category re-asks by itself: the tab no longer has to call
+  // this to reload, which is why its debounce and its key-up reload are gone.
+  const documentParams = new URLSearchParams();
+  if (documentSearch) documentParams.set("search", documentSearch);
+  if (documentCategory) documentParams.set("category", documentCategory);
+  const documentQuery = documentParams.toString();
+  const { data: documents, refresh: fetchDocuments } = useApi(
+    onJourney && journeySub === "documents"
+      ? `/api/ventures/${params.id}/documents${documentQuery ? `?${documentQuery}` : ""}`
+      : null,
+    { defaultValue: [], transform: pickDocuments },
+  );
   async function fetchAdvisors(bypassCache = false) {
     const url = `/api/ventures/${params.id}/advisors`;
     const apply = (d) => { if (d.success) setAdvisors(d.advisors || []); };
@@ -349,22 +355,14 @@ export default function VentureDetail() {
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
   }
-  const fetchKpis = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${params.id}/kpis`;
-    const apply = (d) => { if (d.success) setKpis(d.kpis || []); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch{}
-  }, [params.id]);
-  const fetchKpiDefinitions = useCallback(async (bypassCache = false) => {
-    const url = `/api/venture-kpi-definitions`;
-    const apply = (d) => { if (d.success) setKpiDefinitions(d.kpi_definitions || []); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch{}
-  }, []);
+  const { data: kpis, refresh: fetchKpis } = useApi(
+    ready && activeTab === "kpis" ? `/api/ventures/${params.id}/kpis` : null,
+    { defaultValue: [], transform: pickKpis },
+  );
+  const { data: kpiDefinitions, refresh: fetchKpiDefinitions } = useApi(
+    ready && activeTab === "kpis" ? `/api/venture-kpi-definitions` : null,
+    { defaultValue: [], transform: pickKpiDefinitions },
+  );
   async function handleResolveBlocker(blockerId) {
     await fetch(`/api/ventures/${params.id}/blockers`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ blocker_id: blockerId, action: "resolve" }) });
     fetchBlockers(true);
@@ -424,14 +422,6 @@ export default function VentureDetail() {
     await fetch(`/api/ventures/${params.id}/documents/${docId}/permissions`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ role_scope, access_level }) });
     handlePermissions(docId);
   }
-  const fetchJourney = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${params.id}/journey`;
-    const apply = (d) => { if (d.success) setJourneyStages(d.stages || []); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch{}
-  }, [params.id]);
   async function fetchPlaybook(bypassCache = false) {
     const url = `/api/ventures/${params.id}/playbook`;
     const apply = (d) => { if (d.success) setPlaybookEntries(d.playbook || []); };
@@ -440,46 +430,19 @@ export default function VentureDetail() {
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch{}
   }
-  const fetchInvestmentReadiness = useCallback(async (bypassCache = false) => {
-    const url = `/api/ventures/${params.id}/investment-readiness`;
-    // Keep the legacy payload flat for existing consumers and ADD the
-    // roadmap engine data (Vinance 3 Phase 2 — "what am I evaluated on").
-    const apply = (d) => {
-      if (d.success) setInvestmentReadiness({ ...d.investment_readiness, roadmap_readiness: d.roadmap_readiness });
-    };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
-    } catch{}
-  }, [params.id]);
+  const { data: investmentReadiness, refresh: fetchInvestmentReadiness } = useApi(
+    ready && activeTab === "investment"
+      ? `/api/ventures/${params.id}/investment-readiness`
+      : null,
+    { defaultValue: null, transform: pickInvestmentReadiness },
+  );
 
-  // Load data for the active section. The Dashboard is the Venture overview
-  // (upcoming events + current Journey position); Journey loads its milestone
-  // timeline plus whichever Venture tool is open under it.
-  // The section loaders are declared above this effect so they can be named as
-  // dependencies (they are memoised, so the effect only re-runs when the route
-  // parameter, the active section, or the loaded Venture actually changes).
-  useEffect(() => {
-    if (!params.id || !venture) return;
-    if (activeTab === "team") loadMembers();
-    if (activeTab === "dashboard") { loadMembers(); loadDashboard(); fetchProgress(); fetchCalendar(); fetchJourney(); }
-    if (activeTab === "kpis") { fetchKpis(); fetchKpiDefinitions(); }
-    if (activeTab === "investment") fetchInvestmentReadiness();
-    if (activeTab === "journey") {
-      fetchJourney();
-      if (journeySub === "businessModel") fetchBm();
-      if (journeySub === "discovery") fetchInterviews();
-      if (journeySub === "validation") fetchValidations();
-      if (journeySub === "pmf") fetchPmf();
-      if (journeySub === "milestones") fetchMilestones();
-      if (journeySub === "documents") fetchDocuments();
-    }
-  }, [
-    activeTab, journeySub, venture, params.id,
-    loadMembers, loadDashboard, fetchProgress, fetchCalendar, fetchJourney,
-    fetchKpis, fetchKpiDefinitions, fetchInvestmentReadiness, fetchBm,
-    fetchInterviews, fetchValidations, fetchPmf, fetchMilestones, fetchDocuments,
-  ]);
+  // Configurable taxonomies (Phase 4 — Venture Setup): fall back to built-ins.
+  // Read once, and it does not depend on the address being visited.
+  const { data: optionLists } = useApi("/api/venture-options", {
+    defaultValue: {},
+    transform: pickOptionLists,
+  });
 
   async function handleUpdateKpi(assignmentId, current_value) {
     await fetch(`/api/ventures/${params.id}/kpis`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: assignmentId, current_value }) });

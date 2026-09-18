@@ -113,7 +113,7 @@ function VersionsModal() {
 /* Documents Tab */
 export function DocumentsTab() {
   const { t } = useI18n();
-  const { documents, setShowAddDocument, documentSearch, setDocumentSearch, documentCategory, setDocumentCategory, fetchDocuments, params, handleDocumentUpdate, handleDocumentTransition, handleDocumentDelete, handleReview, handlePermissions, setVersions, setVersionsDoc, setShowVersions, inputStyle, cardStyle } = useVenture();
+  const { documents, setShowAddDocument, documentSearch, setDocumentSearch, documentCategory, setDocumentCategory, params, handleDocumentUpdate, handleDocumentTransition, handleDocumentDelete, handleReview, handlePermissions, setVersions, setVersionsDoc, setShowVersions, inputStyle, cardStyle } = useVenture();
   return (
     <>
       <div className="space-y-4">
@@ -121,8 +121,8 @@ export function DocumentsTab() {
           <button onClick={() => setShowAddDocument(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{ backgroundColor: 'var(--brand-orange)' }}><FileText size={16} /> {t('venture.upload')}</button>
         </div>
         <div className="flex gap-2">
-          <input type="text" placeholder="Search documents..." className="flex-1 px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentSearch} onChange={e => { setDocumentSearch(e.target.value); }} onKeyUp={() => fetchDocuments()} />
-          <select className="px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentCategory} onChange={e => { setDocumentCategory(e.target.value); setTimeout(() => fetchDocuments(null, e.target.value), 100); }}>
+          <input type="text" placeholder="Search documents..." className="flex-1 px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentSearch} onChange={e => setDocumentSearch(e.target.value)} />
+          <select className="px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentCategory} onChange={e => setDocumentCategory(e.target.value)}>
             <option value="">All categories</option>
             {['business', 'legal', 'financial', 'investment', 'brand', 'general'].map(c => <option key={c} value={c}>{c}</option>)}
           </select>
