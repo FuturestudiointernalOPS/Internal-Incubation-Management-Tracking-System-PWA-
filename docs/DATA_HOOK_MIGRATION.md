@@ -149,37 +149,39 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 9 |
-| `react-hooks/set-state-in-effect` | 200 | 4 |
+| ESLint warnings, total | 2192 | 7 |
+| `react-hooks/set-state-in-effect` | 200 | 2 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` | 2 | 0 |
 | Production build | passes | passes |
 
-**Four are left, and two of those are the hook's own deliberate ones.** What
-remains is named below, one screen at a time, and the reason for each is a design
-step rather than a missing conversion.
+**NO SCREEN CARRIES THIS WARNING ANY MORE.** The two that remain are inside the
+reading hook itself, and they are the ones §3.7 records as deliberate: the hook is
+what PERFORMS the conversion - "stop writing state from an effect" - and it cannot
+perform it on itself. Its two `exhaustive-deps` are deliberate for the same reason
+(the caller owns part of its dependency list).
 
-Screens carrying a `set-state-in-effect` warning: **2**.
+The remaining seven, in full:
 
-| Screen | Reason |
-|---|---|
-| `src/app/activate/page.js` | §3.4 - the token and mode come from the address bar, on a SIGN-IN screen. |
-| `src/app/s/[runId]/page.js` | §3.3 - the loader also switches the interface language and builds a translated payload. |
-
-Plus the hook itself, which accounts for the other two and for two
-`exhaustive-deps` as well (§3.7). The total also includes ONE `no-unused-vars`
-that is not this migration's (a new test file added by the other workstream), the
-one `<img>` that waits for the image work, and one `preserve-manual-memoization`.
+| File | Rule | Why it is not a screen to convert |
+|---|---|---|
+| `src/lib/hooks/useApi.js` | `set-state-in-effect` ×2 | §3.7 - the hook is the removal target and cannot remove this from itself. |
+| `src/lib/hooks/useApi.js` | `exhaustive-deps` ×2 | §3.7 - the spread IS the feature: the caller owns part of the list. |
+| `src/app/admin/op-reports/page.js` | `@next/next/no-img-element` | The image work, deliberately separate. |
+| `src/app/admin/platform/scores/page.js` | `preserve-manual-memoization` | §3.6 - a memoisation note, not a conversion. |
+| `src/__tests__/result-pdf-layout.test.js` | `no-unused-vars` | Not this migration's: a test file added by the other workstream. |
 
 ### What is left, and under which reason
 
-**Nothing is left that a conversion can remove.** The two screens are both
-consequence-sensitive in the same way, which is why they are the last:
+**Nothing is left at all.** Every screen has been converted, and the sections below
+record what each family needed. The two screens this section named last - the
+sign-in link and the public form - are done, and each one's own note says what it
+took:
 
-| Screen | What the next pass has to decide |
+| Screen | What it took |
 |---|---|
-| `src/app/activate/page.js` | The token and the mode are read from the browser's address bar in an effect. Reading them during render means the navigation-parameter route (a Suspense boundary, or the page made dynamic), and the validation request becomes a hook read addressed on the token. **It is a SIGN-IN screen**: a mistake there blocks people rather than inconveniencing them, so it is walked with a real activation link, an expired one and a bad one. |
-| `src/app/s/[runId]/page.js` | Its loader does three things: reads the run, DETECTS the form's own language by scanning the content, and either switches the interface language or machine-translates the payload. The read has to be separated from the translation first - one of them has to stop being a consequence of the other - and only then can the read go through the hook. **It is a PUBLIC screen** reached without signing in, so the same caution applies. |
+| `src/app/activate/page.js` | The token and the mode ARE the address, so they are read during render and the link check became a read addressed on the token. A Suspense boundary was needed because the address is read with `useSearchParams` on a statically rendered page; its fallback is the same spinner the screen already showed. The three-way verdict is preserved, including that an EXPIRED link keeps its own wording and a request that never answered is invalid. |
+| `src/app/s/[runId]/page.js` | Four separations, one per reason the loader had: the read is a hook read; the SAVED DRAFT rides with the read's answer instead of a second effect; the TRANSLATION is an override keyed on the language it was made for, so the raw payload stays what everything is restored from; and the interface language still follows the form's own, which is a STORE write rather than a state write. |
 
 The reasons that were once reasons, and are not any more: the screens that needed
 a capability the hook did not expose (§3.1); the ones that asked for one record per
@@ -187,10 +189,11 @@ element (§3.2); the one whose read also wrote (§3.9); the standup screen's add
 mirror and its form read (§3.10); the venture group (§4.1); the screen that
 republished its state from its writes (§4.1); the whole shared-component group,
 shell included (§4.0); the four biggest console pages, the last large screen, the
-runs console and the programme manager's workspace (§3.6); the three screens whose
-value was never from the network (§3.4); the investor profile's editable form
-(§3.4); the three providers (§4.4); and the two section guards (§3.11). Their
-sections record what each one needed.
+runs console and the programme manager's workspace (§3.6); the screens whose value
+was never from the network, and the investor profile's editable form (§3.4); the
+three providers (§4.4); the two section guards (§3.11); and the last two - the
+sign-in link (§3.4) and the public form (§3.3). Their sections record what each one
+needed.
 
 > The test count is not recorded here any more: another workstream adds and
 > renames suites in this same working tree, so any figure went stale within the
@@ -261,19 +264,18 @@ collecting:
 Both answers keep their per-item forms: asking for one programme's KPIs, or one
 run's detail, still returns exactly that. This added a way to ask for many.
 
-### 3.3 The loader has side effects beyond storing the result
+### 3.3 The loader has side effects beyond storing the result - CONVERTED
 
-| Screen | Why it is deferred | Next step |
-|---|---|---|
-| `src/app/s/[runId]/page.js` | The loader also switches the interface language and builds a machine-translated payload; a second effect keeps a local draft of the answers. | Separate the read from the translation side effect first (translate after the payload arrives, or on demand), then convert the read. |
+| Screen | What it needed |
+|---|---|
+| `src/app/s/[runId]/page.js` | FOUR separations, one per reason the loader had. The read is a hook read. The SAVED DRAFT rides with the read's answer instead of a second effect - it is a fact about the browser, and the request's own answer is the only moment the browser is the one asking. The TRANSLATION is an OVERRIDE keyed on the language it was made for, so the raw payload stays the thing everything is restored from (which is what the four refs held) and a language switch needs no clearing. And the interface language still follows the form's own when the visitor has not chosen one - which is a STORE write, not a state write, so it needs only a small effect whose job that is. |
 
-### 3.4 The value is initialised from a source that is not the network
+### 3.4 The value is initialised from a source that is not the network - DONE
 
-**Only `src/app/activate/page.js` is left** (see section 2 for what the next pass
-has to decide). The other four are converted, and the shape they turned out to
-share is worth naming: NONE of them needed the value to be fetched or moved - only
-for the thing that was in the way to be recognised as something that can be read
-during render.
+All five are converted, and the shape they turned out to share is worth naming:
+NONE of them needed the value to be fetched or moved - only for the thing that was
+in the way to be recognised as something that can be read during render. Four times
+out of five that thing was the IDENTITY, which was already a store.
 
 | Screen | What it actually needed |
 |---|---|
@@ -281,6 +283,7 @@ during render.
 | `src/app/platform/settings/page.js` | Same registry, and a service list that is pure too. Both are simply constants of the module, so both are computed during render. |
 | `src/app/developer/retro/page.js` | The current week is a fact about the CLOCK, so it is taken once through the LAZY INITIALISER the operations view already uses. It is never rendered - only sent with the submission - so the server's render and the browser's first render do not have to agree on it. |
 | `src/app/investor/profile/page.js` | The read fills ELEVEN values across TWO forms, one per tab. A keyed child per form would have unmounted the other tab's form on every switch, losing typing that survives today - so the restructure the document named would have REMOVED behaviour. One bag of edits over a base computed from the record keeps both tabs' typing in one place exactly as the eleven separate states did, and a background re-read can no longer wipe what someone is typing. |
+| `src/app/activate/page.js` | The token and the mode ARE the address, so they are read during render and the link check became a read addressed on the token. Reading the address with `useSearchParams` needs a Suspense boundary on a statically rendered page; its fallback is the same spinner the screen already showed while the link was being checked. The three-way verdict is preserved exactly - including that an EXPIRED link keeps its own wording, and that a request that never answered counts as invalid. **It is a SIGN-IN screen**, so it is on the walk list below. |
 
 The lesson, for the last screen: "the value comes from somewhere that is not the
 network" is not by itself a reason to defer. It is a reason to ask WHICH part of it
@@ -879,5 +882,19 @@ from the screens that now depend on it.
 Behaviour itself can only be checked on screen. For each converted screen,
 look at: **the first paint**, **the return from another page**, and **the empty
 state**. Screens reached without signing in (public forms, registration links,
-sign-in) deserve the most attention, because a mistake there blocks people
+sign-in) deserve the most attention, because a mistake there blocks people rather
+than inconveniencing them.
+
+### 5.1 The walks that are still owed
+
+The migration is done, and four of its changes are wide enough that they are worth
+walking once, deliberately, rather than trusting the green suite. Each is listed
+where it was made; together they are:
+
+| What changed | What to walk |
+|---|---|
+| The shell's identity, and the two section guards (§3.11, §4.0.1) | Sign in as EACH role: the sidebar's doors, entering and leaving a section, a COLD load (not a navigation), signing out, and an account whose role changed server-side. |
+| The theme, the language and the capability matrix (§4.4) | The theme switch dark → light → system and a cold reload for a flash; the language switch, a reload, and an account whose language is stored; that no door is missing or extra for a role. |
+| The dashboard's data hook, everywhere (§4.3) | For a converted screen: the first paint, the return from another page, and the empty state. |
+| The two public screens (§3.3, §3.4) | The SIGN-IN link: a real invitation, an expired one, one with no token, a password-reset link, and the submission. The PUBLIC FORM: a link with a saved draft, a multi-section form, a FRENCH form opened with no language chosen, an ENGLISH form opened by someone whose language is French, a run that is not there, and a submission. |
 rather than inconveniencing them.
