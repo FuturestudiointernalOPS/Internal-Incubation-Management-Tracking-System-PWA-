@@ -129,19 +129,41 @@ describe("GET /api/internal-comms", () => {
 // ─── Workspaces hub ─────────────────────────────────────────────────────────
 
 describe("GET /api/workspaces", () => {
-  test("eleven independent reads go out together", async () => {
+  test("the hub reads go out in ONE wave, with no dependent read left", async () => {
     const { GET } = require("@/app/api/workspaces/route");
 
-    const report = await measure(GET, "http://localhost/api/workspaces", {
-      warmUp: false,
-    });
+    // Steady state — what every page after the first pays. The first request of
+    // a process also lands the once-per-process schema work, which defers the
+    // group resolution by one wave; that is cold-start noise, not the shape of
+    // the endpoint (and it is reported separately as schemaStatements).
+    const report = await measure(GET, "http://localhost/api/workspaces");
     describeReport("hub  ", report);
 
     expect(report.status).toBe(200);
-    // One wave for the reads that need only the identity, one for the group
-    // memberships that depend on it. It used to be twelve steps in series.
-    expect(report.waves).toBeLessThanOrEqual(3);
+    // The group-name read that used to depend on the group resolution is gone:
+    // the resolved groups are the list now. Ten reads, one wave.
+    expect(report.waves).toBe(1);
+    expect(report.statements).toBe(10);
+    // The burst is the whole pool. This is the number to watch
+    // (docs/PERFORMANCE.md): one hub load leaves no connection free.
     expect(report.maxInFlight).toBeLessThanOrEqual(10);
+  });
+
+  test("the shell's call asks only for the context list", async () => {
+    const { GET } = require("@/app/api/workspaces/route");
+
+    const report = await measure(
+      GET,
+      "http://localhost/api/workspaces?scope=contexts",
+    );
+    describeReport("shell", report);
+
+    expect(report.status).toBe(200);
+    // The four reads only the hub page renders are answered locally, so the
+    // burst leaves room inside the pool — on every page of the product.
+    expect(report.waves).toBe(1);
+    expect(report.statements).toBe(6);
+    expect(report.maxInFlight).toBe(6);
   });
 });
 
