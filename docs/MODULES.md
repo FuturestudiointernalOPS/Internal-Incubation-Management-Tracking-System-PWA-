@@ -53,6 +53,8 @@
 | `src/components/ui/ErrorPage.js` | ErrorPage | Next.js error boundary fallback with retry and go-back buttons. |
 | `src/components/ui/GlobalToast.js` | GlobalToast | Global toast notification system listening for custom events. |
 | `src/components/ui/Skeleton.js` | Skeleton, TableSkeleton, CardSkeleton | Skeleton loading placeholders for data-first UI. |
+| `src/components/ui/RichTextEditor.js` | RichTextEditor | Tiptap authoring field (`immediatelyRender: false`) for course/section/lesson/assessment descriptions. |
+| `src/components/ui/RichTextContent.js` | RichTextContent | Renders an authored description — a sanitised rich fragment, or legacy plain text with its line breaks preserved. |
 
 ## lib
 
@@ -95,6 +97,9 @@
 | `src/lib/lms/learning.js` | computeCourseProgress, findContinueLesson, getLearnerCourses, getLearnerCourse, completeLesson, enrollLearner, listEnrollments, getAssessmentForTake, submitAssessment | Learner experience: enrollment-gated access, deterministic progress (required lessons + passed required assessments), idempotent completion, admin enrollment enabler, assessment taking + submission with server-derived attempt numbers. Phase 5: completion finalizer issues certificates. |
 | `src/lib/lms/certificates.js` | issueCertificate, ensureCertificateForEnrollment, getCertificatesForLearner, getLearnerCertificate, getCertificatePublic, revokeCertificate | **Phase 5** — server-side, idempotent certificate issuance (one per completed enrollment), ownership-scoped reads, public verification (public fields only), minimal revocation. |
 | `src/lib/lms/certificate-pdf.js` | buildCertificatePdf | **Phase 5** — server-side PDF rendering (jsPDF) from the authoritative certificate record; extensible labels/lang. |
+| `src/lib/lms/sectionResources.js` | listSectionResources, listSectionResourcesByCourse, learnerSectionResourcesByCourse, createSectionResource, updateSectionResource, deleteSectionResource, getSectionResource | Facade re-exporting the section-resource model (`src/models/lms/sectionResources.js`): material (videos/documents) attached to a course section, with the recommended flag + note; the learner read signs uploaded files. |
+| `src/lib/lms/sectionResourceFiles.js` | SECTION_RESOURCE_BUCKET, SECTION_RESOURCE_URL_TTL_SECONDS, DOCUMENT_MIME_TYPES, VIDEO_MIME_TYPES, LMS_MAX_DOCUMENT_BYTES, LMS_MAX_VIDEO_BYTES, lmsMaxBytesForKind, normalizeFileKind, assertUploadableFile, isManagedStoragePath, uploadSectionResourceFile, signSectionResourcePath, removeSectionResourceFile | Server-side upload/delete/sign for section-resource files (service role, bucket `lms-session-resources`, objects under `sections/…`). |
+| `src/lib/lms/richText.js` | escapeHtml, isRichTextHtml, plainTextToHtml, toEditorHtml, richTextToPlain, isRichTextEmpty, sanitizeRichText | Pure, DOM-free conversion + allowlist sanitiser for LMS descriptions stored as a small HTML fragment; legacy plain text keeps its line breaks. |
 | `src/lib/lms/index.js` | re-exports constants/youtube/validation | Canonical entry point for LMS domain modules. |
 
 ## components/lms
@@ -104,9 +109,9 @@
 | `src/components/lms/CourseStatusBadge.js` | CourseStatusBadge | Draft/published/archived pill for authoring UI. |
 | `src/components/lms/CourseFormFields.js` | CourseFormFields | Shared course metadata form (title, description, thumbnail, visibility, free/paid + price). |
 | `src/components/lms/CourseList.js` | CourseList | Admin course list: search, status filter, open/publish/archive. |
-| `src/components/lms/CourseView.js` | CourseView | Read-only course presentation shown when opening a course: first-lesson video box (plays when the first lesson has one) left, name/description/curriculum right. |
+| `src/components/lms/CourseView.js` | CourseView | Read-only course presentation shown when opening a course: the first lesson (in section/lesson order) that actually has a video drives the box on the left, name/description/curriculum right. |
 | `src/components/lms/CourseEditor.js` | CourseEditor | Admin course workspace: read-only presentation by default; Edit toggles the authoring form (details + sections + lessons + assessments + publish). |
-| `src/components/lms/SectionsManager.js` | SectionsManager | Section/lesson/assessment authoring area with modals; sections collapse/expand + drag-to-reorder handle, lessons keep arrow reorder. |
+| `src/components/lms/SectionsManager.js` | SectionsManager | Section/lesson/assessment authoring area with modals; sections collapse/expand + dnd-kit drag handle to reorder (pointer + keyboard), lessons keep arrow reorder. |
 | `src/components/lms/LessonModal.js` | LessonModal | Lesson create/edit with live YouTube validation. |
 | `src/components/lms/AssessmentModal.js` | AssessmentModal | Assessment create/edit with question management. |
 | `src/components/lms/QuestionModal.js` | QuestionModal | MC / True-False question authoring. |
@@ -119,6 +124,9 @@
 | `src/components/lms/AssessmentTake.js` | AssessmentTake | **Phase 4** — learner assessment experience: entry (start/retry, pass mark, attempt history), question navigation with single-answer radio selection, server-scored submission, PASS/FAIL result views. Phase 5: completion notification. |
 | `src/components/lms/CertificateCard.js` | CertificateCard | **Phase 5** — the learner's certificate for a completed course (authoritative record) + server-built PDF download. |
 | `src/components/lms/notify.js` | notify | Toast helper (dispatches `impactos:notify` for GlobalToast). |
+| `src/components/lms/SectionResourcesEditor.js` | SectionResourcesEditor, discardUnsavedUploads | Controlled list + add/edit form for a course section's material (external link or upload, with recommended flag + note); owns no persistence. |
+| `src/components/lms/SectionResourcesList.js` | SectionResourcesList | Learner read-only rendering of a section's material: recommended block first (note included), then the rest, with inline previews. |
+| `src/components/lms/SectionResourcesPanel.js` | SectionResourcesPanel | Course-editor panel for one section: loads its material and persists every change immediately. |
 
 ## lib/hooks
 

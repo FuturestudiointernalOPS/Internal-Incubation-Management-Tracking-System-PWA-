@@ -90,7 +90,7 @@ role *label* rather than the relationship, that is treated as a defect (§4).
 | # | Old mechanism | New mechanism | Authoritative today | Plan |
 |---|---|---|---|---|
 | 1 | Legacy per-venture permissions: `venture_permission_matrix`, `venture_responsibilities`, `venture_scope_types`; `hasVentureCapability()`; screens `/admin/ventures/permissions` + `/admin/ventures/[id]/permissions`; APIs `api/venture-permissions/{matrix,responsibilities,scopes}`; tables `venture_staff_assignments` | `ventures.*` capabilities + `requireVentureScopedAccess` (capability + `venture_own` scope) | **Both, per path.** Converted routes use the new gate; `members`, `notes`, `sessions`, `my-access` still call `hasVentureCapability`; the legacy admin screens still write the legacy tables | Bridge, don't delete — §5 |
-| 2 | Retired LMS capabilities `lms.enroll`, `lms.publish`, `lms.assign` | `lms.view/create/edit/delete` | New: the six original sites were migrated to `lms.edit`; the LMS session-resource routes that had **reintroduced** `lms.assign` are migrated in this pass | DONE — `phase3-retired-lms.test.js` + `route-catalog-contract.test.js` lock it |
+| 2 | Retired LMS capabilities `lms.enroll`, `lms.publish`, `lms.assign` | `lms.view/create/edit/delete` | New: the six original sites were migrated to `lms.edit`; the LMS section-resource routes that had **reintroduced** `lms.assign` are migrated in this pass | DONE — `phase3-retired-lms.test.js` + `route-catalog-contract.test.js` lock it |
 | 3 | Hardcoded role arrays (`requireAuth([...])`, `createHandler({roles})`, module-level `ROLE` constants) | `requireAuthorization(module, capability)` | Mixed — 276 handlers are category D | Migrate when the route's decision is genuinely authorization — §6 |
 | 4 | `session.role === "..."` branching | relationship-driven resolution | Mixed — 39 occurrences; 26 files | Classify per site; not every branch is authorization |
 | 5 | Facilitator per-program permission levels (`v2_program_staff.permissions`, `facilitator_default_permissions`) | capability + scope model | Legacy-level gate, assignment-derived | §7 |
@@ -209,7 +209,7 @@ behaviour → leave alone.
 
 `lms.assign`, `lms.enroll`, `lms.publish` are retired. The six original
 enforcement sites were migrated to `lms.edit` (Option A in
-`PHASE3_LMS_RETIRED_GOVERNANCE.md`). The LMS session-resource feature then
+`PHASE3_LMS_RETIRED_GOVERNANCE.md`). The LMS section-resource feature then
 **reintroduced** `lms.assign` in three route files (five call sites) — which
 zeroed out the capability, since no profile grants a retired key. They are
 migrated to `lms.edit` in this pass.
@@ -262,7 +262,7 @@ deny existing facilitators. Required order:
 | `GET /api/sessions` without `program_id` | Listed every program's sessions to any non-management session | Contextual callers must scope to a program |
 | `POST /api/attendance` — gate read `records[0].program_id`, each row inserted its own | A batch could write attendance into a program that was never authorized | Every row must belong to the authorized program |
 | `getLearnerCourses` missing `status <> 'suspended'` | A suspended learner saw a course in My Learning that every open would 403 | Filter aligned with `learnerHasEnrollments` and the `learning_own` predicate |
-| Retired `lms.assign` reintroduced on session resources | Governance breach + the capability resolved to nobody | Migrated to `lms.edit` |
+| Retired `lms.assign` reintroduced on section resources | Governance breach + the capability resolved to nobody | Migrated to `lms.edit` |
 | `set_group_default` wrote no audit record | Group permission changes were the only untraceable write | Audited, with previous + new value |
 | Grants/revokes/blocks recorded no previous value | "What changed" was unanswerable | Prior state is read before every write; both sides recorded |
 

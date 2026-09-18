@@ -119,7 +119,7 @@ During the Operations OS stabilization sprint, these additional rules apply:
   as part of the environment name. `@babel/preset-react` (automatic runtime) is
   configured for every test file.
 - **Component test conventions**
-  (see `src/__tests__/lms-session-resources-upload-ui.test.js`):
+  (see `src/__tests__/lms-section-resources-upload-ui.test.js`):
   - `@testing-library/react` (`render`, `screen`, `fireEvent`, `waitFor`);
   - mock the network, never the component: assert on the request contract and the
     rendered result (`fetch` is replaced by a `jest.fn` that answers by URL);

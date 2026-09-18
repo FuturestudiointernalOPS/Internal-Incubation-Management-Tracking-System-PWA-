@@ -218,28 +218,30 @@ Index: `(course_id)`.
 
 Indexes: `(user_cid)`, `(course_id)`, `(status)`.
 
-### 2.11 lms_session_resources (Phase 8)
+### 2.11 lms_section_resources (Phase 8)
 
 | Column | Type | Notes |
 |---|---|---|
 | id | UUID PK | |
-| program_id | TEXT NOT NULL | `v2_programs.id`; **no FK** — see §8 |
-| session_id | TEXT | `v2_sessions.id`; **no FK**; NULL = program-wide material |
-| week_number | INTEGER | denormalised program week (read convenience) |
+| section_id | UUID NOT NULL FK → lms_course_sections | `ON DELETE CASCADE` — the material dies with its section (no orphan rows) |
 | kind | TEXT CHECK | `video` \| `document` |
 | title | TEXT NOT NULL | |
 | description | TEXT | what the resource is / how to use it |
 | url | TEXT | where the material lives: an external link OR the uploaded file's public URL — required by the service |
 | source | TEXT CHECK | `link` \| `upload` (default `link`) — the origin of `url` |
-| storage_path | TEXT | object path in the `lms-session-resources` bucket; NULL for links (deletion handle) |
+| storage_path | TEXT | object path in the `lms-session-resources` bucket (historical name, deliberately kept); NULL for links (deletion handle) |
 | file_name / file_size / mime_type | TEXT / BIGINT / TEXT | original filename, bytes and mime type of an upload |
-| is_recommended | BOOLEAN | default FALSE — the "recommended for this session" signal |
+| is_recommended | BOOLEAN | default FALSE — the "recommended for this section" signal |
 | recommendation_note | TEXT | why it is recommended (coach/PM guidance) |
 | position | INTEGER | default 0 |
 | created_by | TEXT | `contacts.cid` or `system` |
 | created_at / updated_at | TIMESTAMPTZ | |
 
-Indexes: `(program_id, session_id)`, `(program_id, is_recommended)`.
+Indexes: `(section_id)`, `(section_id, is_recommended)`.
+
+Material used to hang off a PROGRAM session (`lms_session_resources`, no FK on
+`program_id` / `session_id`); `20260918_lms_section_resources.sql` created this
+table and dropped that one (§7).
 
 ### 2.12 lms_coaching_requests (Phase 8)
 
@@ -354,8 +356,8 @@ Follow existing ImpactOS conventions (see `docs/API.md`, `docs/MODULES.md`):
 | `/api/lms/program-requirements` + `[id]` | ✅ Phase 6 | Program → Course links (list/attach/update/detach; `lms.assign`) + auto-enrollment |
 | `/api/public/courses` + `[slug]` | ✅ Phase 7 | public catalogue + detail (marketing-safe) + free self-enrollment (`source 'self'`) |
 | `/api/contacts/[cid]/learning` | ✅ Phase 7 | CRM learning-journey trace (`contacts.view`) |
-| `/api/lms/session-resources` + `[id]` | ✅ Phase 8 | session material + recommendations (`lms.view` read, `lms.assign` write) |
-| `/api/lms/session-resources/upload` | ✅ Phase 8.1 | file upload + orphan cleanup for session material (`lms.assign`) |
+| `/api/lms/section-resources` + `[id]` | ✅ Phase 8 | section material + recommendations (`lms.view` read, `lms.edit` write) |
+| `/api/lms/section-resources/upload` | ✅ Phase 8.1 | file upload + orphan cleanup for section material (`lms.edit`) |
 | `/api/lms/coaching-requests` + `[id]` | ✅ Phase 8 | learner asks for coaching before/during/after a course; staff decision queue |
 
 Phase 6/7 implementation details, deviations and the final report: `docs/PHASE6_7_REPORT.md`.
@@ -364,12 +366,18 @@ Phase 6/7 implementation details, deviations and the final report: `docs/PHASE6_
 
 - File: `supabase/migrations/20260827_lms_foundation.sql` (additive, idempotent).
 - Phase 8 additions: `supabase/migrations/20260916_lms_session_resources_and_coaching.sql`
-  (additive, idempotent — `lms_session_resources` + `lms_coaching_requests`), see §13.
+  (additive, idempotent — `lms_session_resources` + `lms_coaching_requests`).
+  `lms_coaching_requests` is unchanged; the `lms_session_resources` half is
+  superseded — see §13.
 - Phase 8.1 additions:
   `supabase/migrations/20260917_lms_session_resource_uploads.sql` (additive,
   idempotent — `source` / `storage_path` / `file_name` / `file_size` /
   `mime_type` on `lms_session_resources`). Deliberately dated after 20260916 so
-  the table exists when it runs.
+  the table exists when it runs. Superseded with that table.
+- Section-resources rework:
+  `supabase/migrations/20260918_lms_section_resources.sql` (additive + one
+  deliberate, irreversible DROP — creates `lms_section_resources` on
+  `lms_course_sections`, drops the retired `lms_session_resources`), see §13.
 - Apply via the Supabase SQL editor. Then re-run the permission seeds so the live DB's
   `access_profile_capabilities` / `role_capabilities` include the new `lms` module rows:
   `GET /api/engineering/permissions/seed` and
@@ -461,7 +469,7 @@ never exposed to learners; archived courses remain accessible to enrolled learne
   mobile). No raw URL is ever shown; invalid/missing IDs render a graceful fallback.
 - **One box, everywhere**: every surface plays a video through the same component,
   `src/components/lms/EmbeddedVideo.js` — the course presentation, the lesson authoring preview,
-  the learner player, and a session resource whose link is a YouTube video (§13.1). It shows a
+  the learner player, and a section resource whose link is a YouTube video (§13.1). It shows a
   poster first and only loads the embed on a click (autoplay policy), then plays it with
   `loop=1&playlist=<id>`, so the player never reaches YouTube's end screen with its suggested
   videos and its copy-link control. The authoring preview loops too: an embed that behaved
@@ -604,39 +612,38 @@ page belongs to the PROGRAM certificate system (`participant_programs.
 certificate_issued`) — LMS certificates are intentionally kept separate until
 the Program ↔ LMS integration phase.
 
-## 13. Session resources, recommendations & coaching requests (Phase 8)
+## 13. Section resources, recommendations & coaching requests (Phase 8)
 
-Two additions that turn a Program session into a place where learners actually
-find support:
+Two additions that give a learner somewhere to find support: the material attached
+to the course sections they are taking, and a queue for asking staff for coaching.
 
-### 13.1 Session resources
+### 13.1 Section resources
 
-A session (program week) carries its own material as ROWS in
-`lms_session_resources` — videos and documents, each with an optional
-`is_recommended` flag and a `recommendation_note`.
+A COURSE SECTION carries its own material as ROWS in
+`lms_section_resources` — videos and documents, each with an optional
+`is_recommended` flag and a `recommendation_note`. The feature began attached to
+a PROGRAM session; the new table and the drop of `lms_session_resources` are in
+`20260918_lms_section_resources.sql` (§7).
 
-- **Authoring** (`lms.assign`): one form serves both places a session's material
-  is managed. `src/components/lms/SessionResourcesEditor.js` renders the list and
-  the add/edit form and is CONTROLLED — it owns no persistence, which lets
-  - the session card panel (`SessionResourcesSection`, in the curriculum tab)
-    save every change immediately, and
-  - the session creation form buffer the resources in component state and attach
-    them right after the session is created (a resource needs a session id).
-  Files are uploaded to storage as soon as they are picked (the only way to get a
-  URL), so an abandoned form discards its unsaved uploads
-  (`discardUnsavedUploads`, which never touches a saved object).
-  The add/edit form itself lives in `SessionResourcesEditor`; the session modal
-  renders it inline (`inlineForm`) rather than nesting a second modal.
+- **Authoring** (`lms.edit`): one controlled form serves the surface that manages
+  a section's material. `src/components/lms/SectionResourcesEditor.js` renders the
+  list and the add/edit form and owns no persistence; the section panel
+  (`SectionResourcesPanel`, rendered inside each section of the course editor)
+  fetches the section's resources and saves every change immediately through
+  `/api/lms/section-resources`. Files are uploaded to storage as soon as they are
+  picked (the only way to get a URL), so an abandoned form discards its unsaved
+  uploads (`discardUnsavedUploads`, which never touches a saved object).
 - **Two origins, one row**: a resource is either an external link
   (`source = 'link'`) or a file uploaded through ImpactOS
   (`source = 'upload'`). Uploads are a deliberate two-step:
-  `POST /api/lms/session-resources/upload` (multipart) stores the object and
+  `POST /api/lms/section-resources/upload` (multipart) stores the object and
   returns `{ url, storage_path, file_name, file_size, mime_type, kind }`, which
   the caller then saves on the resource. That keeps the row and the object in
   sync, and lets the same metadata be edited like any other field.
-  Bucket: `lms-session-resources` (auto-created on first use, service-role
-  upload — same boundary as `course-thumbnails`). Objects live under
-  `sessions/<program>/<session>/<timestamp>-<name>`.
+  Bucket: `lms-session-resources` — the historical name is deliberately kept so
+  no object from the retired feature is orphaned (auto-created on first use,
+  service-role upload — same boundary as `course-thumbnails`). New objects live
+  under `sections/<course>/<section>/<timestamp>-<name>`.
 - **Limits**: documents (PDF / Office / OpenDocument / text / images) up to
   **5 MB** — the app-wide ceiling (see `src/lib/storage.js`); videos (mp4 / webm
   / mov / m4v) up to **25 MB**. Enforced server-side before storage, and mirrored
@@ -649,10 +656,10 @@ A session (program week) carries its own material as ROWS in
   (in `src/lib/lms/constants.js`) decides, falling back to the filename when the
   browser reported no mime type. Everything else opens in a new tab.
 - **Uploaded files are signed, not linked**: the learner surface reads material
-  through `learnerSessionResourcesBySession`, which swaps the permanent public
+  through `learnerSectionResourcesByCourse`, which swaps the permanent public
   URL of an upload for a short-lived signed one (6 h —
-  `SESSION_RESOURCE_URL_TTL_SECONDS`) and drops the storage path; the staff read
-  (`listSessionResourcesBySession`) keeps the stored values, where handing a link
+  `SECTION_RESOURCE_URL_TTL_SECONDS`) and drops the storage path; the staff read
+  (`listSectionResourcesByCourse`) keeps the stored values, where handing a link
   to a colleague is acceptable. This is §10's rule applied to material: what the
   learner watches or opens inside ImpactOS must not become a link they can keep.
   A file storage refuses to sign comes back with a null `url`, so the card says
@@ -661,23 +668,24 @@ A session (program week) carries its own material as ROWS in
   file while it plays.
 - **No orphans**: deleting a resource deletes its stored object; replacing a
   file deletes the previous one; an upload cancelled before saving is removed
-  through `DELETE /api/lms/session-resources/upload?path=…`. All of these are
+  through `DELETE /api/lms/section-resources/upload?path=…`. All of these are
   best-effort — the database stays authoritative, a storage hiccup never blocks
-  the row from being saved or deleted. Only paths under `sessions/` are ever
-  accepted as a deletion target.
-- **Reading** (`lms.view`): `GET /api/lms/session-resources?program_id=…
-  [&session_id=…][&week_number=…]`.
-- **Learner surface**: the participant program payload
-  (`/api/participant/programs/[id]`) attaches each session's resources to its
-  week (`week.resources` / `week.recommendations`);
-  `src/components/lms/SessionResourcesList.js` renders recommendations first
+  the row from being saved or deleted. Only paths under `sections/` are ever
+  accepted as a deletion target (`isManagedStoragePath`).
+- **Reading** (`lms.view`): `GET /api/lms/section-resources?section_id=…`.
+- **Surfaces**: material is authored in the section panel of the LMS course
+  editor; the admin course presentation (`CourseView`) and the learner course
+  overview (`LearnerCourse`) attach each section's resources to that section
+  (`section.resources`) and render them with
+  `src/components/lms/SectionResourcesList.js`, which shows recommendations first
   (note included), then the remaining material, with the filename and size for
-  uploads.
+  uploads. The Program Manager workspace no longer shows or manages material, and
+  the participant program payload no longer carries it.
 - **A video resource is played, not linked**: when a link resource points at a
   YouTube video, the card shows its title as plain text and plays the video
   through the same embed a lesson uses (§10) — a video we show inside the LMS
   must not be handed to the learner as a copyable link just because it was
-  attached to a session rather than to a course. Every other link still opens in
+  attached to a section rather than to a course. Every other link still opens in
   a new tab: a third-party page may refuse to be framed, and a broken embed
   would be worse than the plain link.
 - Legitimacy rules: `title` and an http(s) `url` are required (a link-less
@@ -685,6 +693,8 @@ A session (program week) carries its own material as ROWS in
   note is only stored when the resource is actually flagged. The legacy
   `v2_sessions.extra_materials` JSON is left untouched — it is not read or
   migrated.
+- The i18n keys live under `lms.sessionResources.*` — the namespace kept its
+  historical name; only the wording says "section".
 
 ### 13.2 Coaching requests
 

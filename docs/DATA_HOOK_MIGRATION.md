@@ -742,7 +742,7 @@ views (`AssignmentsView`, `ParticipantDashboardHome`, `ProgramListing`,
 `ProgressView`, `RitualsView`, `UnifiedOperationsView`), the ten LMS panels
 (`AssessmentTake`, `CoachingRequestsPanel`, `CourseEditor`, `CourseList`,
 `EnrollModal`, `LearnerCourse`, `LearnerLearning`, `LessonModal`,
-`ProgramLearningSection`, `SessionResourcesSection`), the membership roster
+`ProgramLearningSection`, `SectionResourcesPanel`), the membership roster
 (`MembershipScreen`), the two UI primitives (`NavigationLoader`,
 `SearchableSelect`), the nine of the second slice (`ProfileView`,
 `StandupRetroView`, `SubmissionVersionHistory`, `UnifiedDashboard`,
