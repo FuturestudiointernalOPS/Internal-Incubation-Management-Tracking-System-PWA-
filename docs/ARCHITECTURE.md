@@ -56,10 +56,10 @@ Custom translation engine (`src/lib/i18n.js`), **not** `next-intl` or similar �
 
 | Concern | Module | Provider |
 |---|---|---|
-| Email | `src/lib/email.js`, `src/lib/mailer.js` | Resend (primary) + Nodemailer/Mailgen (templates/fallback) |
+| Email | `src/lib/email.js`, `src/lib/mailer.js` | Resend (primary) + Gmail API via `googleapis`; templates rendered by `email.js` |
 | AI — mentor feedback parsing | `src/lib/deepseek.js` | DeepSeek API (`deepseek-chat`) — parses mentor recording transcriptions into structured feedback |
 | AI — other | `src/lib/gemini.js` | Google Generative AI |
-| File storage | `src/lib/storage.js` | Vercel Blob |
+| File storage | `src/lib/storage.js` | Supabase Storage |
 | Auth/admin storage | `src/lib/supabase.js`, `src/lib/supabase-admin.js` | Supabase |
 | Audit trail | `src/lib/audit.js`, `src/lib/taskAudit.js` | Internal — writes to an audit log table, surfaced via `/api/audit-log` |
 | Error reporting | `src/lib/reportError.js` | Internal — surfaced via `/api/errors` |

@@ -32,8 +32,8 @@
 - **Calendar integration:** Microsoft Graph API (client-credentials), with Google Calendar as a stub. Sync engine pushes local events to the external provider.
 - **Notion sync:** one-way push (ImpactOS → Notion) for tasks and projects.
 - **Finance sync:** Google Sheets → ImpactOS via `src/lib/finance.js`, run with `npm run sync-finance`.
-- **File storage:** Vercel Blob (primary) + Supabase Storage (secondary/fallback).
-- **Email:** Resend (primary), Nodemailer + Mailgen (templates/fallback).
+- **File storage:** Supabase Storage (`src/lib/storage.js`) — public buckets for knowledge-bank files and task attachments, plus a private `deliverable-evidence` bucket read through short-lived signed URLs.
+- **Email:** Resend (primary) + the Gmail API via `googleapis` (`src/lib/email.js`, `src/lib/mailer.js`). Templates are rendered by the in-house template engine in `email.js`.
 
 ## Frequently Used Utilities
 

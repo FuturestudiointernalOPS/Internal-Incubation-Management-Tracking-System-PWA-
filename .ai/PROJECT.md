@@ -7,7 +7,7 @@
 
 - **App:** ImpactOS — startup development & innovation ecosystem operating system (incubation, acceleration, venture tracking, investor intelligence).
 - **Stack:** Next.js 16 (App Router) · React 19 · JavaScript (ES modules) · Tailwind CSS 3 · PostgreSQL (via `pg`) + Supabase (storage/admin).
-- **Key libs:** `@supabase/supabase-js`, `bcryptjs`, `framer-motion`, `lucide-react`, `recharts`, `xlsx`, `jspdf` + `html2canvas` (PDF exports), `resend` + `nodemailer` + `mailgen` (email), `@google/generative-ai` (AI), `papaparse`, `uuid`, `ws`.
+- **Key libs:** `@supabase/supabase-js`, `bcryptjs`, `framer-motion`, `lucide-react`, `recharts`, `xlsx`, `jspdf` + `html2canvas` (PDF exports), `resend` + `googleapis` (email), `@google/generative-ai` (AI), `papaparse`, `uuid`.
 - **Scripts:** `npm run dev` · `build` · `start` · `lint` (ESLint 9 + `next/core-web-vitals`) · `sync-finance` (Google Sheets sync).
 - **Deployment:** Vercel. Two branches: `main` (production, auto-deploys), `dev` (staging, preview deploys).
 

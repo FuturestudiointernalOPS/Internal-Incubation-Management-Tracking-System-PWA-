@@ -25,9 +25,9 @@ Internal incubation management & tracking system for FutureStudio: programs, pro
 - **Framework:** [Next.js](https://nextjs.org) (App Router), React
 - **Database:** PostgreSQL (via `pg`), with [Supabase](https://supabase.com) for auth/storage
 - **Styling:** Tailwind CSS + custom design tokens (see [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md))
-- **Email:** [Resend](https://resend.com) + Mailgen templates, Nodemailer as fallback
+- **Email:** [Resend](https://resend.com) + Gmail API (`googleapis`)
 - **AI:** Google Generative AI (`@google/generative-ai`)
-- **Storage:** Vercel Blob (file uploads)
+- **Storage:** Supabase Storage (file uploads)
 - **Exports:** `xlsx`, `jspdf`, `html2canvas` (reports/data export)
 - **i18n:** custom `t()` system, English + French (`src/locales/`)
 - **Charts:** Recharts
