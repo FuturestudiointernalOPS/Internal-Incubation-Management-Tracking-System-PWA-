@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
 import { summarizeSubmission, analyzeSubmission } from "@/lib/platform/integrations";
+import { DEFAULT_MODEL as DEEPSEEK_MODEL } from "@/lib/deepseek";
 
 /**
  * PLATFORM AI API
@@ -66,12 +67,16 @@ export async function GET(req) {
     const action = searchParams.get("action");
 
     if (action === "health") {
-      const configured = !!process.env.GOOGLE_AI_STUDIO_API_KEY;
+      // Reports the provider that actually serves AI features, and reads the
+      // model name from the adapter itself. Both used to be hardcoded to a
+      // provider nothing called, so this health check described a service the
+      // app had stopped using.
+      const configured = !!process.env.DEEPSEEK_API_KEY;
       return NextResponse.json({
         success: true,
         health: {
-          provider: "gemini",
-          model: "gemini-2.0-flash",
+          provider: "deepseek",
+          model: DEEPSEEK_MODEL,
           configured,
           status: configured ? "ready" : "unconfigured",
         },

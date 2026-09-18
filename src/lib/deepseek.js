@@ -17,7 +17,8 @@ if (!DEEPSEEK_API_KEY) {
 }
 
 const DEEPSEEK_BASE = "https://api.deepseek.com/v1";
-const DEFAULT_MODEL = "deepseek-chat";
+/** Single source of truth for the model this project talks to. */
+export const DEFAULT_MODEL = "deepseek-chat";
 
 /**
  * Generic chat completion — send any prompt, get a text response.
