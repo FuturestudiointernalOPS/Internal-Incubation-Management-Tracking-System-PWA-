@@ -33,7 +33,11 @@ export default function ContextSwitcher() {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    fetch("/api/workspaces")
+    // `scope=contexts`: this list is all the switcher renders. Asking for the
+    // rest (the flat assignment list, the program assignments, the past
+    // memberships) meant four statements on the widest database burst of every
+    // page in the product, for data this component never reads.
+    fetch("/api/workspaces?scope=contexts")
       .then(async (r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d && d.success) setData(d);

@@ -8,7 +8,6 @@ import {
   getActiveParticipantEnrollments,
   getProgramAssignmentsFromContactRoles,
   getParticipantProgramMemberships,
-  getUserGroupMembershipsByNames,
   getInactiveGroupMembershipHistory,
   getActiveResponsibilitiesForUser,
   getActiveVentureMembershipsForContact,
@@ -23,9 +22,13 @@ export const dynamic = "force-dynamic";
  * WORKSPACES API — neutral post-login hub data
  *
  * Returns the authenticated user's assignments (program staff roles and
- * participant enrollments) plus the fallback home dashboard for their
- * global role. Any authenticated user may call this; having no assignment
+ * participant enrollments) plus the fallback home dashboard for their global
+ * role. Any authenticated user may call this; having no assignment
  * is a valid state.
+ *
+ * `?scope=contexts` answers only the context list the page shell renders (see
+ * the scope note inside GET). The hub page calls it without a scope and gets
+ * everything.
  */
 
 function assignmentHref(role, programId) {
@@ -34,7 +37,7 @@ function assignmentHref(role, programId) {
   return roleHomeHref(r);
 }
 
-export async function GET(_req) {
+export async function GET(request) {
   try {
     await initDb();
     const authError = await requireAuth();
@@ -42,11 +45,24 @@ export async function GET(_req) {
 
     const session = await getSession();
 
+    // ── Scope ──────────────────────────────────────────────────────────────
+    // The context switcher in the page shell calls this endpoint on EVERY page,
+    // but reads only `contexts` (org memberships, responsibilities, program
+    // participations, ventures, learning) and the identity chip. Four of the
+    // reads below serve the hub page alone: the flat assignment list, the
+    // generalized program assignments, the past-membership history and the
+    // legacy active-enrollment list. Serving them to the shell put four
+    // statements on the widest burst of every navigation, for data nobody read.
+    const contextsOnly =
+      new URL(request.url).searchParams.get("scope") === "contexts";
+    /** A read this scope does not use: answered locally, never sent. */
+    const notNeeded = () => Promise.resolve({ rows: [] });
+
     // ── Wave 1: every read that needs only the session identity ─────────────
-    // These ten reads are independent (only the user's id/email is required).
-    // They used to be awaited one after another — twelve round trips (~1.6s in
-    // the observed environment) before the hub could render. allSettled keeps
-    // the original fail-open behaviour: a missing table or a failing read
+    // The reads are independent (only the user's id/email is required). They
+    // used to be awaited one after another — twelve round trips (~1.6s in the
+    // observed environment) before the hub could render. allSettled keeps the
+    // original fail-open behaviour: a missing table or a failing read
     // contributes an empty list instead of breaking the endpoint.
     const [
       staffSettled,
@@ -60,12 +76,18 @@ export async function GET(_req) {
       learningSettled,
       storedRoleSettled,
     ] = await Promise.allSettled([
-      getStaffAssignmentsForUser(session.cid, session.email || session.cid),
-      getActiveParticipantEnrollments(session.cid),
-      getProgramAssignmentsFromContactRoles(session.cid),
+      contextsOnly
+        ? notNeeded()
+        : getStaffAssignmentsForUser(session.cid, session.email || session.cid),
+      contextsOnly ? notNeeded() : getActiveParticipantEnrollments(session.cid),
+      contextsOnly
+        ? notNeeded()
+        : getProgramAssignmentsFromContactRoles(session.cid),
       getParticipantProgramMemberships(session.cid),
       getEffectiveGroupsForUser(session.cid),
-      getInactiveGroupMembershipHistory(session.cid),
+      contextsOnly
+        ? notNeeded()
+        : getInactiveGroupMembershipHistory(session.cid),
       getActiveResponsibilitiesForUser(session.cid),
       getActiveVentureMembershipsForContact(session.cid),
       learnerHasEnrollments(session.cid),
@@ -190,23 +212,22 @@ export async function GET(_req) {
     // 3. Organizational memberships — ACTIVE memberships only (Phase 1:
     //    expired/ended memberships move to contexts.org_history; the person,
     //    account and history stay, only active authorization stops).
+    //
+    //    Built from the resolved effective groups themselves. That resolution
+    //    already decides which groups count (a membership record governs a
+    //    legacy edge), and the membership layer mirrors every membership into
+    //    the legacy table precisely so this list is complete. Re-reading the
+    //    legacy table by name was a second round trip for one field
+    //    (role_in_group) that no consumer reads.
     try {
       const activeGroups = valueOf(activeGroupsSettled, []);
-      let orgRows = [];
-      if (activeGroups.length > 0) {
-        // Wave 2: this read needs the group names resolved above. It is the
-        // only read in the endpoint that depends on another one.
-        const ugRes = await getUserGroupMembershipsByNames(
-          session.cid,
-          activeGroups,
-        );
-        orgRows = ugRes.rows;
-      }
-      contexts.org_memberships = orgRows.map((g) => {
-        const isIntern = /intern/i.test(String(g.group_name || ""));
+      contexts.org_memberships = [...activeGroups].sort().map((groupName) => {
+        const isIntern = /intern/i.test(String(groupName || ""));
         return {
-          ...g,
-          href: isIntern ? "/developer" : roleHomeHref(session.role) || "/workspaces",
+          group_name: groupName,
+          href: isIntern
+            ? "/developer"
+            : roleHomeHref(session.role) || "/workspaces",
         };
       });
       const pastRes = rowsOf(historySettled);

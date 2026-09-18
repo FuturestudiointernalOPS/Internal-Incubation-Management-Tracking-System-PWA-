@@ -9,7 +9,7 @@ import db from "@/lib/db";
  * Route → function map:
  *  - /api/workspaces    → getStaffAssignmentsForUser, getActiveParticipantEnrollments,
  *                         getProgramAssignmentsFromContactRoles, getParticipantProgramMemberships,
- *                         getUserGroupMembershipsByNames, getInactiveGroupMembershipHistory,
+ *                         getInactiveGroupMembershipHistory,
  *                         getActiveResponsibilitiesForUser, getActiveVentureMembershipsForContact,
  *                         getContactStoredRole
  *  - /api/calendar      → getFacilitatorProgramScopePids, getParticipantProgramScopePids,
@@ -106,21 +106,6 @@ export async function getParticipantProgramMemberships(cid) {
               WHERE pp.participant_id = ?
               ORDER BY pp.assigned_at DESC`,
     args: [cid],
-  });
-}
-
-/**
- * Active organizational memberships for a set of group names. The placeholder
- * list is derived from the number of groups, so the generated SQL is identical
- * to the original inline `group_name IN (?,?,...)` query.
- */
-export async function getUserGroupMembershipsByNames(userCid, groupNames) {
-  const placeholders = groupNames.map(() => "?").join(",");
-  return db.execute({
-    sql: `SELECT group_name, role_in_group FROM user_groups
-                WHERE user_cid = ? AND group_name IN (${placeholders})
-                ORDER BY group_name`,
-    args: [userCid, ...groupNames],
   });
 }
 
