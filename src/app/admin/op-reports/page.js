@@ -23,6 +23,7 @@ import {
   Briefcase,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
@@ -1920,10 +1921,12 @@ function ReportDetailModal({ report, onClose }) {
         <div ref={pdfContentRef}>
           {/* PDF header with logo — visible in both print and html2canvas */}
           <div className="flex items-center gap-4 p-4 border-b border-[var(--border-primary)] print:border-gray-300 print:p-4">
-            <img
+            <Image
               src="/brand/logo_full.png"
               alt="Future Studio"
-              className="h-10 object-contain print:h-10"
+              width={1018}
+              height={1024}
+              className="h-10 w-auto object-contain print:h-10"
             />
             <div>
               <h1 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight print:text-black">
