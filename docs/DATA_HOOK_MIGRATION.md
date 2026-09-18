@@ -213,8 +213,8 @@ the length of the account.
 | Open item | Where | Next step |
 |---|---|---|
 | The hook's own four warnings | `src/lib/hooks/useApi.js` | Nothing to do: they are the hook BEING the removal target. §3.7. |
-| A `try/finally` in the scores reader | `src/app/admin/platform/scores/page.js` | Three lines - clear the loading flag after the block. The compiler cannot build HIR for a `finally`. §3.12. |
-| 22 hand-written reads on the founder's venture workspace | `src/app/participant/ventures/[id]/page.js` and its group | Mechanical (cache + fetch + setState each). Parked by decision; the recipe is at the end of §4. |
+| 8 hand-written reads on the founder's venture workspace | `src/app/participant/ventures/[id]/page.js` | Consumed only by tab components nothing renders. §4.2. |
+| Nine exported tab components that nothing renders | `src/components/ventures/workspace/tabs/` | A separate decision: revive them or remove them. §4.2. |
 | The screens that must be walked by hand | §5.1 | Four families, listed there. |
 | The database work (queries, migrations, cache, pool) | - | Parked by decision, separate from this migration. |
 
@@ -692,15 +692,13 @@ silencing it.
   the region the document is captured from, so this is the one image change that
   can alter a DOCUMENT rather than just a screen.
 
-> **Recorded, not fixed.** The same scores screen still reads its scores inside a
-> `try` with a `finally`. The React Compiler cannot build HIR for a `finally`
-> clause and reports it as a `Todo` - a diagnostic this repository's config does
-> not surface, so it is invisible today. It costs nothing while the compiler is
-> not part of the build (`next.config.mjs` does not enable it), but it is the one
-> construct that would keep that screen out of compilation the day it is. The
-> repair is three lines (clear the loading flag after the block - the `catch`
-> above already absorbs every failure), deliberately left out so that each change
-> here has exactly one cause.
+> **FIXED.** The same scores screen read its scores inside a `try` with a
+> `finally`, and a `finally` is a construct the React Compiler cannot build HIR
+> for - a `Todo` diagnostic this repository's config does not surface, so it was
+> invisible. It was kept out of the two fixes above so that each change would have
+> exactly one cause, and it is now cleared: the loading flag is set after the
+> block, which is equivalent because the `catch` above already absorbs every
+> failure.
 
 ---
 
@@ -780,22 +778,45 @@ Two things this group settled, which the rest of the work depends on:
   contract only has to change when a child passes something other than a whole
   form.
 
-### 4.2 What is left on the founder's venture workspace
+### 4.2 The founder's venture workspace - CONVERTED, except eight reads
 
-Its 22 remaining reads are still written out by hand (each one is the shared
-cache, the `fetch`, and a `setState`). None of them carries a warning, because
-they all write their state after an `await` and the rule only reports a write
-reachable synchronously from an effect. They are a mechanical conversion from
-here, and the two that need thought are already solved:
+**Fifteen of its reads are done**, and the tab-keyed effect that decided WHEN to
+load is gone with them: the reads are addressed on the section that is asking, so
+arriving on a tab IS the request and nothing has to observe a tab change. The
+`ready` guard carries over the old effect's condition - a Venture's sub-resources
+are not asked for before the Venture record is known.
 
-1. the identity and the venture record are done;
-2. `fetchDocuments` takes `(search, category)` and builds its address from the
-   page's own filter state - so as a hook read it is addressed **on that filter
-   state**, the child's debounce and its `onKeyUp` reload both disappear, and the
-   one-request-per-keystroke behaviour the screen already had is unchanged;
-3. the rest map one-to-one: `fetchX` becomes `refreshX` under the same name in
-   the workspace context, so the ~30 call sites inside the tab components do not
-   have to change at all.
+The two pieces of thought this section used to leave for later were taken as
+planned:
+
+1. `fetchDocuments` is addressed **on the page's two filter state values**, so
+   the child's debounce and its key-up reload both disappeared (and with them a
+   100 ms delay that only delayed the category change). The one-request-per-
+   keystroke behaviour the screen already had is unchanged;
+2. the rest mapped one-to-one: the loader names survive in the workspace context
+   because the ~18 call sites inside the tab components use them to re-read after
+   a write, and they now hold the read's own `refresh` - which is exactly what
+   `bypassCache = true` used to mean. `setBmData` is the read's own setter, so the
+   business-model canvas keeps writing its local edit the way it always did.
+
+**Eight reads are deliberately NOT converted**, and the reason is a discovery
+worth recording: nothing that is rendered reads any of them. They are standups,
+retros, blockers, tasks, action plans, advisors, coaching and the playbook, and
+their only consumers are **nine tab components that are exported and imported by
+nobody**:
+
+`HistoryTab`, `ProgressTab`, `AdvisorsTab`, `CoachingTab`, `PlaybookTab`,
+`StandupsTab`, `RetrosTab`, `BlockersTab`, `CalendarTab`.
+
+That is not a defect this conversion introduced - the effect never loaded those
+either. But it does change what the right next step is: giving them an address
+would have them load on every visit to the screen for data nobody displays, so
+they keep the shape they have. **The real question is whether those nine
+components should exist at all**, and it is a separate decision - the comment
+beside them says milestone workspaces were meant to bind their content to items.
+
+Accepted consequences here, of the three section 1 already lists: a refused read
+now shows the empty state instead of leaving the previous list standing.
 
 ### 4.3 The two shapes the shared-component slice settled, and the toast rule
 
@@ -829,11 +850,18 @@ And the rule for a failure signal the loader used to raise as an EVENT:
 - consequence to expect: a failure is CACHED for its 30 s life, so a screen
   revisited inside that window re-raises the toast for the same refusal.
 
-### What the venture recipe looks like, for whoever continues it
+### The venture recipe, and how the last screen differed from it
 
 Twenty of the twenty-three were converted with one recipe, three at a time. Each
 screen has one loader and one effect that calls it, and the loader is nothing but
 the shared cache written out by hand:
+
+The twenty-third - the founder's venture workspace - is converted as well (§4.2),
+and it needed exactly one difference: it is ONE screen holding many reads rather
+than one read per screen, so its reads are addressed on the OPEN SECTION instead
+of on the venture's id, and the single effect that used to call them for the open
+section simply went away. Its eight unconverted reads are the ones whose consumers
+nothing renders. The steps below are otherwise the ones it followed.
 
 1. the reads become `useApi` calls addressed on the venture's id, with named
    shapers at module scope (a list from a field, or the whole payload);
