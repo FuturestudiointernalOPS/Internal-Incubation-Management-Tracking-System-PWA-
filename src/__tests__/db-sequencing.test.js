@@ -128,45 +128,116 @@ describe("GET /api/internal-comms", () => {
 
 // ─── Workspaces hub ─────────────────────────────────────────────────────────
 
+/**
+ * A handler AND its navigation cache, from a FRESH module registry.
+ *
+ * `measure` above cannot serve these two tests: it resets the registry but keeps
+ * calling the handler it was handed, which still belongs to the registry it was
+ * required from — and the navigation cache lives there, so the "second" call
+ * would read it. These budgets are about a FIRST navigation, which needs the
+ * cache to be reachable, empty, AND the once-per-process work already paid (a
+ * freshly registered handler pays it inside the measured call, which defers the
+ * group resolution by a wave and hides the endpoint's real shape).
+ */
+function freshRouteHandler(modulePath, exportName) {
+  jest.resetModules();
+  return {
+    handler: require(modulePath)[exportName],
+    navigationCache: require("@/lib/workspaceContextCache"),
+  };
+}
+
 describe("GET /api/workspaces", () => {
   test("the hub reads go out in ONE wave, with no dependent read left", async () => {
-    const { GET } = require("@/app/api/workspaces/route");
+    const { handler: GET, navigationCache } = freshRouteHandler(
+      "@/app/api/workspaces/route",
+      "GET",
+    );
+    // Warm the process, empty the cache: what is measured is the first
+    // navigation of a session on a process that has already started.
+    await GET(new Request("http://localhost/api/workspaces"));
+    navigationCache.resetWorkspaceContextCache();
+    mockSequencer.reset();
 
-    // Steady state — what every page after the first pays. The first request of
-    // a process also lands the once-per-process schema work, which defers the
-    // group resolution by one wave; that is cold-start noise, not the shape of
-    // the endpoint (and it is reported separately as schemaStatements).
-    const report = await measure(GET, "http://localhost/api/workspaces");
+    const res = await GET(new Request("http://localhost/api/workspaces"));
+    const report = mockSequencer.report();
     describeReport("hub  ", report);
 
-    expect(report.status).toBe(200);
+    expect(res.status).toBe(200);
     // Ten reads used to go out here, two of them asking a table that was already
     // being read: the ended group memberships ride along with the group
     // resolution, and the active enrollments are filtered out of the membership
     // list. Eight reads, one wave.
     expect(report.waves).toBe(1);
     expect(report.statements).toBe(8);
-    // Eight of the ten connections, so a hub load now leaves two free. The
-    // remaining margin is thin on purpose (docs/PERFORMANCE.md): splitting the
-    // wave would buy more, at the cost of a wave on every hub load.
+    // Eight of the ten connections. Every navigation AFTER this one pays a
+    // single statement (the test below).
     expect(report.maxInFlight).toBeLessThanOrEqual(8);
   });
 
   test("the shell's call asks only for the context list", async () => {
-    const { GET } = require("@/app/api/workspaces/route");
-
-    const report = await measure(
-      GET,
-      "http://localhost/api/workspaces?scope=contexts",
+    const { handler: GET, navigationCache } = freshRouteHandler(
+      "@/app/api/workspaces/route",
+      "GET",
     );
+    const shellUrl = "http://localhost/api/workspaces?scope=contexts";
+    await GET(new Request(shellUrl));
+    navigationCache.resetWorkspaceContextCache();
+    mockSequencer.reset();
+
+    const res = await GET(new Request(shellUrl));
+    const report = mockSequencer.report();
     describeReport("shell", report);
 
-    expect(report.status).toBe(200);
-    // The four reads only the hub page renders are answered locally, so the
-    // burst leaves room inside the pool — on every page of the product.
+    expect(res.status).toBe(200);
+    // The two reads only the hub page renders are answered locally, so the burst
+    // leaves room inside the pool — on every page of the product.
     expect(report.waves).toBe(1);
     expect(report.statements).toBe(6);
     expect(report.maxInFlight).toBe(6);
+  });
+
+  test("a second call is answered from the cache: one statement, not eight", async () => {
+    const { handler: GET } = freshRouteHandler(
+      "@/app/api/workspaces/route",
+      "GET",
+    );
+
+    // One real call fills the cache; the next one is what a navigation pays.
+    await GET(new Request("http://localhost/api/workspaces"));
+    mockSequencer.reset();
+    const res = await GET(new Request("http://localhost/api/workspaces"));
+    const report = mockSequencer.report();
+    describeReport("hub cached", report);
+
+    expect(res.status).toBe(200);
+    // The identity chip is still read fresh - that is the one statement left -
+    // and everything the navigation list is made of comes from the cache.
+    expect(report.statements).toBe(1);
+    expect(report.waves).toBe(1);
+  });
+
+  test("the writes that drop the authorization context drop this with it", async () => {
+    const { handler: GET } = freshRouteHandler(
+      "@/app/api/workspaces/route",
+      "GET",
+    );
+    const {
+      invalidateAuthorizationContext,
+    } = require("@/lib/authorization");
+
+    await GET(new Request("http://localhost/api/workspaces"));
+    mockSequencer.reset();
+    await GET(new Request("http://localhost/api/workspaces"));
+    expect(mockSequencer.report().statements).toBe(1);
+
+    // The person's access changed. The SAME call the permission writes make must
+    // also drop the cached navigation, so the next call resolves everything
+    // again rather than serving a list that outlived the change.
+    invalidateAuthorizationContext(SESSION.cid);
+    mockSequencer.reset();
+    await GET(new Request("http://localhost/api/workspaces"));
+    expect(mockSequencer.report().statements).toBe(8);
   });
 });
 

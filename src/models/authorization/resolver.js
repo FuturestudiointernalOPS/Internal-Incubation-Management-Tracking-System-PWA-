@@ -33,6 +33,10 @@ import {
 import { ensureCapabilityBackfills } from "./backfill";
 import { runAuthzMigration } from "./migrations";
 import { getEffectiveGroupsForUser } from "./membership";
+import {
+  dropWorkspaceContext,
+  dropAllWorkspaceContexts,
+} from "@/lib/workspaceContextCache";
 
 const AUTHZ_CONTEXT_TTL_MS = 60000; // 60s context cache (egress-neutral; invalidated immediately on permission writes)
 const _authzContextCache = new Map();
@@ -401,7 +405,14 @@ export async function getAuthorizationContext(user) {
   return pending;
 }
 
-/** Drop a user's cached context (call after grant/restrict/profile/role writes). */
+/**
+ * Drop a user's cached context (call after grant/restrict/profile/role writes).
+ *
+ * The post-login navigation list is derived from the same access facts, so it is
+ * dropped here too rather than at its own set of call sites: whoever remembers to
+ * drop this one has dropped that one, and a future writer cannot drop one without
+ * the other (see src/lib/workspaceContextCache.js).
+ */
 export function invalidateAuthorizationContext(cid) {
   if (!cid) return;
   for (const key of _authzContextCache.keys()) {
@@ -410,6 +421,7 @@ export function invalidateAuthorizationContext(cid) {
   for (const key of _authzContextInflight.keys()) {
     if (key.startsWith(`${cid}|`)) _authzContextInflight.delete(key);
   }
+  dropWorkspaceContext(cid);
 }
 
 /**
@@ -420,6 +432,7 @@ export function invalidateAuthorizationContext(cid) {
 export function invalidateAllAuthorizationContexts() {
   _authzContextCache.clear();
   _authzContextInflight.clear();
+  dropAllWorkspaceContexts();
 }
 
 // ─── Authorization decision ─────────────────────────────────────────────────
