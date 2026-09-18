@@ -162,6 +162,52 @@ A fresh database still runs its 28 migrations, inside that one ledger read.
 cold gate, zero round trips to ask again about a migration this process already
 applied, and no re-application on a migrated database.
 
+## Bulk participant work — one statement per chunk of 30
+
+Enrolling a programme's people, or assigning several of them at once, was written
+one person at a time: a conflict check, the assignment, an audit entry, and one
+enrolment statement per required course - in series. The programmes here run to
+hundreds of people, so the largest operations the application offers were also the
+ones it could not finish.
+
+The work is now GROUPED and QUEUED: one statement writes a whole chunk, and the
+chunks are applied in order. The size of a chunk lives in one place,
+`src/lib/participantBatches.js`, at 30 - small enough to stay an ordinary
+statement, and a FRACTION of the ten connections the whole application shares
+rather than a multiple of them.
+
+Measured through the shared fake, with one published required course:
+
+| Operation                | Statements | Per person |
+| ------------------------ | ---------: | ---------: |
+| add 30 people, before    |        181 |       6.03 |
+| add 30 people, now       |      **7** |       0.23 |
+| add 65 people, before    |        391 |       6.02 |
+| add 65 people, now       |     **19** |       0.29 |
+| remove 40 people, before |         80 |       2.00 |
+| remove 40 people, now    |      **4** |       0.10 |
+
+The "per person" column is the point: it used to be a CONSTANT - six statements
+for an add, two for a remove, whatever the size - and it is now divided by 30,
+because the number of statements follows the number of CHUNKS. At the ~130ms
+round trip measured above, the old 391 is a minute of waiting inside one request.
+
+Two consequences, both deliberate:
+
+- **the chunk is the unit that lands or fails.** A database error used to be
+  collected for the person it happened on; it is reported now for that chunk's
+  people. A failed chunk does not hold up the chunks after it, and a refused
+  facilitator is still reported individually.
+- a chunk costs three statements of its own because the enrolment reads the
+  programme's requirements once per CHUNK instead of once per person.
+
+Both are asserted rather than assumed:
+`src/__tests__/participant-programs-bulk.test.js` drives the real route against
+the fake, and checks the shape (one assignment statement for thirty people, three
+for sixty-five) as well as the outcome - everyone assigned, everyone enrolled, the
+facilitator refused rather than assigned, and a removal that does not revoke the
+learning already granted.
+
 ## Instrumentation (guard against regression)
 
 - `getDbMetrics()` / `resetDbMetrics()` in `src/lib/db.js` expose `queries`,
