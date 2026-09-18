@@ -1,29 +1,80 @@
-import * as XLSX from "xlsx";
+import { readSheet } from "read-excel-file/node";
+import { gridToObjects, gridToRows, isBlankRow } from "./spreadsheet";
 
 const GOOGLE_SHEETS_ID = "1h37lmF2HIqhWVZq4MwTuT72SHYVNeNcQ";
 const EXPORT_URL = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEETS_ID}/export?format=xlsx`;
 
-let cachedWorkbook = null;
+let cachedBuffer = null;
 
-export async function fetchWorkbook() {
+/**
+ * Download the published workbook and return its bytes. The optional argument
+ * is accepted for callers that pass a source URL; EXPORT_URL stays the one
+ * actually fetched, as before.
+ */
+export async function fetchWorkbook(_sourceUrl) {
   const res = await fetch(EXPORT_URL);
-  const buffer = await res.arrayBuffer();
-  cachedWorkbook = XLSX.read(buffer, { type: "array" });
-  return cachedWorkbook;
+  cachedBuffer = Buffer.from(await res.arrayBuffer());
+  return cachedBuffer;
+}
+
+/**
+ * Read one named sheet as a grid of rows. Returns null when the workbook has
+ * no sheet under that name, which callers treat as “no data” rather than an
+ * error.
+ */
+async function readSheetGrid(sheetName) {
+  const buffer = await fetchWorkbook();
+  try {
+    return await readSheet(buffer, sheetName, { trim: false });
+  } catch (error) {
+    if (error && error.name === "SheetNotFoundError") return null;
+    throw error;
+  }
+}
+
+/**
+ * A sheet that exists but carries nothing after its first row is the signature
+ * of a sheet that was renamed, emptied or restructured. That used to surface as
+ * silent zeros on the finance screens; say so instead.
+ */
+function warnIfSheetLooksEmpty(sheetName, grid) {
+  const dataRows = (grid || []).slice(1).filter((row) => !isBlankRow(row));
+  if (dataRows.length > 0) return;
+  console.warn(
+    `[Finance] Sheet "${sheetName}" was found but holds no data rows — it may have been renamed, emptied or restructured.`,
+  );
+}
+
+/**
+ * The columns a caller reads. When not ONE of them carries a value in any row,
+ * the sheet's layout has moved under us and every figure derived from it will
+ * silently read as zero. Report that instead of letting it pass.
+ */
+function warnIfNothingReadable(sheetName, rows, columns) {
+  if (!rows || rows.length === 0) return;
+  const anyValue = columns.some((column) =>
+    rows.some((row) => row[column] !== undefined && row[column] !== ""),
+  );
+  if (anyValue) return;
+  console.warn(
+    `[Finance] Sheet "${sheetName}": none of the columns this code reads carry a value (${columns.join(
+      ", ",
+    )}) — the sheet layout may have changed, and the figures below will read as zero.`,
+  );
 }
 
 export async function getSheetData(sheetName) {
-  const workbook = await fetchWorkbook();
-  const sheet = workbook.Sheets[sheetName];
-  return sheet
-    ? XLSX.utils.sheet_to_json(sheet, { defval: "", header: 1 })
-    : [];
+  const grid = await readSheetGrid(sheetName);
+  if (!grid) return [];
+  warnIfSheetLooksEmpty(sheetName, grid);
+  return gridToRows(grid);
 }
 
 export async function getSheetJSON(sheetName) {
-  const workbook = await fetchWorkbook();
-  const sheet = workbook.Sheets[sheetName];
-  return sheet ? XLSX.utils.sheet_to_json(sheet, { defval: "" }) : [];
+  const grid = await readSheetGrid(sheetName);
+  if (!grid) return [];
+  warnIfSheetLooksEmpty(sheetName, grid);
+  return gridToObjects(grid);
 }
 
 export function excelDateToISO(serial) {
@@ -67,6 +118,14 @@ function getSheetForProject(project, type = "budget") {
 export async function getTransactions(project) {
   const sheetName = getSheetForProject(project, "transactions");
   const rows = await getSheetJSON(sheetName);
+  warnIfNothingReadable(sheetName, rows, [
+    "TRIBU FUTURE STUDIO",
+    "__EMPTY",
+    "__EMPTY_1",
+    "__EMPTY_2",
+    "__EMPTY_3",
+    "__EMPTY_4",
+  ]);
   return rows
     .map((r) => ({
       date: excelDateToISO(r["TRIBU FUTURE STUDIO"] || r.__EMPTY),
@@ -83,6 +142,7 @@ export async function getTransactions(project) {
 export async function getSummary(project) {
   const sheetName = getSheetForProject(project, "budget");
   const rows = await getSheetJSON(sheetName);
+  warnIfNothingReadable(sheetName, rows, ["__EMPTY_33", "__EMPTY_34"]);
   let totalPlanned = 0;
   let totalActual = 0;
 

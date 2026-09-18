@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
-import * as XLSX from "xlsx";
+import { readSheet } from "read-excel-file/browser";
+import { gridToRows } from "@/lib/spreadsheet";
 import { parseCSVRows } from "@/lib/csv";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
@@ -69,11 +70,8 @@ function parseTextToRows(text) {
 }
 
 // XLSX (first sheet) → row objects keyed by header, same shape as CSV.
-function parseXlsxToRows(buffer) {
-  const wb = XLSX.read(buffer, { type: "array" });
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  if (!ws) return { headers: [], rows: [] };
-  const grid = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+async function parseXlsxToRows(file) {
+  const grid = gridToRows(await readSheet(file, 1, { trim: false }));
   if (grid.length === 0) return { headers: [], rows: [] };
   const headers = (grid[0] || []).map((h) => String(h).trim());
   const rows = [];
@@ -146,7 +144,7 @@ export default function ImportPage() {
     } catch (_) {}
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const isCsv = file.name.toLowerCase().endsWith(".csv");
@@ -170,15 +168,11 @@ export default function ImportPage() {
       reader.onload = (ev) => applyParsed(parseTextToRows(ev.target.result));
       reader.readAsText(file);
     } else {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        try {
-          applyParsed(parseXlsxToRows(ev.target.result));
-        } catch (_) {
-          setError(t("adminMisc.platformImport.errorParseFailed"));
-        }
-      };
-      reader.readAsArrayBuffer(file);
+      try {
+        applyParsed(await parseXlsxToRows(file));
+      } catch (_) {
+        setError(t("adminMisc.platformImport.errorParseFailed"));
+      }
     }
   };
 

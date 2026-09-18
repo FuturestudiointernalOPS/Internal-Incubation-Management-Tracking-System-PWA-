@@ -1,7 +1,7 @@
 /**
  * DeepSeek AI Provider Adapter
  *
- * Drop-in replacement for Gemini — exposes the same `chat(prompt)` interface
+ * AI provider adapter — exposes a `chat(prompt)` interface
  * used by the Platform Integration layer.
  *
  * Uses DeepSeek's OpenAI-compatible Chat Completions API.
@@ -75,8 +75,8 @@ async function chat(prompt, modelName = DEFAULT_MODEL, maxTokens = 4096, options
 }
 
 /**
- * DeepSeek AI Layer — mirrors the geminiIntelligence interface
- * so the Platform Integration layer can swap providers without refactoring.
+ * DeepSeek AI Layer — exposes the shared provider interface so the Platform
+ * Integration layer can swap providers without refactoring.
  */
 export const deepseekIntelligence = {
   chat,

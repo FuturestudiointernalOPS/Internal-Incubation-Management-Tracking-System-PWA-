@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
-import * as XLSX from "xlsx";
+import writeXlsxFile from "write-excel-file/node";
 import { jsPDF } from "jspdf";
 import { getRunWithFormName, getRunSubmissions } from "@/models/workspace";
 
@@ -94,11 +94,13 @@ export async function GET(req) {
     const filenameBase = `${slugify(run.name)}-responses`;
 
     if (format === "xlsx") {
-      const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-      ws["!cols"] = headers.map((h, i) => ({ wch: i < 3 ? 22 : Math.max(16, Math.min(40, (h || "").length + 4)) }));
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Responses");
-      const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      const columns = headers.map((h, i) => ({
+        width: i < 3 ? 22 : Math.max(16, Math.min(40, String(h || "").length + 4)),
+      }));
+      const buffer = await writeXlsxFile([headers, ...rows], {
+        sheet: "Responses",
+        columns,
+      }).toBuffer();
 
       return new NextResponse(buffer, {
         status: 200,

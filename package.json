@@ -2,6 +2,9 @@
   "name": "impact-os",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -51,7 +54,6 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.48.1",
     "@tiptap/pm": "^3.31.3",
     "@tiptap/react": "^3.31.3",
@@ -68,10 +70,11 @@
     "pg": "^8.20.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "read-excel-file": "^9.3.10",
     "recharts": "^3.8.1",
     "resend": "^6.14.0",
     "uuid": "^13.0.0",
-    "xlsx": "^0.18.5"
+    "write-excel-file": "^4.1.1"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",

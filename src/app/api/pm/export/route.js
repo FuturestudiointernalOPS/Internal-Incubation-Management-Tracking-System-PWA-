@@ -1,7 +1,8 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
-import * as XLSX from "xlsx";
+import writeXlsxFile from "write-excel-file/node";
+import { objectsToAoa } from "@/lib/spreadsheet";
 import { getProgramExportRows } from "@/models/programWorkspace";
 
 export const dynamic = "force-dynamic";
@@ -67,12 +68,9 @@ export async function GET(req) {
     const rows = result.rows;
 
     if (format === "xlsx" || format === "excel") {
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(rows);
-      XLSX.utils.book_append_sheet(wb, ws, type);
-      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      const buffer = await writeXlsxFile(objectsToAoa(rows), { sheet: type }).toBuffer();
       const xlsxFilename = filename.replace(/\.csv$/, ".xlsx");
-      return new NextResponse(buf, {
+      return new NextResponse(buffer, {
         status: 200,
         headers: {
           "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

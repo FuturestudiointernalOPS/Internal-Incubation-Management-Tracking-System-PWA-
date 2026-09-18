@@ -1867,11 +1867,8 @@ export default function FormRunsPage() {
 
     if (format === "xlsx") {
       try {
-        const XLSX = await import("xlsx");
-        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Participants");
-        XLSX.writeFile(wb, `${baseName}.xlsx`);
+        const { default: writeXlsxFile } = await import("write-excel-file/browser");
+        await writeXlsxFile([headers, ...rows], { sheet: "Participants" }).toFile(`${baseName}.xlsx`);
       } catch (_) {
         notify(t("platformMisc.runs.excelExportFailed"));
       }
