@@ -1,16 +1,52 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { CheckCircle2, AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/hooks/useApi";
 
-export default function ActivatePage() {
+// ─── Read shaping (module scope: built once, never per render) ───────────
+//
+// The verdict on the link, together with what the server said about the person it
+// belongs to. `expired` is a DIFFERENT answer from `invalid` - the screen has its
+// own wording for each - and a request that never answered is treated as invalid,
+// which is what the old code's catch did.
+const EMPTY_VALIDATION = { state: "loading", userInfo: null };
+
+const pickValidation = (d) => ({
+  state: d?.success ? "valid" : d?.expired ? "expired" : "invalid",
+  userInfo: d?.success ? d : null,
+});
+
+/** What the page shows while the link is being read. */
+function ActivateLoading() {
+  return (
+    <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+      <Loader2 className="w-8 h-8 text-[var(--brand-orange)] animate-spin" />
+    </div>
+  );
+}
+
+/**
+ * ACTIVATE — the screen behind an invitation or password-reset link.
+ *
+ * The token and the mode are in the ADDRESS, so they are read during render
+ * rather than copied into state by an effect - and the address being the source is
+ * also what makes the validation a READ addressed on the token, through the shared
+ * hook, which owns the cache, the failure and the discarding of a stale answer.
+ *
+ * `useSearchParams` needs a Suspense boundary on a statically rendered page; that
+ * boundary is the default export below, and its fallback is the same spinner the
+ * screen already showed while the link was being checked.
+ */
+function ActivateContent() {
   const { t } = useI18n();
-  const [token, setToken] = useState(null);
-  const [mode, setMode] = useState("setup"); // setup or reset
-  const [tokenState, setTokenState] = useState("loading"); // loading | valid | expired | invalid
-  const [userInfo, setUserInfo] = useState(null);
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
+  const mode = searchParams.get("mode") === "reset" ? "reset" : "setup";
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -18,33 +54,25 @@ export default function ActivatePage() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const t = params.get("token");
-    const m = params.get("mode");
+  const {
+    data: validation,
+    loading: validating,
+    error: readError,
+  } = useApi(
+    token ? `/api/auth/activate?token=${encodeURIComponent(token)}` : null,
+    { defaultValue: EMPTY_VALIDATION, transform: pickValidation },
+  );
 
-    if (!t) {
-      setTokenState("invalid");
-      return;
-    }
-
-    setToken(t);
-    if (m === "reset") setMode("reset");
-
-    fetch(`/api/auth/activate?token=${t}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          setUserInfo(data);
-          setTokenState("valid");
-        } else if (data.expired) {
-          setTokenState("expired");
-        } else {
-          setTokenState("invalid");
-        }
-      })
-      .catch(() => setTokenState("invalid"));
-  }, []);
+  // No token at all, a request that never answered (invalid, as the old catch
+  // said), a read still in flight, or the server's own verdict.
+  const tokenState = !token
+    ? "invalid"
+    : readError
+      ? "invalid"
+      : validating
+        ? "loading"
+        : validation.state;
+  const userInfo = validation.userInfo;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -79,11 +107,7 @@ export default function ActivatePage() {
   };
 
   if (tokenState === "loading") {
-    return (
-      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-[var(--brand-orange)] animate-spin" />
-      </div>
-    );
+    return <ActivateLoading />;
   }
 
   if (result === "success") {
@@ -261,5 +285,13 @@ export default function ActivatePage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function ActivatePage() {
+  return (
+    <Suspense fallback={<ActivateLoading />}>
+      <ActivateContent />
+    </Suspense>
   );
 }
