@@ -3,6 +3,7 @@
 import { HelpCircle, Pencil } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppButton from "@/components/ui/AppButton";
+import RichTextContent from "@/components/ui/RichTextContent";
 import { useI18n } from "@/lib/i18n";
 
 const letter = (i) => String.fromCharCode(65 + i);
@@ -48,11 +49,11 @@ export default function AssessmentViewModal({ isOpen, onClose, onEdit, assessmen
               </p>
             </div>
           </div>
-          {assessment.description ? (
-            <p className="text-xs font-medium mt-3 whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
-              {assessment.description}
-            </p>
-          ) : null}
+          <RichTextContent
+            value={assessment.description}
+            className="text-xs font-medium mt-3"
+            style={{ color: "var(--text-secondary)" }}
+          />
         </div>
 
         {/* Questions */}

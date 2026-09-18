@@ -15,6 +15,7 @@ import {
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import RichTextContent from "@/components/ui/RichTextContent";
 
 /**
  * PUBLIC COURSE DETAIL (Phase 7)
@@ -171,9 +172,11 @@ export default function PublicCourseDetailPage({ params }) {
             <div>
               <h1 className="text-2xl font-black uppercase tracking-tight">{course.title}</h1>
               {course.description && (
-                <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                  {course.description}
-                </p>
+                <RichTextContent
+                  value={course.description}
+                  className="mt-3 text-sm leading-relaxed"
+                  style={{ color: "var(--text-secondary)" }}
+                />
               )}
             </div>
 

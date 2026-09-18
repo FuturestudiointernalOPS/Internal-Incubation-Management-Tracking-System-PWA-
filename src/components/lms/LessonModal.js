@@ -5,6 +5,7 @@ import { CheckCircle2, AlertCircle, Film } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
 import AppButton from "@/components/ui/AppButton";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 import EmbeddedVideo from "./EmbeddedVideo";
 import { useI18n } from "@/lib/i18n";
 import { extractYouTubeVideoId } from "@/lib/lms/youtube";
@@ -161,16 +162,10 @@ export default function LessonModal({ isOpen, onClose, onSaved, mode, sectionId,
           >
             {t("lms.lessons.description")}
           </label>
-          <textarea
+          <RichTextEditor
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={2}
-            className="w-full rounded-md py-3 px-4 text-sm font-medium outline-none transition-all border resize-y"
-            style={{
-              background: "var(--bg-primary)",
-              borderColor: "var(--border-primary)",
-              color: "var(--text-primary)",
-            }}
+            onChange={setDescription}
+            minHeight={96}
           />
         </div>
 

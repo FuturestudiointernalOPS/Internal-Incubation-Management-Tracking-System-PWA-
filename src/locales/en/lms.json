@@ -65,7 +65,7 @@
       "paid": "Paid"
     },
     "sessionResources": {
-      "title": "Session Resources",
+      "title": "Section Resources",
       "add": "Add resource",
       "addResource": "Add resource",
       "saveChanges": "Save changes",
@@ -75,14 +75,14 @@
       "edit": "Edit",
       "delete": "Delete",
       "confirmDelete": "Delete this resource?",
-      "empty": "No resources attached to this session yet",
+      "empty": "No resources attached to this section yet",
       "created": "Resource added",
       "updated": "Resource updated",
       "deleted": "Resource deleted",
       "recommended": "Recommended",
       "recommendedCount": "{n} recommended",
       "recommendationsTitle": "Recommended for you",
-      "learnerTitle": "Session resources",
+      "learnerTitle": "Section resources",
       "markRecommended": "Recommend this resource",
       "markRecommendedHint": "Learners see recommended material first, with your note.",
       "fieldTitle": "Title",
@@ -282,6 +282,19 @@
       "price": "Price",
       "pricePlaceholder": "0.00",
       "updatedAt": "Updated"
+    },
+    "richText": {
+      "bold": "Bold",
+      "italic": "Italic",
+      "strike": "Strikethrough",
+      "heading2": "Heading",
+      "heading3": "Subheading",
+      "bulletList": "Bulleted list",
+      "orderedList": "Numbered list",
+      "blockquote": "Quote",
+      "codeBlock": "Code block",
+      "undo": "Undo",
+      "redo": "Redo"
     },
     "sections": {
       "title": "Sections",

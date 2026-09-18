@@ -2,6 +2,7 @@
 
 import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 import CourseImageUpload from "./CourseImageUpload";
 import { useI18n } from "@/lib/i18n";
 
@@ -35,17 +36,11 @@ export default function CourseFormFields({ value, onChange, errors = {} }) {
         >
           {t("lms.fields.description")}
         </label>
-        <textarea
+        <RichTextEditor
           value={value.description || ""}
-          onChange={set("description")}
+          onChange={(html) => onChange({ ...value, description: html })}
           placeholder={t("lms.fields.descriptionPlaceholder")}
-          rows={3}
-          className="w-full rounded-md py-3 px-4 text-sm font-medium outline-none transition-all border resize-y"
-          style={{
-            background: "var(--bg-primary)",
-            borderColor: "var(--border-primary)",
-            color: "var(--text-primary)",
-          }}
+          minHeight={120}
         />
       </div>
 

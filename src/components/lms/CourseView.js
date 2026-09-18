@@ -3,6 +3,8 @@
 import { BookOpen, Film, HelpCircle, PlayCircle } from "lucide-react";
 import CourseStatusBadge from "./CourseStatusBadge";
 import EmbeddedVideo from "./EmbeddedVideo";
+import SectionResourcesList from "./SectionResourcesList";
+import RichTextContent from "@/components/ui/RichTextContent";
 import { useI18n } from "@/lib/i18n";
 import { isValidYouTubeVideoId } from "@/lib/lms/youtube";
 import { formatDate } from "@/lib/constants";
@@ -11,11 +13,13 @@ import { formatDate } from "@/lib/constants";
  * READ-ONLY COURSE PRESENTATION — the surface you land on when opening a
  * course from the admin list.
  *
- * Layout: the very first lesson drives the box on the LEFT (its video plays
- * inline when the lesson has one — click to launch), and on its right sit the
- * course name, its description and the whole curriculum (sections → lessons →
- * assessments). No editing controls here — CourseEditor swaps this for the
- * authoring form when "Edit" is pressed.
+ * Layout: the course's FIRST VIDEO — the first lesson, in section/lesson order,
+ * that actually carries a video — drives the box on the LEFT (it plays inline,
+ * click to launch). Falling back to the first lesson would show an empty box on
+ * a course whose opening lesson has no video yet, while later ones do. On its
+ * right sit the course name, its description and the whole curriculum
+ * (sections → lessons → assessments). No editing controls here — CourseEditor
+ * swaps this for the authoring form when "Edit" is pressed.
  */
 export default function CourseView({ course }) {
   const { t } = useI18n();
@@ -26,13 +30,18 @@ export default function CourseView({ course }) {
   const lessonCount = lessons.length;
   const assessmentCount =
     sections.filter((s) => s.assessment).length + courseAssessments.length;
-  const firstLesson = lessons[0] || null;
+  // The reference the left box plays. `lessons[0]` is only the fallback used to
+  // name the empty state when the course holds no video at all.
+  const firstVideoLesson =
+    lessons.find((lesson) => isValidYouTubeVideoId(lesson.youtube_video_id)) ||
+    lessons[0] ||
+    null;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-6 items-start">
-      {/* LEFT — first lesson video */}
+      {/* LEFT — first video of the course */}
       <div className="space-y-3 min-w-0">
-        <VideoPlayer lesson={firstLesson} />
+        <VideoPlayer lesson={firstVideoLesson} />
 
         <div
           className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[9px] font-black uppercase tracking-wider"
@@ -75,9 +84,11 @@ export default function CourseView({ course }) {
         </div>
 
         {course.description ? (
-          <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-            {course.description}
-          </p>
+          <RichTextContent
+            value={course.description}
+            className="text-sm leading-relaxed"
+            style={{ color: "var(--text-secondary)" }}
+          />
         ) : (
           <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
             {t("lms.courses.noDescription")}
@@ -120,6 +131,22 @@ export default function CourseView({ course }) {
                     </span>
                   </div>
 
+                  {section.description ? (
+                    <div className="px-4 pt-3">
+                      <RichTextContent
+                        value={section.description}
+                        className="text-xs"
+                        style={{ color: "var(--text-secondary)" }}
+                      />
+                    </div>
+                  ) : null}
+
+                  {(section.resources || []).length > 0 && (
+                    <div className="px-4 pt-3">
+                      <SectionResourcesList resources={section.resources} />
+                    </div>
+                  )}
+
                   <div className="p-2 space-y-0.5">
                     {(section.lessons || []).length === 0 && (
                       <p className="text-[10px] font-bold uppercase tracking-wider text-center py-3" style={{ color: "var(--text-tertiary)" }}>
@@ -127,26 +154,35 @@ export default function CourseView({ course }) {
                       </p>
                     )}
                     {(section.lessons || []).map((lesson) => (
-                      <div key={lesson.id} className="flex items-center gap-3 px-2 py-2">
+                      <div key={lesson.id} className="flex items-start gap-3 px-2 py-2">
                         {isValidYouTubeVideoId(lesson.youtube_video_id) ? (
-                          <PlayCircle className="w-4 h-4 shrink-0" style={{ color: "var(--text-tertiary)" }} />
+                          <PlayCircle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--text-tertiary)" }} />
                         ) : (
-                          <Film className="w-4 h-4 shrink-0" style={{ color: "var(--text-tertiary)" }} />
+                          <Film className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--text-tertiary)" }} />
                         )}
-                        <span className="text-xs font-bold flex-1 min-w-0 truncate" style={{ color: "var(--text-primary)" }}>
-                          {lesson.title}
-                        </span>
-                        {lesson.is_required === false && (
-                          <span
-                            className="shrink-0 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest"
-                            style={{
-                              background: "var(--surface-3)",
-                              color: "var(--text-tertiary)",
-                            }}
-                          >
-                            {t("lms.lessons.optional")}
-                          </span>
-                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold flex-1 min-w-0 truncate" style={{ color: "var(--text-primary)" }}>
+                              {lesson.title}
+                            </span>
+                            {lesson.is_required === false && (
+                              <span
+                                className="shrink-0 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest"
+                                style={{
+                                  background: "var(--surface-3)",
+                                  color: "var(--text-tertiary)",
+                                }}
+                              >
+                                {t("lms.lessons.optional")}
+                              </span>
+                            )}
+                          </div>
+                          <RichTextContent
+                            value={lesson.description}
+                            className="text-[11px] mt-1"
+                            style={{ color: "var(--text-tertiary)" }}
+                          />
+                        </div>
                       </div>
                     ))}
                     {section.assessment && <AssessmentRow assessment={section.assessment} />}

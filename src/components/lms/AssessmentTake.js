@@ -14,6 +14,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
+import RichTextContent from "@/components/ui/RichTextContent";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
@@ -294,11 +295,11 @@ export default function AssessmentTake({ courseId, assessmentId }) {
         <h1 className="text-lg font-black tracking-tight" style={{ color: "var(--text-primary)" }}>
           {assessment.title}
         </h1>
-        {assessment.description && (
-          <p className="text-xs mt-2" style={{ color: "var(--text-secondary)" }}>
-            {assessment.description}
-          </p>
-        )}
+        <RichTextContent
+          value={assessment.description}
+          className="text-xs mt-2"
+          style={{ color: "var(--text-secondary)" }}
+        />
 
         <div className="flex flex-wrap gap-4 mt-4 text-[10px] font-black uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
           <span>{t("lms.assessment.questionsCount", { count: questions.length })}</span>

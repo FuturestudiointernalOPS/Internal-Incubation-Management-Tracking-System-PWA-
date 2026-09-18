@@ -8,6 +8,8 @@ import LessonStateIcon from "./LessonStateIcon";
 import CertificateCard from "./CertificateCard";
 import CourseThumb from "./CourseThumb";
 import LearnerCoachingButton from "./LearnerCoachingButton";
+import SectionResourcesList from "./SectionResourcesList";
+import RichTextContent from "@/components/ui/RichTextContent";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 
@@ -115,9 +117,11 @@ export default function LearnerCourse({ courseId }) {
             <LearnerCoachingButton courseId={course.id} />
           </div>
           {course.description && (
-            <p className="text-xs mt-2 max-w-2xl" style={{ color: "var(--text-secondary)" }}>
-              {course.description}
-            </p>
+            <RichTextContent
+              value={course.description}
+              className="text-xs mt-2 max-w-2xl"
+              style={{ color: "var(--text-secondary)" }}
+            />
           )}
         </div>
       </div>
@@ -185,6 +189,23 @@ export default function LearnerCourse({ courseId }) {
                   <CheckCircle2 className="w-4 h-4" style={{ color: "var(--chart-success)" }} />
                 )}
             </div>
+
+            {section.description && (
+              <div className="px-4 pt-3">
+                <RichTextContent
+                  value={section.description}
+                  className="text-xs"
+                  style={{ color: "var(--text-secondary)" }}
+                />
+              </div>
+            )}
+
+            {(section.resources || []).length > 0 && (
+              <div className="px-4 pt-3">
+                <SectionResourcesList resources={section.resources} />
+              </div>
+            )}
+
             <div className="p-3 space-y-1">
               {section.lessons.length === 0 && (
                 <p className="text-[10px] font-bold uppercase tracking-wider text-center py-2" style={{ color: "var(--text-tertiary)" }}>
@@ -192,24 +213,38 @@ export default function LearnerCourse({ courseId }) {
                 </p>
               )}
               {section.lessons.map((lesson) => (
-                <button
+                <div
                   key={lesson.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => openLesson(lesson.id)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openLesson(lesson.id);
+                    }
+                  }}
+                  className="w-full px-3 py-2.5 rounded-lg text-left transition-colors cursor-pointer"
                   style={{
                     background: lesson.state === "current" ? "var(--surface-3)" : "transparent",
                     color: "var(--text-primary)",
                   }}
                 >
-                  <LessonStateIcon state={lesson.state} />
-                  <span className="text-xs font-bold truncate flex-1">{lesson.title}</span>
-                  {!lesson.is_required && (
-                    <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--text-tertiary)" }}>
-                      {t("lms.lessons.optional")}
-                    </span>
-                  )}
-                </button>
+                  <div className="flex items-center gap-3">
+                    <LessonStateIcon state={lesson.state} />
+                    <span className="text-xs font-bold truncate flex-1">{lesson.title}</span>
+                    {!lesson.is_required && (
+                      <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--text-tertiary)" }}>
+                        {t("lms.lessons.optional")}
+                      </span>
+                    )}
+                  </div>
+                  <RichTextContent
+                    value={lesson.description}
+                    className="text-[11px] mt-1 pl-6"
+                    style={{ color: "var(--text-tertiary)" }}
+                  />
+                </div>
               ))}
               {section.assessment && (
                 <AssessmentRow

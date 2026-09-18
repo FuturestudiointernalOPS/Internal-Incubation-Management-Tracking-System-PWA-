@@ -6,6 +6,7 @@ import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
 import AppButton from "@/components/ui/AppButton";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 import QuestionModal from "./QuestionModal";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
@@ -156,17 +157,11 @@ export default function AssessmentModal({
           >
             {t("lms.assessments.description")}
           </label>
-          <textarea
+          <RichTextEditor
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={2}
+            onChange={setDescription}
             placeholder={t("lms.assessments.descriptionPlaceholder")}
-            className="w-full rounded-md py-3 px-4 text-sm font-medium outline-none transition-all border resize-y"
-            style={{
-              background: "var(--bg-primary)",
-              borderColor: "var(--border-primary)",
-              color: "var(--text-primary)",
-            }}
+            minHeight={96}
           />
         </div>
 

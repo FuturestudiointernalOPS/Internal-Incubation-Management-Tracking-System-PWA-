@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { GraduationCap, Clock, Layers, PlaySquare, ArrowRight, Loader2 } from "lucide-react";
 import NextLink from "next/link";
 import { useI18n } from "@/lib/i18n";
+import RichTextContent from "@/components/ui/RichTextContent";
 
 /**
  * PUBLIC COURSE CATALOGUE (Phase 7)
@@ -109,12 +110,11 @@ export default function PublicCoursesPage() {
                   <h2 className="text-sm font-black uppercase tracking-tight">
                     {course.title}
                   </h2>
-                  <p
+                  <RichTextContent
+                    value={course.description}
                     className="text-[11px] leading-relaxed line-clamp-2"
                     style={{ color: "var(--text-secondary)" }}
-                  >
-                    {course.description}
-                  </p>
+                  />
                   <div
                     className="flex items-center gap-3 pt-2 text-[9px] font-bold uppercase tracking-wider"
                     style={{ color: "var(--text-tertiary)" }}

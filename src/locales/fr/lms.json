@@ -65,7 +65,7 @@
       "paid": "Payant"
     },
     "sessionResources": {
-      "title": "Ressources de la séance",
+      "title": "Ressources de la section",
       "add": "Ajouter une ressource",
       "addResource": "Ajouter la ressource",
       "saveChanges": "Enregistrer les modifications",
@@ -75,14 +75,14 @@
       "edit": "Modifier",
       "delete": "Supprimer",
       "confirmDelete": "Supprimer cette ressource ?",
-      "empty": "Aucune ressource attachée à cette séance",
+      "empty": "Aucune ressource attachée à cette section",
       "created": "Ressource ajoutée",
       "updated": "Ressource mise à jour",
       "deleted": "Ressource supprimée",
       "recommended": "Recommandée",
       "recommendedCount": "{n} recommandée(s)",
       "recommendationsTitle": "Recommandé pour vous",
-      "learnerTitle": "Ressources de la séance",
+      "learnerTitle": "Ressources de la section",
       "markRecommended": "Recommander cette ressource",
       "markRecommendedHint": "Les apprenants voient d'abord les ressources recommandées, avec votre note.",
       "fieldTitle": "Titre",
@@ -282,6 +282,19 @@
       "price": "Prix",
       "pricePlaceholder": "0.00",
       "updatedAt": "Mis à jour"
+    },
+    "richText": {
+      "bold": "Gras",
+      "italic": "Italique",
+      "strike": "Barré",
+      "heading2": "Titre",
+      "heading3": "Sous-titre",
+      "bulletList": "Liste à puces",
+      "orderedList": "Liste numérotée",
+      "blockquote": "Citation",
+      "codeBlock": "Bloc de code",
+      "undo": "Annuler",
+      "redo": "Rétablir"
     },
     "sections": {
       "title": "Sections",

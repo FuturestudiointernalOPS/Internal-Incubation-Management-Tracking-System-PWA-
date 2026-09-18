@@ -18,6 +18,7 @@ import LearnerProgressBar from "./LearnerProgressBar";
 import LearnerCoachingButton from "./LearnerCoachingButton";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import RichTextContent from "@/components/ui/RichTextContent";
 import { isValidYouTubeVideoId } from "@/lib/lms/youtube";
 import { useApi } from "@/lib/hooks/useApi";
 
@@ -233,9 +234,11 @@ export default function LearnerPlayer({ courseId, lessonId }) {
               </h2>
             </div>
             {lesson.description && (
-              <p className="text-xs mt-2" style={{ color: "var(--text-secondary)" }}>
-                {lesson.description}
-              </p>
+              <RichTextContent
+                value={lesson.description}
+                className="text-xs mt-2"
+                style={{ color: "var(--text-secondary)" }}
+              />
             )}
 
             {/* Controls */}
