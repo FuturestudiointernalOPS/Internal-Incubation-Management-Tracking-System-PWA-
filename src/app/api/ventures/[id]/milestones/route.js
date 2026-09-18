@@ -4,6 +4,8 @@ import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { computeInitialMilestoneStatus, completeMilestoneAndUnlockNext, isMilestoneLeadAuthority, canManageMilestones, completeStageIfAllMilestonesDone } from "@/lib/ventureMilestoneEngine";
 import { dateOrNull, isUnknownColumnError } from "@/lib/ventureInput";
+import { roleIsPrivileged } from "@/lib/ventureAuth";
+import { projectMilestonesForVenture } from "@/lib/ventureVisibility";
 import { notifyVentureFounders } from "@/lib/ventures";
 import {
   getVentureDbIdForMilestoneCreate,
@@ -23,7 +25,13 @@ export const GET = createHandler(async (req, { params }) => {
   // schema predates the is_archived column keep working (field is undefined).
   const includeArchived = new URL(req.url).searchParams.get("include_archived") === "1";
   const rows = (r.rows || []).filter((m) => includeArchived || m.is_archived !== true);
-  return NextResponse.json({ success: true, milestones: rows });
+  // Roadmap visibility: a member sees every milestone that exists on the map,
+  // but the work inside a not-yet-released one is withheld. The projection is
+  // shared with the journey read so the two surfaces cannot drift apart —
+  // previously this list handed a founder the whole future roadmap while the
+  // journey read was hiding it.
+  const unsealed = roleIsPrivileged(access.session?.role);
+  return NextResponse.json({ success: true, milestones: projectMilestonesForVenture(rows, { unsealed }) });
 });
 
 export const POST = createHandler(async (req, { params }) => {

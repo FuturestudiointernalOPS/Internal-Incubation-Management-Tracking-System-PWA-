@@ -6,6 +6,7 @@ import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans
 import { roleIsPrivileged } from "@/lib/ventureAuth";
 import { canManageMilestones, releaseFirstMilestoneForStage } from "@/lib/ventureMilestoneEngine";
 import { evidenceDownloadUrl, isExternalEvidenceLink } from "@/lib/ventureEvidence";
+import { projectJourneyStagesForVenture } from "@/lib/ventureVisibility";
 import {
   ensureJourneyTable,
   resolveVentureInternalId,
@@ -186,30 +187,23 @@ export async function GET(req, { params }) {
       delete stage.source_template_id;
     }
 
-    // Guided experience (Vinance 3 — Phase 2): non-staff viewers (founders /
-    // team / participant) only ever see what the staff made available to them.
-    // Locked stages are the future roadmap — management strategy, not
-    // Venture-facing information. Staff and global roles always see the full
-    // roadmap through the authoring surfaces.
-    if (!access && viewer && !roleIsPrivileged(viewer.role)) {
-      const visibleStages = stages
-        .filter((s) => s.status !== "locked")
-        .map((s) => {
-          // Phase 3: milestones still locked inside a released stage are not
-          // visible either — only completed/current work is Venture-facing.
-          const visibleMilestones = (s.milestones || []).filter((m) => m.status !== "locked");
-          return {
-            ...s,
-            milestones: visibleMilestones,
-            milestone_counts: {
-              total: visibleMilestones.length,
-              completed: visibleMilestones.filter((m) => m.status === "completed").length,
-            },
-          };
-        });
+    // Guided experience (Vinance 3): a member sees the WHOLE map — every
+    // Journey and every Milestone with its real status — and walks only the
+    // part the Venture has reached. Future work is SEALED (title + status +
+    // target date, no description/objective/deliverables) rather than deleted
+    // from the payload: dropping it made the roadmap look like it had lost its
+    // future, which is the confusion this replaces. Staff actors keep the
+    // unsealed view; see src/lib/ventureVisibility.js for the projection.
+    //
+    // Both audiences are projected, differing only by `unsealed`, so the shape
+    // never depends on who is asking: `sealed` is always present (true/false)
+    // and a milestone's `deliverables` is always an array, never undefined.
+    const unsealed = !viewer || Boolean(access) || roleIsPrivileged(viewer.role);
+    const projected = projectJourneyStagesForVenture(stages, { unsealed });
+    if (!unsealed) {
       return NextResponse.json({
         success: true,
-        stages: visibleStages,
+        stages: projected,
         access,
         guided: true,
         template_source: templateSource,
@@ -217,7 +211,7 @@ export async function GET(req, { params }) {
       });
     }
 
-    return NextResponse.json({ success: true, stages, access, template_source: templateSource, milestone_authority: milestoneAuthority });
+    return NextResponse.json({ success: true, stages: projected, access, template_source: templateSource, milestone_authority: milestoneAuthority });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }

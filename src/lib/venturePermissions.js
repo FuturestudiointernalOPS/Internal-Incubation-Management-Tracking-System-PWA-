@@ -75,7 +75,7 @@ function coachDefaults() {
     ...set("overview", ["view"]),
     ...set("profile", ["view"]),
     ...set("founders", ["view"]),
-    ...set("milestones", ["view", "create", "edit", "comment", "review"]),
+    ...set("milestones", ["view", "comment", "review"]),
     ...set("tasks", ["view", "create", "edit", "comment", "review"]),
     ...set("documents", ["view", "upload", "comment", "review"]),
     ...set("internal_notes", ["view", "create", "comment"]),
@@ -116,35 +116,55 @@ const DEFAULT_MATRIX = {
 };
 
 /**
- * The coach default once granted `calendar.schedule`. Nothing read that cell, so
- * it was a promise the platform never kept. Now that the booking gate READS it,
- * the promise would finally be honoured — and coaches would be able to book.
- * The decision is the opposite: a coach supports a Venture, a manager schedules
- * it.
+ * Seeded defaults that state an answer the platform never enforced, and whose
+ * cell a route now READS. Left alone, each would finally be honoured — which is
+ * the opposite of the decision:
  *
- * `updated_by IS NULL` confines this to the SEEDED row, so a cell an
- * administrator deliberately configured is never overwritten. If someone wants a
- * coach to book, they grant it and this leaves it alone.
+ *   coach · calendar.schedule      a Coach supports a Venture; a manager books
+ *   coach · milestones.create      a Coach does not restructure the roadmap
+ *   coach · milestones.edit        ...nor rewrite or complete it
+ *   facilitator · milestones.*     same: the Lead Manager owns the roadmap
  *
- * Idempotent: once the row is FALSE the `allowed = TRUE` predicate stops matching.
- * Fail-soft: a database without the table yet is not an error here.
+ * Facilitator is listed separately on purpose. Its defaults INHERIT the coach's,
+ * so a fresh database already gets the corrected shape from `facilitatorDefaults`
+ * — but a database seeded before this change still carries the old inherited
+ * values, and unlike the coach they were never enforced either way. Reading the
+ * cell without correcting it would have WIDENED a facilitator's authority.
+ *
+ * `updated_by IS NULL` confines each correction to the SEEDED row, so a cell an
+ * administrator deliberately configured is never overwritten. If someone wants
+ * one of these granted, they grant it and this leaves it alone.
+ *
+ * Idempotent: once a row is FALSE the `allowed = TRUE` predicate stops matching.
+ * Fail-soft, and one failure never blocks the others.
  */
-export async function correctCoachSchedulingDefault(db) {
-  try {
-    await db.execute({
-      sql: `UPDATE venture_permission_matrix
-               SET allowed = FALSE
-             WHERE responsibility_code = 'coach'
-               AND area = 'calendar'
-               AND action = 'schedule'
-               AND allowed = TRUE
-               AND updated_by IS NULL`,
-      args: [],
-    });
-    return true;
-  } catch (_) {
-    return false;
+const SEED_DEFAULT_CORRECTIONS = [
+  { responsibility: "coach", area: "calendar", action: "schedule" },
+  { responsibility: "coach", area: "milestones", action: "create" },
+  { responsibility: "coach", area: "milestones", action: "edit" },
+  { responsibility: "facilitator", area: "milestones", action: "create" },
+  { responsibility: "facilitator", area: "milestones", action: "edit" },
+];
+
+export async function correctSeedDefaults(db) {
+  let allOk = true;
+  for (const { responsibility, area, action } of SEED_DEFAULT_CORRECTIONS) {
+    try {
+      await db.execute({
+        sql: `UPDATE venture_permission_matrix
+                 SET allowed = FALSE
+               WHERE responsibility_code = ?
+                 AND area = ?
+                 AND action = ?
+                 AND allowed = TRUE
+                 AND updated_by IS NULL`,
+        args: [responsibility, area, action],
+      });
+    } catch (_) {
+      allOk = false;
+    }
   }
+  return allOk;
 }
 
 /**
@@ -159,7 +179,7 @@ export async function correctCoachSchedulingDefault(db) {
 export async function seedVenturePermissions(db) {
   const countRes = await db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_permission_matrix", args: [] });
   const existing = Number(countRes.rows?.[0]?.n || 0);
-  const corrected = await correctCoachSchedulingDefault(db);
+  const corrected = await correctSeedDefaults(db);
   if (existing > 0) return { seeded: false, corrected };
 
   const tx = [];
