@@ -149,7 +149,7 @@ for that screen.
 
 | Measure | Start | Now |
 |---|---:|---:|
-| ESLint warnings, total | 2192 | 7 |
+| ESLint warnings, total | 2192 | 5 |
 | `react-hooks/set-state-in-effect` | 200 | 2 |
 | ESLint errors | 0 | 0 |
 | `no-unused-vars` | 2 | 0 |
@@ -161,15 +161,17 @@ what PERFORMS the conversion - "stop writing state from an effect" - and it cann
 perform it on itself. Its two `exhaustive-deps` are deliberate for the same reason
 (the caller owns part of its dependency list).
 
-The remaining seven, in full:
+The remaining five, in full:
 
 | File | Rule | Why it is not a screen to convert |
 |---|---|---|
 | `src/lib/hooks/useApi.js` | `set-state-in-effect` ×2 | §3.7 - the hook is the removal target and cannot remove this from itself. |
 | `src/lib/hooks/useApi.js` | `exhaustive-deps` ×2 | §3.7 - the spread IS the feature: the caller owns part of the list. |
-| `src/app/admin/op-reports/page.js` | `@next/next/no-img-element` | The image work, deliberately separate. |
-| `src/app/admin/platform/scores/page.js` | `preserve-manual-memoization` | §3.6 - a memoisation note, not a conversion. |
-| `src/__tests__/result-pdf-layout.test.js` | `no-unused-vars` | Not this migration's: a test file added by the other workstream. |
+| `src/__tests__/result-pdf-layout.test.js` | `no-unused-vars` | Not this migration's: a test file added by the other workstream (one unused constant). |
+
+The two that stood in this table as "not a conversion" - the scores
+memoisation note and the operational report's image - are both gone. §3.12
+records what each one actually needed.
 
 ### What is left, and under which reason
 
@@ -203,9 +205,9 @@ needed.
 > two "state written in an effect" and two "a spread in the dependency array". They
 > are left deliberately - see section 3.7.
 
-> Note: the repository currently reports 2 `no-unused-vars`, both in
-> `src/__tests__/program-assignment-grants.test.js`. They were introduced by a
-> different workstream and are unrelated to this migration.
+> Note: the repository currently reports one `no-unused-vars`, in
+> `src/__tests__/result-pdf-layout.test.js` (a single unused constant). It was
+> introduced by a different workstream and is unrelated to this migration.
 
 ---
 
@@ -650,6 +652,37 @@ deliberately, because the guards disagreed with each other on them:
 > Still worth walking after any change here: entering and leaving each section as
 each role, on a COLD LOAD (not a navigation), and with an account whose role
 > changed server-side.
+
+---
+
+### 3.12 The two that were "not a conversion" - BOTH FIXED
+
+Both were fixed by removing the construct that produced the warning, not by
+silencing it.
+
+| Where | What the warning was | What it actually took |
+|---|---|---|
+| `src/app/admin/platform/scores/page.js` | the CSV export was declared BEFORE the `useMemo` list it reads | The compiler merged the two into one reactive scope, and its memoisation check then ran before that scope was registered - so it reported the memo as "not preserved" and gave up on the component. Declaring the export AFTER the list it reads fixes it, and that is also the order the data reads in. The diff is a **pure move**: the export still reads the filtered list. |
+| `src/app/admin/op-reports/page.js` | a bare `<img>` for the report logo | It now uses the shared image component with the logo's real dimensions (1018×1024), exactly as the sidebar and the sign-in screen already do. `w-auto` is NOT optional: without it the width attribute wins and the logo is stretched. |
+
+**Both deserve a screen walk:**
+
+- the scores screen: export a CSV with filters applied and with none - the file
+  must still hold the FILTERED rows, and the name must still come from the chosen
+  run (falling back to the chosen form);
+- the operational report: open a report and export the PDF. The logo sits inside
+  the region the document is captured from, so this is the one image change that
+  can alter a DOCUMENT rather than just a screen.
+
+> **Recorded, not fixed.** The same scores screen still reads its scores inside a
+> `try` with a `finally`. The React Compiler cannot build HIR for a `finally`
+> clause and reports it as a `Todo` - a diagnostic this repository's config does
+> not surface, so it is invisible today. It costs nothing while the compiler is
+> not part of the build (`next.config.mjs` does not enable it), but it is the one
+> construct that would keep that screen out of compilation the day it is. The
+> repair is three lines (clear the loading flag after the block - the `catch`
+> above already absorbs every failure), deliberately left out so that each change
+> here has exactly one cause.
 
 ---
 
