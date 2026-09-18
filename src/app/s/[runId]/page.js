@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { Loader2, Send, CheckCircle2, AlertTriangle, Clock, Globe, Mail } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import AppPhoneInput from "@/components/ui/AppPhoneInput";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 // ─── Translation helper via MyMemory (free, no API key needed) ───
 async function translateText(text, sourceLang, targetLang) {
@@ -28,6 +28,80 @@ async function translateBatch(strings, sourceLang, targetLang) {
   return results;
 }
 
+// ─── What the screen starts from (module scope: built once per run) ──────────
+
+const EMPTY_RUN = {
+  run: null,
+  form: null,
+  sections: [],
+  fields: [],
+  originalLang: "en",
+  draftData: {},
+  draftSection: 0,
+  failure: null,
+};
+
+/** The form's own language, guessed from the accents in its content. */
+function detectFormLanguage(strings) {
+  const allText = strings.filter(Boolean).join(" ").toLowerCase();
+  const frenchChars = (allText.match(/[éèêëàâîïôûùçœ]/g) || []).length;
+  return frenchChars > 2 ? "fr" : "en";
+}
+
+/**
+ * The run, its form, and THIS visit's saved draft — everything the screen starts
+ * from, shaped where the answer arrives. The draft belongs here rather than in a
+ * second effect because it is a fact about the browser, and the answer is the only
+ * moment the browser is the one asking.
+ */
+const pickPublicRun = (slug) => (d) => {
+  // A run that is not there is the same answer as a refusal, and the screen shows
+  // the server's own message for it - which is what the loader did by throwing.
+  if (!d?.success || !d.run) {
+    return { ...EMPTY_RUN, failure: d?.error || "Run not found" };
+  }
+
+  const form = {
+    name: d.run.form_name || d.run.name,
+    description: d.run.form_description || d.run.description,
+  };
+  const sections = d.sections || [];
+  const fields = d.fields || [];
+
+  let draftData = {};
+  let draftSection = 0;
+  try {
+    const saved = localStorage.getItem(`form_draft_${slug}`);
+    if (saved) {
+      const draft = JSON.parse(saved);
+      if (draft.formData && typeof draft.formData === "object") {
+        draftData = draft.formData;
+      }
+      if (typeof draft.currentSection === "number" && draft.currentSection >= 0) {
+        draftSection = draft.currentSection;
+      }
+    }
+  } catch {
+    // A browser with storage disabled simply has no draft.
+  }
+
+  return {
+    run: d.run,
+    form,
+    sections,
+    fields,
+    originalLang: detectFormLanguage([
+      form.name,
+      form.description,
+      ...sections.map((s) => s.title || ""),
+      ...fields.flatMap((f) => [f.label, f.help_text, f.placeholder].filter(Boolean)),
+    ]),
+    draftData,
+    draftSection,
+    failure: null,
+  };
+};
+
 
 
 
@@ -36,132 +110,94 @@ export default function PublicSubmitPage() {
   const params = useParams();
   const runId = params.runId;
   const { t, lang, switchLang } = useI18n();
-  const [loading, setLoading] = useState(true);
-  const [translating, setTranslating] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [successConfig, setSuccessConfig] = useState(null);
   const [notification, setNotification] = useState(null);
-  const [run, setRun] = useState(null);
-  const [form, setForm] = useState(null);
-  const [sections, setSections] = useState([]);
-  const [fields, setFields] = useState([]);
-  const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
-  const [currentSection, setCurrentSection] = useState(0); // Multi-section stepper
 
-  // Cache raw originals so we can always restore original language perfectly
-  const rawForm = useRef(null);
-  const rawSections = useRef([]);
-  const rawFields = useRef([]);
-  const originalLang = useRef("en"); // Detected form language
+  // The read goes through the shared hook, which owns the cache, the cache-first
+  // paint and the discarding of a stale answer. One root value per run, built once
+  // rather than on every render.
+  const pickRun = useMemo(() => pickPublicRun(runId), [runId]);
+  const runRead = useApi(
+    runId ? `/api/s/public-run?slug=${encodeURIComponent(runId)}` : null,
+    { defaultValue: EMPTY_RUN, transform: pickRun },
+  );
+  const raw = runRead.data;
+  const run = raw.run;
+  const loading = runRead.loading;
+  const error = raw.failure
+    ? t(raw.failure) || raw.failure
+    : runRead.error || null;
+
+  // ─── Translation: the form's texts in the interface's language ───
+  //
+  // A translation is an OVERRIDE keyed on the language it was made for, so a
+  // language switch needs no clearing, no second copy of the form and no effect
+  // that writes state - and the raw payload stays the thing everything is restored
+  // from, which is what the four refs used to hold.
+  const [translated, setTranslated] = useState(null);
+  const tr = translated && translated.lang === lang ? translated : null;
+  const form = tr?.form || raw.form;
+  const sections = tr?.sections || raw.sections;
+  const fields = tr?.fields || raw.fields;
+  // A translation is owed while the interface language differs from the form's own
+  // and the one for that language is not in hand.
+  const translating =
+    Boolean(raw.form) &&
+    lang !== raw.originalLang &&
+    (!translated || translated.lang !== lang);
+
+  // ─── The visitor's typing, over the draft the read brought with it ───
+  const [dataEdits, setDataEdits] = useState(null);
+  const formData = dataEdits ?? raw.draftData;
+  const [sectionChoice, setSectionChoice] = useState(null);
+  const currentSection = sectionChoice ?? raw.draftSection;
 
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
-  // Translate form content when language changes
-  const translateFormContent = async (targetLang) => {
-    if (!rawForm.current) return;
-    const srcLang = originalLang.current || "en";
-    // If target matches original, restore from cache
-    if (targetLang === srcLang) {
-      setForm({ ...rawForm.current });
-      setSections(rawSections.current.map(s => ({ ...s })));
-      setFields(rawFields.current.map(f => ({ ...f })));
-      return;
-    }
-    setTranslating(true);
-    try {
-      const [tForm, tSections, tLabels, tHelp, tPlaceholders] = await Promise.all([
-        translateBatch([rawForm.current?.name || "", rawForm.current?.description || ""], srcLang, targetLang),
-        translateBatch(rawSections.current.map(s => s.title || ""), srcLang, targetLang),
-        translateBatch(rawFields.current.map(f => f.label || ""), srcLang, targetLang),
-        translateBatch(rawFields.current.map(f => f.help_text || ""), srcLang, targetLang),
-        translateBatch(rawFields.current.map(f => f.placeholder || ""), srcLang, targetLang),
-      ]);
-      setForm({ name: tForm[0], description: tForm[1] });
-      setSections(rawSections.current.map((s, i) => ({ ...s, title: tSections[i] || s.title })));
-      setFields(rawFields.current.map((f, i) => ({
-        ...f,
-        label: tLabels[i] || f.label,
-        help_text: tHelp[i] || f.help_text,
-        placeholder: tPlaceholders[i] || f.placeholder,
-      })));
-    } catch (e) { console.error("Translation failed:", e); }
-    setTranslating(false);
-  };
+  // The form's OWN language decides the interface for a visitor who has not chosen
+  // one: someone opening a French form should read it in French. It writes the
+  // LANGUAGE store rather than state, so no render is cascaded from here.
+  useEffect(() => {
+    if (!raw.form || raw.originalLang === "en") return;
+    let chosen = null;
+    try { chosen = localStorage.getItem("impactos_lang"); } catch { chosen = null; }
+    if (!chosen) switchLang(raw.originalLang);
+  }, [raw.form, raw.originalLang, switchLang]);
 
-  const loadRun = useCallback(async (bypassCache = false) => {
-    const url = `/api/s/public-run?slug=${runId}`;
-    const apply = (data) => {
-      if (!data || !data.success) return;
-      const loadedForm = { name: data.run.form_name || data.run.name, description: data.run.form_description || data.run.description };
-      setRun(data.run);
-      setSections(data.sections || []);
-      setFields(data.fields || []);
-      setForm(loadedForm);
-      // Cache raw originals
-      rawForm.current = loadedForm;
-      rawSections.current = data.sections || [];
-      rawFields.current = data.fields || [];
-
-      // ── Restore saved draft from localStorage ──
+  // Ask for the translation while one is owed for the language in force.
+  useEffect(() => {
+    if (!raw.form || lang === raw.originalLang) return;
+    if (translated && translated.lang === lang) return;
+    let cancelled = false;
+    (async () => {
+      const srcLang = raw.originalLang || "en";
       try {
-        const draftKey = `form_draft_${runId}`;
-        const savedDraft = localStorage.getItem(draftKey);
-        if (savedDraft) {
-          const draft = JSON.parse(savedDraft);
-          if (draft.formData && typeof draft.formData === "object") {
-            setFormData(draft.formData);
-          }
-          if (typeof draft.currentSection === "number" && draft.currentSection >= 0) {
-            setCurrentSection(draft.currentSection);
-          }
-        }
-      } catch (_) {}
-
-      // Detect form's original language by scanning content for French characters
-      const allText = [
-        loadedForm.name, loadedForm.description,
-        ...(data.sections || []).map(s => s.title || ""),
-        ...(data.fields || []).flatMap(f => [f.label, f.help_text, f.placeholder].filter(Boolean))
-      ].join(" ").toLowerCase();
-      const frenchChars = (allText.match(/[éèêëàâîïôûùçœ]/g) || []).length;
-      const detectedLang = frenchChars > 2 ? "fr" : "en";
-      originalLang.current = detectedLang;
-
-      // Set the initial language to match the form's language
-      const savedLang = typeof window !== "undefined" ? localStorage.getItem("impactos_lang") : null;
-      if (!savedLang && detectedLang !== "en") {
-        switchLang(detectedLang);
-      } else if (savedLang && savedLang !== "en") {
-        translateFormContent(savedLang);
-      }
-    };
-    let painted = false;
-    try {
-      // Cache-first paint: returning to the same public run paints instantly from a
-      // fresh snapshot while the network refresh below keeps the run/form current.
-      if (!bypassCache) {
-        const cached = cacheGet(url);
-        if (cached !== null && cached.success) {
-          apply(cached);
-          setLoading(false);
-          painted = true;
-        }
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (!data.success) throw new Error(t(data.error || "Run not found") || data.error || "Run not found");
-      cacheSet(url, data);
-      apply(data);
-    } catch (e) {
-      if (!painted) setError(t(e.message || "") || e.message);
-    }
-    setLoading(false);
-  }, [runId, t, switchLang]);
-
-  useEffect(() => { loadRun(); }, [loadRun]);
+        const [tForm, tSections, tLabels, tHelp, tPlaceholders] = await Promise.all([
+          translateBatch([raw.form?.name || "", raw.form?.description || ""], srcLang, lang),
+          translateBatch(raw.sections.map(s => s.title || ""), srcLang, lang),
+          translateBatch(raw.fields.map(f => f.label || ""), srcLang, lang),
+          translateBatch(raw.fields.map(f => f.help_text || ""), srcLang, lang),
+          translateBatch(raw.fields.map(f => f.placeholder || ""), srcLang, lang),
+        ]);
+        if (cancelled) return;
+        setTranslated({
+          lang,
+          form: { name: tForm[0], description: tForm[1] },
+          sections: raw.sections.map((s, i) => ({ ...s, title: tSections[i] || s.title })),
+          fields: raw.fields.map((f, i) => ({
+            ...f,
+            label: tLabels[i] || f.label,
+            help_text: tHelp[i] || f.help_text,
+            placeholder: tPlaceholders[i] || f.placeholder,
+          })),
+        });
+      } catch (e) { console.error("Translation failed:", e); }
+    })();
+    return () => { cancelled = true; };
+  }, [raw, lang, translated]);
 
   // Auto-save currentSection to localStorage
   useEffect(() => {
@@ -173,15 +209,9 @@ export default function PublicSubmitPage() {
     } catch (_) {}
   }, [currentSection, runId]);
 
-  // Re-translate when language is switched
-  useEffect(() => {
-    if (rawForm.current) translateFormContent(lang);
-  }, [lang]);  
-
   const updateField = (fieldId, value) => {
-    const updated = (prev) => ({ ...prev, [fieldId]: value });
-    setFormData(prev => {
-      const newData = updated(prev);
+    setDataEdits((prev) => {
+      const newData = { ...(prev ?? raw.draftData), [fieldId]: value };
       // Auto-save to localStorage
       try {
         const draft = { formData: newData, currentSection, lastSaved: Date.now() };
@@ -486,7 +516,7 @@ export default function PublicSubmitPage() {
               <div className="flex gap-3 pt-2">
                 {!isFirst && (
                   <button
-                    onClick={() => setCurrentSection(prev => Math.max(0, prev - 1))}
+                    onClick={() => setSectionChoice(prev => Math.max(0, (prev ?? raw.draftSection) - 1))}
                     className="px-5 py-2.5 rounded-xl bg-slate-800 border border-slate-600 text-slate-300 text-xs font-black uppercase hover:bg-slate-700 transition-colors"
                   >
                     ← {t("common.previous") || "Previous"}
@@ -494,7 +524,7 @@ export default function PublicSubmitPage() {
                 )}
                 {!isLast ? (
                   <button
-                    onClick={() => setCurrentSection(prev => Math.min(validSections.length - 1, prev + 1))}
+                    onClick={() => setSectionChoice(prev => Math.min(validSections.length - 1, (prev ?? raw.draftSection) + 1))}
                     className="ml-auto px-6 py-2.5 rounded-xl bg-orange-500 text-white text-xs font-black uppercase hover:bg-orange-600 transition-colors"
                   >
                     {t("common.next") || "Next"} →
