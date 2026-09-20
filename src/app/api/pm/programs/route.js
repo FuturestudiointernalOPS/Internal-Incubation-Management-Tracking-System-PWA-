@@ -123,17 +123,24 @@ export async function GET(req) {
       const submissionsWeight = sub.approved * 3.0;
 
       const duration = Number(p.duration_weeks) || 4;
+      // Expected submissions use the number of ACTIVE participants (the same
+      // deduped, non-facilitator count shown on the card), not the stale
+      // counter that may sit on the program row.
+      const participantCount = metrics.participants[p.id] || 0;
       const totalPossibleWeight =
         s.count * 5.0 +
         d.count * 2.0 +
         duration * 10.0 +
-        d.count * Number(p.participants_count || 1) * 3.0;
-      const completion_index =
+        d.count * participantCount * 3.0;
+      const rawCompletion =
         totalPossibleWeight > 0
           ? ((sessionsWeight + docsWeight + reportsWeight + submissionsWeight) /
               totalPossibleWeight) *
             100
           : 0;
+      // A program cannot be more than 100% done (e.g. more report weeks than the
+      // planned duration would otherwise overshoot).
+      const completion_index = Math.max(0, Math.min(100, rawCompletion));
 
       // Program facilitators (external personnel, role='facilitator')
       let facilitators = [];

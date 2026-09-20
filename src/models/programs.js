@@ -255,10 +255,12 @@ export async function listProgramsByManagementFilters({
   return db.execute({ sql: baseQuery, args });
 }
 
-/** Sessions per program (count). Used by GET /api/pm/programs metrics. */
+/** Sessions per program (count + completed). Used by GET /api/pm/programs metrics. */
 export async function countSessionsByProgram() {
   return db.execute(
-    "SELECT program_id, COUNT(*) as count, 0 as completed FROM v2_sessions GROUP BY program_id",
+    `SELECT program_id, COUNT(*) as count,
+            SUM(CASE WHEN LOWER(COALESCE(status, '')) = 'completed' THEN 1 ELSE 0 END) as completed
+     FROM v2_sessions GROUP BY program_id`,
   );
 }
 
