@@ -25,7 +25,7 @@ import {
   Plus,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { formatLocaleDate } from "@/lib/constants";
+import { formatLocaleDate, weightedKpiProgress } from "@/lib/constants";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
 import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
 
@@ -273,6 +273,17 @@ export default function UnifiedDashboard({ role: propRole }) {
       active = false;
     };
   }, [user?.cid]);
+
+  // Program completion index by id, taken from the programs endpoint already
+  // fetched above. Used as the progress fallback for a program that has no KPI.
+  const completionIndexById = useMemo(() => {
+    const map = new Map();
+    (facilitatorPrograms || []).forEach((p) => {
+      if (p?.id === undefined || p?.id === null) return;
+      map.set(String(p.id), Number(p.completion_index) || 0);
+    });
+    return map;
+  }, [facilitatorPrograms]);
 
   // Determine effective role
   const effectiveRole = user?.role || propRole || "staff";
@@ -1110,16 +1121,26 @@ export default function UnifiedDashboard({ role: propRole }) {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {quickAccess.programs?.slice(0, 4).map((p) => {
-                      const progress = p.completion_index || 0;
-                      // Get this program's KPIs from dashboard data
+                      const fallbackProgress =
+                        Number(p.completion_index) ||
+                        completionIndexById.get(String(p.id)) ||
+                        0;
+                      // Get this program's KPIs from dashboard data.
                       const progKpis = (data?.kpis || []).filter(k => String(k.program_id) === String(p.id));
+                      // Each KPI's achievement is the share of active participants
+                      // whose work was approved; weightedKpiProgress then mixes them
+                      // by weight (equal weights when none is set), so a program is
+                      // never dragged to 0 just because a weight is missing.
                       const kpiProgress = progKpis.length > 0
-                        ? Math.round(progKpis.reduce((sum, k) => {
-                            const total = parseInt(k.participant_count) || 1;
+                        ? weightedKpiProgress(progKpis.map((k) => {
+                            const total = parseInt(k.participant_count) || 0;
                             const approved = parseInt(k.approved_count) || 0;
-                            return sum + (approved / total) * (parseFloat(k.weight) || 0);
-                          }, 0) / 100)
-                        : progress;
+                            return {
+                              weight: k.weight,
+                              progress: total > 0 ? (approved / total) * 100 : 0,
+                            };
+                          }))
+                        : fallbackProgress;
                       return (
                         <div
                           key={p.id}

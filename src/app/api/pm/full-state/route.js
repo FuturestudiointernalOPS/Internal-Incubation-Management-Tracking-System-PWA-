@@ -1,7 +1,11 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, requireProgramFacilitator, hasProgramManagementAccess, isAssignedPmForProgram } from "@/lib/auth";
-import { refreshKpiProgressIfStale } from "@/lib/kpi-progress";
+import {
+  recalculateKpiProgress,
+  refreshKpiProgressIfStale,
+} from "@/lib/kpi-progress";
+import { weightedKpiProgress } from "@/lib/constants";
 import {
   getAssistantContactsByCids,
   getPersistedKpiProgress,
@@ -219,180 +223,82 @@ export async function GET(req) {
       const kpiList = kpiRes.rows || [];
       const subList = subRes.rows || [];
 
-      // ─── PERSISTED KPI PROGRESS ───
-      // Read from kpi_progress table (pre-calculated, updated on session/doc changes)
+      // ─── KPI PROGRESS ───
+      // Single source of truth: the approved-submission calculation cached in
+      // kpi_progress. There is no per-screen provisional formula — when the
+      // cache is empty the canonical recalculation runs and its result is used
+      // immediately, so the first paint already matches the persisted numbers.
+      const sessionList = sesRes.rows || [];
+      const docList = docRes.rows || [];
+      const kpiWeight = (kpi) =>
+        parseFloat(kpi.weight) ||
+        (kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0);
+
+      let progressEntries = [];
       try {
-        const progressRes = await getPersistedKpiProgress(id);
-        const persistedProgress = progressRes.rows || [];
-
-        if (persistedProgress.length > 0) {
-          // Merge persisted progress with KPI metadata. kpi_progress rows store
-          // completion_rate (approved submissions / participants); the weight
-          // lives on the KPI itself, and linked session/doc counts are derived
-          // from the curriculum (they are not cached).
-          const sessionList = sesRes.rows || [];
-          const docList = docRes.rows || [];
-          kpisWithProgress = kpiList.map((kpi) => {
-            const p = persistedProgress.find(
-              (pp) => String(pp.kpi_id) === String(kpi.id),
-            );
-            const linkedSessions = sessionList.filter((s) => {
-              try {
-                const ids =
-                  typeof s.kpi_ids === "string"
-                    ? JSON.parse(s.kpi_ids)
-                    : s.kpi_ids || [];
-                return ids.map(String).includes(String(kpi.id));
-              } catch {
-                return false;
-              }
-            });
-            const linkedDocs = docList.filter((d) => {
-              try {
-                const ids =
-                  typeof d.kpi_ids === "string"
-                    ? JSON.parse(d.kpi_ids)
-                    : d.kpi_ids || [];
-                return ids.map(String).includes(String(kpi.id));
-              } catch {
-                return false;
-              }
-            });
-            return {
-              ...kpi,
-              progress: p
-                ? Math.round(parseFloat(p.completion_rate) || 0)
-                : 0,
-              weight:
-                parseFloat(kpi.weight) ||
-                (kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0),
-              linkedSessions: linkedSessions.length,
-              completedSessions: linkedSessions.filter(
-                (s) => s.status === "completed",
-              ).length,
-              linkedDocs: linkedDocs.length,
-              completedDocs: linkedDocs.filter((d) => d.is_completed).length,
-            };
-          });
-        } else {
-          // Fallback: calculate dynamically (first time, no persisted data yet)
-          const sessionList = sesRes.rows || [];
-          const docList = docRes.rows || [];
-
-          kpisWithProgress = kpiList.map((kpi) => {
-            const kpiId = String(kpi.id);
-            const linkedSessions = sessionList.filter((s) => {
-              try {
-                const ids =
-                  typeof s.kpi_ids === "string"
-                    ? JSON.parse(s.kpi_ids)
-                    : s.kpi_ids || [];
-                return ids.map(String).includes(kpiId);
-              } catch {
-                return false;
-              }
-            });
-            const linkedDocs = docList.filter((d) => {
-              try {
-                const ids =
-                  typeof d.kpi_ids === "string"
-                    ? JSON.parse(d.kpi_ids)
-                    : d.kpi_ids || [];
-                return ids.map(String).includes(kpiId);
-              } catch {
-                return false;
-              }
-            });
-
-            return {
-              ...kpi,
-              progress:
-                linkedSessions.length + linkedDocs.length > 0
-                  ? Math.round(
-                      ((linkedSessions.filter((s) => s.status === "completed")
-                        .length +
-                        linkedDocs.filter((d) => d.is_completed).length) /
-                        (linkedSessions.length + linkedDocs.length)) *
-                        100,
-                    )
-                  : 0,
-              weight:
-                parseFloat(kpi.weight) ||
-                (kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0),
-              linkedSessions: linkedSessions.length,
-              completedSessions: linkedSessions.filter(
-                (s) => s.status === "completed",
-              ).length,
-              linkedDocs: linkedDocs.length,
-              completedDocs: linkedDocs.filter((d) => d.is_completed).length,
-            };
-          });
-
-          // Refresh the persisted calculation for next time — but not on every
-          // view: a page load must not systematically trigger a write-heavy
-          // recalculation. Recent persisted progress is reused; approvals and
-          // requirement edits recalculate immediately through their own routes.
-          refreshKpiProgressIfStale(id).catch(() => {});
+        progressEntries = (await getPersistedKpiProgress(id)).rows || [];
+        if (progressEntries.length === 0) {
+          const fresh = await recalculateKpiProgress(id);
+          progressEntries = (fresh || []).map((r) => ({
+            kpi_id: r.kpi_id,
+            completion_rate: r.completion_rate,
+          }));
         }
       } catch (e) {
         console.warn(
-          "kpi_progress table not available, falling back to dynamic calc:",
+          "kpi_progress unavailable, reporting no KPI progress:",
           e.message,
         );
-        // Fallback: calculate dynamically
-        const sessionList = sesRes.rows || [];
-        const docList = docRes.rows || [];
-        kpisWithProgress = kpiList.map((kpi) => {
-          const kpiId = String(kpi.id);
-          const linkedSessions = sessionList.filter((s) => {
-            try {
-              const ids =
-                typeof s.kpi_ids === "string"
-                  ? JSON.parse(s.kpi_ids)
-                  : s.kpi_ids || [];
-              return ids.map(String).includes(kpiId);
-            } catch {
-              return false;
-            }
-          });
-          const linkedDocs = docList.filter((d) => {
-            try {
-              const ids =
-                typeof d.kpi_ids === "string"
-                  ? JSON.parse(d.kpi_ids)
-                  : d.kpi_ids || [];
-              return ids.map(String).includes(kpiId);
-            } catch {
-              return false;
-            }
-          });
-          return {
-            ...kpi,
-            progress:
-              linkedSessions.length + linkedDocs.length > 0
-                ? Math.round(
-                    ((linkedSessions.filter((s) => s.status === "completed")
-                      .length +
-                      linkedDocs.filter((d) => d.is_completed).length) /
-                      (linkedSessions.length + linkedDocs.length)) *
-                      100,
-                  )
-                : 0,
-            weight:
-              parseFloat(kpi.weight) ||
-              (kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0),
-            linkedSessions: linkedSessions.length,
-            completedSessions: linkedSessions.filter(
-              (s) => s.status === "completed",
-            ).length,
-            linkedDocs: linkedDocs.length,
-            completedDocs: linkedDocs.filter((d) => d.is_completed).length,
-          };
-        });
       }
 
+      kpisWithProgress = kpiList.map((kpi) => {
+        const kpiId = String(kpi.id);
+        const persisted = progressEntries.find(
+          (pp) => String(pp.kpi_id) === kpiId,
+        );
+        const linkedSessions = sessionList.filter((s) => {
+          try {
+            const ids =
+              typeof s.kpi_ids === "string"
+                ? JSON.parse(s.kpi_ids)
+                : s.kpi_ids || [];
+            return ids.map(String).includes(kpiId);
+          } catch {
+            return false;
+          }
+        });
+        const linkedDocs = docList.filter((d) => {
+          try {
+            const ids =
+              typeof d.kpi_ids === "string"
+                ? JSON.parse(d.kpi_ids)
+                : d.kpi_ids || [];
+            return ids.map(String).includes(kpiId);
+          } catch {
+            return false;
+          }
+        });
+        return {
+          ...kpi,
+          progress: persisted
+            ? Math.round(parseFloat(persisted.completion_rate) || 0)
+            : 0,
+          weight: kpiWeight(kpi),
+          linkedSessions: linkedSessions.length,
+          completedSessions: linkedSessions.filter(
+            (s) => s.status === "completed",
+          ).length,
+          linkedDocs: linkedDocs.length,
+          completedDocs: linkedDocs.filter((d) => d.is_completed).length,
+        };
+      });
+
+      // Keep the cache reasonably fresh without recalculating on every view:
+      // approvals and requirement edits recalculate immediately on their own
+      // routes, so this only bounds how long an unnoticed change can linger.
+      refreshKpiProgressIfStale(id).catch(() => {});
+
       totalParticipants = uniqueParticipants.length;
-      const docList = docRes.rows || [];
       expectedSubmissions = totalParticipants * docList.length;
       actualSubmissions = subList.length;
       approvedSubmissions = subList.filter(
@@ -406,12 +312,11 @@ export async function GET(req) {
         actualSubmissions > 0
           ? Math.round((approvedSubmissions / actualSubmissions) * 100)
           : 0;
+      // Operational progress is the KPI progress, using the same weighted
+      // definition as the PM dashboard (equal weights when none is set).
       operationalProgress =
         kpisWithProgress.length > 0
-          ? Math.round(
-              kpisWithProgress.reduce((sum, k) => sum + (k.progress || 0), 0) /
-                kpisWithProgress.length,
-            )
+          ? weightedKpiProgress(kpisWithProgress)
           : program?.completion_index || 0;
       overallHealth = Math.round((operationalProgress + approvalRate) / 2);
     }

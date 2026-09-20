@@ -66,7 +66,7 @@ export async function recalculateKpiProgress(programId, participantId) {
               )`,
       args: [String(programId), String(programId)],
     });
-    const totalParticipants = parseInt(partRes.rows[0]?.count) || 1;
+    const totalParticipants = parseInt(partRes.rows[0]?.count) || 0;
 
     // 3. All deliverables for this program
     const docRes = await db.execute({
@@ -107,7 +107,10 @@ export async function recalculateKpiProgress(programId, participantId) {
           linkedDocIds.includes(String(s.document_id)),
       );
       const uniqueApproved = new Set(approvedForKpi.map((s) => s.participant_id)).size;
-      const completionRate = Math.round((uniqueApproved / totalParticipants) * 100);
+      const completionRate =
+        totalParticipants > 0
+          ? Math.min(100, Math.round((uniqueApproved / totalParticipants) * 100))
+          : 0;
 
       return {
         kpi_id: kpi.id,

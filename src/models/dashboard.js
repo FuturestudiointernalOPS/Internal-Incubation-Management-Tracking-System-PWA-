@@ -12,14 +12,21 @@ import db from "@/lib/db";
  *  - One function per query, named after the data it returns.
  */
 
-/** KPI summary for the Super Admin dashboard (program × avg KPI rate). */
+/** KPI summary for the Super Admin dashboard (program × weighted KPI rate). */
 export async function getProgramKpiSummary() {
   return db.execute({
     sql: `SELECT p.id, p.name, p.status,
-                 ROUND(AVG(kp.progress)) AS avg_kpi_rate,
+                 ROUND(
+                   COALESCE(
+                     SUM(kp.completion_rate * COALESCE(k.weight, 0))
+                       / NULLIF(SUM(COALESCE(k.weight, 0)), 0),
+                     AVG(kp.completion_rate)
+                   )
+                 ) AS avg_kpi_rate,
                  COUNT(DISTINCT kp.kpi_id) AS kpi_count
           FROM v2_programs p
           LEFT JOIN kpi_progress kp ON p.id::text = kp.program_id
+          LEFT JOIN v2_kpis k ON kp.kpi_id::text = k.id::text
           WHERE p.status NOT IN ('archived', 'cancelled')
           GROUP BY p.id, p.name, p.status
           HAVING COUNT(DISTINCT kp.kpi_id) > 0

@@ -275,6 +275,34 @@ export function calcPercentage(part, total) {
   return Math.round((part / total) * 100);
 }
 
+/**
+ * Weighted KPI progress — one 0–100 number for a set of KPIs.
+ *
+ * Each KPI contributes its own achievement rate (`progress`, itself a 0–100
+ * figure) in proportion to its `weight`. When no KPI carries a weight, all are
+ * treated as equally important. This is the single definition of "KPI progress"
+ * so every screen (PM dashboard, program detail) shows the same number.
+ *
+ * @param {Array<{ weight?: number|string, progress?: number|string }>} kpis
+ * @returns {number|null} 0–100, or null when there is no KPI to average
+ */
+export function weightedKpiProgress(kpis) {
+  const list = (kpis || []).filter(Boolean);
+  if (list.length === 0) return null;
+
+  const rawWeights = list.map((k) => parseFloat(k.weight) || 0);
+  const totalWeight = rawWeights.reduce((sum, w) => sum + w, 0);
+  const weights = totalWeight > 0 ? rawWeights : list.map(() => 1);
+  const weightSum = totalWeight > 0 ? totalWeight : list.length;
+
+  const score = list.reduce(
+    (sum, k, i) => sum + (parseFloat(k.progress) || 0) * weights[i],
+    0,
+  );
+
+  return Math.max(0, Math.min(100, Math.round(score / weightSum)));
+}
+
 // ─── COLOR CONSTANTS ───────────────────────────────────────────────────
 
 export const CHART_COLORS = [
