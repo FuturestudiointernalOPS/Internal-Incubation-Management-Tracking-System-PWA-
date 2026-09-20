@@ -1547,12 +1547,12 @@ function ProgramWorkspace() {
                   </p>
                   <p className="text-[10px] text-[var(--text-secondary)] mt-1">
                     {t("pmMisc.workspace.overviewCompletionRate")}{" "}
-                    {participants.length > 0
+                    {participants.length > 0 && requirements.length > 0
                       ? Math.round(
-                        (submissions.length /
-                          (participants.length * sessions.length || 1)) *
-                        100,
-                      )
+                          (submissions.length /
+                            (participants.length * requirements.length)) *
+                            100,
+                        )
                       : 0}
                     %
                   </p>
