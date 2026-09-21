@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
+import { activityLabel, activityDetails, isSystemActor } from "@/lib/ventureActivity";
 import VentureDashboard from "@/components/ventures/VentureDashboard";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
@@ -42,6 +43,48 @@ import VentureDashboard from "@/components/ventures/VentureDashboard";
 // rather than rebuilt on every render.
 
 const pickVenture = (d) => (d?.success ? d.venture || null : null);
+
+/**
+ * Who the Venture is made of — counted from the MEMBERSHIP list ONLY.
+ *
+ * The founder list on this Venture is an invitation ledger (email + invited /
+ * accepted), so counting it made a Venture with a real founder report
+ * "0 founders" and an empty team. The server sends the same summary; this
+ * derivation is what keeps the screen honest on a cached payload.
+ */
+const summarizeMembers = (venture) => {
+  if (venture?.member_summary) return venture.member_summary;
+  const members = venture?.members || [];
+  const isFounder = (m) => Boolean(m.is_founder) || m.member_type === "founder";
+  return {
+    total: members.length,
+    founders: members.filter(isFounder).length,
+    team: members.filter((m) => !isFounder(m)).length,
+    suspended: members.filter((m) => m.status === "suspended").length,
+    owner: members.find((m) => m.is_owner) || null,
+    members,
+  };
+};
+
+const memberStatusColor = (status) =>
+  status === "suspended"
+    ? "bg-amber-500/10 text-amber-400"
+    : status === "removed"
+      ? "bg-slate-500/10 text-slate-400"
+      : "bg-emerald-500/10 text-emerald-400";
+
+/** A generic relation is translated; a job title ("CEO") is a datum, shown as-is. */
+const MEMBER_ROLE_KEYS = {
+  founder: "vadmin.detail.roleFounder",
+  "co-founder": "vadmin.detail.roleCoFounder",
+  member: "vadmin.detail.roleMember",
+  team_member: "vadmin.detail.roleMember",
+};
+
+const memberRoleLabel = (member, t) => {
+  const key = MEMBER_ROLE_KEYS[String(member.role || "").toLowerCase()];
+  return key ? t(key) : String(member.role || "");
+};
 
 const STAGE_CONFIG = {
   idea: { label: "vadmin.detail.stageIdea", color: "text-blue-400 bg-blue-500/10", order: 1 },
@@ -146,6 +189,16 @@ export default function VentureDetailPage({ params }) {
   const getStageConfig = (stage) => STAGE_CONFIG[stage] || STAGE_CONFIG.idea;
   const getActivityIcon = (action) => ACTIVITY_ICONS[action] || Activity;
   const getActivityColor = (action) => ACTIVITY_COLORS[action] || "text-slate-500 bg-slate-500/10";
+
+  // The people of this Venture (membership), read once for the whole page.
+  const memberSummary = summarizeMembers(venture);
+  const members = memberSummary.members || [];
+
+  /** "by <name>" — or "by the system" when the platform acted on its own. */
+  const actorText = (name) =>
+    isSystemActor(name)
+      ? t("vadmin.activity.bySystem")
+      : t("vadmin.detail.byActor", { name });
 
   if (loading) {
     return (
@@ -414,17 +467,17 @@ export default function VentureDetailPage({ params }) {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
                     <div className="flex items-center gap-2">
-                      <Users className="w-3.5 h-3.5 text-blue-500" />
-                      <span className="text-[10px] font-bold text-slate-500">{t("vadmin.detail.founders")}</span>
-                    </div>
-                    <span className="text-sm font-black">{(venture.founders || []).length}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
-                    <div className="flex items-center gap-2">
                       <Users className="w-3.5 h-3.5 text-emerald-500" />
                       <span className="text-[10px] font-bold text-slate-500">{t("vadmin.detail.members")}</span>
                     </div>
-                    <span className="text-sm font-black">{(venture.members || []).length}</span>
+                    <span className="text-sm font-black">{memberSummary.total}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <Crown className="w-3.5 h-3.5 text-blue-500" />
+                      <span className="text-[10px] font-bold text-slate-500">{t("vadmin.detail.founders")}</span>
+                    </div>
+                    <span className="text-sm font-black">{memberSummary.founders}</span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
                     <div className="flex items-center gap-2">
@@ -452,16 +505,20 @@ export default function VentureDetailPage({ params }) {
                   {(venture.activity || []).slice(0, 5).map((act, i) => {
                     const Icon = getActivityIcon(act.action);
                     const color = getActivityColor(act.action);
+                    const details = activityDetails(act.details, t);
                     return (
                       <div key={act.id || i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-tertiary transition-all">
                         <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
                           <Icon className="w-3.5 h-3.5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[9px] font-bold text-[var(--text-primary)] truncate">{act.action}</p>
+                          <p className="text-[9px] font-bold text-[var(--text-primary)]">{activityLabel(act.action, t)}</p>
                           <p className="text-[8px] text-slate-500">
-                            {act.actor_name} · {new Date(act.created_at).toLocaleDateString(lang)}
+                            {actorText(act.actor_name)} · {new Date(act.created_at).toLocaleDateString(lang)}
                           </p>
+                          {details.length > 0 && (
+                            <p className="text-[8px] text-[var(--text-secondary)] mt-0.5">{details[0]}</p>
+                          )}
                         </div>
                       </div>
                     );
@@ -476,70 +533,119 @@ export default function VentureDetailPage({ params }) {
         )}
 
         {(activeTab === "founders" || activeTab === "team") && (
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <User className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-                {t("vadmin.detail.founders")}
-              </h3>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/founders`)}
-                className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-xl text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-1.5"
-              >
-                <Shield className="w-3 h-3" /> {t("vadmin.detail.manage")}
-              </button>
+          <div className="space-y-6">
+            {/* Who is in this Venture, counted from the MEMBERSHIP list — the
+                founder included. The founder invitation ledger is managed on its
+                own screen, reached from the button below. */}
+            <div className="card">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                    <Users className="w-6 h-6 text-[var(--brand-orange)]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.teamMembers")}</h3>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {t("vadmin.detail.teamManagementDesc")}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => router.push(`/admin/ventures/${id}/founders`)}
+                  className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+                >
+                  <Shield className="w-3.5 h-3.5" /> {t("vadmin.detail.manageInvitations")}
+                </button>
+              </div>
+
+              <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.totalMembers")}</p>
+                  <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{memberSummary.total}</p>
+                </div>
+                <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.founders")}</p>
+                  <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{memberSummary.founders}</p>
+                </div>
+                <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.team")}</p>
+                  <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{memberSummary.team}</p>
+                </div>
+                <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.suspendedMembers")}</p>
+                  <p className="text-2xl font-black text-amber-400 mt-1">{memberSummary.suspended}</p>
+                </div>
+              </div>
             </div>
-            {(venture.founders || []).length === 0 ? (
-              <p className="text-sm text-[var(--text-secondary)] py-6 text-center">{t("vadmin.detail.noFounders")}</p>
-            ) : (
-              <div className="space-y-3">
-                {(venture.founders || []).map((founder, i) => (
-                  <div key={founder.id || i} className="flex items-center justify-between p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-sm font-black">
-                        {founder.name?.charAt(0) || "?"}
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-[var(--text-primary)]">{founder.name}</p>
-                        <div className="flex items-center gap-3 mt-1 text-[10px] text-slate-500">
-                          <span className="flex items-center gap-1">
-                            <Mail className="w-3 h-3" /> {founder.email}
-                          </span>
-                          {founder.phone && (
-                            <span className="flex items-center gap-1">
-                              <Phone className="w-3 h-3" /> {founder.phone}
-                            </span>
-                          )}
-                          {founder.title && (
-                            <span>{founder.title}</span>
-                          )}
+
+            {/* The member record itself: who they are, how to reach them, what
+                they are, and since when. */}
+            <div className="card">
+              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <User className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                {t("vadmin.detail.memberList")}
+              </h3>
+              {members.length === 0 ? (
+                <p className="text-sm text-[var(--text-secondary)] py-6 text-center">{t("vadmin.detail.noMembers")}</p>
+              ) : (
+                <div className="space-y-3">
+                  {members.map((member, i) => (
+                    <div
+                      key={member.id || i}
+                      className="flex flex-wrap items-center justify-between gap-3 p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]"
+                    >
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-sm font-black shrink-0">
+                          {(member.name || member.email || "?").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-bold text-[var(--text-primary)] truncate">
+                              {member.name || member.email || t("vadmin.detail.unnamedMember")}
+                            </p>
+                            {member.is_owner ? (
+                              <span className="flex items-center gap-1 text-[8px] font-black uppercase px-2 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                                <Crown className="w-3 h-3" /> {t("vadmin.detail.owner")}
+                              </span>
+                            ) : member.is_founder ? (
+                              <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">
+                                {t("vadmin.detail.founderBadge")}
+                              </span>
+                            ) : (
+                              <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">
+                                {t("vadmin.detail.teamMemberBadge")}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3 mt-1 text-[10px] text-slate-500">
+                            {member.email && (
+                              <span className="flex items-center gap-1">
+                                <Mail className="w-3 h-3" /> {member.email}
+                              </span>
+                            )}
+                            {member.phone && (
+                              <span className="flex items-center gap-1">
+                                <Phone className="w-3 h-3" /> {member.phone}
+                              </span>
+                            )}
+                            <span>{memberRoleLabel(member, t)}</span>
+                            {member.joined_at && (
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {t("vadmin.detail.memberSince", { date: new Date(member.joined_at).toLocaleDateString(lang) })}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`text-[8px] font-black uppercase px-2 py-1 rounded ${
-                        founder.status === "accepted"
-                          ? "bg-emerald-500/10 text-emerald-500"
-                          : founder.status === "pending"
-                            ? "bg-amber-500/10 text-amber-500"
-                            : "bg-slate-500/10 text-slate-500"
-                      }`}>
-                        {founder.status === "accepted"
-                          ? t("vadmin.detail.accepted")
-                          : founder.status === "pending"
-                            ? t("vadmin.detail.pending")
-                            : founder.status}
+                      <span className={`text-[8px] font-black uppercase px-2 py-1 rounded shrink-0 ${memberStatusColor(member.status)}`}>
+                        {t(`vadmin.detail.memberStatus.${["active", "suspended", "removed"].includes(member.status) ? member.status : "active"}`)}
                       </span>
-                      {founder.invitation_sent_at && (
-                        <span className="text-[8px] text-slate-500">
-                          {t("vadmin.detail.invited", { date: new Date(founder.invitation_sent_at).toLocaleDateString(lang) })}
-                        </span>
-                      )}
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -556,6 +662,7 @@ export default function VentureDetailPage({ params }) {
                 {(venture.activity || []).map((act, i) => {
                   const Icon = getActivityIcon(act.action);
                   const color = getActivityColor(act.action);
+                  const details = activityDetails(act.details, t);
                   return (
                     <div key={act.id || i} className="flex items-start gap-4 p-3 rounded-lg hover:bg-tertiary transition-all">
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
@@ -563,18 +670,21 @@ export default function VentureDetailPage({ params }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-[11px] font-bold text-[var(--text-primary)]">{act.action}</p>
-                          <span className="text-[8px] text-slate-500">
-                            {t("vadmin.detail.byActor", { name: act.actor_name || t("vadmin.detail.system") })}
-                          </span>
+                          <p className="text-[11px] font-bold text-[var(--text-primary)]">{activityLabel(act.action, t)}</p>
+                          <span className="text-[8px] text-slate-500">{actorText(act.actor_name)}</span>
                         </div>
                         <p className="text-[9px] text-slate-500 mt-0.5">
                           {new Date(act.created_at).toLocaleString(lang)}
                         </p>
-                        {act.details && (
-                          <p className="text-[9px] text-slate-600 mt-1 font-mono">
-                            {JSON.stringify(act.details).substring(0, 200)}
-                          </p>
+                        {/* What actually changed — in words, never a raw payload. */}
+                        {details.length > 0 && (
+                          <ul className="mt-1 space-y-0.5">
+                            {details.map((line, li) => (
+                              <li key={li} className="text-[10px] text-[var(--text-secondary)]">
+                                {line}
+                              </li>
+                            ))}
+                          </ul>
                         )}
                       </div>
                     </div>
@@ -670,7 +780,7 @@ export default function VentureDetailPage({ params }) {
                         <FileText className="w-4 h-4 text-purple-500" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-bold text-[var(--text-primary)]">{entry.event_type}</p>
+                        <p className="text-[11px] font-bold text-[var(--text-primary)]">{activityLabel(entry.event_type, t)}</p>
                         <p className="text-[9px] text-slate-500 mt-0.5">{entry.description}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[8px] text-slate-600">
@@ -691,53 +801,6 @@ export default function VentureDetailPage({ params }) {
           </div>
         )}
 
-        {(activeTab === "management" || activeTab === "team") && (
-          <div className="card">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
-                  <Shield className="w-6 h-6 text-[var(--brand-orange)]" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.teamManagement")}</h3>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    {t("vadmin.detail.teamManagementDesc")}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/founders`)}
-                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-              >
-                <Shield className="w-3.5 h-3.5" /> {t("vadmin.detail.openFounderManagement")}
-              </button>
-            </div>
-            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.totalMembers")}</p>
-                <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{(venture.founders || []).length}</p>
-              </div>
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.roles")}</p>
-                <p className="text-2xl font-black text-[var(--text-primary)] mt-1">
-                  {new Set((venture.founders || []).map((f) => f.role || f.title)).size}
-                </p>
-              </div>
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.pending")}</p>
-                <p className="text-2xl font-black text-amber-400 mt-1">
-                  {(venture.founders || []).filter((f) => f.status === "pending").length}
-                </p>
-              </div>
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.active")}</p>
-                <p className="text-2xl font-black text-emerald-400 mt-1">
-                  {(venture.founders || []).filter((f) => f.status === "accepted").length}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </>
   );

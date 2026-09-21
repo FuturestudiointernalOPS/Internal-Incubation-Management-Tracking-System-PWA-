@@ -9,6 +9,8 @@
     "create": "Create",
     "update": "Update",
     "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
     "close": "Close",
     "back": "Back",
     "next": "Next",

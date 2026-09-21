@@ -355,6 +355,9 @@ export default function VentureFoundersPage() {
                 <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                   {venture.company_name} · {t("vadmin.founders.memberCount", { count: founders.length })}
                 </p>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-1 max-w-2xl">
+                  {t("vadmin.founders.ledgerHint")}
+                </p>
               </div>
             </div>
           </div>
@@ -446,12 +449,12 @@ export default function VentureFoundersPage() {
                             ? "bg-rose-500/10 text-rose-500 border-2 border-rose-500/20"
                             : "bg-primary border-2 border-[var(--border-primary)] text-[var(--text-primary)]"
                       }`}>
-                        {founder.name?.charAt(0) || "?"}
+                        {founder.name?.charAt(0) || founder.email?.charAt(0) || "?"}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-bold text-[var(--text-primary)] truncate">
-                            {founder.name}
+                            {founder.name || founder.email}
                           </p>
                           {isOwner && (
                             <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 flex items-center gap-1">
@@ -757,10 +760,10 @@ export default function VentureFoundersPage() {
                     className="w-full text-left p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-amber-500/30 transition-all flex items-center gap-4"
                   >
                     <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-sm font-black text-amber-400">
-                      {f.name?.charAt(0)}
+                      {f.name?.charAt(0) || f.email?.charAt(0)}
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-[var(--text-primary)]">{f.name}</p>
+                      <p className="text-sm font-bold text-[var(--text-primary)]">{f.name || f.email}</p>
                       <p className="text-[10px] text-[var(--text-secondary)]">{f.email} · {f.role}</p>
                     </div>
                     <ChevronRight className="w-4 h-4 text-slate-500 ml-auto" />
