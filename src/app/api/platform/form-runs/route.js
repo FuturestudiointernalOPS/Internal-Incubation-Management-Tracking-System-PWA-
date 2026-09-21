@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
-import { sendDecisionEmail, getTemplate, resolvePersonName, resolveSubmissionEmail, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun, detectLanguage, getEmailLogRow } from "@/lib/email";
+import { sendDecisionEmail, getTemplate, resolvePersonName, resolveSubmissionEmail, resolveProjectName, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun, detectLanguage, getEmailLogRow } from "@/lib/email";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
 import { resolveAutomationFlag } from "@/lib/platform/automationSettings";
 import { syncApprovedSubmissionToProgramGroup } from "@/lib/contact-group-sync";
@@ -898,6 +898,18 @@ function formatResultAnswer(value) {
 }
 
 /**
+ * Does this run send the Founder Fit Score result email?
+ *
+ * The Founder Fit Score run gets a report-specific message; every other run
+ * keeps the neutral copy. The form name is the stable signal — the seeded form
+ * is "Founder Fit Score Assessment" — with the run name as a fallback so a run
+ * created from a renamed copy still matches.
+ */
+function isFounderFitResultRun(ctx) {
+  return /founder\s*fit/i.test(`${ctx?.form_name || ""} ${ctx?.run_name || ""}`);
+}
+
+/**
  * Build the participant-facing RESULT document for a submission — the
  * applicant's answers, the evaluation feedback and the final score. The
  * document never references how the evaluation was produced (the applicant
@@ -907,7 +919,7 @@ function formatResultAnswer(value) {
  * preview shown before sending both call this builder, so what the reviewer
  * sees and what the applicant receives can never disagree.
  *
- * Returns { status: "ok", pdfBytes, lang, applicantName, to, row }
+ * Returns { status: "ok", pdfBytes, lang, applicantName, to, row, score, projectName, template }
  *      or { status: "not_found"|"failed", error }.
  *
  * When the run carries an Output Instruction, the report is composed by AI from
@@ -982,6 +994,10 @@ async function buildResultDocument({ submission_id, forceReport = false }) {
       submissionData: subData,
       fieldLabels: labels,
     });
+
+    // Venture / project name when the form asked for one ("Startup Name") — the
+    // result email names the project in its closing recommendation.
+    const projectName = resolveProjectName({ submissionData: subData, fieldLabels: labels });
 
     // Workflow language from the form's question labels (FR forms get a
     // French document + email, EN forms an English one).
@@ -1146,7 +1162,17 @@ async function buildResultDocument({ submission_id, forceReport = false }) {
           sections,
         });
 
-    return { status: "ok", pdfBytes, lang, applicantName: applicantName || "", to: applicantEmail, row };
+    return {
+      status: "ok",
+      pdfBytes,
+      lang,
+      applicantName: applicantName || "",
+      to: applicantEmail,
+      row,
+      score: finalScore != null ? Math.round(Number(finalScore)) : null,
+      projectName,
+      template: isFounderFitResultRun(ctx) ? "founder_fit" : "generic",
+    };
   } catch (e) {
     console.error("[form-runs] Result document error:", e);
     return { status: "failed", error: e?.message || "Document error" };
@@ -1167,7 +1193,7 @@ async function sendResultEmailForSubmission({ submission_id }) {
   try {
     const doc = await buildResultDocument({ submission_id });
     if (doc.status !== "ok") return { status: doc.status, error: doc.error };
-    const { row, to: applicantEmail, applicantName, lang, pdfBytes } = doc;
+    const { row, to: applicantEmail, applicantName, lang, pdfBytes, score, projectName, template } = doc;
 
     // Already emailed for THIS submission → polite already_sent (re-click).
     const existingLog = await getEmailLogRow(parseInt(submission_id), "result");
@@ -1209,6 +1235,9 @@ async function sendResultEmailForSubmission({ submission_id }) {
           lang,
           runId: row.run_id,
           submissionId: parseInt(submission_id),
+          score,
+          projectName,
+          template,
         }),
     });
     if (tracked.success) {

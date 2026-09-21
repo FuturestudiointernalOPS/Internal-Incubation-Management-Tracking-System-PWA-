@@ -1134,6 +1134,39 @@ export function resolvePersonName({ contactName, contactFirstName, contactLastNa
   return "";
 }
 
+// Project / venture name fields. The Founder Fit Score asks for a "Startup
+// Name"; other venture forms use Project / Nom du projet. Kept apart from the
+// person-name hints on purpose — a company name is never the applicant's name.
+const PROJECT_NAME_HINTS =
+  /^(startup|project|company|venture|business)\s*(name)?$|^nom\s+(du\s+|de\s+la\s+|de\s+l['’]?)?(projet|startup|entreprise|soci[eé]t[eé])$|^(nom|name)\s+(du\s+|of\s+(the\s+)?)?(projet|project)$/i;
+
+/**
+ * Resolve the applicant's project / venture name from the submission, using the
+ * form's real question labels (submission data is keyed by field id). Returns
+ * "" when the form never asked for one — callers then fall back to neutral
+ * wording instead of printing an empty gap.
+ */
+export function resolveProjectName({ submissionData, fieldLabels }) {
+  const data = submissionData && typeof submissionData === "object" ? submissionData : {};
+  const clean = (v) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "");
+  const labelOf = (k) =>
+    fieldLabels && fieldLabels[String(k)] != null ? String(fieldLabels[String(k)]) : String(k);
+
+  let loose = "";
+  for (const [k, v] of Object.entries(data)) {
+    const val = clean(v);
+    if (!val) continue;
+    const label = labelOf(k).trim();
+    if (PROJECT_NAME_HINTS.test(label)) return val;
+    // Softer net, never enough on its own: a label that merely mentions the
+    // venture ("Startup Industry") must not match, hence the name/nom word.
+    if (!loose && /(startup|projet|project|venture)/i.test(label) && /(name|nom)/i.test(label)) {
+      loose = val;
+    }
+  }
+  return loose;
+}
+
 /**
  * Infer the workflow language from form question labels. Returns "fr" when the
  * form's questions are predominantly French (Nom complet / Prénom / Courriel…),
@@ -1491,28 +1524,143 @@ export async function sendDecisionEmail({ to, applicantName, formName, decision,
   return sendEmail({ to, subject, html, provider: provider || DECISION_EMAIL_DEFAULT });
 }
 
+// Shared inline styles for result-email paragraphs (dark card drawn by the shell).
+const R_P = "color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 10px;";
+const R_PL = "color:#94a3b8;font-size:14px;line-height:1.6;margin:0;";
+const R_UL = "color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 10px;padding-left:20px;";
+
+/**
+ * Neutral result copy — every run EXCEPT the Founder Fit Score one. Deliberately
+ * form-agnostic: it names neither the form, the run, nor what the report is.
+ *
+ * Both copies expose the same shape so the sender composes them identically:
+ *   greetingHtml + openingHtml + accessHtml(hosted, url) + closingHtml
+ */
+function genericResultCopy({ isFr, greeting, frGreeting }) {
+  return {
+    subject: isFr ? "Résultat de votre soumission" : "Your submission result",
+    greetingHtml: isFr ? `<p style="${R_P}">${frGreeting}</p>` : `<p style="${R_P}">${greeting}</p>`,
+    openingHtml: "",
+    // How the report is reached: attached, or a download button on the fallback
+    // transport (which cannot carry the file).
+    accessHtml: (hosted, url) => {
+      if (!hosted) {
+        return isFr
+          ? `<p style="${R_PL}">Veuillez trouver ci-joint le résultat de votre soumission. Le document contient vos réponses, l'évaluation de votre soumission et votre score final. Merci pour votre participation.</p>`
+          : `<p style="${R_PL}">Please find attached the result of your submission. The document contains your responses, the evaluation of your submission and your final score. Thank you for participating.</p>`;
+      }
+      return isFr
+        ? `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">Le résultat de votre soumission est prêt. Le document contient vos réponses, l'évaluation de votre soumission et votre score final. Merci pour votre participation.</p>
+       <table cellpadding="0" cellspacing="0" style="margin: 0 0 20px;"><tr><td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;"><a href="${url}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">TÉLÉCHARGER MON RÉSULTAT (PDF)</a></td></tr></table>
+       <p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 4px;">Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :</p>
+       <p style="color:#ff6600;font-size:11px;word-break:break-all;margin:0;">${url}</p>`
+        : `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">The result of your submission is ready. The document contains your responses, the evaluation of your submission and your final score. Thank you for participating.</p>
+       <table cellpadding="0" cellspacing="0" style="margin: 0 0 20px;"><tr><td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;"><a href="${url}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">DOWNLOAD YOUR RESULT (PDF)</a></td></tr></table>
+       <p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 4px;">If the button doesn't work, copy and paste this link into your browser:</p>
+       <p style="color:#ff6600;font-size:11px;word-break:break-all;margin:0;">${url}</p>`;
+    },
+    closingHtml: "",
+  };
+}
+
+/**
+ * Founder Fit Score result copy — used only by that run. Presents the report,
+ * states the score out of 100, and closes on the recommendation.
+ *
+ * `scoreText` and `project` are optional: without a score the score sentence is
+ * dropped, and without a project name the recommendation refers to "your
+ * project" — so a form that never asked for a venture still reads correctly.
+ */
+function founderFitResultCopy({ isFr, greeting, frGreeting, scoreText, project }) {
+  return {
+    subject: isFr ? "Votre Founder Fit Score est disponible" : "Your Founder Fit Score is available",
+    greetingHtml: isFr ? `<p style="${R_P}">${frGreeting}</p>` : `<p style="${R_P}">${greeting}</p>`,
+    openingHtml: isFr
+      ? `<p style="${R_P}">Merci d'avoir pris le temps de compléter le Founder Fit Score de Future Studio.</p>
+       <p style="${R_P}">À partir de vos réponses, nous avons préparé un rapport personnalisé qui présente :</p>
+       <ul style="${R_UL}">
+         <li>votre score global ;</li>
+         <li>votre résultat sur chacun des sept critères ;</li>
+         <li>vos principaux points forts ;</li>
+         <li>vos axes prioritaires de progression ;</li>
+         <li>des recommandations concrètes pour faire évoluer votre projet.</li>
+       </ul>
+       ${scoreText ? `<p style="${R_P}">Votre Founder Fit Score est de <strong style="color:#f8fafc;">${scoreText} / 100</strong>.</p>` : ""}
+       <p style="${R_P}">Ce résultat ne constitue ni un jugement définitif ni une étiquette. Il représente une photographie de votre profil actuel et vise à vous aider à mieux comprendre vos forces, les points à consolider et les prochaines décisions à prendre.</p>`
+      : `<p style="${R_P}">Thank you for taking the time to complete Future Studio's Founder Fit Score.</p>
+       <p style="${R_P}">Based on your answers, we have prepared a personalised report that presents:</p>
+       <ul style="${R_UL}">
+         <li>your overall score;</li>
+         <li>your result on each of the seven criteria;</li>
+         <li>your main strengths;</li>
+         <li>your priority areas for progress;</li>
+         <li>concrete recommendations to move your project forward.</li>
+       </ul>
+       ${scoreText ? `<p style="${R_P}">Your Founder Fit Score is <strong style="color:#f8fafc;">${scoreText} / 100</strong>.</p>` : ""}
+       <p style="${R_P}">This result is neither a definitive judgment nor a label. It is a snapshot of your profile today, meant to help you better understand your strengths, what to consolidate and the next decisions to take.</p>`,
+    accessHtml: (hosted, url) => {
+      if (hosted) {
+        return isFr
+          ? `<p style="${R_P}">Vous pouvez consulter votre rapport complet en téléchargeant le document ci-dessous.</p>
+       <table cellpadding="0" cellspacing="0" style="margin: 0 0 20px;"><tr><td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;"><a href="${url}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">TÉLÉCHARGER MON RAPPORT (PDF)</a></td></tr></table>
+       <p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 10px;">Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur : <span style="color:#ff6600;word-break:break-all;">${url}</span></p>`
+          : `<p style="${R_P}">You can read your full report by downloading the document below.</p>
+       <table cellpadding="0" cellspacing="0" style="margin: 0 0 20px;"><tr><td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;"><a href="${url}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">DOWNLOAD MY REPORT (PDF)</a></td></tr></table>
+       <p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 10px;">If the button doesn't work, copy and paste this link into your browser: <span style="color:#ff6600;word-break:break-all;">${url}</span></p>`;
+      }
+      return isFr
+        ? `<p style="${R_P}">Vous pouvez consulter votre rapport complet à travers le fichier joint.</p>`
+        : `<p style="${R_P}">You can read your full report in the attached file.</p>`;
+    },
+    closingHtml: isFr
+      ? `<p style="${R_P}">Nous vous recommandons de prendre le temps de lire les actions proposées, notamment celles liées à la validation du marché, à la traction commerciale et à la différenciation de ${project || "votre projet"}.</p>
+       <p style="${R_P}">Nous restons disponibles pour échanger avec vous sur les résultats et identifier l'accompagnement Future Studio le plus adapté à votre niveau d'avancement.</p>
+       <p style="${R_PL}">Bien cordialement,<br>L'équipe Future Studio</p>`
+      : `<p style="${R_P}">We recommend taking the time to read the proposed actions, especially those related to market validation, commercial traction and the differentiation of ${project || "your project"}.</p>
+       <p style="${R_P}">We remain available to talk through the results with you and to identify the Future Studio support best suited to your stage of progress.</p>
+       <p style="${R_PL}">Kind regards,<br>The Future Studio Team</p>`,
+  };
+}
+
 /**
  * Send a participant-facing submission result email with a PDF document
  * (their responses, the evaluation and their final score).
  *
- * The copy is intentionally neutral: it never names the form or the run
- * (subject, body and file name stay generic) and never mentions how the
- * evaluation was produced — the recipient only sees a personal result.
+ * The copy comes from one of two sources, picked by `template`: the Founder Fit
+ * Score message (`"founder_fit"`) or the neutral, form-agnostic one. Whoever the
+ * recipient is, the message never mentions how the evaluation was produced.
+ *
+ * `score` and `projectName` are optional and only the Founder Fit copy uses
+ * them: without a score its score sentence is dropped, and without a project
+ * name its recommendation refers to "your project".
  *
  * Delivery:
  *  - Gmail transport attaches the PDF natively when Google Workspace
  *    credentials are configured.
  *  - Otherwise the PDF is hosted in Supabase storage and delivered as a
- *    download link through Resend (never silently dropped).
+ *    download button through Resend (never silently dropped).
  */
-export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en", runId, submissionId }) {
+export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en", runId, submissionId, score, projectName, template }) {
   const isFr = (lang || "en").toLowerCase().startsWith("fr");
-  const subject = isFr ? "Résultat de votre soumission" : "Your submission result";
   const greetingName = resolveGreetingName(applicantName);
   const greeting = greetingName ? `Hello ${greetingName},` : "Hello,";
   const frGreeting = greetingName ? `Bonjour ${greetingName},` : "Bonjour,";
   const filename = "submission-result.pdf";
   const pdf = pdfBuffer ? Buffer.from(pdfBuffer) : null;
+
+  // Optional inputs, both resolved by the caller from the submission: a form
+  // that never asked for a venture produces an empty project, and an evaluation
+  // without a score produces no score sentence at all.
+  const project = typeof projectName === "string" ? projectName.replace(/\s+/g, " ").trim() : "";
+  const scoreNum = Number(score);
+  const scoreText = Number.isFinite(scoreNum) && String(score ?? "").trim() !== "" ? String(Math.round(scoreNum)) : "";
+
+  // The Founder Fit Score run gets its own report-specific message; every other
+  // run keeps the neutral, form-agnostic copy.
+  const copy = template === "founder_fit"
+    ? founderFitResultCopy({ isFr, greeting, frGreeting, scoreText, project })
+    : genericResultCopy({ isFr, greeting, frGreeting });
+  const subject = copy.subject;
 
   if (isPlaceholderEmail(to)) {
     console.warn("[Email] REFUSING to send to placeholder address:", to);
@@ -1540,30 +1688,17 @@ export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en
       </table>
     </body></html>`;
 
-  const attachedBody = isFr
-    ? `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 10px;">${frGreeting}</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0;">Veuillez trouver ci-joint le résultat de votre soumission. Le document contient vos réponses, l'évaluation de votre soumission et votre score final. Merci pour votre participation.</p>`
-    : `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 10px;">${greeting}</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0;">Please find attached the result of your submission. The document contains your responses, the evaluation of your submission and your final score. Thank you for participating.</p>`;
-
-  const hostedBody = (url) => isFr
-    ? `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 10px;">${frGreeting}</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">Le résultat de votre soumission est prêt. Le document contient vos réponses, l'évaluation de votre soumission et votre score final. Merci pour votre participation.</p>
-       <table cellpadding="0" cellspacing="0" style="margin: 0 0 20px;"><tr><td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;"><a href="${url}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">TÉLÉCHARGER MON RÉSULTAT (PDF)</a></td></tr></table>
-       <p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 4px;">Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :</p>
-       <p style="color:#ff6600;font-size:11px;word-break:break-all;margin:0;">${url}</p>`
-    : `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 10px;">${greeting}</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">The result of your submission is ready. The document contains your responses, the evaluation of your submission and your final score. Thank you for participating.</p>
-       <table cellpadding="0" cellspacing="0" style="margin: 0 0 20px;"><tr><td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;"><a href="${url}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">DOWNLOAD YOUR RESULT (PDF)</a></td></tr></table>
-       <p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 4px;">If the button doesn't work, copy and paste this link into your browser:</p>
-       <p style="color:#ff6600;font-size:11px;word-break:break-all;margin:0;">${url}</p>`;
+  // One body for both transports — the copy is identical, only the way the
+  // report is reached differs (attached, or a download button on the fallback).
+  const compose = (hosted, url = "") =>
+    shell(copy.greetingHtml + copy.openingHtml + copy.accessHtml(hosted, url) + copy.closingHtml);
 
   // Preferred path: native PDF attachment through the Gmail API transport.
   if (gmailCredentialsAvailable()) {
     const res = await sendViaGmail({
       to,
       subject,
-      html: shell(attachedBody),
+      html: compose(false),
       attachments: [{ filename, content: pdf, contentType: "application/pdf" }],
     });
     if (res.success) return res;
@@ -1598,7 +1733,7 @@ export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en
     }
     if (res.error) throw res.error;
     const url = supabase.storage.from("submissions").getPublicUrl(objectPath).data.publicUrl;
-    const mailRes = await sendViaResend({ to, subject, html: shell(hostedBody(url)) });
+    const mailRes = await sendViaResend({ to, subject, html: compose(true, url) });
     if (!mailRes.success) {
       return { ...mailRes, error: mailRes.error || mailRes.note || "Email send failed" };
     }
