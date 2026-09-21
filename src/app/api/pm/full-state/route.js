@@ -6,6 +6,7 @@ import {
   refreshKpiProgressIfStale,
 } from "@/lib/kpi-progress";
 import { weightedKpiProgress } from "@/lib/constants";
+import { toDayString } from "@/lib/programProgress";
 import {
   getAssistantContactsByCids,
   getPersistedKpiProgress,
@@ -320,6 +321,24 @@ export async function GET(req) {
           : program?.completion_index || 0;
       overallHealth = Math.round((operationalProgress + approvalRate) / 2);
     }
+
+    // Calendar-day fields leave as plain "YYYY-MM-DD" days. The screen compares
+    // them as days; sent as instants they shift by one for any reader in another
+    // timezone, which can move an item across the "due / not yet due" boundary.
+    // Stored values are untouched — this changes only what the screen receives.
+    const asDay = (row, field) => {
+      if (row && row[field] != null) row[field] = toDayString(row[field]);
+    };
+    if (program) {
+      asDay(program, "start_date");
+      asDay(program, "end_date");
+    }
+    (sesRes.rows || []).forEach((s) => {
+      asDay(s, "scheduled_date");
+      asDay(s, "end_date");
+    });
+    (delRes.rows || []).forEach((d) => asDay(d, "due_date"));
+    (uniqueParticipants || []).forEach((p) => asDay(p, "enrolled_at"));
 
     return NextResponse.json({
       success: true,
