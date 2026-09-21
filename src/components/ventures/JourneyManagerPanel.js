@@ -40,6 +40,14 @@ import ScopedNotes from "@/components/ventures/ScopedNotes";
 import AppModal from "@/components/ui/AppModal";
 import AppMenu from "@/components/ui/AppMenu";
 import { minSessionStartInput, isValidSessionStart, SESSION_MATERIALS_MAX, toDateInput, toTimeInput } from "@/lib/ventureSessionRules";
+import {
+  nextMilestoneDate,
+  milestoneDateIssue,
+  deliverableDateIssue,
+  earliestStoredDate,
+  dateOnly,
+  todayDateInput,
+} from "@/lib/ventureMilestoneDates";
 import { useApi } from "@/lib/hooks/useApi";
 
 /**
@@ -78,6 +86,41 @@ const pickJourney = (d) =>
     : EMPTY_JOURNEY;
 
 const pickSessions = (d) => (d?.success ? d.sessions || [] : []);
+
+// Why a milestone or deliverable date was refused, in the reader's language.
+const DATE_ISSUE_KEYS = {
+  milestone_date_past: "venture.manager.milestoneDatePast",
+  milestone_date_after_next: "venture.manager.milestoneDateAfterNext",
+  milestone_date_after_deliverable: "venture.manager.milestoneDateAfterDeliverable",
+  deliverable_date_before: "venture.manager.deliverableDateBeforeMilestone",
+  deliverable_date_past: "venture.manager.deliverableDatePast",
+};
+
+/** The milestone being edited, as the journey read gave it (deliverables included). */
+const findStageMilestone = (stages, milestoneId) =>
+  (stages || []).flatMap((s) => s.milestones || []).find((m) => String(m.id) === String(milestoneId)) || null;
+
+/**
+ * The floor a date picker may show: the natural floor, unless the stored date
+ * is already earlier — an existing record is corrected, never blocked, by the
+ * picker itself (an untouched stored date is re-validated on save instead).
+ */
+const datePickerFloor = (naturalFloor, storedDate) => {
+  const stored = dateOnly(storedDate);
+  return stored && stored < naturalFloor ? stored : naturalFloor;
+};
+
+/**
+ * The ceiling a date picker may show, on the same principle: a milestone whose
+ * stored date already sits past the bound it is measured against stays
+ * selectable, so a legacy roadmap is never locked out of its own edit form.
+ * Returns null when nothing bounds it.
+ */
+const datePickerCeiling = (naturalCeiling, storedDate) => {
+  if (!naturalCeiling) return null;
+  const stored = dateOnly(storedDate);
+  return stored && stored > naturalCeiling ? stored : naturalCeiling;
+};
 
 // A report BELONGS to a journey, so the payload is grouped by the journey it is
 // anchored to. Legacy period-based reports are not journey-anchored: they stay
@@ -600,6 +643,30 @@ export default function JourneyManagerPanel({ ventureId }) {
   const addMilestone = async (e, stage) => {
     e.preventDefault();
     if (!msForm.title.trim()) return;
+    // The roadmap reads forwards: a new milestone may not be dated in the past,
+    // nor overtake a milestone that already follows it in the journey.
+    const nextDate = nextMilestoneDate(stages, { stageId: stage.id });
+    const msIssue = milestoneDateIssue({ targetDate: msForm.target_date, nextDate });
+    if (msIssue) {
+      notify(t(DATE_ISSUE_KEYS[msIssue], { date: fmtDate(nextDate) }), "error");
+      return;
+    }
+    // Only the deliverables that will actually be saved are judged, and each is
+    // owed ON or after its milestone — never before it.
+    const rows = msDeliverables.filter((x) => x.title.trim());
+    const dvIssue = rows
+      .map((dv) => ({ dv, code: deliverableDateIssue({ dueDate: dv.due_date, milestoneDate: msForm.target_date }) }))
+      .find((x) => x.code);
+    if (dvIssue) {
+      notify(
+        t(DATE_ISSUE_KEYS[dvIssue.code], {
+          title: dvIssue.dv.title.trim(),
+          date: fmtDate(msForm.target_date || todayDateInput()),
+        }),
+        "error",
+      );
+      return;
+    }
     setMsSaving(true);
     try {
       const res = await fetch(`/api/ventures/${ventureId}/milestones`, {
@@ -615,7 +682,6 @@ export default function JourneyManagerPanel({ ventureId }) {
       if (d.success) {
         // Deliverables drafted in the same form are created right after the
         // milestone, so the milestone is never saved without its evidence list.
-        const rows = msDeliverables.filter((x) => x.title.trim());
         for (const row of rows) {
           if (!d.milestone_id) break;
           await fetch(`/api/ventures/${ventureId}/deliverables`, {
@@ -661,12 +727,30 @@ export default function JourneyManagerPanel({ ventureId }) {
       title: ms.title || "",
       description: ms.description || "",
       objective: ms.objective || "",
-      target_date: ms.target_date ? String(ms.target_date).slice(0, 10) : "",
+      target_date: dateOnly(ms.target_date),
     });
   };
 
   const saveMilestoneEdit = async (e) => {
     e.preventDefault();
+    // Same rules as creating one: the roadmap order is always checked — against
+    // the milestones that follow AND against the deliverables this one owes —
+    // while the floor is switched off as long as the stored date is left
+    // untouched, so an older roadmap stays editable through a rule it predates.
+    const editing = findStageMilestone(stages, msEditId);
+    const nextDate = nextMilestoneDate(stages, { milestoneId: msEditId });
+    const deliverableDates = (editing?.deliverables || []).map((dv) => dv.due_date);
+    const issue = milestoneDateIssue({
+      targetDate: msEditForm.target_date,
+      nextDate,
+      deliverableDates,
+      enforceFloor: dateOnly(msEditForm.target_date) !== dateOnly(editing?.target_date),
+    });
+    if (issue) {
+      const bound = issue === "milestone_date_after_deliverable" ? earliestStoredDate(deliverableDates) : nextDate;
+      notify(t(DATE_ISSUE_KEYS[issue], { date: fmtDate(bound) }), "error");
+      return;
+    }
     const ok = await patchMilestone(msEditId, msEditForm);
     if (ok) {
       notify(t("venture.manager.milestoneUpdated"));
@@ -736,6 +820,18 @@ export default function JourneyManagerPanel({ ventureId }) {
   const addDeliverable = async (e, ms) => {
     e.preventDefault();
     if (!dvForm.title.trim()) return;
+    // A deliverable is owed ON or after its milestone — never before it.
+    const issue = deliverableDateIssue({ dueDate: dvForm.due_date, milestoneDate: ms.target_date });
+    if (issue) {
+      notify(
+        t(DATE_ISSUE_KEYS[issue], {
+          title: dvForm.title.trim(),
+          date: fmtDate(ms.target_date || todayDateInput()),
+        }),
+        "error",
+      );
+      return;
+    }
     setDvSaving(true);
     try {
       const res = await fetch(`/api/ventures/${ventureId}/deliverables`, {
@@ -792,12 +888,28 @@ export default function JourneyManagerPanel({ ventureId }) {
       title: dv.title || "",
       description: dv.description || "",
       deliverable_type: dv.deliverable_type || "document",
-      due_date: dv.due_date ? String(dv.due_date).slice(0, 10) : "",
+      due_date: dateOnly(dv.due_date),
     });
   };
 
-  const saveDeliverableEdit = async (e) => {
+  const saveDeliverableEdit = async (e, dv, ms) => {
     e.preventDefault();
+    // An untouched due date is never re-judged (see saveMilestoneEdit).
+    const issue = deliverableDateIssue({
+      dueDate: dvForm.due_date,
+      milestoneDate: ms?.target_date,
+      enforceFloor: dateOnly(dvForm.due_date) !== dateOnly(dv?.due_date),
+    });
+    if (issue) {
+      notify(
+        t(DATE_ISSUE_KEYS[issue], {
+          title: dvForm.title.trim(),
+          date: fmtDate(ms?.target_date || todayDateInput()),
+        }),
+        "error",
+      );
+      return;
+    }
     setDvSaving(true);
     const ok = await patchDeliverable({ id: dvAction.id, action: "update", ...dvForm });
     setDvSaving(false);
@@ -1651,6 +1763,13 @@ export default function JourneyManagerPanel({ ventureId }) {
                               {milestones.map((ms, msIdx) => {
                                 const msProgress = Math.min(100, Math.max(0, Number(ms.progress) || 0));
                                 const dvList = ms.deliverables || [];
+                                // A milestone may not be dated after what it owes, nor
+                                // after a milestone that follows it: the picker stops at
+                                // whichever of the two comes first.
+                                const msDateCeiling = earliestStoredDate([
+                                  nextMilestoneDate(stages, { milestoneId: ms.id }),
+                                  earliestStoredDate(dvList.map((dv) => dv.due_date)),
+                                ]);
                                 const isOpen = msOpenId !== null && String(msOpenId) === String(ms.id);
                                 return (
                                   <div key={ms.id} className="px-3 py-2">
@@ -1679,6 +1798,8 @@ export default function JourneyManagerPanel({ ventureId }) {
                                         <input
                                           type="date"
                                           value={msEditForm.target_date || ""}
+                                          min={datePickerFloor(todayDateInput(), ms.target_date)}
+                                          max={datePickerCeiling(msDateCeiling, ms.target_date) || undefined}
                                           onChange={(e) => setMsEditForm({ ...msEditForm, target_date: e.target.value })}
                                           className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                                         />
@@ -1800,7 +1921,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                                             return (
                                               <div key={dv.id} className="rounded-lg border border-[var(--border-primary)]/70 px-2.5 py-2">
                                                 {mode === "edit" ? (
-                                                  <form onSubmit={saveDeliverableEdit} className="space-y-2">
+                                                  <form onSubmit={(e) => saveDeliverableEdit(e, dv, ms)} className="space-y-2">
                                                     <input
                                                       value={dvForm.title}
                                                       onChange={(e) => setDvForm({ ...dvForm, title: e.target.value })}
@@ -1819,6 +1940,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                                                       <input
                                                         type="date"
                                                         value={dvForm.due_date}
+                                                        min={datePickerFloor(dateOnly(ms.target_date) || todayDateInput(), dv.due_date)}
                                                         onChange={(e) => setDvForm({ ...dvForm, due_date: e.target.value })}
                                                         className="flex-1 min-w-[140px] px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                                                       />
@@ -1939,6 +2061,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                                                   <input
                                                     type="date"
                                                     value={dvForm.due_date}
+                                                    min={dateOnly(ms.target_date) || todayDateInput()}
                                                     onChange={(e) => setDvForm({ ...dvForm, due_date: e.target.value })}
                                                     className="flex-1 min-w-[140px] px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                                                   />
@@ -2256,6 +2379,8 @@ export default function JourneyManagerPanel({ ventureId }) {
                                 <input
                                   type="date"
                                   value={msForm.target_date}
+                                  min={todayDateInput()}
+                                  max={nextMilestoneDate(stages, { stageId: stage.id }) || undefined}
                                   onChange={(e) => setMsForm({ ...msForm, target_date: e.target.value })}
                                   className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                                 />
@@ -2286,6 +2411,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                                       <input
                                         type="date"
                                         value={dv.due_date}
+                                        min={msForm.target_date || todayDateInput()}
                                         onChange={(e) => updateMsDeliverable(dvIdx, { due_date: e.target.value })}
                                         className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                                       />
