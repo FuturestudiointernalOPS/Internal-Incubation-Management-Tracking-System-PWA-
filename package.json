@@ -59,6 +59,7 @@
     "@tiptap/react": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
     "bcryptjs": "^3.0.3",
+    "fflate": "^0.8.3",
     "framer-motion": "^12.0.0",
     "googleapis": "^171.4.0",
     "html2canvas": "^1.4.1",
@@ -73,6 +74,7 @@
     "read-excel-file": "^9.3.10",
     "recharts": "^3.8.1",
     "resend": "^6.14.0",
+    "unpdf": "^0.12.2",
     "uuid": "^13.0.0",
     "write-excel-file": "^4.1.1"
   },
