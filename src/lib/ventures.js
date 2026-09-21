@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { hashToken } from "@/lib/token-hashing";
 import { isUnknownColumnError } from "@/lib/ventureInput";
 import { SESSION_MIN_LEAD_MINUTES } from "@/lib/ventureSessionRules";
+import { listVentureMembers, summarizeVentureMembers } from "@/models/ventureMembers";
 
 /**
  * VENTURE OS — Shared Business Logic
@@ -819,20 +820,33 @@ export async function getVentureById(ventureId) {
     args: [key],
   });
 
-  // Get members
-  const membersRes = await db.execute({
-    sql: `SELECT vm.*, c.name, c.email
-          FROM venture_members vm
-          LEFT JOIN contacts c ON vm.user_cid = c.cid
-          WHERE vm.venture_id = ?`,
-    args: [key],
-  });
+  // Get members — the membership list IS the Venture's people. The founder table
+  // read above is the INVITATION ledger; it is shown on the founders screen and
+  // is never the source of a member count.
+  let members = [];
+  try {
+    members = await listVentureMembers(db, key);
+  } catch (_) {}
+  const memberSummary = summarizeVentureMembers(members);
 
-  // Get recent activity
-  const activityRes = await db.execute({
-    sql: "SELECT * FROM venture_activity_log WHERE venture_id = ? ORDER BY created_at DESC LIMIT 20",
-    args: [key],
-  });
+  // Get recent activity. The actor is resolved to a person when the log kept an
+  // id instead of a name, so the journal never reads "by USR_…".
+  let activity = [];
+  try {
+    const activityRes = await db.execute({
+      sql: `SELECT al.*, COALESCE(ca.name, cb.name) AS actor_resolved_name
+            FROM venture_activity_log al
+            LEFT JOIN contacts ca ON ca.cid = al.actor_cid
+            LEFT JOIN contacts cb ON cb.cid = al.actor_name
+            WHERE al.venture_id = ?
+            ORDER BY al.created_at DESC LIMIT 20`,
+      args: [key],
+    });
+    activity = (activityRes.rows || []).map((a) => ({
+      ...a,
+      actor_name: a.actor_resolved_name || a.actor_name || null,
+    }));
+  } catch (_) {}
 
   // Get history
   const historyRes = await db.execute({
@@ -853,8 +867,9 @@ export async function getVentureById(ventureId) {
   return {
     ...venture,
     founders: foundersRes.rows,
-    members: membersRes.rows,
-    activity: activityRes.rows,
+    members,
+    member_summary: memberSummary,
+    activity,
     history: historyRes.rows,
     profile_progress: profileProgress,
   };

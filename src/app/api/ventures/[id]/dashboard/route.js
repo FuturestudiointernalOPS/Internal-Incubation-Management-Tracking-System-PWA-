@@ -5,8 +5,8 @@ import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
   getOrCreateStartupProfile,
   getOrCreateVerification,
-  listFounders,
 } from "@/lib/ventures";
+import { listVentureMembers, summarizeVentureMembers } from "@/models/ventureMembers";
 
 /**
  * GET /api/ventures/[id]/dashboard
@@ -67,21 +67,34 @@ export const GET = createHandler(
       } catch { return null; }
     })();
 
-    // ── Founders / Team ──
-    const foundersData = (async () => {
+    // ── Members / Team ──
+    // ONE list, ONE set of counts: the membership rows are the Venture's people,
+    // founder included. The founder invitation ledger is deliberately NOT read
+    // here — it holds invitations, so counting it made a Venture that visibly
+    // had a founder report "Team 0" and "no team members yet".
+    const teamData = (async () => {
       try {
-        const founders = await listFounders(id);
-        const owner = founders.find((f) => f.is_owner);
+        const members = await listVentureMembers(db, id);
+        const summary = summarizeVentureMembers(members);
         return {
-          total: founders.length,
-          active: founders.filter((f) => f.status === "accepted" && !f.suspended_at).length,
-          pending: founders.filter((f) => f.status === "pending").length,
-          suspended: founders.filter((f) => !!f.suspended_at).length,
-          owner: owner ? { name: owner.name, email: owner.email } : null,
-          founders: founders.map((f) => ({
-            id: f.id, name: f.name, email: f.email, role: f.role,
-            role_label: f.role_label, status: f.status, is_owner: !!f.is_owner,
-            is_suspended: !!f.suspended_at,
+          total: summary.total,
+          active: summary.active,
+          founders: summary.founders,
+          team: summary.team,
+          suspended: summary.suspended,
+          owner: summary.owner
+            ? { name: summary.owner.name, email: summary.owner.email, role: summary.owner.role }
+            : null,
+          members: members.map((m) => ({
+            id: m.id,
+            name: m.name,
+            email: m.email,
+            phone: m.phone,
+            role: m.role,
+            is_founder: m.is_founder,
+            is_owner: m.is_owner,
+            status: m.status,
+            joined_at: m.joined_at,
           })),
         };
       } catch { return null; }
@@ -282,7 +295,7 @@ export const GET = createHandler(
     const [
       profileResult,
       ventureResult,
-      foundersResult,
+      teamResult,
       notifResult,
       activityResult,
       verifResult,
@@ -292,7 +305,7 @@ export const GET = createHandler(
       coachingResult,
       investmentResult,
     ] = await Promise.all([
-      profileCompletion, ventureInfo, foundersData, notifications,
+      profileCompletion, ventureInfo, teamData, notifications,
       recentActivity, verification, documents, meetings, kpiSummary, coaching, investmentReadiness,
     ]);
 
@@ -303,7 +316,7 @@ export const GET = createHandler(
       dashboard: {
         profile_completion: profileResult,
         venture: ventureResult,
-        founders: foundersResult,
+        team: teamResult,
         notifications: notifResult,
         recent_activity: activityResult,
         verification: verifResult,

@@ -29,6 +29,7 @@ import {
   Ban,
 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
+import { activityLabel, activityDetails, isSystemActor } from "@/lib/ventureActivity";
 
 // ─── Widget Components ────────────────────────────────────────────────────
 
@@ -317,7 +318,7 @@ export default function VentureDashboard({ id, embedded = false }) {
           </div>
           <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20">
             <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">{t("vadmin.dashboard.team")}</p>
-            <p className="text-2xl font-black text-blue-400">{d.founders?.active || 0}</p>
+            <p className="text-2xl font-black text-blue-400">{d.team?.active || 0}</p>
             <p className="text-[10px] text-blue-500/60 mt-0.5">{t("vadmin.dashboard.activeMembers")}</p>
           </div>
           <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 border border-purple-500/20">
@@ -452,39 +453,48 @@ export default function VentureDashboard({ id, embedded = false }) {
 
           {/* Column 2 */}
           <div className="space-y-6">
-            {/* 4. Team / Founders */}
+            {/* 4. Team — the Venture's people (membership), founder included.
+                The founder invitation ledger is a separate screen, reached from
+                the button below, and is never what a head count is read from. */}
             <WidgetCard title={t("vadmin.dashboard.team")} icon={Users} iconColor="bg-blue-500/10"
-              loading={ws("founders").loading} error={ws("founders").error}
-              empty={ws("founders").empty} emptyMessage={t("vadmin.dashboard.noTeamMembersYet")}
-              onRefresh={() => refreshWidget("founders")}
+              loading={ws("team").loading} error={ws("team").error}
+              empty={ws("team").empty} emptyMessage={t("vadmin.dashboard.noTeamMembersYet")}
+              onRefresh={() => refreshWidget("team")}
             >
               <div className="space-y-3">
                 <div className="grid grid-cols-3 gap-2">
                   <div className="p-2 bg-tertiary rounded-lg text-center">
-                    <p className="text-lg font-black text-[var(--text-primary)]">{d.founders?.active || 0}</p>
+                    <p className="text-lg font-black text-[var(--text-primary)]">{d.team?.active || 0}</p>
                     <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">{t("vadmin.dashboard.active")}</p>
                   </div>
                   <div className="p-2 bg-tertiary rounded-lg text-center">
-                    <p className="text-lg font-black text-amber-400">{d.founders?.pending || 0}</p>
-                    <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">{t("vadmin.dashboard.pending")}</p>
+                    <p className="text-lg font-black text-blue-400">{d.team?.founders || 0}</p>
+                    <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">{t("vadmin.dashboard.foundersCount")}</p>
                   </div>
                   <div className="p-2 bg-tertiary rounded-lg text-center">
-                    <p className="text-lg font-black text-rose-400">{d.founders?.suspended || 0}</p>
+                    <p className="text-lg font-black text-rose-400">{d.team?.suspended || 0}</p>
                     <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">{t("vadmin.dashboard.suspended")}</p>
                   </div>
                 </div>
+                {d.team?.owner && (
+                  <p className="text-[10px] text-[var(--text-secondary)]">
+                    {t("vadmin.dashboard.owner", { name: d.team.owner.name || d.team.owner.email || "—" })}
+                  </p>
+                )}
                 <div className="space-y-1.5">
-                  {(d.founders?.founders || []).slice(0, 4).map((f) => (
-                    <div key={f.id} className="flex items-center justify-between p-2 bg-tertiary rounded-lg">
+                  {(d.team?.members || []).slice(0, 4).map((m) => (
+                    <div key={m.id} className="flex items-center justify-between p-2 bg-tertiary rounded-lg">
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold shrink-0">{f.name?.charAt(0)}</div>
+                        <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold shrink-0">
+                          {(m.name || m.email || "?").charAt(0).toUpperCase()}
+                        </div>
                         <div className="min-w-0">
-                          <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{f.name}</p>
-                          <p className="text-[10px] text-[var(--text-secondary)] truncate">{f.role_label || f.role}</p>
+                          <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{m.name || m.email}</p>
+                          <p className="text-[10px] text-[var(--text-secondary)] truncate">{m.is_founder ? t("vadmin.dashboard.founderBadge") : t("vadmin.dashboard.teamMemberBadge")}</p>
                         </div>
                       </div>
-                      {f.is_owner && <Crown className="w-3 h-3 text-amber-400 shrink-0" />}
-                      {f.is_suspended && <Ban className="w-3 h-3 text-rose-400 shrink-0" />}
+                      {m.is_owner && <Crown className="w-3 h-3 text-amber-400 shrink-0" />}
+                      {m.status === "suspended" && <Ban className="w-3 h-3 text-rose-400 shrink-0" />}
                     </div>
                   ))}
                 </div>
@@ -568,21 +578,30 @@ export default function VentureDashboard({ id, embedded = false }) {
               onRefresh={() => refreshWidget("recent_activity")}
             >
               <div className="space-y-1.5">
-                {(d.recent_activity || []).slice(0, 5).map((a, i) => (
-                  <div key={a.id || i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-tertiary transition-all">
-                    <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${
-                      a.action?.includes("APPROVED") || a.action?.includes("CREATED") ? "bg-emerald-500/10 text-emerald-400" :
-                      a.action?.includes("REJECTED") || a.action?.includes("REMOVED") ? "bg-rose-500/10 text-rose-400" :
-                      "bg-amber-500/10 text-amber-400"
-                    }`}>
-                      <Activity className="w-3 h-3" />
+                {(d.recent_activity || []).slice(0, 5).map((a, i) => {
+                  const details = activityDetails(a.details, t);
+                  return (
+                    <div key={a.id || i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-tertiary transition-all">
+                      <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${
+                        a.action?.includes("APPROVED") || a.action?.includes("CREATED") ? "bg-emerald-500/10 text-emerald-400" :
+                        a.action?.includes("REJECTED") || a.action?.includes("REMOVED") ? "bg-rose-500/10 text-rose-400" :
+                        "bg-amber-500/10 text-amber-400"
+                      }`}>
+                        <Activity className="w-3 h-3" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold text-[var(--text-primary)]">{activityLabel(a.action, t)}</p>
+                        <p className="text-[10px] text-[var(--text-secondary)]">
+                          {isSystemActor(a.actor) ? "" : `${a.actor} · `}
+                          {a.created_at ? new Date(a.created_at).toLocaleDateString(lang) : ""}
+                        </p>
+                        {details.length > 0 && (
+                          <p className="text-[10px] text-[var(--text-secondary)] opacity-80">{details[0]}</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{a.action?.replace(/_/g, " ")}</p>
-                      <p className="text-[10px] text-[var(--text-secondary)]">{a.actor} · {a.created_at ? new Date(a.created_at).toLocaleDateString(lang) : ""}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </WidgetCard>
 
