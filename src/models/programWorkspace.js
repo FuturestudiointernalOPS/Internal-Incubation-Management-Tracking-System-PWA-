@@ -45,7 +45,8 @@ export async function getProgramFullStateData(id) {
       name: "participants",
       sql: `SELECT CAST(c.cid AS TEXT) as id, pp.program_id, c.name, c.email, c.phone,
                      COALESCE(pp.screening_status, 'pending') as screening_status, c.status, c.created_at, c.group_name,
-                     'enrolled' as source, c.v2_team_id
+                     'enrolled' as source,
+                     COALESCE(pp.accepted_at, pp.assigned_at) as enrolled_at, c.v2_team_id
               FROM participant_programs pp
               JOIN contacts c ON pp.participant_id = c.cid
               WHERE CAST(pp.program_id AS TEXT) = ?
