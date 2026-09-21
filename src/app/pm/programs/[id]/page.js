@@ -39,6 +39,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { getWeekNumber, getLocalToday, FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
 import { FacilitatorsPanel } from "@/components/pm/FacilitatorsPanel";
+import { ProgramProgressPanel } from "@/components/pm/ProgramProgressPanel";
 import ProgramLearningSection from "@/components/lms/ProgramLearningSection";
 import CoachingRequestsPanel from "@/components/lms/CoachingRequestsPanel";
 import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
@@ -1507,6 +1508,16 @@ function ProgramWorkspace() {
         <div className="pt-4">
           {activeTab === "overview" && (
             <>
+            <div className="mb-6">
+              <ProgramProgressPanel
+                program={program}
+                sessions={sessions}
+                requirements={requirements}
+                reports={reports}
+                submissions={submissions}
+                participants={participants}
+              />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="card space-y-4 border-l-4 border-blue-500">
                 <div className="flex justify-between items-start">
