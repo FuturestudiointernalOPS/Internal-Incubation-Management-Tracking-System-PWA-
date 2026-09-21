@@ -126,6 +126,13 @@ import {
 
 import { getPlatformFormSections, getPlatformFormFields } from "@/models/forms";
 import { MAX_OUTPUT_INSTRUCTION } from "@/models/platform/ai/report";
+import {
+  getRunReportFileByRunId,
+  getRunReportFileTextByRunId,
+  runReportFileDescriptor,
+  deleteRunReportFileByRunId,
+} from "@/models/platform/reportFiles";
+import { removeRunReportFileObject } from "@/lib/platform/runReportFiles";
 
 /**
  * PLATFORM FORM RUNS API — Run creation, submissions, reviews, timeline, assignments
@@ -659,7 +666,16 @@ export async function GET(req) {
         };
       });
 
-      return NextResponse.json({ success: true, run: run.rows[0], assignments: await enrichAssignments(assignments.rows), submissions: enrichedSubmissions, reviews: reviews.rows, evaluations, emails, field_labels: fieldLabels, filterable_fields: filterableFields });
+      // The document this Run hands to its report writer, if any. Read together
+      // with the Run so the configuration screen can show it — and offer
+      // "regenerate" — without a second round trip. Supplementary: a hiccup here
+      // must not stop the run from opening.
+      let reportFile = null;
+      try {
+        reportFile = runReportFileDescriptor(await getRunReportFileByRunId(id));
+      } catch (_) {}
+
+      return NextResponse.json({ success: true, run: run.rows[0], report_file: reportFile, assignments: await enrichAssignments(assignments.rows), submissions: enrichedSubmissions, reviews: reviews.rows, evaluations, emails, field_labels: fieldLabels, filterable_fields: filterableFields });
     }
 
     // Submissions for a specific user
@@ -1056,21 +1072,34 @@ async function buildResultDocument({ submission_id, forceReport = false }) {
       outcome = { decision: row.status, comment };
     }
 
-    // ── Optional run-specific Output Instruction ──
-    // Present → the report is written by AI from this same data, shaped by the
-    // instruction, and stored so preview and send render the same document.
-    // Absent/blank → the fixed renderer, exactly as before.
+    // ── The brief for the composed report ──
+    // Two sources, either of which is enough on its own:
+    //   • the run-specific Output Instruction, and/or
+    //   • the document attached to this Run, already read into text at upload
+    //     time (it may state every requirement the report needs).
+    // Present → the report is written by AI from this same data, shaped by what
+    // the administrator supplied, and stored so preview and send render the same
+    // document. Neither → the fixed renderer, exactly as before.
     const outputInstruction = typeof ctx?.run_settings?.output_instruction === "string"
       ? ctx.run_settings.output_instruction.trim()
       : "";
+
+    // Only a document that yielded TEXT can shape the report. An attachment that
+    // could not be read (a scan) is simply not part of the brief — the screen says
+    // so on its own; the report is never blocked by it.
+    const reportFile = ctx?.run_id ? await getRunReportFileTextByRunId(ctx.run_id) : null;
+    const referenceText = reportFile?.status === "ok" ? reportFile.text.trim() : "";
+
     let composedReport = null;
-    if (outputInstruction) {
+    if (outputInstruction || referenceText) {
       const { getOrCreateSubmissionReport } = await import("@/models/platform/ai/report");
       const composed = await getOrCreateSubmissionReport({
         submissionId: parseInt(submission_id),
         evaluationId: evalRow.id ?? null,
         decision: row.status || null,
         instruction: outputInstruction,
+        reference: referenceText,
+        referenceName: referenceText ? reportFile?.fileName || "" : "",
         lang,
         force: forceReport,
         payload: {
@@ -1088,7 +1117,7 @@ async function buildResultDocument({ submission_id, forceReport = false }) {
       if (composed?.error || !composed?.report) {
         return {
           status: "failed",
-          error: `This run has an Output Instruction, but the report could not be generated (${composed?.error || "empty result"})`,
+          error: `This run asks for a composed report, but it could not be generated (${composed?.error || "empty result"})`,
         };
       }
       composedReport = composed.report;
@@ -2376,6 +2405,10 @@ export async function DELETE(req) {
     await deleteEmailLogsByRunId(runId);
     await deleteReviewsByRunId(runId);
     await deleteEvaluationsByRunId(runId);
+    // The report document's ROW cascades with the run; the stored object does
+    // not, so it has to be taken down here or it would outlive its run forever.
+    const reportFilePath = await deleteRunReportFileByRunId(runId);
+    if (reportFilePath) await removeRunReportFileObject(reportFilePath);
     await deleteFormRunById(runId);
 
     return NextResponse.json({ success: true });

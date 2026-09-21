@@ -7,6 +7,7 @@ import {
   ArrowLeft, Settings, Link2, Trash2, AlertTriangle, BarChart3,
   History, Calendar, Hash, EyeOff, PauseCircle,
   StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, Info, Sparkles, Mail, Key, LogIn, Download,
+  Paperclip, Upload, ExternalLink,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
@@ -91,6 +92,22 @@ const RUN_AUTOMATION_FLAGS = [
 ];
 
 function cn(...classes) { return classes.filter(Boolean).join(" "); }
+
+/** Human size for an attached document (512 B / 2 KB / 1.5 MB). */
+function formatFileSize(bytes) {
+  const value = Number(bytes);
+  if (!Number.isFinite(value) || value <= 0) return "";
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
+  return `${Number((value / (1024 * 1024)).toFixed(1))} MB`;
+}
+
+/**
+ * The accepted formats for the picker. Kept here rather than imported from the
+ * server rule because that module also owns the storage client, which has no
+ * business in a browser bundle; `runReportFiles.js` enforces the same list.
+ */
+const REPORT_FILE_ACCEPT = ".pdf,.docx,.txt,.md,.markdown";
 
 /**
  * Fetch the read-only result PDF for one submission. Reading a document has no
@@ -470,6 +487,13 @@ export default function FormRunsPage() {
   const [runFormSettings, setRunFormSettings] = useState({}); // form settings (for template fallback + AI base)
   const [runTplSaving, setRunTplSaving] = useState(false);
   const [runPersonalizing, setRunPersonalizing] = useState(null); // template key while AI writes
+  // The document this run hands to its report writer (PDF / Word .docx / text).
+  const [reportFile, setReportFile] = useState(null);
+  const [reportFileBusy, setReportFileBusy] = useState(false);
+  // The text the report writer reads out of that document — fetched on demand,
+  // because it is the one part of the document that is large.
+  const [reportFileText, setReportFileText] = useState(null);
+  const [reportFileTextOpen, setReportFileTextOpen] = useState(false);
 
   // Run-scoped respondent search + filters (operate only on THIS run's submissions)
   const [respSearch, setRespSearch] = useState("");
@@ -788,6 +812,8 @@ export default function FormRunsPage() {
         setReviews(data.reviews || []);
         setAssignments(data.assignments || []);
         setRunSettings(data.run.settings || {});
+        // The attached document belongs to the run that was just opened.
+        setReportFile(data.report_file || null);
         setEvaluations(data.evaluations || []);
         setEmailLog(data.emails || []);
         setRunTemplates(data.run?.settings?.templates || {});
@@ -807,6 +833,8 @@ export default function FormRunsPage() {
           setRespPage(1);
           setSelectedIds([]);
           setShowDuplicates(false);
+          setReportFileText(null);
+          setReportFileTextOpen(false);
           setFilterPickerOpen(false);
           setFilterPickerMode(null);
           setBulkSummary(null);
@@ -1191,6 +1219,109 @@ export default function FormRunsPage() {
       notify(t("platformMisc.runs.regenerateReportFailed"));
     }
     setReportRegenerating(null);
+  };
+
+  // ─── Reference document — the file half of the report brief ───
+  //
+  // Attaching a document is its OWN immediate action rather than part of the
+  // settings form: the file travels as an upload, it is read into text on the
+  // server, and the row it writes is what the report writer then reads. Nothing
+  // is deferred, so there is no half-saved state to reconcile with "Save".
+  const uploadReportFile = async (file) => {
+    if (!selectedRun || !file || reportFileBusy) return;
+    setReportFileBusy(true);
+    try {
+      const body = new FormData();
+      body.append("run_id", String(selectedRun.id));
+      body.append("file", file);
+      const res = await fetch("/api/platform/form-runs/report-file", { method: "POST", body });
+      const data = await res.json();
+      if (data.success) {
+        setReportFile(data.file || null);
+        setReportFileText(null);
+        setReportFileTextOpen(false);
+        // Any report already generated was written from the PREVIOUS document.
+        setPreviewNonce((n) => n + 1);
+        notify(t("platformMisc.runs.reportFileUploaded"));
+      } else {
+        notify(data.error ? t(data.error) : t("platformMisc.runs.reportFileUploadFailed"));
+      }
+    } catch (_) {
+      notify(t("platformMisc.runs.reportFileUploadFailed"));
+    }
+    setReportFileBusy(false);
+  };
+
+  // The link is minted on click and expires: never held in state.
+  const openReportFile = async () => {
+    if (!selectedRun) return;
+    // Opened SYNCHRONOUSLY and pointed at the signed link once it arrives: a
+    // window opened after an await is treated as a popup and blocked.
+    const tab = window.open("", "_blank");
+    if (tab) {
+      try { tab.opener = null; } catch (_) {}
+    }
+    try {
+      const res = await fetch(`/api/platform/form-runs/report-file?run_id=${selectedRun.id}`);
+      const data = await res.json();
+      if (data.success && data.file?.url) {
+        if (tab) tab.location.href = data.file.url;
+        else window.open(data.file.url, "_blank", "noopener,noreferrer");
+      } else {
+        if (tab) tab.close();
+        notify(t("platformMisc.runs.reportFileOpenFailed"));
+      }
+    } catch (_) {
+      if (tab) tab.close();
+      notify(t("platformMisc.runs.reportFileOpenFailed"));
+    }
+  };
+
+  // Show exactly what the report writer is given — including how much of a long
+  // document it actually reads, so an attachment never looks fully used when it
+  // is not.
+  const toggleReportFileText = async () => {
+    if (!selectedRun) return;
+    if (reportFileTextOpen) {
+      setReportFileTextOpen(false);
+      return;
+    }
+    setReportFileTextOpen(true);
+    if (reportFileText && !reportFileText.error) return; // already read once
+    setReportFileText({ loading: true });
+    try {
+      const res = await fetch(`/api/platform/form-runs/report-file?run_id=${selectedRun.id}&text=1`);
+      const data = await res.json();
+      if (data.success) {
+        setReportFileText({ text: data.text || "", prompt_limit: data.prompt_limit || null });
+      } else {
+        setReportFileText({ error: true });
+      }
+    } catch (_) {
+      setReportFileText({ error: true });
+    }
+  };
+
+  const removeReportFile = async () => {
+    if (!selectedRun || reportFileBusy) return;
+    if (!confirm(t("platformMisc.runs.reportFileRemoveConfirm"))) return;
+    setReportFileBusy(true);
+    try {
+      const res = await fetch(`/api/platform/form-runs/report-file?run_id=${selectedRun.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        setReportFile(null);
+        setReportFileText(null);
+        setReportFileTextOpen(false);
+        setPreviewNonce((n) => n + 1);
+        notify(t("platformMisc.runs.reportFileRemoved"));
+      } else {
+        notify(data.error ? t(data.error) : t("platformMisc.runs.reportFileRemoveFailed"));
+      }
+    } catch (_) {
+      notify(t("platformMisc.runs.reportFileRemoveFailed"));
+    }
+    setReportFileBusy(false);
   };
 
   // Run automation switches — same resolution order as the server (run → form →
@@ -3257,8 +3388,9 @@ export default function FormRunsPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        {/* Re-roll the AI report — only when this run has an instruction. */}
-                        {(runSettings?.output_instruction || "").trim() ? (
+                        {/* Re-roll the AI report — when this run has a brief at all
+                            (an instruction, an attached document, or both). */}
+                        {((runSettings?.output_instruction || "").trim() || reportFile) ? (
                           <button
                             onClick={() => regenerateReport(previewSubmission.id)}
                             disabled={reportRegenerating === previewSubmission.id}
@@ -4035,6 +4167,93 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                       {(runSettings.output_instruction || "").trim() || t("platformMisc.runs.outputInstructionNone")}
                     </span>
                   )}
+                </SettingRow>
+
+                {/* Reference document — the file half of the report brief */}
+                <SettingRow label={t("platformMisc.runs.settingReportFile")} icon={Paperclip} desc={t("platformMisc.runs.settingReportFileDesc")}>
+                  <div className="space-y-3 w-full">
+                    {reportFile ? (
+                      <>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[11px] font-bold text-[var(--text-primary)] break-all">{reportFile.file_name}</span>
+                          {formatFileSize(reportFile.file_size) && (
+                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">{formatFileSize(reportFile.file_size)}</span>
+                          )}
+                          <span className={cn(
+                            "text-[10px] font-bold uppercase px-2 py-0.5 rounded",
+                            reportFile.extraction_status === "ok" ? "text-emerald-500 bg-emerald-500/10" : "text-amber-500 bg-amber-500/10",
+                          )}>
+                            {reportFile.extraction_status === "ok"
+                              ? t("platformMisc.runs.reportFileStatusReadable")
+                              : reportFile.extraction_status === "empty"
+                                ? t("platformMisc.runs.reportFileStatusEmpty")
+                                : t("platformMisc.runs.reportFileStatusFailed")}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button onClick={openReportFile} className="px-3 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1.5">
+                            <ExternalLink className="w-3 h-3" /> {t("platformMisc.runs.reportFileOpen")}
+                          </button>
+                          {reportFile.text_length > 0 && (
+                            <button onClick={toggleReportFileText} className="px-3 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1.5">
+                              <FileText className="w-3 h-3" />
+                              {reportFileTextOpen ? t("platformMisc.runs.reportFileTextHide") : t("platformMisc.runs.reportFileTextShow")}
+                            </button>
+                          )}
+                          {editingSettings && (
+                            <button onClick={removeReportFile} disabled={reportFileBusy} className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide text-rose-400 hover:bg-rose-500/10 disabled:opacity-50 flex items-center gap-1.5">
+                              <Trash2 className="w-3 h-3" /> {t("platformMisc.runs.reportFileRemove")}
+                            </button>
+                          )}
+                        </div>
+                        {reportFileTextOpen && (
+                          <div className="rounded-xl border border-[var(--border-primary)] bg-primary/50 p-3 space-y-2">
+                            {reportFileText?.loading ? (
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
+                                <Loader2 className="w-3 h-3 animate-spin" /> {t("platformMisc.runs.reportFileTextLoading")}
+                              </p>
+                            ) : reportFileText?.error ? (
+                              <p className="text-[10px] font-medium text-amber-500">{t("platformMisc.runs.reportFileTextFailed")}</p>
+                            ) : (
+                              <>
+                                {!!reportFileText?.prompt_limit && (reportFileText?.text || "").length > reportFileText.prompt_limit && (
+                                  <p className="text-[10px] font-medium text-amber-500">
+                                    {t("platformMisc.runs.reportFileTextPartial", { count: reportFileText.prompt_limit })}
+                                  </p>
+                                )}
+                                <pre className="max-h-64 overflow-y-auto text-[10px] font-medium whitespace-pre-wrap text-[var(--text-primary)]">{reportFileText?.text || ""}</pre>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runs.reportFileNone")}</span>
+                    )}
+
+                    {editingSettings && (
+                      <label className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
+                        reportFileBusy
+                          ? "opacity-60 cursor-wait bg-tertiary text-[var(--text-secondary)]"
+                          : "cursor-pointer bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20",
+                      )}>
+                        {reportFileBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                        {reportFileBusy
+                          ? t("platformMisc.runs.reportFileReading")
+                          : reportFile
+                            ? t("platformMisc.runs.reportFileReplace")
+                            : t("platformMisc.runs.reportFileChoose")}
+                        <input
+                          type="file"
+                          accept={REPORT_FILE_ACCEPT}
+                          className="hidden"
+                          disabled={reportFileBusy}
+                          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadReportFile(f); }}
+                        />
+                      </label>
+                    )}
+                  </div>
                 </SettingRow>
 
                 {/* Automation — which applicant emails this run sends */}
