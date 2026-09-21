@@ -12,6 +12,8 @@
  *  - co-founders / team members named in the form are resolved to portal
  *    contacts (created as pending identities when they have no account yet —
  *    invitations/activation land in the invitations phase)
+ *  - the founder invitation ledger is kept in step with those memberships, so a
+ *    Venture that visibly has a founder never shows an empty founder list
  */
 
 import db, { initDb } from "@/lib/db";
@@ -69,6 +71,51 @@ function parseEmailList(value) {
     .split(/[\n,;]+/)
     .map((s) => s.trim().toLowerCase())
     .filter((s) => s.includes("@"));
+}
+
+/** The name + email of an existing contact (used when the form carried none). */
+async function contactIdentity(contactCid) {
+  if (!contactCid) return null;
+  try {
+    const res = await db.execute({
+      sql: "SELECT name, email FROM contacts WHERE cid = ?",
+      args: [contactCid],
+    });
+    return (res.rows || [])[0] || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Record a real founder in the founder invitation ledger.
+ *
+ * The ledger is what the founders screen displays. Creation used to fill only
+ * the membership, which left a Venture whose founder was visibly in place while
+ * its founder list said "none" — the two figures came from two different
+ * tables. Members created by an approval are recorded here as ACCEPTED (they
+ * were never invited, they are already in), once per email, since the ledger is
+ * read by email everywhere.
+ *
+ * Best effort: a failure here never blocks the Venture's creation.
+ */
+async function recordFounderInLedger(ventureId, { contactCid, email, name, role, isOwner }) {
+  const emailNorm = String(email || "").trim().toLowerCase();
+  if (!emailNorm || !emailNorm.includes("@")) return false;
+  try {
+    await db.execute({
+      sql: `INSERT INTO venture_founders
+              (venture_id, contact_id, email, name, role, is_owner, status, invitation_accepted_at)
+            SELECT ?, ?, ?, ?, ?, ?, 'accepted', NOW()
+            WHERE NOT EXISTS (
+              SELECT 1 FROM venture_founders WHERE venture_id = ? AND LOWER(email) = ?
+            )`,
+      args: [ventureId, contactCid || null, emailNorm, name || null, role || "founder", Boolean(isOwner), ventureId, emailNorm],
+    });
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 async function resolveOrCreateContact(email, name, role) {
@@ -279,10 +326,29 @@ export async function createVentureFromSubmission({ submission, run, form, revie
   } catch (_) {}
   await mirrorRoleHistory(ventureId, submitterCid, "founder", true);
 
+  // ── 8b. The founder ledger follows the membership (see recordFounderInLedger) ──
+  // The submitter is a founder who is already in: the ledger is written as
+  // ACCEPTED so the founder list and the head count tell the same story.
+  let submitterEmail = String(data.founder_email || "").trim().toLowerCase();
+  let submitterName = data.founder_name ? String(data.founder_name).trim() : "";
+  if (!submitterEmail) {
+    // Forms that identify the applicant only by account carry the email on the
+    // contact — read it there rather than leaving the founder list empty.
+    const contact = await contactIdentity(submitterCid);
+    submitterEmail = String(contact?.email || "").trim().toLowerCase();
+    submitterName = submitterName || String(contact?.name || "").trim();
+  }
+  await recordFounderInLedger(ventureId, {
+    contactCid: submitterCid,
+    email: submitterEmail,
+    name: submitterName,
+    role: "founder",
+    isOwner: true,
+  });
+
   // ── 9. Co-founders / team members named in the form ──
   const coFounderEmails = parseEmailList(data.co_founder_emails);
   const teamEmails = parseEmailList(data.team_member_emails);
-  const submitterEmail = String(data.founder_email || "").trim().toLowerCase();
   // Phase 6: founders whose relationship must grant access (synced at the end).
   const founderCids = [String(submitterCid)];
   for (const email of new Set([...coFounderEmails, ...teamEmails])) {
@@ -298,6 +364,15 @@ export async function createVentureFromSubmission({ submission, run, form, revie
       args: [ventureId, cid, cid, isCoFounder ? "founder" : "team_member", isCoFounder ? "co-founder" : "member", now],
     });
     await mirrorRoleHistory(ventureId, cid, isCoFounder ? "co-founder" : "member", true);
+    if (isCoFounder) {
+      await recordFounderInLedger(ventureId, {
+        contactCid: cid,
+        email,
+        name: null,
+        role: "co-founder",
+        isOwner: false,
+      });
+    }
   }
 
   // ── 9b. Team carry-over: promoted Program Teams keep their members ──
@@ -338,6 +413,19 @@ export async function createVentureFromSubmission({ submission, run, form, revie
   }
 
   // ── 10. History + activity (audit) ──
+  // The reviewer arrives as a display name on some paths and as a user id on
+  // others; the audit row is only useful if it names a person, so an id is
+  // resolved to the person it belongs to before it is written down.
+  const reviewerRaw = String(review?.reviewer_name || "").trim();
+  const reviewerLooksLikeId = /^USR_/i.test(reviewerRaw);
+  const reviewerContact = reviewerLooksLikeId ? await contactIdentity(reviewerRaw) : null;
+  const reviewerName = reviewerLooksLikeId
+    ? reviewerContact?.name || reviewerRaw
+    : reviewerRaw || "System";
+  const reviewerCid = reviewerLooksLikeId ? reviewerRaw : null;
+  // Only references a reader can act on — never a raw enum.
+  const activityDetails = { submission_id: submission.id };
+
   try {
     await db.execute({
       sql: `INSERT INTO venture_history (venture_id, event_type, description, metadata, created_at)
@@ -354,13 +442,7 @@ export async function createVentureFromSubmission({ submission, run, form, revie
     await db.execute({
       sql: `INSERT INTO venture_activity_log (venture_id, action, actor_cid, actor_name, details, created_at)
             VALUES (?, 'VENTURE_APPROVED', ?, ?, ?::jsonb, ?)`,
-      args: [
-        ventureId,
-        review?.reviewer_name || "system",
-        review?.reviewer_name || "System",
-        JSON.stringify({ submission_id: submission.id }),
-        now,
-      ],
+      args: [ventureId, reviewerCid, reviewerName, JSON.stringify(activityDetails), now],
     });
   } catch (_) {}
 
