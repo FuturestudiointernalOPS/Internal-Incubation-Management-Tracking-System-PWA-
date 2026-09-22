@@ -13,10 +13,11 @@
  * on those keys double as a "this text goes through t()" check.
  */
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const SectionResourcesEditor = require("@/components/lms/SectionResourcesEditor").default;
 const { discardUnsavedUploads } = require("@/components/lms/SectionResourcesEditor");
+const { DialogProvider } = require("@/components/ui/DialogProvider");
 
 const COURSE = "C-1";
 
@@ -25,17 +26,20 @@ const jsonResponse = (body) => Promise.resolve({ ok: true, status: 200, json: as
 /** A host that behaves like the section panel: buffered resources, no API. */
 function renderEditor({ resources = [], onCreate, onUpdate, onDelete, sectionId = null } = {}) {
   return render(
-    <SectionResourcesEditor
-      inlineForm
-      canEdit
-      title="lms.sessionResources.title"
-      resources={resources}
-      onCreate={onCreate}
-      onUpdate={onUpdate}
-      onDelete={onDelete}
-      courseId={COURSE}
-      sectionId={sectionId}
-    />,
+    // The confirmation of a delete comes from the app's own dialog layer.
+    <DialogProvider>
+      <SectionResourcesEditor
+        inlineForm
+        canEdit
+        title="lms.sessionResources.title"
+        resources={resources}
+        onCreate={onCreate}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
+        courseId={COURSE}
+        sectionId={sectionId}
+      />
+    </DialogProvider>,
   );
 }
 
@@ -65,7 +69,6 @@ function fillAndSubmit({ title, url, recommended = false, note = "" } = {}) {
 
 beforeEach(() => {
   global.fetch = jest.fn(() => jsonResponse({ success: true }));
-  window.confirm = jest.fn(() => true);
 });
 
 describe("section resources editor — add form", () => {
@@ -223,17 +226,31 @@ describe("section resources editor — edit and delete", () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  test("deleting asks for confirmation before reporting the resource", () => {
+  test("deleting asks for confirmation in the app's own dialog before reporting the resource", async () => {
     const onDelete = jest.fn();
     renderEditor({ resources: [buffered], onDelete });
 
     fireEvent.click(screen.getByTitle("lms.sessionResources.delete"));
-    expect(window.confirm).toHaveBeenCalledWith("lms.sessionResources.confirmDelete");
-    expect(onDelete).toHaveBeenCalledWith(buffered);
+    // The question is on screen, and nothing has been reported yet: no browser
+    // pop-up decides for the person.
+    expect(screen.getByText("lms.sessionResources.confirmDelete")).toBeTruthy();
+    expect(onDelete).not.toHaveBeenCalled();
 
-    window.confirm = jest.fn(() => false);
+    fireEvent.click(screen.getByText("common.confirm"));
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith(buffered));
+  });
+
+  test("dismissing the confirmation reports nothing", async () => {
+    const onDelete = jest.fn();
+    renderEditor({ resources: [buffered], onDelete });
+
     fireEvent.click(screen.getByTitle("lms.sessionResources.delete"));
-    expect(onDelete).toHaveBeenCalledTimes(1); // refused → nothing reported
+    fireEvent.click(screen.getByText("common.cancel"));
+
+    await waitFor(() =>
+      expect(screen.queryByText("lms.sessionResources.confirmDelete")).toBeNull(),
+    );
+    expect(onDelete).not.toHaveBeenCalled();
   });
 
   test("an empty list invites the PM to add material", () => {

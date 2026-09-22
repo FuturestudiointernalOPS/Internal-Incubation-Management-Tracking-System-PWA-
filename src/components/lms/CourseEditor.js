@@ -12,6 +12,7 @@ import CourseView from "./CourseView";
 import EnrollModal from "./EnrollModal";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import { usePermissions } from "@/lib/PermissionProvider";
 import { useApi } from "@/lib/hooks/useApi";
 
@@ -58,6 +59,7 @@ const formBase = (course) => ({
 
 export default function CourseEditor({ courseId, basePath = "/admin/lms/courses" }) {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const router = useRouter();
   // UI gating only — the server re-checks every call (lms.edit / lms.delete).
   // Fails OPEN while the matrix loads, so no action flashes away.
@@ -133,7 +135,7 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
 
   const publish = async () => {
     setValidationErrors([]);
-    if (!window.confirm(t("lms.confirm.publish"))) return;
+    if (!(await confirm({ message: t("lms.confirm.publish") }))) return;
     try {
       const res = await fetch(`/api/lms/courses/${courseId}/publish`, { method: "POST" });
       const data = await res.json();
@@ -154,7 +156,7 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
   };
 
   const archive = async () => {
-    if (!window.confirm(`${t("lms.confirm.archive")}\n${t("lms.confirm.archiveHint")}`)) return;
+    if (!(await confirm({ message: `${t("lms.confirm.archive")}\n${t("lms.confirm.archiveHint")}`, tone: "danger" }))) return;
     try {
       const res = await fetch(`/api/lms/courses/${courseId}/archive`, { method: "POST" });
       const data = await res.json();
@@ -167,7 +169,7 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
   };
 
   const remove = async () => {
-    if (!window.confirm(`${t("lms.confirm.deleteCourse")}\n${t("lms.confirm.deleteCourseHint")}`)) return;
+    if (!(await confirm({ message: `${t("lms.confirm.deleteCourse")}\n${t("lms.confirm.deleteCourseHint")}`, tone: "danger" }))) return;
     try {
       const res = await fetch(`/api/lms/courses/${courseId}`, { method: "DELETE" });
       const data = await res.json();

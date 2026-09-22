@@ -6,6 +6,7 @@ import AppModal from "@/components/ui/AppModal";
 import AppButton from "@/components/ui/AppButton";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import { useApi } from "@/lib/hooks/useApi";
 
 /**
@@ -39,6 +40,7 @@ const pickRequests = (d) => (d?.success ? d.requests || [] : []);
 
 export default function LearnerCoachingButton({ courseId = null, lessonId = null }) {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const [open, setOpen] = useState(false);
   const [courses, setCourses] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -118,7 +120,7 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
   };
 
   const cancel = async (id) => {
-    if (!window.confirm(t("lms.coaching.confirmCancel"))) return;
+    if (!(await confirm({ message: t("lms.coaching.confirmCancel"), tone: "danger" }))) return;
     setCancelling(true);
     try {
       const res = await fetch(`/api/lms/coaching-requests/${id}`, { method: "DELETE" });

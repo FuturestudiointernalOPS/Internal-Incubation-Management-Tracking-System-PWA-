@@ -40,6 +40,7 @@ import AssessmentViewModal from "./AssessmentViewModal";
 import SectionResourcesPanel from "./SectionResourcesPanel";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 
 /**
  * Section/lesson/assessment authoring area of the course editor.
@@ -53,6 +54,7 @@ import { useI18n } from "@/lib/i18n";
  */
 export default function SectionsManager({ course, onChange, canEdit = true }) {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const [sectionModal, setSectionModal] = useState(null); // { mode, section }
   const [lessonModal, setLessonModal] = useState(null); // { mode, sectionId, lesson }
   const [assessmentModal, setAssessmentModal] = useState(null); // { mode, sectionId, assessment }
@@ -173,14 +175,14 @@ export default function SectionsManager({ course, onChange, canEdit = true }) {
     setSectionModal(null);
   };
 
-  const deleteSection = (section) => {
-    if (!window.confirm(`${t("lms.confirm.deleteSection")}\n${t("lms.confirm.deleteSectionHint")}`)) return;
+  const deleteSection = async (section) => {
+    if (!(await confirm({ message: `${t("lms.confirm.deleteSection")}\n${t("lms.confirm.deleteSectionHint")}`, tone: "danger" }))) return;
     mutate(`/api/lms/sections/${section.id}`, "DELETE", null, "lms.courses.saved", section.id);
   };
 
   // ── Lessons ──────────────────────────────────────────────────────────────
-  const deleteLesson = (lesson) => {
-    if (!window.confirm(t("lms.confirm.deleteLesson"))) return;
+  const deleteLesson = async (lesson) => {
+    if (!(await confirm({ message: t("lms.confirm.deleteLesson"), tone: "danger" }))) return;
     mutate(`/api/lms/lessons/${lesson.id}`, "DELETE", null, "lms.courses.saved", lesson.id);
   };
 
@@ -188,8 +190,8 @@ export default function SectionsManager({ course, onChange, canEdit = true }) {
     mutate(`/api/lms/lessons/${lesson.id}`, "PUT", { action: "move", direction }, "lms.courses.saved", lesson.id);
 
   // ── Assessments ──────────────────────────────────────────────────────────
-  const deleteAssessment = (assessment) => {
-    if (!window.confirm(`${t("lms.confirm.deleteAssessment")}\n${t("lms.confirm.deleteAssessmentHint")}`)) return;
+  const deleteAssessment = async (assessment) => {
+    if (!(await confirm({ message: `${t("lms.confirm.deleteAssessment")}\n${t("lms.confirm.deleteAssessmentHint")}`, tone: "danger" }))) return;
     mutate(`/api/lms/assessments/${assessment.id}`, "DELETE", null, "lms.courses.saved", assessment.id);
   };
 

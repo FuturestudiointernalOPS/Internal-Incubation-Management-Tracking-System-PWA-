@@ -7,6 +7,7 @@ import AppButton from "@/components/ui/AppButton";
 import CourseThumb from "./CourseThumb";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import { useApi } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
 
@@ -49,6 +50,7 @@ export default function ProgramLearningSection({
   canEdit = false,
 }) {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const { can, permissions, loading: permsLoading } = usePermissions();
   // The shell resolves the capability matrix once per surface and shares it.
   // Until it lands we know nothing about this viewer, so we neither fetch (a
@@ -148,7 +150,7 @@ export default function ProgramLearningSection({
   };
 
   const detach = async (req) => {
-    if (!window.confirm(t("lms.programLearning.confirmDetach"))) return;
+    if (!(await confirm({ message: t("lms.programLearning.confirmDetach"), tone: "danger" }))) return;
     try {
       const res = await fetch(`/api/lms/program-requirements/${req.id}`, {
         method: "DELETE",

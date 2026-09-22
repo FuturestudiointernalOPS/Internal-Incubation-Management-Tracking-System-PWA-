@@ -10,6 +10,7 @@ import RichTextEditor from "@/components/ui/RichTextEditor";
 import QuestionModal from "./QuestionModal";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import { analyzePassMark } from "@/lib/lms/scoring";
 
 /**
@@ -26,6 +27,7 @@ export default function AssessmentModal({
   assessment,
 }) {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const [title, setTitle] = useState(assessment?.title || "");
   const [description, setDescription] = useState(assessment?.description || "");
   const [passMark, setPassMark] = useState(
@@ -88,8 +90,8 @@ export default function AssessmentModal({
       "lms.courses.saved",
     );
 
-  const deleteQuestion = (q) => {
-    if (!window.confirm(t("lms.confirm.deleteQuestion"))) return;
+  const deleteQuestion = async (q) => {
+    if (!(await confirm({ message: t("lms.confirm.deleteQuestion"), tone: "danger" }))) return;
     runQuestionAction("delete", `/api/lms/questions/${q.id}`, "DELETE", null, "lms.courses.saved");
   };
 

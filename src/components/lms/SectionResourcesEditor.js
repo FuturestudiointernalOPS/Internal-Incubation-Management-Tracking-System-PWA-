@@ -18,6 +18,7 @@ import {
 import AppModal from "@/components/ui/AppModal";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import {
   LMS_RESOURCE_ACCEPT,
   formatFileSize,
@@ -625,6 +626,7 @@ export default function SectionResourcesEditor({
 /** One resource: link, optional recommendation, optional pending marker. */
 function ResourceRow({ resource, canEdit, onEdit, onDelete }) {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const pending = !!resource.localId;
   return (
     <div
@@ -711,8 +713,8 @@ function ResourceRow({ resource, canEdit, onEdit, onDelete }) {
           </button>
           <button
             type="button"
-            onClick={() => {
-              if (window.confirm(t("lms.sessionResources.confirmDelete"))) onDelete();
+            onClick={async () => {
+              if (await confirm({ message: t("lms.sessionResources.confirmDelete"), tone: "danger" })) onDelete();
             }}
             className="p-1.5 rounded-lg text-rose-500/40 hover:text-rose-500 transition-all"
             title={t("lms.sessionResources.delete")}

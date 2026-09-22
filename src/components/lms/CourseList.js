@@ -12,6 +12,7 @@ import CourseStatusBadge from "./CourseStatusBadge";
 import CourseThumb from "./CourseThumb";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import { formatDate } from "@/lib/constants";
 import { useApi } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
@@ -46,6 +47,7 @@ const pickCourses = (d) =>
  */
 export default function CourseList({ basePath = "/admin/lms/courses" }) {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const router = useRouter();
   // UI gating only — the server re-checks every call (lms.create / lms.edit).
   // Fails OPEN while the matrix loads, so no action flashes away.
@@ -97,13 +99,13 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
     }
   };
 
-  const confirmPublish = (course) => {
-    if (!window.confirm(t("lms.confirm.publish"))) return;
+  const confirmPublish = async (course) => {
+    if (!(await confirm({ message: t("lms.confirm.publish") }))) return;
     runAction(course.id, "publish", "lms.courses.published");
   };
 
-  const confirmArchive = (course) => {
-    if (!window.confirm(t("lms.confirm.archive"))) return;
+  const confirmArchive = async (course) => {
+    if (!(await confirm({ message: t("lms.confirm.archive"), tone: "danger" }))) return;
     runAction(course.id, "archive", "lms.courses.archived");
   };
 
