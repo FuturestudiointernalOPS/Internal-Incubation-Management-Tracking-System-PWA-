@@ -1196,25 +1196,25 @@
     },
     "globalPermissions": {
       "renamePrompt": "Nom affiché de la responsabilité",
-      "title": "Autorisations globales des Ventures",
-      "subtitle": "Configuré une fois · s'applique à chaque Venture. Les affectations et la portée sont définies par Venture.",
+      "title": "Autorisations globales des entreprises",
+      "subtitle": "Configuré une fois · s'applique à chaque entreprise. Les affectations et la portée sont définies par entreprise.",
       "badgeGlobal": "Global",
-      "noPerVentureMatrix": "Aucune matrice par Venture",
+      "noPerVentureMatrix": "Aucune matrice par entreprise",
       "tabMatrix": "Matrice des autorisations",
       "tabResponsibilities": "Responsabilités",
       "matrixTitle": "Matrice d'accès globale par responsabilité",
-      "matrixSubtitle": "Modifier un profil ici met immédiatement à jour cette responsabilité sur chaque Venture — aucune configuration par Venture.",
+      "matrixSubtitle": "Modifier un profil ici met immédiatement à jour cette responsabilité sur chaque entreprise — aucune configuration par entreprise.",
       "loadingMatrix": "Chargement de la matrice…",
       "legend": "Vert = autorisé globalement · Gris = refusé globalement. Le Super Admin n'est jamais limité par ces profils.",
       "inactiveSuffix": " (inactive)",
       "inactive": "Inactive",
       "active": "Active",
       "responsibilitiesTitle": "Responsabilités configurables",
-      "responsibilitiesSubtitle": "Les responsabilités sont des profils GLOBAUX. Les noms sont modifiables ; le code sous-jacent ne change jamais. Les affectations les rendent propres à chaque Venture.",
+      "responsibilitiesSubtitle": "Les responsabilités sont des profils GLOBAUX. Les noms sont modifiables ; le code sous-jacent ne change jamais. Les affectations les rendent propres à chaque entreprise.",
       "addResponsibility": "Ajouter une responsabilité",
       "newResponsibilityNamePlaceholder": "ex. : Mentor, Réviseur, Conseiller en croissance…",
       "activeAssignments": "{count} affectations actives",
-      "toastGlobalUpdated": "Autorisation globale {responsibility} mise à jour — s'applique immédiatement à chaque Venture.",
+      "toastGlobalUpdated": "Autorisation globale {responsibility} mise à jour — s'applique immédiatement à chaque entreprise.",
       "updateFailed": "Échec de la mise à jour.",
       "createFailed": "Échec de la création.",
       "responsibilityCreated": "Responsabilité créée (profil global).",
@@ -1222,8 +1222,8 @@
       "responsibilityDeactivated": "Responsabilité désactivée globalement.",
       "renamedNotice": "Renommée — les affectations et les autorisations restent inchangées.",
       "areas": {
-        "overview": "Vue d'ensemble de la Venture",
-        "profile": "Profil de la Venture",
+        "overview": "Vue d'ensemble de l'entreprise",
+        "profile": "Profil de l'entreprise",
         "founders": "Fondateurs / Membres",
         "milestones": "Jalons",
         "tasks": "Tâches",
@@ -1233,8 +1233,8 @@
         "coaching": "Séances de coaching",
         "operatingPlan": "Plan opérationnel",
         "staffAssignment": "Affectation du personnel",
-        "permissions": "Autorisations de la Venture",
-        "settings": "Paramètres de la Venture"
+        "permissions": "Autorisations de l'entreprise",
+        "settings": "Paramètres de l'entreprise"
       }
     }
   }
