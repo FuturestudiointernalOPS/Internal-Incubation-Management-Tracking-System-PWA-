@@ -104,7 +104,12 @@ export async function GET(req) {
 
     // NORMALIZATION: Ensure FUTURE STUDIO is in the filter list (Uppercase Protocol)
     if (!familiesList.find((f) => f.name.toUpperCase() === "FUTURE STUDIO")) {
+      // Synthetic row: no `families` record stands behind it, so it has no
+      // database id. It is listed by id on screen, and a row without one is
+      // what React warns about, so it carries a stable id of its own (family
+      // ids are generated numbers, so a string label cannot collide with one).
       familiesList.unshift({
+        id: "FUTURE-STUDIO",
         name: "FUTURE STUDIO",
         registration_id: "R-FS-001",
       });

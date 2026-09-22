@@ -1141,7 +1141,7 @@ function ContactsPageContent() {
               >
                 <option value="">{t("crm.contacts.selectSegment")}</option>
                 {families.map((f) => (
-                  <option key={f.id} value={f.name}>
+                  <option key={f.id ?? f.name} value={f.name}>
                     {f.name.toUpperCase()}
                   </option>
                 ))}
