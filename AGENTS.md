@@ -134,7 +134,21 @@ import AppEmptyState from "@/components/ui/AppEmptyState";
 import AppPagination from "@/components/ui/AppPagination";
 import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
 import { Skeleton, TableSkeleton, CardSkeleton } from "@/components/ui/Skeleton";
+import { useDialogs } from "@/components/ui/DialogProvider";
 ```
+
+For in-app confirmation, prompts and notices — never the browser's own pop-ups:
+```jsx
+const { confirm, prompt, alert } = useDialogs();
+
+if (!(await confirm({ message: t("…"), tone: "danger" }))) return; // → boolean
+const name = await prompt({ message: t("…"), defaultValue: current }); // → string | null
+await alert({ message: t("…") });
+```
+`DialogProvider` is mounted once in `src/app/layout.js`. Options: `message` (required),
+`title`, `hint`, `tone: "danger"` for destructive actions, `confirmLabel`, `cancelLabel`,
+and for prompts `defaultValue`, `placeholder`, `inputLabel`, `inputType`, `required`,
+`validate`. A `message` containing `"\n"` renders the rest as a quieter hint line.
 
 For data fetching:
 ```jsx
@@ -158,6 +172,7 @@ See `DESIGN_SYSTEM.md` for the full guide. Key rules:
 - NO `text-slate-*`, `text-white`, `text-black` for theme text
 - Use `bg-surface-1`, `bg-surface-2`, `bg-surface-3` for backgrounds
 - Use `AppStatusBadge` instead of inline status badge rendering
+- Confirmations, prompts and notices go through `useDialogs()` — NEVER `window.confirm`, `window.prompt` or `window.alert`, which ignore the theme and freeze the tab
 
 ---
 
@@ -245,6 +260,7 @@ never selects a role.
 - [ ] If creating a new page inside `/admin/*`: no action needed (layout already has force-dynamic)
 - [ ] If creating a new page outside `/admin/*`: add `export const dynamic = "force-dynamic"` if using client hooks
 - [ ] If adding a new component: put it in `src/components/ui/` and update `DESIGN_SYSTEM.md`
+- [ ] If asking for a confirmation, a typed value or an acknowledgement: use `useDialogs()` — never the browser's `confirm` / `prompt` / `alert`
 - [ ] If adding/editing a page: return only the page content — the section layout already renders `<DashboardLayout>` (see table above)
 - [ ] If adding/editing data access or SQL: put the query in `src/models/<domain>.js` (models only; never in routes/pages)
 - [ ] Run `npm run lint` (0 errors) and `npm run build` to verify zero errors

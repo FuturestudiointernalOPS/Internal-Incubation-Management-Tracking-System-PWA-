@@ -154,7 +154,9 @@ import AppPagination from "@/components/ui/AppPagination";
 import AppPdfPreview from "@/components/ui/AppPdfPreview";
 
 // Feedback
-import GlobalToast from "@/components/ui/GlobalToast";
+import GlobalToast from "@/components/ui/GlobalToast";      // the toast host, mounted by the section layouts
+import { notify } from "@/lib/notify";                      // raise one: notify("success" | "error" | "info" | "warning", t("…"))
+import { DialogProvider, useDialogs } from "@/components/ui/DialogProvider";
 import { Skeleton, TableSkeleton, CardSkeleton } from "@/components/ui/Skeleton";
 ```
 
@@ -236,7 +238,26 @@ import { Skeleton, TableSkeleton, CardSkeleton } from "@/components/ui/Skeleton"
   loadingLabel="Building the preview…"
   errorLabel="Preview unavailable"
 />
+
+// In-app dialogs (confirm / prompt / notice) — the ONLY way to ask the user to
+// confirm, type a value or acknowledge something. `DialogProvider` is mounted
+// once for the whole app (src/app/layout.js); ask for a dialog anywhere below:
+const { confirm, prompt, alert } = useDialogs();
+
+if (!(await confirm({ message: t("lms.confirm.deleteLesson"), tone: "danger" }))) return;
+const name = await prompt({ message: t("…"), defaultValue: current });   // string | null
+await alert({ message: t("…") });
 ```
+
+`confirm` resolves to a boolean, `prompt` to the entered text (or `null` when dismissed)
+and `alert` once acknowledged — nothing resolves before the person answers. Options:
+`message` (required), `title`, `hint`, `tone: "danger"` for destructive actions,
+`confirmLabel`, `cancelLabel`, and for prompts `defaultValue`, `placeholder`,
+`inputLabel`, `inputType`, `required` (default `true`), `validate`.
+A `message` containing `"\n"` renders the part after the break as a quieter hint line.
+
+Never use `window.confirm`, `window.prompt` or `window.alert`: they ignore the theme
+and freeze the tab.
 
 ---
 
@@ -263,6 +284,7 @@ import { Skeleton, TableSkeleton, CardSkeleton } from "@/components/ui/Skeleton"
 | Don't use Tailwind white/black for theme | ❌ `text-white`, `bg-white/5`, `text-black` (except brand buttons) |
 | Don't hardcode `data-theme` directly | ❌ `document.documentElement.setAttribute('data-theme', ...)` — use `useTheme()` |
 | Don't add new hex color constants in pages | ❌ `const BG = '#0a0a1a'` |
+| Don't use browser pop-ups | ❌ `window.confirm(...)`, `window.prompt(...)`, `window.alert(...)` — use `useDialogs()` |
 | Don't use Tailwind `dark:` variant | ❌ `dark:hidden`, `dark:block` — these respond to OS preference, not our theme |
 
 ---
@@ -312,10 +334,12 @@ src/
 │       ├── AppStatusBadge.js    ← Status badge using shared STATUS_CONFIG
 │       ├── AppTable.js
 │       ├── AppTabs.js           ← Tab navigation (underline/pills variants)
+│       ├── DialogProvider.js    ← In-app confirm / prompt / notice (useDialogs)
 │       ├── GlobalToast.js
 │       └── Skeleton.js
 ├── lib/
 │   ├── ThemeProvider.js     ← Central theme context
+│   ├── notify.js            ← Raise an in-app toast (notify(type, message))
 │   ├── constants.js         ← Shared STATUS_CONFIG, MONTHS, formatLabel, getWeekNumber
 │   ├── hooks/
 │   │   ├── useApi.js        ← Generic data-fetching hook (single + parallel)

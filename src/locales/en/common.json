@@ -64,6 +64,12 @@
     "allPrograms": "All Programs",
     "due": "Due:",
     "project": "Project:",
+    "dialog": {
+      "confirmTitle": "Confirm action",
+      "promptTitle": "Enter a value",
+      "noticeTitle": "Notice",
+      "required": "This field is required."
+    },
     "workspaces": {
       "title": "My Workspaces",
       "subtitle": "Programs and modules assigned to you.",
