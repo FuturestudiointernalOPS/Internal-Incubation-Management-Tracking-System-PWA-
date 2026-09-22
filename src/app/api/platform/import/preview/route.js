@@ -106,7 +106,7 @@ function fuzzyMatch(columns, fields) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "admin"]);
+    const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
     const { csv_text, headers: inputHeaders, rows: inputRows, form_id, run_id, total_rows } = await req.json();

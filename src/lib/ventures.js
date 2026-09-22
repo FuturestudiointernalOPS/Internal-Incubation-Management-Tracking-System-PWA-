@@ -1768,7 +1768,7 @@ async function hasDelegatedVentureAssignment(ventureId, session) {
  */
 export async function canReadStartupProfile(ventureId, session) {
   if (!session) return false;
-  if (["super_admin", "developer", "admin"].includes(session.role)) return true;
+  if (session.role === "super_admin") return true;
 
   // Delegated staff (Phase 2): read access derives from an explicit Venture
   // assignment — never from the staff role alone.
@@ -2233,7 +2233,7 @@ export const VERIFICATION_DOCUMENT_TYPES = {
  */
 export async function canManageVerification(ventureId, session) {
   if (!session) return { allowed: false };
-  if (["super_admin", "developer", "admin"].includes(session.role)) return { allowed: true, isReviewer: true };
+  if (session.role === "super_admin") return { allowed: true, isReviewer: true };
   if (session.role === "verification_officer") return { allowed: true, isReviewer: true };
   // Delegated staff (Phase 2): reviewing requires an explicit Venture assignment.
   if (session.role === "staff" && (await hasDelegatedVentureAssignment(ventureId, session))) {

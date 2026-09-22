@@ -131,7 +131,6 @@ export async function GET(req) {
       "super_admin",
       "staff",
       "program_manager",
-      "developer",
     ];
     let filterCid = user_cid;
     if (!staffSide.includes(session.role)) {
@@ -236,7 +235,6 @@ export async function PUT(req) {
       "super_admin",
       "staff",
       "program_manager",
-      "developer",
     ];
     if (!staffSide.includes(session.role)) {
       const authError = await requireProjectAccess(id);

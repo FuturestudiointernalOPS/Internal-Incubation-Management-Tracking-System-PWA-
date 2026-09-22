@@ -142,8 +142,6 @@ export async function POST(req) {
     } else {
       if (user.role === "super_admin" || user.id === "sa") {
         finalRole = "super_admin";
-      } else if (user.role === "developer") {
-        finalRole = "developer";
       } else if (user.role === "investor") {
         finalRole = "investor";
       } else if (user.role === "founder") {
@@ -153,7 +151,6 @@ export async function POST(req) {
       } else if (
         user.role === "staff" ||
         user.role === "project_manager" ||
-        user.role === "admin" ||
         user.group_name?.toUpperCase() === "FUTURE STUDIO"
       ) {
         // Internal Future Studio staff keep their identity — being assigned as

@@ -11,9 +11,6 @@ describe("resolveEffectiveRole — FUTURE STUDIO group = internal staff", () => 
       resolveEffectiveRole({ role: "super_admin", group_name: INTERNAL_GROUP }),
     ).toBe("super_admin");
     expect(
-      resolveEffectiveRole({ role: "developer", group_name: INTERNAL_GROUP }),
-    ).toBe("developer");
-    expect(
       resolveEffectiveRole({ role: "investor", group_name: INTERNAL_GROUP }),
     ).toBe("investor");
     expect(
@@ -28,7 +25,7 @@ describe("resolveEffectiveRole — FUTURE STUDIO group = internal staff", () => 
   });
 
   test("staff-family roles normalize to staff", () => {
-    for (const role of ["staff", "project_manager", "admin"]) {
+    for (const role of ["staff", "project_manager"]) {
       expect(resolveEffectiveRole({ role })).toBe("staff");
     }
   });

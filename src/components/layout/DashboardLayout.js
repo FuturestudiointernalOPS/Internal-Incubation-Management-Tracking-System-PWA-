@@ -119,12 +119,9 @@ const NAV_KEY_MAP = {
   projects: "navigation.projects",
   all_projects: "navigation.allProjects",
   my_projects: "navigation.myProjects",
-  my_tasks: "navigation.myTasks",
-  assigned_tasks: "navigation.assignedTasks",
   sessions: "navigation.sessions",
   reviews: "navigation.reviews",
   assignments: "navigation.assignments",
-  rituals: "navigation.rituals",
   tasks: "reports.tasks",
   blockers: "reports.blockers",
   no_new_intel: "navigation.noNewIntel",
@@ -163,7 +160,6 @@ const NAV_KEY_MAP = {
   access_summary: "navigation.accessSummary",
   crm_membership: "navigation.membership",
   permissions: "navigation.permissions",
-  engineering_dashboard: "navigation.engineering",
   system: "navigation.system",
   personnel: "navigation.personnel",
   logs: "navigation.logs",
@@ -229,7 +225,6 @@ const CRUMB_PATH_MAP = {
   access: "navigation.accessSummary",
   membership: "navigation.groups",
   permissions: "navigation.permissions",
-  engineering: "navigation.engineering",
   system: "navigation.system",
   profile: "navigation.profile",
   messages: "navigation.messages",
@@ -237,7 +232,6 @@ const CRUMB_PATH_MAP = {
   sessions: "navigation.sessions",
   reviews: "navigation.reviews",
   assignments: "navigation.assignments",
-  rituals: "navigation.rituals",
   followups: "navigation.followups",
   certificates: "navigation.certificates",
   portfolio: "navigation.portfolio",
@@ -329,7 +323,7 @@ const SidebarContent = ({
   hasCommunicationActivity,
 }) => {
   const { switchLang } = useI18n();
-  const profileHref = `/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "facilitator" ? "facilitator" : role === "developer" || role === "intern" ? "developer" : role === "investor" ? "investor" : "participant"}/profile`;
+  const profileHref = `/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "facilitator" ? "facilitator" : role === "investor" ? "investor" : "participant"}/profile`;
 
   const [flyout, setFlyout] = useState(null); // { id, top } — collapsed-rail flyout
   const flyoutTimer = useRef(null);
@@ -710,7 +704,7 @@ function attachIcons(items) {
  * page never contributes a role — a staff member on /crm stays staff.
  */
 function shellRole(userRole, role) {
-  return userRole || role || "admin";
+  return userRole || role || "super_admin";
 }
 
 // ─── The identity the shell paints with ─────────────────────────────────────
@@ -740,7 +734,7 @@ const PERSONAL_ROLES = ["member", "founder", "participant", "team"];
 /** Whether the connected person actually holds at least one course enrollment. */
 const pickLmsEnrollment = (d) => (d && d.success ? !!d.enrolled : false);
 
-function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = false }) {
+function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidth = false }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -1264,51 +1258,6 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
     // being viewed (see shellRole).
     const activeRole = shellRole(user.role, role);
 
-    // Check if user belongs to Future Studio Interns group
-    const userGroups = user.groups || [];
-    const isIntern = userGroups.some(
-      (g) =>
-        g.toUpperCase() === "FUTURE STUDIO INTERNS" ||
-        g.toUpperCase() === "INTERN",
-    );
-
-    if (isIntern && activeRole !== "participant") {
-      // Interns get restricted navigation regardless of their role
-      // Exception: participants keep their own dashboard
-      return [
-        {
-          id: "dashboard",
-          name: "DASHBOARD",
-          icon: LayoutDashboard,
-          href: "/developer",
-        },
-        {
-          id: "standup",
-          name: "STAND-UP",
-          icon: MessageSquare,
-          href: "/staff/op-report?tab=standup",
-        },
-        {
-          id: "my_tasks",
-          name: "MY TASKS",
-          icon: CheckSquare,
-          href: "/developer/my-tasks",
-        },
-        {
-          id: "projects",
-          name: "MY PROJECTS",
-          icon: Briefcase,
-          href: "/staff/projects",
-        },
-        {
-          id: "messages",
-          name: "MESSAGING",
-          icon: Send,
-          href: "/staff/messages",
-        },
-      ];
-    }
-
     // Personal roles: sidebar is relationship-driven (Phase 1). A person with
     // no program and no venture sees only Dashboard; the learner door appears
     // from an actual course enrollment, programs/certificates only for program
@@ -1425,7 +1374,6 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
     return withVentureConsole(items);
   }, [
     user.role,
-    user.groups,
     role,
     pmPrograms,
     hasLmsEnrollments,
@@ -1664,10 +1612,7 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
                                 const role = user?.role || "";
                                 if (role === "super_admin")
                                   router.push("/admin/internal-comms");
-                                else if (
-                                  role === "staff" ||
-                                  role === "developer"
-                                )
+                                else if (role === "staff")
                                   router.push("/staff/messages");
                                 else if (role === "program_manager")
                                   router.push("/pm/messages");
@@ -1679,10 +1624,7 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
                                 n.type === "comment" ||
                                 n.type === "mention"
                               ) {
-                                const role = user?.role || "";
-                                if (role === "developer")
-                                  router.push("/developer/standup");
-                                else router.push("/staff/op-report");
+                                router.push("/staff/op-report");
                                 setShowNotifications(false);
                               }
                               if (n.type === "blocker_discussion") {

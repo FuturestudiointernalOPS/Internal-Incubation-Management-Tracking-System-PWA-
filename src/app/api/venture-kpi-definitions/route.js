@@ -9,7 +9,7 @@ import {
 
 // Global, reusable catalog (business rule 49) — not venture-scoped, so this is a
 // plain role check, not the venture_members membership check used elsewhere.
-const READ_ROLES = ["participant", "staff", "program_manager", "super_admin", "developer"];
+const READ_ROLES = ["participant", "staff", "program_manager", "super_admin"];
 const WRITE_ROLES = ["staff", "program_manager", "super_admin"];
 
 export async function GET(_req) {

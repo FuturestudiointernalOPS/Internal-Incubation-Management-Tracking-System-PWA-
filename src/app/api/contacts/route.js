@@ -318,7 +318,7 @@ export async function PUT(req) {
     const match = await updateContactFields(fieldsToUpdate, args);
 
     // Sync participant_programs if program_ids array is provided
-    const NON_PARTICIPANT_ROLES = ["facilitator", "staff", "admin", "developer", "super_admin", "investor", "founder", "program_manager"];
+    const NON_PARTICIPANT_ROLES = ["facilitator", "staff", "super_admin", "investor", "founder", "program_manager"];
     const isRolePromotion = data.role && NON_PARTICIPANT_ROLES.includes(data.role);
 
     if (isRolePromotion) {

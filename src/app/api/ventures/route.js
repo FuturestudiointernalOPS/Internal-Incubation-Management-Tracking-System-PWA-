@@ -44,7 +44,7 @@ export const GET = createHandler(async (req) => {
   }
 
   // Access scoping (Phase 2 — assignment-aware):
-  //  - GLOBAL roles (super_admin/developer/admin) may list every Venture.
+  //  - GLOBAL roles (super_admin) may list every Venture.
   //  - Delegated staff/program_manager see the Ventures they are ASSIGNED to —
   //    never the whole directory.
   //  - Every other person sees ONLY the Ventures they belong to, by membership.
@@ -52,7 +52,7 @@ export const GET = createHandler(async (req) => {
   //    widen anyone else's, because the session's own identity overwrites it.
   let effectiveContactId = contactId;
   let assignedStaffId = null;
-  if (!["super_admin", "developer", "admin"].includes(session.role)) {
+  if (!["super_admin"].includes(session.role)) {
     if (["staff", "program_manager"].includes(session.role)) {
       assignedStaffId = session.cid;
     } else {
@@ -135,7 +135,7 @@ export const PUT = createHandler(async (req) => {
     if (updates.status) {
       try {
         const session = await getSession();
-        const globalRoles = ["super_admin", "developer", "admin"];
+        const globalRoles = ["super_admin"];
         if (!session || !globalRoles.includes(session.role)) {
           const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
           const assigned = session?.cid ? await hasActiveVentureAssignment(id, session.cid, db) : false;

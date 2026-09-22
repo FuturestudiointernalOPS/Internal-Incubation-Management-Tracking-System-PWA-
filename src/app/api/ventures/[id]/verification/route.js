@@ -26,7 +26,7 @@ export const GET = createHandler(
 
     // Phase 4 guard: only global roles, active members (founders) or
     // delegated staff with an assignment may read verification state.
-    if (!["super_admin", "developer", "admin"].includes(session.role)) {
+    if (!["super_admin"].includes(session.role)) {
       const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
       const member = await db
         .execute({

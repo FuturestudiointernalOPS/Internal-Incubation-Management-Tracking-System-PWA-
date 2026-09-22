@@ -142,7 +142,6 @@ export async function GET(req) {
       "super_admin",
       "staff",
       "program_manager",
-      "developer",
     ];
     const notStaffSide = !staffSide.includes(session.role);
     let effectiveUserId = user_id || (notStaffSide ? sessionCid : null);
@@ -387,7 +386,6 @@ export async function POST(req) {
         "super_admin",
         "staff",
         "program_manager",
-        "developer",
         "team",
       ].includes(session.role)
     ) {

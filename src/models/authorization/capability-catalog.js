@@ -160,7 +160,6 @@ export const CAPABILITY_CATALOG = {
       view: { label: "View", risk: "low", description: "See engineering dashboards" },
       manage_tasks: { label: "Manage Tasks", risk: "medium", description: "Manage engineering tasks" },
       manage_errors: { label: "Manage Errors", risk: "medium", description: "Manage error logs" },
-      manage_developers: { label: "Manage Developers", risk: "high", description: "Manage developers and interns" },
     },
   },
   finance: {

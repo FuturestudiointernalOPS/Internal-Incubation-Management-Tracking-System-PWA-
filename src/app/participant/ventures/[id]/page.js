@@ -615,7 +615,12 @@ export default function VentureDetail() {
 
   return (
     <VentureWorkspace.Provider value={ws}>
-      <div className="p-6 max-w-4xl mx-auto space-y-6" style={{ color: "var(--text-primary)" }}>
+      {/* Edge spacing belongs to the SHELL (DashboardLayout's main already pads
+          every page); this page used to add its own p-6 on top, which doubled the
+          gap to the edges. The width cap matches the stand-alone Venture
+          dashboard so the workspace uses the screen instead of hugging a narrow
+          column in the middle. */}
+      <div className="max-w-6xl mx-auto space-y-6" style={{ color: "var(--text-primary)" }}>
         {/* Back */}
         <button onClick={() => router.push("/participant/ventures")} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors" style={{ color: "var(--text-secondary)" }}>
           <ArrowLeft size={16} /> {t("venture.myVentures")}

@@ -31,7 +31,7 @@ export default function LoginPage() {
   const { t, lang, switchLang } = useI18n();
   const router = useRouter();
 
-  // Developer Tools (staging only)
+  // Staging-only impersonation
   const [devToolsOpen, setDevToolsOpen] = useState(false);
   const [impersonateUsers, setImpersonateUsers] = useState({});
   const [selectedRole, setSelectedRole] = useState("");
@@ -147,19 +147,17 @@ export default function LoginPage() {
               if (profData.success && profData.isComplete === false) {
                 const r = data.user.role;
                 target =
-                  r === "super_admin" || r === "staff" || r === "admin"
+                  r === "super_admin" || r === "staff"
                     ? "/admin/profile"
                     : r === "program_manager"
                       ? "/pm/profile"
                       : r === "facilitator"
                           ? "/facilitator/profile"
-                          : r === "developer"
-                            ? "/developer/profile"
-                            : r === "participant"
-                              ? "/participant/profile"
-                              : r === "member" || r === "founder" || r === "applicant"
-                                ? "/workspaces"
-                                : "/participant/profile";
+                          : r === "participant"
+                            ? "/participant/profile"
+                            : r === "member" || r === "founder" || r === "applicant"
+                              ? "/workspaces"
+                              : "/participant/profile";
               }
             } catch (_) {}
           }
@@ -282,7 +280,7 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Developer Tools: Staging-Only Impersonation */}
+        {/* Staging-Only Impersonation */}
         {isStaging && (
           <div className="border border-amber-500/30 bg-amber-500/5 rounded-lg overflow-hidden">
             <button
@@ -293,7 +291,7 @@ export default function LoginPage() {
               <div className="flex items-center gap-2">
                 <Wrench className="w-4 h-4 text-amber-500" />
                 <span className="text-[11px] font-black text-amber-500 uppercase tracking-widest">
-                  Developer Tools (Staging Only)
+                  Impersonation (Staging Only)
                 </span>
               </div>
               <ChevronDown

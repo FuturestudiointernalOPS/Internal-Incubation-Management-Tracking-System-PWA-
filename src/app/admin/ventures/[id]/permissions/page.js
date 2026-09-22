@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 // Platform roles that represent Future Studio staff/operators — founders,
 // participants and investors are never offered for Venture assignments here.
 const STAFF_ROLES = new Set([
-  "super_admin", "developer", "admin", "staff", "program_manager",
+  "super_admin", "staff", "program_manager",
   "facilitator", "finance", "crm", "team",
 ]);
 

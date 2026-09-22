@@ -87,7 +87,7 @@ export default function AdminProjects() {
   // Who is signed in, from the shell's session cache: no request of its own, and
   // no dependence on the browser's stored copy.
   const { role: userRole } = useSessionUser();
-  const canCreate = userRole === "super_admin" || userRole === "admin";
+  const canCreate = userRole === "super_admin";
 
   // The sidebar's "Create Project" link arrives as a query parameter, so the
   // dialog is open because the ADDRESS says so rather than because an effect
@@ -367,15 +367,14 @@ export default function AdminProjects() {
             <button
               onClick={() => {
                 const saved = localStorage.getItem("user");
-                let role = "admin";
+                let role = "super_admin";
                 if (saved) {
                   try {
-                    role = JSON.parse(saved).role || "admin";
+                    role = JSON.parse(saved).role || "super_admin";
                   } catch {}
                 }
                 const destMap = {
                   super_admin: "/admin",
-                  developer: "/developer",
                   staff: "/staff",
                   program_manager: "/pm",
                   participant: "/participant",

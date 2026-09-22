@@ -135,8 +135,8 @@ describe("it crosses Venture boundaries, so a Venture assignment is not enough",
     expect(executed).toHaveLength(0);
   });
 
-  test("a developer is allowed, as a global role", async () => {
+  test("the retired developer role is refused (no longer a global role)", async () => {
     require("@/lib/auth").getSession.mockResolvedValueOnce({ cid: "dev-1", role: "developer" });
-    expect((await GET(req())).status).toBe(200);
+    expect((await GET(req())).status).toBe(403);
   });
 });

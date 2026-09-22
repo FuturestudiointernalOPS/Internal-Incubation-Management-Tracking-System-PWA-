@@ -499,7 +499,6 @@ export const PERMISSION_MODULES = {
       "view",
       "manage_tasks",
       "manage_errors",
-      "manage_developers",
     ],
   },
   finance: {
@@ -1298,24 +1297,6 @@ export async function seedDefaultAccessProfiles() {
           messaging: { view: 1, send: 2 },
         },
       },
-      Developer: {
-        description: "Engineering access — tasks, standups, retros, projects",
-        capabilities: {
-          projects: { view: 1, create: 2, edit: 3 },
-          engineering: { view: 1, manage_tasks: 2, manage_errors: 1 },
-          reports: { view: 1 },
-          messaging: { view: 1, send: 2 },
-        },
-      },
-      "Developer Intern": {
-        description:
-          "Restricted engineering access — own tasks, standups, retros",
-        capabilities: {
-          projects: { view: 1 },
-          engineering: { view: 1, manage_tasks: 1 },
-          messaging: { view: 1, send: 2 },
-        },
-      },
       "Program Manager": {
         description: "Program management — programs, participants, reports",
         capabilities: {
@@ -1450,13 +1431,7 @@ export async function seedDefaultAccessProfiles() {
       super_admin: "Super Admin Default",
       staff: "Staff Default",
       participant: "Participant Default",
-      developer: "Developer",
       program_manager: "Program Manager",
-      // `admin` is deliberately NOT mapped. It is a retired role (no dashboard,
-      // no eligibility rows, no people) but it used to point at Staff Default —
-      // which made Staff Default a role-default template for an identity that
-      // cannot be eligible for anything, so the ceiling check blocked every save
-      // of Staff Default. Re-adding this line re-introduces that bug.
       investor: "Mentor",
       mentor: "Mentor",
       // Phase 5b: founder-role users resolve to the Founder profile. There is

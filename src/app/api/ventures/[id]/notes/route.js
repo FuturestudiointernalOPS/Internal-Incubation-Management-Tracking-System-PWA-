@@ -8,7 +8,7 @@ import { hasVentureCapability } from "@/lib/venturePermissions";
  * Internal Venture Notes — staff-only (Phase 4).
  *
  * Access rules:
- *  - GLOBAL roles (super_admin/developer/admin): full access (staff notes).
+ *  - GLOBAL roles (super_admin): full access (staff notes).
  *  - Delegated staff: an ACTIVE assignment is required. View/create/delete
  *    are evaluated at runtime against the `internal_notes` permission area:
  *      - Lead Manager default → view/create/comment/edit (full)
@@ -21,7 +21,7 @@ import { hasVentureCapability } from "@/lib/venturePermissions";
  * venture-wide only see unscoped notes + notes matching their scope.
  */
 
-const GLOBAL_ROLES = ["super_admin", "developer", "admin"];
+const GLOBAL_ROLES = ["super_admin"];
 
 async function resolveCode(ventureId) {
   let code = ventureId;

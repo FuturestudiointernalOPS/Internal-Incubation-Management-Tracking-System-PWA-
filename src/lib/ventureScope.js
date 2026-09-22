@@ -5,7 +5,7 @@
  * Bridges the delegation model (venture_staff_assignments rows carrying a
  * responsibility + scope) and the submission-review surfaces:
  *
- *   - GLOBAL roles (super_admin / developer / admin) always have Venture-wide
+ *   - GLOBAL roles (super_admin) always have Venture-wide
  *     reach and are short-circuited by the routes BEFORE this module
  *     (see isGlobalRole).
  *   - A delegated (non-global) actor may only review / be queued for
@@ -24,7 +24,7 @@
  *     (scope = false) so a bug can never over-grant review authority.
  */
 
-export const GLOBAL_ROLES = ["super_admin", "developer", "admin"];
+export const GLOBAL_ROLES = ["super_admin"];
 
 /** Global Venture authority — never constrained by assignment scopes. */
 export function isGlobalRole(role) {

@@ -458,7 +458,6 @@ export default function PendingUsersPage() {
                                   <option value="member">{t("adminMisc.pendingUsers.roleMember")}</option>
                                   <option value="staff">{t("adminMisc.pendingUsers.roleStaff")}</option>
                                   <option value="intern">{t("adminMisc.pendingUsers.roleIntern")}</option>
-                                  <option value="developer">{t("adminMisc.pendingUsers.roleDeveloper")}</option>
                                 </select>
                                 <button
                                   onClick={() =>

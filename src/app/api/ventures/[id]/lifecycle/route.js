@@ -14,8 +14,7 @@ import {
  * Body: { action: "pause" | "resume" | "archive" }
  *
  * Rules:
- *  - privileged Future Studio roles only (staff / super_admin / program_manager /
- *    developer / admin)
+ *  - privileged Future Studio roles only (staff / super_admin / program_manager)
  *  - pause    → status = 'paused'
  *  - resume   → status = 'active', is_archived = 0
  *  - archive  → status = 'archived', is_archived = 1 (historical record —
@@ -46,7 +45,7 @@ export async function POST(req, { params }) {
       if (byId.rows?.[0]) ventureId = byId.rows[0].venture_id;
     }
 
-    if (!["super_admin", "developer", "admin"].includes(session.role)) {
+    if (!["super_admin"].includes(session.role)) {
       // Delegated staff (Phase 2): lifecycle changes require an explicit
       // Venture assignment — never the staff role alone.
       const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");

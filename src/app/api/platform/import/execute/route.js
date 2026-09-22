@@ -161,7 +161,7 @@ async function resolveContact(dbClient, row, mapping, email) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "admin"]);
+    const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
     const { form_id, run_id, mapping, csv_rows, batch_id, file_hash } = await req.json();

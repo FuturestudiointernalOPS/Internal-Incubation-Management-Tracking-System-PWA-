@@ -47,7 +47,7 @@ export function resolveNotificationTarget(row = {}, { role = "" } = {}) {
     return { href: null, entity, surface: null };
   }
   const staff =
-    ["staff", "super_admin", "program_manager", "developer", "admin"].includes(role);
+    ["staff", "super_admin", "program_manager"].includes(role);
   const surface = staff ? STAFF_SURFACE : MEMBER_SURFACE;
   const href = surface[entity]
     ? surface[entity](row.entity_venture_id)

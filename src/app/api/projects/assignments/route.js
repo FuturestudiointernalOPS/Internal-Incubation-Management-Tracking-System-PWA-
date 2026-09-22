@@ -30,7 +30,6 @@ export const GET = createHandler(async (req) => {
     "super_admin",
     "staff",
     "program_manager",
-    "developer",
   ];
   let userCid = searchParams.get("user_cid");
   if (!staffSide.includes(session.role)) {

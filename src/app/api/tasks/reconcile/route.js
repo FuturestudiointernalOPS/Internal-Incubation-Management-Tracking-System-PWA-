@@ -44,7 +44,6 @@ export async function POST(req) {
       "super_admin",
       "staff",
       "program_manager",
-      "developer",
     ];
     if (
       !staffSide.includes(session.role) &&

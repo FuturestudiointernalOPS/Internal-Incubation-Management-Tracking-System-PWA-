@@ -4,7 +4,7 @@
  * Change the lead founder / owner of a Venture (Phase 4).
  *
  * Who can do it:
- *  - super_admin, staff, program_manager, developer (privileged)
+ *  - super_admin, staff, program_manager (privileged)
  *  - the current lead founder of the venture
  *
  * Guardrails:
@@ -50,7 +50,7 @@ export async function POST(req, { params }) {
     }
 
     // ── Authorization: privileged roles OR the current lead founder ──
-    const privileged = ["super_admin", "developer", "admin"];
+    const privileged = ["super_admin"];
 
     // Delegated staff (Phase 2): changing the Venture lead requires an
     // explicit assignment — never the staff role alone.

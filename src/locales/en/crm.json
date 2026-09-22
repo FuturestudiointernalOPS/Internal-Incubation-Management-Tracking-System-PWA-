@@ -153,13 +153,11 @@
       "selectSegment": "Select Segment...",
       "roleOverride": "Role Override",
       "autoDetect": "Auto-detect (default)",
-      "roleDeveloper": "Developer",
       "roleStaff": "Staff",
       "roleParticipant": "Participant",
       "roleMember": "Member (no role yet)",
-      "roleIntern": "Intern",
       "roleFacilitator": "Facilitator",
-      "roleHelper": "Leave as Auto-detect for most users. Set to Developer for dev account only.",
+      "roleHelper": "Leave as Auto-detect for most users.",
       "programAssignment": "Program Assignment",
       "programHelper": "Select the program for this user.",
       "selectProgram": "Select Program...",
@@ -227,7 +225,8 @@
       "invitationExpired": "Expired",
       "activationEmailSent": "Activation email: Sent",
       "activationEmailFailed": "Activation email: Failed",
-      "activationEmailNotSent": "Activation email: Not sent"
+      "activationEmailNotSent": "Activation email: Not sent",
+      "roleIntern": "Intern"
     },
     "duplicates": {
       "crm": "CRM",
@@ -436,7 +435,6 @@
       "staff": "Staff",
       "investor": "Investor",
       "finance": "Finance",
-      "developer": "Developer",
       "unassigned": "Unassigned",
       "team": "Team",
       "founder": "Founder",

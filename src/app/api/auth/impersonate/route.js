@@ -89,8 +89,6 @@ export async function POST(req) {
 
     if (user.role === "super_admin" || user.id === "sa") {
       finalRole = "super_admin";
-    } else if (user.role === "developer") {
-      finalRole = "developer";
     } else if (user.role === "investor") {
       finalRole = "investor";
     } else if (user.role === "founder") {
@@ -98,7 +96,7 @@ export async function POST(req) {
     } else if (user.role === "program_manager") {
       finalRole = "program_manager";
     } else if (
-      user.role === "staff" || user.role === "project_manager" || user.role === "admin" ||
+      user.role === "staff" || user.role === "project_manager" ||
       (user.group_name || "").toUpperCase() === "FUTURE STUDIO"
     ) {
       // Internal Future Studio staff keep their identity — being assigned as
@@ -202,13 +200,11 @@ export async function GET() {
       let displayRole = user.role || "participant";
       if (user.role === "super_admin") displayRole = "super_admin";
       else if (user.role === "program_manager") displayRole = "program_manager";
-      else if (user.role === "developer") displayRole = "developer";
       else if (user.role === "investor") displayRole = "investor";
       else if (user.role === "founder") displayRole = "founder";
       else if (
         user.role === "staff" ||
         user.role === "project_manager" ||
-        user.role === "admin" ||
         (user.group_name || "").toUpperCase().includes("STAFF") ||
         (user.group_name || "").toUpperCase().includes("FUTURE STUDIO")
       ) {

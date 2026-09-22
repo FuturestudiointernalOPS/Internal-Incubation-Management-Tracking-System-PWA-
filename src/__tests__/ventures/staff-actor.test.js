@@ -41,10 +41,10 @@ describe("isStaffActorForVenture", () => {
     expect(db.execute).not.toHaveBeenCalled();
   });
 
-  it("grants developer and admin roles too", async () => {
+  it("no longer grants the retired developer/admin roles (they resolve to staff/none)", async () => {
     const db = makeDb();
-    expect(await isStaffActorForVenture(db, "VNT-ABC", { role: "developer", cid: "d1" })).toBe(true);
-    expect(await isStaffActorForVenture(db, "VNT-ABC", { role: "admin", cid: "a1" })).toBe(true);
+    expect(await isStaffActorForVenture(db, "VNT-ABC", { role: "developer", cid: "d1" })).toBe(false);
+    expect(await isStaffActorForVenture(db, "VNT-ABC", { role: "admin", cid: "a1" })).toBe(false);
   });
 
   it("denies a member (founder) with no assignment", async () => {

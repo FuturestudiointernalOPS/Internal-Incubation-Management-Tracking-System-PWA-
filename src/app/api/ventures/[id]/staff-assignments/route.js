@@ -5,7 +5,7 @@ import { listAssignments, createAssignment, removeAssignment } from "@/lib/ventu
 
 // Phase 1: assignment management is Super Admin territory. Phase 3 will
 // extend this guard to Lead Managers whose matrix grants the assign action.
-const ROLES = ["super_admin", "developer", "admin"];
+const ROLES = ["super_admin"];
 
 export async function GET(req, { params }) {
   try {

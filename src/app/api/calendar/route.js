@@ -50,8 +50,6 @@ export async function GET(req) {
     // empty rather than silently meaning "all".
     const PROGRAM_UNSCOPED_ROLES = [
       "super_admin",
-      "developer",
-      "admin",
       "staff",
       "program_manager",
       "team",
@@ -265,7 +263,7 @@ export async function GET(req) {
     //    delegated staff see their active assignments.
     try {
       const personalMode = searchParams.get("personal") === "1";
-      const privilegedVentureRoles = ["staff", "super_admin", "program_manager", "developer", "admin"];
+      const privilegedVentureRoles = ["staff", "super_admin", "program_manager"];
       // Personal mode (Vinance 3 Phase 1): even privileged roles see only the
       // Ventures they are assigned to / coach sessions they are attached to.
       const seesAllVentures = privilegedVentureRoles.includes(session?.role) && !personalMode;

@@ -237,15 +237,10 @@ async function buildNavigation(session, contextsOnly) {
       groups: [],
       history: [],
     });
-    contexts.org_memberships = [...groups].sort().map((groupName) => {
-      const isIntern = /intern/i.test(String(groupName || ""));
-      return {
-        group_name: groupName,
-        href: isIntern
-          ? "/developer"
-          : roleHomeHref(session.role) || "/workspaces",
-      };
-    });
+    contexts.org_memberships = [...groups].sort().map((groupName) => ({
+      group_name: groupName,
+      href: roleHomeHref(session.role) || "/workspaces",
+    }));
     contexts.org_history = history;
   } catch (_) {}
 
@@ -255,11 +250,9 @@ async function buildNavigation(session, contextsOnly) {
       ...r,
       href: String(r.key || "").toLowerCase().includes("finance")
         ? "/finance"
-        : String(r.key || "").toLowerCase().includes("engineering")
-          ? "/developer"
-          : String(r.key || "").toLowerCase().includes("crm")
-            ? "/crm"
-            : "/workspaces",
+        : String(r.key || "").toLowerCase().includes("crm")
+          ? "/crm"
+          : "/workspaces",
     }));
   } catch (_) {}
 

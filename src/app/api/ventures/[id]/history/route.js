@@ -15,7 +15,7 @@ export async function GET(req, { params }) {
     // session — an active venture_members row OR an active venture staff
     // assignment is required, regardless of stored role. This closes the
     // founder path that previously passed on the allowlist alone and admits
-    // member-baseline founders. SA/developer/admin keep the global bypass.
+    // member-baseline founders. SA keeps the global bypass.
     const authError = await requireAuth();
     if (authError) return authError;
 
@@ -30,7 +30,7 @@ export async function GET(req, { params }) {
 
     const venture = ventureRes.rows[0];
 
-    if (session && !["super_admin", "developer", "admin"].includes(session.role)) {
+    if (session && !["super_admin"].includes(session.role)) {
       const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
       const assigned = await hasActiveVentureAssignment(id, session.cid, db);
       const member = await db.execute({

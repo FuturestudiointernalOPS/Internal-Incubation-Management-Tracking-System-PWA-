@@ -4,7 +4,7 @@
  * Single source of truth for the default role. A user with no Program
  * assignment and no explicit privileged role is a PARTICIPANT — never Staff.
  *
- * Staff/program-manager/admin/etc. are only applied when explicitly
+ * Staff/program-manager/etc. are only applied when explicitly
  * assigned (e.g. a group's configured default_role, or an admin action).
  */
 
@@ -12,10 +12,8 @@ export const DEFAULT_ROLE = "participant";
 
 export const PRIVILEGED_ROLES = new Set([
   "super_admin",
-  "admin",
   "staff",
   "program_manager",
-  "developer",
   "investor",
   "founder",
   "mentor",
@@ -53,7 +51,7 @@ export const INTERNAL_GROUP = "FUTURE STUDIO";
  *   1. Team / Family entity logins keep their entity identity.
  *   2. Privileged identities ALWAYS win and are never overridden by group
  *      membership — this is what protects Super Admin from demotion/lockout.
- *   3. Staff-family roles (staff / project_manager / admin) normalize to staff.
+ *   3. Staff-family roles (staff / project_manager) normalize to staff.
  *   4. An ACTIVE FUTURE STUDIO membership ⇒ staff  (the rule). Expired or
  *      ended memberships must NOT produce staff — the caller passes the
  *      EFFECTIVE (active, unexpired) group list from the membership layer.
@@ -85,14 +83,13 @@ export function resolveEffectiveRole({
   if (isFamily) return "participant"; // family entity acts as participant
 
   if (r === "super_admin" || legacySa) return "super_admin";
-  if (r === "developer") return "developer";
   if (r === "investor") return "investor";
   if (r === "founder") return "founder";
 
   // Staff-family identities normalize to staff. Program Manager is a function
   // layered on Staff (not a separate global identity) — a PM contact must
   // resolve to staff at login, never fall through to participant.
-  if (r === "staff" || r === "program_manager" || r === "project_manager" || r === "admin") return "staff";
+  if (r === "staff" || r === "program_manager" || r === "project_manager") return "staff";
 
   // THE RULE — active FUTURE STUDIO membership = internal staff membership.
   // `group_name` is accepted as a compatibility fallback for callers that
@@ -122,7 +119,6 @@ export const ROLE_HOME = {
   program_manager: "/pm",
   staff: "/staff",
   facilitator: "/facilitator",
-  developer: "/developer",
   participant: "/participant",
   // A member starts on the DASHBOARD (the page that owns the calendar), not on
   // the /workspaces listing — the workspace hub showed first and read like a
@@ -219,6 +215,4 @@ export const INTERNAL_OPS_ROLES = [
   "super_admin",
   "staff",
   "program_manager",
-  "admin",
-  "developer",
 ];

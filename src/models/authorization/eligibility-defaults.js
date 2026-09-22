@@ -40,7 +40,6 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "super_admin",
     "staff",
     "program_manager",
-    "developer",
   ],
   // Communication — messaging, announcements, forms
   //
@@ -54,7 +53,6 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "super_admin",
     "staff",
     "program_manager",
-    "developer",
     "participant",
     "mentor",
     "investor",
@@ -101,7 +99,6 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "super_admin",
     "staff",
     "program_manager",
-    "developer",
     "team",
     "participant",
     "mentor",
@@ -112,14 +109,13 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "super_admin",
     "staff",
     "program_manager",
-    "developer",
   ],
   // Knowledge — knowledge base
-  knowledge: ["super_admin", "staff", "developer"],
+  knowledge: ["super_admin", "staff"],
   // LMS — capability-gated course authoring & learning
-  lms: ["super_admin", "program_manager", "developer"],
+  lms: ["super_admin", "program_manager"],
   // Security — user administration + permission matrix
   security: ["super_admin", "staff"],
   // Settings — system configuration + engineering operations
-  settings: ["super_admin", "staff", "developer"],
+  settings: ["super_admin", "staff"],
 };

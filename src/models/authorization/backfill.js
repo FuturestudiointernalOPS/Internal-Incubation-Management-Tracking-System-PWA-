@@ -81,7 +81,6 @@ export function ensureCapabilityBackfills() {
           runAuthzMigration("cap-backfill-runs", ensureRunsBackfill),
           runAuthzMigration("cap-backfill-projects", ensureProjectsBackfill),
           runAuthzMigration("cap-backfill-tasks", ensureTasksBackfill),
-          runAuthzMigration("cap-backfill-engineering", ensureEngineeringBackfill),
           runAuthzMigration("cap-backfill-programs", ensureProgramsBackfill),
           runAuthzMigration("cap-backfill-ventures", ensureVenturesBackfill),
           runAuthzMigration("cap-backfill-investor", ensureInvestorBackfill),
@@ -144,8 +143,16 @@ export function ensureCapabilityBackfills() {
         // Feature-key alignment (FEATURES = dashboard sections) runs AFTER the
         // parallel backfills so it never races the rows they touch. It gets the
         // same treatment: a failure is reported, never propagated.
+        //
+        // The retired-role cleanup (developer / admin) runs here too: it removes
+        // the rows earlier seeds may have left for roles the product no longer
+        // has, after every backfill has had its say.
         const alignment = await Promise.allSettled([
           runAuthzMigration("feature-key-alignment-v1", ensureFeatureKeyAlignment),
+          runAuthzMigration(
+            "retire-developer-admin-roles-v1",
+            ensureRetiredRoleCleanup,
+          ),
         ]);
         reportFailedMigrations(alignment);
 
@@ -204,29 +211,23 @@ async function ensureKnowledgeBackfill() {
 //
 // Route allowlists (verified):
 //   op-reports/standups/retros submit → INTERNAL_OPS_ROLES
-//     (super_admin, staff, program_manager, admin, developer)
-//   run-export → super_admin, admin, program_manager, staff
+//     (super_admin, staff, program_manager)
+//   run-export → super_admin, program_manager, staff
 //
 // Backfill reproduces that access through the capability layer:
-//   - developer gets reports.create (Developer profile already had view)
-//   - staff gets reports.export (Staff Default profile already had view/create)
+//   - staff gets reports.export (Staff Default profile already has view/create)
 //   - program_manager needs nothing (Program Manager profile already has
 //     view/create/export)
-//   - admin inherits export via the shared Staff Default profile — safe,
-//     because admin is already allowed on run-export today
-// NOTE (policy #3): the previous `reporting += admin` eligibility extra was
-// removed — admin is no longer reporting-eligible, and the one-time
-// eligibility-policy-3 migration deletes any leftover row. developer stays
-// covered by the post-policy defaults (no extra needed).
+// NOTE (policy #3): reporting eligibility no longer includes the retired
+// `admin` role; the one-time eligibility-policy-3 migration clears any leftover
+// admin row left by an older seed.
 
 const REPORTS_CAP_BACKFILL = {
   profiles: {
-    Developer: [["reports", "create", 2]],
     "Staff Default": [["reports", "export", 3]],
     Instructor: [["reports", "export", 3]],
   },
   roles: {
-    developer: [["reports", "create", 2]],
     staff: [["reports", "export", 3]],
   },
 };
@@ -281,13 +282,13 @@ async function ensureReportsBackfill() {
 //   announcements PUT/DELETE → internal_comms.moderate
 //     (the existing author-or-super_admin ownership check stays in the route)
 //
-// Route allowlist (verified): super_admin, program_manager, admin, staff.
+// Route allowlist (verified): super_admin, program_manager, staff.
 // Backfills reproduce that population:
-//   - create_announcements + moderate for staff / program_manager / admin
+//   - create_announcements + moderate for staff / program_manager
 //     (Staff Default + Program Manager profiles and role_capabilities)
-// NOTE (policy #3): the previous `internal_comms += admin` eligibility extra
-// was removed — admin is no longer internal_comms-eligible, and the one-time
-// eligibility-policy-3 migration deletes any leftover row.
+// NOTE (policy #3): internal_comms eligibility no longer includes the
+// retired `admin` role; the one-time eligibility-policy-3 migration clears any
+// leftover admin row left by an older seed.
 //
 // Deliberately NOT migrated in this phase:
 //   - messaging/contacts GET — participant/founder-only self-scoped route,
@@ -311,10 +312,6 @@ const ANNOUNCEMENTS_BACKFILL = {
   },
   roles: {
     staff: [
-      ["internal_comms", "create_announcements", 2],
-      ["internal_comms", "moderate", 3],
-    ],
-    admin: [
       ["internal_comms", "create_announcements", 2],
       ["internal_comms", "moderate", 3],
     ],
@@ -361,12 +358,11 @@ async function ensureAnnouncementsBackfill() {
 
 // ─── Communication: Forms module ─────────────────────────────────────────────
 // The Forms builder (/platform/forms, /api/platform/forms) was guarded by a
-// legacy role allowlist: reads allowed super_admin / admin / staff, writes
-// super_admin / admin. The module is now capability-gated
+// legacy role allowlist: reads allowed super_admin / staff, writes
+// super_admin. The module is now capability-gated
 // (forms.view/create/edit/delete) so it is configurable from the Permissions
 // template. This backfill reproduces the READ population only — writes stay
-// Super-Admin-by-default (SA bypasses) and become grantable per template,
-// matching the legacy gate once admin normalizes to staff at login.
+// Super-Admin-by-default (SA bypasses) and become grantable per template.
 const FORMS_BACKFILL = {
   profiles: {
     "Staff Default": [["forms", "view", 1]],
@@ -412,7 +408,7 @@ async function ensureFormsBackfill() {
 
 // ─── Communication: Runs module ──────────────────────────────────────────────
 // Runs were gated by a legacy role allowlist on GET
-// (super_admin / admin / staff / program_manager) while the sidebar hard-coded
+// (super_admin / staff / program_manager) while the sidebar hard-coded
 // `platform-runs` to super_admin — the mismatch behind "communication users".
 // The module is now capability-gated (runs.view/create/edit/delete). This
 // backfill reproduces the legacy READ population so the sidebar and the API
@@ -428,7 +424,6 @@ const RUNS_BACKFILL = {
   roles: {
     staff: [["runs", "view", 1]],
     program_manager: [["runs", "view", 1]],
-    admin: [["runs", "view", 1]],
   },
 };
 
@@ -468,7 +463,7 @@ async function ensureRunsBackfill() {
 
 // ─── Phase 6: Projects ──────────────────────────────────────────────────────
 // Migrated routes (role-gated writes; scoped-guard reads stay as-is):
-//   projects POST          → projects.create   (SA, staff, PM, developer)
+//   projects POST          → projects.create   (SA, staff, PM)
 //   projects DELETE        → projects.delete   (SA, staff, PM)
 //   projects/members POST  → projects.edit     (SA, staff, PM)
 //   projects/members DELETE → projects.edit    (SA, staff, PM)
@@ -477,10 +472,9 @@ async function ensureRunsBackfill() {
 //   - program_manager needs create/edit/delete (its profile only
 //     has projects.view)
 //   - staff needs delete (Staff Default already has view/create/edit)
-//   - admin inherits Staff Default delete but is NOT eligible for
-//     operations → no access change
-//   - developer needs nothing for DELETE/members (not in those allowlists);
-//     it already has create via the Developer profile
+//
+// (The retired `admin`/`developer` roles no longer appear in these
+// allowlists, so they need no backfill.)
 //
 // Deliberately NOT migrated: projects GET/PUT, projects/members GET,
 // projects/discuss, projects/invitations*, projects/assignments,
@@ -557,8 +551,6 @@ async function ensureProjectsBackfill() {
 //   - staff: tasks caps via Staff Default profile + role_capabilities
 //   - program_manager: tasks caps via Program Manager profile + role_capabilities
 //   - team: tasks caps via role_capabilities (team has no default profile)
-//   - admin inherits Staff Default tasks caps but is NOT eligible for the
-//     tasks feature → no access change
 //
 // The eligibility table was seeded in Phase 0 BEFORE the tasks feature
 // existed, so existing databases have no tasks rows at all — the backfill
@@ -638,71 +630,6 @@ async function ensureTasksBackfill() {
   }
 
   for (const [role, rows] of Object.entries(TASKS_BACKFILL.roles)) {
-    for (const [module, capability, level] of rows) {
-      await db.execute({
-        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
-              VALUES (?, ?, ?, ?)
-              ON CONFLICT (role, module, capability) DO NOTHING`,
-        args: [role, module, capability, level],
-      });
-    }
-  }
-}
-
-// ─── Phase 8: Engineering ops + errors gap ──────────────────────────────────
-// Migrated routes (allowlist super_admin, developer — matches the existing
-// `engineering` eligibility seed exactly):
-//   engineering/dashboard GET         → engineering.view
-//   engineering/developers GET        → engineering.view
-//   engineering/developers PATCH      → engineering.manage_developers
-//   engineering/errors/create-task POST → engineering.manage_errors
-//   engineering/reports GET           → engineering.view
-//   errors GET / PATCH                → engineering.manage_errors
-//     (closes the PUBLIC log-read/resolve gap; POST stays public — it is
-//      intentional client-side error ingestion, write-only)
-//
-// Backfills: developer needs manage_developers (its profile already has
-// view/manage_tasks/manage_errors). Zero gains: the only roles holding
-// engineering capabilities are developer (eligible) and intern/Project-Owner
-// profile holders (NOT eligible — engineering eligibility is super_admin +
-// developer only).
-//
-// Deliberately NOT migrated: engineering/permissions*, audit — super_admin-
-// only admin tooling; developer holds engineering.view and would gain the
-// SA-only permission-management surface. Deferred for the final phase.
-
-const ENGINEERING_BACKFILL = {
-  profiles: {
-    Developer: [["engineering", "manage_developers", 2]],
-  },
-  roles: {
-    developer: [["engineering", "manage_developers", 2]],
-  },
-};
-
-async function ensureEngineeringBackfill() {
-  await ensurePermissionsSchema();
-
-  for (const [profileName, rows] of Object.entries(ENGINEERING_BACKFILL.profiles)) {
-    const profile =
-      (
-        await db.execute({
-          sql: "SELECT id FROM access_profiles WHERE name = ? AND is_active = 1",
-          args: [profileName],
-        })
-      ).rows[0] || null;
-    if (!profile) continue;
-    for (const [module, capability, level] of rows) {
-      await db.execute({
-        sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
-              VALUES (?, ?, ?, ?)
-              ON CONFLICT (profile_id, module, capability) DO NOTHING`,
-        args: [profile.id, module, capability, level],
-      });
-    }
-  }
-
-  for (const [role, rows] of Object.entries(ENGINEERING_BACKFILL.roles)) {
     for (const [module, capability, level] of rows) {
       await db.execute({
         sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
@@ -798,8 +725,7 @@ async function ensureProgramsBackfill() {
 //
 // Deliberately NOT migrated: the ~55 membership-scoped sub-routes
 // (requireVentureAccess — founders and venture members working in their own
-// venture workspace) and the broad read allowlists (participant/founder/
-// developer). Capability cannot express per-venture membership; the
+// venture workspace) and the broad read allowlists (participant/founder). Capability cannot express per-venture membership; the
 // scoped guard is the real gate there, exactly like projects GET/PUT and the
 // facilitator routes.
 
@@ -873,7 +799,6 @@ async function ensureVenturesBackfill() {
 //     default profile per role_access_profile_defaults) + role_capabilities
 //   - mentor role inherits the Mentor profile caps but is NOT eligible for
 //     the investor feature → no access change
-//   - admin inherits Staff Default caps but is NOT eligible → no access change
 //
 // Deliberately NOT migrated (documented): the super_admin-only admin routes
 // (admin-overview, executive-dashboard, approval, campaigns writes,
@@ -960,8 +885,8 @@ async function ensureInvestorBackfill() {
 
 // ─── Messaging: FINAL MVP POLICY (internal-only) ────────────────────────────
 // Decision: Messaging is a Future Studio internal-operations feature.
-// Only the internal staff roles keep it: super_admin, staff, program_manager,
-// developer. Participant, founder and member are REMOVED from messaging
+// Only the internal staff roles keep it: super_admin, staff, program_manager.
+// Participant, founder and member are REMOVED from messaging
 // eligibility.
 //
 // This is a configuration change (DELETE of eligibility rows) — messaging
@@ -1056,7 +981,6 @@ const MESSAGING_INTERNAL_ROLES = [
   "super_admin",
   "staff",
   "program_manager",
-  "developer",
 ];
 
 const MESSAGING_REMOVED_ROLES = ["teacher", "participant", "founder", "member"];
@@ -1088,16 +1012,15 @@ async function ensureMessagingPolicyBackfill() {
   }
 }
 
-// ─── Final eligibility policy (#3) ──────────────────────────────────────────
+// ─── Final eligibility policy (#3) ──────────────────────────
 // Product Owner-approved final eligibility values:
-//   - `admin` is NOT eligible for internal_comms (announcements) or reporting
-//     (op-reports / standups / retros / run-export / pm-export). The previous
-//     seed included admin; existing DBs must have those rows removed.
 //   - `participant` / `founder` are NOT eligible for crm. Removal is
 //     zero-impact: they hold no contacts capabilities — self-service reads are
 //     role-gated, not eligibility-gated (verified by the read-only dry-run,
 //     scripts/dryrun-eligibility-policy.mjs: zero decision changes for every
 //     user in the production database).
+//   - the retired `admin` role no longer carries internal_comms/reporting rows;
+//     older seeds that added them are cleared here.
 //
 // DELETES ROLE ROWS ONLY — group eligibility rows are sacred and untouched.
 // Runs ONCE per database via runAuthzMigration("eligibility-policy-3"): fresh
@@ -1112,9 +1035,7 @@ export async function ensureFinalPolicyBackfill() {
     sql: `DELETE FROM feature_eligibility
           WHERE identity_type = 'role'
             AND (
-              (feature_key = 'communication' AND identity_value = 'admin')
-              OR (feature_key = 'reports' AND identity_value = 'admin')
-              OR (feature_key = 'crm' AND identity_value IN ('participant', 'founder'))
+              (feature_key = 'crm' AND identity_value IN ('participant', 'founder'))
             )`,
     args: [],
   });
@@ -1135,7 +1056,6 @@ const COMMUNICATION_ELIGIBLE_ROLES = [
   "super_admin",
   "staff",
   "program_manager",
-  "developer",
 ];
 
 export async function ensureCommunicationFeatureBackfill() {
@@ -1255,5 +1175,105 @@ export async function ensureFeatureKeyAlignment() {
         args: [dupe.id],
       });
     }
+  }
+}
+
+// ─── Retired roles cleanup: `developer` / `admin` ───────────────────────────
+// The `developer` role (with its "Developer"/"Developer Intern" templates) and
+// the retired `admin` role were removed from the product: no session resolves to
+// them any more, their dashboards are gone, and `engineering.manage_developers`
+// left the capability catalog. Their rows are therefore inert — this ONE-TIME
+// migration removes them so the Permissions UI and the catalog stop advertising
+// control nobody can hold.
+//
+// Safety:
+//   - Only rows keyed by the retired identities, their templates, or the retired
+//     `engineering.manage_developers` capability are touched.
+//   - GROUP eligibility rows are NEVER deleted (sacred, like eligibility-policy-3).
+//   - Per-user profile assignments to the retired templates are cleared FIRST, so
+//     no contact keeps a dangling `access_profile_id`.
+//   - The audit write is best-effort: a missing audit table never blocks it (and
+//     never leaves the migration un-recorded, which would retry forever).
+
+const RETIRED_ROLE_NAMES = ["developer", "admin"];
+const RETIRED_PROFILE_NAMES = ["Developer", "Developer Intern"];
+
+// Every table that can carry a (module, capability) row. The retired
+// `manage_developers` capability is stripped from all of them; the retired roles
+// are stripped from the role-keyed ones only (per-user and per-group grants on
+// OTHER capabilities are never touched).
+const CAPABILITY_TABLES = [
+  "role_capabilities",
+  "group_capabilities",
+  "user_capabilities",
+  "user_capability_restrictions",
+  "access_profile_capabilities",
+  "responsibility_capability_grants",
+];
+
+const sqlList = (values) => values.map((v) => `'${v}'`).join(", ");
+
+export async function ensureRetiredRoleCleanup() {
+  await ensurePermissionsSchema();
+
+  // 1. No contact may keep pointing at a template that is about to disappear.
+  await db.execute(
+    `UPDATE contacts SET access_profile_id = NULL
+      WHERE access_profile_id IN (
+        SELECT id FROM access_profiles WHERE name IN (${sqlList(RETIRED_PROFILE_NAMES)})
+      )`,
+  );
+
+  // 2. The retired templates and their capabilities.
+  await db.execute(
+    `DELETE FROM access_profile_capabilities
+      WHERE profile_id IN (
+        SELECT id FROM access_profiles WHERE name IN (${sqlList(RETIRED_PROFILE_NAMES)})
+      )`,
+  );
+  await db.execute(
+    `DELETE FROM access_profiles WHERE name IN (${sqlList(RETIRED_PROFILE_NAMES)})`,
+  );
+
+  // 3. The retired roles' profile defaults, legacy fallback rows and eligibility
+  //    rows (role rows only — group rows stay untouched).
+  await db.execute(
+    `DELETE FROM role_access_profile_defaults
+      WHERE role_name IN (${sqlList(RETIRED_ROLE_NAMES)})`,
+  );
+  await db.execute(
+    `DELETE FROM role_capabilities WHERE role IN (${sqlList(RETIRED_ROLE_NAMES)})`,
+  );
+  await db.execute(
+    `DELETE FROM feature_eligibility
+      WHERE identity_type = 'role' AND identity_value IN (${sqlList(RETIRED_ROLE_NAMES)})`,
+  );
+
+  // 4. The retired `engineering.manage_developers` capability, everywhere it may
+  //    have been granted (profiles, roles, groups, people, restrictions).
+  for (const table of CAPABILITY_TABLES) {
+    await db.execute(
+      `DELETE FROM ${table} WHERE module = 'engineering' AND capability = 'manage_developers'`,
+    );
+  }
+
+  // 5. Best-effort audit trail.
+  try {
+    await db.execute({
+      sql: `INSERT INTO permission_audit_log
+              (actor_cid, actor_name, target_cid, target_name, action, details)
+            VALUES ('system','system','system','system','eligibility_changed',?)`,
+      args: [
+        "Retired roles cleanup: removed the `developer`/`admin` roles and the " +
+          "`Developer`/`Developer Intern` templates (their capabilities, role " +
+          "defaults, eligibility rows, per-user profile assignments and the " +
+          "`engineering.manage_developers` capability).",
+      ],
+    });
+  } catch (e) {
+    console.warn(
+      "[Authz] retired-role cleanup audit write skipped:",
+      e.message,
+    );
   }
 }

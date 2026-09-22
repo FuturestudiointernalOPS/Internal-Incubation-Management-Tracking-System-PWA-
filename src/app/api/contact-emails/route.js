@@ -14,11 +14,11 @@ import { findContactByCid } from "@/models/workspace";
  * POST   /api/contact-emails               { email, cid? } add an alternative email
  * DELETE /api/contact-emails?id=&cid=      remove an alternative email
  *
- * Privileged roles (staff/super_admin/program_manager/developer) may manage
+ * Privileged roles (staff/super_admin/program_manager) may manage
  * any contact via cid; everyone else manages only their own identity.
  */
 
-const PRIVILEGED = ["super_admin", "staff", "program_manager", "developer", "admin"];
+const PRIVILEGED = ["super_admin", "staff", "program_manager"];
 
 export async function GET(req) {
   try {

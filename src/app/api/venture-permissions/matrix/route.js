@@ -8,8 +8,8 @@ import {
   VENTURE_PERMISSION_ACTIONS,
 } from "@/lib/venturePermissions";
 
-const READ_ROLES = ["super_admin", "developer", "admin"];
-const WRITE_ROLES = ["super_admin", "developer", "admin"];
+const READ_ROLES = ["super_admin"];
+const WRITE_ROLES = ["super_admin"];
 
 const validArea = (a) => VENTURE_PERMISSION_AREAS.includes(a);
 const validAction = (a) => VENTURE_PERMISSION_ACTIONS.includes(a);

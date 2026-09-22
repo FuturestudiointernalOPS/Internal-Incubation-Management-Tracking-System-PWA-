@@ -40,7 +40,6 @@ export const ALL_FEATURE_ROLES = [
   "super_admin",
   "staff",
   "program_manager",
-  "developer",
   "facilitator",
   "participant",
   "member",
@@ -51,11 +50,11 @@ export const ALL_FEATURE_ROLES = [
 ];
 
 /**
- * Roles that are NOT subject to feature-access warnings. Super Admin and
- * developer bypass the /admin/* layout guard, so they never hit the
+ * Roles that are NOT subject to feature-access warnings. Super Admin
+ * bypasses the /admin/* layout guard, so it never hits the
  * redirect-to-login problem this warning exists to prevent.
  */
-const WARNING_BYPASS_ROLES = ["super_admin", "developer"];
+const WARNING_BYPASS_ROLES = ["super_admin"];
 
 /**
  * Default allowed roles for a responsibility key (the seed). Returns null

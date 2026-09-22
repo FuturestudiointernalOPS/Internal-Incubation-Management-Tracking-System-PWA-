@@ -27,7 +27,7 @@ export async function GET() {
 
 export async function POST(req) {
   try {
-    const authError = await requireAuth(["super_admin", "developer"]);
+    const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
     await initDb();
     await createProgramTypeOptionsTable();

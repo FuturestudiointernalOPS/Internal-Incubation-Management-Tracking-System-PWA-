@@ -2,7 +2,7 @@ import { getSession } from "@/lib/auth";
 
 /** Roles that may always access Venture records (incl. archived, historical). */
 export function roleIsPrivileged(role) {
-  return ["staff", "super_admin", "program_manager", "developer", "admin"].includes(role);
+  return ["staff", "super_admin", "program_manager"].includes(role);
 }
 
 /**
@@ -14,7 +14,7 @@ export function roleIsPrivileged(role) {
  */
 export async function isStaffActorForVenture(db, ventureId, session) {
   if (!session) return false;
-  if (["super_admin", "developer", "admin"].includes(session.role)) return true;
+  if (session.role === "super_admin") return true;
   if (!session.cid) return false;
   try {
     // venture_staff_assignments stores the VNT code (TEXT). Convert an internal
@@ -94,7 +94,7 @@ export async function requireOperationalVentureAccess({ ventureId, db, session, 
  *   if (!session) return NextResponse.json({...}, {status: 404});
  *
  * Rules (Phase 2 — assignment-aware delegation):
- *   - GLOBAL roles (super_admin / developer / admin) bypass membership
+ *   - GLOBAL roles (super_admin) bypass membership
  *     (org-wide Venture authority).
  *   - Everyone else must hold EITHER:
  *       a) an ACTIVE venture_members row (founder/member access), OR
@@ -123,7 +123,7 @@ export async function requireVentureAccess(ventureId, db) {
   if (!session) return { ventureId, session: null };
 
   // Global Venture authority (Phase 2: narrowed from all staff/PM roles).
-  const globalRoles = ["super_admin", "developer", "admin"];
+  const globalRoles = ["super_admin"];
   if (globalRoles.includes(session.role)) {
     return { ventureId, session };
   }

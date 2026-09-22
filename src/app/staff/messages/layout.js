@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Server-side guard: Messaging is a Future Studio internal-operations feature.
- * /staff/messages is also the developer messaging path — both roles hold
+ * /staff/messages is the internal-operations messaging path; staff hold
  * messaging capability; anyone else is denied server-side.
  */
 export default async function MessagingGuard({ children }) {

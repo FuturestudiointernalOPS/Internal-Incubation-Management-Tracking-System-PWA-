@@ -124,16 +124,9 @@ const FIXTURE = {
       href: null,
       subItems: [
         { id: "integrations", href: "/admin/integrations", subItems: null },
-        { id: "engineering_dashboard", href: "/admin/engineering", subItems: null },
         { id: "system", href: "/admin/system", subItems: null },
       ],
     },
-  ],
-
-  admin: [
-    { id: "dashboard", href: "/admin", subItems: null },
-    { id: "projects", href: "/admin/projects", subItems: null },
-    { id: "reports", href: "/admin/reports", subItems: null },
   ],
 
   program_manager: [
@@ -177,23 +170,6 @@ const FIXTURE = {
     { id: "my_programs", href: "/facilitator/programs", subItems: null },
     { id: "reviews", href: "/facilitator/reviews", subItems: null },
     { id: "profile", href: "/facilitator/profile", subItems: null },
-  ],
-
-  developer: [
-    { id: "dashboard", href: "/developer", subItems: null },
-    { id: "my_tasks", href: "/developer/my-tasks", subItems: null },
-    { id: "assigned_tasks", href: "/developer/assigned-tasks", subItems: null },
-    {
-      id: "rituals",
-      href: null,
-      subItems: [
-        { id: "standup", href: "/staff/op-report?tab=standup", subItems: null },
-        { id: "retro", href: "/staff/op-report?tab=retro", subItems: null },
-      ],
-    },
-    { id: "projects", href: "/staff/projects", subItems: null },
-    { id: "notifications", href: "/developer/notifications", subItems: null },
-    { id: "messages", href: "/staff/messages", subItems: null },
   ],
 
   member: [{ id: "dashboard", href: "/participant", subItems: null }],
@@ -243,8 +219,12 @@ describe("Master navigation — role projections", () => {
     });
   }
 
-  it("falls back to the admin view for unknown roles", () => {
-    expect(serialize(buildRoleNav("unknown_role"))).toEqual(FIXTURE.admin);
+  it("falls back to a neutral view for unknown roles", () => {
+    expect(serialize(buildRoleNav("unknown_role"))).toEqual([
+      { id: "dashboard", href: "/admin", subItems: null },
+      { id: "projects", href: "/admin/projects", subItems: null },
+      { id: "reports", href: "/admin/reports", subItems: null },
+    ]);
   });
 
   it("every ROLE_ACCESS reference resolves to a master node", () => {
@@ -328,7 +308,6 @@ describe("Master navigation — role projections", () => {
       ["super_admin", "messages"],
       ["staff", "messages"],
       ["program_manager", "messages"],
-      ["developer", "messages"],
       ["super_admin", "programs"],
       ["staff", "programs"],
       ["participant", "programs"],
@@ -418,7 +397,7 @@ describe("capability projection — buildAccessNav contract", () => {
   });
 
   test("a role's own doors keep their hrefs (no /admin surgery on the base)", () => {
-    const nav = buildAccessNav("admin", null);
+    const nav = buildAccessNav("unknown_role", null);
     expect(nav.map((i) => i.href)).toEqual(["/admin", "/admin/projects", "/admin/reports"]);
   });
 
@@ -441,9 +420,9 @@ describe("capability projection — buildAccessNav contract", () => {
       ]),
     );
     // Admin-capable role → keeps the admin landing.
-    const devLms = buildAccessNav("developer", everything).find((i) => i.id === "lms");
-    expect(devLms).toBeDefined();
-    expect(devLms.subItems[0].href).toBe("/admin/lms/courses");
+    const saLms = buildAccessNav("super_admin", everything).find((i) => i.id === "lms");
+    expect(saLms).toBeDefined();
+    expect(saLms.subItems[0].href).toBe("/admin/lms/courses");
     // Program manager → the non-admin landing (never an /admin link).
     const pmLms = buildAccessNav("program_manager", everything).find((i) => i.id === "lms");
     expect(pmLms).toBeDefined();

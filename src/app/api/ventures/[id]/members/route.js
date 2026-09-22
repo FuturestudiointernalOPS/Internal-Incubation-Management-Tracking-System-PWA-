@@ -58,7 +58,7 @@ async function isVentureFounder(db, ventureId, cid) {
 // View access (Phase 2 — assignment-aware): GLOBAL roles see the roster;
 // otherwise an active member OR an active staff assignment is required.
 async function checkAccess(db, ventureId, userRole, userCid) {
-  if (["super_admin", "developer", "admin"].includes(userRole)) {
+  if (["super_admin"].includes(userRole)) {
     return true;
   }
   if (!userCid) return false;
@@ -72,7 +72,7 @@ async function checkAccess(db, ventureId, userRole, userCid) {
 // at runtime from the configurable permission matrix (Lead Manager default:
 // manage = yes; Coach/Facilitator default: no).
 async function checkMutateAccess(db, ventureId, userRole, userCid) {
-  if (["super_admin", "developer", "admin"].includes(userRole)) {
+  if (["super_admin"].includes(userRole)) {
     return true;
   }
   if (!userCid) return false;

@@ -22,7 +22,7 @@ import {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "admin"]);
+    const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
@@ -40,7 +40,7 @@ export async function GET(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "admin"]);
+    const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
     const { id, status } = await req.json();
