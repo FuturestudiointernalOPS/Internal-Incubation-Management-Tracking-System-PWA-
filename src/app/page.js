@@ -17,9 +17,11 @@ export default function LandingPage() {
     if (sa_session === 'prime-2026-active') {
       router.replace('/admin');
     } else if (user) {
-      // Same single source of truth as the login redirect (ROLE_HOME), so no
-      // authenticated role is ever bounced back to /login from the root.
-      router.replace(roleHomeHref(user.role) || '/workspaces');
+      // The destination was decided by the server when this person signed in and
+      // travelled with their identity, so this bounce can never contradict the
+      // login redirect. The shared map is the fallback for a stored person from
+      // before that answer existed.
+      router.replace(user.home || roleHomeHref(user.role) || '/workspaces');
     } else {
       router.replace('/login');
     }

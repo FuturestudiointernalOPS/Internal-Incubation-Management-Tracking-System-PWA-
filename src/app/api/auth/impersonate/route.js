@@ -1,11 +1,12 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
+import { resolveLanding, landingNeedsRelationships } from "@/lib/platform/roles";
+import { getVentureMembershipsForContact } from "@/models/contacts";
 import {
   getImpersonationTargetByCid,
   getImpersonationTargetByEmail,
   getImpersonationTargetUsingCidAsEmail,
-  getVentureIdForContact,
   listActiveContactsForImpersonation,
 } from "@/models/authFlows";
 
@@ -137,25 +138,23 @@ export async function POST(req) {
     // Create impersonation session
     const { token, maxAge } = await createSession(userCid, finalRole, false, true);
 
-    // Determine redirect target
-    let target;
-    if (finalRole === "super_admin") target = "/admin";
-    else if (finalRole === "program_manager") target = "/pm";
-    else if (finalRole === "staff") target = "/staff";
-    else if (finalRole === "developer") target = "/developer";
-    else if (finalRole === "investor") target = "/investor/dashboard";
-    else if (finalRole === "founder") {
+    // Where this person belongs — the SAME rule the real login uses, from the
+    // same relationships, instead of the role chain that used to live here.
+    // Impersonation is how a screen gets exercised, so it must land exactly
+    // where the person it impersonates would.
+    let ventureMemberships = [];
+    if (landingNeedsRelationships(finalRole)) {
       try {
-        const vRes = await getVentureIdForContact(userCid);
-        target = vRes.rows.length > 0 ? "/participant/ventures/" + vRes.rows[0].venture_id : "/participant";
-      } catch (_) { target = "/participant"; }
-    } else {
-      target = "/participant";
+        const vm = await getVentureMembershipsForContact(userCid);
+        ventureMemberships = vm.rows || [];
+      } catch (_) {}
     }
+    const home = resolveLanding({ role: finalRole, ventures: ventureMemberships });
+    responseUser.home = home;
 
-    console.log("[impersonate:POST] SUCCESS - redirecting to:", target);
+    console.log("[impersonate:POST] SUCCESS - redirecting to:", home);
 
-    const response = NextResponse.json({ success: true, user: responseUser, redirect: target });
+    const response = NextResponse.json({ success: true, user: responseUser, redirect: home });
     return setSessionCookieOnResponse(
       response,
       token,

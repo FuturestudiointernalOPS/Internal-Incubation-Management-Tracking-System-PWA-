@@ -138,6 +138,76 @@ export function roleHomeHref(role) {
 }
 
 /**
+ * Which Venture memberships mark their holder as the Venture's founder.
+ *
+ * This is the classification the authorization layer already uses (an owning
+ * membership, or one typed as founder), kept here so the question "is this
+ * person a Venture's founder?" has ONE answer instead of one per caller.
+ */
+export function isFounderMembership(row) {
+  const owner = row?.is_owner === true || Number(row?.is_owner) === 1;
+  return String(row?.member_type || "").toLowerCase() === "founder" || owner;
+}
+
+/** A Venture is active unless the membership row says otherwise. */
+const isActiveVenture = (row) =>
+  String(row?.status || row?.venture_status || "active").toLowerCase() === "active";
+
+/**
+ * Whether the LANDING depends on what the person belongs to.
+ *
+ * A global identity works in a section of the platform, so its home never
+ * depends on a Venture membership — which is also why reading those memberships
+ * for such a person would be wasted work.
+ */
+export function landingNeedsRelationships(role) {
+  const r = String(role || "").trim().toLowerCase();
+  if (r === "team") return false; // an entity account, not a person
+  const home = roleHomeHref(r);
+  // The personal identities share the Participant surface, and an identity the
+  // map does not know has no section of its own to claim.
+  return !home || r === "member" || r === "participant";
+}
+
+/**
+ * WHERE A PERSON BELONGS AFTER SIGNING IN — the single answer shared by the
+ * login redirect, the neutral hub's home button and the root bounce page.
+ *
+ * Two questions, asked in this order, because they are not the same question:
+ *
+ *   1. A GLOBAL identity owns a whole SECTION: where that person works follows
+ *      from being staff, a program manager, the platform's administrator. A
+ *      Venture they happen to own is one of their doors, not their desk.
+ *   2. Everyone else lives in the PERSONAL world, where the RELATIONSHIPS
+ *      decide. Founding exactly one active Venture is the case the product
+ *      wants to land directly inside it. That is a fact about what the person
+ *      OWNS, and the baseline badge ("member") cannot express it — which is why
+ *      the old badge-keyed shortcut only ever fired for legacy accounts.
+ *
+ * The last resort is the neutral hub, which refuses nobody, so no branch here
+ * can strand someone.
+ */
+export function resolveLanding({ role, teamId = null, ventures = [] } = {}) {
+  const r = String(role || "").trim().toLowerCase();
+
+  // An entity login IS the account (a team, a family), not a person whose
+  // relationships would be read — it keeps its own space.
+  if (r === "team") return teamId ? `/team/${teamId}` : "/team";
+
+  const home = roleHomeHref(r);
+  if (!landingNeedsRelationships(r)) return home;
+
+  const owned = (ventures || []).filter((v) => isActiveVenture(v) && isFounderMembership(v));
+  if (owned.length === 1 && owned[0].venture_id) {
+    return `/participant/ventures/${owned[0].venture_id}`;
+  }
+
+  // Several Ventures is not a decision this rule can take for the person, and
+  // none is the empty state the personal surfaces already handle.
+  return home || "/workspaces";
+}
+
+/**
  * Roles that are internal Future Studio staff and therefore allowed to submit
  * their own weekly operational reports (standups / retros).
  *

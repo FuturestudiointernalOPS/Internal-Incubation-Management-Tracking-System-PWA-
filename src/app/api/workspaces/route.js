@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { roleHomeHref } from "@/lib/platform/roles";
+import { roleHomeHref, resolveLanding } from "@/lib/platform/roles";
 import { getEffectiveGroupsAndHistory } from "@/lib/authorization/membership";
 import {
   getStaffAssignmentsForUser,
@@ -347,7 +347,13 @@ export async function GET(request) {
         baseline_role: baselineRole,
         derived_role: derivedRole,
       },
-      home: roleHomeHref(session.role),
+      // The home button must agree with where the login actually sent this
+      // person: same rule, same data (the memberships just read above), so the
+      // door and the button can never point at two different places.
+      home: resolveLanding({
+        role: session.role,
+        ventures: navigation.contexts?.venture_memberships || [],
+      }),
       workspaces: navigation.workspaces,
       contexts: navigation.contexts,
     });

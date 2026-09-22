@@ -2,13 +2,14 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
+import { resolveLanding, landingNeedsRelationships } from "@/lib/platform/roles";
+import { getVentureMembershipsForContact } from "@/models/contacts";
 import {
   getContactByEmailOrCid,
   getTeamByUsernameForSessionLogin,
   getFamilyBySharedEmailForSessionLogin,
   getParticipantProgramRecordForSessionLogin,
   getLmsEnrollmentRecordForSessionLogin,
-  getVentureMembershipRecordForSessionLogin,
   ensureContactsLastLoginColumn,
   ensureContactsLoginCountColumn,
   recordContactLoginActivity,
@@ -171,6 +172,24 @@ export async function POST(req) {
       }
     }
 
+    // The person's Venture memberships are read ONCE here, because two rules in
+    // this route need them: whether an unassigned participant is really neutral,
+    // and where this person belongs (§7b). They replace a narrower probe that
+    // looked in only ONE of the two identity columns and ignored removals — so
+    // someone removed from a Venture, or recorded under the other column, was
+    // judged to have no relationship at all and could lose the participant
+    // identity on the spot.
+    //
+    // A global identity's landing never depends on them, so such a login pays
+    // for no extra read.
+    let ventureMemberships = [];
+    if (!isTeamLogin && !isFamilyLogin && landingNeedsRelationships(finalRole)) {
+      try {
+        const vm = await getVentureMembershipsForContact(userCid);
+        ventureMemberships = vm.rows || [];
+      } catch (_) {}
+    }
+
     // A participant with no real relationship (program, LMS course or venture
     // membership) is effectively an unassigned neutral member. Instead of
     // rejecting them, downgrade to member so they land on the empty workspace
@@ -181,20 +200,22 @@ export async function POST(req) {
         user.program_id && String(user.program_id).trim();
       let hasParticipantPrograms = false;
       let hasLms = false;
-      let hasVenture = false;
-      if (!hasDirectProgram && user.cid) {
+      if (!hasDirectProgram && userCid) {
         try {
-          const [ppRes, lmsRes, ventureRes] = await Promise.all([
-            getParticipantProgramRecordForSessionLogin(user.cid),
-            getLmsEnrollmentRecordForSessionLogin(user.cid),
-            getVentureMembershipRecordForSessionLogin(user.cid),
+          const [ppRes, lmsRes] = await Promise.all([
+            getParticipantProgramRecordForSessionLogin(userCid),
+            getLmsEnrollmentRecordForSessionLogin(userCid),
           ]);
           hasParticipantPrograms = ppRes.rows.length > 0;
           hasLms = lmsRes.rows.length > 0;
-          hasVenture = ventureRes.rows.length > 0;
         } catch (_) {}
       }
-      if (!hasDirectProgram && !hasParticipantPrograms && !hasLms && !hasVenture) {
+      if (
+        !hasDirectProgram &&
+        !hasParticipantPrograms &&
+        !hasLms &&
+        ventureMemberships.length === 0
+      ) {
         finalRole = "member";
       }
     }
@@ -235,6 +256,18 @@ export async function POST(req) {
         is_first_login: isFirstLogin,
       };
     }
+
+    // --- 7b. WHERE THIS PERSON BELONGS ---
+    // Decided HERE, from the relationships just read, and returned WITH the
+    // identity: every client surface that already holds the signed-in person
+    // (the login redirect, the root bounce) then uses this same answer instead of
+    // re-deriving a destination from a badge that cannot carry the context.
+    // The rule itself lives in src/models/platform/roles.js.
+    responseUser.home = resolveLanding({
+      role: responseUser.role,
+      teamId: responseUser.team_id || null,
+      ventures: ventureMemberships,
+    });
 
     // --- LOGIN ACTIVITY TRACKING (successful login only) ---
     if (!isTeamLogin && !isFamilyLogin && user.cid) {

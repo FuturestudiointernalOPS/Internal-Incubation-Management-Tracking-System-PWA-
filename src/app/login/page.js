@@ -15,24 +15,6 @@ import Image from "next/image";
 import { useI18n, SUPPORTED_LANGUAGES } from "@/lib/i18n";
 import { roleHomeHref } from "@/lib/platform/roles";
 
-// Founders land directly on their venture dashboard after login
-async function getFounderVentureTarget(cid) {
-  try {
-    const res = await fetch(`/api/ventures?contact_id=${encodeURIComponent(cid)}`);
-    const d = await res.json();
-    // Exactly one active Venture → go straight to its workspace. Zero or
-    // several Ventures → the neutral relationship hub (/workspaces lists all
-    // contexts incl. venture memberships). Never falls back into the
-    // Participant area — Venture membership is not Program participation.
-    if (d.success && d.ventures?.length === 1) {
-      return `/participant/ventures/${d.ventures[0].venture_id}`;
-    }
-  } catch (e) {
-    console.error("Failed to resolve founder venture:", e);
-  }
-  return "/workspaces";
-}
-
 // Hardcoded staging test users as fallback
 const FALLBACK_USERS = {
   super_admin: [{ cid: "sp", name: "Super Admin", email: "sp@staging.bj" }],
@@ -110,9 +92,11 @@ export default function LoginPage() {
       const data = await res.json();
       if (data.success) {
         localStorage.setItem("user", JSON.stringify(data.user));
-        // Resolve target same as normal login
+        // The destination comes with the identity: the server decided it from
+        // the relationships it read at sign-in. The local map stays as the
+        // fallback, so a response without it behaves exactly as before.
         var role = data.user.role;
-        var target = roleHomeHref(role) || "/workspaces";
+        var target = data.user.home || roleHomeHref(role) || "/workspaces";
         // Client-side navigation: the destination section layout re-reads the
         // localStorage user + session cookie and mounts the shell itself.
         router.replace(target);
@@ -146,14 +130,13 @@ export default function LoginPage() {
         localStorage.setItem("user", JSON.stringify(data.user));
         setSuccess(true);
         setTimeout(async () => {
-          // Dynamic targets first (team needs team_id, founder needs their
-          // venture), then the shared role map, then the neutral hub.
+          // Where this person belongs was decided server-side, from the
+          // relationships read at sign-in — a founder whose baseline badge is
+          // "member" cannot be recognised from the badge, which is exactly why
+          // this used to need a second request and now does not. The shared map
+          // is the fallback for a response that arrives without an answer.
           let target =
-            data.user.role === "team"
-              ? "/team/" + data.user.team_id
-              : data.user.role === "founder"
-                ? await getFounderVentureTarget(data.user.cid)
-                : roleHomeHref(data.user.role) || "/workspaces";
+            data.user.home || roleHomeHref(data.user.role) || "/workspaces";
 
           // Profile completion gate: only enforce on the FIRST login. After
           // that the user is not repeatedly redirected, even if they skip it.
