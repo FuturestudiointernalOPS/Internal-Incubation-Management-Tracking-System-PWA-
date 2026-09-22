@@ -163,6 +163,27 @@
       "createPassword": "Créer un mot de passe",
       "completeRegistration": "Terminer l'inscription"
     },
+    "ventureMemberInvite": {
+      "invalidInvite": "Invitation invalide ou expirée.",
+      "failedToValidate": "Échec de la validation de l'invitation.",
+      "networkError": "Erreur réseau.",
+      "joinVenture": "Rejoindre l'entreprise",
+      "theVenture": "l'entreprise",
+      "invitedAs": "Invité en tant que",
+      "founder": "fondateur",
+      "teamMember": "membre d'équipe",
+      "emailAddress": "Adresse email",
+      "fullName": "Nom complet",
+      "createPassword": "Créer un mot de passe",
+      "passwordRequired": "Le mot de passe doit contenir au moins 6 caractères.",
+      "passwordHint": "Choisissez un mot de passe pour accéder à la plateforme.",
+      "passwordOptionalHint": "Vous avez déjà un compte — laissez ce champ vide pour conserver votre mot de passe actuel.",
+      "acceptInvitation": "Accepter l'invitation",
+      "acceptFailed": "Impossible d'accepter l'invitation.",
+      "accepted": "Invitation acceptée",
+      "acceptedMessage": "Vous avez rejoint",
+      "goToLogin": "Aller à la connexion"
+    },
     "join": {
       "groupNotFound": "Groupe introuvable.",
       "failedToLoad": "Échec du chargement. Veuillez réessayer.",
