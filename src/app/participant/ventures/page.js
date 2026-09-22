@@ -99,7 +99,10 @@ export default function ParticipantVentures() {
                 onMouseLeave={e => { e.currentTarget.style.borderColor = "rgb(255 255 255 / 0.1)"; e.currentTarget.style.boxShadow = "none"; }}
               >
                 <div className="flex items-start justify-between mb-3">
-                  <h3 className="font-semibold text-lg">{v.name}</h3>
+                  {/* Same display rule as every other Ventures surface: the
+                      company name first, the legacy `name` column only as a
+                      fallback (it can still hold a pre-fix intake-run label). */}
+                  <h3 className="font-semibold text-lg">{v.company_name || v.name}</h3>
                   <span className="text-xs px-2 py-1 rounded-full font-medium"
                     style={{
                       backgroundColor: v.status === "active" ? "rgb(16 185 129 / 0.2)" : v.status === "paused" ? "rgb(245 158 11 / 0.2)" : v.status === "graduated" ? "rgb(168 85 247 / 0.2)" : "rgb(255 255 255 / 0.1)",
