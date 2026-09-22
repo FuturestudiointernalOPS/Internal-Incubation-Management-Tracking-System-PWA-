@@ -157,6 +157,12 @@ export async function ensureVentureSchema() {
     "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMP",
     "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS suspended_by TEXT",
     "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
+    // venture_member_invitations: a founder adds a member by email; the person
+    // only joins after opening the emailed link (invite ≠ member)
+    "CREATE TABLE IF NOT EXISTS venture_member_invitations (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL, email TEXT NOT NULL, name TEXT, member_type TEXT NOT NULL DEFAULT 'team_member', role TEXT, contact_id TEXT, invited_by TEXT, token TEXT, token_hash TEXT, status TEXT NOT NULL DEFAULT 'pending', expires_at TIMESTAMPTZ, accepted_at TIMESTAMPTZ, responded_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW())",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_vmi_token_hash ON venture_member_invitations(token_hash) WHERE token_hash IS NOT NULL",
+    "CREATE INDEX IF NOT EXISTS idx_vmi_venture_status ON venture_member_invitations(venture_id, status)",
+    "CREATE INDEX IF NOT EXISTS idx_vmi_email ON venture_member_invitations(LOWER(email))",
     // venture_milestones: runtime columns the code already reads/writes
     "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS progress INTEGER DEFAULT 0",
     "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS target_date TIMESTAMP",
