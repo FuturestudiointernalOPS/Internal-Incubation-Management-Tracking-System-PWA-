@@ -66,6 +66,7 @@ const pickList = (key) => (d) => (d?.success ? d[key] || [] : []);
 const pickThing = (key) => (d) => (d?.success ? d[key] : null);
 
 const pickMembers = pickList("members");
+const pickInvitations = pickList("invitations");
 const pickDashboard = pickThing("dashboard");
 const pickBm = pickThing("business_model");
 const pickInterviews = pickList("interviews");
@@ -165,12 +166,12 @@ export default function VentureDetail() {
   const [documentSearch, setDocumentSearch] = useState('');
   const [documentCategory, setDocumentCategory] = useState('');
 
-  // Add member modal
+  // Add member modal — a founder invites by EMAIL; the person only joins once
+  // they open the emailed link and accept.
   const [showAddMember, setShowAddMember] = useState(false);
   const [addMemberType, setAddMemberType] = useState("founder");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
   const [removeConfirm, setRemoveConfirm] = useState(null);
 
   const { t } = useI18n();
@@ -225,6 +226,15 @@ export default function VentureDetail() {
       ? `/api/ventures/${params.id}/members`
       : null,
     { defaultValue: [], transform: pickMembers },
+  );
+
+  // Pending invitations sit beside the roster, so a founder can see who has been
+  // asked and withdraw an invitation that was never accepted.
+  const { data: invitations, refresh: loadInvitations } = useApi(
+    ready && activeTab === "team"
+      ? `/api/ventures/${params.id}/member-invitations`
+      : null,
+    { defaultValue: [], transform: pickInvitations },
   );
 
   const { data: dashboardData } = useApi(
@@ -490,23 +500,34 @@ export default function VentureDetail() {
     } catch (e) { notifyMsg(t(e.message || "") || e.message); }
   }
 
-  async function handleAddMember(contactId) {
+  // Invite (not add): the person is emailed a link and joins by accepting it.
+  async function handleInviteMember() {
+    const email = inviteEmail.trim();
+    if (!email || !email.includes("@")) {
+      notifyMsg(t("venture.inviteEmailInvalid"));
+      return;
+    }
+    setInviting(true);
     try {
       const res = await fetch(`/api/ventures/${params.id}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contact_id: contactId, member_type: addMemberType, invited_by: user.cid }),
+        body: JSON.stringify({ email, member_type: addMemberType }),
       });
       const d = await res.json();
       if (d.success) {
         setShowAddMember(false);
-        setSearchQuery("");
-        setSearchResults([]);
-        await loadMembers(true);
+        setInviteEmail("");
+        notifyMsg(t("venture.invitationSent"));
+        await loadInvitations();
       } else {
-        notifyMsg(t((d.error || t("venture.addError")) || "") || (d.error || t("venture.addError")));
+        notifyMsg(t(d.error || "") || d.error || t("venture.inviteFailed"));
       }
-    } catch { notifyMsg(t("venture.addError")); }
+    } catch {
+      notifyMsg(t("venture.inviteFailed"));
+    } finally {
+      setInviting(false);
+    }
   }
 
   async function handleRemoveMember(memberId) {
@@ -526,23 +547,21 @@ export default function VentureDetail() {
     } catch { notifyMsg(t("venture.removeError")); }
   }
 
-  async function searchContacts(q) {
-    if (!q || q.length < 2) { setSearchResults([]); return; }
-    setSearching(true);
+  async function handleRevokeInvitation(invitationId) {
     try {
-      // Scoped to the venture's program: external users may only search
-      // within their own program context (MVP boundary), never the general
-      // Future Studio CRM directory.
-      const programId = venture?.program_id;
-      if (!programId) { setSearchResults([]); return; }
-      const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(q)}&program_id=${encodeURIComponent(programId)}`);
+      const res = await fetch(`/api/ventures/${params.id}/member-invitations?id=${invitationId}`, {
+        method: "DELETE",
+      });
       const d = await res.json();
       if (d.success) {
-        const existingIds = new Set(members.map(m => m.contact_id));
-        setSearchResults((d.contacts || []).filter(c => !existingIds.has(c.cid)));
+        notifyMsg(t("venture.invitationRevoked"));
+        await loadInvitations();
+      } else {
+        notifyMsg(t(d.error || "") || d.error || t("venture.inviteFailed"));
       }
-    } catch (e) { console.error(e); }
-    finally { setSearching(false); }
+    } catch {
+      notifyMsg(t("venture.inviteFailed"));
+    }
   }
 
   const notifyMsg = (msg, type = "info") => window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type, message: String(msg || ""), duration: 4000 } }));
@@ -579,13 +598,14 @@ export default function VentureDetail() {
     showReview, setShowReview, reviewDoc, setReviewDoc, reviewComment, setReviewComment, reviews, setReviews,
     showPermissions, setShowPermissions, permissionsDoc, setPermissionsDoc, permissions, setPermissions,
     editingKpiDef, setEditingKpiDef, showEditCoaching, setShowEditCoaching, editingCoaching, setEditingCoaching,
-    addMemberType, setAddMemberType, searchQuery, setSearchQuery, searchResults, setSearchResults, searching, removeConfirm, setRemoveConfirm,
+    addMemberType, setAddMemberType, inviteEmail, setInviteEmail, inviting, removeConfirm, setRemoveConfirm,
+    invitations, handleInviteMember, handleRevokeInvitation,
     interviewForm, setInterviewForm, validationForm, setValidationForm, pmfForm, setPmfForm,
     milestoneForm, setMilestoneForm, actionForm, setActionForm, taskForm, setTaskForm,
     standupForm, setStandupForm, retroForm, setRetroForm, blockerForm, setBlockerForm,
     documentForm, setDocumentForm, advisorForm, setAdvisorForm, coachingForm, setCoachingForm,
     kpiForm, setKpiForm, kpiDefForm, setKpiDefForm, documentSearch, setDocumentSearch, documentCategory, setDocumentCategory,
-    loadMembers, handleSave, handleUpdateMemberRole, handleAddMember, handleRemoveMember, searchContacts,
+    loadMembers, handleSave, handleUpdateMemberRole, handleRemoveMember,
     handleTaskStatusChange, handleResolveBlocker, handleMakePrimaryAdvisor, handleRemoveAdvisor,
     handleDocumentTransition, handleDocumentUpdate, handleDocumentDelete, handleVersionRestore,
     handleReview, handleSubmitReview, handlePermissions, handleSavePermission,
