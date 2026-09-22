@@ -937,11 +937,37 @@ async function buildResultDocument({ submission_id, forceReport = false }) {
     return { status: "failed", error: "Cannot send a result for a draft submission" };
   }
 
+  // The run + form this submission belongs to. This one read is what tells a
+  // Founder Fit run from every other one, AND it supplies the field labels, the
+  // run settings and the run id the report itself is built from.
+  //
+  // It used to be wrapped in `catch (_) {}`, so any failure fell through to
+  // `ctx = null` and silently sent the NEUTRAL copy with a stripped-down
+  // document — nothing in the UI, the timeline or the logs said so.
+  //
+  // A read failure, or a submission that resolves to no run/form at all, now
+  // refuses the send instead of downgrading it: a quietly wrong participant
+  // email is worse than a visible, retryable error. A submission always has a
+  // run and a form (both foreign keys are NOT NULL), so either outcome here
+  // means something is genuinely broken.
   let ctx = null;
   try {
     const ctxRes = await getRunFormContextBySubmissionId(submission_id);
     ctx = ctxRes.rows[0] || null;
-  } catch (_) {}
+  } catch (e) {
+    console.error(`[form-runs] Run/form context read failed for submission ${submission_id}:`, e);
+    return {
+      status: "failed",
+      error: "Could not read the run and form this submission belongs to — no result sent. Retry; if it keeps failing, the submission's run or its form is missing.",
+    };
+  }
+  if (!ctx) {
+    console.error(`[form-runs] Submission ${submission_id} resolves to no run/form context — run or form missing`);
+    return {
+      status: "failed",
+      error: "This submission's run or form could not be found — no result sent.",
+    };
+  }
 
   // A result document requires an evaluation (dimensions + overall score).
   const evalRes = await getLatestEvaluationBySubmissionId(submission_id);

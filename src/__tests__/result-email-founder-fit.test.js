@@ -42,6 +42,20 @@ describe("result email copy — Founder Fit Score scope", () => {
     expect(EMAIL).toMatch(/html: compose\(true, url\)/);
   });
 
+  test("a failed run/form read refuses the send instead of quietly going neutral", () => {
+    // The classification read feeds the copy choice AND the document. Swallowing
+    // its failure is what once let a wrong-but-plausible email go out with
+    // nothing in the logs to explain it; a broken read must be loud, not a
+    // silent downgrade to the neutral copy.
+    const call = ROUTE.indexOf("await getRunFormContextBySubmissionId(submission_id)");
+    expect(call).toBeGreaterThan(-1);
+    const region = ROUTE.slice(call, call + 700);
+    expect(region).not.toMatch(/catch \(_\) \{\}/);
+    expect(region).toMatch(/console\.error/);
+    expect(region).toMatch(/status: "failed"/);
+    expect(region).toMatch(/if \(!ctx\)/);
+  });
+
   test("a run is classified by its form name, with the run name as fallback", () => {
     expect(ROUTE).toMatch(/function isFounderFitResultRun\(ctx\)/);
     expect(ROUTE).toMatch(/form_name/);
