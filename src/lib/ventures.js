@@ -2654,17 +2654,23 @@ export async function createDeliverable({ milestoneId, ventureId, title, descrip
 
 export async function updateDeliverable(deliverableId, updates, actorCid, actorName) {
   const allowed = ["title", "description", "deliverable_type", "status", "due_date", "assigned_cid", "attachment_url", "attachment_name", "approval_status", "reviewer_cid", "reviewer_name", "rejection_reason"];
-  const sets = []; const args = [];
+  // One assignment per column. The list used to be built by pushing, and the
+  // approval workflow pushed a column the caller may already have supplied —
+  // `status` on a submission, `reviewer_cid` / `reviewer_name` on a review —
+  // which Postgres refuses outright ("multiple assignments to same column"),
+  // losing the submission the founder had just uploaded. A Map cannot.
+  const assignments = new Map();
   for (const f of allowed) {
-    if (updates[f] !== undefined) { sets.push(`${f} = ?`); args.push(updates[f]); }
+    if (updates[f] !== undefined) assignments.set(f, updates[f]);
   }
 
-  // Handle approval workflow
-  if (updates.approval_status === "approved" || updates.approval_status === "rejected") {
-    sets.push("reviewer_cid = ?"); args.push(updates.reviewer_cid || actorCid);
-    sets.push("reviewer_name = ?"); args.push(updates.reviewer_name || actorName);
-    sets.push("reviewed_at = NOW()");
-    if (updates.approval_status === "approved") sets.push("status = 'completed'");
+  // Handle approval workflow. Its values win over the caller's, exactly as they
+  // did when the same column was assigned twice and the last one took effect.
+  const reviewed = updates.approval_status === "approved" || updates.approval_status === "rejected";
+  if (reviewed) {
+    assignments.set("reviewer_cid", updates.reviewer_cid || actorCid);
+    assignments.set("reviewer_name", updates.reviewer_name || actorName);
+    if (updates.approval_status === "approved") assignments.set("status", "completed");
 
     await db.execute({
       sql: `INSERT INTO venture_deliverable_reviews (deliverable_id, reviewer_cid, reviewer_name, decision, comments)
@@ -2673,7 +2679,12 @@ export async function updateDeliverable(deliverableId, updates, actorCid, actorN
     });
   }
 
-  if (updates.status === "submitted") sets.push("status = 'submitted'");
+  const sets = []; const args = [];
+  for (const [column, value] of assignments) {
+    sets.push(`${column} = ?`);
+    args.push(value);
+  }
+  if (reviewed) sets.push("reviewed_at = NOW()");
 
   if (sets.length === 0) return { updated: false };
   sets.push("updated_at = NOW()");
