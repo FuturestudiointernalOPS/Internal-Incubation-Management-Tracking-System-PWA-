@@ -369,9 +369,14 @@ export default function VentureFoundersPage() {
             >
               <Crown className="w-3.5 h-3.5" /> {t("vadmin.founders.transferOwnership")}
             </button>
+            {/* Adding a member starts from the Venture itself (the founder sends
+                an email invitation). Disabled here on purpose. */}
             <button
-              onClick={() => setShowInviteModal(true)}
-              className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+              type="button"
+              disabled
+              aria-disabled="true"
+              title={t("vadmin.founders.inviteDisabledHint")}
+              className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 opacity-40 cursor-not-allowed"
             >
               <UserPlus className="w-3.5 h-3.5" /> {t("vadmin.founders.inviteMember")}
             </button>
@@ -416,7 +421,13 @@ export default function VentureFoundersPage() {
               {searchQuery ? t("vadmin.founders.tryDifferentSearch") : t("vadmin.founders.inviteFirstMember")}
             </p>
             {!searchQuery && (
-              <button onClick={() => setShowInviteModal(true)} className="btn btn-primary gap-2">
+              <button
+                type="button"
+                disabled
+                aria-disabled="true"
+                title={t("vadmin.founders.inviteDisabledHint")}
+                className="btn btn-primary gap-2 opacity-40 cursor-not-allowed"
+              >
                 <UserPlus className="w-4 h-4" /> {t("vadmin.founders.inviteMember")}
               </button>
             )}

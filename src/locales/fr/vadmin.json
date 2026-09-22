@@ -1074,6 +1074,7 @@
       "founderRemoved": "Fondateur supprimé",
       "invitationExpired": "Invitation expirée",
       "inviteFailed": "Échec de l'envoi de l'invitation",
+      "inviteDisabledHint": "Les membres sont ajoutés depuis l'entreprise elle-même : le fondateur les invite par email, et l'invitation se gère dans l'onglet Équipe de l'entreprise. Cet écran reste en lecture seule.",
       "inviteFirstMember": "Invitez votre premier membre d'équipe",
       "inviteMember": "Inviter un membre",
       "inviteModalSubtitle": "Ajouter un fondateur, un co-fondateur ou un dirigeant",

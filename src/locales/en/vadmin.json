@@ -1074,6 +1074,7 @@
       "founderRemoved": "Founder removed",
       "invitationExpired": "Invitation expired",
       "inviteFailed": "Failed to send invitation",
+      "inviteDisabledHint": "Members are added from the Venture itself: the founder invites them by email, and the invitation is managed on the Venture's Team tab. This screen stays read-only.",
       "inviteFirstMember": "Invite your first team member",
       "inviteMember": "Invite Member",
       "inviteModalSubtitle": "Add a founder, co-founder, or executive",
