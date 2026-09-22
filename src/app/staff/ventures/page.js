@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Rocket, Loader2, ChevronRight, ShieldAlert } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * Staff → Ventures — My Ventures (delegated).
@@ -10,6 +11,7 @@ import { Rocket, Loader2, ChevronRight, ShieldAlert } from "lucide-react";
  */
 export default function StaffVenturesList() {
   const router = useRouter();
+  const { t } = useI18n();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -39,19 +41,19 @@ export default function StaffVenturesList() {
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <div>
         <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
-          <Rocket className="w-6 h-6 text-[var(--brand-orange)]" /> My Ventures
+          <Rocket className="w-6 h-6 text-[var(--brand-orange)]" /> {t("venture.personal.myVentures")}
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Ventures assigned to you — access is per assignment, never by staff role alone.
+          {t("staff.ventureWorkspace.listSubtitle")}
         </p>
       </div>
 
       {assignments.length === 0 ? (
         <div className="card text-center py-16">
           <ShieldAlert className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-          <p className="text-sm font-bold text-[var(--text-primary)]">No Venture assignments yet</p>
+          <p className="text-sm font-bold text-[var(--text-primary)]">{t("staff.ventureWorkspace.listEmpty")}</p>
           <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-            When the Super Admin assigns you as a Lead Manager, Coach or Facilitator for a Venture, it will appear here.
+            {t("staff.ventureWorkspace.listEmptyHint")}
           </p>
         </div>
       ) : (

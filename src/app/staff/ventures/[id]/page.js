@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { useDialogs } from "@/components/ui/DialogProvider";
+import { notify } from "@/lib/notify";
 import { ArrowLeft, Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
@@ -36,6 +38,7 @@ export default function StaffVentureWorkspace() {
   const { id } = useParams();
   const router = useRouter();
   const { t } = useI18n();
+  const { prompt } = useDialogs();
 
   const [venture, setVenture] = useState(null);
   const [myRoles, setMyRoles] = useState([]);
@@ -76,7 +79,7 @@ export default function StaffVentureWorkspace() {
   const decideSubmission = async (item, decision) => {
     const comment =
       decision === "changes_requested"
-        ? window.prompt("Comment for the Venture (optional):") || ""
+        ? (await prompt({ message: t("staff.ventureReview.commentPrompt"), required: false })) || ""
         : "";
     try {
       const res = await fetch(`/api/ventures/${id}/tasks/${item.task_id}/submissions`, {
@@ -86,9 +89,9 @@ export default function StaffVentureWorkspace() {
       });
       const d = await res.json();
       if (d.success) await loadReviewQueue();
-      else window.alert(d.error || "Review failed.");
+      else notify("error", d.error || t("staff.ventureReview.reviewFailed"));
     } catch (_) {
-      window.alert("Review failed.");
+      notify("error", t("staff.ventureReview.reviewFailed"));
     }
   };
 
@@ -164,21 +167,21 @@ export default function StaffVentureWorkspace() {
   if (notFound || !venture) {
     return (
       <div className="p-6 max-w-3xl mx-auto text-center py-16">
-        <p className="text-sm font-bold text-[var(--text-primary)]">Venture unavailable</p>
+        <p className="text-sm font-bold text-[var(--text-primary)]">{t("staff.ventureWorkspace.unavailable")}</p>
         <p className="text-xs text-slate-500 mt-1">
-          You can only access Ventures you are explicitly assigned to.
+          {t("staff.ventureWorkspace.unavailableHint")}
         </p>
         <button
           onClick={() => router.push("/staff/ventures")}
           className="mt-4 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest"
         >
-          Back to My Ventures
+          {t("staff.ventureWorkspace.backToMyVentures")}
         </button>
       </div>
     );
   }
 
-  const displayName = venture.company_name || venture.name || "Venture";
+  const displayName = venture.company_name || venture.name || t("venture.label");
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
@@ -186,7 +189,7 @@ export default function StaffVentureWorkspace() {
         onClick={() => router.push("/staff/ventures")}
         className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
       >
-        <ArrowLeft className="w-3 h-3" /> My Ventures
+        <ArrowLeft className="w-3 h-3" /> {t("venture.personal.myVentures")}
       </button>
 
       <VenturePageHeader
@@ -228,10 +231,10 @@ export default function StaffVentureWorkspace() {
       {/* My responsibilities on this Venture */}
       <div className="card">
         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-          <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> My role on this Venture
+          <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("staff.ventureWorkspace.myRole")}
         </h3>
         {myRoles.length === 0 ? (
-          <p className="text-xs text-slate-500">No active assignment found.</p>
+          <p className="text-xs text-slate-500">{t("staff.ventureWorkspace.noAssignment")}</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {myRoles.map((r) => (
@@ -247,12 +250,12 @@ export default function StaffVentureWorkspace() {
       {/* Attention — submissions awaiting review (Coach / Venture Support) */}
       <div className="card">
         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-          <Inbox className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> Needs your attention ({reviewQueue.length})
+          <Inbox className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("staff.ventureWorkspace.needsAttention", { count: reviewQueue.length })}
         </h3>
         {queueLoading ? (
-          <p className="text-xs text-slate-500">Loading...</p>
+          <p className="text-xs text-slate-500">{t("common.loading")}</p>
         ) : reviewQueue.length === 0 ? (
-          <p className="text-xs text-slate-500">Nothing awaiting your review.</p>
+          <p className="text-xs text-slate-500">{t("staff.ventureWorkspace.nothingToReview")}</p>
         ) : (
           <div className="space-y-2">
             {reviewQueue.map((q) => (
@@ -260,21 +263,21 @@ export default function StaffVentureWorkspace() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-[var(--text-primary)] truncate">{q.task_title}</p>
                   <p className="text-[10px] text-slate-500">
-                    {q.milestone_title ? `${q.milestone_title} · ` : ""}v{q.version} by {q.submitted_by_name || "Venture"} · {new Date(q.created_at).toLocaleDateString()}
+                    {q.milestone_title ? `${q.milestone_title} · ` : ""}{t("staff.ventureWorkspace.submissionMeta", { version: q.version, name: q.submitted_by_name || t("venture.label") })} · {new Date(q.created_at).toLocaleDateString()}
                   </p>
                   {q.notes && <p className="text-[10px] text-slate-400 mt-0.5 truncate">{q.notes}</p>}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {q.file_url && (
                     <a href={q.file_url} target="_blank" rel="noreferrer" className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]">
-                      Open
+                      {t("venture.personal.open")}
                     </a>
                   )}
                   <button onClick={() => decideSubmission(q, "approved")} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25">
-                    Approve
+                    {t("venture.manager.approveDeliverable")}
                   </button>
                   <button onClick={() => decideSubmission(q, "changes_requested")} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-amber-500/15 text-amber-400 hover:bg-amber-500/25">
-                    Request changes
+                    {t("venture.manager.requestChanges")}
                   </button>
                 </div>
               </div>
@@ -287,10 +290,10 @@ export default function StaffVentureWorkspace() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="card">
           <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <Flag className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> Milestones ({milestones.length})
+            <Flag className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("venture.milestones")} ({milestones.length})
           </h3>
           {milestones.length === 0 ? (
-            <p className="text-xs text-slate-500">No milestones yet.</p>
+            <p className="text-xs text-slate-500">{t("venture.manager.noMilestones")}</p>
           ) : (
             <div className="space-y-2">
               {milestones.map((m) => (
@@ -305,10 +308,10 @@ export default function StaffVentureWorkspace() {
 
         <div className="card">
           <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <ListTodo className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> Tasks ({tasks.length})
+            <ListTodo className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("venture.tasks")} ({tasks.length})
           </h3>
           {tasks.length === 0 ? (
-            <p className="text-xs text-slate-500">No tasks yet.</p>
+            <p className="text-xs text-slate-500">{t("venture.noTasksYet")}</p>
           ) : (
             <div className="space-y-2">
               {tasks.map((tk) => (
@@ -323,10 +326,10 @@ export default function StaffVentureWorkspace() {
 
         <div className="card">
           <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <Users className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> Founders & members ({members.length})
+            <Users className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("staff.ventureWorkspace.foundersAndMembers", { count: members.length })}
           </h3>
           {members.length === 0 ? (
-            <p className="text-xs text-slate-500">No members yet.</p>
+            <p className="text-xs text-slate-500">{t("staff.ventureWorkspace.noMembers")}</p>
           ) : (
             <div className="space-y-2">
               {members.slice(0, 6).map((mem) => (
@@ -342,13 +345,13 @@ export default function StaffVentureWorkspace() {
 
       {venture.description && (
         <div className="card">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">About</h3>
+          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t("staff.ventureWorkspace.about")}</h3>
           <p className="text-sm text-[var(--text-secondary)]">{venture.description}</p>
         </div>
       )}
 
       <p className="text-[10px] text-slate-400 flex items-center gap-1.5">
-        <FileText className="w-3 h-3" /> Read panes shown according to your assignment. Full management tools are configured through Venture Permissions.
+        <FileText className="w-3 h-3" /> {t("staff.ventureWorkspace.readPanesNote")}
       </p>
       </>
       )}
@@ -359,7 +362,7 @@ export default function StaffVentureWorkspace() {
             <Calendar className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("venture.sessions")} ({sessions.length})
           </h3>
           {sessions.length === 0 ? (
-            <p className="text-xs text-slate-500">No sessions scheduled.</p>
+            <p className="text-xs text-slate-500">{t("staff.ventureWorkspace.noSessions")}</p>
           ) : (
             <div className="space-y-2">
               {sessions.map((s) => (

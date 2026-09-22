@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { Target, Plus, X, Loader2, ChevronDown, ChevronRight, Trash2, Save, Link2, CheckCircle2, Copy } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
+import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 
 /**
  * OperatingPlanPanel — Lead Manager operating plans for a Venture.
@@ -23,6 +25,8 @@ const pickPlans = (d) =>
   d?.success ? { plans: d.plans || [], access: d.access || EMPTY_ACCESS } : EMPTY_PLANS_READ;
 
 export default function OperatingPlanPanel({ ventureId }) {
+  const { t } = useI18n();
+  const { confirm } = useDialogs();
   const [openPlanId, setOpenPlanId] = useState(null);
   const [openPlan, setOpenPlan] = useState(null);
   const [newPlanOpen, setNewPlanOpen] = useState(false);
@@ -88,15 +92,15 @@ export default function OperatingPlanPanel({ ventureId }) {
       });
       const d = await res.json();
       if (d.success) {
-        notify("Template applied — structure copied (no Venture data).");
+        notify(t("venture.opPlan.templateApplied"));
         setApplyOpen(false);
         setTplSel("");
         await refreshPlans();
       } else {
-        notify(d.error || "Apply failed.", "error");
+        notify(d.error || t("venture.manager.applyFailed"), "error");
       }
     } catch {
-      notify("Apply failed.", "error");
+      notify(t("venture.manager.applyFailed"), "error");
     } finally {
       setSavingTpl(false);
     }
@@ -110,9 +114,9 @@ export default function OperatingPlanPanel({ ventureId }) {
     });
     const d = await res.json();
     if (d.success) {
-      notify("Saved as reusable template.");
+      notify(t("venture.opPlan.savedAsTemplate"));
     } else {
-      notify(d.error || "Save failed.", "error");
+      notify(d.error || t("venture.opPlan.saveFailed"), "error");
     }
   };
 
@@ -128,15 +132,15 @@ export default function OperatingPlanPanel({ ventureId }) {
       });
       const d = await res.json();
       if (d.success) {
-        notify("Operating plan created.");
+        notify(t("venture.opPlan.planCreated"));
         setNewPlanOpen(false);
         setPlanForm({ name: "", objective: "" });
         await refreshPlans();
       } else {
-        notify(d.error || "Create failed.", "error");
+        notify(d.error || t("venture.opPlan.createFailed"), "error");
       }
     } catch {
-      notify("Create failed.", "error");
+      notify(t("venture.opPlan.createFailed"), "error");
     } finally {
       setSavingPlan(false);
     }
@@ -150,11 +154,11 @@ export default function OperatingPlanPanel({ ventureId }) {
     });
     const d = await res.json();
     if (d.success) {
-      notify(`Plan ${status}.`);
+      notify(t("venture.opPlan.planStatus", { status }));
       await refreshPlans();
       if (openPlanId === planId) await loadPlan(planId);
     } else {
-      notify(d.error || "Update failed.", "error");
+      notify(d.error || t("venture.opPlan.updateFailed"), "error");
     }
   };
 
@@ -168,12 +172,12 @@ export default function OperatingPlanPanel({ ventureId }) {
     });
     const d = await res.json();
     if (d.success) {
-      notify("Section added.");
+      notify(t("venture.opPlan.sectionAdded"));
       setSectionForm({ title: "", objective: "", instructions: "" });
       await refreshPlans();
       await loadPlan(openPlanId);
     } else {
-      notify(d.error || "Add failed.", "error");
+      notify(d.error || t("venture.manager.addFailed"), "error");
     }
   };
 
@@ -188,12 +192,12 @@ export default function OperatingPlanPanel({ ventureId }) {
       await loadPlan(openPlanId);
       await refreshPlans();
     } else {
-      notify(d.error || "Update failed.", "error");
+      notify(d.error || t("venture.opPlan.updateFailed"), "error");
     }
   };
 
   const deleteSection = async (sectionId) => {
-    if (!window.confirm("Delete this section?")) return;
+    if (!(await confirm({ message: t("venture.deleteSectionConfirm"), tone: "danger" }))) return;
     const res = await fetch(`/api/ventures/${ventureId}/operating-plans/${openPlanId}/sections`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -201,11 +205,11 @@ export default function OperatingPlanPanel({ ventureId }) {
     });
     const d = await res.json();
     if (d.success) {
-      notify("Section deleted.");
+      notify(t("venture.opPlan.sectionDeleted"));
       await loadPlan(openPlanId);
       await refreshPlans();
     } else {
-      notify(d.error || "Delete failed.", "error");
+      notify(d.error || t("venture.opPlan.deleteFailed"), "error");
     }
   };
 
@@ -217,10 +221,10 @@ export default function OperatingPlanPanel({ ventureId }) {
     });
     const d = await res.json();
     if (d.success) {
-      notify("Linked.");
+      notify(t("venture.opPlan.linked"));
       await loadPlan(openPlanId);
     } else {
-      notify(d.error || "Link failed.", "error");
+      notify(d.error || t("venture.opPlan.linkFailed"), "error");
     }
   };
 
@@ -234,7 +238,7 @@ export default function OperatingPlanPanel({ ventureId }) {
     if (d.success) {
       await loadPlan(openPlanId);
     } else {
-      notify(d.error || "Remove failed.", "error");
+      notify(d.error || t("venture.opPlan.removeFailed"), "error");
     }
   };
 
@@ -246,29 +250,29 @@ export default function OperatingPlanPanel({ ventureId }) {
     return (
       <div className="flex flex-wrap items-center gap-2 mt-2">
         <select value={rt} onChange={(e) => setRt(e.target.value)} className="px-2 py-1 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]">
-          <option value="milestone">Milestone</option>
-          <option value="task">Task</option>
-          <option value="document">Document</option>
-          <option value="session">Session</option>
-          <option value="note">Internal note</option>
+          <option value="milestone">{t("venture.opPlan.linkTypes.milestone")}</option>
+          <option value="task">{t("venture.opPlan.linkTypes.task")}</option>
+          <option value="document">{t("venture.opPlan.linkTypes.document")}</option>
+          <option value="session">{t("venture.opPlan.linkTypes.session")}</option>
+          <option value="note">{t("venture.opPlan.linkTypes.internalNote")}</option>
         </select>
         <input
           value={rid}
           onChange={(e) => setRid(e.target.value)}
-          placeholder="ID"
+          placeholder={t("venture.opPlan.linkIdPlaceholder")}
           className="w-24 px-2 py-1 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
         />
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder="Label (e.g. Pitch Deck)"
+          placeholder={t("venture.opPlan.linkLabelPlaceholder")}
           className="flex-1 min-w-[140px] px-2 py-1 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
         />
         <button
           onClick={() => { if (rid) addLink(sectionId, rt, rid, label || `${rt} ${rid}`); }}
           className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded bg-[var(--brand-orange)] text-black flex items-center gap-1"
         >
-          <Link2 className="w-3 h-3" /> Link
+          <Link2 className="w-3 h-3" /> {t("venture.opPlan.link")}
         </button>
       </div>
     );
@@ -283,7 +287,7 @@ export default function OperatingPlanPanel({ ventureId }) {
       )}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-          <Target className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> Operating Plans ({plans.length})
+          <Target className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("venture.opPlan.title")} ({plans.length})
         </h3>
         {access.create && (
           <div className="flex items-center gap-2">
@@ -292,14 +296,14 @@ export default function OperatingPlanPanel({ ventureId }) {
               className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)] flex items-center gap-1.5"
             >
               <Copy className="w-3 h-3" />
-              {applyOpen ? "Cancel" : "From Template"}
+              {applyOpen ? t("common.cancel") : t("venture.manager.fromTemplate")}
             </button>
             <button
               onClick={() => setNewPlanOpen(!newPlanOpen)}
               className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5"
             >
               {newPlanOpen ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-              {newPlanOpen ? "Cancel" : "New Plan"}
+              {newPlanOpen ? t("common.cancel") : t("venture.opPlan.newPlan")}
             </button>
           </div>
         )}
@@ -307,27 +311,27 @@ export default function OperatingPlanPanel({ ventureId }) {
       {applyOpen && (
         <div className="mb-4 p-3 rounded-xl border border-[var(--border-primary)] bg-tertiary flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[200px]">
-            <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Apply reusable template</label>
+            <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">{t("venture.opPlan.applyTemplate")}</label>
             <select value={tplSel} onChange={(e) => setTplSel(e.target.value)} className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]">
-              <option value="">Select template…</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>{t.name} ({t.section_count || 0} sections)</option>
+              <option value="">{t("venture.opPlan.selectTemplate")}</option>
+              {templates.map((tpl) => (
+                <option key={tpl.id} value={tpl.id}>{tpl.name} ({t("venture.opPlan.sectionsCount", { count: tpl.section_count || 0 })})</option>
               ))}
             </select>
           </div>
           <button onClick={applyTemplate} disabled={savingTpl || !tplSel} className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
-            {savingTpl ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />} Apply
+            {savingTpl ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />} {t("venture.opPlan.apply")}
           </button>
         </div>
       )}
-      <p className="text-[10px] text-slate-400 mb-3 -mt-1">Lead Manager-defined operating structure: sections with objectives, tasks, documents, sessions and notes.</p>
+      <p className="text-[10px] text-slate-400 mb-3 -mt-1">{t("venture.opPlan.intro")}</p>
 
       {newPlanOpen && (
         <form onSubmit={createPlan} className="mb-4 p-4 rounded-xl border border-[var(--border-primary)] bg-tertiary space-y-3">
           <input
             value={planForm.name}
             onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
-            placeholder="Plan name — e.g. Go-To-Market Readiness"
+            placeholder={t("venture.opPlan.planNamePlaceholder")}
             className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
             required
           />
@@ -335,12 +339,12 @@ export default function OperatingPlanPanel({ ventureId }) {
             value={planForm.objective}
             onChange={(e) => setPlanForm({ ...planForm, objective: e.target.value })}
             rows={2}
-            placeholder="Objective / current assessment"
+            placeholder={t("venture.opPlan.objectivePlaceholder")}
             className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
           />
           <div className="flex justify-end">
             <button type="submit" disabled={savingPlan} className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
-              {savingPlan ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Create Plan
+              {savingPlan ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} {t("venture.opPlan.createPlan")}
             </button>
           </div>
         </form>
@@ -349,7 +353,7 @@ export default function OperatingPlanPanel({ ventureId }) {
       {loading ? (
         <div className="text-center py-6"><Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400" /></div>
       ) : plans.length === 0 ? (
-        <p className="text-xs text-slate-500">No operating plans yet.</p>
+        <p className="text-xs text-slate-500">{t("venture.opPlan.noPlans")}</p>
       ) : (
         <div className="space-y-2">
           {plans.map((p) => (
@@ -361,11 +365,11 @@ export default function OperatingPlanPanel({ ventureId }) {
                 </button>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">
-                    {p.section_count || 0} sections
+                    {t("venture.opPlan.sectionsCount", { count: p.section_count || 0 })}
                   </span>
                   <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${p.status === "archived" ? "bg-slate-500/10 text-slate-400" : "bg-emerald-500/10 text-emerald-400"}`}>{p.status}</span>
                   {access.manage && p.status !== "archived" && (
-                    <button onClick={() => changePlanStatus(p.id, "archived")} className="text-slate-400 hover:text-rose-400" title="Archive plan">
+                    <button onClick={() => changePlanStatus(p.id, "archived")} className="text-slate-400 hover:text-rose-400" title={t("venture.opPlan.archivePlan")}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
@@ -377,13 +381,13 @@ export default function OperatingPlanPanel({ ventureId }) {
                   {openPlan.objective && <p className="text-xs text-[var(--text-secondary)] italic">{openPlan.objective}</p>}
                   {openPlan.status === "draft" && access.manage && (
                     <div className="flex gap-2">
-                      <button onClick={() => changePlanStatus(p.id, "active")} className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25">Activate</button>
+                      <button onClick={() => changePlanStatus(p.id, "active")} className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25">{t("venture.opPlan.activate")}</button>
                     </div>
                   )}
                   {openPlan.status === "active" && access.manage && (
                     <div className="flex gap-2">
-                      <button onClick={() => changePlanStatus(p.id, "completed")} className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded bg-blue-500/15 text-blue-400 hover:bg-blue-500/25">Mark Completed</button>
-                      <button onClick={() => saveAsTemplate(p.id)} className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]">Save as Template</button>
+                      <button onClick={() => changePlanStatus(p.id, "completed")} className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded bg-blue-500/15 text-blue-400 hover:bg-blue-500/25">{t("venture.markCompleted")}</button>
+                      <button onClick={() => saveAsTemplate(p.id)} className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]">{t("venture.manager.saveTemplate")}</button>
                     </div>
                   )}
 
@@ -393,12 +397,12 @@ export default function OperatingPlanPanel({ ventureId }) {
                         <p className="text-xs font-bold text-[var(--text-primary)]">{s.title}</p>
                         <div className="flex items-center gap-1.5">
                           {access.manage && s.status !== "completed" && (
-                            <button onClick={() => setSectionStatus(s.id, "completed")} className="text-slate-400 hover:text-emerald-400" title="Mark completed">
+                            <button onClick={() => setSectionStatus(s.id, "completed")} className="text-slate-400 hover:text-emerald-400" title={t("venture.manager.markCompleted")}>
                               <CheckCircle2 className="w-3.5 h-3.5" />
                             </button>
                           )}
                           {access.manage && (
-                            <button onClick={() => deleteSection(s.id)} className="text-slate-400 hover:text-rose-400" title="Delete section">
+                            <button onClick={() => deleteSection(s.id)} className="text-slate-400 hover:text-rose-400" title={t("venture.opPlan.deleteSection")}>
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
@@ -425,30 +429,30 @@ export default function OperatingPlanPanel({ ventureId }) {
 
                   {access.edit && (
                     <form onSubmit={addSection} className="p-3 rounded-lg border border-dashed border-[var(--border-primary)] space-y-2">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Add section</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{t("venture.opPlan.addSectionLabel")}</p>
                       <input
                         value={sectionForm.title}
                         onChange={(e) => setSectionForm({ ...sectionForm, title: e.target.value })}
-                        placeholder="Section — e.g. Pitch Deck"
+                        placeholder={t("venture.opPlan.sectionTitlePlaceholder")}
                         className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                         required
                       />
                       <input
                         value={sectionForm.objective}
                         onChange={(e) => setSectionForm({ ...sectionForm, objective: e.target.value })}
-                        placeholder="Objective (optional)"
+                        placeholder={t("venture.opPlan.sectionObjectivePlaceholder")}
                         className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                       />
                       <textarea
                         value={sectionForm.instructions}
                         onChange={(e) => setSectionForm({ ...sectionForm, instructions: e.target.value })}
                         rows={2}
-                        placeholder="Instructions / guidance (optional)"
+                        placeholder={t("venture.opPlan.sectionInstructionsPlaceholder")}
                         className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                       />
                       <div className="flex justify-end">
                         <button type="submit" className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded bg-[var(--brand-orange)] text-black flex items-center gap-1">
-                          <Plus className="w-3 h-3" /> Add Section
+                          <Plus className="w-3 h-3" /> {t("venture.opPlan.addSection")}
                         </button>
                       </div>
                     </form>
