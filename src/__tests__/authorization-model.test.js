@@ -78,7 +78,6 @@ describe("Phase 9 — model consistency", () => {
         "admin",
         "developer",
         "facilitator",
-        "founder",
         "participant",
         "program_manager",
         "security_officer",
@@ -89,6 +88,15 @@ describe("Phase 9 — model consistency", () => {
         // 6A/1.5 — investor access is now own-scoped (profile/pipeline) or
         // management-gated. If a new gate lists it again, add it back here
         // deliberately.
+        //
+        // "founder" left the census when the Venture directory stopped gating
+        // on badges: a founder's baseline identity stays "member", so no role
+        // list can describe them — their access is the Venture RELATIONSHIP
+        // (membership / owner) plus the permission matrix. One role-gated route
+        // still opens on the relationship, not on the badge, and that is where
+        // the door was. If a gate lists "founder" again, it is re-introducing a
+        // badge as the source of an authority the model takes from the
+        // relationship — add it back here only with that in mind.
       ].sort(),
     );
   });
