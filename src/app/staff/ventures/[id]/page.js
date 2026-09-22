@@ -198,7 +198,7 @@ export default function StaffVentureWorkspace() {
         ventureId={venture.venture_id}
         status={venture.status}
         metaItems={[
-          venture.business_stage || "idea",
+          t(`venture.stages.${venture.business_stage || "idea"}`),
           venture.industry,
           venture.country,
         ]}
