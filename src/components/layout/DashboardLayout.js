@@ -68,6 +68,11 @@ const SEEN_KEYS = {
   forms: "impactos_forms_seen_at",
 };
 
+// The bell opens a GLANCE, not an inbox: only this many unread rows are listed
+// at once, and "Show more" reveals the rest in place rather than making the
+// header panel grow with the inbox.
+const NOTIFICATIONS_PREVIEW = 3;
+
 const readSeenWatermark = (key) => {
   if (typeof window === "undefined") return 0;
   const raw = localStorage.getItem(key);
@@ -738,6 +743,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingInvites, setPendingInvites] = useState([]);
@@ -779,9 +785,15 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
         ? "sa"
         : parsedUser.cid || parsedUser.id;
     fetchSwrJson(`/api/notifications?recipient_id=${recipientId}`, (data) => {
-      setNotifications(data.notifications || []);
+      const rows = data.notifications || [];
+      setNotifications(rows);
+      // The badge is the server's own COUNT of unread rows, not the length of
+      // this page of rows: the list is limited (50), so a list-derived badge
+      // under-reports a big inbox and can only shrink when those 50 are read.
       setUnreadCount(
-        (data.notifications || []).filter((n) => !n.is_read).length,
+        typeof data.unread_count === "number"
+          ? data.unread_count
+          : rows.filter((n) => !n.is_read).length,
       );
     });
   }, []);
@@ -980,6 +992,25 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     fetchPendingUsersCount,
   ]);
 
+  // An unread badge is only worth showing if it is CURRENT. The shell used to ask
+  // once, so the number stayed frozen for the whole session: reading a
+  // notification in another tab (or on any page that marks one read) left the
+  // bell claiming the old total, and it never came down on its own. It now polls,
+  // and re-asks whenever the tab returns to the foreground.
+  useEffect(() => {
+    const poll = setInterval(fetchNotifications, 60_000);
+    const onForeground = () => {
+      if (document.visibilityState === "visible") fetchNotifications();
+    };
+    document.addEventListener("visibilitychange", onForeground);
+    window.addEventListener("focus", onForeground);
+    return () => {
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onForeground);
+      window.removeEventListener("focus", onForeground);
+    };
+  }, [fetchNotifications]);
+
   const { theme, setTheme } = useTheme();
   const user = useSyncExternalStore(
     subscribeDashboardSession,
@@ -1090,7 +1121,11 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                 setNotifications((prev) =>
                   prev.length > 0 ? prev : notifData.notifications || [],
                 );
-                setUnreadCount((notifData.notifications || []).filter((n) => !n.is_read).length);
+                setUnreadCount(
+                  typeof notifData.unread_count === "number"
+                    ? notifData.unread_count
+                    : (notifData.notifications || []).filter((n) => !n.is_read).length,
+                );
               }
             } catch (_) {}
           }
@@ -1565,7 +1600,14 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
 
               <div className="relative">
                 <button
-                  onClick={() => setShowNotifications(!showNotifications)}
+                  onClick={() => {
+                    // The panel always opens as a SHORT glance, and always on
+                    // current rows: opening it re-asks, so the list and the
+                    // badge can never disagree with the server.
+                    setShowAllNotifications(false);
+                    if (!showNotifications) fetchNotifications();
+                    setShowNotifications((v) => !v);
+                  }}
                   className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
                   <Bell className="w-4 h-4" />
@@ -1582,7 +1624,10 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                     </h4>
                     <div className="max-h-48 overflow-y-auto space-y-2">
                       {notifications.length > 0 ? (
-                        notifications.map((n) => (
+                        (showAllNotifications
+                          ? notifications
+                          : notifications.slice(0, NOTIFICATIONS_PREVIEW)
+                        ).map((n) => (
                           <div
                             key={n.id}
                             onClick={async () => {
@@ -1856,6 +1901,14 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                         </p>
                       )}
                     </div>
+                    {notifications.length > NOTIFICATIONS_PREVIEW && (
+                      <button
+                        onClick={() => setShowAllNotifications((v) => !v)}
+                        className="mt-3 w-full text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-colors"
+                      >
+                        {t(showAllNotifications ? "common.showLess" : "common.showMore")}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

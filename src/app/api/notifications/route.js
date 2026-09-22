@@ -6,6 +6,7 @@ import { groupNotificationContext } from "@/lib/notificationContext";
 import {
   createNotification,
   getRecentNotifications,
+  countUnreadNotifications,
   getNotificationRecipientById,
   markNotificationRead,
   markNotificationsSeen,
@@ -100,10 +101,21 @@ export async function GET(req) {
       rows = [];
     }
 
+    // The rows are the panel's list; the COUNT is the badge. They are read
+    // separately because the list is paginated (50) while the badge must show
+    // every unread row, so deriving one from the other under-reported.
+    let unreadCount = 0;
+    try {
+      const counted = await countUnreadNotifications(recipientId);
+      unreadCount = parseInt(counted.rows?.[0]?.c || 0, 10);
+    } catch (_) {
+      unreadCount = rows.length;
+    }
+
     // Drill-down mode (Vinance 3 Phase 1): ?group_by=context adds the §4
     // breadcrumb tree (venture → journey → milestone → task/session) as an
     // ADDITIVE field — the default `notifications` payload is unchanged.
-    const payload = { success: true, notifications: rows };
+    const payload = { success: true, notifications: rows, unread_count: unreadCount };
     if (searchParams.get("group_by") === "context") {
       payload.grouped = groupNotificationContext(rows);
     }

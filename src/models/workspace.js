@@ -16,7 +16,8 @@ import db from "@/lib/db";
  *                         getCalendarDeliverables, ensureFollowupsCreatedByColumn, getCalendarFollowups
  *  - /api/sessions      → createSession, listSessions
  *  - /api/notifications → createNotification, getRecentNotifications,
- *                         getNotificationRecipientById, markNotificationRead
+ *                         countUnreadNotifications, getNotificationRecipientById,
+ *                         markNotificationRead
  *  - /api/notifications/overdue       → getOverdueTasks, findRecentOverdueNotification,
  *                                       createOverdueNotification
  *  - /api/notifications/due-reminders → getTasksDueInNext24Hours, findRecentDueReminder,
@@ -332,6 +333,22 @@ export async function createNotification(recipientId, title, message, type) {
 export async function getRecentNotifications(recipientId) {
   return db.execute({
     sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? ORDER BY created_at DESC LIMIT 50",
+    args: [recipientId],
+  });
+}
+
+/**
+ * The recipient's TRUE unread count — a COUNT, not the length of a page of rows.
+ *
+ * A badge fed by a limited list is wrong twice over: it caps at the page size,
+ * so an inbox with more unread than the page shows a number that is too small,
+ * and it can only shrink when the rows it happens to hold are read. Counting
+ * the rows themselves is what makes the badge honest.
+ */
+export async function countUnreadNotifications(recipientId) {
+  return db.execute({
+    sql: `SELECT COUNT(*) AS c FROM v2_notifications
+          WHERE recipient_id = ? AND (is_read = 0 OR is_read IS NULL)`,
     args: [recipientId],
   });
 }
