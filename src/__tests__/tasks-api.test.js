@@ -486,3 +486,50 @@ describe("PUT /api/tasks — carry-over status safety (Phase 1)", () => {
     expect(dbState.tasks.find((t) => t.id === 1).status).toBe("carried_over");
   });
 });
+
+describe("PUT /api/tasks — reassigning into a project the actor does not belong to", () => {
+  test("resets the status, naming that column once", async () => {
+    dbState.tasks.push({
+      id: 1,
+      user_id: "staff-1",
+      user_name: "Staff One",
+      title: "Draft brief",
+      status: "todo",
+      project_id: 7,
+      parent_task_id: null,
+    });
+    const db = require("@/lib/db").default;
+    db.execute.mockClear();
+
+    const res = await PUT(
+      jsonReq(
+        {
+          id: 1,
+          user_id: "staff-1",
+          user_name: "Staff One",
+          status: "in_progress",
+          project_id: 42,
+        },
+        "PUT",
+      ),
+    );
+    expect(res.status).toBe(200);
+
+    const update = db.execute.mock.calls
+      .map(([call]) => call)
+      .find((call) => String(call.sql).startsWith("UPDATE tasks SET") && String(call.sql).includes("project_id = ?"));
+    expect(update).toBeTruthy();
+
+    const sql = String(update.sql);
+    const columns = sql
+      .slice(sql.indexOf("SET ") + 4, sql.indexOf(" WHERE id = ?"))
+      .split(", ")
+      .map((entry) => entry.split(" = ")[0]);
+
+    // Postgres refuses a SET list that names one column twice, so the caller's
+    // status and this reset could not both be written: the save was lost.
+    expect(columns.filter((column, index) => columns.indexOf(column) !== index)).toEqual([]);
+    expect(sql).toContain("status = 'pending_project_approval'");
+    expect(sql).not.toContain("status = ?");
+  });
+});

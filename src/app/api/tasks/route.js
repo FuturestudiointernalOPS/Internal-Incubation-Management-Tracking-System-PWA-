@@ -921,7 +921,15 @@ export async function PUT(req) {
         const memberCheck = await getProjectMembership(project_id, user_id || task.user_id);
 
         if (memberCheck.rows.length === 0) {
-          // Staff not assigned — reset to pending approval
+          // Staff not assigned — reset to pending approval. The reset REPLACES a
+          // status the caller sent: a SET list naming the same column twice is
+          // refused by Postgres ("multiple assignments to same column"), which
+          // lost the whole save, and the reset is the point of this branch.
+          const statusAt = updateFields.findIndex((f) => f.startsWith("status ="));
+          if (statusAt >= 0) {
+            updateFields.splice(statusAt, 1);
+            updateArgs.splice(statusAt, 1);
+          }
           updateFields.push("status = 'pending_project_approval'");
           // Create new approval request
           try {
