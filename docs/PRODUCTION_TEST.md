@@ -112,6 +112,7 @@ SELECT * FROM venture_staff_assignments;
 
 ```sql
 SELECT name FROM authz_migrations WHERE name = 'feature-key-alignment-v1';
+SELECT name FROM authz_migrations WHERE name = 'retire-developer-admin-roles-v1';
 ```
 
 The first request after deploy renames feature keys (`program_management→programs`,
@@ -120,6 +121,13 @@ The first request after deploy renames feature keys (`program_management→progr
 `knowledge_base`/`intelligence→knowledge`, `messaging`/`internal_comms→communication`)
 and merges responsibilities. **Until it completes, every non-Super-Admin is denied
 on ~10 of 12 features.**
+
+The same burst removes the retired `developer` / `admin` roles: the
+`Developer` / `Developer Intern` templates, their role→profile defaults, the
+legacy `role_capabilities` fallback rows, the role eligibility rows and the
+retired `engineering.manage_developers` capability (in every capability table).
+Run `migrations/check_retired_developer_admin_roles.sql` (read-only) to confirm
+zero rows remain; its Q7 is this migration's marker.
 
 ### 4.3 Seed the access profiles (as Super Admin, signed in)
 
@@ -282,7 +290,7 @@ saved.
 
 ## 7. The first-request migration burst
 
-`resolveAuthorizationContext` awaits ~16 authz migrations in `Promise.all` with
+`resolveAuthorizationContext` awaits ~18 authz migrations in `Promise.all` with
 **no `.catch()`**, *before* the Super Admin short-circuit. One failure means:
 
 - every authorized request returns **500 `errors.authzSystemFailure`**
