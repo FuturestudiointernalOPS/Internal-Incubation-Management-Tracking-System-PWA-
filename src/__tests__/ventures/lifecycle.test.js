@@ -24,7 +24,7 @@ describe("lifecycleIsArchived", () => {
 });
 
 describe("roleIsPrivileged", () => {
-  it("grants staff/SA/PM/developer/admin; denies participants", () => {
+  it("grants staff/SA/PM; denies participants", () => {
     expect(roleIsPrivileged("super_admin")).toBe(true);
     expect(roleIsPrivileged("staff")).toBe(true);
     expect(roleIsPrivileged("program_manager")).toBe(true);

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { listScopeTypes } from "@/lib/venturePermissions";
 
-const READ_ROLES = ["super_admin", "developer", "admin", "staff"];
+const READ_ROLES = ["super_admin", "staff"];
 
 export async function GET() {
   try {

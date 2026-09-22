@@ -46,7 +46,7 @@ function logAudit(collectionId, action, actorId, actorName, details = {}) {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "admin", "staff"]);
+    const authError = await requireAuth(["super_admin", "staff"]);
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
@@ -93,7 +93,7 @@ export async function POST(req) {
     if (!session) {
       return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     }
-    const authError = await requireAuth(["super_admin", "admin"]);
+    const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
     const { name, description, parent_id, owner_id, owner_name, visibility, tags, category, color } = await req.json();
@@ -142,7 +142,7 @@ export async function PUT(req) {
     if (!session) {
       return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     }
-    const authError = await requireAuth(["super_admin", "admin"]);
+    const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
     const { id, name, description, parent_id, owner_id, owner_name, visibility, tags, category, status, color } = await req.json();

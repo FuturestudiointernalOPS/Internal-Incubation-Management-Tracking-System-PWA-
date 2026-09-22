@@ -382,6 +382,17 @@ export async function ensureVentureSchema() {
     );
   } catch (_) {}
 
+  // …and the other way, for rows where BOTH are set but the legacy `name`
+  // drifted. Renames used to write only company_name (the profile screens), so a
+  // Venture created by an intake Run kept that Run's name in `name` and every
+  // surface still reading it (the founder's My Ventures card) showed the Run
+  // instead of the company. company_name is the canonical label.
+  try {
+    await db.execute(
+      "UPDATE ventures SET name = company_name WHERE company_name IS NOT NULL AND name IS DISTINCT FROM company_name"
+    );
+  } catch (_) {}
+
   // Seed the configurable Venture permission catalog (idempotent — only when empty)
   try {
     const { seedVenturePermissions } = await import("@/lib/venturePermissions");
@@ -905,10 +916,25 @@ export async function updateVenture(ventureId, updates) {
   const setClauses = [];
   const args = [];
 
+  // `ventures` carries TWO columns for the same thing — the legacy `name` and
+  // the canonical `company_name` (see HANDOVER_VENTURES.md: two generations of
+  // the table). Callers write one of them, so a rename used to leave the other
+  // stale: the profile screens send only `company_name`, and any surface still
+  // reading `name` (the founder's My Ventures card, the portfolio reports) kept
+  // showing the Venture's original label — for intake-created Ventures, the
+  // name of the Run that collected the application. Mirroring the two here, on
+  // the one function every rename goes through, keeps them telling one story.
+  const mirrored = { ...updates };
+  if (mirrored.company_name !== undefined && mirrored.name === undefined) {
+    mirrored.name = mirrored.company_name;
+  } else if (mirrored.name !== undefined && mirrored.company_name === undefined) {
+    mirrored.company_name = mirrored.name;
+  }
+
   for (const field of allowedFields) {
-    if (updates[field] !== undefined) {
+    if (mirrored[field] !== undefined) {
       setClauses.push(`${field} = ?`);
-      args.push(updates[field]);
+      args.push(mirrored[field]);
     }
   }
 
@@ -1742,7 +1768,7 @@ async function hasDelegatedVentureAssignment(ventureId, session) {
  */
 export async function canReadStartupProfile(ventureId, session) {
   if (!session) return false;
-  if (["super_admin", "developer", "admin"].includes(session.role)) return true;
+  if (session.role === "super_admin") return true;
 
   // Delegated staff (Phase 2): read access derives from an explicit Venture
   // assignment — never from the staff role alone.
@@ -2207,7 +2233,7 @@ export const VERIFICATION_DOCUMENT_TYPES = {
  */
 export async function canManageVerification(ventureId, session) {
   if (!session) return { allowed: false };
-  if (["super_admin", "developer", "admin"].includes(session.role)) return { allowed: true, isReviewer: true };
+  if (session.role === "super_admin") return { allowed: true, isReviewer: true };
   if (session.role === "verification_officer") return { allowed: true, isReviewer: true };
   // Delegated staff (Phase 2): reviewing requires an explicit Venture assignment.
   if (session.role === "staff" && (await hasDelegatedVentureAssignment(ventureId, session))) {

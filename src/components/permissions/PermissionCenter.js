@@ -3090,7 +3090,7 @@ function EligibilityView() {
   }, [identityType, identityValue, data]);
 
   // Roles the database actually carries that the curated identity list omits
-  // (mentor, teacher, developer, program_manager…). They are enforceable
+  // (mentor, teacher, program_manager…). They are enforceable
   // ceilings, so they must be selectable here — this is the front-end remedy
   // for a refused template save.
   const extraRoles = data?.extraRoles || [];

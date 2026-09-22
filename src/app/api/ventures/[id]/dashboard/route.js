@@ -21,11 +21,11 @@ export const GET = createHandler(
     if (access.error) return access.error;
     const { session } = access;
 
-    // Internal viewers = global Venture authority (super_admin/developer/admin).
+    // Internal viewers = global Venture authority (super_admin).
     // They see the INTERNAL audit stream + internal 'sa' notification feed.
     // Everyone else (Venture members, scoped staff) only ever receives
     // Venture-facing events — never the internal staff feed.
-    const isInternalViewer = ["super_admin", "developer", "admin"].includes(session?.role);
+    const isInternalViewer = ["super_admin"].includes(session?.role);
     const start = Date.now();
 
     // Resolve the internal id (UUID-lineage tables key on it, not the VNT code)

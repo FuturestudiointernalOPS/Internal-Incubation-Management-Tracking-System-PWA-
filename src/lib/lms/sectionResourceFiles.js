@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { LmsError } from "./errors";
+import { safeStorageName, safeStoragePath } from "@/lib/storageNames";
 import {
   LMS_DOCUMENT_MIME_TYPES,
   LMS_RESOURCE_EXTENSIONS,
@@ -105,10 +106,6 @@ function storageClient() {
   return createClient(url, serviceKey);
 }
 
-function sanitizeFileName(name) {
-  return String(name || "file").replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120);
-}
-
 /**
  * Upload one section resource file.
  * `courseId` / `sectionId` only shape the object path (they are never trusted
@@ -125,7 +122,11 @@ export async function uploadSectionResourceFile({ file, kind, courseId, sectionI
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const folder = `sections/${String(courseId || "unassigned")}/${String(sectionId || "section")}`;
-  const objectPath = `${folder}/${Date.now()}-${sanitizeFileName(file.name)}`;
+  // The stored key is written by the code, never from the browser's file name
+  // (lib/storageNames.js); `file_name` below keeps the readable one.
+  const objectPath = safeStoragePath(
+    `${folder}/${Date.now()}-${safeStorageName(file.name)}`,
+  );
 
   let upload = await supabase.storage
     .from(SECTION_RESOURCE_BUCKET)

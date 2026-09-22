@@ -153,13 +153,11 @@
       "selectSegment": "Sélectionner un segment...",
       "roleOverride": "Surcharge de rôle",
       "autoDetect": "Détection automatique (par défaut)",
-      "roleDeveloper": "Développeur",
       "roleStaff": "Personnel",
       "roleParticipant": "Participant",
       "roleMember": "Membre (aucun rôle pour l'instant)",
-      "roleIntern": "Stagiaire",
       "roleFacilitator": "Facilitateur",
-      "roleHelper": "Laisser en détection automatique pour la plupart des utilisateurs. Ne définir « Développeur » que pour le compte de développement.",
+      "roleHelper": "Leave as Auto-detect for most users.",
       "programAssignment": "Affectation au programme",
       "programHelper": "Sélectionnez le programme pour cet utilisateur.",
       "selectProgram": "Sélectionner un programme...",
@@ -227,7 +225,8 @@
       "invitationExpired": "Expiré",
       "activationEmailSent": "Email d'activation : Envoyé",
       "activationEmailFailed": "Email d'activation : Échec",
-      "activationEmailNotSent": "Email d'activation : Non envoyé"
+      "activationEmailNotSent": "Email d'activation : Non envoyé",
+      "roleIntern": "Stagiaire"
     },
     "duplicates": {
       "crm": "CRM",
@@ -436,7 +435,6 @@
       "staff": "Personnel",
       "investor": "Investisseur",
       "finance": "Finance",
-      "developer": "Développeur",
       "unassigned": "Non attribué",
       "team": "Équipe",
       "founder": "Fondateur",

@@ -37,7 +37,7 @@ jest.mock("@/lib/auth", () => {
       ],
     },
     engineering: {
-      capabilities: ["view", "manage_tasks", "manage_errors", "manage_developers"],
+      capabilities: ["view", "manage_tasks", "manage_errors"],
     },
     finance: { capabilities: ["view", "create", "edit", "delete", "export"] },
     settings: { capabilities: ["view", "edit"] },
@@ -288,24 +288,24 @@ describe("reports module (Phase 3)", () => {
     expect(MODULE_TO_FEATURE.reports).toBe("reports");
   });
 
-  test("reports eligibility defaults cover the submit routes (admin removed by policy #3)", () => {
+  test("reports eligibility defaults cover the submit routes (admin/developer removed)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
     const reports = FEATURE_ELIGIBILITY_DEFAULTS.reports;
     expect(reports).toEqual(
-      expect.arrayContaining(["super_admin", "staff", "program_manager", "developer"]),
+      expect.arrayContaining(["super_admin", "staff", "program_manager"]),
     );
     expect(reports).not.toContain("admin");
+    expect(reports).not.toContain("developer");
   });
 
-  test("developer with reports.create is allowed on the submit routes", () => {
+  test("a role with reports.create is allowed on the submit routes (export is not implied)", () => {
     const ctx = staffCtx({
-      role: "developer",
       isSuperAdmin: false,
       eligibility: { reports: true },
       effective: { reports: { view: 1, create: 2 } },
     });
     expect(authorize(ctx, "reports", "create")).toBe(true);
-    expect(authorize(ctx, "reports", "export")).toBe(false); // no export for developer
+    expect(authorize(ctx, "reports", "export")).toBe(false);
   });
 
   test("a grant of reports.export alone allows run-export only", () => {
@@ -331,10 +331,11 @@ describe("contacts module (Phase 4)", () => {
   test("crm eligibility defaults are internal identities only (participant/founder removed by policy #3)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).toEqual(
-      expect.arrayContaining(["super_admin", "staff", "program_manager", "developer"]),
+      expect.arrayContaining(["super_admin", "staff", "program_manager"]),
     );
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("participant");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("founder");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("developer");
   });
 
   test("eligible staff with contacts.view is allowed; edit requires higher capability", () => {
@@ -393,12 +394,12 @@ describe("communication feature (Messages + Announcements)", () => {
       "super_admin",
       "staff",
       "program_manager",
-      "developer",
       "participant",
       "mentor",
       "investor",
     ]);
     expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).not.toContain("admin");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).not.toContain("developer");
     // The legacy messaging/internal_comms feature keys are gone.
     expect(FEATURE_ELIGIBILITY_DEFAULTS.messaging).toBeUndefined();
     expect(FEATURE_ELIGIBILITY_DEFAULTS.internal_comms).toBeUndefined();
@@ -429,21 +430,19 @@ describe("projects module (Phase 6)", () => {
     expect(MODULE_TO_FEATURE.projects).toBe("operations");
   });
 
-  test("staff with backfilled delete can delete; developer without it cannot", () => {
-    const staff = staffCtx({
+  test("a grantee with projects.delete can delete; without it cannot", () => {
+    const withDelete = staffCtx({
       eligibility: { operations: true },
       effective: { projects: { view: 1, create: 2, edit: 3, delete: 4 } },
     });
-    const developer = staffCtx({
-      role: "developer",
-      isSuperAdmin: false,
+    const withoutDelete = staffCtx({
       eligibility: { operations: true },
       effective: { projects: { view: 1, create: 2, edit: 3 } }, // no delete backfill
     });
-    expect(authorize(staff, "projects", "delete")).toBe(true);
-    expect(authorize(staff, "projects", "create")).toBe(true);
-    expect(authorize(developer, "projects", "delete")).toBe(false);
-    expect(authorize(developer, "projects", "create")).toBe(true); // POST allowlist ✓
+    expect(authorize(withDelete, "projects", "delete")).toBe(true);
+    expect(authorize(withDelete, "projects", "create")).toBe(true);
+    expect(authorize(withoutDelete, "projects", "delete")).toBe(false);
+    expect(authorize(withoutDelete, "projects", "create")).toBe(true); // POST allowlist ✓
   });
 
   test("program_manager with backfilled create/edit/delete is allowed (projects writes)", () => {
@@ -514,18 +513,9 @@ describe("engineering module (Phase 8)", () => {
     expect(MODULE_TO_FEATURE.engineering).toBe("settings");
   });
 
-  test("developer with backfilled manage_developers can manage developers", () => {
-    const dev = staffCtx({
-      role: "developer",
-      isSuperAdmin: false,
-      eligibility: { settings: true },
-      effective: {
-        engineering: { view: 1, manage_tasks: 2, manage_errors: 1, manage_developers: 2 },
-      },
-    });
-    expect(authorize(dev, "engineering", "view")).toBe(true);
-    expect(authorize(dev, "engineering", "manage_errors")).toBe(true);
-    expect(authorize(dev, "engineering", "manage_developers")).toBe(true);
+  test("manage_developers is gone from the engineering catalog (developer role retired)", () => {
+    const { CAPABILITY_CATALOG } = require("@/lib/authorization/capability-catalog");
+    expect(CAPABILITY_CATALOG.engineering.capabilities.manage_developers).toBeUndefined();
   });
 
   test("intern (profile caps but NOT eligible) is denied — no SA-surface gain", () => {
@@ -715,7 +705,6 @@ describe("messaging module (communication feature)", () => {
       "super_admin",
       "staff",
       "program_manager",
-      "developer",
       "participant",
       "mentor",
       "investor",
@@ -1024,7 +1013,7 @@ describe("final eligibility policy (#3)", () => {
     expect(authorize(saCtx(), "contacts", "view")).toBe(true);
   });
 
-  test("ensureFinalPolicyBackfill deletes ONLY the four role rows (group rows sacred)", async () => {
+  test("ensureFinalPolicyBackfill deletes ONLY the retired role rows (group rows sacred)", async () => {
     const dbMock = require("@/lib/db").default;
     const { ensureFinalPolicyBackfill } = require("@/lib/authorization/backfill");
     dbMock.execute.mockClear();
@@ -1037,15 +1026,75 @@ describe("final eligibility policy (#3)", () => {
     for (const sql of deletes) {
       expect(sql).toMatch(/identity_type\s*=\s*'role'/);
     }
-    expect(allSql).toMatch(/feature_key\s*=\s*'communication'/);
-    expect(allSql).toMatch(/feature_key\s*=\s*'reports'/);
     expect(allSql).toMatch(/feature_key\s*=\s*'crm'/);
-    expect(allSql).toMatch(/identity_value\s*=\s*'admin'/);
     expect(allSql).toMatch(/identity_value\s*IN\s*\(\s*'participant',\s*'founder'\s*\)/);
   });
 });
 
-// ─── Phase A — Permissions control center ───────────────────────────────────
+// ─── Retired roles cleanup (developer / admin) ────────────────
+// The one-time `retire-developer-admin-roles-v1` migration removes every row
+// keyed by the retired roles or their templates. These tests pin the SQL it
+// issues so a future seed cannot quietly re-introduce the vocabulary.
+
+describe("retired roles cleanup (developer / admin)", () => {
+  test("removes the retired templates, roles and manage_developers grants", async () => {
+    const dbMock = require("@/lib/db").default;
+    const { ensureRetiredRoleCleanup } = require("@/lib/authorization/backfill");
+    dbMock.execute.mockClear();
+    dbMock.execute.mockImplementation(async () => ({ rows: [] }));
+
+    await ensureRetiredRoleCleanup();
+
+    const all = dbMock.execute.mock.calls
+      .map((c) => (typeof c[0] === "string" ? c[0] : c[0]?.sql))
+      .filter(Boolean)
+      .join("\n");
+
+    // Templates: per-user assignments cleared FIRST, then caps + profiles.
+    expect(all).toMatch(/UPDATE contacts SET access_profile_id = NULL/);
+    expect(all).toMatch(/DELETE FROM access_profile_capabilities/);
+    expect(all).toMatch(
+      /DELETE FROM access_profiles WHERE name IN \('Developer', 'Developer Intern'\)/,
+    );
+
+    // Retired role rows (role-keyed only — group eligibility is sacred).
+    expect(all).toMatch(/DELETE FROM role_access_profile_defaults/);
+    expect(all).toMatch(
+      /DELETE FROM role_capabilities WHERE role IN \('developer', 'admin'\)/,
+    );
+    expect(all).toMatch(
+      /DELETE FROM feature_eligibility[\s\S]*?identity_type = 'role'[\s\S]*?'developer', 'admin'/,
+    );
+
+    // The retired capability, stripped from every capability table.
+    for (const table of [
+      "role_capabilities",
+      "group_capabilities",
+      "user_capabilities",
+      "user_capability_restrictions",
+      "access_profile_capabilities",
+      "responsibility_capability_grants",
+    ]) {
+      expect(all).toMatch(
+        new RegExp(
+          `DELETE FROM ${table} WHERE module = 'engineering' AND capability = 'manage_developers'`,
+        ),
+      );
+    }
+  });
+
+  test("is registered as a one-time authz migration", () => {
+    const src = require("fs").readFileSync(
+      require("path").join(process.cwd(), "src/models/authorization/backfill.js"),
+      "utf8",
+    );
+    expect(src).toMatch(
+      /"retire-developer-admin-roles-v1"[\s\S]*?ensureRetiredRoleCleanup/,
+    );
+  });
+});
+
+// ─── Phase A — Permissions control center ───────────────────────────────
 // Dedicated configure_eligibility authority, one-time policy migrations, and
 // eligibility change validation (the UI writes the same rows the resolver
 // reads — the API only validates/normalizes them).

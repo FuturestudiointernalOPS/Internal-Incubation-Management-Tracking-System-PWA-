@@ -27,7 +27,7 @@ import db from "@/lib/db";
 /** All FUTURE STUDIO staff member cids (role target '__staff__'). */
 export async function getStaffMemberCids() {
   return db.execute({
-    sql: `SELECT cid FROM contacts WHERE UPPER(TRIM(group_name)) = 'FUTURE STUDIO' OR role IN ('staff', 'developer', 'intern', 'admin', 'super_admin')`,
+    sql: `SELECT cid FROM contacts WHERE UPPER(TRIM(group_name)) = 'FUTURE STUDIO' OR role IN ('staff', 'intern', 'super_admin')`,
     args: [],
   });
 }

@@ -169,7 +169,6 @@ export const MASTER_NAVIGATION = [
     icon: "wrench",
     children: [
       { id: "integrations", name: "INTEGRATIONS", href: "/admin/integrations" },
-      { id: "engineering_dashboard", name: "ENGINEERING", href: "/admin/engineering" },
       { id: "system", name: "SYSTEM MONITORING", href: "/admin/system" },
     ],
   },
@@ -182,15 +181,6 @@ export const MASTER_NAVIGATION = [
   { id: "my_programs", name: "MY PROGRAMS", icon: "briefcase", href: "/facilitator/programs" },
   { id: "reviews", name: "MY REVIEWS", icon: "clipboardList", href: "/facilitator/reviews" },
   { id: "profile", name: "PROFILE", icon: "user", href: "/facilitator/profile" },
-  { id: "my_tasks", name: "MY TASKS", icon: "checkSquare", href: "/developer/my-tasks" },
-  { id: "assigned_tasks", name: "ASSIGNED TASKS", icon: "listTodo", href: "/developer/assigned-tasks" },
-  {
-    id: "rituals",
-    name: "STANDUPS & RETROS",
-    icon: "messageSquare",
-    children: [standupNode, retroNode],
-  },
-  { id: "notifications", name: "NOTIFICATIONS", icon: "bell", href: "/developer/notifications" },
   { id: "learning", name: "MY LEARNING", icon: "graduationCap", href: "/participant/learning" },
   { id: "certificates", name: "MY CERTIFICATES", icon: "fileText", href: "/participant/certificates" },
   { id: "timeline", name: "MY TIMELINE", icon: "clock", href: "/participant/profile#timeline" },
@@ -228,17 +218,10 @@ export const ROLE_ACCESS = {
       knowledge: ["knowledge_base", "intelligence"],
       lms: ["lms_courses"],
       security: ["security", "audit_logs", "access_summary", "permissions"],
-      settings: ["integrations", "engineering_dashboard", "system"],
+      settings: ["integrations", "system"],
     },
     hrefs: {},
     icons: {},
-  },
-
-  admin: {
-    top: ["dashboard", "projects", "reports"],
-    children: {},
-    hrefs: { reports: "/admin/reports" },
-    icons: { reports: "barChart3" },
   },
 
   program_manager: {
@@ -275,17 +258,6 @@ export const ROLE_ACCESS = {
     children: {},
     hrefs: { dashboard: "/facilitator" },
     icons: {},
-  },
-
-  developer: {
-    top: ["dashboard", "my_tasks", "assigned_tasks", "rituals", "projects", "notifications", "messages"],
-    children: { rituals: ["standup", "retro"] },
-    hrefs: {
-      dashboard: "/developer",
-      projects: "/staff/projects",
-      messages: "/staff/messages",
-    },
-    icons: { projects: "briefcase" },
   },
 
   member: {
@@ -354,6 +326,16 @@ export const ROLE_ACCESS = {
   },
 };
 
+// Fallback access for a role absent from ROLE_ACCESS (an unknown/legacy
+// identity). It is NOT a role: it only gives such an identity three neutral
+// doors, and the server-side gate remains authoritative.
+const FALLBACK_ACCESS = {
+  top: ["dashboard", "projects", "reports"],
+  children: {},
+  hrefs: { reports: "/admin/reports" },
+  icons: { reports: "barChart3" },
+};
+
 // ─── Capability-projected navigation (Phase: nav reflects effective access) ──
 // Nodes that represent GLOBAL-management sections carry a capability
 // requirement. The projection only touches nodes listed here — everything
@@ -380,7 +362,7 @@ export const NAV_CAPABILITY_REQUIREMENTS = {
   security: { module: "settings", capability: "view" },
   programs: { module: "programs", capability: "view" },
   knowledge: { module: "knowledge", capability: "view" },
-  // LMS — course authoring. Admin-capable roles (super_admin, developer) open
+  // LMS — course authoring. Admin-capable roles (super_admin) open
   // the /admin/lms pages directly; a role without a reachable non-admin landing
   // still has the node DROPPED by the projection (no dead links), so this
   // requirement never leaks an /admin link to a non-admin role.
@@ -463,8 +445,8 @@ function projectMasterSection(node, access) {
  * the server stays authoritative — but never on hrefs.
  */
 export function buildAccessNav(role, effective) {
-  const access = ROLE_ACCESS[role] || ROLE_ACCESS.admin;
-  const canOpenAdmin = role === "super_admin" || role === "developer";
+  const access = ROLE_ACCESS[role] || FALLBACK_ACCESS;
+  const canOpenAdmin = role === "super_admin";
   const roleHrefs = access.hrefs || {};
 
   const passes = (id) => {
@@ -599,7 +581,7 @@ function projectNode(node, access, depth) {
  * children collapse to leaves using the role's resolved href.
  */
 export function buildRoleNav(role) {
-  const access = ROLE_ACCESS[role] || ROLE_ACCESS.admin;
+  const access = ROLE_ACCESS[role] || FALLBACK_ACCESS;
   return (access.top || [])
     .map((id) => {
       const node = NAV_NODE_INDEX[id];

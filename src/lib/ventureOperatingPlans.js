@@ -8,14 +8,14 @@
  * plan links.
  *
  * Access model for the `operating_plan` permission area:
- *  - GLOBAL roles (super_admin/developer/admin): full access.
+ *  - GLOBAL roles (super_admin): full access.
  *  - Delegated staff: require an active assignment. Cell-level action checks
  *    read the configurable matrix (defaults + per-venture overrides). Write
  *    actions (create/edit/manage/delete) additionally require a venture-wide
  *    assignment, so a scoped GTM Coach can view/comment but never author.
  */
 
-const GLOBAL_ROLES = ["super_admin", "developer", "admin"];
+const GLOBAL_ROLES = ["super_admin"];
 
 export async function resolveVentureCode(db, ventureId) {
   let code = ventureId;

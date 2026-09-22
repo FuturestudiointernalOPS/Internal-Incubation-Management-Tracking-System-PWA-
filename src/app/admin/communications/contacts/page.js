@@ -1141,7 +1141,7 @@ function ContactsPageContent() {
               >
                 <option value="">{t("crm.contacts.selectSegment")}</option>
                 {families.map((f) => (
-                  <option key={f.id} value={f.name}>
+                  <option key={f.id ?? f.name} value={f.name}>
                     {f.name.toUpperCase()}
                   </option>
                 ))}
@@ -1157,7 +1157,6 @@ function ContactsPageContent() {
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
                 >
                   <option value="">{t("crm.contacts.autoDetect")}</option>
-                  <option value="developer">{t("crm.contacts.roleDeveloper")}</option>
                   <option value="staff">{t("crm.contacts.roleStaff")}</option>
                   <option value="participant">{t("crm.contacts.roleParticipant")}</option>
                   <option value="member">{t("crm.contacts.roleMember")}</option>
@@ -1294,7 +1293,6 @@ function ContactsPageContent() {
                 <option value="member">{t("crm.contacts.roleMember")}</option>
                 <option value="staff">{t("crm.contacts.roleStaff")}</option>
                 <option value="intern">{t("crm.contacts.roleIntern")}</option>
-                <option value="developer">{t("crm.contacts.roleDeveloper")}</option>
               </select>
               <button
                 onClick={handleInvite}

@@ -103,7 +103,7 @@ export async function POST(req) {
       session &&
       !["staff", "super_admin", "program_manager"].includes(role)
     ) {
-      // Parity guard: every other role (developer, founder, investor, …) was
+      // Parity guard: every other role (founder, investor, …) was
       // denied by the old pre-filter and stays denied — only staff/PM/SA may
       // submit on behalf of others.
       return NextResponse.json(

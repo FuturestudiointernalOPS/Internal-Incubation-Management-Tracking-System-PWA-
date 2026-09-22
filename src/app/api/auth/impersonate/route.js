@@ -1,11 +1,12 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
+import { resolveLanding, landingNeedsRelationships } from "@/lib/platform/roles";
+import { getVentureMembershipsForContact } from "@/models/contacts";
 import {
   getImpersonationTargetByCid,
   getImpersonationTargetByEmail,
   getImpersonationTargetUsingCidAsEmail,
-  getVentureIdForContact,
   listActiveContactsForImpersonation,
 } from "@/models/authFlows";
 
@@ -88,8 +89,6 @@ export async function POST(req) {
 
     if (user.role === "super_admin" || user.id === "sa") {
       finalRole = "super_admin";
-    } else if (user.role === "developer") {
-      finalRole = "developer";
     } else if (user.role === "investor") {
       finalRole = "investor";
     } else if (user.role === "founder") {
@@ -97,7 +96,7 @@ export async function POST(req) {
     } else if (user.role === "program_manager") {
       finalRole = "program_manager";
     } else if (
-      user.role === "staff" || user.role === "project_manager" || user.role === "admin" ||
+      user.role === "staff" || user.role === "project_manager" ||
       (user.group_name || "").toUpperCase() === "FUTURE STUDIO"
     ) {
       // Internal Future Studio staff keep their identity — being assigned as
@@ -137,25 +136,23 @@ export async function POST(req) {
     // Create impersonation session
     const { token, maxAge } = await createSession(userCid, finalRole, false, true);
 
-    // Determine redirect target
-    let target;
-    if (finalRole === "super_admin") target = "/admin";
-    else if (finalRole === "program_manager") target = "/pm";
-    else if (finalRole === "staff") target = "/staff";
-    else if (finalRole === "developer") target = "/developer";
-    else if (finalRole === "investor") target = "/investor/dashboard";
-    else if (finalRole === "founder") {
+    // Where this person belongs — the SAME rule the real login uses, from the
+    // same relationships, instead of the role chain that used to live here.
+    // Impersonation is how a screen gets exercised, so it must land exactly
+    // where the person it impersonates would.
+    let ventureMemberships = [];
+    if (landingNeedsRelationships(finalRole)) {
       try {
-        const vRes = await getVentureIdForContact(userCid);
-        target = vRes.rows.length > 0 ? "/participant/ventures/" + vRes.rows[0].venture_id : "/participant";
-      } catch (_) { target = "/participant"; }
-    } else {
-      target = "/participant";
+        const vm = await getVentureMembershipsForContact(userCid);
+        ventureMemberships = vm.rows || [];
+      } catch (_) {}
     }
+    const home = resolveLanding({ role: finalRole, ventures: ventureMemberships });
+    responseUser.home = home;
 
-    console.log("[impersonate:POST] SUCCESS - redirecting to:", target);
+    console.log("[impersonate:POST] SUCCESS - redirecting to:", home);
 
-    const response = NextResponse.json({ success: true, user: responseUser, redirect: target });
+    const response = NextResponse.json({ success: true, user: responseUser, redirect: home });
     return setSessionCookieOnResponse(
       response,
       token,
@@ -203,13 +200,11 @@ export async function GET() {
       let displayRole = user.role || "participant";
       if (user.role === "super_admin") displayRole = "super_admin";
       else if (user.role === "program_manager") displayRole = "program_manager";
-      else if (user.role === "developer") displayRole = "developer";
       else if (user.role === "investor") displayRole = "investor";
       else if (user.role === "founder") displayRole = "founder";
       else if (
         user.role === "staff" ||
         user.role === "project_manager" ||
-        user.role === "admin" ||
         (user.group_name || "").toUpperCase().includes("STAFF") ||
         (user.group_name || "").toUpperCase().includes("FUTURE STUDIO")
       ) {

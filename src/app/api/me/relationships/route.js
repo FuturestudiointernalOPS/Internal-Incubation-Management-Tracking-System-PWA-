@@ -6,6 +6,7 @@ import {
   hasV2ParticipantRecord,
   getVentureMembershipsForContact,
 } from "@/models/contacts";
+import { isFounderMembership } from "@/lib/platform/roles";
 
 /**
  * GET /api/me/relationships
@@ -58,16 +59,11 @@ export async function GET() {
       ventures = vm.rows || [];
     } catch (_) {}
 
-    // Founder follows the same classification the authorization layer uses
-    // (see models/authorization/contactContexts.js ventureRoles): an owning or
-    // founder-typed membership. Used for the personal sidebar ORDER only —
-    // navigation is a projection, never a permission.
-    const isFounder = ventures.some((v) => {
-      const memberType = String(v.member_type || "").toLowerCase();
-      const owner =
-        v.is_owner === true || v.is_owner === 1 || Number(v.is_owner) === 1;
-      return memberType === "founder" || owner;
-    });
+    // Founder follows the ONE classification the landing rule also uses (an
+    // owning or founder-typed membership), so the sidebar's "founder" and the
+    // destination's cannot drift apart. Navigation is a projection, never a
+    // permission.
+    const isFounder = ventures.some(isFounderMembership);
 
     return NextResponse.json({
       success: true,

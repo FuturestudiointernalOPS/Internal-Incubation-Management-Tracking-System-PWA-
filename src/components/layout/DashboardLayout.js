@@ -68,6 +68,11 @@ const SEEN_KEYS = {
   forms: "impactos_forms_seen_at",
 };
 
+// The bell opens a GLANCE, not an inbox: only this many unread rows are listed
+// at once, and "Show more" reveals the rest in place rather than making the
+// header panel grow with the inbox.
+const NOTIFICATIONS_PREVIEW = 3;
+
 const readSeenWatermark = (key) => {
   if (typeof window === "undefined") return 0;
   const raw = localStorage.getItem(key);
@@ -119,12 +124,9 @@ const NAV_KEY_MAP = {
   projects: "navigation.projects",
   all_projects: "navigation.allProjects",
   my_projects: "navigation.myProjects",
-  my_tasks: "navigation.myTasks",
-  assigned_tasks: "navigation.assignedTasks",
   sessions: "navigation.sessions",
   reviews: "navigation.reviews",
   assignments: "navigation.assignments",
-  rituals: "navigation.rituals",
   tasks: "reports.tasks",
   blockers: "reports.blockers",
   no_new_intel: "navigation.noNewIntel",
@@ -163,7 +165,6 @@ const NAV_KEY_MAP = {
   access_summary: "navigation.accessSummary",
   crm_membership: "navigation.membership",
   permissions: "navigation.permissions",
-  engineering_dashboard: "navigation.engineering",
   system: "navigation.system",
   personnel: "navigation.personnel",
   logs: "navigation.logs",
@@ -229,7 +230,6 @@ const CRUMB_PATH_MAP = {
   access: "navigation.accessSummary",
   membership: "navigation.groups",
   permissions: "navigation.permissions",
-  engineering: "navigation.engineering",
   system: "navigation.system",
   profile: "navigation.profile",
   messages: "navigation.messages",
@@ -237,7 +237,6 @@ const CRUMB_PATH_MAP = {
   sessions: "navigation.sessions",
   reviews: "navigation.reviews",
   assignments: "navigation.assignments",
-  rituals: "navigation.rituals",
   followups: "navigation.followups",
   certificates: "navigation.certificates",
   portfolio: "navigation.portfolio",
@@ -329,7 +328,7 @@ const SidebarContent = ({
   hasCommunicationActivity,
 }) => {
   const { switchLang } = useI18n();
-  const profileHref = `/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "facilitator" ? "facilitator" : role === "developer" || role === "intern" ? "developer" : role === "investor" ? "investor" : "participant"}/profile`;
+  const profileHref = `/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "facilitator" ? "facilitator" : role === "investor" ? "investor" : "participant"}/profile`;
 
   const [flyout, setFlyout] = useState(null); // { id, top } — collapsed-rail flyout
   const flyoutTimer = useRef(null);
@@ -710,7 +709,7 @@ function attachIcons(items) {
  * page never contributes a role — a staff member on /crm stays staff.
  */
 function shellRole(userRole, role) {
-  return userRole || role || "admin";
+  return userRole || role || "super_admin";
 }
 
 // ─── The identity the shell paints with ─────────────────────────────────────
@@ -740,10 +739,11 @@ const PERSONAL_ROLES = ["member", "founder", "participant", "team"];
 /** Whether the connected person actually holds at least one course enrollment. */
 const pickLmsEnrollment = (d) => (d && d.success ? !!d.enrolled : false);
 
-function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = false }) {
+function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidth = false }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingInvites, setPendingInvites] = useState([]);
@@ -785,9 +785,15 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
         ? "sa"
         : parsedUser.cid || parsedUser.id;
     fetchSwrJson(`/api/notifications?recipient_id=${recipientId}`, (data) => {
-      setNotifications(data.notifications || []);
+      const rows = data.notifications || [];
+      setNotifications(rows);
+      // The badge is the server's own COUNT of unread rows, not the length of
+      // this page of rows: the list is limited (50), so a list-derived badge
+      // under-reports a big inbox and can only shrink when those 50 are read.
       setUnreadCount(
-        (data.notifications || []).filter((n) => !n.is_read).length,
+        typeof data.unread_count === "number"
+          ? data.unread_count
+          : rows.filter((n) => !n.is_read).length,
       );
     });
   }, []);
@@ -986,6 +992,25 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
     fetchPendingUsersCount,
   ]);
 
+  // An unread badge is only worth showing if it is CURRENT. The shell used to ask
+  // once, so the number stayed frozen for the whole session: reading a
+  // notification in another tab (or on any page that marks one read) left the
+  // bell claiming the old total, and it never came down on its own. It now polls,
+  // and re-asks whenever the tab returns to the foreground.
+  useEffect(() => {
+    const poll = setInterval(fetchNotifications, 60_000);
+    const onForeground = () => {
+      if (document.visibilityState === "visible") fetchNotifications();
+    };
+    document.addEventListener("visibilitychange", onForeground);
+    window.addEventListener("focus", onForeground);
+    return () => {
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onForeground);
+      window.removeEventListener("focus", onForeground);
+    };
+  }, [fetchNotifications]);
+
   const { theme, setTheme } = useTheme();
   const user = useSyncExternalStore(
     subscribeDashboardSession,
@@ -1096,7 +1121,11 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
                 setNotifications((prev) =>
                   prev.length > 0 ? prev : notifData.notifications || [],
                 );
-                setUnreadCount((notifData.notifications || []).filter((n) => !n.is_read).length);
+                setUnreadCount(
+                  typeof notifData.unread_count === "number"
+                    ? notifData.unread_count
+                    : (notifData.notifications || []).filter((n) => !n.is_read).length,
+                );
               }
             } catch (_) {}
           }
@@ -1264,51 +1293,6 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
     // being viewed (see shellRole).
     const activeRole = shellRole(user.role, role);
 
-    // Check if user belongs to Future Studio Interns group
-    const userGroups = user.groups || [];
-    const isIntern = userGroups.some(
-      (g) =>
-        g.toUpperCase() === "FUTURE STUDIO INTERNS" ||
-        g.toUpperCase() === "INTERN",
-    );
-
-    if (isIntern && activeRole !== "participant") {
-      // Interns get restricted navigation regardless of their role
-      // Exception: participants keep their own dashboard
-      return [
-        {
-          id: "dashboard",
-          name: "DASHBOARD",
-          icon: LayoutDashboard,
-          href: "/developer",
-        },
-        {
-          id: "standup",
-          name: "STAND-UP",
-          icon: MessageSquare,
-          href: "/staff/op-report?tab=standup",
-        },
-        {
-          id: "my_tasks",
-          name: "MY TASKS",
-          icon: CheckSquare,
-          href: "/developer/my-tasks",
-        },
-        {
-          id: "projects",
-          name: "MY PROJECTS",
-          icon: Briefcase,
-          href: "/staff/projects",
-        },
-        {
-          id: "messages",
-          name: "MESSAGING",
-          icon: Send,
-          href: "/staff/messages",
-        },
-      ];
-    }
-
     // Personal roles: sidebar is relationship-driven (Phase 1). A person with
     // no program and no venture sees only Dashboard; the learner door appears
     // from an actual course enrollment, programs/certificates only for program
@@ -1425,7 +1409,6 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
     return withVentureConsole(items);
   }, [
     user.role,
-    user.groups,
     role,
     pmPrograms,
     hasLmsEnrollments,
@@ -1617,7 +1600,14 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
 
               <div className="relative">
                 <button
-                  onClick={() => setShowNotifications(!showNotifications)}
+                  onClick={() => {
+                    // The panel always opens as a SHORT glance, and always on
+                    // current rows: opening it re-asks, so the list and the
+                    // badge can never disagree with the server.
+                    setShowAllNotifications(false);
+                    if (!showNotifications) fetchNotifications();
+                    setShowNotifications((v) => !v);
+                  }}
                   className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
                   <Bell className="w-4 h-4" />
@@ -1634,7 +1624,10 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
                     </h4>
                     <div className="max-h-48 overflow-y-auto space-y-2">
                       {notifications.length > 0 ? (
-                        notifications.map((n) => (
+                        (showAllNotifications
+                          ? notifications
+                          : notifications.slice(0, NOTIFICATIONS_PREVIEW)
+                        ).map((n) => (
                           <div
                             key={n.id}
                             onClick={async () => {
@@ -1664,10 +1657,7 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
                                 const role = user?.role || "";
                                 if (role === "super_admin")
                                   router.push("/admin/internal-comms");
-                                else if (
-                                  role === "staff" ||
-                                  role === "developer"
-                                )
+                                else if (role === "staff")
                                   router.push("/staff/messages");
                                 else if (role === "program_manager")
                                   router.push("/pm/messages");
@@ -1679,10 +1669,7 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
                                 n.type === "comment" ||
                                 n.type === "mention"
                               ) {
-                                const role = user?.role || "";
-                                if (role === "developer")
-                                  router.push("/developer/standup");
-                                else router.push("/staff/op-report");
+                                router.push("/staff/op-report");
                                 setShowNotifications(false);
                               }
                               if (n.type === "blocker_discussion") {
@@ -1914,6 +1901,14 @@ function DashboardLayoutInner({ children, role = "admin", modals, fullWidth = fa
                         </p>
                       )}
                     </div>
+                    {notifications.length > NOTIFICATIONS_PREVIEW && (
+                      <button
+                        onClick={() => setShowAllNotifications((v) => !v)}
+                        className="mt-3 w-full text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-colors"
+                      >
+                        {t(showAllNotifications ? "common.showLess" : "common.showMore")}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

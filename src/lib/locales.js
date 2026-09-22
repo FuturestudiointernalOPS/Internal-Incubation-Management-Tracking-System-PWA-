@@ -28,7 +28,6 @@ import enPm from "@/locales/en/pm.json";
 import enParticipant from "@/locales/en/participant.json";
 import enTime from "@/locales/en/time.json";
 import enFinance from "@/locales/en/finance.json";
-import enDeveloper from "@/locales/en/developer.json";
 import enMessaging from "@/locales/en/messaging.json";
 import enVenture from "@/locales/en/venture.json";
 import enInvestor from "@/locales/en/investor.json";
@@ -39,7 +38,6 @@ import enEngineering from "@/locales/en/engineering.json";
 import enInvestorAdmin from "@/locales/en/investorAdmin.json";
 import enAdminMisc from "@/locales/en/adminMisc.json";
 import enTeam from "@/locales/en/team.json";
-import enDeveloperMisc from "@/locales/en/developerMisc.json";
 import enPlatformMisc from "@/locales/en/platformMisc.json";
 import enPmMisc from "@/locales/en/pmMisc.json";
 import enInvestorMisc from "@/locales/en/investorMisc.json";
@@ -61,7 +59,6 @@ import frPm from "@/locales/fr/pm.json";
 import frParticipant from "@/locales/fr/participant.json";
 import frTime from "@/locales/fr/time.json";
 import frFinance from "@/locales/fr/finance.json";
-import frDeveloper from "@/locales/fr/developer.json";
 import frMessaging from "@/locales/fr/messaging.json";
 import frVenture from "@/locales/fr/venture.json";
 import frInvestor from "@/locales/fr/investor.json";
@@ -72,7 +69,6 @@ import frEngineering from "@/locales/fr/engineering.json";
 import frInvestorAdmin from "@/locales/fr/investorAdmin.json";
 import frAdminMisc from "@/locales/fr/adminMisc.json";
 import frTeam from "@/locales/fr/team.json";
-import frDeveloperMisc from "@/locales/fr/developerMisc.json";
 import frPlatformMisc from "@/locales/fr/platformMisc.json";
 import frPmMisc from "@/locales/fr/pmMisc.json";
 import frInvestorMisc from "@/locales/fr/investorMisc.json";
@@ -125,7 +121,6 @@ const EN = [
   enParticipant,
   enTime,
   enFinance,
-  enDeveloper,
   enMessaging,
   enVenture,
   enInvestor,
@@ -136,7 +131,6 @@ const EN = [
   enInvestorAdmin,
   enAdminMisc,
   enTeam,
-  enDeveloperMisc,
   enPlatformMisc,
   enPmMisc,
   enInvestorMisc,
@@ -160,7 +154,6 @@ const FR = [
   frParticipant,
   frTime,
   frFinance,
-  frDeveloper,
   frMessaging,
   frVenture,
   frInvestor,
@@ -171,7 +164,6 @@ const FR = [
   frInvestorAdmin,
   frAdminMisc,
   frTeam,
-  frDeveloperMisc,
   frPlatformMisc,
   frPmMisc,
   frInvestorMisc,

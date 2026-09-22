@@ -8,7 +8,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { getDashboardSessionUser, subscribeDashboardSession } from "@/lib/dashboardSession";
 
 /** The roles this section admits. */
-const ADMIN_ROLES = ["super_admin", "developer"];
+const ADMIN_ROLES = ["super_admin"];
 
 // The role the BROWSER can already vouch for: the session the shell has published,
 // or the stored copy on a cold load. Read as a store snapshot, which is why the
@@ -24,7 +24,7 @@ const getRestoredRoleOnServer = () => null;
 /**
  * ADMIN LAYOUT — Role Guard + persistent dashboard shell
  *
- * Blocks non-super_admin / non-developer users from accessing /admin/* routes
+ * Blocks non-super_admin users from accessing /admin/* routes
  * and redirects them to their appropriate dashboard.
  *
  * Renders the shared DashboardLayout shell here — not inside each page — so
@@ -38,7 +38,7 @@ export default function AdminLayout({ children }) {
     getRestoredAdminRole,
     getRestoredRoleOnServer,
   );
-  // "super_admin" | "developer" — what the SERVER said, once it has answered.
+  // "super_admin" — what the SERVER said, once it has answered.
   const [serverRole, setServerRole] = useState(null);
   // The server's word is the authority; the browser's is the first paint.
   const sessionRole = serverRole || restoredRole;
@@ -105,9 +105,7 @@ export default function AdminLayout({ children }) {
   }
 
   return (
-    <DashboardLayout
-      role={sessionRole === "developer" ? "developer" : "super_admin"}
-    >
+    <DashboardLayout role="super_admin">
       {children}
     </DashboardLayout>
   );

@@ -31,7 +31,7 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    const authError = await requireAuth(["super_admin", "admin", "program_manager"]);
+    const authError = await requireAuth(["super_admin", "program_manager"]);
     if (authError) return authError;
 
     const { action, runId } = await req.json();

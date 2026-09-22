@@ -16,7 +16,6 @@ export const GET = createHandler(async (req) => {
     "super_admin",
     "staff",
     "program_manager",
-    "developer",
   ];
   let invitee_id = searchParams.get("invitee_id");
   if (!staffSide.includes(session.role)) {

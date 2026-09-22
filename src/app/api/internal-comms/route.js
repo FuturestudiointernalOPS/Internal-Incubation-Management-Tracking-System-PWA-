@@ -164,7 +164,7 @@ async function resolveUserMessageScope(session) {
 
   scope.isFutureStudioStaff =
     String(contact.group_name || "").toUpperCase() === "FUTURE STUDIO" ||
-    ["staff", "developer", "intern", "admin"].includes(contact.role);
+    ["staff", "intern"].includes(contact.role);
 
   // ── Wave 2: the two lookups that need wave 1 ──────────────────────────────
   // Families whose name matches one of the user's group names, and the

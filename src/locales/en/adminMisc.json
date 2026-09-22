@@ -290,8 +290,6 @@
       "colRegistered": "Registered",
       "colActions": "Actions",
       "roleStaff": "Staff",
-      "roleIntern": "Intern",
-      "roleDeveloper": "Developer",
       "roleParticipant": "Participant",
       "roleMember": "Member (no role yet)",
       "reject": "Reject",
@@ -311,7 +309,8 @@
       "failResend": "Failed to resend.",
       "rejectedToast": "{name} rejected.",
       "failReject": "Failed to reject.",
-      "networkRejectError": "Network error during rejection."
+      "networkRejectError": "Network error during rejection.",
+      "roleIntern": "Intern"
     },
     "profile": {
       "title": "Profile",

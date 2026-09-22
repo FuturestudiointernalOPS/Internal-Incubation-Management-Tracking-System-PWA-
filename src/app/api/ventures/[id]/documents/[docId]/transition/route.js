@@ -8,8 +8,8 @@ import {
   isFounderForDocumentTransition, updateDocumentStatusForTransition,
 } from "@/models/ventureAssets";
 
-const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin", "developer"];
-const PRIVILEGED = ["staff", "program_manager", "super_admin", "developer"];
+const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin"];
+const PRIVILEGED = ["staff", "program_manager", "super_admin"];
 
 // venture_members stores venture_id as the VNT code (TEXT) — resolve the code from a UUID if needed
 async function resolveVentureCode(idOrCode) {

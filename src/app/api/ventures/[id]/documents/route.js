@@ -12,9 +12,9 @@ import {
   isFounderForDocumentStatusTransition, updateDocumentApprovalStatus,
 } from "@/models/ventureAssets";
 
-const ROLES = ["participant","founder","staff","program_manager","super_admin","developer"];
+const ROLES = ["participant","founder","staff","program_manager","super_admin"];
 const ALLOWED = ["participant","founder","staff","program_manager","super_admin"];
-const PRIVILEGED = ["staff","program_manager","super_admin","developer"];
+const PRIVILEGED = ["staff","program_manager","super_admin"];
 
 async function resolveVentureDbId(ventureId) {
   const r = await getVentureIdByCode(ventureId);
@@ -34,7 +34,7 @@ async function resolveVentureCode(idOrCode) {
 
 // Returns which approval_statuses a user is allowed to see
 async function getVisibilityStatuses(dbId, session) {
-  // Super admins, staff, program managers, developers see everything
+  // Super admins, staff, program managers see everything
   if (PRIVILEGED.includes(session.role)) return null;
   // Founders see everything
   if (session.cid) {

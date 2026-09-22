@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * reachable through a Venture assignment (`roleIsPrivileged` is too broad here:
  * it also admits staff and program managers).
  */
-const GLOBAL_ROLES = ["super_admin", "developer", "admin"];
+const GLOBAL_ROLES = ["super_admin"];
 
 export async function GET(req) {
   try {

@@ -108,8 +108,14 @@ describe("founder classification — ownership, not the role string", () => {
   test("the relationships API derives isFounder from ownership/founder type", () => {
     const src = read("src/app/api/me/relationships/route.js");
     expect(src).toContain("isFounder");
-    expect(src).toContain('memberType === "founder"');
-    expect(src).toContain("Number(v.is_owner) === 1");
+    // The classification itself lives in ONE place now (the same one the landing
+    // rule asks), which is what this test was protecting: ownership and the
+    // founder type, never the role string. platform/roles.js owns it, and
+    // login-landing.test.js pins its answers.
+    expect(src).toContain("isFounderMembership");
+    const shared = read("src/models/platform/roles.js");
+    expect(shared).toContain('=== "founder"');
+    expect(shared).toContain("Number(row?.is_owner) === 1");
   });
 
   test("a removed membership is not a relationship", () => {

@@ -5,8 +5,8 @@ import { listResponsibilities, getResponsibility } from "@/lib/venturePermission
 
 // Permission configuration is Super Admin territory (delegated staff access
 // is defined here). Reads also serve the admin console.
-const READ_ROLES = ["super_admin", "developer", "admin"];
-const WRITE_ROLES = ["super_admin", "developer", "admin"];
+const READ_ROLES = ["super_admin"];
+const WRITE_ROLES = ["super_admin"];
 
 const slugify = (s) =>
   String(s || "")

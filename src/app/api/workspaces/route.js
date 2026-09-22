@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { roleHomeHref } from "@/lib/platform/roles";
+import { roleHomeHref, resolveLanding } from "@/lib/platform/roles";
 import { getEffectiveGroupsAndHistory } from "@/lib/authorization/membership";
 import {
   getStaffAssignmentsForUser,
@@ -237,15 +237,10 @@ async function buildNavigation(session, contextsOnly) {
       groups: [],
       history: [],
     });
-    contexts.org_memberships = [...groups].sort().map((groupName) => {
-      const isIntern = /intern/i.test(String(groupName || ""));
-      return {
-        group_name: groupName,
-        href: isIntern
-          ? "/developer"
-          : roleHomeHref(session.role) || "/workspaces",
-      };
-    });
+    contexts.org_memberships = [...groups].sort().map((groupName) => ({
+      group_name: groupName,
+      href: roleHomeHref(session.role) || "/workspaces",
+    }));
     contexts.org_history = history;
   } catch (_) {}
 
@@ -255,11 +250,9 @@ async function buildNavigation(session, contextsOnly) {
       ...r,
       href: String(r.key || "").toLowerCase().includes("finance")
         ? "/finance"
-        : String(r.key || "").toLowerCase().includes("engineering")
-          ? "/developer"
-          : String(r.key || "").toLowerCase().includes("crm")
-            ? "/crm"
-            : "/workspaces",
+        : String(r.key || "").toLowerCase().includes("crm")
+          ? "/crm"
+          : "/workspaces",
     }));
   } catch (_) {}
 
@@ -347,7 +340,13 @@ export async function GET(request) {
         baseline_role: baselineRole,
         derived_role: derivedRole,
       },
-      home: roleHomeHref(session.role),
+      // The home button must agree with where the login actually sent this
+      // person: same rule, same data (the memberships just read above), so the
+      // door and the button can never point at two different places.
+      home: resolveLanding({
+        role: session.role,
+        ventures: navigation.contexts?.venture_memberships || [],
+      }),
       workspaces: navigation.workspaces,
       contexts: navigation.contexts,
     });

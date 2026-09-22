@@ -54,11 +54,10 @@ export async function POST(req) {
     const userCid = user.cid;
 
     if (user.role === "super_admin" || user.id === "sa") finalRole = "super_admin";
-    else if (user.role === "developer") finalRole = "developer";
     else if (user.role === "investor") finalRole = "investor";
     else if (user.role === "founder") finalRole = "founder";
     else if (user.role === "program_manager") finalRole = "program_manager";
-    else if (user.role === "staff" || user.role === "admin" || (user.group_name || "").toUpperCase() === "FUTURE STUDIO") finalRole = "staff";
+    else if (user.role === "staff" || (user.group_name || "").toUpperCase() === "FUTURE STUDIO") finalRole = "staff";
 
     const { logAuditEvent } = await import("@/lib/audit");
     await logAuditEvent({
@@ -89,7 +88,6 @@ export async function POST(req) {
     if (finalRole === "super_admin") target = "/admin";
     else if (finalRole === "program_manager") target = "/pm";
     else if (finalRole === "staff") target = "/staff";
-    else if (finalRole === "developer") target = "/developer";
     else if (finalRole === "investor") target = "/investor/dashboard";
     else if (finalRole === "founder") target = "/participant/ventures";
 

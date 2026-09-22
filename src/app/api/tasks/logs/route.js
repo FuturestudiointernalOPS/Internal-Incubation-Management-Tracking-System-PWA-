@@ -37,7 +37,6 @@ export const GET = createHandler(async (req) => {
     "super_admin",
     "staff",
     "program_manager",
-    "developer",
   ];
   if (
     !staffSide.includes(session.role) &&

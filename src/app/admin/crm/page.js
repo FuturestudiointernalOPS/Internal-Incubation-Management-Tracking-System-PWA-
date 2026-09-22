@@ -12,7 +12,6 @@ const ROLE_LABELS = {
   staff: "crm.roles.staff",
   investor: "crm.roles.investor",
   finance: "crm.roles.finance",
-  developer: "crm.roles.developer",
   unassigned: "crm.roles.unassigned",
   team: "crm.roles.team",
   founder: "crm.roles.founder",

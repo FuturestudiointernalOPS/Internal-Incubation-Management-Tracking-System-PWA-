@@ -17,7 +17,7 @@ const REGISTERED_MODULES = [
     href: "/platform",
     enabled: true,
     visible: true,
-    permissions: ["super_admin", "admin", "staff"],
+    permissions: ["super_admin", "staff"],
     order: 0,
   },
   {
@@ -30,7 +30,7 @@ const REGISTERED_MODULES = [
     visible: true,
     // Mirrors the backing API: /api/platform/forms + /api/platform/collections
     // read allow super_admin, admin and staff (writes stay admin-only).
-    permissions: ["super_admin", "admin", "staff"],
+    permissions: ["super_admin", "staff"],
     order: 1,
     future: false,
   },

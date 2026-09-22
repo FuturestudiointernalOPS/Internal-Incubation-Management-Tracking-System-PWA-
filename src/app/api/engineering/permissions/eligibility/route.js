@@ -76,7 +76,7 @@ export async function GET() {
     ].sort();
 
     // Roles the resolver actually consults that are NOT in the curated identity
-    // list (mentor, teacher, developer, program_manager…). The administrator
+    // list (mentor, teacher, program_manager…). The administrator
     // must be able to see and configure those ceilings from THIS screen —
     // otherwise a refused template save has no front-end remedy, which is
     // exactly how Staff Default became unsavable. Derived from the data, never a
@@ -103,8 +103,8 @@ export async function GET() {
       // Capability module → feature key, so the UI can filter which modules
       // are relevant for a role based on its eligibility.
       moduleToFeature: MODULE_TO_FEATURE,
-      // Agreed eligibility identities only (functions like developer/
-      // program_manager are not eligibility identities). ROLE_CATALOG stays
+      // Agreed eligibility identities only (functions like program_manager are
+      // not eligibility identities). ROLE_CATALOG stays
       // the full technical catalog for gate validation.
       roles: ELIGIBILITY_IDENTITIES,
       // Roles found in this database that the agreed list does not carry. The

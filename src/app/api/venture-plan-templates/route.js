@@ -4,8 +4,8 @@ import db, { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { listPlanTemplates, createTemplateFromPlan } from "@/lib/ventureOperatingPlans";
 
-const READ_ROLES = ["staff", "program_manager", "super_admin", "developer", "admin"];
-const WRITE_ROLES = ["super_admin", "developer", "admin"];
+const READ_ROLES = ["staff", "program_manager", "super_admin"];
+const WRITE_ROLES = ["super_admin"];
 
 /**
  * GET /api/venture-plan-templates — list reusable plan templates.

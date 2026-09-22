@@ -290,8 +290,6 @@
       "colRegistered": "Inscrit le",
       "colActions": "Actions",
       "roleStaff": "Personnel",
-      "roleIntern": "Stagiaire",
-      "roleDeveloper": "Développeur",
       "roleParticipant": "Participant",
       "roleMember": "Membre (aucun rôle pour l'instant)",
       "reject": "Rejeter",
@@ -311,7 +309,8 @@
       "failResend": "Échec du renvoi.",
       "rejectedToast": "{name} a été rejeté.",
       "failReject": "Échec du rejet.",
-      "networkRejectError": "Erreur réseau pendant le rejet."
+      "networkRejectError": "Erreur réseau pendant le rejet.",
+      "roleIntern": "Stagiaire"
     },
     "profile": {
       "title": "Profil",

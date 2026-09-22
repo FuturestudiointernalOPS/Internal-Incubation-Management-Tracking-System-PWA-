@@ -58,13 +58,13 @@ export async function getLmsEnrollmentRecordForSessionLogin(userCid) {
   });
 }
 
-/** Existence probe — venture membership for a contact (session-login). */
-export async function getVentureMembershipRecordForSessionLogin(userCid) {
-  return db.execute({
-    sql: "SELECT 1 FROM venture_members WHERE user_cid = ? LIMIT 1",
-    args: [userCid],
-  });
-}
+// A venture-membership existence probe used to live here, and it was wrong: it
+// looked in ONE of the two identity columns and ignored removals, so a person
+// removed from a Venture (or recorded under the other column) was judged to have
+// no relationship at all. The sign-in reads the memberships properly instead
+// (getVentureMembershipsForContact in the contacts model) — deliberately not
+// re-created here, because a probe that looks right and answers wrongly is worse
+// than the extra column.
 
 /** Self-heal — ensure the contacts.last_login_at column exists. */
 export async function ensureContactsLastLoginColumn() {

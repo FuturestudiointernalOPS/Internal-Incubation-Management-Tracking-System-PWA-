@@ -56,27 +56,29 @@ describe("Phase 9 — model consistency", () => {
   });
 
   test("login identity resolution never surfaces normalized-away roles", () => {
-    // admin / project_manager normalize to staff — no session may carry them.
-    for (const legacy of ["admin", "project_manager"]) {
-      expect(resolveEffectiveRole({ role: legacy })).toBe("staff");
-      expect(resolveEffectiveRole({ role: legacy, groups: [INTERNAL_GROUP] })).toBe("staff");
-    }
+    // project_manager normalizes to staff — no session may carry it. The
+    // retired `admin` role no longer maps to staff: it falls back to the
+    // participant default (unless an internal group membership promotes it).
+    expect(resolveEffectiveRole({ role: "project_manager" })).toBe("staff");
+    expect(
+      resolveEffectiveRole({ role: "project_manager", groups: [INTERNAL_GROUP] }),
+    ).toBe("staff");
+    expect(resolveEffectiveRole({ role: "admin" })).toBe("participant");
+    expect(resolveEffectiveRole({ role: "admin", groups: [INTERNAL_GROUP] })).toBe("staff");
   });
 
-  test("legacy 'admin' gate entries are unreachable (documented dead code)", () => {
-    // resolveEffectiveRole normalizes admin → staff at login, so an "admin"
-    // session never exists; gates listing admin are harmless but dead.
+  test("no API gate lists the retired developer/admin roles", () => {
+    // developer / admin were retired as session roles; their presence in a
+    // gate list would be dead code (no session may carry them).
     const roles = gateRoles();
-    expect(roles.has("admin")).toBe(true);
-    expect(resolveEffectiveRole({ role: "admin" })).not.toBe("admin");
+    expect(roles.has("admin")).toBe(false);
+    expect(roles.has("developer")).toBe(false);
   });
 
   test("gate census matches the known inventory (no surprise roles)", () => {
     const roles = [...gateRoles()].sort();
     expect(roles).toEqual(
       [
-        "admin",
-        "developer",
         "facilitator",
         "participant",
         "program_manager",

@@ -96,6 +96,11 @@ const ALLOWED_UNROUTED = new Set([
   "permissions.promote_super_admin",
   "permissions.remove_super_admin",
   "engineering.manage_tasks",
+  // engineering.view — the engineering operations dashboards that enforced it
+  // were removed together with the retired `developer` role; the capability is
+  // kept in the catalog for back-compat with existing profile rows (the
+  // Project Owner template still carries it).
+  "engineering.view",
   // facilitator.* — enforced through program-scoped facilitator
   // authorization (program/team context), not catalog-module literal guards.
   "facilitator.participants.view",

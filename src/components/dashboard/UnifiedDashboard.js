@@ -157,11 +157,9 @@ function cn(...classes) {
 
 const ROLE_HIERARCHY = {
   super_admin: 5,
-  admin: 4,
   program_manager: 3,
   team_lead: 2,
   staff: 1,
-  developer: 1,
 };
 
 function hasMinRole(userRole, minRole) {
@@ -866,8 +864,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <button
                   onClick={() =>
                     router.push(
-                      effectiveRole === "super_admin" ||
-                        effectiveRole === "admin"
+                      effectiveRole === "super_admin"
                         ? "/admin/tasks"
                         : "/staff/op-report",
                     )
@@ -905,15 +902,8 @@ export default function UnifiedDashboard({ role: propRole }) {
                       key={t.id}
                       onClick={() => {
                         const r =
-                          user?.role === "super_admin" ||
-                            user?.role === "developer"
-                            ? "admin"
-                            : "staff";
-                        router.push(
-                          user?.role === "developer"
-                            ? "/staff/op-report"
-                            : "/" + r + "/op-report",
-                        );
+                          user?.role === "super_admin" ? "admin" : "staff";
+                        router.push("/" + r + "/op-report");
                       }}
                       className="flex items-center gap-2 p-2 rounded-lg bg-rose-500/5 border border-rose-500/10 cursor-pointer hover:brightness-110 transition-all"
                     >
@@ -1020,9 +1010,8 @@ export default function UnifiedDashboard({ role: propRole }) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* ===== LEFT COLUMN (2/3) ===== */}
           <div className="lg:col-span-2 space-y-6">
-            {/* ═══════ OPERATIONS (staff / developer / super_admin) ═══════ */}
-            {(effectiveRole === "developer" ||
-              effectiveRole === "staff" ||
+            {/* ═══════ OPERATIONS (staff / super_admin) ═══════ */}
+            {(effectiveRole === "staff" ||
               effectiveRole === "super_admin") && (
               <OperationsSection
                 userId={user?.cid || user?.id}
@@ -1244,13 +1233,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                     </span>
                   </div>
                   <button
-                    onClick={() => {
-                      if (effectiveRole === "developer") {
-                        router.push("/staff/op-report");
-                      } else {
-                        router.push("/staff/op-report");
-                      }
-                    }}
+                    onClick={() => router.push("/staff/op-report")}
                     className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline"
                   >
                     {t("dashboard.openReport", "Ouvrir le rapport")}
@@ -1277,15 +1260,8 @@ export default function UnifiedDashboard({ role: propRole }) {
                         key={t.id}
                         onClick={() => {
                           const r =
-                            user?.role === "super_admin" ||
-                              user?.role === "developer"
-                              ? "admin"
-                              : "staff";
-                          router.push(
-                            user?.role === "developer"
-                              ? "/staff/op-report"
-                              : "/" + r + "/op-report",
-                          );
+                            user?.role === "super_admin" ? "admin" : "staff";
+                          router.push("/" + r + "/op-report");
                         }}
                         className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
                       >
@@ -1594,8 +1570,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <button
                   onClick={() =>
                     router.push(
-                      effectiveRole === "super_admin" ||
-                        effectiveRole === "admin"
+                      effectiveRole === "super_admin"
                         ? "/admin/tasks"
                         : "/staff/op-report",
                     )
@@ -1607,8 +1582,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <button
                   onClick={() =>
                     router.push(
-                      effectiveRole === "super_admin" ||
-                        effectiveRole === "admin"
+                      effectiveRole === "super_admin"
                         ? "/admin/projects"
                         : "/staff/projects",
                     )
@@ -1701,7 +1675,7 @@ export default function UnifiedDashboard({ role: propRole }) {
 }
 
 // ─── OPERATIONS SECTION ────────────────────────────────────────────────────
-// Restored weekly operations panel for staff/developer/super_admin dashboards.
+// Restored weekly operations panel for staff/super_admin dashboards.
 // All values are fetched live from the API — no hard-coded numbers.
 
 function getWeekNumber(d) {

@@ -17,8 +17,7 @@ export const GET = createHandler({ roles: ["super_admin"] }, async (req) => {
     if (user.role === "super_admin" || user.id === "sa") return "super_admin";
     if (
       user.role === "staff" ||
-      user.role === "project_manager" ||
-      user.role === "admin"
+      user.role === "project_manager"
     )
       return "staff";
     if ((user.group_name || "").toUpperCase().includes("FUTURE STUDIO"))

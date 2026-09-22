@@ -3,7 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import db, { initDb } from "@/lib/db";
 import { listJourneyTemplates } from "@/lib/ventureJourneyTemplates";
 
-const READ_ROLES = ["staff", "program_manager", "super_admin", "developer", "admin"];
+const READ_ROLES = ["staff", "program_manager", "super_admin"];
 
 /**
  * GET /api/journey-templates — the Journey template library

@@ -200,8 +200,7 @@ export default function ProjectKanbanBoard() {
     }
   }, [t, setData]);
 
-  const isSuperAdmin =
-    role === "super_admin" || role === "developer";
+  const isSuperAdmin = role === "super_admin";
 
   // ── Build hierarchical column data ──
   const columns = useMemo(() => {

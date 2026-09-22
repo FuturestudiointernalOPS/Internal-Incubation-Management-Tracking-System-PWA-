@@ -80,8 +80,8 @@ function parseJsonObject(raw) {
 
 export async function POST(req) {
   try {
-    // This used to be requireAuth(["super_admin", "admin"]) — a hardcoded role
-    // list, so no grant, profile or template change could ever satisfy it and
+    // This used to gate on a hardcoded role list (super_admin / admin), so no
+    // grant, profile or template change could ever satisfy it and
     // the AI button answered 403 for every Program Manager and staff member.
     // Personalizing a template is an edit of that template, so it is now
     // governed by the capability of whichever surface the caller is in: Runs
