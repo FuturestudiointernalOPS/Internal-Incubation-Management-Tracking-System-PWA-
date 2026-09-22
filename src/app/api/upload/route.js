@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { createClient } from "@supabase/supabase-js";
 import { getActiveParticipantEnrollments } from "@/models/workspace";
 import { getContactContexts } from "@/models/authorization/contactContexts";
+import { safeStorageName, safeStoragePath } from "@/lib/storageNames";
 
 // ── Server-side upload validation (mirrors src/lib/storage.js) ──
 const ALLOWED_MIME_TYPES = [
@@ -92,7 +93,11 @@ export async function POST(request) {
     );
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const fileName = `team-uploads/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+    // The browser's file name is user input and storage only accepts a narrow
+    // ASCII subset of it — the key is written here instead (lib/storageNames.js).
+    const fileName = safeStoragePath(
+      `team-uploads/${Date.now()}-${safeStorageName(file.name, "upload")}`,
+    );
 
     const { error } = await supabase.storage
       .from("submissions")

@@ -19,6 +19,7 @@
  * them in the reader's own language exactly like every other runs message.
  */
 import { createClient } from "@supabase/supabase-js";
+import { safeStorageName, safeStoragePath } from "@/lib/storageNames";
 
 export const RUN_REPORT_FILE_BUCKET = "run-report-files";
 
@@ -82,12 +83,6 @@ function storageClient() {
   return createClient(url, serviceKey);
 }
 
-function sanitizeFileName(name) {
-  return String(name || "document")
-    .replace(/[^a-zA-Z0-9._-]/g, "_")
-    .slice(-120);
-}
-
 /**
  * Object paths this domain owns always live under `runs/…`. Anything else is not
  * a run document and must never be signed or deleted on a caller's word.
@@ -111,8 +106,12 @@ export async function uploadRunReportFileObject({ file, runId, fileName }) {
   if (!client) return { success: false, error: "platformMisc.runs.reportFileStorageUnavailable" };
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const name = sanitizeFileName(fileName || file.name);
-  const path = `runs/${String(runId || "unknown").replace(/[^A-Za-z0-9_-]/g, "_")}/${Date.now()}-${name}`;
+  // The stored key is written by the code, never from the browser's file name
+  // (lib/storageNames.js); `file_name` below keeps the readable one.
+  const name = safeStorageName(fileName || file.name, "document");
+  const path = safeStoragePath(
+    `runs/${String(runId || "unknown").replace(/[^A-Za-z0-9_-]/g, "_")}/${Date.now()}-${name}`,
+  );
 
   let upload = await client.storage
     .from(RUN_REPORT_FILE_BUCKET)

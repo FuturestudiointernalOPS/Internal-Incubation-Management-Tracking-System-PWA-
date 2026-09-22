@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
 import { createClient } from "@supabase/supabase-js";
+import { safeStoragePath, safeStorageName } from "@/lib/storageNames";
 
 export const dynamic = "force-dynamic";
 
@@ -53,8 +54,12 @@ export async function POST(request) {
     );
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const safeName = String(file.name || "thumbnail").replace(/[^a-zA-Z0-9._-]/g, "_");
-    const fileName = `course-thumbnails/${Date.now()}-${safeName}`;
+    // The stored key is written by the code, never from the browser's file name
+    // (lib/storageNames.js): an accent or an en dash in a name would make
+    // storage refuse the whole upload.
+    const fileName = safeStoragePath(
+      `course-thumbnails/${Date.now()}-${safeStorageName(file.name, "thumbnail")}`,
+    );
 
     let upload = await supabase.storage
       .from("course-thumbnails")

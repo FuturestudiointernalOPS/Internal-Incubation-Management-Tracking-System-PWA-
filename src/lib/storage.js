@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { createClient } from '@supabase/supabase-js'
 import { isAllowedEvidenceDocument, EVIDENCE_DOCUMENT_ERROR, isAllowedEvidenceImage, EVIDENCE_IMAGE_ERROR } from './ventureEvidence'
+import { safeStorageName, safeStoragePath } from './storageNames'
 
 /**
  * IMPACTOS OPERATIONAL STORAGE — SUPABASE INTEGRATION
@@ -49,9 +50,14 @@ export const uploadFile = async (bucket, path, file) => {
       }
     }
 
+    // The stored key is written here, not by the caller: a segment carrying a
+    // character storage refuses (accent, en dash, "#"…) would fail the whole
+    // upload. See lib/storageNames.js.
+    const objectPath = safeStoragePath(path)
+
     const { data, error } = await supabase.storage
       .from(bucket)
-      .upload(path, file, {
+      .upload(objectPath, file, {
         cacheControl: '3600',
         upsert: true
       })
@@ -62,14 +68,14 @@ export const uploadFile = async (bucket, path, file) => {
         await supabase.storage.createBucket(bucket, { public: true });
         const retry = await supabase.storage
           .from(bucket)
-          .upload(path, file, {
+          .upload(objectPath, file, {
             cacheControl: '3600',
             upsert: true,
           });
         if (retry.error) throw retry.error;
         const { data: retryUrl } = supabase.storage
           .from(bucket)
-          .getPublicUrl(path);
+          .getPublicUrl(objectPath);
         return { success: true, url: retryUrl.publicUrl, data: retry.data };
       }
       throw error;
@@ -78,7 +84,7 @@ export const uploadFile = async (bucket, path, file) => {
     // Get Public URL
     const { data: { publicUrl } } = supabase.storage
       .from(bucket)
-      .getPublicUrl(path)
+      .getPublicUrl(objectPath)
 
     return { success: true, url: publicUrl, data }
   } catch (error) {
@@ -114,8 +120,7 @@ export const uploadTaskAttachment = async (file, taskId) => {
     }
 
     const bucket = 'task-attachments'
-    const sanitized = file.name.replace(/\s+/g, '_')
-    const path = `${taskId}/${Date.now()}_${sanitized}`
+    const path = safeStoragePath(`${taskId}/${Date.now()}_${safeStorageName(file.name, 'attachment')}`)
 
     const { data, error } = await supabase.storage
       .from(bucket)
@@ -199,10 +204,11 @@ export const uploadDeliverableEvidence = async (file, { ventureId, deliverableId
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     const client = url && serviceKey ? createClient(url, serviceKey) : supabase
 
-    const sanitized = String(file.name || 'evidence').replace(/\s+/g, '_')
     const scope = String(ventureId || 'unknown').replace(/[^A-Za-z0-9_-]/g, '_')
     const item = String(deliverableId || 'new').replace(/[^A-Za-z0-9_-]/g, '_')
-    const path = `deliverables/${scope}/${item}/${Date.now()}_${sanitized}`
+    const path = safeStoragePath(
+      `deliverables/${scope}/${item}/${Date.now()}_${safeStorageName(file.name, 'evidence')}`,
+    )
 
     let { error } = await client.storage
       .from(bucket)
@@ -269,10 +275,11 @@ export const uploadSessionMaterial = async (file, { ventureId, milestoneId } = {
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     const client = url && serviceKey ? createClient(url, serviceKey) : supabase
 
-    const sanitized = String(file.name || 'material').replace(/\s+/g, '_').replace(/[^A-Za-z0-9._-]/g, '_')
     const scope = String(ventureId || 'unknown').replace(/[^A-Za-z0-9_-]/g, '_')
     const milestone = String(milestoneId || 'general').replace(/[^A-Za-z0-9_-]/g, '_')
-    const path = `sessions/${scope}/${milestone}/${Date.now()}_${sanitized}`
+    const path = safeStoragePath(
+      `sessions/${scope}/${milestone}/${Date.now()}_${safeStorageName(file.name, 'material')}`,
+    )
 
     let { error } = await client.storage
       .from(bucket)
