@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { useRouter, useParams } from "next/navigation";
 import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import { VentureWorkspace } from "@/components/ventures/workspace/VentureContext";
 import { ProfileTab, SettingsTab } from "@/components/ventures/workspace/tabs/ProfileSettingsTabs";
@@ -175,6 +176,7 @@ export default function VentureDetail() {
   const [removeConfirm, setRemoveConfirm] = useState(null);
 
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const router = useRouter();
   const params = useParams();
 
@@ -382,7 +384,7 @@ export default function VentureDetail() {
     fetchAdvisors(true);
   }
   async function handleRemoveAdvisor(advisorId) {
-    if (!confirm(t('venture.confirmRemove')||'Remove this advisor?')) return;
+    if (!(await confirm({ message: t('venture.confirmRemoveAdvisor'), tone: "danger" }))) return;
     await fetch(`/api/ventures/${params.id}/advisors`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ advisor_id: advisorId, action: "remove" }) });
     fetchAdvisors(true);
   }

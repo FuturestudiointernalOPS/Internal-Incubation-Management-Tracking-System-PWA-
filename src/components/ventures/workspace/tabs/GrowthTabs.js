@@ -3,6 +3,7 @@
 import { GraduationCap, Award, Gauge, X, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
+import { useDialogs } from "@/components/ui/DialogProvider";
 
 /* Add Advisor Modal */
 function AddAdvisorModal() {
@@ -185,6 +186,7 @@ export function CoachingTab() {
 /* KPIs Tab */
 export function KpisTab() {
   const { t } = useI18n();
+  const { prompt } = useDialogs();
   const { kpis, kpiDefinitions, setShowAddKpiDefinition, setShowAddKpi, setKpiDefForm, setEditingKpiDef, handleUpdateKpi, cardStyle } = useVenture();
   return (
     <>
@@ -207,7 +209,7 @@ export function KpisTab() {
               </div>
               <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{t('venture.current')}: {k.current_value ?? 0}{k.target_value && ` / ${t('venture.target')}: ${k.target_value}`} {k.unit}</p>
               {!k.auto_calc_source && (
-                <button onClick={() => { const v = prompt(t('venture.updateValue'), k.current_value || 0); if (v !== null) handleUpdateKpi(k.id, parseFloat(v) || 0); }}
+                <button onClick={async () => { const v = await prompt({ message: t('venture.updateValue'), defaultValue: k.current_value || 0, required: false }); if (v !== null) handleUpdateKpi(k.id, parseFloat(v) || 0); }}
                   className="text-xs px-3 py-1 mt-2 rounded-lg" style={{ color: 'var(--text-secondary)', border: '1px solid rgb(255 255 255 / 0.15)' }}>{t('venture.updateValue')}</button>
               )}
             </div>

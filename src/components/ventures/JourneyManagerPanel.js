@@ -39,6 +39,7 @@ import {
 import ScopedNotes from "@/components/ventures/ScopedNotes";
 import AppModal from "@/components/ui/AppModal";
 import AppMenu from "@/components/ui/AppMenu";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import { minSessionStartInput, isValidSessionStart, SESSION_MATERIALS_MAX, toDateInput, toTimeInput } from "@/lib/ventureSessionRules";
 import {
   nextMilestoneDate,
@@ -138,6 +139,7 @@ const pickReportsByStage = (d) => {
 
 export default function JourneyManagerPanel({ ventureId }) {
   const { t, lang } = useI18n();
+  const { confirm } = useDialogs();
 
   // The journey, the sessions and the reports are three reads through the shared
   // hook, which owns the cache, the cache-first paint and the discarding of a
@@ -311,7 +313,7 @@ export default function JourneyManagerPanel({ ventureId }) {
   // Duplicate a stage as an independent structure copy (milestones + tasks,
   // never submissions/reviews/history — those stay with the source).
   const duplicateStage = async (stage) => {
-    if (!window.confirm(t("venture.manager.duplicateStageConfirm", { name: stage.name }))) return;
+    if (!(await confirm({ message: t("venture.manager.duplicateStageConfirm", { name: stage.name }) }))) return;
     setDupBusy(stage.id);
     try {
       const res = await fetch(`/api/ventures/${ventureId}/journey/duplicate`, {

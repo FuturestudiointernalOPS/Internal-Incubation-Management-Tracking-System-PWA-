@@ -13,6 +13,7 @@ import { useI18n } from "@/lib/i18n";
 import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
 import AppPdfPreview from "@/components/ui/AppPdfPreview";
+import { useDialogs } from "@/components/ui/DialogProvider";
 
 /**
  * PLATFORM FORM RUNS — Launch, assign, collect, review
@@ -415,6 +416,7 @@ export default function FormRunsPage() {
   // an applicant. Watching batch PROGRESS only needs runs.view, so the progress
   // panel stays visible to everyone who can open the run.
   const { can } = usePermissions();
+  const { confirm } = useDialogs();
   const canReview = can("runs", "review");
   const [forms, setForms] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -923,7 +925,7 @@ export default function FormRunsPage() {
   };
 
   const handleDeleteRun = async (id) => {
-    if (!confirm(t("platformMisc.runs.deleteRunConfirm"))) return;
+    if (!(await confirm({ message: t("platformMisc.runs.deleteRunConfirm"), tone: "danger" }))) return;
     try {
       const res = await fetch(`/api/platform/form-runs?id=${id}`, { method: "DELETE" });
       const data = await res.json();
@@ -936,7 +938,7 @@ export default function FormRunsPage() {
   };
 
   const handleArchiveRun = async (id) => {
-    if (!confirm(t("platformMisc.runs.archiveRunConfirm"))) return;
+    if (!(await confirm({ message: t("platformMisc.runs.archiveRunConfirm"), tone: "danger" }))) return;
     try {
       const res = await fetch("/api/platform/form-runs?action=status", {
         method: "POST",
@@ -952,7 +954,7 @@ export default function FormRunsPage() {
   };
 
   const handleRestoreRun = async (id) => {
-    if (!confirm(t("platformMisc.runs.restoreRunConfirm"))) return;
+    if (!(await confirm({ message: t("platformMisc.runs.restoreRunConfirm") }))) return;
     try {
       const res = await fetch("/api/platform/form-runs?action=status", {
         method: "POST",
@@ -1151,7 +1153,7 @@ export default function FormRunsPage() {
   };
 
   const handleDeleteSubmission = async (submissionId) => {
-    if (!confirm(t("platformMisc.runs.deleteSubmissionConfirm"))) return;
+    if (!(await confirm({ message: t("platformMisc.runs.deleteSubmissionConfirm"), tone: "danger" }))) return;
     try {
       const res = await fetch(`/api/platform/form-runs?action=delete_submission`, {
         method: "POST",
@@ -1304,7 +1306,7 @@ export default function FormRunsPage() {
 
   const removeReportFile = async () => {
     if (!selectedRun || reportFileBusy) return;
-    if (!confirm(t("platformMisc.runs.reportFileRemoveConfirm"))) return;
+    if (!(await confirm({ message: t("platformMisc.runs.reportFileRemoveConfirm"), tone: "danger" }))) return;
     setReportFileBusy(true);
     try {
       const res = await fetch(`/api/platform/form-runs/report-file?run_id=${selectedRun.id}`, { method: "DELETE" });

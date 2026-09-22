@@ -13,6 +13,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
+import { useDialogs } from "@/components/ui/DialogProvider";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -102,6 +103,7 @@ export default function PlatformForms() {
   const router = useRouter();
   const { t } = useI18n();
   const { can } = usePermissions();
+  const { confirm } = useDialogs();
   const canCreate = can("forms", "create");
   const canEdit = can("forms", "edit");
   const [search, setSearch] = useState("");
@@ -488,7 +490,7 @@ export default function PlatformForms() {
   };
 
   const handleDuplicate = async (form) => {
-    if (!confirm(t("platformMisc.forms.confirmDuplicate", { name: form.name }))) return;
+    if (!(await confirm({ message: t("platformMisc.forms.confirmDuplicate", { name: form.name }) }))) return;
     try {
       const res = await fetch("/api/platform/forms", {
         method: "POST",
@@ -538,7 +540,7 @@ export default function PlatformForms() {
   const handleDeletePermanently = async (id) => {
     const form = forms.find((f) => f.id === id);
     if (!form) return;
-    if (!confirm(t("platformMisc.forms.deleteFormConfirm"))) return;
+    if (!(await confirm({ message: t("platformMisc.forms.deleteFormConfirm"), tone: "danger" }))) return;
     try {
       const res = await fetch(`/api/platform/forms?id=${id}&permanent=true`, { method: "DELETE" });
       const data = await res.json();
@@ -1777,7 +1779,7 @@ export default function PlatformForms() {
                 </button>
                 <button
                   onClick={async () => {
-                    if (!confirm(t("platformMisc.forms.aiEvalRemoveConfirm"))) return;
+                    if (!(await confirm({ message: t("platformMisc.forms.aiEvalRemoveConfirm"), tone: "danger" }))) return;
                     await fetch(`/api/platform/ai/evaluation-config?form_id=${editingForm?.id}`, { method: "DELETE" });
                     setAiEvalFramework(null);
                     notify(t("platformMisc.forms.aiEvalFrameworkRemoved"));

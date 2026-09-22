@@ -31,6 +31,7 @@ import { INTERNAL_OPS_ROLES } from "@/lib/platform/roles";
 import { motion, AnimatePresence } from "framer-motion";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useApi } from "@/lib/hooks/useApi";
+import { useDialogs } from "@/components/ui/DialogProvider";
 
 const STATUS_FILTER_LABELS = {
   All: "crm.contacts.filterAll",
@@ -100,6 +101,7 @@ function ContactsPageContent() {
   const searchParams = useSearchParams();
   const roleParam = searchParams.get("role");
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const goBack = useSafeBack("/admin/crm");
 
   const [search, setSearch] = useState("");
@@ -216,7 +218,7 @@ function ContactsPageContent() {
   };
 
   const handleResendActivation = async (c) => {
-    if (!confirm(t("crm.contacts.confirmResendActivation") || `Resend activation email to ${c.name}?`)) return;
+    if (!(await confirm({ message: t("crm.contacts.confirmResendActivation") }))) return;
     setIsProcessing(true);
     try {
       const res = await fetch("/api/auth/invite", {
@@ -238,7 +240,7 @@ function ContactsPageContent() {
   };
 
   const handleInviteContact = async (c) => {
-    if (!confirm(t("crm.contacts.confirmInvite") || `Send an invitation to ${c.name}?`)) return;
+    if (!(await confirm({ message: t("crm.contacts.confirmInvite") }))) return;
     setIsProcessing(true);
     try {
       const res = await fetch("/api/auth/invite", {

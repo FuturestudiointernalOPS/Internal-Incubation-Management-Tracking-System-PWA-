@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
+import { useDialogs } from "@/components/ui/DialogProvider";
 
 const VENTURE_STAGES = {
   idea: { label: "vadmin.list.stageIdea", color: "text-blue-400 bg-blue-500/10" },
@@ -34,6 +35,7 @@ const pickVentures = (d) => (d?.success ? d.ventures || [] : []);
 
 export default function VenturesPage() {
   const { t } = useI18n();
+  const { prompt } = useDialogs();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   // The loader's work — painting from the cache first, discarding a stale
@@ -102,7 +104,7 @@ export default function VenturesPage() {
             <button
               onClick={async () => {
                 try {
-                  const email = window.prompt(t("vadmin.list.inviteEmailPrompt"));
+                  const email = await prompt({ message: t("vadmin.list.inviteEmailPrompt") });
                   if (!email) return;
                   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
                     window.dispatchEvent(

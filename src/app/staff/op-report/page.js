@@ -971,7 +971,7 @@ function StaffOpReport() {
         refreshTasks();
       } else {
         notify(
-          t(data.error || "Failed to create task") || data.error || "Failed to create task",
+          data.error || t("errors.taskCreateFailed"),
           "error",
         );
       }

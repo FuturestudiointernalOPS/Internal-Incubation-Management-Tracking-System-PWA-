@@ -27,6 +27,7 @@ import { uploadFile } from "@/lib/storage";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { useDialogs } from "@/components/ui/DialogProvider";
 
 const FACILITATOR_CAPS = [
   { key: "participants.view", labelKey: "capParticipantsView" },
@@ -104,6 +105,7 @@ const pickProgramRegLink = (d) => {
 
 export default function ProgramManagement() {
   const { t } = useI18n();
+  const { confirm, prompt } = useDialogs();
   const [search, setSearch] = useState("");
   const [activeTab, setTab] = useState("all");
   const [editingProgram, setEditingProgram] = useState(null);
@@ -678,16 +680,17 @@ export default function ProgramManagement() {
     const progName = name || "";
     if (
       isArchiving &&
-      !window.confirm(
-        t("adminMisc.programs.confirmArchive", { name: progName }),
-      )
+      !(await confirm({
+        message: t("adminMisc.programs.confirmArchive", { name: progName }),
+        tone: "danger",
+      }))
     )
       return;
     if (
       !isArchiving &&
-      !window.confirm(
-        t("adminMisc.programs.confirmRestore", { name: progName }),
-      )
+      !(await confirm({
+        message: t("adminMisc.programs.confirmRestore", { name: progName }),
+      }))
     )
       return;
     try {
@@ -796,9 +799,10 @@ export default function ProgramManagement() {
     if (!id) return;
     e.stopPropagation();
     if (
-      !window.confirm(
-        t("adminMisc.programs.confirmDelete", { name: name || "" }),
-      )
+      !(await confirm({
+        message: t("adminMisc.programs.confirmDelete", { name: name || "" }),
+        tone: "danger",
+      }))
     )
       return;
     try {
@@ -2324,7 +2328,9 @@ export default function ProgramManagement() {
               <button
                 type="button"
                 onClick={async () => {
-                  const name = prompt(t("adminMisc.programs.templateNamePrompt"));
+                  const name = await prompt({
+                    message: t("adminMisc.programs.templateNamePrompt"),
+                  });
                   if (!name || !editingProgram?.id) return;
                   const res = await fetch(
                     "/api/pm/programs/templates?action=save",

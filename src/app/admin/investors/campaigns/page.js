@@ -10,6 +10,7 @@ import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
 import { useApiMulti } from "@/lib/hooks/useApi";
+import { useDialogs } from "@/components/ui/DialogProvider";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on the list below, so it is built once
@@ -54,6 +55,7 @@ const VIS_LABELS = {
 
 export default function AdminCampaignsPage() {
   const { t } = useI18n();
+  const { confirm, prompt } = useDialogs();
   const [showCreate, setShowCreate] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -96,7 +98,7 @@ export default function AdminCampaignsPage() {
 
   const handleStatusChange = async (id, newStatus) => {
     const label = newStatus === "active" ? "publish" : newStatus;
-    if (!confirm(t("investorAdmin.campaigns.confirmStatusChange", { action: label }))) return;
+    if (!(await confirm({ message: t("investorAdmin.campaigns.confirmStatusChange", { action: label }) }))) return;
     try {
       const res = await fetch("/api/investor/campaigns", {
         method: "PUT",
@@ -114,7 +116,7 @@ export default function AdminCampaignsPage() {
   };
 
   const handleUpdateRaised = async (id) => {
-    const amount = prompt(t("investorAdmin.campaigns.enterAmountPrompt"));
+    const amount = await prompt({ message: t("investorAdmin.campaigns.enterAmountPrompt") });
     if (amount === null) return;
     const num = parseFloat(amount);
     if (isNaN(num) || num < 0) {

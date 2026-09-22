@@ -30,6 +30,7 @@ import {
 import { uploadTaskAttachment } from "@/lib/storage";
 import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { notify } from "@/lib/notify";
 
 function cn(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -96,11 +97,6 @@ export default function TaskManager({
 }) {
   const { t } = useI18n();
   const uid = userId;
-
-  // ── Toast notification helper ──
-  const notify = (type, message) => {
-    window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type, message } }));
-  };
 
   // ── Confirmation dialog state ──
   const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm } or null
@@ -680,7 +676,7 @@ export default function TaskManager({
           window.__refreshAdminDashboard?.();
         }
       } else {
-        alert(t(data.error || "Failed to create task.") || data.error || "Failed to create task.");
+        notify("error", data.error || t("errors.taskCreateFailed"));
       }
     } catch (e) {
       console.error("Create task error:", e);

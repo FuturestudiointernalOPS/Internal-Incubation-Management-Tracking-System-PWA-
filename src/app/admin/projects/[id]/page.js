@@ -25,6 +25,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import TaskManager from "@/components/tasks/TaskManager";
 
 /**
@@ -87,6 +88,7 @@ export default function ProjectDetail() {
   const router = useRouter();
   const params = useParams();
   const { t } = useI18n();
+  const { prompt } = useDialogs();
   // The signed-in role, observed from the session the shell already publishes
   // rather than re-read from the browser's stored copy. "super_admin" is the
   // same fallback the stored copy's absence used to produce.
@@ -1321,10 +1323,10 @@ export default function ProjectDetail() {
                               {t("adminMisc.projectDetail.approve")}
                             </button>
                             <button
-                              onClick={() => {
-                                const reason = prompt(
-                                  t("adminMisc.projectDetail.rejectionReasonPrompt"),
-                                );
+                              onClick={async () => {
+                                const reason = await prompt({
+                                  message: t("adminMisc.projectDetail.rejectionReasonPrompt"),
+                                });
                                 if (reason)
                                   handleApprovalAction(
                                     req.id,

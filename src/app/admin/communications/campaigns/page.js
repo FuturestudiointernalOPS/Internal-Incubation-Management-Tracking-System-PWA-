@@ -6,6 +6,7 @@ import { useApi } from '@/lib/hooks/useApi';
 import { useI18n } from '@/lib/i18n';
 import { formatLocaleDate } from '@/lib/constants';
 import { useSafeBack } from '@/lib/useSafeBack';
+import { useDialogs } from '@/components/ui/DialogProvider';
 
 const GROUP_LABELS = { UNASSIGNED: 'crm.contacts.unassigned' };
 
@@ -19,6 +20,7 @@ const pickFamilies = (d) => (d?.success ? d.families || [] : []);
 
 export default function CampaignsPage() {
   const { t, lang } = useI18n();
+  const { prompt } = useDialogs();
   const goBack = useSafeBack('/admin/crm');
 
   // Four reads, each carrying its own loading flag so the screen leaves the
@@ -146,7 +148,7 @@ export default function CampaignsPage() {
   };
 
   const deleteCampaign = async (id) => {
-    const pwd = prompt(t('crm.campaigns.deletePrompt'));
+    const pwd = await prompt({ message: t('crm.campaigns.deletePrompt'), inputType: "password", tone: "danger" });
     if (pwd !== '147369') {
       window.dispatchEvent(new CustomEvent('impactos:notify', { 
          detail: { type: 'error', message: t('crm.campaigns.deleteAborted') } 

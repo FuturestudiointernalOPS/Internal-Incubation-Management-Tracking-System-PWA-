@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { notify } from "@/lib/notify";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -130,7 +131,7 @@ export default function PMSubmissions() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok && !data.success) {
-        alert(data.error || t("pmMisc.submissions.reviewFailed"));
+        notify("error", data.error || t("pmMisc.submissions.reviewFailed"));
         return;
       }
       setReviewModal(null);
@@ -138,7 +139,7 @@ export default function PMSubmissions() {
       refreshSubmissions();
     } catch (e) {
       console.error("Review failed", e);
-      alert(t("pmMisc.submissions.reviewFailed"));
+      notify("error", t("pmMisc.submissions.reviewFailed"));
     }
     setActionLoading(false);
   };

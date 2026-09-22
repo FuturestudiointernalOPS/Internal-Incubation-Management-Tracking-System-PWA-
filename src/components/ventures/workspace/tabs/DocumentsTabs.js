@@ -3,6 +3,7 @@
 import { FileText, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
+import { useDialogs } from "@/components/ui/DialogProvider";
 
 /* Add Document Modal */
 function AddDocumentModal() {
@@ -113,6 +114,7 @@ function VersionsModal() {
 /* Documents Tab */
 export function DocumentsTab() {
   const { t } = useI18n();
+  const { confirm, prompt } = useDialogs();
   const { documents, setShowAddDocument, documentSearch, setDocumentSearch, documentCategory, setDocumentCategory, params, handleDocumentUpdate, handleDocumentTransition, handleDocumentDelete, handleReview, handlePermissions, setVersions, setVersionsDoc, setShowVersions, inputStyle, cardStyle } = useVenture();
   return (
     <>
@@ -134,11 +136,11 @@ export function DocumentsTab() {
                 <div><a href={doc.file_url} target="_blank" rel="noreferrer" className="font-medium hover:underline">{doc.name}</a><p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{doc.category}{doc.folder && ` / ${doc.folder}`}</p></div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs px-2 py-0.5 rounded-full bg-white/10">{t(`venture.${doc.approval_status === 'shared_with_investor' ? 'sharedWithInvestor' : doc.approval_status === 'pending_review' ? 'pendingReview' : doc.approval_status}`)}</span>
-                  <button onClick={() => { const u = prompt('New file URL:', doc.file_url); if (u) handleDocumentUpdate(doc.id, u); }} className="text-xs px-2 py-0.5 rounded" style={{ color: 'var(--brand-orange)', border: '1px solid var(--brand-orange)' }}>{t('venture.replace')}</button>
+                  <button onClick={async () => { const u = await prompt({ message: t('venture.fileUrlPrompt'), defaultValue: doc.file_url }); if (u) handleDocumentUpdate(doc.id, u); }} className="text-xs px-2 py-0.5 rounded" style={{ color: 'var(--brand-orange)', border: '1px solid var(--brand-orange)' }}>{t('venture.replace')}</button>
                   <button onClick={async () => { const r = await fetch(`/api/ventures/${params.id}/documents?type=detail&document_id=${doc.id}`); const d = await r.json(); if (d.success && d.document && d.document.versions) setVersions(d.document.versions); else { const r2 = await fetch(`/api/ventures/${params.id}/documents/${doc.id}/versions`); const d2 = await r2.json(); setVersions(d2.versions || []); } setVersionsDoc(doc); setShowVersions(true); }} className="text-xs px-2 py-0.5 rounded" style={{ color: 'var(--text-secondary)', border: '1px solid rgb(255 255 255 / 0.15)' }}>{t('venture.versions')}</button>
                   {doc.approval_status === 'pending_review' && <button onClick={() => handleReview(doc.id)} className="text-xs px-2 py-0.5 rounded" style={{ color: '#22c55e', border: '1px solid rgb(34 197 94 / 0.3)' }}>{t('venture.review')}</button>}
                   <button onClick={() => handlePermissions(doc.id)} className="text-xs px-2 py-0.5 rounded" style={{ color: '#a78bfa', border: '1px solid rgb(167 139 250 / 0.3)' }}>{t('venture.permissions')}</button>
-                  <button onClick={() => { if (confirm('Delete this document?')) handleDocumentDelete(doc.id); }} className="text-xs px-2 py-0.5 rounded" style={{ color: '#ef4444', border: '1px solid rgb(239 68 68 / 0.3)' }}>{t('venture.delete')}</button>
+                  <button onClick={async () => { if (await confirm({ message: t('venture.deleteDocumentConfirm'), tone: 'danger' })) handleDocumentDelete(doc.id); }} className="text-xs px-2 py-0.5 rounded" style={{ color: '#ef4444', border: '1px solid rgb(239 68 68 / 0.3)' }}>{t('venture.delete')}</button>
                 </div>
               </div>
               <div className="flex gap-2 mt-2">

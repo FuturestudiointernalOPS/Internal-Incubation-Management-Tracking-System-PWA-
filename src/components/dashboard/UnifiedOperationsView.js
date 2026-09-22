@@ -101,7 +101,7 @@ export default function UnifiedOperationsView({
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
     } catch {
-      setToast({ type: "error", message: "Failed to create task" });
+      setToast({ type: "error", message: t("errors.taskCreateFailed") });
     } finally {
       setCreating(false);
     }

@@ -8,6 +8,7 @@ import {
   List, Columns, CopyPlus, Archive, RotateCcw,
 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
+import { useDialogs } from "@/components/ui/DialogProvider";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -38,6 +39,7 @@ export default function VentureTasksPage() {
   const { id } = useParams();
   const router = useRouter();
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const [view, setView] = useState("kanban"); // kanban | list
   const [toast, setToast] = useState(null);
   const [dragOver, setDragOver] = useState(null);
@@ -119,7 +121,7 @@ export default function VentureTasksPage() {
   // Duplicate a task as an independent structure copy (same milestone binding,
   // fresh backlog copy; submissions/reviews/history stay with the source).
   const duplicateTask = async (task) => {
-    if (!window.confirm(t("vadmin.tasks.duplicateConfirm", { name: task.title }))) return;
+    if (!(await confirm({ message: t("vadmin.tasks.duplicateConfirm", { name: task.title }) }))) return;
     setDupBusy(task.id);
     try {
       const res = await fetch(`/api/ventures/${id}/tasks/duplicate`, {
@@ -219,12 +221,12 @@ export default function VentureTasksPage() {
     await reload();
   };
 
-  const archiveOne = (task) => {
-    if (!window.confirm(t("vadmin.tasks.archiveConfirm", { name: task.title }))) return;
+  const archiveOne = async (task) => {
+    if (!(await confirm({ message: t("vadmin.tasks.archiveConfirm", { name: task.title }), tone: "danger" }))) return;
     runArchive([String(task.id)], "archive");
   };
-  const restoreOne = (task) => {
-    if (!window.confirm(t("vadmin.tasks.restoreConfirm", { name: task.title }))) return;
+  const restoreOne = async (task) => {
+    if (!(await confirm({ message: t("vadmin.tasks.restoreConfirm", { name: task.title }) }))) return;
     runArchive([String(task.id)], "restore");
   };
 
