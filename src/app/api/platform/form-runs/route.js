@@ -702,7 +702,19 @@ export async function GET(req) {
 
     // Submissions for a specific user
     if (submitterId) {
-      const submissionsResult = await getSubmissionsBySubmitterId(submitterId);
+      const { getSession } = await import("@/lib/auth");
+      const session = await getSession();
+      if (!session)
+        return NextResponse.json(
+          { success: false, error: "Authentication required." },
+          { status: 401 },
+        );
+      // SECURITY: this branch used to hand ANY user's submissions to any
+      // `runs.view` holder, because `submitter_id` came straight from the
+      // query string. The target is now bound to the session; only a Super
+      // Admin may name someone else. The self-service path is `my_submissions`.
+      const targetSubmitter = session.role === "super_admin" ? submitterId : session.cid;
+      const submissionsResult = await getSubmissionsBySubmitterId(targetSubmitter);
       return NextResponse.json({ success: true, submissions: submissionsResult.rows });
     }
 

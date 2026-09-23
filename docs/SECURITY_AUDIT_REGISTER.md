@@ -40,6 +40,7 @@
 | **FIXED — Lot 10** | Corrected with the task-scope fail-closed / supervisor / anonymous-contact batch. |
 | **FIXED — Lot 11** | Corrected with the team-board scope + team-credential exposure batch. |
 | **FIXED — Lot 12** | Corrected with the submission scope + LMS requirement scope batch. |
+| **FIXED — Lot 13** | Corrected with the platform Runs `submitter_id` BOLA (remainder = a governance decision). |
 | **OPEN** | Still present. Fix order in §4. |
 
 ---
@@ -199,6 +200,13 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | — | Config | `models/authorization/programScopeWaves` + census | The `lms` wave the LMS routes already used was undeclared (drift). It is now a first-class wave, and the three LMS surfaces are censused. | **FIXED — Lot 12** |
 | — | Tests | `src/__tests__/security-lot12-submissions-lms.test.js` (8 tests) + `program-scope-coverage.test.js` (4 census entries) | Team own-team binding, foreign-team refusal, program-scoped score write, requirement detach/edit scope. | **FIXED — Lot 12** |
 
+### 2.15 Lot 13 — platform Runs `submitter_id` BOLA
+
+| ID | Location | Was | Status |
+|---|---|---|---|
+| BOLA-FORM-1 (part) | `GET /api/platform/form-runs?submitter_id=X` | The id came straight from the query string, so any `runs.view` holder could read ANY user's submissions. The target is now bound to the session; only a Super Admin may name someone else (the self-service path is `my_submissions`). | **FIXED — Lot 13** |
+| — | Tests | `src/__tests__/security-lot13-runs.test.js` (3 tests) | The branch binds to the session, the raw id is no longer passed through, the self path still binds to `session.cid`. | **FIXED — Lot 13** |
+
 ---
 
 ## 3. OPEN — residual register
@@ -230,7 +238,7 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | AUTHZ-VEN-1 | Privilege grant | `ventures/[id]/coach-invite` | ✅ fixed in Lot 4. | **FIXED** |
 | LMS-1 | Enumeration | `verify/certificate` (`models/lms/certificates.js`) | ✅ fixed in Lot 4. | **FIXED** |
 | UPLOAD-1 | Upload | `upload`, `profile/photo`, `lms/*` | ✅ validation fixed in Lot 4; **still OPEN: buckets are public** (need private + signed URLs). | **OPEN — Lot 4 remainder** |
-| BOLA-FORM-1 | BOLA | `run-export`, `platform/form-runs` (`submission_id`), `platform/…/report-file`, `platform/ai/evaluation-scores` | Capability-only reads of any run/submission/report (participant PII). | **OPEN — Lot 4 remainder** |
+| BOLA-FORM-1 | BOLA | `run-export`, `platform/form-runs` (`submission_id`, `timeline`, `scoring`), `platform/form-runs/report-file`, `platform/ai/evaluation-scores` | ✅ the `submitter_id` read is fixed in Lot 13. The rest is a **governance decision** (§6.7): the platform Runs domain is global and capability-gated with no tenant dimension, so it cannot be scoped without a product choice. | **OPEN — governance decision** |
 | SCOPE-LMS-1b | Scope | `lms/program-requirements/[id]` PUT/DELETE | ✅ fixed in Lot 12 (program resolved from the requirement). | **FIXED** |
 | CSRF-1 | CSRF | state-changing **GET** routes (`engineering/permissions/seed*`, `sync-context-grants`, `program-types`) | `SameSite=Lax` lets a top-level cross-site navigation trigger mutations. | **OPEN — Lot 5** |
 | DEP-1 | Dependencies | `npm audit` | CRITICAL/HIGH `tar` via `unpdf → canvas`; no upstream fix. | **OPEN — Lot 5** |
@@ -298,6 +306,7 @@ Lot 9  (P1 scope) ✅ done — `programs` PUT, `facilitators/invite-bulk`, proje
 Lot 10 (P1/P2) ✅ done — task listing fails closed, supervisor reserved to staff, anonymous contact enrollment closed
 Lot 11 (P1/P2) ✅ done — team board scoped to its team/program; shared team credentials are management-only
 Lot 12 (P1) ✅ done — submission scope (team binding + program-scoped score writes) and LMS requirement scope
+Lot 13 (P1) ✅ done — platform Runs submitter read bound to the session (remainder = governance decision)
 ```
 
 Each lot: `npx eslint .` · `npm test` · `npm run build`, plus a security regression test per finding.
@@ -323,6 +332,7 @@ Each lot: `npx eslint .` · `npm test` · `npm run build`, plus a security regre
 4. **Legacy clear-text passwords** (SECRET-1) — a data migration is required before the fallback can be removed.
 5. **Investor approval status** — `requireInvestorSelfServiceAuthorization` ignores `investor_profiles.approval_status`, and self-registration stores an `active` contact. Whether an unapproved investor should reach the portal is a product decision; resource binding is now enforced regardless (Lot 2).
 6. **`allowed_roles` is advisory by design** — `src/lib/featureAccess.js` states it "NEVER blocks an assignment": the Permission Manager shows an amber warning when a responsibility's feature cannot serve the user's role, and the assignment is allowed on purpose (an administrator can override). The self-assignment guard (Lot 8) closes the escalation path; making `allowed_roles` a hard gate would change an intended workflow, so it is left as a decision.
+7. **Platform Runs is a global domain (BOLA-FORM-1)** — `platform_form_runs` has no tenant/program dimension, so `runs.view` / `runs.edit` / `reports.export` are the only boundary and a capability holder can read any run's participant PII (`run-export`, the `submission_id`/`timeline`/`scoring` reads, `report-file`, `evaluation-scores`). Two options, a decision is required: (a) make a run visible only to its `platform_form_run_assignments` (user/group/program targets); or (b) keep these capabilities admin-only and grant them deliberately. The `submitter_id` read was the one unambiguous defect and is fixed (Lot 13).
 
 ---
 
@@ -339,7 +349,7 @@ Everything below is **still present in the code today**. Grouped by the lot that
 ### Lot 4 — remainder (P1)
 
 - **UPLOAD-1 (buckets)** — `upload`, `profile/photo`, `lms/*`: buckets are public; need private buckets + signed URLs.
-- **BOLA-FORM-1** `run-export`, `platform/form-runs` (`submission_id`), `platform/…/report-file`, `platform/ai/evaluation-scores` — run/submission scope.
+- **BOLA-FORM-1 (remainder)** `run-export`, `platform/form-runs` (`submission_id`/`timeline`/`scoring`), `platform/…/report-file`, `platform/ai/evaluation-scores` — **governance decision** (§6.7); the `submitter_id` read is fixed (Lot 13).
 - **PUB-3** `respond` — identity anchoring. **PUB-2** `s/public-draft` — draft token (both need a client-flow change).
 
 ✅ Done in Lot 12: **BOLA-FORM-2** (`submissions` team binding + program-scoped score writes), **SCOPE-LMS-1b** (`lms/program-requirements/[id]`), and the undeclared `lms` wave is now first-class.
@@ -390,12 +400,17 @@ Everything below is **still present in the code today**. Grouped by the lot that
 
 - **BOLA-FORM-2** — the team filter on `submissions` GET is bound to the session's own team; the score write (PUT) resolves/requires the program. **SCOPE-LMS-1b** — `lms/program-requirements/[id]` resolves its program. The `lms` program-scope wave is now declared and censused (3 surfaces). 8 tests.
 
-### Remaining after Lot 12
+### Lot 13 — P1 ✅
 
-- **Lot 4 remainder** (P1) — UPLOAD-1 buckets (private + signed URLs); BOLA-FORM-1 (`run-export`, `form-runs` `submission_id`, `report-file`, `evaluation-scores`); PUB-3 `respond` identity + PUB-2 `s/public-draft` token (client-flow changes).
+- **BOLA-FORM-1 (part)** — the platform Runs `submitter_id` read is bound to the session (a Super Admin may still name someone else). The rest of BOLA-FORM-1 is a governance decision (§6.7). 3 tests.
+
+### Remaining after Lot 13
+
+- **BOLA-FORM-1 remainder** — platform Runs visibility (governance decision, §6.7).
+- **Lot 4 remainder** (P1) — UPLOAD-1 buckets (private + signed URLs); PUB-3 `respond` identity + PUB-2 `s/public-draft` token (client-flow changes).
 - **Lot 5 remainder** (P2) — RATE-2, ERR-1, CSRF-1, AUTH-4, SECRET-1/3, DEP-1, shared rate-limit store.
 - **AUTHZ-CRM-1 remainder** — `contact-emails`; `notifications` create (product decision).
-- **Product decisions** — `allowed_roles` enforcement (§6); notification-recipient scope.
+- **Product decisions** — `allowed_roles` (§6.6); notification-recipient scope; platform Runs visibility (§6.7).
 - **MVC-1** (ongoing) — SQL still inline in a few routes.
 
 ### Product decisions required (not code fixes)
