@@ -1,4 +1,5 @@
 import { getSession } from "@/lib/auth";
+import { getVentureFacts, getViewerRelationship, ventureAccessFacts } from "@/lib/ventureAccessFacts";
 
 /** Roles that may always access Venture records (incl. archived, historical). */
 export function roleIsPrivileged(role) {
@@ -17,14 +18,10 @@ export async function isStaffActorForVenture(db, ventureId, session) {
   if (session.role === "super_admin") return true;
   if (!session.cid) return false;
   try {
-    // venture_staff_assignments stores the VNT code (TEXT). Convert an internal
-    // UUID (if passed) back to the code so the assignment check matches.
-    let code = ventureId;
-    if (typeof ventureId === "string" && ventureId.includes("-") && !ventureId.startsWith("VNT-")) {
-      const ventureResult = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [ventureId] });
-      if (ventureResult.rows?.[0]?.venture_id) code = ventureResult.rows[0].venture_id;
-    }
-    return hasActiveVentureAssignment(code, session.cid, db);
+    // venture_staff_assignments stores the VNT code (TEXT). The shared facts
+    // resolve an internal UUID back to the code once, for every caller.
+    const facts = await getVentureFacts(ventureId, db);
+    return hasActiveVentureAssignment(facts?.code || ventureId, session.cid, db);
   } catch (_) {
     return false;
   }
@@ -46,18 +43,10 @@ export function lifecycleIsArchived(lifecycle) {
  */
 export async function resolveVentureLifecycle(ventureId, db) {
   try {
-    if (typeof ventureId === "string" && ventureId.includes("-") && !ventureId.startsWith("VNT-")) {
-      const byIdResult = await db.execute({
-        sql: "SELECT status, is_archived FROM ventures WHERE id::text = ?",
-        args: [ventureId],
-      });
-      if (byIdResult.rows?.[0]) return byIdResult.rows[0];
-    }
-    const result = await db.execute({
-      sql: "SELECT status, is_archived FROM ventures WHERE venture_id = ?",
-      args: [ventureId],
-    });
-    return result.rows?.[0] || null;
+    // Shared with every other screen of the same page: the lifecycle state is
+    // the Venture's own fact, and asking for it once is enough.
+    const facts = await getVentureFacts(ventureId, db);
+    return facts ? { status: facts.status, is_archived: facts.is_archived } : null;
   } catch (_) {
     return null;
   }
@@ -108,11 +97,10 @@ export async function requireOperationalVentureAccess({ ventureId, db, session, 
 export async function hasActiveVentureAssignment(ventureCode, sessionCid, db) {
   if (!ventureCode || !sessionCid) return false;
   try {
-    const result = await db.execute({
-      sql: "SELECT 1 FROM venture_staff_assignments WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active' LIMIT 1",
-      args: [ventureCode, sessionCid],
-    });
-    return (result.rows || []).length > 0;
+    // Shares the cached relationship, so an access check and a staff-actor check
+    // on the same screen never ask the database twice for the same answer.
+    const relationship = await getViewerRelationship(ventureCode, sessionCid, db);
+    return relationship.is_assigned;
   } catch (_) {
     return false;
   }
@@ -129,24 +117,12 @@ export async function requireVentureAccess(ventureId, db) {
   }
 
   if (session.cid) {
-    // venture_members stores venture_id as the VNT code (TEXT). Convert an
-    // internal UUID (if passed) back to the code so the membership check matches.
-    let code = ventureId;
-    try {
-      if (typeof ventureId === "string" && ventureId.includes("-") && !ventureId.startsWith("VNT-")) {
-        const ventureResult = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [ventureId] });
-        if (ventureResult.rows?.[0]?.venture_id) code = ventureResult.rows[0].venture_id;
-      }
-    } catch {}
-    const result = await db.execute({
-      sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL LIMIT 1",
-      args: [code, session.cid],
-    });
-    if (result.rows?.length > 0) {
-      return { ventureId, session };
-    }
-    // Delegated staff: explicit Venture assignment grants access (Phase 2).
-    if (await hasActiveVentureAssignment(code, session.cid, db)) {
+    // Two facts, one round trip each, asked once per viewer and Venture rather
+    // than once per screen (see lib/ventureAccessFacts.js): the Venture's code
+    // (venture_members stores the code, not the internal id) and then the
+    // relationship itself — membership OR a delegated staff assignment.
+    const { facts, relationship } = await ventureAccessFacts(ventureId, session.cid, db);
+    if (facts && (relationship.is_member || relationship.is_assigned)) {
       return { ventureId, session };
     }
   }

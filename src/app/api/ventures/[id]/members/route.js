@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import { invalidateVentureAccess } from "@/lib/ventureAccessFacts";
 import { sendEmail } from "@/lib/mailer";
 import { resolveAppUrl } from "@/lib/appUrl";
 import { createVentureMemberInvitation } from "@/models/ventureMemberInvitations";
@@ -158,7 +159,11 @@ export async function POST(req, { params }) {
     });
 
     // Never block the answer on the mailer: a failed send is logged and the
-    // invitation stays pending, so the founder can send it again.
+    // invitation stays pending, so the founder can send it again. The delivery
+    // outcome IS reported back, so the founder is told when no email actually
+    // left the system instead of reading a success that never happened.
+    let emailSent = false;
+    let emailError = null;
     try {
       const ventureResult = await db.execute({
         sql: "SELECT COALESCE(NULLIF(name, ''), company_name) AS venture_name FROM ventures WHERE venture_id = ? LIMIT 1",
@@ -167,7 +172,7 @@ export async function POST(req, { params }) {
       const ventureName = ventureResult.rows?.[0]?.venture_name || "the Venture";
       const link = `${resolveAppUrl()}/venture-invite/${invitation.token}`;
       const seat = memberType === "founder" ? "a founder" : "a team member";
-      await sendEmail({
+      const mailResult = await sendEmail({
         to: invitation.email,
         subject: `You are invited to join ${ventureName} on Impact OS`,
         body:
@@ -177,12 +182,25 @@ export async function POST(req, { params }) {
           `The link expires on ${new Date(invitation.expires_at).toLocaleDateString()}.\n\n` +
           `— Future Studio`,
       });
+      // The mailer reports a *simulated* success when no provider is configured
+      // (mock). That is not a delivery, so the founder must still be warned.
+      if (mailResult?.success && !mailResult?.mock) {
+        emailSent = true;
+      } else {
+        emailError = mailResult?.error || mailResult?.note || "The email provider is not configured.";
+        console.warn("[Venture Invitations] invitation email not delivered:", emailError);
+      }
     } catch (error) {
+      emailError = error.message;
       console.error("Venture member invitation email failed:", error.message);
     }
 
     return NextResponse.json({
       success: true,
+      // The invitation was created either way; `email_sent` lets the screen tell
+      // the founder apart "invited" from "saved, but the email did not go out".
+      email_sent: emailSent,
+      ...(emailError ? { email_error: emailError } : {}),
       invitation: {
         id: invitation.id,
         email: invitation.email,
@@ -262,6 +280,10 @@ export async function PATCH(req, { params }) {
         args: [member_id, id],
       });
 
+      // The access answers remembered for this Venture are dropped here: a
+      // removed member must lose access NOW, not when the window expires.
+      invalidateVentureAccess(id);
+
       // Close the append-only membership history row (account/contact intact).
       try {
         const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
@@ -302,6 +324,9 @@ export async function PATCH(req, { params }) {
         sql: `UPDATE venture_members SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`,
         args: updateArgs,
       });
+      // A changed role or permission set means the remembered answers for this
+      // Venture are no longer the whole truth.
+      invalidateVentureAccess(id);
       try {
         const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
         if (memberContactId && role !== undefined) {

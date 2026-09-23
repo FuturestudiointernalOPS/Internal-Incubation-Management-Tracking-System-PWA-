@@ -12,6 +12,12 @@ const {
   resolveVentureLifecycle,
   requireOperationalVentureAccess,
 } = require("@/lib/ventureAuth");
+const { resetVentureAccessCache } = require("@/lib/ventureAccessFacts");
+
+// The Venture's own facts are remembered process-wide for a real 10 s window, so
+// each test starts from an empty cache — otherwise one test's Venture would
+// answer the next test's question.
+beforeEach(() => resetVentureAccessCache());
 
 describe("lifecycleIsArchived", () => {
   it("detects archived from status or is_archived flag", () => {
@@ -41,12 +47,16 @@ describe("resolveVentureLifecycle", () => {
     expect(db.execute.mock.calls[0][0].sql).toContain("WHERE venture_id = ?");
   });
 
-  it("resolves by internal UUID via id::text", async () => {
+  it("resolves by internal id", async () => {
+    const id = "11111111-2222-3333-4444-555555555555";
     const db = {
       execute: jest.fn().mockResolvedValueOnce({ rows: [{ status: "archived", is_archived: 1 }] }),
     };
-    const lifecycle = await resolveVentureLifecycle("11111111-2222-3333-4444-555555555555", db);
+    const lifecycle = await resolveVentureLifecycle(id, db);
     expect(lifecycle.status).toBe("archived");
+    // The internal id is matched as an id, not cast to text: a cast would drop
+    // the index on a hot read.
+    expect(db.execute.mock.calls[0][0].sql).toContain("WHERE id = ?");
   });
 
   it("returns null when not found", async () => {

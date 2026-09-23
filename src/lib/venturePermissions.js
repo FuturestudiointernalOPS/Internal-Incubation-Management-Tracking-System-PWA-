@@ -10,6 +10,8 @@
  * CRM permission data. (Phase 1 of the Venture permission engine.)
  */
 
+import { invalidateVentureAccess } from "@/lib/ventureAccessFacts";
+
 // Venture areas that permissions apply to (matrix rows). Kept as a stable
 // code-side taxonomy; responsibilities and scopes are user-configurable.
 export const VENTURE_PERMISSION_AREAS = [
@@ -294,6 +296,9 @@ export async function createAssignment(db, { ventureId, staffContactId, responsi
           VALUES (?,?,?,?,?,?,?,?)`,
     args: [ventureId, staffContactId, responsibilityCode, scopeType || "venture_wide", scopeRefType, scopeRefId, assignedBy, notes],
   });
+  // A delegated staff member granted access just now must be able to use it
+  // without waiting for the remembered answers to expire.
+  invalidateVentureAccess(ventureId);
   return { success: true, id: insertResult.lastInsertRowid ?? null };
 }
 
