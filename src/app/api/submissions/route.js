@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import {
   getSubmissionProgramStatus,
   getParticipantProgramSubmissionStatus,
@@ -489,7 +490,7 @@ export async function GET(req) {
     } catch (_) {}
     const { searchParams } = new URL(req.url);
     let participant_id = searchParams.get("participant_id");
-    const team_id = searchParams.get("team_id");
+    let team_id = searchParams.get("team_id");
     const group_id = searchParams.get("group_id");
     const program_id = searchParams.get("program_id");
     const deliverable_id = searchParams.get("deliverable_id");
@@ -504,6 +505,20 @@ export async function GET(req) {
     const session = await getSession();
     let facilitatorScopeFilter = null;
     let facilitatorScopeArgs = [];
+
+    // Team-entity sessions (role "team", cid = their own team id) may only ever
+    // read THEIR OWN team's submissions: the team filter is bound server-side,
+    // so a chosen team_id / program_id cannot widen the read.
+    if (session?.role === "team") {
+      const ownTeamId = String(session.cid || "");
+      if (team_id && String(team_id) !== ownTeamId) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+      team_id = ownTeamId;
+    }
 
     // Own-scope (Phase I6B): without a program context, non-management,
     // non-staff, non-team sessions (participants, members, …) may only list
@@ -626,6 +641,17 @@ export async function PUT(req) {
         { status: 400 },
       );
     }
+
+    // Record scope: a score write targets a program. With a submission id the
+    // program is resolved from the submission; otherwise the caller names it.
+    // Either way the caller must be staffed on that program.
+    let targetProgramId = program_id || null;
+    if (!targetProgramId && id) {
+      const submissionProgram = await getSubmissionProgramId(id);
+      targetProgramId = submissionProgram.rows?.[0]?.program_id || null;
+    }
+    const scopeError = await requireProgramScope({ programId: targetProgramId, wave: "content" });
+    if (scopeError) return scopeError;
 
     // Ensure both score columns exist (migration safety).
     try { await ensureSubmissionScoresColumn(); } catch (_) {}

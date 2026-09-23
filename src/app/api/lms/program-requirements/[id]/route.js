@@ -4,7 +4,9 @@ import { requireAuthorization } from "@/lib/authorization";
 import {
   updateProgramRequirement,
   detachCourseFromProgram,
+  getRequirementProgramId,
 } from "@/lib/lms/programRequirements";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import { lmsErrorResponse } from "@/lib/lms/errors";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +33,14 @@ export async function PUT(req, { params }) {
     if (capError) return capError;
 
     const { id } = await params;
+
+    // Program scope: the requirement id comes from the URL, so resolve the
+    // owning program first — a linked course may only be edited by a holder
+    // staffed on THAT program.
+    const programId = await getRequirementProgramId(id);
+    const scopeError = await requireProgramScope({ programId, wave: "lms" });
+    if (scopeError) return scopeError;
+
     const body = await req.json();
     const requirement = await updateProgramRequirement(id, {
       title: body.title,
@@ -54,6 +64,13 @@ export async function DELETE(req, { params }) {
     if (capError) return capError;
 
     const { id } = await params;
+
+    // Program scope: detach is a program action, so resolve the owning program
+    // from the requirement and require the caller to be staffed there.
+    const programId = await getRequirementProgramId(id);
+    const scopeError = await requireProgramScope({ programId, wave: "lms" });
+    if (scopeError) return scopeError;
+
     const result = await detachCourseFromProgram(id);
     return NextResponse.json(result);
   } catch (error) {

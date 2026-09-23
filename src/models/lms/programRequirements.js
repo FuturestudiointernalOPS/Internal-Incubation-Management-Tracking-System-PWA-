@@ -197,6 +197,18 @@ async function getRequirement(requirementId) {
 }
 
 /**
+ * The program a learning requirement belongs to — used to scope a mutation by
+ * resolving the owning program first (the requirement id comes from the URL).
+ */
+export async function getRequirementProgramId(requirementId) {
+  const res = await db.execute({
+    sql: "SELECT program_id FROM lms_program_requirements WHERE id = ?",
+    args: [requirementId],
+  });
+  return res.rows[0]?.program_id ?? null;
+}
+
+/**
  * Auto-enroll participants into every PUBLISHED required course of a program.
  * Server-side, idempotent (UNIQUE(course_id, user_cid) + ON CONFLICT). Runs
  * whenever a participant is added to a program, and whenever a course is

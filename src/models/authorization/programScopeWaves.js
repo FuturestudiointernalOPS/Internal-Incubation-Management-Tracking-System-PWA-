@@ -22,7 +22,7 @@
  * report, the census test and the screens.
  */
 
-export const PROGRAM_SCOPE_WAVES = ["content", "enrollment", "groups"];
+export const PROGRAM_SCOPE_WAVES = ["content", "enrollment", "groups", "lms"];
 
 export const PROGRAM_SCOPE_WAVE_INFO = {
   content: {
@@ -59,6 +59,14 @@ export const PROGRAM_SCOPE_WAVE_INFO = {
       "api/v2/groups (legacy V2 route — project instruction: changes go in the V1 counterpart)",
       "api/v2/kpis (legacy V2 route — project instruction: changes go in the V1 counterpart)",
     ],
+  },
+  lms: {
+    key: "lms",
+    label: "Program learning",
+    covers: "Attaching, editing and detaching a program's learning requirements, and its coaching queue",
+    // Every write surface of this domain consults the rule.
+    partial: false,
+    exempt: [],
   },
 };
 

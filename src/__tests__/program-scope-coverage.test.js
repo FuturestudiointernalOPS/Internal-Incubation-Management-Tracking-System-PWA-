@@ -37,6 +37,7 @@ const COVERAGE = {
     "src/app/api/pm/reports/route.js",
     "src/app/api/pm/export/route.js",
     "src/app/api/programs/route.js",
+    "src/app/api/submissions/route.js",
   ],
   enrollment: [
     "src/app/api/participant-programs/route.js",
@@ -51,6 +52,11 @@ const COVERAGE = {
     "src/app/api/teams/route.js",
     "src/app/api/group-members/route.js",
     "src/app/api/team-tasks/route.js",
+  ],
+  lms: [
+    "src/app/api/lms/coaching-requests/route.js",
+    "src/app/api/lms/program-requirements/route.js",
+    "src/app/api/lms/program-requirements/[id]/route.js",
   ],
 };
 

@@ -39,6 +39,7 @@
 | **FIXED — Lot 9** | Corrected with the remaining admin/staffing scope batch. |
 | **FIXED — Lot 10** | Corrected with the task-scope fail-closed / supervisor / anonymous-contact batch. |
 | **FIXED — Lot 11** | Corrected with the team-board scope + team-credential exposure batch. |
+| **FIXED — Lot 12** | Corrected with the submission scope + LMS requirement scope batch. |
 | **OPEN** | Still present. Fix order in §4. |
 
 ---
@@ -189,6 +190,15 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | XPROG-1 (remainder) | `teams` GET, `pm/teams` GET + `models/{teams,groups}` (`SELECT *`) | The team reads returned the shared team username/password to every authorized reader. Non-management callers now receive the roster through `stripTeamCredentials` (shared `src/lib/teamCredentials.js`); management keeps them. | **FIXED — Lot 11** |
 | — | Tests | `src/__tests__/security-lot11-team-scope.test.js` (10 tests) + `program-scope-coverage.test.js` (1 census entry) | Foreign-board refusal, team own-board binding, own-program works, management bypass, credential stripping both ways. | **FIXED — Lot 11** |
 
+### 2.14 Lot 12 — submission scope + LMS requirement scope
+
+| ID | Location | Was | Status |
+|---|---|---|---|
+| BOLA-FORM-2 | `submissions` GET/PUT | A team-entity session could read ANY team's submissions by choosing `team_id` or `program_id` (neither was bound), and the score write (PUT) had no program scope at all. The team filter is now bound server-side to the session's own team, and the score write resolves/requires the program and enforces `requireProgramScope({ wave: "content" })`. | **FIXED — Lot 12** |
+| SCOPE-LMS-1b | `lms/program-requirements/[id]` PUT/DELETE + `models/lms/programRequirements` | The requirement id from the URL was never resolved to its program. New `getRequirementProgramId` + `requireProgramScope({ wave: "lms" })`. | **FIXED — Lot 12** |
+| — | Config | `models/authorization/programScopeWaves` + census | The `lms` wave the LMS routes already used was undeclared (drift). It is now a first-class wave, and the three LMS surfaces are censused. | **FIXED — Lot 12** |
+| — | Tests | `src/__tests__/security-lot12-submissions-lms.test.js` (8 tests) + `program-scope-coverage.test.js` (4 census entries) | Team own-team binding, foreign-team refusal, program-scoped score write, requirement detach/edit scope. | **FIXED — Lot 12** |
+
 ---
 
 ## 3. OPEN — residual register
@@ -215,13 +225,13 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | BOLA-CRM-1 | BOLA | `group-members` POST | ✅ fixed in Lot 7 (program scope on the membership insert; unscoped read fixed in Lot 3). | **FIXED** |
 | IDOR-TASK-1 | BOLA | `tasks/carryover` | ✅ fixed in Lot 3. | **FIXED** |
 | IDOR-TASK-2 | BOLA | `tasks` | ✅ fixed in Lot 10 (listing fails closed; `supervisor_id` reserved to staff-side roles). | **FIXED** |
-| BOLA-FORM-2 | BOLA | `submissions` | Team sessions read other teams' submissions; score writes without program scope. | **OPEN — Lot 4 remainder** |
+| BOLA-FORM-2 | BOLA | `submissions` | ✅ fixed in Lot 12 (team filter bound server-side; score write program-scoped). | **FIXED** |
 | PUB-3 | Business logic | `respond` | Writes responses attributed to a caller-supplied `cid`, with no anchoring. | **OPEN — Lot 4 remainder** |
 | AUTHZ-VEN-1 | Privilege grant | `ventures/[id]/coach-invite` | ✅ fixed in Lot 4. | **FIXED** |
 | LMS-1 | Enumeration | `verify/certificate` (`models/lms/certificates.js`) | ✅ fixed in Lot 4. | **FIXED** |
 | UPLOAD-1 | Upload | `upload`, `profile/photo`, `lms/*` | ✅ validation fixed in Lot 4; **still OPEN: buckets are public** (need private + signed URLs). | **OPEN — Lot 4 remainder** |
 | BOLA-FORM-1 | BOLA | `run-export`, `platform/form-runs` (`submission_id`), `platform/…/report-file`, `platform/ai/evaluation-scores` | Capability-only reads of any run/submission/report (participant PII). | **OPEN — Lot 4 remainder** |
-| SCOPE-LMS-1b | Scope | `lms/program-requirements/[id]` PUT/DELETE | Requirement id is not resolved to its program before mutation. | **OPEN — Lot 4 remainder** |
+| SCOPE-LMS-1b | Scope | `lms/program-requirements/[id]` PUT/DELETE | ✅ fixed in Lot 12 (program resolved from the requirement). | **FIXED** |
 | CSRF-1 | CSRF | state-changing **GET** routes (`engineering/permissions/seed*`, `sync-context-grants`, `program-types`) | `SameSite=Lax` lets a top-level cross-site navigation trigger mutations. | **OPEN — Lot 5** |
 | DEP-1 | Dependencies | `npm audit` | CRITICAL/HIGH `tar` via `unpdf → canvas`; no upstream fix. | **OPEN — Lot 5** |
 
@@ -287,6 +297,7 @@ Lot 8  (P1 scope) ✅ done — `pm/curriculum`/`pm/reports`/`pm/export` program 
 Lot 9  (P1 scope) ✅ done — `programs` PUT, `facilitators/invite-bulk`, project report generation
 Lot 10 (P1/P2) ✅ done — task listing fails closed, supervisor reserved to staff, anonymous contact enrollment closed
 Lot 11 (P1/P2) ✅ done — team board scoped to its team/program; shared team credentials are management-only
+Lot 12 (P1) ✅ done — submission scope (team binding + program-scoped score writes) and LMS requirement scope
 ```
 
 Each lot: `npx eslint .` · `npm test` · `npm run build`, plus a security regression test per finding.
@@ -329,9 +340,9 @@ Everything below is **still present in the code today**. Grouped by the lot that
 
 - **UPLOAD-1 (buckets)** — `upload`, `profile/photo`, `lms/*`: buckets are public; need private buckets + signed URLs.
 - **BOLA-FORM-1** `run-export`, `platform/form-runs` (`submission_id`), `platform/…/report-file`, `platform/ai/evaluation-scores` — run/submission scope.
-- **BOLA-FORM-2** `submissions` — team-session reads + score writes.
-- **PUB-3** `respond` — identity anchoring. **PUB-2** `s/public-draft` — draft token.
-- **SCOPE-LMS-1b** `lms/program-requirements/[id]` PUT/DELETE — resolve the requirement's program.
+- **PUB-3** `respond` — identity anchoring. **PUB-2** `s/public-draft` — draft token (both need a client-flow change).
+
+✅ Done in Lot 12: **BOLA-FORM-2** (`submissions` team binding + program-scoped score writes), **SCOPE-LMS-1b** (`lms/program-requirements/[id]`), and the undeclared `lms` wave is now first-class.
 
 ### Lot 4 — done ✅
 
@@ -375,11 +386,15 @@ Everything below is **still present in the code today**. Grouped by the lot that
 
 - **AUTHZ-CRM-1 (part)** — the team task board is now team-scoped (program-scoped for delegated callers, own-board for a team session; task mutations resolve the task's team). **XPROG-1 remainder** — shared team credentials are stripped for non-management readers. New helper `src/lib/teamCredentials.js`. Census extended (1 entry); 10 tests.
 
-### Remaining after Lot 11
+### Lot 12 — P1 ✅
 
-- **AUTHZ-CRM-1 remainder** — `contact-emails` (contact→program rule); `notifications` create (product decision).
-- **Lot 4 remainder** (P1) — public buckets, run/submission scope, `respond` identity, `s/public-draft`, `program-requirements/[id]`.
+- **BOLA-FORM-2** — the team filter on `submissions` GET is bound to the session's own team; the score write (PUT) resolves/requires the program. **SCOPE-LMS-1b** — `lms/program-requirements/[id]` resolves its program. The `lms` program-scope wave is now declared and censused (3 surfaces). 8 tests.
+
+### Remaining after Lot 12
+
+- **Lot 4 remainder** (P1) — UPLOAD-1 buckets (private + signed URLs); BOLA-FORM-1 (`run-export`, `form-runs` `submission_id`, `report-file`, `evaluation-scores`); PUB-3 `respond` identity + PUB-2 `s/public-draft` token (client-flow changes).
 - **Lot 5 remainder** (P2) — RATE-2, ERR-1, CSRF-1, AUTH-4, SECRET-1/3, DEP-1, shared rate-limit store.
+- **AUTHZ-CRM-1 remainder** — `contact-emails`; `notifications` create (product decision).
 - **Product decisions** — `allowed_roles` enforcement (§6); notification-recipient scope.
 - **MVC-1** (ongoing) — SQL still inline in a few routes.
 
