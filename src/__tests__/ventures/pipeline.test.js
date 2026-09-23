@@ -94,6 +94,54 @@ describe("createVentureFromSubmission", () => {
     expect(result.reason).toBe("missing_company_name");
   });
 
+  it("names the Venture from its name field, never from a role or description answer", async () => {
+    // A manually built form: no settings.key at all, and the fields come back in
+    // id order — so the role question is read BEFORE the Venture's name. The
+    // answers are the real ones observed on the Venture Registration form.
+    const FIELDS = [
+      { id: 12, label: "1. Full Name", settings: {} },
+      { id: 13, label: "2. Email Address", settings: {} },
+      { id: 14, label: "3. Phone Number", settings: {} },
+      { id: 15, label: "4. Country", settings: {} },
+      { id: 16, label: "5. Your Role in the Venture", settings: {} },
+      { id: 17, label: "6. Venture Name", settings: {} },
+      { id: 18, label: "7. Industry / Sector", settings: {} },
+      { id: 25, label: "14. Short Venture Description / Elevator Pitch", settings: {} },
+    ];
+    const SUBMISSION_NO_KEYS = {
+      id: 51,
+      run_id: 3,
+      submitter_id: "USR_SUBMITTER",
+      data: {
+        12: "Gwin Test",
+        13: "gwin@example.com",
+        14: "+229015457845",
+        15: "Benin",
+        16: "Founder",
+        17: "TecTof",
+        18: "saas",
+        25: "We help students find food.",
+      },
+    };
+
+    db.execute
+      .mockResolvedValueOnce({ rows: [] }) // 1. origins lookup
+      .mockResolvedValueOnce({ rows: FIELDS }) // 2. fields
+      .mockResolvedValueOnce({ rows: [] }); // 3. duplicate company
+
+    const result = await createVentureFromSubmission({
+      submission: SUBMISSION_NO_KEYS,
+      run: { id: 3, name: "Venture Registration Form Run", form_id: 3 },
+      form: { id: 3 },
+      review: REVIEW,
+    });
+
+    expect(result.success).toBe(true);
+    const ventureInsert = db.execute.mock.calls.find(([call]) => call.sql.includes("INSERT INTO ventures"));
+    expect(ventureInsert[0].args[1]).toBe("TecTof"); // name
+    expect(ventureInsert[0].args[2]).toBe("TecTof"); // company_name
+  });
+
   it("creates the Venture, provenance, founder and members, and notifies", async () => {
     db.execute
       .mockResolvedValueOnce({ rows: [] }) // 1. origins lookup

@@ -33,22 +33,41 @@ function pickValues(submissionData, keyMap) {
   return mappedValues;
 }
 
+/** A field label about the company/venture (rather than the person filling it in). */
+const COMPANY_LABEL = /company|venture|business|startup|organisation|organization|enterprise|\bfirm\b/i;
+
+/** A label that says the answer IS the name, not merely something about it. */
+const COMPANY_NAME_LABEL = /\bname\b|\btitle\b|\bbrand\b|\blabel\b/i;
+
+/**
+ * A label that mentions the company/venture but whose answer is NOT its name:
+ * the person answering, their role, or anything descriptive.
+ */
+const NOT_A_COMPANY_NAME =
+  /founder|co-?founder|lead|contact|person|first|last|email|phone|\bteam\b|\bmember\b|role|description|pitch|elevator|industry|sector|stage|size|country|city|other|\burl\b|\blink\b|deck|presentation|problem|solution|customer|market|model|goal|objectiv|achiev|support|logo/i;
+
 /**
  * Best-effort company-name extraction for manually built forms that have no
  * settings.key mapping: look for a submitted value whose field label clearly
  * refers to the company/venture (never the founder's name, team, contacts).
+ *
+ * A label that NAMES the company wins over one that only mentions it. Fields
+ * come back in no guaranteed order, so taking the first company-flavoured label
+ * was enough to name a Venture after the wrong answer: on a form whose fields
+ * read "5. Your Role in the Venture" and "6. Venture Name", the role answer
+ * ("Founder") could win over the Venture's actual name.
  */
 function inferCompanyNameFromFields(submissionData, fieldRows) {
+  const candidates = [];
   for (const fieldRow of fieldRows || []) {
     const label = String(fieldRow.label || "");
-    if (!/company|venture|business|startup|organisation|organization|enterprise|\bfirm\b/i.test(label)) continue;
-    if (/founder|lead|contact|person|first|last|email|phone|\bteam\b/i.test(label)) continue;
+    if (!COMPANY_LABEL.test(label) || NOT_A_COMPANY_NAME.test(label)) continue;
     const fieldValue = submissionData?.[String(fieldRow.id)];
-    if (typeof fieldValue === "string" && fieldValue.trim()) {
-      return fieldValue.trim().substring(0, 200);
-    }
+    if (typeof fieldValue !== "string" || !fieldValue.trim()) continue;
+    candidates.push({ label, value: fieldValue.trim() });
   }
-  return "";
+  const named = candidates.find((candidate) => COMPANY_NAME_LABEL.test(candidate.label));
+  return (named || candidates[0])?.value.substring(0, 200) || "";
 }
 
 async function mirrorRoleHistory(ventureId, contactCid, role, active = true) {
