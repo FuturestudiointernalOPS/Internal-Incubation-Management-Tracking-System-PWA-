@@ -73,7 +73,9 @@ describe("the door", () => {
     await callRoute();
 
     // A badge list here is what refused a baseline "member" holding a Venture.
-    expect(requireAuth).toHaveBeenCalledWith();
+    // The wrapper resolves the session and passes it, so the "no list" invariant
+    // is the FIRST argument being undefined.
+    expect(requireAuth).toHaveBeenCalledWith(undefined, expect.anything());
   });
 });
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { initDb } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import { enforceRateLimit, getClientIp } from '@/lib/rate-limit';
 import {
   getContactByEmailForPasswordReset,
   updateContactPasswordByEmail,
@@ -10,6 +11,15 @@ import {
 export async function POST(req) {
   try {
     await initDb();
+
+    // Rate limit: this endpoint compares a CURRENT password, so it must not be a
+    // rate-free credential oracle.
+    const limited = enforceRateLimit(req, `reset:ip:${getClientIp(req)}`, {
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (limited) return limited;
+
     const { email, currentPassword, newPassword } = await req.json();
 
     if (!email || !newPassword) {

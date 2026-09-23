@@ -154,7 +154,7 @@ describe("PATCH /api/submissions — empty team scope must deny", () => {
 
 describe("GET /api/calendar — scope follows the relationship, not the role label", () => {
   test("a member acting as a facilitator is scoped to the assigned programs", async () => {
-    getSession.mockResolvedValueOnce({ cid: "U-MEMBER", role: "member" });
+    getSession.mockResolvedValue({ cid: "U-MEMBER", role: "member" });
     getFacilitatorProgramScopePids.mockResolvedValueOnce({ rows: [{ pid: "P-A" }] });
 
     await calendarGET(new Request("http://localhost/api/calendar?year=2026&month=1"));
@@ -168,7 +168,7 @@ describe("GET /api/calendar — scope follows the relationship, not the role lab
   });
 
   test("a contextual caller with no relationship sees no program-scoped events", async () => {
-    getSession.mockResolvedValueOnce({ cid: "U-MEMBER", role: "member" });
+    getSession.mockResolvedValue({ cid: "U-MEMBER", role: "member" });
 
     await calendarGET(new Request("http://localhost/api/calendar?year=2026&month=1"));
 
@@ -176,7 +176,7 @@ describe("GET /api/calendar — scope follows the relationship, not the role lab
   });
 
   test("management keeps the unrestricted view", async () => {
-    getSession.mockResolvedValueOnce({ cid: "U-PM", role: "program_manager" });
+    getSession.mockResolvedValue({ cid: "U-PM", role: "program_manager" });
 
     await calendarGET(new Request("http://localhost/api/calendar?year=2026&month=1"));
 
@@ -193,7 +193,7 @@ describe("GET /api/sessions — contextual callers must scope to a program", () 
   });
 
   test("management may still list every session", async () => {
-    getSession.mockResolvedValueOnce({ cid: "U-PM", role: "program_manager" });
+    getSession.mockResolvedValue({ cid: "U-PM", role: "program_manager" });
     const res = await sessionsGET(new Request("http://localhost/api/sessions"));
     expect(res.status).toBe(200);
     expect(listSessions).toHaveBeenCalledWith(null);

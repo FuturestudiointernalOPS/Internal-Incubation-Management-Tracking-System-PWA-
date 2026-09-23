@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
 import { resolveEffectiveRole } from "@/lib/platform/roles";
 import { getEffectiveGroupsForUser } from "@/lib/authorization/membership";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
 import {
   getContactByEmailOrId,
@@ -20,6 +21,15 @@ import {
 export async function POST(req) {
   try {
     await initDb();
+
+    // Rate limit: 20 attempts per IP / 15 min — the first barrier against
+    // online password guessing.
+    const ipLimited = enforceRateLimit(req, `login:ip:${getClientIp(req)}`, {
+      limit: 20,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (ipLimited) return ipLimited;
+
     const { email, password } = await req.json();
 
     if (!email || !password) {
@@ -31,6 +41,14 @@ export async function POST(req) {
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
+
+    // Second barrier: 10 attempts per ACCOUNT / 15 min, so one IP cannot brute
+    // force a single account and a distributed attempt still hits a limit.
+    const accountLimited = enforceRateLimit(req, `login:account:${cleanEmail}`, {
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (accountLimited) return accountLimited;
 
     // Fetch user language preference
     let userLanguage = "en";

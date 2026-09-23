@@ -32,6 +32,7 @@
 | **FIXED — Lot 2** | Corrected with the investor own-scope batch. |
 | **FIXED — Lot 3** | Corrected with the admin/auth/session/scope batch. |
 | **FIXED — Lot 4** | Corrected with the forms/LMS/upload batch. |
+| **FIXED — Lot 5** | Corrected with the P2 hardening batch. |
 | **OPEN** | Still present. Fix order in §4. |
 
 ---
@@ -114,6 +115,16 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | UPLOAD-1 (part) | `upload`, `profile/photo`, `lms/courses/thumbnail`, `lib/storage.js`, `lib/lms/sectionResourceFiles.js` | Validation was MIME **OR** extension, so a file with a safe extension and a hostile content type passed. Now requires a valid extension AND a compatible (or absent) declared type. | **FIXED — Lot 4 (part — bucket privacy below)** |
 | — | Tests | `src/__tests__/security-lot4-forms-lms.test.js` (+ 3 LMS suites updated) | 11 regression tests. | **FIXED — Lot 4** |
 
+### 2.7 Lot 5 — P2 hardening
+
+| ID | Location | Was | Status |
+|---|---|---|---|
+| HDR-1 | `next.config.mjs` | No security headers. Added HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options`, and a **report-only** CSP (enforcing CSP needs a dedicated design pass — the app uses inline scripts and third-party frames). | **FIXED — Lot 5** |
+| RATE-1 | `auth/login`, `auth/session-login`, `auth/reset-password` | No throttle on credential auth. Now 20/IP + 10/account per 15 min on the logins, 10/IP on reset. | **FIXED — Lot 5** |
+| AUTH-5 | `auth/activate` (GET), `auth/setup-password/validate` (GET) | Unthrottled token probes returning PII. Now 20/IP per 15 min. | **FIXED — Lot 5** |
+| IMPL-1 | `lib/api/createHandler.js`, `lib/auth.js` | Never attached `req.session`. Now the wrapper resolves the session ONCE, hands it to `requireAuth(roles, session)` (new optional param) and attaches it — same number of reads as before, so no route changes behaviour. | **FIXED — Lot 5** |
+| — | Tests | `src/__tests__/security-lot5-hardening.test.js` (+ 2 suites adjusted for the new guard signature) | 9 regression tests. | **FIXED — Lot 5** |
+
 ---
 
 ## 3. OPEN — residual register
@@ -154,14 +165,14 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 
 | ID | Category | Location | Risk | Status |
 |---|---|---|---|---|
-| RATE-1 | Rate limiting | `auth/login`, `auth/session-login`, `auth/reset-password` | No throttle on credential auth. | **OPEN — Lot 5** |
-| RATE-2 | Rate limiting | `s/public-submit`, `/api/public/courses`, `/api/errors` (POST), uploads, AI routes | Public/expensive endpoints unthrottled; IP spoofable via `X-Forwarded-For`. | **OPEN — Lot 5** |
-| HDR-1 | Headers | `next.config.mjs` | No CSP / HSTS / `X-Content-Type-Options` / `Referrer-Policy` / `Permissions-Policy` / frame protection. | **OPEN — Lot 5** |
+| RATE-1 | Rate limiting | `auth/login`, `auth/session-login`, `auth/reset-password` | ✅ fixed in Lot 5 (limits are per process — a shared store is needed for multi-instance). | **FIXED** |
+| RATE-2 | Rate limiting | `s/public-submit`, `/api/public/courses`, `/api/errors` (POST), uploads, AI routes | Public/expensive endpoints still unthrottled; IP spoofable via `X-Forwarded-For`. | **OPEN — Lot 5 remainder** |
+| HDR-1 | Headers | `next.config.mjs` | ✅ fixed in Lot 5 (CSP is report-only). | **FIXED** |
 | ERR-1 | Error handling | many routes | `error.message` returned in 500s (SQL/driver detail). | **OPEN — Lot 5** |
 | AUTH-4 | Enumeration | `auth/login`, `auth/reset-password` | Distinct 403/404 responses reveal account existence; timing oracle. | **OPEN — Lot 5** |
 | SECRET-1 | Passwords | `auth/login`, `auth/session-login`, team/group passwords | Clear-text comparison fallback; shared/team passwords stored in clear. | **OPEN — Lot 5** |
-| IMPL-1 | Correctness | `src/lib/api/createHandler.js` | Never attaches `req.session` → `req.session?.cid` undefined in ~120 routes (loses audit attribution; `security/events` 500s; `revokeUserSessions` can revoke all sessions). Attempted in Lot 3 but reverted: the extra `getSession()` call shifts the session a route sees and changes authz behaviour, so it needs its own lot. | **OPEN — Lot 5** |
-| AUTH-5 | Enumeration | `auth/setup-password/validate` (GET), `auth/activate` (GET) | Unthrottled token probes returning name/email/role/cid. | **OPEN — Lot 5** |
+| IMPL-1 | Correctness | `src/lib/api/createHandler.js` | ✅ fixed in Lot 5. | **FIXED** |
+| AUTH-5 | Enumeration | `auth/setup-password/validate` (GET), `auth/activate` (GET) | ✅ fixed in Lot 5. | **FIXED** |
 | AUTHZ-ADM-3 | Token / mass assignment | `admin/approve-user` | ✅ fixed in Lot 3. | **FIXED** |
 | AUTHZ-ADM-4 | Scope | `facilitators/invite-bulk`, `programs`, `admin/projects/[id]/reports/generate` | `program_manager` skips the assignment check; staff edit any program; unscoped report write. | **OPEN — Lot 3** |
 | AUTHZ-ADM-5 | Self-assignment | `access-profiles/assign`, `responsibilities/assign` | No self-assignment guard; `allowed_roles` not enforced. | **OPEN — Lot 3** |
@@ -205,8 +216,8 @@ Lot 1  (P1 venture)  ✅ done — object-level authorization on the venture surf
 Lot 2  (P1 investor) ✅ done — own-scope every investor route
 Lot 3  (P1 admin/authz) ✅ mostly done — impersonation, role escalation, session purge, project BOLA, task carryover; remainder: `pm/*` + `teams` + `lms/coaching-requests` program scope, `access-profiles`/`responsibilities` self-assignment, `facilitators/invite-bulk`, `admin/projects/[id]/reports/generate`, `notifications`/`contact-emails`/`team-tasks`
 Lot 4  (P1 forms/LMS/upload) ✅ mostly done — arbitrary SQL removed, certificate token-only, upload validation, coach-invite/members privilege allow-lists, LMS answer key, LMS program scope; remainder: public buckets, run/submission scope (`run-export`, `form-runs submission_id`, `report-file`, `evaluation-scores`, `submissions`), `respond` identity, `s/public-draft`, `program-requirements/[id]`, `pm/*` + `teams` program scope, `access-profiles`/`responsibilities` self-assignment
-Lot 5  (P2 rate limiting, headers, errors, CSRF, dependencies, createHandler) ← next
-Lot 6  (P3 hardening)
+Lot 5  (P2 hardening) ✅ mostly done — headers, credential rate limits, token-probe limits, IMPL-1 (`req.session`); remainder: ERR-1 (error-message leakage), CSRF-1 (state-changing GETs), AUTH-4 (enumeration, UX decision), SECRET-1/3 (clear-text passwords), DEP-1 (`tar`)
+Lot 6  (P3 hardening) ← next
 ```
 
 Each lot: `npx eslint .` · `npm test` · `npm run build`, plus a security regression test per finding.
@@ -262,12 +273,17 @@ Everything below is **still present in the code today**. Grouped by the lot that
 
 ### Lot 5 — P2
 
-- **RATE-1/RATE-2** rate limiting (login, reset, public endpoints, AI).
-- **HDR-1** security headers. **ERR-1** error-message leakage. **CSRF-1** state-changing GETs.
-- **AUTH-4** account enumeration. **AUTH-5** unthrottled `setup-password/validate` + `activate` probes.
-- **SECRET-1** clear-text comparison fallback; **SECRET-3** team passwords (`Math.random()`, clear).
-- **IMPL-1** `createHandler` does not attach `req.session` — **reverted from Lot 3 on purpose**: the extra `getSession()` call shifts the session a route sees and changes authz behaviour, so it needs its own dedicated lot with the affected tests.
-- **DEP-1** `tar` via `unpdf → canvas` (no upstream fix).
+- **RATE-2** — public/expensive endpoints (`s/public-submit`, `/api/public/courses`, `/api/errors`, uploads, AI) still unthrottled; `X-Forwarded-For` is spoofable.
+- **ERR-1** — many routes still return `error.message` in 500s.
+- **CSRF-1** — state-changing GETs (`engineering/permissions/seed*`, `sync-context-grants`, `program-types`).
+- **AUTH-4** — account enumeration (login 403 vs 401, reset 404 vs 401) — a UX decision.
+- **SECRET-1 / SECRET-3** — clear-text comparison fallback; team passwords (`Math.random()`, stored clear).
+- **DEP-1** — `tar` via `unpdf → canvas` (no upstream fix).
+- Shared rate-limit store (the limiter is per process).
+
+### Lot 5 — done ✅
+
+- **HDR-1** headers (+ report-only CSP) · **RATE-1** credential rate limits · **AUTH-5** token-probe limits · **IMPL-1** `createHandler` attaches `req.session` (one read, shared with the guard).
 
 ### Lot 6 — P3
 

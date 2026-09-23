@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
 import { resolveLanding, landingNeedsRelationships } from "@/lib/platform/roles";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getVentureMembershipsForContact } from "@/models/contacts";
 import {
   getContactByEmailOrCid,
@@ -18,6 +19,14 @@ import {
 export async function POST(req) {
   try {
     await initDb();
+
+    // Rate limit: 20 attempts per IP / 15 min, plus 10 per account below.
+    const ipLimited = enforceRateLimit(req, `login:ip:${getClientIp(req)}`, {
+      limit: 20,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (ipLimited) return ipLimited;
+
     const { email, password, remember_me } = await req.json();
 
     if (!email || !password) {
@@ -29,6 +38,12 @@ export async function POST(req) {
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
+
+    const accountLimited = enforceRateLimit(req, `login:account:${cleanEmail}`, {
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (accountLimited) return accountLimited;
 
     // --- 1. SEARCH CONTACTS ---
     let user = null;

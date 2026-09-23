@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   getPasswordSetupTokenWithUser,
   backfillPasswordSetupTokenHashOnValidate,
@@ -16,6 +17,14 @@ export async function GET(req) {
   try {
     await initDb();
     await ensureTokenHashColumns();
+
+    // Rate limit: an unauthenticated token probe must be throttled.
+    const limited = enforceRateLimit(req, `setup-validate:ip:${getClientIp(req)}`, {
+      limit: 20,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (limited) return limited;
+
     const { searchParams } = new URL(req.url);
     const token = searchParams.get("token");
 

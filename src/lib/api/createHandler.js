@@ -1,5 +1,5 @@
 import { initDb } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 /**
@@ -44,13 +44,15 @@ export function createHandler(handlerOrOptions, maybeHandler) {
     try {
       if (!isPublic) {
         await initDb();
-        if (roles !== undefined) {
-          const authError = await requireAuth(roles);
-          if (authError) return authError;
-        } else {
-          const authError = await requireAuth();
-          if (authError) return authError;
-        }
+        // Resolve the session ONCE and hand it to the guard, then attach it so
+        // handlers can attribute writes to the real actor (`req.session?.cid`).
+        // Without it every `req.session` read was undefined — losing audit
+        // attribution and breaking routes that dereference it (e.g.
+        // security/events).
+        const session = await getSession();
+        const authError = await requireAuth(roles, session);
+        if (authError) return authError;
+        req.session = session;
       } else {
         await initDb();
       }

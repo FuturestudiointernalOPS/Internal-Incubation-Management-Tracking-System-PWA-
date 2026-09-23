@@ -353,9 +353,17 @@ export async function requireSession(allowedRoles = null) {
  *
  * On success, returns null and the caller can proceed.
  */
-export async function requireAuth(allowedRoles = null) {
+export async function requireAuth(allowedRoles = null, providedSession = undefined) {
   try {
-    await requireSession(allowedRoles);
+    // A caller that already resolved the session (createHandler does) passes it
+    // in, so the guard does not issue a second getSession() — that keeps the
+    // number of reads identical to before and lets the wrapper attach it.
+    const session =
+      providedSession === undefined ? await getSession() : providedSession;
+    if (!session) throw new Error("Unauthorized");
+    if (allowedRoles && !allowedRoles.includes(session.role)) {
+      throw new Error("Forbidden");
+    }
     return null; // authorized
   } catch (err) {
     if (err.message === "Unauthorized") {
@@ -821,34 +829,6 @@ export async function getFacilitatorPermissionLevel(programId, assignment, capab
 }
 
 /**
- * Returns the facilitator's participant scope for a program.
- * { scope: 'all' } or { scope: 'groups', groupIds, groupNames }
- */
-export async function getFacilitatorParticipantScope(programId, userCid) {
-  try {
-    await initDb();
-    const prog = await db.execute({
-      sql: "SELECT facilitator_scope FROM v2_programs WHERE id = ?",
-      args: [programId],
-    });
-    if (prog.rows[0]?.facilitator_scope === "all") {
-      return { scope: "all", groupIds: [], groupNames: [] };
-    }
-    const fam = await db.execute({
-      sql: "SELECT CAST(id AS TEXT) AS id, name FROM families WHERE CAST(program_id AS TEXT) = ? AND lead_facilitator_id = ? AND (is_archived = 0 OR is_archived IS NULL)",
-      args: [String(programId), userCid],
-    });
-    return {
-      scope: "groups",
-      groupIds: fam.rows.map((row) => row.id),
-      groupNames: fam.rows.map((row) => row.name),
-    };
-  } catch {
-    return { scope: "groups", groupIds: [], groupNames: [] };
-  }
-}
-
-/**
  * Returns a facilitator's management-group scope for a program using the
  * existing v2_teams structure (handler_id = facilitator). This is the
  * cohort-management scope: a facilitator sees only participants assigned to
@@ -1253,10 +1233,6 @@ export async function getAccessProfileCapabilities(profileId) {
     return {};
   }
 }
-
-
-
-
 
 /**
  * Seed default access profiles and their capabilities.
