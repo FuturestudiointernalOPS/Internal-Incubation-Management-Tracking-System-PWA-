@@ -14,7 +14,8 @@ import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import { findUnknownTemplateVariables, TEMPLATE_VARIABLES } from "@/lib/constants";
+import ResultDelayEditor from "@/components/ui/ResultDelayEditor";
+import { findUnknownTemplateVariables, readResultDelayMinutes, TEMPLATE_VARIABLES } from "@/lib/constants";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -99,6 +100,71 @@ const WORKFLOW_STATUS_LABEL_KEYS = {
 };
 
 function cn(...classes) { return classes.filter(Boolean).join(" "); }
+
+/**
+ * One email template of a form.
+ *
+ * Defined at MODULE scope, not inside the panel's render: a component created
+ * during a render is a new type every time, so React unmounts and remounts its
+ * inputs on every keystroke — the field loses focus after each letter and the
+ * author can never finish a sentence. Nothing here depends on render-local
+ * state, so hoisting it costs nothing and typing works.
+ */
+function TemplateEditor({ label, icon: Icon, tKey, desc, defaultSubject, defaultBody, vars, onPersonalize, personalizingKey, templates, onChange }) {
+  const { t } = useI18n();
+  const entry = templates?.[tKey] || {};
+  // Names the sender will not fill in — it removes them, so the author is told
+  // before sending rather than discovering it in the sent mail.
+  const unknownVariables = findUnknownTemplateVariables(
+    `${entry.subject || ""} ${entry.body || ""}`,
+    vars || [],
+  );
+  return (
+    <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+      <div className="flex items-center gap-2 mb-1">
+        <Icon className="w-3.5 h-3.5 text-cyan-400" />
+        <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{label}</p>
+        <button
+          type="button"
+          disabled={personalizingKey === tKey}
+          onClick={() => onPersonalize(tKey, label)}
+          className="ml-auto px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold uppercase tracking-wide hover:bg-indigo-500/20 disabled:opacity-40 transition-all flex items-center gap-1"
+        >
+          <Sparkles className="w-2.5 h-2.5" />
+          {personalizingKey === tKey ? t("platformMisc.forms.templateWriting") : t("platformMisc.forms.templatePersonalize")}
+        </button>
+      </div>
+      <p className="text-[10px] font-medium text-[var(--text-secondary)]">{desc}</p>
+      <div className="space-y-1">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.templateSubject")}</label>
+        <input
+          value={entry.subject || ""}
+          onChange={(event) => onChange(tKey, "subject", event.target.value)}
+          placeholder={defaultSubject}
+          className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.templateBody")}</label>
+        <textarea
+          value={entry.body || ""}
+          onChange={(event) => onChange(tKey, "body", event.target.value)}
+          rows={4}
+          placeholder={defaultBody}
+          className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-cyan-500 resize-y font-mono"
+        />
+      </div>
+      {vars && (
+        <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.forms.templateVariables", { vars: vars.join(", ") })}</p>
+      )}
+      {unknownVariables.length > 0 && (
+        <p className="text-[10px] font-bold text-amber-500">
+          {t("platformMisc.forms.templateUnknownVariables", { vars: unknownVariables.join(", ") })}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function PlatformForms() {
   const router = useRouter();
@@ -1502,61 +1568,6 @@ export default function PlatformForms() {
               setPersonalizing(null);
             };
 
-            const TemplateEditor = ({ label, icon: Icon, tKey, desc, defaultSubject, defaultBody, vars, onPersonalize, personalizingKey }) => {
-              const { t } = useI18n();
-              // Names the sender will not fill in — it removes them, so the author
-              // is told before sending rather than discovering it in the sent mail.
-              const unknownVariables = findUnknownTemplateVariables(
-                `${templateData[tKey]?.subject || ""} ${templateData[tKey]?.body || ""}`,
-                vars || [],
-              );
-              return (
-                <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Icon className="w-3.5 h-3.5 text-cyan-400" />
-                    <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{label}</p>
-                    <button
-                      type="button"
-                      disabled={personalizingKey === tKey}
-                      onClick={() => onPersonalize(tKey, label)}
-                      className="ml-auto px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold uppercase tracking-wide hover:bg-indigo-500/20 disabled:opacity-40 transition-all flex items-center gap-1"
-                    >
-                      <Sparkles className="w-2.5 h-2.5" />
-                      {personalizingKey === tKey ? t("platformMisc.forms.templateWriting") : t("platformMisc.forms.templatePersonalize")}
-                    </button>
-                  </div>
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">{desc}</p>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.templateSubject")}</label>
-                    <input
-                      value={templateData[tKey]?.subject || ""}
-                      onChange={(event) => updateTemplate(tKey, "subject", event.target.value)}
-                      placeholder={defaultSubject}
-                      className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.templateBody")}</label>
-                    <textarea
-                      value={templateData[tKey]?.body || ""}
-                      onChange={(event) => updateTemplate(tKey, "body", event.target.value)}
-                      rows={4}
-                      placeholder={defaultBody}
-                      className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-cyan-500 resize-y font-mono"
-                    />
-                  </div>
-                  {vars && (
-                    <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.forms.templateVariables", { vars: vars.join(", ") })}</p>
-                  )}
-                  {unknownVariables.length > 0 && (
-                    <p className="text-[10px] font-bold text-amber-500">
-                      {t("platformMisc.forms.templateUnknownVariables", { vars: unknownVariables.join(", ") })}
-                    </p>
-                  )}
-                </div>
-              );
-            };
-
             return (
               <div className="space-y-3">
                 <TemplateEditor
@@ -1568,6 +1579,8 @@ export default function PlatformForms() {
                   vars={TEMPLATE_VARIABLES.acknowledgement}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
+                  templates={templateData}
+                  onChange={updateTemplate}
                 />
                 <TemplateEditor
                   label={t("platformMisc.forms.templateApprovalLabel")} icon={CheckCircle2}
@@ -1578,6 +1591,8 @@ export default function PlatformForms() {
                   vars={TEMPLATE_VARIABLES.approval}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
+                  templates={templateData}
+                  onChange={updateTemplate}
                 />
                 <TemplateEditor
                   label={t("platformMisc.forms.templateActivationLabel")} icon={Key}
@@ -1588,6 +1603,8 @@ export default function PlatformForms() {
                   vars={TEMPLATE_VARIABLES.activation}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
+                  templates={templateData}
+                  onChange={updateTemplate}
                 />
                 <TemplateEditor
                   label={t("platformMisc.forms.templateExistingUserLabel")} icon={LogIn}
@@ -1598,6 +1615,8 @@ export default function PlatformForms() {
                   vars={TEMPLATE_VARIABLES.existing_user}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
+                  templates={templateData}
+                  onChange={updateTemplate}
                 />
                 <TemplateEditor
                   label={t("platformMisc.forms.templateRejectionLabel")} icon={XCircle}
@@ -1608,6 +1627,8 @@ export default function PlatformForms() {
                   vars={TEMPLATE_VARIABLES.rejection}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
+                  templates={templateData}
+                  onChange={updateTemplate}
                 />
                 <TemplateEditor
                   label={t("platformMisc.forms.templateResultLabel")} icon={FileText}
@@ -1618,33 +1639,22 @@ export default function PlatformForms() {
                   vars={TEMPLATE_VARIABLES.result}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
+                  templates={templateData}
+                  onChange={updateTemplate}
                 />
 
                 {/* The result message can also be timed: the delay lives with the
                     template it belongs to, and a run may override it. */}
-                <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Clock className="w-3.5 h-3.5 text-cyan-400" />
-                    <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{t("platformMisc.forms.templateResultDelayTitle")}</p>
-                  </div>
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.forms.templateResultDelayDesc")}</p>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      value={templateData.result?.delay_hours ?? ""}
-                      placeholder="0"
-                      onChange={(event) => {
-                        const raw = event.target.value;
-                        // Empty means "not set" (no automatic send), not a 0 the
-                        // resolver would have to distinguish from "inherited".
-                        updateTemplate("result", "delay_hours", raw === "" ? undefined : Math.max(0, parseInt(raw, 10) || 0));
-                      }}
-                      className="w-24 px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
-                    />
-                    <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.forms.templateResultDelayHint")}</span>
-                  </div>
-                </div>
+                <ResultDelayEditor
+                  title={t("platformMisc.forms.templateResultDelayTitle")}
+                  description={t("platformMisc.forms.templateResultDelayDesc")}
+                  hoursLabel={t("platformMisc.forms.templateResultDelayUnitHours")}
+                  minutesLabel={t("platformMisc.forms.templateResultDelayUnitMinutes")}
+                  afterLabel={t("platformMisc.forms.templateResultDelayAfterSubmission")}
+                  footnote={t("platformMisc.forms.templateResultDelayHint")}
+                  value={readResultDelayMinutes(templateData.result) ?? 0}
+                  onChange={(minutes) => updateTemplate("result", "delay_minutes", minutes)}
+                />
               </div>
             );
           })()}

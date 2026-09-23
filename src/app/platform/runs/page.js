@@ -13,8 +13,9 @@ import { useI18n } from "@/lib/i18n";
 import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
 import AppPdfPreview from "@/components/ui/AppPdfPreview";
+import ResultDelayEditor from "@/components/ui/ResultDelayEditor";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import { findUnknownTemplateVariables, TEMPLATE_VARIABLES } from "@/lib/constants";
+import { findUnknownTemplateVariables, readResultDelayMinutes, TEMPLATE_VARIABLES } from "@/lib/constants";
 
 /**
  * PLATFORM FORM RUNS — Launch, assign, collect, review
@@ -4313,14 +4314,11 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 <SettingRow label={t("platformMisc.runs.resultDelayTitle")} icon={Clock} desc={t("platformMisc.runs.resultDelaySettingsDesc")}>
                   <span className="text-[11px] font-bold text-[var(--text-primary)]">
                     {(() => {
-                      const runDelayRaw = runSettings?.templates?.result?.delay_hours;
-                      const runDelaySet = runDelayRaw !== undefined && runDelayRaw !== null && runDelayRaw !== "";
-                      const formDelay = Number(runFormSettings?.automation?.templates?.result?.delay_hours);
-                      const effectiveDelay = runDelaySet
-                        ? Math.max(0, Math.floor(Number(runDelayRaw) || 0))
-                        : (Number.isFinite(formDelay) && formDelay > 0 ? Math.floor(formDelay) : 0);
+                      const runDelay = readResultDelayMinutes(runSettings?.templates?.result);
+                      const formDelay = readResultDelayMinutes(runFormSettings?.automation?.templates?.result) ?? 0;
+                      const effectiveDelay = runDelay !== null ? runDelay : formDelay;
                       return effectiveDelay > 0
-                        ? t("platformMisc.runs.resultDelayValue", { count: effectiveDelay })
+                        ? t("platformMisc.runs.resultDelayValue", { duration: formatDelayLabel(t, effectiveDelay) })
                         : t("platformMisc.runs.resultDelayManual");
                     })()}
                   </span>
@@ -4354,7 +4352,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     // A delay is a setting in its own right: an entry that only
                     // schedules the send must survive, or the run would silently
                     // fall back to the form's delay.
-                    return subject || body || template?.delay_hours !== undefined;
+                    return subject || body || readResultDelayMinutes(template) !== null;
                   })
                 );
                 const response = await fetch("/api/platform/form-runs", {
@@ -4411,108 +4409,34 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
               setRunPersonalizing(null);
             };
 
-            const RunTemplateEditor = ({ tKey, label, icon: Icon, desc, vars, current }) => {
-              // Names the sender will not fill in — it removes them, so the author
-              // is told before sending rather than discovering it in the sent mail.
-              const unknownVariables = findUnknownTemplateVariables(
-                `${current?.subject || ""} ${current?.body || ""}`,
-                vars || [],
-              );
-              return (
-              <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                <div className="flex items-center gap-2 mb-1">
-                  <Icon className="w-3.5 h-3.5 text-cyan-400" />
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">{label}</p>
-                  <button
-                    type="button"
-                    disabled={runPersonalizing === tKey}
-                    onClick={() => personalizeRunTemplate(tKey, label)}
-                    className="ml-auto px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold uppercase tracking-wide hover:bg-indigo-500/20 disabled:opacity-40 transition-all flex items-center gap-1"
-                  >
-                    <Sparkles className="w-2.5 h-2.5" />
-                    {runPersonalizing === tKey ? t("platformMisc.forms.templateWriting") : t("platformMisc.forms.templatePersonalize")}
-                  </button>
-                </div>
-                <p className="text-[10px] font-medium text-[var(--text-secondary)]">{desc}</p>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.templateSubject")}</label>
-                  <input
-                    value={current.subject || ""}
-                    onChange={(event) => updateRunTemplate(tKey, "subject", event.target.value)}
-                    placeholder={t("platformMisc.runs.runTemplateEmptyHint")}
-                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.templateBody")}</label>
-                  <textarea
-                    value={current.body || ""}
-                    onChange={(event) => updateRunTemplate(tKey, "body", event.target.value)}
-                    rows={4}
-                    placeholder={t("platformMisc.runs.runTemplateEmptyHint")}
-                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500 resize-y font-mono"
-                  />
-                </div>
-                {vars && (
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.forms.templateVariables", { vars: vars.join(", ") })}</p>
-                )}
-                {unknownVariables.length > 0 && (
-                  <p className="text-[10px] font-bold text-amber-500">
-                    {t("platformMisc.forms.templateUnknownVariables", { vars: unknownVariables.join(", ") })}
-                  </p>
-                )}
-              </div>
-              );
+            // One canonical number of MINUTES for this run's result delay; the
+            // legacy hours field is dropped so the entry can never mean two
+            // things at once.
+            const setRunResultDelay = (minutes) => {
+              setRunTemplates((prev) => {
+                const next = JSON.parse(JSON.stringify(prev || {}));
+                if (!next.result) next.result = {};
+                next.result.delay_minutes = minutes;
+                delete next.result.delay_hours;
+                return next;
+              });
             };
 
-            // The automatic send is not a copy decision but a timing one, so it
-            // gets its own control under the result template. It is stored in the
-            // SAME entry (result.delay_hours), which is what makes "run → form"
-            // resolution and "the entry survives save" both fall out naturally.
-            const ResultScheduleEditor = () => {
-              const formDelay = Number(runFormSettings?.automation?.templates?.result?.delay_hours);
-              const runDelayRaw = runTemplates.result?.delay_hours;
-              const runDelaySet = runDelayRaw !== undefined && runDelayRaw !== null && runDelayRaw !== "";
-              const inheritedDelay = Number.isFinite(formDelay) && formDelay > 0 ? Math.floor(formDelay) : 0;
-              const effectiveDelay = runDelaySet
-                ? Math.max(0, Math.floor(Number(runDelayRaw) || 0))
-                : inheritedDelay;
-              const enabled = effectiveDelay > 0;
-              const source = runDelaySet
-                ? t("platformMisc.runs.resultDelaySourceRun")
-                : inheritedDelay > 0
-                  ? t("platformMisc.runs.resultDelaySourceForm")
-                  : t("platformMisc.runs.resultDelaySourceManual");
-              return (
-                <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Clock className="w-3.5 h-3.5 text-cyan-400" />
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">{t("platformMisc.runs.resultDelayTitle")}</p>
-                    <Toggle
-                      checked={enabled}
-                      onChange={(next) => updateRunTemplate("result", "delay_hours", next ? (effectiveDelay > 0 ? effectiveDelay : 48) : 0)}
-                    />
-                  </div>
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runs.resultDelayDesc")}</p>
-                  {enabled && (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="1"
-                        value={effectiveDelay}
-                        onChange={(event) => {
-                          const parsed = parseInt(event.target.value, 10);
-                          updateRunTemplate("result", "delay_hours", Number.isFinite(parsed) && parsed > 0 ? parsed : 0);
-                        }}
-                        className="w-24 px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
-                      />
-                      <span className="text-[10px] font-bold text-[var(--text-secondary)]">{t("platformMisc.runs.resultDelayHoursUnit")}</span>
-                    </div>
-                  )}
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runs.resultDelayEffective", { source })}</p>
-                </div>
-              );
-            };
+            // What is actually in force for this run (its own value, else the
+            // form's), and where it comes from — the control shows the effective
+            // value so the switch is never off while a delay is being applied.
+            const runDelaySet = readResultDelayMinutes(runTemplates?.result) !== null;
+            const runDelayValue = readResultDelayMinutes(runTemplates?.result);
+            const formDelayValue = readResultDelayMinutes(runFormSettings?.automation?.templates?.result) ?? 0;
+            const effectiveRunDelay = runDelayValue !== null ? runDelayValue : formDelayValue;
+            const runDelayFootnote = effectiveRunDelay <= 0
+              ? t("platformMisc.runs.resultDelayManual")
+              : t("platformMisc.runs.resultDelayEffective", {
+                  duration: formatDelayLabel(t, effectiveRunDelay),
+                  source: runDelaySet
+                    ? t("platformMisc.runs.resultDelaySourceRun")
+                    : t("platformMisc.runs.resultDelaySourceForm"),
+                });
 
             return (
               <div className="space-y-6 max-w-2xl">
@@ -4534,6 +4458,9 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     desc={t("platformMisc.runs.runTemplateAcknowledgementDesc")}
                     vars={TEMPLATE_VARIABLES.acknowledgement}
                     current={runTemplates.acknowledgement || {}}
+                    onChange={updateRunTemplate}
+                    onPersonalize={personalizeRunTemplate}
+                    personalizing={runPersonalizing}
                   />
                   <RunTemplateEditor
                     tKey="approval"
@@ -4542,6 +4469,9 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     desc={t("platformMisc.runs.runTemplateApprovalDesc")}
                     vars={TEMPLATE_VARIABLES.approval}
                     current={runTemplates.approval || {}}
+                    onChange={updateRunTemplate}
+                    onPersonalize={personalizeRunTemplate}
+                    personalizing={runPersonalizing}
                   />
                   <RunTemplateEditor
                     tKey="activation"
@@ -4550,6 +4480,9 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     desc={t("platformMisc.runs.runTemplateActivationDesc")}
                     vars={TEMPLATE_VARIABLES.activation}
                     current={runTemplates.activation || {}}
+                    onChange={updateRunTemplate}
+                    onPersonalize={personalizeRunTemplate}
+                    personalizing={runPersonalizing}
                   />
                   <RunTemplateEditor
                     tKey="existing_user"
@@ -4558,6 +4491,9 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     desc={t("platformMisc.runs.runTemplateExistingUserDesc")}
                     vars={TEMPLATE_VARIABLES.existing_user}
                     current={runTemplates.existing_user || {}}
+                    onChange={updateRunTemplate}
+                    onPersonalize={personalizeRunTemplate}
+                    personalizing={runPersonalizing}
                   />
                   <RunTemplateEditor
                     tKey="rejection"
@@ -4566,6 +4502,9 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     desc={t("platformMisc.runs.runTemplateRejectionDesc")}
                     vars={TEMPLATE_VARIABLES.rejection}
                     current={runTemplates.rejection || {}}
+                    onChange={updateRunTemplate}
+                    onPersonalize={personalizeRunTemplate}
+                    personalizing={runPersonalizing}
                   />
                   <RunTemplateEditor
                     tKey="result"
@@ -4574,8 +4513,20 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     desc={t("platformMisc.runs.runTemplateResultDesc")}
                     vars={TEMPLATE_VARIABLES.result}
                     current={runTemplates.result || {}}
+                    onChange={updateRunTemplate}
+                    onPersonalize={personalizeRunTemplate}
+                    personalizing={runPersonalizing}
                   />
-                  <ResultScheduleEditor />
+                  <ResultDelayEditor
+                    title={t("platformMisc.runs.resultDelayTitle")}
+                    description={t("platformMisc.runs.resultDelayDesc")}
+                    hoursLabel={t("platformMisc.runs.resultDelayUnitHours")}
+                    minutesLabel={t("platformMisc.runs.resultDelayUnitMinutes")}
+                    afterLabel={t("platformMisc.runs.resultDelayAfterSubmission")}
+                    footnote={runDelayFootnote}
+                    value={effectiveRunDelay}
+                    onChange={setRunResultDelay}
+                  />
                 </div>
               </div>
             );
@@ -5127,6 +5078,82 @@ function Toggle({ checked, onChange }) {
     <button onClick={() => onChange(!checked)} className={cn("w-10 h-6 rounded-full transition-colors relative", checked ? "bg-[var(--brand-orange)]" : "bg-slate-600")}>
       <div className={cn("w-4 h-4 rounded-full bg-white absolute top-1 transition-all", checked ? "left-5" : "left-1")} />
     </button>
+  );
+}
+
+/** "48 h", "1 h 30 min", "30 min" — empty for no delay. */
+function formatDelayLabel(t, minutes) {
+  const total = Math.max(0, Math.floor(Number(minutes) || 0));
+  if (total <= 0) return "";
+  const parts = [];
+  const hours = Math.floor(total / 60);
+  const remainder = total % 60;
+  if (hours > 0) parts.push(t("platformMisc.runs.resultDelayHoursShort", { count: hours }));
+  if (remainder > 0) parts.push(t("platformMisc.runs.resultDelayMinutesShort", { count: remainder }));
+  return parts.join(" ");
+}
+
+/**
+ * One email template override for a run.
+ *
+ * Defined at MODULE scope, not inside the page: a component created during a
+ * render is a new type every time, so React unmounts and remounts its inputs on
+ * every keystroke — the field loses focus after each letter and the author can
+ * never finish a sentence. Nothing here depends on render-local state, so
+ * hoisting it costs nothing and typing works.
+ */
+function RunTemplateEditor({ tKey, label, icon: Icon, desc, vars, current, onChange, onPersonalize, personalizing }) {
+  const { t } = useI18n();
+  // Names the sender will not fill in — it removes them, so the author is told
+  // before sending rather than discovering it in the sent mail.
+  const unknownVariables = findUnknownTemplateVariables(
+    `${current?.subject || ""} ${current?.body || ""}`,
+    vars || [],
+  );
+  return (
+    <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+      <div className="flex items-center gap-2 mb-1">
+        <Icon className="w-3.5 h-3.5 text-cyan-400" />
+        <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">{label}</p>
+        <button
+          type="button"
+          disabled={personalizing === tKey}
+          onClick={() => onPersonalize(tKey, label)}
+          className="ml-auto px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold uppercase tracking-wide hover:bg-indigo-500/20 disabled:opacity-40 transition-all flex items-center gap-1"
+        >
+          <Sparkles className="w-2.5 h-2.5" />
+          {personalizing === tKey ? t("platformMisc.forms.templateWriting") : t("platformMisc.forms.templatePersonalize")}
+        </button>
+      </div>
+      <p className="text-[10px] font-medium text-[var(--text-secondary)]">{desc}</p>
+      <div className="space-y-1">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.templateSubject")}</label>
+        <input
+          value={current?.subject || ""}
+          onChange={(event) => onChange(tKey, "subject", event.target.value)}
+          placeholder={t("platformMisc.runs.runTemplateEmptyHint")}
+          className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.templateBody")}</label>
+        <textarea
+          value={current?.body || ""}
+          onChange={(event) => onChange(tKey, "body", event.target.value)}
+          rows={4}
+          placeholder={t("platformMisc.runs.runTemplateEmptyHint")}
+          className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500 resize-y font-mono"
+        />
+      </div>
+      {vars && (
+        <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.forms.templateVariables", { vars: vars.join(", ") })}</p>
+      )}
+      {unknownVariables.length > 0 && (
+        <p className="text-[10px] font-bold text-amber-500">
+          {t("platformMisc.forms.templateUnknownVariables", { vars: unknownVariables.join(", ") })}
+        </p>
+      )}
+    </div>
   );
 }
 
