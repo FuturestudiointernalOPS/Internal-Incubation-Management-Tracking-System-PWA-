@@ -7,6 +7,7 @@ import {
   requireAssignmentAccess,
 } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import { sendStandaloneEmail } from "@/lib/email";
 import {
   getOrgTeams,
@@ -102,6 +103,11 @@ export async function POST(req) {
       );
     }
 
+    // Record scope: an org-team write belongs to a program the caller is staffed
+    // on; the role list above only says which roles may write at all.
+    const scopeError = await requireProgramScope({ programId: program_id, wave: "groups" });
+    if (scopeError) return scopeError;
+
     // Generate Team Username (TEAM_SLUG_ID) and Password
     const slug = name
       .toLowerCase()
@@ -182,6 +188,12 @@ export async function PUT(req) {
       );
     }
 
+    // The team id comes from the client: resolve its program and confirm the
+    // caller is staffed there before any write.
+    const teamForScope = await getOrgTeams(null, id);
+    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups" });
+    if (scopeError) return scopeError;
+
     // 1. Update team record
     const sets = ["name = ?", "handler_id = ?", "handler_name = ?"];
     const args = [name, handler_id || null, handler_name || null];
@@ -226,6 +238,12 @@ export async function DELETE(req) {
         { status: 400 },
       );
     }
+
+    // The team id comes from the client: resolve its program and confirm the
+    // caller is staffed there before deleting anything.
+    const teamForScope = await getOrgTeams(null, id);
+    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups" });
+    if (scopeError) return scopeError;
 
     // Clear member links first
     await clearOrgTeamMemberLinksOnDelete(id);

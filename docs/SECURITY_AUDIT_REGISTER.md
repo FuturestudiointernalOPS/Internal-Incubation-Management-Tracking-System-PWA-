@@ -34,6 +34,7 @@
 | **FIXED — Lot 4** | Corrected with the forms/LMS/upload batch. |
 | **FIXED — Lot 5** | Corrected with the P2 hardening batch. |
 | **FIXED — Lot 6** | Corrected with the P3 hardening batch. |
+| **FIXED — Lot 7** | Corrected with the program-scope batch (team/group management). |
 | **OPEN** | Still present. Fix order in §4. |
 
 ---
@@ -145,6 +146,14 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | WHO-1 | `webhooks/resend` | Svix signatures were compared with `Array.includes` (not constant time) and accepted at any age. Now `crypto.timingSafeEqual` on every candidate plus a 5-minute freshness window. | **FIXED — Lot 6** |
 | — | Tests | `src/__tests__/security-lot6-hardening.test.js` | 22 source-level invariant tests. | **FIXED — Lot 6** |
 
+### 2.9 Lot 7 — program scope on team/group management
+
+| ID | Location | Was | Status |
+|---|---|---|---|
+| XPROG-1 (part) | `pm/teams`, `teams` | Authorised on a global `programs.edit` capability only, so a delegated holder could add members to, rename or delete another program's squad. Now the target program is resolved (from the body, or from the team row) and `requireProgramScope({ wave: "groups" })` is enforced before any write. | **FIXED — Lot 7 (part — `pm/curriculum`, `pm/reports`, `pm/export` below)** |
+| BOLA-CRM-1 | `group-members` POST | The membership insert had no program scope, so any staff could add a participant to any group. The group's program is now resolved and scope-checked (a missing group is a 404, never a write). | **FIXED — Lot 7** |
+| — | Tests | `src/__tests__/security-lot7-program-scope.test.js` (13 behavioural tests) + `program-scope-coverage.test.js` (3 census entries) | In-scope writes and out-of-scope refusals, for both a body-supplied program and a program resolved from the record. | **FIXED — Lot 7** |
+
 ---
 
 ## 3. OPEN — residual register
@@ -167,8 +176,8 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | AUTHZ-ADM-2 | Mass assignment | `admin/bulk-upload`, `contacts` PUT | ✅ fixed in Lot 3. | **FIXED** |
 | AUTH-2 | Auth | `auth/impersonate`, `auth/quick-login` | ✅ fixed in Lot 3. | **FIXED** |
 | AUTH-3 | Session | password change/reset paths | ✅ fixed in Lot 3. | **FIXED** |
-| XPROG-1 | Scope | `pm/{teams,curriculum,reports,export}`, `teams`, `lms/coaching-requests` | Global capability without program scope; `SELECT *` team passwords. (feedback + group-members reads fixed in Lot 3.) | **OPEN — Lot 3 remainder** |
-| BOLA-CRM-1 | BOLA | `group-members` POST | Membership insert still has no program scope (unscoped read fixed in Lot 3). | **OPEN — Lot 3 remainder** |
+| XPROG-1 | Scope | `pm/{teams,curriculum,reports,export}`, `teams`, `lms/coaching-requests` | Global capability without program scope; `SELECT *` team passwords. ✅ `pm/teams`, `teams` fixed in Lot 7, `lms/coaching-requests` in Lot 4. **Still OPEN: `pm/curriculum`, `pm/reports`, `pm/export` + `SELECT *` team credentials.** | **OPEN — Lot 3/7 remainder** |
+| BOLA-CRM-1 | BOLA | `group-members` POST | ✅ fixed in Lot 7 (program scope on the membership insert; unscoped read fixed in Lot 3). | **FIXED** |
 | IDOR-TASK-1 | BOLA | `tasks/carryover` | ✅ fixed in Lot 3. | **FIXED** |
 | IDOR-TASK-2 | BOLA | `tasks` | Staff/PM may list any `user_id`'s tasks; authz compares the client-supplied `user_id`; `supervisor_id` self-grant. | **OPEN — Lot 3** |
 | BOLA-FORM-2 | BOLA | `submissions` | Team sessions read other teams' submissions; score writes without program scope. | **OPEN — Lot 4 remainder** |
@@ -238,6 +247,7 @@ Lot 3  (P1 admin/authz) ✅ mostly done — impersonation, role escalation, sess
 Lot 4  (P1 forms/LMS/upload) ✅ mostly done — arbitrary SQL removed, certificate token-only, upload validation, coach-invite/members privilege allow-lists, LMS answer key, LMS program scope; remainder: public buckets, run/submission scope (`run-export`, `form-runs submission_id`, `report-file`, `evaluation-scores`, `submissions`), `respond` identity, `s/public-draft`, `program-requirements/[id]`, `pm/*` + `teams` program scope, `access-profiles`/`responsibilities` self-assignment
 Lot 5  (P2 hardening) ✅ mostly done — headers, credential rate limits, token-probe limits, IMPL-1 (`req.session`); remainder: ERR-1 (error-message leakage), CSRF-1 (state-changing GETs), AUTH-4 (enumeration, UX decision), SECRET-1/3 (clear-text passwords), DEP-1 (`tar`)
 Lot 6  (P3 hardening) ✅ done — LOG-1 token logs, CSV-1 formula injection, IMP-1 impersonation flag, XSS-1 `sanitizeRichText`, AUD-1 session actor, SECRET-2 header secret, SYS-1/2 config, LOGIC-1/2 validation, DATA-3 prototype guard, LMS-3 source, WHO-1 constant-time webhook; remainder: MVC-1 (SQL-in-routes, ongoing)
+Lot 7  (P1 scope) ✅ partial — program scope on `pm/teams`, `teams`, `group-members`; remainder below
 ```
 
 Each lot: `npx eslint .` · `npm test` · `npm run build`, plus a security regression test per finding.
@@ -271,8 +281,8 @@ Everything below is **still present in the code today**. Grouped by the lot that
 
 ### Lot 3 — remainder (P1)
 
-- `pm/{teams,curriculum,reports,export}`, `teams`, `lms/coaching-requests` — program scope (§3.2 XPROG-1).
-- `group-members` POST — membership insert without program scope (§3.2 BOLA-CRM-1).
+- `pm/curriculum`, `pm/reports`, `pm/export` — program scope (§3.2 XPROG-1). ✅ done for `pm/teams`, `teams` (Lot 7) and `lms/coaching-requests` (Lot 4).
+- `SELECT *` team credentials returned by the team reads — needs a decision on who may see them (§3.2 XPROG-1). ✅ `group-members` POST program scope done (Lot 7).
 - `access-profiles/assign`, `responsibilities/assign` — self-assignment guard + `allowed_roles` enforcement (§3.3 AUTHZ-ADM-5).
 - `facilitators/invite-bulk`, `programs`, `admin/projects/[id]/reports/generate` — program scope (§3.3 AUTHZ-ADM-4).
 - `notifications` (create), `contact-emails`, `team-tasks` — scope (§3.3 AUTHZ-CRM-1).
@@ -309,13 +319,16 @@ Everything below is **still present in the code today**. Grouped by the lot that
 
 - **LOG-1** token material removed from logs · **CSV-1** formula-cell prefixing · **IMP-1** `is_impersonation` persisted · **XSS-1** `sanitizeRichText` on the public success message · **AUD-1** audit actor from the session · **SECRET-2** `x-cron-secret` header preferred (URL fallback kept) · **SYS-1** database route gated to `super_admin` · **SYS-2** `program-types` GET no longer runs DDL · **LOGIC-1** invitation cancel compares a cid · **LOGIC-2** dependency type/id + milestone owner validation · **DATA-3** prototype-key guard · **LMS-3** enrollment source forced · **WHO-1** constant-time webhook signature + freshness window.
 
-### Remaining after Lot 6
+### Lot 7 — P1 scope ✅ partial
 
+- **XPROG-1 (part)** — `requireProgramScope({ wave: "groups" })` on `pm/teams` (POST/PATCH/DELETE) and `teams` (POST/PUT/DELETE); **BOLA-CRM-1** — program scope on the `group-members` POST. Census extended (3 entries); 13 behavioural tests.
+
+### Remaining after Lot 7
+
+- **Lot 3 remainder** — `pm/curriculum`, `pm/reports`, `pm/export` program scope; `SELECT *` team credentials; `access-profiles`/`responsibilities` self-assignment; `facilitators/invite-bulk`, `programs`, `admin/projects/[id]/reports/generate`; `notifications`/`contact-emails`/`team-tasks`; `tasks` listing; `contacts` POST.
+- **Lot 4 remainder** (P1) — public buckets, run/submission scope, `respond` identity, `s/public-draft`, `program-requirements/[id]`.
+- **Lot 5 remainder** (P2) — RATE-2, ERR-1, CSRF-1, AUTH-4, SECRET-1/3, DEP-1, shared rate-limit store.
 - **MVC-1** (ongoing) — SQL still inline in a few routes.
-- **Lot 5 remainder** — RATE-2, ERR-1, CSRF-1, AUTH-4, SECRET-1/3, DEP-1, shared rate-limit store.
-- **Lot 3 remainder** (P1) — see above.
-- **Lot 4 remainder** (P1) — see above.
-- **SECRET-2 fallback** — remove the `?key=` path once every scheduler sends `x-cron-secret`.
 
 ### Product decisions required (not code fixes)
 

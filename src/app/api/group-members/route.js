@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 
 export async function POST(req) {
   try {
@@ -24,24 +25,34 @@ export async function POST(req) {
       .eq("id", group_id)
       .single();
 
-    if (groupData) {
-      const { data: existing } = await supabase
-        .from("v2_group_members")
-        .select("id, v2_groups(program_id)")
-        .eq("participant_id", participant_id);
-
-      const alreadyInProgram = existing?.some(
-        (member) => member.v2_groups.program_id === groupData.program_id,
+    if (!groupData) {
+      return NextResponse.json(
+        { success: false, error: "errors.notFound" },
+        { status: 404 },
       );
-      if (alreadyInProgram) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Participant already assigned to a team in this program.",
-          },
-          { status: 400 },
-        );
-      }
+    }
+
+    // Record scope: a membership write belongs to the group's program, so the
+    // caller must be staffed there. The group's program was just resolved.
+    const scopeError = await requireProgramScope({ programId: groupData.program_id, wave: "groups" });
+    if (scopeError) return scopeError;
+
+    const { data: existing } = await supabase
+      .from("v2_group_members")
+      .select("id, v2_groups(program_id)")
+      .eq("participant_id", participant_id);
+
+    const alreadyInProgram = existing?.some(
+      (member) => member.v2_groups.program_id === groupData.program_id,
+    );
+    if (alreadyInProgram) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Participant already assigned to a team in this program.",
+        },
+        { status: 400 },
+      );
     }
 
     const { data, error } = await supabase

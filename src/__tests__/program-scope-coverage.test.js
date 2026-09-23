@@ -40,6 +40,9 @@ const COVERAGE = {
   groups: [
     "src/app/api/groups/route.js",
     "src/app/api/kpis/route.js",
+    "src/app/api/pm/teams/route.js",
+    "src/app/api/teams/route.js",
+    "src/app/api/group-members/route.js",
   ],
 };
 

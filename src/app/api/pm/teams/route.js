@@ -12,6 +12,7 @@ import {
   getAuthorizationContext,
   authorize,
 } from "@/lib/authorization";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import {
   createTeam,
   deleteTeam,
@@ -95,6 +96,11 @@ export async function POST(req) {
         { status: 400 },
       );
     }
+
+    // Record scope: `programs.edit` says WHAT may be done; this says WHICH
+    // program. A delegated holder must be staffed on the target program.
+    const scopeError = await requireProgramScope({ programId: program_id, wave: "groups" });
+    if (scopeError) return scopeError;
 
     // Generate Team Username and Password
     const slug = name
@@ -205,6 +211,18 @@ export async function PATCH(req) {
     if (capError) return capError;
     const { team_id, member_ids, member_id, action, handler_id, handler_name, is_venture_ready, is_management_group } = await req.json();
 
+    // Every action below targets one team, so its program is resolved first and
+    // the caller must be staffed there — the team id arrives from the client.
+    if (!team_id) {
+      return NextResponse.json(
+        { success: false, error: "Missing parameters." },
+        { status: 400 },
+      );
+    }
+    const teamForScope = await getTeamById(team_id);
+    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups" });
+    if (scopeError) return scopeError;
+
     // Support update_handler action (reassign the team's facilitator/oversight)
     if (action === "update_handler" && team_id) {
       await updateTeamHandler(team_id, handler_id, handler_name);
@@ -309,6 +327,15 @@ export async function DELETE(req) {
     const capError = await requireAuthorization("programs", "edit");
     if (capError) return capError;
     const { id } = await req.json();
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "Team ID is required." },
+        { status: 400 },
+      );
+    }
+    const teamForScope = await getTeamById(id);
+    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups" });
+    if (scopeError) return scopeError;
     await deleteTeam(id);
     return NextResponse.json({ success: true });
   } catch {
