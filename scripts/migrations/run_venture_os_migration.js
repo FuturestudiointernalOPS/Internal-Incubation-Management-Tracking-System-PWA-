@@ -34,16 +34,16 @@ async function run() {
     // Split by semicolon but keep the full statements
     const statements = sql
       .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith("--") && !s.startsWith("/*"));
+      .map((statement) => statement.trim())
+      .filter((statement) => statement.length > 0 && !statement.startsWith("--") && !statement.startsWith("/*"));
 
     let successCount = 0;
     let errorCount = 0;
 
-    for (const stmt of statements) {
+    for (const statement of statements) {
       try {
-        await client.query(stmt);
-        console.log(`✅ ${stmt.substring(0, 100).replace(/\n/g, " ")}`);
+        await client.query(statement);
+        console.log(`✅ ${statement.substring(0, 100).replace(/\n/g, " ")}`);
         successCount++;
       } catch (err) {
         if (
@@ -51,7 +51,7 @@ async function run() {
           err.message.includes("duplicate") ||
           err.message.includes("already") 
         ) {
-          console.log(`⏭️  ${stmt.substring(0, 80).replace(/\n/g, " ")} — already exists`);
+          console.log(`⏭️  ${statement.substring(0, 80).replace(/\n/g, " ")} — already exists`);
           successCount++;
         } else {
           console.error(`❌ ${err.message.substring(0, 150)}`);

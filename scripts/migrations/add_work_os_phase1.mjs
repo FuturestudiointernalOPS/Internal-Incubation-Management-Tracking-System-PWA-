@@ -9,10 +9,10 @@ if (fs.existsSync(envPath)) {
   for (const line of envContent.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    let value = trimmed.slice(eqIdx + 1).trim();
+    const equalsIndex = trimmed.indexOf("=");
+    if (equalsIndex === -1) continue;
+    const key = trimmed.slice(0, equalsIndex).trim();
+    let value = trimmed.slice(equalsIndex + 1).trim();
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
       (value.startsWith("'") && value.endsWith("'"))
@@ -46,10 +46,10 @@ async function migrate() {
       args: [],
     });
     console.log("  ✅ v2_projects.owner_id added");
-  } catch (e) {
-    if (e.message.includes("already exists"))
+  } catch (error) {
+    if (error.message.includes("already exists"))
       console.log("  ⚠️  v2_projects.owner_id already exists");
-    else console.error("  ❌ v2_projects.owner_id:", e.message);
+    else console.error("  ❌ v2_projects.owner_id:", error.message);
   }
 
   // 2. Create v2_project_staff table
@@ -66,8 +66,8 @@ async function migrate() {
       args: [],
     });
     console.log("  ✅ v2_project_staff table created");
-  } catch (e) {
-    console.error("  ❌ v2_project_staff:", e.message);
+  } catch (error) {
+    console.error("  ❌ v2_project_staff:", error.message);
   }
 
   // 3. Add assigned_to to tasks
@@ -77,10 +77,10 @@ async function migrate() {
       args: [],
     });
     console.log("  ✅ tasks.assigned_to added");
-  } catch (e) {
-    if (e.message.includes("already exists"))
+  } catch (error) {
+    if (error.message.includes("already exists"))
       console.log("  ⚠️  tasks.assigned_to already exists");
-    else console.error("  ❌ tasks.assigned_to:", e.message);
+    else console.error("  ❌ tasks.assigned_to:", error.message);
   }
 
   console.log("\n✅ Phase 1 migration complete.");

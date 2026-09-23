@@ -27,7 +27,7 @@
  */
 
 const APPLY = process.argv.includes("--apply");
-const ENV_FILE_ARG = process.argv.slice(2).find((a) => !a.startsWith("--"));
+const ENV_FILE_ARG = process.argv.slice(2).find((argument) => !argument.startsWith("--"));
 
 // Load the connection BEFORE the pool is created — a static import would run
 // first and find no DATABASE_URL.
@@ -55,9 +55,9 @@ const db = await initDb();
 console.log("\n=== BACKFILL — FOUNDER LEDGER ===");
 console.log(`  mode: ${APPLY ? "APPLY (writes)" : "DRY RUN (writes nothing)"}\n`);
 
-const report = await reconcileFounderLedger(db, { dryRun: !APPLY }).catch((e) => {
+const report = await reconcileFounderLedger(db, { dryRun: !APPLY }).catch((error) => {
   // A connection problem must not look like a data problem.
-  console.error(`\nThe run could not reach the database: ${e?.code || e?.message || e}\n`);
+  console.error(`\nThe run could not reach the database: ${error?.code || error?.message || error}\n`);
   process.exit(1);
 });
 

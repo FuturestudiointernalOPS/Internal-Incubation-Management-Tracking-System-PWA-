@@ -9,10 +9,10 @@ if (fs.existsSync(envPath)) {
   for (const line of envContent.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    let value = trimmed.slice(eqIdx + 1).trim();
+    const equalsIndex = trimmed.indexOf("=");
+    if (equalsIndex === -1) continue;
+    const key = trimmed.slice(0, equalsIndex).trim();
+    let value = trimmed.slice(equalsIndex + 1).trim();
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
       (value.startsWith("'") && value.endsWith("'"))
@@ -118,8 +118,8 @@ const blockTypes = [
   "Resource Limitation",
 ];
 
-function randomItem(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
+function randomItem(items) {
+  return items[Math.floor(Math.random() * items.length)];
 }
 function randomBool(weight = 0.3) {
   return Math.random() < weight;
@@ -139,7 +139,7 @@ async function seed() {
     const year = weekDate.getFullYear();
 
     for (const staff of STAFF) {
-      const idx = STAFF.indexOf(staff);
+      const staffIndex = STAFF.indexOf(staff);
 
       // Monday Stand-Up
       const hasBlocker = randomBool(0.35);
@@ -163,10 +163,10 @@ async function seed() {
             weekNum,
             year,
             new Date(
-              weekDate.getTime() + 9 * 3600000 + idx * 1800000,
+              weekDate.getTime() + 9 * 3600000 + staffIndex * 1800000,
             ).toISOString(),
-            JSON.stringify(TOP_PRIORITIES[idx]),
-            JSON.stringify(DELIVERABLES[idx]),
+            JSON.stringify(TOP_PRIORITIES[staffIndex]),
+            JSON.stringify(DELIVERABLES[staffIndex]),
             randomItem([
               "Website redesign project",
               "API integration work",
@@ -228,9 +228,9 @@ async function seed() {
             weekNum,
             year,
             new Date(
-              weekDate.getTime() + 33 * 3600000 + idx * 1800000,
+              weekDate.getTime() + 33 * 3600000 + staffIndex * 1800000,
             ).toISOString(),
-            JSON.stringify(COMPLETED[idx]),
+            JSON.stringify(COMPLETED[staffIndex]),
             JSON.stringify(
               randomItem([
                 ["CSS cleanup", "Minor bug fixes"],
@@ -247,7 +247,7 @@ async function seed() {
             hadBlocker ? 1 : 0,
             blockerType,
             hadBlocker ? randomItem(BLOCKERS) : null,
-            JSON.stringify(WINS[idx]),
+            JSON.stringify(WINS[staffIndex]),
             randomItem([
               "Hit all milestones",
               "Exceeded weekly targets",
@@ -286,13 +286,13 @@ async function seed() {
 }
 
 function getWeekNumber(date) {
-  const d = new Date(
+  const utcDate = new Date(
     Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
   );
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  const dayNum = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  return Math.ceil(((utcDate - yearStart) / 86400000 + 1) / 7);
 }
 
 seed().then(() => process.exit(0));

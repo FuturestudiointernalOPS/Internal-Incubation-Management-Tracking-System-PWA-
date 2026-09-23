@@ -30,8 +30,8 @@ const asJson = args.includes("--json");
 function readJson(file) {
   try {
     return JSON.parse(fs.readFileSync(file, "utf-8"));
-  } catch (e) {
-    console.error(`⚠️  Could not read ${file}: ${e.message}`);
+  } catch (error) {
+    console.error(`⚠️  Could not read ${file}: ${error.message}`);
     return null;
   }
 }
@@ -54,19 +54,19 @@ function nest(flat) {
   const root = {};
   for (const [key, value] of Object.entries(flat)) {
     const parts = key.split(".");
-    let cur = root;
-    for (let i = 0; i < parts.length - 1; i++) {
-      cur[parts[i]] = cur[parts[i]] || {};
-      cur = cur[parts[i]];
+    let current = root;
+    for (let index = 0; index < parts.length - 1; index++) {
+      current[parts[index]] = current[parts[index]] || {};
+      current = current[parts[index]];
     }
-    cur[parts[parts.length - 1]] = value;
+    current[parts[parts.length - 1]] = value;
   }
   return root;
 }
 
 const report = { files: {}, missing: 0, identical: 0, obsolete: 0 };
 
-for (const file of fs.readdirSync(EN_DIR).filter((f) => f.endsWith(".json"))) {
+for (const file of fs.readdirSync(EN_DIR).filter((fileName) => fileName.endsWith(".json"))) {
   const enPath = path.join(EN_DIR, file);
   const frPath = path.join(FR_DIR, file);
   const en = readJson(enPath);
@@ -83,14 +83,14 @@ for (const file of fs.readdirSync(EN_DIR).filter((f) => f.endsWith(".json"))) {
   const frFlat = flatten(fr);
   const frKeys = new Set(Object.keys(frFlat));
 
-  const missing = Object.keys(enFlat).filter((k) => !frKeys.has(k));
+  const missing = Object.keys(enFlat).filter((key) => !frKeys.has(key));
   const identical = Object.keys(enFlat).filter(
-    (k) =>
-      frKeys.has(k) &&
-      String(frFlat[k]) === String(enFlat[k]) &&
-      String(enFlat[k]).trim() !== "",
+    (key) =>
+      frKeys.has(key) &&
+      String(frFlat[key]) === String(enFlat[key]) &&
+      String(enFlat[key]).trim() !== "",
   );
-  const obsolete = Object.keys(frFlat).filter((k) => !(k in enFlat));
+  const obsolete = Object.keys(frFlat).filter((key) => !(key in enFlat));
 
   report.files[file] = { missing, identical, obsolete };
   report.missing += missing.length;
@@ -98,7 +98,7 @@ for (const file of fs.readdirSync(EN_DIR).filter((f) => f.endsWith(".json"))) {
   report.obsolete += obsolete.length;
 
   if (doFix && obsolete.length > 0) {
-    for (const k of obsolete) delete frFlat[k];
+    for (const key of obsolete) delete frFlat[key];
     fs.writeFileSync(
       frPath,
       JSON.stringify(nest(frFlat), null, 2) + "\n",
@@ -111,11 +111,11 @@ for (const file of fs.readdirSync(EN_DIR).filter((f) => f.endsWith(".json"))) {
 if (asJson) {
   console.log(JSON.stringify(report, null, 2));
 } else {
-  for (const [file, r] of Object.entries(report.files)) {
+  for (const [file, fileReport] of Object.entries(report.files)) {
     const lines = [];
-    for (const k of r.missing || []) lines.push(`  ❌ MISSING   ${k}`);
-    for (const k of r.identical || []) lines.push(`  ⚠️  IDENTICAL ${k}`);
-    for (const k of r.obsolete || []) lines.push(`  🗑  OBSOLETE  ${k}`);
+    for (const key of fileReport.missing || []) lines.push(`  ❌ MISSING   ${key}`);
+    for (const key of fileReport.identical || []) lines.push(`  ⚠️  IDENTICAL ${key}`);
+    for (const key of fileReport.obsolete || []) lines.push(`  🗑  OBSOLETE  ${key}`);
     if (lines.length) {
       console.log(`\n📄 ${file}`);
       console.log(lines.join("\n"));

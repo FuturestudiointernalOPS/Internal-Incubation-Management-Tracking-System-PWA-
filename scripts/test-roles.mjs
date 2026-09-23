@@ -7,8 +7,8 @@ import { DEFAULT_ROLE, isPrivilegedRole, resolveDefaultRole } from "../src/lib/p
 
 let passed = 0;
 let failed = 0;
-function check(name, cond) {
-  if (cond) { passed++; console.log(`  ✓ ${name}`); }
+function check(name, condition) {
+  if (condition) { passed++; console.log(`  ✓ ${name}`); }
   else { failed++; console.error(`  ✗ ${name}`); }
 }
 

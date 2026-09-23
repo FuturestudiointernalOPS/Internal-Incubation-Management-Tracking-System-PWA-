@@ -75,12 +75,12 @@ async function migrate() {
 
       success++;
       console.log(`  ✅ ${table} — RLS enabled + deny policy`);
-    } catch (e) {
-      if (e.message.includes('does not exist')) {
+    } catch (error) {
+      if (error.message.includes('does not exist')) {
         console.log(`  ⚠️  ${table} — table not found, skipping`);
       } else {
-        errors.push(`${table}: ${e.message}`);
-        console.log(`  ❌ ${table} — ${e.message}`);
+        errors.push(`${table}: ${error.message}`);
+        console.log(`  ❌ ${table} — ${error.message}`);
       }
     }
   }
@@ -93,8 +93,8 @@ async function migrate() {
       args: [],
     });
     console.log(`  ✅ contacts — revoked public permissions`);
-  } catch (e) {
-    console.log(`  ⚠️  Could not revoke public permissions: ${e.message}`);
+  } catch (error) {
+    console.log(`  ⚠️  Could not revoke public permissions: ${error.message}`);
   }
 
   console.log(`\n═══════════════════════════════════════════════`);
@@ -102,7 +102,7 @@ async function migrate() {
   console.log(`  ${success}/${tables.length} tables secured`);
   if (errors.length > 0) {
     console.log(`  ${errors.length} error(s):`);
-    errors.forEach(e => console.log(`    ❌ ${e}`));
+    errors.forEach(errorMessage => console.log(`    ❌ ${errorMessage}`));
   }
   console.log(`═══════════════════════════════════════════════\n`);
 }

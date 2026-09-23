@@ -4,7 +4,7 @@ import { dirname, resolve } from "path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, "..");
 const envPath = resolve(projectRoot, ".env.local");
-try { const envContent = readFileSync(envPath, "utf-8"); for (const line of envContent.split("\n")) { const eqIdx = line.indexOf("="); if (eqIdx > 0 && !line.startsWith("#")) { const key = line.substring(0, eqIdx).trim(); const value = line.substring(eqIdx + 1).trim(); if (!process.env[key]) process.env[key] = value; } } } catch (_) {}
+try { const envContent = readFileSync(envPath, "utf-8"); for (const line of envContent.split("\n")) { const equalsIndex = line.indexOf("="); if (equalsIndex > 0 && !line.startsWith("#")) { const key = line.substring(0, equalsIndex).trim(); const value = line.substring(equalsIndex + 1).trim(); if (!process.env[key]) process.env[key] = value; } } } catch (_) {}
 import { initDb } from "../src/lib/db.js";
 import bcrypt from "bcryptjs";
 
@@ -79,38 +79,38 @@ const investors = [
   },
 ];
 
-for (const inv of investors) {
+for (const investor of investors) {
   const cid = "USR-INV-" + Math.random().toString(36).substring(2, 10).toUpperCase();
 
   // Check if exists
-  const exists = await db.execute({ sql: "SELECT cid FROM contacts WHERE email = ? AND deleted_at IS NULL", args: [inv.email] });
+  const exists = await db.execute({ sql: "SELECT cid FROM contacts WHERE email = ? AND deleted_at IS NULL", args: [investor.email] });
   if (exists.rows.length > 0) {
-    console.log(`⏭️ ${inv.name} already exists`);
+    console.log(`⏭️ ${investor.name} already exists`);
     continue;
   }
 
   // Create contact
   await db.execute({
     sql: "INSERT INTO contacts (cid, name, email, password, role, created_at, status) VALUES (?, ?, ?, ?, ?, NOW(), 'active')",
-    args: [cid, inv.name, inv.email, PASSWORD, inv.role],
+    args: [cid, investor.name, investor.email, PASSWORD, investor.role],
   });
 
   // Create investor profile (pre-approved for testing)
-  const profileRes = await db.execute({
+  const profileResult = await db.execute({
     sql: `INSERT INTO investor_profiles (user_id, approval_status, organization_name, biography, website)
           VALUES (?, 'approved', ?, ?, ?) RETURNING id`,
-    args: [cid, inv.org, inv.experience, `https://${inv.org.toLowerCase().replace(/\s+/g, "")}.com`],
+    args: [cid, investor.org, investor.experience, `https://${investor.org.toLowerCase().replace(/\s+/g, "")}.com`],
   });
-  const profileId = profileRes.rows[0].id;
+  const profileId = profileResult.rows[0].id;
 
   // Create preferences
   await db.execute({
     sql: `INSERT INTO investor_preferences (investor_id, industries, countries, startup_stages, ticket_size_min, ticket_size_max)
           VALUES (?, ?, ?, ?, ?, ?)`,
-    args: [profileId, inv.industries, inv.countries, inv.stages, inv.ticket_min, inv.ticket_max],
+    args: [profileId, investor.industries, investor.countries, investor.stages, investor.ticket_min, investor.ticket_max],
   });
 
-  console.log(`✅ ${inv.name} (${inv.org}) — ${inv.email} / ImpactOS2026!`);
+  console.log(`✅ ${investor.name} (${investor.org}) — ${investor.email} / ImpactOS2026!`);
 }
 
 console.log("\n✅ 5 new investors created.");

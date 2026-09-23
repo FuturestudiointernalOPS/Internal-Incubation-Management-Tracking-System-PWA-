@@ -26,10 +26,10 @@ import pg from "pg";
 
 const files = [".env.audit-staging", ".env.staging"];
 let url = null;
-for (const f of files) {
+for (const envFile of files) {
   try {
-    const u = readFileSync(f, "utf-8").split("\n").find((l) => l.startsWith("DATABASE_URL="))?.substring("DATABASE_URL=".length).trim();
-    if (u) { url = u; break; }
+    const candidateUrl = readFileSync(envFile, "utf-8").split("\n").find((line) => line.startsWith("DATABASE_URL="))?.substring("DATABASE_URL=".length).trim();
+    if (candidateUrl) { url = candidateUrl; break; }
   } catch { /* next */ }
 }
 if (!url) { console.error("NO STAGING URL"); process.exit(1); }
@@ -38,7 +38,7 @@ const pool = new pg.Pool({ connectionString: url, ssl: { rejectUnauthorized: fal
 console.log("DB HOST:", new URL(url).host, "| cleanup:", CLEANUP);
 
 const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
-const mk = (dir) => { try { mkdirSync(dir, { recursive: true }); } catch {} };
+const ensureDirectory = (dir) => { try { mkdirSync(dir, { recursive: true }); } catch {} };
 
 let results = [];
 const check = (name, pass, detail = "") => {
@@ -57,14 +57,14 @@ const CTRL_EMAIL = `ctrl.i6c.${Date.now()}@future.studio.test`;
 
 const snap = async (label, tables) => {
   const out = {};
-  for (const t of tables) {
-    try { const r = await pool.query(`SELECT * FROM ${t}`); out[t] = r.rows; }
-    catch (e) { out[t] = `(error) ${e.message}`; }
+  for (const table of tables) {
+    try { const queryResult = await pool.query(`SELECT * FROM ${table}`); out[table] = queryResult.rows; }
+    catch (error) { out[table] = `(error) ${error.message}`; }
   }
-  mk("scratch");
-  const f = `scratch/i6c-before-${label}-${stamp}.json`;
-  writeFileSync(f, JSON.stringify({ exportedAt: new Date().toISOString(), tables: out }, null, 2));
-  return f;
+  ensureDirectory("scratch");
+  const beforeImageFile = `scratch/i6c-before-${label}-${stamp}.json`;
+  writeFileSync(beforeImageFile, JSON.stringify({ exportedAt: new Date().toISOString(), tables: out }, null, 2));
+  return beforeImageFile;
 };
 
 const created = { contacts: [], participant_programs: [], v2_program_staff: [], venture_members: [], lms_enrollments: [] };
@@ -79,40 +79,40 @@ try {
 
   // 1. Host discovery — contexts only run when a real host row exists.
   let prog = null, progB = null, venture = null, course = null;
-  try { const r = await pool.query(`SELECT id, name FROM v2_programs WHERE (status IS NULL OR LOWER(status) = 'active') ORDER BY created_at DESC LIMIT 2`); [prog, progB] = r.rows; } catch {}
+  try { const programRows = await pool.query(`SELECT id, name FROM v2_programs WHERE (status IS NULL OR LOWER(status) = 'active') ORDER BY created_at DESC LIMIT 2`); [prog, progB] = programRows.rows; } catch {}
   // No second program host on staging → create a minimal marker program so the
   // facilitator context can still be proven (cleaned up by the marker).
   if (prog && !progB) {
     try {
-      const r = await pool.query(
+      const columnsResult = await pool.query(
         `SELECT column_name FROM information_schema.columns
          WHERE table_name = 'v2_programs' AND is_nullable = 'NO' AND column_default IS NULL
            AND column_name NOT IN ('id', 'name', 'created_at', 'updated_at')`,
       );
-      const extra = r.rows.map((c) => c.column_name);
+      const extra = columnsResult.rows.map((column) => column.column_name);
       const sql =
         extra.length === 0
           ? `INSERT INTO v2_programs (id, name, status) VALUES (gen_random_uuid(), 'I6C-FIXTURE-PROGRAM', 'active') RETURNING id`
           : `INSERT INTO v2_programs (id, name, status, ${extra.join(", ")}) VALUES (gen_random_uuid(), 'I6C-FIXTURE-PROGRAM', 'active', ${extra.map(() => "NULL").join(", ")}) RETURNING id`;
-      const ins = await pool.query(sql);
-      progB = { id: ins.rows[0].id };
+      const insertResult = await pool.query(sql);
+      progB = { id: insertResult.rows[0].id };
       console.log("hosts → created marker program B:", progB.id);
-    } catch (e) {
-      console.log("hosts → fixture program creation failed:", e.message);
+    } catch (error) {
+      console.log("hosts → fixture program creation failed:", error.message);
     }
   }
-  try { const r = await pool.query(`SELECT venture_id FROM ventures ORDER BY created_at DESC LIMIT 1`); venture = r.rows[0] || null; } catch {}
-  try { const r = await pool.query(`SELECT id, title FROM lms_courses WHERE LOWER(status) = 'published' ORDER BY updated_at DESC LIMIT 1`); course = r.rows[0] || null; } catch {}
+  try { const ventureResult = await pool.query(`SELECT venture_id FROM ventures ORDER BY created_at DESC LIMIT 1`); venture = ventureResult.rows[0] || null; } catch {}
+  try { const courseResult = await pool.query(`SELECT id, title FROM lms_courses WHERE LOWER(status) = 'published' ORDER BY updated_at DESC LIMIT 1`); course = courseResult.rows[0] || null; } catch {}
   console.log(`hosts → program A: ${prog?.id || "NONE"} | program B: ${progB?.id || "NONE"} | venture: ${venture?.venture_id || "NONE"} | course: ${course?.id || "NONE"}`);
 
   // 2. Contacts column probe (minimal required NOT NULL columns w/o default).
   let contactCols = [];
   try {
-    const r = await pool.query(
+    const columnsResult = await pool.query(
       `SELECT column_name FROM information_schema.columns
        WHERE table_name = 'contacts' AND is_nullable = 'NO' AND column_default IS NULL`,
     );
-    for (const c of r.rows) if (!["cid", "name", "email", "role", "status"].includes(c.column_name)) contactCols.push(c.column_name);
+    for (const column of columnsResult.rows) if (!["cid", "name", "email", "role", "status"].includes(column.column_name)) contactCols.push(column.column_name);
   } catch {}
   console.log("contacts required (no-default) columns:", contactCols.join(",") || "(none)");
 
@@ -132,8 +132,8 @@ try {
   await insertContact(CTRL_CID, "Ctrl I6C", CTRL_EMAIL);
 
   // 3. BASELINE — member stays member, no context present yet.
-  const r0 = await pool.query(`SELECT role FROM contacts WHERE cid = $1`, [CID]);
-  check("A1 baseline = member", r0.rows[0]?.role === "member", `role=${r0.rows[0]?.role}`);
+  const baselineResult = await pool.query(`SELECT role FROM contacts WHERE cid = $1`, [CID]);
+  check("A1 baseline = member", baselineResult.rows[0]?.role === "member", `role=${baselineResult.rows[0]?.role}`);
 
   // 4. PROGRAM A — participant membership.
   if (prog) {
@@ -143,13 +143,13 @@ try {
       [CID, prog.id],
     );
     created.participant_programs.push([CID, prog.id]);
-    const r = await pool.query(`SELECT role FROM contacts WHERE cid = $1`, [CID]);
-    check("A2 program join does NOT mutate baseline", r.rows[0]?.role === "member", `role=${r.rows[0]?.role}`);
-    const mem = await pool.query(
+    const roleResult = await pool.query(`SELECT role FROM contacts WHERE cid = $1`, [CID]);
+    check("A2 program join does NOT mutate baseline", roleResult.rows[0]?.role === "member", `role=${roleResult.rows[0]?.role}`);
+    const membershipResult = await pool.query(
       `SELECT 1 FROM participant_programs WHERE participant_id = $1 AND CAST(program_id AS TEXT) = $2 AND (status IS NULL OR status = 'active') LIMIT 1`,
       [CID, String(prog.id)],
     );
-    check("A3 hasActiveParticipantProgram SQL → true", mem.rows.length > 0);
+    check("A3 hasActiveParticipantProgram SQL → true", membershipResult.rows.length > 0);
   } else skip("A2/A3 program participant context", "no active v2_program on staging");
 
   // 5. PROGRAM B — facilitator assignment (v2_program_staff).
@@ -160,23 +160,23 @@ try {
         [String(progB.id), CID],
       );
       created.v2_program_staff.push([String(progB.id), CID]);
-      const r = await pool.query(`SELECT role FROM contacts WHERE cid = $1`, [CID]);
-      check("B1 facilitator join does NOT mutate baseline", r.rows[0]?.role === "member");
-      const asg = await pool.query(
+      const roleResult = await pool.query(`SELECT role FROM contacts WHERE cid = $1`, [CID]);
+      check("B1 facilitator join does NOT mutate baseline", roleResult.rows[0]?.role === "member");
+      const assignmentResult = await pool.query(
         `SELECT 1 FROM v2_program_staff WHERE CAST(program_id AS TEXT) = $1 AND (staff_id = $2 OR LOWER(TRIM(staff_id)) = LOWER($3)) LIMIT 1`,
         [String(progB.id), CID, EMAIL],
       );
-      check("B2 resolveProgramAssignment SQL (v2_program_staff) → true", asg.rows.length > 0);
+      check("B2 resolveProgramAssignment SQL (v2_program_staff) → true", assignmentResult.rows.length > 0);
       // pm/programs membership-keyed scope: member session must see ONLY Program B.
-      const scope = await pool.query(
+      const programScopeResult = await pool.query(
         `SELECT COUNT(*) AS n FROM v2_programs p
          WHERE p.id IN (SELECT program_id FROM v2_program_staff
                         WHERE (staff_id = $1 OR LOWER(TRIM(staff_id)) = LOWER($2)) AND role = 'facilitator')`,
         [CID, EMAIL],
       );
-      check("B3 pm/programs scope lists exactly the facilitated program", Number(scope.rows[0].n) === 1, `n=${scope.rows[0].n}`);
-    } catch (e) {
-      skip("B1–B3 facilitator context", `v2_program_staff insert failed: ${e.message}`);
+      check("B3 pm/programs scope lists exactly the facilitated program", Number(programScopeResult.rows[0].n) === 1, `n=${programScopeResult.rows[0].n}`);
+    } catch (error) {
+      skip("B1–B3 facilitator context", `v2_program_staff insert failed: ${error.message}`);
     }
   } else skip("B1–B3 facilitator context", "no second distinct active program on staging");
 
@@ -189,25 +189,25 @@ try {
         [venture.venture_id, CID],
       );
       created.venture_members.push([venture.venture_id, CID]);
-      const r = await pool.query(`SELECT role FROM contacts WHERE cid = $1`, [CID]);
-      check("C1 venture join does NOT mutate baseline", r.rows[0]?.role === "member");
-      const own = await pool.query(
+      const roleResult = await pool.query(`SELECT role FROM contacts WHERE cid = $1`, [CID]);
+      check("C1 venture join does NOT mutate baseline", roleResult.rows[0]?.role === "member");
+      const founderResult = await pool.query(
         `SELECT 1 FROM venture_members WHERE venture_id = $1 AND contact_id = $2 AND member_type = 'founder' AND removed_at IS NULL LIMIT 1`,
         [venture.venture_id, CID],
       );
-      check("C2 isVentureFounder SQL → true", own.rows.length > 0);
-      const member = await pool.query(
+      check("C2 isVentureFounder SQL → true", founderResult.rows.length > 0);
+      const ventureMemberResult = await pool.query(
         `SELECT 1 FROM venture_members WHERE venture_id = $1 AND contact_id = $2 AND removed_at IS NULL LIMIT 1`,
         [venture.venture_id, CID],
       );
-      check("C3 isVentureMember SQL → true", member.rows.length > 0);
-      const ctrl = await pool.query(
+      check("C3 isVentureMember SQL → true", ventureMemberResult.rows.length > 0);
+      const controlResult = await pool.query(
         `SELECT 1 FROM venture_members WHERE venture_id = $1 AND contact_id = $2 AND removed_at IS NULL LIMIT 1`,
         [venture.venture_id, CTRL_CID],
       );
-      check("C4 control contact is NOT a venture member", ctrl.rows.length === 0);
-    } catch (e) {
-      skip("C1–C4 venture context", `venture_members insert failed: ${e.message}`);
+      check("C4 control contact is NOT a venture member", controlResult.rows.length === 0);
+    } catch (error) {
+      skip("C1–C4 venture context", `venture_members insert failed: ${error.message}`);
     }
   } else skip("C1–C4 venture context", "no venture on staging");
 
@@ -220,29 +220,29 @@ try {
         [course.id, CID],
       );
       created.lms_enrollments.push([course.id, CID]);
-      const r = await pool.query(`SELECT role FROM contacts WHERE cid = $1`, [CID]);
-      check("D1 LMS enrollment does NOT mutate baseline", r.rows[0]?.role === "member");
-      const enr = await pool.query(
+      const roleResult = await pool.query(`SELECT role FROM contacts WHERE cid = $1`, [CID]);
+      check("D1 LMS enrollment does NOT mutate baseline", roleResult.rows[0]?.role === "member");
+      const enrollmentResult = await pool.query(
         `SELECT 1 FROM lms_enrollments WHERE user_cid = $1 AND status <> 'suspended' LIMIT 1`,
         [CID],
       );
-      check("D2 learnerHasEnrollments SQL → true", enr.rows.length > 0);
-    } catch (e) {
-      skip("D1–D2 LMS context", `lms_enrollments insert failed: ${e.message}`);
+      check("D2 learnerHasEnrollments SQL → true", enrollmentResult.rows.length > 0);
+    } catch (error) {
+      skip("D1–D2 LMS context", `lms_enrollments insert failed: ${error.message}`);
     }
   } else skip("D1–D2 LMS context", "no published lms_course on staging");
 
   // 8. CONTROL — a plain member with no contexts.
-  const rc = await pool.query(`SELECT role FROM contacts WHERE cid = $1`, [CTRL_CID]);
-  check("E1 control baseline = member", rc.rows[0]?.role === "member");
+  const controlRoleResult = await pool.query(`SELECT role FROM contacts WHERE cid = $1`, [CTRL_CID]);
+  check("E1 control baseline = member", controlRoleResult.rows[0]?.role === "member");
   if (progB) {
-    const scopeC = await pool.query(
+    const controlScopeResult = await pool.query(
       `SELECT COUNT(*) AS n FROM v2_programs p
        WHERE p.id IN (SELECT program_id FROM v2_program_staff
                       WHERE (staff_id = $1 OR LOWER(TRIM(staff_id)) = LOWER($2)) AND role = 'facilitator')`,
       [CTRL_CID, CTRL_EMAIL],
     );
-    check("E2 control has empty program scope (pm/programs)", Number(scopeC.rows[0].n) === 0, `n=${scopeC.rows[0].n}`);
+    check("E2 control has empty program scope (pm/programs)", Number(controlScopeResult.rows[0].n) === 0, `n=${controlScopeResult.rows[0].n}`);
   }
   const roleAfter = await pool.query(`SELECT role FROM contacts WHERE cid = $1`, [CID]);
   check("F1 Sarah role still member after ALL joins", roleAfter.rows[0]?.role === "member", `role=${roleAfter.rows[0]?.role}`);
@@ -250,20 +250,20 @@ try {
   // 9. Cleanup — removes every fixture row identified by the I6C marker
   //    (cid/email prefix), including rows created by earlier runs.
   if (CLEANUP) {
-    const mark = await pool.query(
+    const markerRows = await pool.query(
       `SELECT cid FROM contacts WHERE cid LIKE 'USR-I6C-%' OR email LIKE '%i6c.%@future.studio.test'`,
     );
-    const cids = mark.rows.map((r) => r.cid);
+    const cids = markerRows.rows.map((contactRow) => contactRow.cid);
     if (cids.length > 0) {
-      const del = async (table, col) => {
-        const ph = cids.map((_, i) => `$${i + 1}`).join(",");
-        await pool.query(`DELETE FROM ${table} WHERE ${col} IN (${ph})`, cids);
+      const deleteByColumn = async (table, column) => {
+        const ph = cids.map((_, index) => `$${index + 1}`).join(",");
+        await pool.query(`DELETE FROM ${table} WHERE ${column} IN (${ph})`, cids);
       };
-      await del("v2_program_staff", "staff_id");
-      await del("venture_members", "contact_id");
-      await del("lms_enrollments", "user_cid");
-      await del("participant_programs", "participant_id");
-      await del("contacts", "cid");
+      await deleteByColumn("v2_program_staff", "staff_id");
+      await deleteByColumn("venture_members", "contact_id");
+      await deleteByColumn("lms_enrollments", "user_cid");
+      await deleteByColumn("participant_programs", "participant_id");
+      await deleteByColumn("contacts", "cid");
       // Marker fixture programs created by this tool (never real programs).
       await pool.query(`DELETE FROM v2_programs WHERE name = 'I6C-FIXTURE-PROGRAM'`);
       console.log(`cleanup: removed ${cids.length} fixture contact(s) + membership rows + marker programs`);
@@ -277,8 +277,8 @@ try {
     console.log("  Remove later: node scripts/i6c-acceptance-matrix.mjs --cleanup (marker-scoped)");
   }
 
-  const fails = results.filter((r) => r.pass === false);
-  const skips = results.filter((r) => r.pass === "SKIP");
+  const fails = results.filter((result) => result.pass === false);
+  const skips = results.filter((result) => result.pass === "SKIP");
   console.log(`\n=== MATRIX RESULT: ${results.length - fails.length - skips.length}/${results.length - skips.length} passed (${skips.length} skipped, ${fails.length} failed) ===`);
   if (fails.length > 0) process.exitCode = 1;
 } finally {

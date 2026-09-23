@@ -24,10 +24,10 @@ export async function resolve(specifier, context, nextResolve) {
     // Next-style alias: prefer the exact file, fall back to directory
     // resolution (src/<path>/index.js), mirroring Next's resolver.
     const srcBase = fileURLToPath(new URL("../../src/", import.meta.url));
-    const rel = specifier.slice(2);
-    const asFile = `${srcBase}${rel}.js`;
+    const relativePath = specifier.slice(2);
+    const asFile = `${srcBase}${relativePath}.js`;
     const url = new URL(
-      existsSync(asFile) ? `${rel}.js` : `${rel}/index.js`,
+      existsSync(asFile) ? `${relativePath}.js` : `${relativePath}/index.js`,
       new URL("../../src/", import.meta.url)
     ).href;
     return { url, shortCircuit: true };

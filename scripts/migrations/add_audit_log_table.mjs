@@ -9,10 +9,10 @@ if (fs.existsSync(envPath)) {
   for (const line of envContent.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    let value = trimmed.slice(eqIdx + 1).trim();
+    const equalsIndex = trimmed.indexOf("=");
+    if (equalsIndex === -1) continue;
+    const key = trimmed.slice(0, equalsIndex).trim();
+    let value = trimmed.slice(equalsIndex + 1).trim();
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
       (value.startsWith("'") && value.endsWith("'"))
@@ -77,8 +77,8 @@ async function migrate() {
     console.log("  ✅ idx_audit_log_created index created");
 
     console.log("\n✅ Migration complete.");
-  } catch (e) {
-    console.error("❌ Migration failed:", e.message);
+  } catch (error) {
+    console.error("❌ Migration failed:", error.message);
     process.exit(1);
   }
 }

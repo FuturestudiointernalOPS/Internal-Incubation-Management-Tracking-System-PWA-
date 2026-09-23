@@ -91,19 +91,19 @@ const FR = {
   enforcementNoteHint: "Ce centre gère la configuration et la visibilité. L'autorisation est appliquée côté serveur sur chaque API ; masquer un menu n'est jamais une autorisation.",
 };
 
-for (const [loc, keys] of [["en", EN], ["fr", FR]]) {
-  const file = `src/locales/${loc}/engineering.json`;
-  const d = JSON.parse(fs.readFileSync(file, "utf8"));
-  const perms = d.engineering.permissions;
+for (const [locale, keys] of [["en", EN], ["fr", FR]]) {
+  const file = `src/locales/${locale}/engineering.json`;
+  const translations = JSON.parse(fs.readFileSync(file, "utf8"));
+  const perms = translations.engineering.permissions;
   const missing = [];
-  for (const [k, v] of Object.entries(keys)) {
-    if (k in perms) {
-      if (perms[k] !== v) throw new Error(`${loc}.${k} already exists with a different value`);
+  for (const [key, value] of Object.entries(keys)) {
+    if (key in perms) {
+      if (perms[key] !== value) throw new Error(`${locale}.${key} already exists with a different value`);
     } else {
-      perms[k] = v;
-      missing.push(k);
+      perms[key] = value;
+      missing.push(key);
     }
   }
-  fs.writeFileSync(file, JSON.stringify(d, null, 2) + "\n");
-  console.log(loc, "added", missing.length, "keys");
+  fs.writeFileSync(file, JSON.stringify(translations, null, 2) + "\n");
+  console.log(locale, "added", missing.length, "keys");
 }

@@ -27,13 +27,13 @@ function vntFromId(id) {
 }
 
 // ─── 1. Normalize venture_id to VNT codes ───────────────────────────────────
-const badRes = await db.execute({
+const nonVntResult = await db.execute({
   sql: `SELECT id, venture_id FROM ventures
         WHERE venture_id IS NOT NULL AND venture_id <> '' AND venture_id !~ '^VNT-'`,
   args: [],
 });
-console.log(`1) Non-VNT venture_id rows found: ${badRes.rows.length}`);
-for (const row of badRes.rows) {
+console.log(`1) Non-VNT venture_id rows found: ${nonVntResult.rows.length}`);
+for (const row of nonVntResult.rows) {
   const code = vntFromId(row.id);
   console.log(`   - ${row.id} → ${row.venture_id} → ${code}`);
   if (DRY_RUN) continue;
@@ -67,12 +67,12 @@ for (const row of badRes.rows) {
 if (DRY_RUN) console.log("   (dry run — no writes)");
 
 // ─── 2. Backfill venture_members.member_type ────────────────────────────────
-const noType = await db.execute({
+const missingTypeResult = await db.execute({
   sql: `SELECT COUNT(*) AS n FROM venture_members
         WHERE member_type IS NULL OR member_type = ''`,
   args: [],
 });
-const noTypeCount = Number(noType.rows[0]?.n || 0);
+const noTypeCount = Number(missingTypeResult.rows[0]?.n || 0);
 console.log(`2) venture_members rows missing member_type: ${noTypeCount}`);
 if (!DRY_RUN && noTypeCount > 0) {
   // Rows created by legacy paths use role='founder' for founders
@@ -88,15 +88,15 @@ if (!DRY_RUN && noTypeCount > 0) {
 }
 
 // ─── 3. Insert legacy provenance rows ───────────────────────────────────────
-const missing = await db.execute({
+const missingProvenanceResult = await db.execute({
   sql: `SELECT v.id, v.venture_id, v.program_id
         FROM ventures v
         LEFT JOIN venture_origins o ON o.venture_id = v.venture_id
         WHERE o.id IS NULL`,
   args: [],
 });
-console.log(`3) Ventures without provenance: ${missing.rows.length}`);
-for (const row of missing.rows) {
+console.log(`3) Ventures without provenance: ${missingProvenanceResult.rows.length}`);
+for (const row of missingProvenanceResult.rows) {
   console.log(`   - ${row.venture_id}${row.program_id ? ` (program ${row.program_id})` : ""}`);
   if (DRY_RUN) continue;
   await db.execute({

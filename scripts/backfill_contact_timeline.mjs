@@ -44,19 +44,19 @@ try {
   }
   console.log(`  ✓ ${count} events backfilled from audit_log`);
   totalInserted += count;
-} catch (e) {
-  console.log(`  ⚠ audit_log backfill skipped: ${e.message}`);
+} catch (error) {
+  console.log(`  ⚠ audit_log backfill skipped: ${error.message}`);
 }
 
 // ─── Source 2: participant_program_audit ───
 try {
-  const ppaRows = await db.execute({
+  const programAuditRows = await db.execute({
     sql: `SELECT * FROM participant_program_audit ORDER BY created_at ASC`,
     args: [],
   });
 
   let count = 0;
-  for (const row of ppaRows.rows) {
+  for (const row of programAuditRows.rows) {
     const exists = await db.execute({
       sql: `SELECT id FROM contact_timeline
             WHERE contact_cid = ? AND event_type = 'participant_enrolled'
@@ -82,19 +82,19 @@ try {
   }
   console.log(`  ✓ ${count} events backfilled from participant_program_audit`);
   totalInserted += count;
-} catch (e) {
-  console.log(`  ⚠ participant_program_audit backfill skipped: ${e.message}`);
+} catch (error) {
+  console.log(`  ⚠ participant_program_audit backfill skipped: ${error.message}`);
 }
 
 // ─── Source 3: participant_programs (current enrollments) ───
 try {
-  const ppRows = await db.execute({
+  const participantProgramRows = await db.execute({
     sql: `SELECT * FROM participant_programs WHERE participant_id IS NOT NULL ORDER BY assigned_at ASC`,
     args: [],
   });
 
   let count = 0;
-  for (const row of ppRows.rows) {
+  for (const row of participantProgramRows.rows) {
     const exists = await db.execute({
       sql: `SELECT id FROM contact_timeline
             WHERE contact_cid = ? AND event_type = 'participant_enrolled'
@@ -119,8 +119,8 @@ try {
   }
   console.log(`  ✓ ${count} events backfilled from participant_programs`);
   totalInserted += count;
-} catch (e) {
-  console.log(`  ⚠ participant_programs backfill skipped: ${e.message}`);
+} catch (error) {
+  console.log(`  ⚠ participant_programs backfill skipped: ${error.message}`);
 }
 
 console.log(`\n  Total events backfilled: ${totalInserted}`);

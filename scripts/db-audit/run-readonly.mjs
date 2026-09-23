@@ -33,20 +33,20 @@ if (!sqlFile) {
 }
 
 // ── Load DATABASE_URL from the gitignored env file ─────────────────────────
-let dbUrl = null;
+let databaseUrl = null;
 try {
   const env = readFileSync(ENV_FILE, "utf8");
   for (const line of env.split(/\r?\n/)) {
-    const m = line.match(/^DATABASE_URL=(.*)$/);
-    if (m) {
-      dbUrl = m[1].trim().replace(/^["']|["']$/g, "");
+    const match = line.match(/^DATABASE_URL=(.*)$/);
+    if (match) {
+      databaseUrl = match[1].trim().replace(/^["']|["']$/g, "");
       break;
     }
   }
 } catch {
   // fall through to error below
 }
-if (!dbUrl) {
+if (!databaseUrl) {
   console.error(
     "Missing DATABASE_URL.\n" +
       "Create the file  .env.audit-readonly  at the project root with one line:\n" +
@@ -65,17 +65,17 @@ const ALLOWED_PREFIX = /^\s*(select|with|set\s|show\s|explain\b(?!\s+analyze)|va
 const raw = readFileSync(path.resolve(PROJECT_ROOT, sqlFile), "utf8");
 const cleaned = raw
   .split(/\r?\n/)
-  .filter((l) => !/^\s*--/.test(l))
+  .filter((line) => !/^\s*--/.test(line))
   .join("\n");
 const statements = cleaned
   .split(/;\s*(?:\r?\n|$)/)
-  .map((s) => s.trim())
+  .map((statement) => statement.trim())
   .filter(Boolean);
 
-// ── Connect ────────────────────────────────────────────────────────────────
+// ── Connect ──────────────────────────────────────────
 const client = new pg.Client({
-  connectionString: dbUrl,
-  ssl: /sslmode=/.test(dbUrl) ? undefined : { rejectUnauthorized: false },
+  connectionString: databaseUrl,
+  ssl: /sslmode=/.test(databaseUrl) ? undefined : { rejectUnauthorized: false },
   connectionTimeoutMillis: 15000,
 });
 await client.connect();
@@ -83,7 +83,7 @@ await client.query("SET statement_timeout = '60s'");
 
 const host = (() => {
   try {
-    return new URL(dbUrl).host;
+    return new URL(databaseUrl).host;
   } catch {
     return "?";
   }
@@ -94,28 +94,28 @@ console.log(`\n=== CONNECTED: ${who.rows[0].db} @ ${host} as ${who.rows[0].usr} 
 // ── Execute ────────────────────────────────────────────────────────────────
 let ran = 0;
 let skipped = 0;
-for (let i = 0; i < statements.length; i++) {
-  const stmt = statements[i];
-  if (!ALLOWED_PREFIX.test(stmt)) {
+for (let index = 0; index < statements.length; index++) {
+  const statement = statements[index];
+  if (!ALLOWED_PREFIX.test(statement)) {
     skipped++;
     console.log(
-      `--- [${i + 1}] SKIPPED (not read-only): ${stmt.slice(0, 80)}...`,
+      `--- [${index + 1}] SKIPPED (not read-only): ${statement.slice(0, 80)}...`,
     );
     continue;
   }
   try {
-    const res = await client.query(stmt);
+    const queryResult = await client.query(statement);
     ran++;
-    console.log(`\n--- [${i + 1}] ${res.command} · ${res.rowCount ?? 0} rows`);
-    const rows = res.rows || [];
-    const max = 300;
-    for (const row of rows.slice(0, max)) {
+    console.log(`\n--- [${index + 1}] ${queryResult.command} · ${queryResult.rowCount ?? 0} rows`);
+    const rows = queryResult.rows || [];
+    const maxRows = 300;
+    for (const row of rows.slice(0, maxRows)) {
       console.log(JSON.stringify(row));
     }
-    if (rows.length > max) console.log(`... (${rows.length - max} more rows)`);
+    if (rows.length > maxRows) console.log(`... (${rows.length - maxRows} more rows)`);
   } catch (err) {
-    console.error(`\n--- [${i + 1}] ERROR: ${err.message}`);
-    console.error(`    statement: ${stmt.slice(0, 160)}...`);
+    console.error(`\n--- [${index + 1}] ERROR: ${err.message}`);
+    console.error(`    statement: ${statement.slice(0, 160)}...`);
   }
 }
 

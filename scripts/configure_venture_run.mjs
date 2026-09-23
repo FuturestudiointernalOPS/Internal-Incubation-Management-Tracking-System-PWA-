@@ -22,20 +22,20 @@ const formName = process.argv[2] || "Venture Application";
 
 function randomSlug() {
   const chars = "0123456789abcdef";
-  let s = "r";
-  for (let i = 0; i < 10; i++) s += chars[Math.floor(Math.random() * 16)];
-  return s;
+  let slug = "r";
+  for (let index = 0; index < 10; index++) slug += chars[Math.floor(Math.random() * 16)];
+  return slug;
 }
 
 const db = await initDb();
 console.log(`Connecting form "${formName}" as the Venture Application...\n`);
 
 // ── 1. Find the form ──
-const formRes = await db.execute({
+const formResult = await db.execute({
   sql: "SELECT id, name, version, status, settings FROM platform_forms WHERE name = ?",
   args: [formName],
 });
-const form = formRes.rows[0];
+const form = formResult.rows[0];
 if (!form) {
   console.error(`✗ No form named "${formName}" found.`);
   console.error("  → Either use the exact name of the form you created in the builder,");
@@ -51,13 +51,13 @@ const alreadyFlagged =
   form.settings?.venture_application === true ||
   form.settings?.venture_application === "true";
 if (!alreadyFlagged) {
-  const ownerRes = await db.execute({
+  const ownerResult = await db.execute({
     sql: `SELECT id, name FROM platform_forms
           WHERE settings->>'venture_application' = 'true' AND id != ?
           ORDER BY id ASC`,
     args: [form.id],
   });
-  const owner = ownerRes.rows[0];
+  const owner = ownerResult.rows[0];
   if (owner) {
     console.error(`✗ Venture registration is already assigned to form #${owner.id} "${owner.name}".`);
     console.error("  → Deactivate it first (untick the Venture Application toggle in the builder),");
@@ -85,30 +85,30 @@ try {
     args: [],
   });
   console.log("✓ Single-active Venture form index ensured");
-} catch (e) {
-  console.warn(`⚠ Single-flag unique index NOT created (multiple flagged forms may exist): ${e.message}`);
+} catch (error) {
+  console.warn(`⚠ Single-flag unique index NOT created (multiple flagged forms may exist): ${error.message}`);
   console.warn("  Clear the extra Venture flags in the builder, then re-run this script.");
 }
 
 // ── 3. Ensure an active run with a public slug ──
-let runRes = await db.execute({
+let runResult = await db.execute({
   sql: `SELECT * FROM platform_form_runs
         WHERE form_id = ? AND status = 'active' AND public_slug IS NOT NULL
         ORDER BY created_at DESC LIMIT 1`,
   args: [form.id],
 });
-let run = runRes.rows[0];
+let run = runResult.rows[0];
 if (!run) {
   const slug = randomSlug();
-  const created = await db.execute({
+  const insertResult = await db.execute({
     sql: `INSERT INTO platform_form_runs (form_id, form_version, name, description, status, settings, owner_id, created_by, public_slug, created_at, updated_at)
           VALUES (?, ?, ?, ?, 'active', '{}'::jsonb, 'system', 'system', ?, NOW(), NOW())
           RETURNING id`,
     args: [form.id, form.version || 1, `${form.name} — Open`, "Venture intake run (configured automatically)", slug],
   });
-  const runId = created.rows[0].id;
-  runRes = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [runId] });
-  run = runRes.rows[0];
+  const runId = insertResult.rows[0].id;
+  runResult = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [runId] });
+  run = runResult.rows[0];
   console.log(`✓ Created active run #${run.id}`);
 } else {
   console.log(`✓ Reusing active run #${run.id}`);

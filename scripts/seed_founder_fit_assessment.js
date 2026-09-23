@@ -44,10 +44,10 @@ function getPool() {
 }
 
 function toPgSql(sql) {
-  let count = 0;
+  let index = 0;
   return sql.replace(/\?/g, () => {
-    count++;
-    return `$${count}`;
+    index++;
+    return `$${index}`;
   });
 }
 
@@ -133,7 +133,7 @@ function buildSections() {
 
   // ── Section 1: Founder Profile ──────────────────────────────────────────────
   {
-    const sec1Fields = [
+    const founderProfileFields = [
       { field_type: "text", label: "Full Name", required: true, sort_order: 0 },
       { field_type: "email", label: "Email Address", required: true, sort_order: 1 },
       { field_type: "phone", label: "Phone Number", required: true, sort_order: 2 },
@@ -324,7 +324,7 @@ function buildSections() {
       title: "Founder Profile",
       description: "Basic information about the founder and their startup",
       sort_order: 0,
-      fields: sec1Fields,
+      fields: founderProfileFields,
     });
   }
 
@@ -347,7 +347,7 @@ function buildSections() {
       title: "Founder Motivation",
       description: "Evaluate the founder's drive, passion, and purpose",
       sort_order: 1,
-      fields: questions.map((q, i) => ratingField(q, i)),
+      fields: questions.map((question, index) => ratingField(question, index)),
     });
   }
 
@@ -370,7 +370,7 @@ function buildSections() {
       title: "Leadership",
       description: "Assess the founder's ability to lead, inspire, and manage a team",
       sort_order: 2,
-      fields: questions.map((q, i) => ratingField(q, i)),
+      fields: questions.map((question, index) => ratingField(question, index)),
     });
   }
 
@@ -395,7 +395,7 @@ function buildSections() {
       title: "Business Understanding",
       description: "Evaluate the founder's market knowledge, strategy, and business acumen",
       sort_order: 3,
-      fields: questions.map((q, i) => ratingField(q, i)),
+      fields: questions.map((question, index) => ratingField(question, index)),
     });
   }
 
@@ -418,7 +418,7 @@ function buildSections() {
       title: "Execution Capability",
       description: "Assess the founder's ability to execute, adapt, and deliver results",
       sort_order: 4,
-      fields: questions.map((q, i) => ratingField(q, i)),
+      fields: questions.map((question, index) => ratingField(question, index)),
     });
   }
 
@@ -439,7 +439,7 @@ function buildSections() {
       title: "Innovation",
       description: "Evaluate the founder's creativity, vision, and innovative thinking",
       sort_order: 5,
-      fields: questions.map((q, i) => ratingField(q, i)),
+      fields: questions.map((question, index) => ratingField(question, index)),
     });
   }
 
@@ -460,7 +460,7 @@ function buildSections() {
       title: "Financial Literacy",
       description: "Assess the founder's understanding of financial management and metrics",
       sort_order: 6,
-      fields: questions.map((q, i) => ratingField(q, i)),
+      fields: questions.map((question, index) => ratingField(question, index)),
     });
   }
 
@@ -481,7 +481,7 @@ function buildSections() {
       title: "Coachability",
       description: "Evaluate the founder's openness to feedback, learning, and mentorship",
       sort_order: 7,
-      fields: questions.map((q, i) => ratingField(q, i)),
+      fields: questions.map((question, index) => ratingField(question, index)),
     });
   }
 
@@ -502,7 +502,7 @@ function buildSections() {
       title: "Commitment",
       description: "Evaluate the founder's dedication, sacrifice, and long-term commitment",
       sort_order: 8,
-      fields: questions.map((q, i) => ratingField(q, i)),
+      fields: questions.map((question, index) => ratingField(question, index)),
     });
   }
 
@@ -539,12 +539,12 @@ function buildSections() {
       title: "Open Response",
       description: "In-depth written responses to understand the founder's perspective",
       sort_order: 9,
-      fields: questions.map((q, i) => ({
+      fields: questions.map((question, index) => ({
         field_type: "textarea",
-        label: q.label,
+        label: question.label,
         required: true,
-        sort_order: i,
-        validation: { minLength: q.minLength },
+        sort_order: index,
+        validation: { minLength: question.minLength },
       })),
     });
   }
@@ -562,7 +562,7 @@ async function main() {
   try {
     // ── Step 1: Upsert Collection ────────────────────────────────────────────
     console.log("📁 Step 1: Creating / upserting collection...");
-    const collRes = await dbQuery(
+    const collectionResult = await dbQuery(
       pool,
       `INSERT INTO platform_collections (name, slug, description, status, visibility, tags, category, color, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'system')
@@ -587,7 +587,7 @@ async function main() {
         COLLECTION.color,
       ],
     );
-    const collectionId = collRes.rows[0].id;
+    const collectionId = collectionResult.rows[0].id;
     console.log(`   ✅ Collection: "${COLLECTION.name}" (id: ${collectionId})\n`);
 
     // ── Step 2: Upsert Form ──────────────────────────────────────────────────
@@ -633,7 +633,7 @@ async function main() {
         ],
       );
     } else {
-      const formRes = await dbQuery(
+      const formResult = await dbQuery(
         pool,
         `INSERT INTO platform_forms (name, description, collection_id, status, visibility, version, tags, owner_id, owner_name, settings, created_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'system')
@@ -651,7 +651,7 @@ async function main() {
           JSON.stringify(FORM.settings),
         ],
       );
-      formId = formRes.rows[0].id;
+      formId = formResult.rows[0].id;
     }
     console.log(`   ✅ Form: "${FORM.name}" (id: ${formId})\n`);
 
@@ -664,21 +664,21 @@ async function main() {
     let stageOfBusinessFieldId = null;
     let teamSizeFieldId = null;
 
-    for (const sec of sections) {
+    for (const section of sections) {
       // Insert section
-      const secRes = await dbQuery(
+      const sectionResult = await dbQuery(
         pool,
         `INSERT INTO platform_form_sections (form_id, title, description, sort_order)
          VALUES ($1, $2, $3, $4)
          RETURNING id`,
-        [formId, sec.title, sec.description || null, sec.sort_order],
+        [formId, section.title, section.description || null, section.sort_order],
       );
-      const sectionId = secRes.rows[0].id;
-      console.log(`   📑 Section "${sec.title}" (id: ${sectionId}, ${sec.fields.length} fields)`);
+      const sectionId = sectionResult.rows[0].id;
+      console.log(`   📑 Section "${section.title}" (id: ${sectionId}, ${section.fields.length} fields)`);
 
       // Insert fields
-      for (const fld of sec.fields) {
-        const fldRes = await dbQuery(
+      for (const field of section.fields) {
+        const fieldResult = await dbQuery(
           pool,
           `INSERT INTO platform_form_fields
            (form_id, section_id, field_type, label, placeholder, help_text, required,
@@ -688,26 +688,26 @@ async function main() {
           [
             formId,
             sectionId,
-            fld.field_type || "text",
-            fld.label,
-            fld.placeholder || null,
-            fld.help_text || null,
-            fld.required ? true : false,
-            fld.options ? JSON.stringify(fld.options) : null,
-            fld.validation ? JSON.stringify(fld.validation) : null,
-            fld.conditional_logic ? JSON.stringify(fld.conditional_logic) : null,
-            fld.sort_order || 0,
-            JSON.stringify(fld.settings || {}),
+            field.field_type || "text",
+            field.label,
+            field.placeholder || null,
+            field.help_text || null,
+            field.required ? true : false,
+            field.options ? JSON.stringify(field.options) : null,
+            field.validation ? JSON.stringify(field.validation) : null,
+            field.conditional_logic ? JSON.stringify(field.conditional_logic) : null,
+            field.sort_order || 0,
+            JSON.stringify(field.settings || {}),
           ],
         );
-        const fieldId = fldRes.rows[0].id;
-        fieldLabelToId[fld.label] = fieldId;
+        const fieldId = fieldResult.rows[0].id;
+        fieldLabelToId[field.label] = fieldId;
 
         // Track reference fields for conditional logic
-        if (fld.label === "Stage of Business") {
+        if (field.label === "Stage of Business") {
           stageOfBusinessFieldId = fieldId;
         }
-        if (fld.label === "Team Size") {
+        if (field.label === "Team Size") {
           teamSizeFieldId = fieldId;
         }
       }

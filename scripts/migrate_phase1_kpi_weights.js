@@ -20,18 +20,18 @@ async function run() {
     const programs = await client.query("SELECT DISTINCT program_id FROM v2_kpis WHERE program_id IS NOT NULL");
     console.log(`   Found ${programs.rows.length} programs with KPIs`);
     
-    for (const p of programs.rows) {
-      const kpis = await client.query("SELECT id FROM v2_kpis WHERE program_id::text = $1", [p.program_id]);
+    for (const program of programs.rows) {
+      const kpis = await client.query("SELECT id FROM v2_kpis WHERE program_id::text = $1", [program.program_id]);
       const count = kpis.rows.length;
       if (count === 0) continue;
-      const equal = parseFloat((100 / count).toFixed(2));
+      const equalWeight = parseFloat((100 / count).toFixed(2));
       let remaining = 100;
-      for (let i = 0; i < count; i++) {
-        const w = i === count - 1 ? parseFloat(remaining.toFixed(2)) : equal;
-        remaining -= w;
-        await client.query("UPDATE v2_kpis SET weight = $1, auto_weight = TRUE WHERE id = $2", [w, kpis.rows[i].id]);
+      for (let index = 0; index < count; index++) {
+        const weight = index === count - 1 ? parseFloat(remaining.toFixed(2)) : equalWeight;
+        remaining -= weight;
+        await client.query("UPDATE v2_kpis SET weight = $1, auto_weight = TRUE WHERE id = $2", [weight, kpis.rows[index].id]);
       }
-      console.log(`   ${p.program_id.substring(0,8)}... : ${count} KPIs → ${equal}% each`);
+      console.log(`   ${program.program_id.substring(0,8)}... : ${count} KPIs → ${equalWeight}% each`);
     }
     console.log("✅ Weights seeded for all existing KPIs\n✅ Phase 1 complete");
   } finally { client.release(); await pool.end(); }

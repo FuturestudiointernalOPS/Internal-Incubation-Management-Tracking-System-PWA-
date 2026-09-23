@@ -149,27 +149,27 @@ async function repair() {
   // ─── PHASE 3: v2_participants → ensuring contact sync ───
   console.log("\n📌 PHASE 3: v2_participants → ensuring contact sync\n");
 
-  const partRes = await db.execute({
+  const participantsResult = await db.execute({
     sql: "SELECT DISTINCT email, program_id FROM v2_participants",
     args: [],
   });
 
-  console.log(`  Found ${partRes.rows.length} participant records.`);
+  console.log(`  Found ${participantsResult.rows.length} participant records.`);
 
-  for (const p of partRes.rows) {
-    if (!p.email) continue;
+  for (const participant of participantsResult.rows) {
+    if (!participant.email) continue;
     // Check if contact has this program_id
-    const checkRes = await db.execute({
+    const existingContact = await db.execute({
       sql: `SELECT program_id FROM contacts WHERE email = ? AND (program_id IS NULL OR program_id != ?)`,
-      args: [p.email, p.program_id],
+      args: [participant.email, participant.program_id],
     });
-    if (checkRes.rows.length > 0) {
+    if (existingContact.rows.length > 0) {
       await db.execute({
         sql: `UPDATE contacts SET program_id = ? WHERE email = ?`,
-        args: [p.program_id, p.email],
+        args: [participant.program_id, participant.email],
       });
       console.log(
-        `     ✅ Synced contact "${p.email}" → program ${p.program_id}`,
+        `     ✅ Synced contact "${participant.email}" → program ${participant.program_id}`,
       );
       report.contactsFixed++;
     }
@@ -184,7 +184,7 @@ async function repair() {
   console.log(`  Participants upserted:  ${report.participantsAdded}`);
   console.log(`  Errors:                 ${report.errors.length}`);
   if (report.errors.length > 0) {
-    report.errors.forEach((e) => console.log(`    ❌ ${e}`));
+    report.errors.forEach((error) => console.log(`    ❌ ${error}`));
   }
   console.log("═══════════════════════════════════════════════\n");
 }

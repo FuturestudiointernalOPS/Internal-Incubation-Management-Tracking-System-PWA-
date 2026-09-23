@@ -18,18 +18,18 @@ import pg from "pg";
 const files = [".env.staging", ".env.audit-staging"];
 let pool = null;
 let used = null;
-for (const f of files) {
+for (const envFile of files) {
   try {
-    const url = readFileSync(f, "utf-8")
+    const databaseUrl = readFileSync(envFile, "utf-8")
       .split("\n")
-      .find((l) => l.startsWith("DATABASE_URL="))
+      .find((envLine) => envLine.startsWith("DATABASE_URL="))
       ?.substring("DATABASE_URL=".length)
       .trim();
-    if (!url) continue;
-    const p = new pg.Pool({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 10000 });
-    await p.query("SELECT 1");
-    pool = p;
-    used = f;
+    if (!databaseUrl) continue;
+    const candidatePool = new pg.Pool({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 10000 });
+    await candidatePool.query("SELECT 1");
+    pool = candidatePool;
+    used = envFile;
     break;
   } catch {}
 }
@@ -54,22 +54,22 @@ const APPROVED_DEFAULTS = [
 ];
 
 // 1. Staff profile capabilities
-const prof = await pool.query("SELECT id, name FROM access_profiles WHERE name = 'Staff'");
-if (prof.rows.length === 0) {
+const profileResult = await pool.query("SELECT id, name FROM access_profiles WHERE name = 'Staff'");
+if (profileResult.rows.length === 0) {
   console.log("[fix] 'Staff' profile not found — nothing to populate");
 } else {
-  const pid = prof.rows[0].id;
+  const profileId = profileResult.rows[0].id;
   for (const [module, capability, level] of APPROVED_DEFAULTS) {
     await pool.query(
       `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (profile_id, module, capability) DO UPDATE SET access_level = EXCLUDED.access_level`,
-      [pid, module, capability, level],
+      [profileId, module, capability, level],
     );
   }
   const { rows } = await pool.query(
     "SELECT count(*) AS n FROM access_profile_capabilities WHERE profile_id = $1",
-    [pid],
+    [profileId],
   );
   console.log(`[fix] 'Staff' profile now has ${rows[0].n} capability rows`);
 }
@@ -92,20 +92,20 @@ for (const [feature, role] of RESTORE_ELIG) {
 console.log(`[fix] restored ${RESTORE_ELIG.length} eligibility rows (operations/ventures for staff/program_manager)`);
 
 // 3. Remove the inert facilitator finance grant
-const del = await pool.query(
+const deletedGrant = await pool.query(
   `DELETE FROM user_capabilities
    WHERE module = 'finance' AND capability = 'view'
      AND user_cid IN (SELECT cid FROM contacts WHERE role = 'facilitator')`,
 );
-console.log(`[fix] removed ${del.rowCount} inert facilitator finance grant(s)`);
+console.log(`[fix] removed ${deletedGrant.rowCount} inert facilitator finance grant(s)`);
 
-const audit = await pool.query(
+const auditEntry = await pool.query(
   `INSERT INTO permission_audit_log (actor_cid, actor_name, target_cid, target_name, action, details)
    VALUES ('system', 'system', 'system', 'staging-repair', 'staging_repaired',
            'Populated Staff profile defaults; restored operations/ventures eligibility; removed inert facilitator finance grant')
    RETURNING id`,
 );
-console.log(`[fix] audit entry ${audit.rows[0].id} recorded`);
+console.log(`[fix] audit entry ${auditEntry.rows[0].id} recorded`);
 
 await pool.end();
 console.log("[fix] done — staging repaired");

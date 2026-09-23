@@ -26,8 +26,8 @@ const ENV_FILE = path.join(PROJECT_ROOT, ".env.audit-readonly");
 
 let dbUrl = null;
 for (const line of readFileSync(ENV_FILE, "utf8").split(/\r?\n/)) {
-  const m = line.match(/^DATABASE_URL=(.*)$/);
-  if (m) { dbUrl = m[1].trim().replace(/^["']|["']$/g, ""); break; }
+  const match = line.match(/^DATABASE_URL=(.*)$/);
+  if (match) { dbUrl = match[1].trim().replace(/^["']|["']$/g, ""); break; }
 }
 if (!dbUrl) { console.error("Missing DATABASE_URL in .env.audit-readonly"); process.exit(1); }
 
@@ -62,25 +62,25 @@ const who = await client.query("SELECT current_database() AS db, current_user AS
 console.log(`\n=== CONNECTED: ${who.rows[0].db} as ${who.rows[0].usr} ===`);
 
 // Resolve Program Manager profile id (must exist + active).
-const pm = await client.query(
+const pmProfile = await client.query(
   "SELECT id, name FROM access_profiles WHERE name = 'Program Manager' AND is_active = 1",
 );
-if (pm.rows.length === 0) { console.error("Program Manager profile not found/inactive"); await client.end(); process.exit(1); }
-const pmId = pm.rows[0].id;
+if (pmProfile.rows.length === 0) { console.error("Program Manager profile not found/inactive"); await client.end(); process.exit(1); }
+const pmId = pmProfile.rows[0].id;
 
 await client.query("BEGIN");
 try {
   let created = 0;
-  for (const f of FACILITATORS) {
+  for (const facilitator of FACILITATORS) {
     // 1) v2_program_staff (idempotent)
-    const staff = await client.query(
+    const staffInsert = await client.query(
       `INSERT INTO v2_program_staff (program_id, staff_id, role, permissions)
        SELECT $1, $2, 'facilitator', $3::jsonb
        WHERE NOT EXISTS (
          SELECT 1 FROM v2_program_staff
          WHERE program_id = $1 AND staff_id = $2
        )`,
-      [PROGRAM_ID, f.cid, JSON.stringify(FULL_FACILITATOR_PERMS)],
+      [PROGRAM_ID, facilitator.cid, JSON.stringify(FULL_FACILITATOR_PERMS)],
     );
 
     // 2) contact_roles mirror (idempotent, matching the API's NOT EXISTS guard)
@@ -96,40 +96,40 @@ try {
            WHERE cr.contact_cid = c.cid AND cr.role = 'facilitator'
              AND cr.context_type = 'program' AND cr.context_id = $2 AND cr.is_current = true
          )`,
-      [f.cid, PROGRAM_ID, JSON.stringify(FULL_FACILITATOR_PERMS), ACTOR, f.email],
+      [facilitator.cid, PROGRAM_ID, JSON.stringify(FULL_FACILITATOR_PERMS), ACTOR, facilitator.email],
     );
 
     // 3) timeline audit (only when a row was actually created)
-    if (staff.rowCount > 0) {
+    if (staffInsert.rowCount > 0) {
       await client.query(
         `INSERT INTO contact_timeline
            (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
          VALUES ($1, 'facilitator_assigned', 'Assigned as facilitator to program', 'programs', $2, $3, $4::jsonb)`,
-        [f.cid, PROGRAM_ID, ACTOR, JSON.stringify({ role: "facilitator" })],
+        [facilitator.cid, PROGRAM_ID, ACTOR, JSON.stringify({ role: "facilitator" })],
       );
       created++;
-      console.log(`  + facilitator: ${f.name} (${f.cid})`);
+      console.log(`  + facilitator: ${facilitator.name} (${facilitator.cid})`);
     } else {
-      console.log(`  = already assigned (skipped): ${f.name}`);
+      console.log(`  = already assigned (skipped): ${facilitator.name}`);
     }
   }
 
   // 4) Josias -> Program Manager profile (idempotent)
-  const j = await client.query(
+  const josiasProfile = await client.query(
     "SELECT access_profile_id FROM contacts WHERE cid = $1",
     [JOSIAS_CID],
   );
-  if (j.rows.length === 0) { throw new Error("Josias contact not found: " + JOSIAS_CID); }
-  const prevProfile = j.rows[0].access_profile_id;
+  if (josiasProfile.rows.length === 0) { throw new Error("Josias contact not found: " + JOSIAS_CID); }
+  const prevProfile = josiasProfile.rows[0].access_profile_id;
   if (prevProfile !== pmId) {
     await client.query("UPDATE contacts SET access_profile_id = $1 WHERE cid = $2", [pmId, JOSIAS_CID]);
     await client.query(
       `INSERT INTO permission_audit_log
          (actor_cid, actor_name, target_cid, target_name, action, details)
        VALUES ($1, $2, $3, $4, 'profile_assigned', $5)`,
-      [ACTOR, ACTOR_NAME, JOSIAS_CID, "Josias Hinnakou", `Assigned access profile: ${pm.rows[0].name}`],
+      [ACTOR, ACTOR_NAME, JOSIAS_CID, "Josias Hinnakou", `Assigned access profile: ${pmProfile.rows[0].name}`],
     );
-    console.log(`  + Josias -> profile "${pm.rows[0].name}" (id ${pmId})`);
+    console.log(`  + Josias -> profile "${pmProfile.rows[0].name}" (id ${pmId})`);
   } else {
     console.log("  = Josias already on Program Manager profile (skipped)");
   }
@@ -150,13 +150,13 @@ const staffRes = await client.query(
   [PROGRAM_ID],
 );
 console.log(`\nv2_program_staff (${staffRes.rows.length}):`);
-for (const r of staffRes.rows) console.log(`  ${r.staff_id}  role=${r.role}  caps=${Object.keys(r.permissions).length}`);
+for (const staffRow of staffRes.rows) console.log(`  ${staffRow.staff_id}  role=${staffRow.role}  caps=${Object.keys(staffRow.permissions).length}`);
 
 const rolesRes = await client.query(
   "SELECT contact_cid, role, context_type, context_id, is_current FROM contact_roles WHERE context_type = 'program' ORDER BY contact_cid",
 );
 console.log(`\ncontact_roles (${rolesRes.rows.length}):`);
-for (const r of rolesRes.rows) console.log(`  ${r.contact_cid}  ${r.role}@${r.context_id}  current=${r.is_current}`);
+for (const roleRow of rolesRes.rows) console.log(`  ${roleRow.contact_cid}  ${roleRow.role}@${roleRow.context_id}  current=${roleRow.is_current}`);
 
 const josias = await client.query(
   `SELECT c.cid, c.role, c.access_profile_id, ap.name AS profile

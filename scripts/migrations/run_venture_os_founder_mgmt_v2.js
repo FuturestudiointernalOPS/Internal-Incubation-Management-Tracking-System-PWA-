@@ -33,7 +33,7 @@ async function run() {
       AND table_name IN ('ownership_history', 'venture_invitations')
       ORDER BY table_name
     `);
-    tables.rows.forEach(r => console.log(`   ✅ ${r.table_name}`));
+    tables.rows.forEach(table => console.log(`   ✅ ${table.table_name}`));
     
     if (tables.rows.length === 2) {
       console.log("\n✅ Toutes les tables créées avec succès !");

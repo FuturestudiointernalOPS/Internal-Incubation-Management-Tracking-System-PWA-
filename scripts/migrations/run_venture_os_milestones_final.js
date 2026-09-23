@@ -17,35 +17,35 @@ async function run() {
   const client = await pool.connect();
   try {
     // Check venture_milestones columns with types
-    const cols = await client.query(`
+    const columnsResult = await client.query(`
       SELECT column_name, data_type, udt_name 
       FROM information_schema.columns 
       WHERE table_schema = 'public' AND table_name = 'venture_milestones'
       ORDER BY ordinal_position
     `);
     console.log("✅ venture_milestones:");
-    cols.rows.forEach(r => console.log(`   ${r.column_name.padEnd(20)} ${r.data_type.padEnd(15)} ${r.udt_name}`));
+    columnsResult.rows.forEach(columnRow => console.log(`   ${columnRow.column_name.padEnd(20)} ${columnRow.data_type.padEnd(15)} ${columnRow.udt_name}`));
 
     // Check venture_deliverables
-    const del = await client.query(`
+    const deliverablesResult = await client.query(`
       SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'venture_deliverables')
     `);
-    console.log(`\n✅ venture_deliverables existe: ${del.rows[0].exists}`);
+    console.log(`\n✅ venture_deliverables existe: ${deliverablesResult.rows[0].exists}`);
 
     // Check if other tables from this migration already exist
     const tables = ['venture_deliverables', 'venture_deliverable_reviews', 'venture_milestone_activity'];
-    for (const t of tables) {
-      const res = await client.query(
+    for (const table of tables) {
+      const tableResult = await client.query(
         `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1)`,
-        [t]
+        [table]
       );
-      console.log(`   ${t}: ${res.rows[0].exists}`);
+      console.log(`   ${table}: ${tableResult.rows[0].exists}`);
     }
 
     // Now create with correct types (UUID for milestone_id)
     console.log("\n🚀 Création des tables avec les bons types...");
 
-    if (!del.rows[0].exists) {
+    if (!deliverablesResult.rows[0].exists) {
       await client.query(`
         CREATE TABLE venture_deliverables (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -128,13 +128,13 @@ async function run() {
       "CREATE INDEX IF NOT EXISTS idx_milestone_activity_venture_id ON venture_milestone_activity(venture_id)",
       "CREATE INDEX IF NOT EXISTS idx_milestone_activity_milestone_id ON venture_milestone_activity(milestone_id)",
     ];
-    for (const idx of indexes) {
+    for (const indexStatement of indexes) {
       try {
-        await client.query(idx);
-        console.log(`   ✅ ${idx.substring(0, 80)}`);
+        await client.query(indexStatement);
+        console.log(`   ✅ ${indexStatement.substring(0, 80)}`);
       } catch (err) {
         if (err.message.includes("already exists") || err.message.includes("already")) {
-          console.log(`   ⏭️  ${idx.substring(0, 60)}`);
+          console.log(`   ⏭️  ${indexStatement.substring(0, 60)}`);
         } else {
           console.error(`   ❌ ${err.message.substring(0, 120)}`);
         }

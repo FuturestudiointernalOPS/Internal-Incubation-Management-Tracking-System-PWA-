@@ -95,8 +95,8 @@ const { computeProgramProgress, toDayString, SYSTEM_REQUIREMENT_FORMAT } = await
 console.log(`[audit-program-progress] connected via ${usedEnvFile}`);
 
 // ─── Small helpers ──────────────────────────────────────────────────────────
-const isTrue = (v) => v === true || v === 1 || v === "1" || v === "true";
-const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+const isTrue = (value) => value === true || value === 1 || value === "1" || value === "true";
+const num = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
 const cut = (value, width) => {
   const text = String(value ?? "").replace(/\s+/g, " ").trim() || "(sans nom)";
   return text.length > width ? `${text.slice(0, width - 1)}…` : text;
@@ -181,13 +181,13 @@ const loadProgramState = async (id) => {
 let allPrograms = [];
 try {
   allPrograms = (await db.execute({ sql: "SELECT * FROM v2_programs", args: [] })).rows;
-} catch (e) {
-  console.error(`Could not read v2_programs: ${e.message}`);
+} catch (error) {
+  console.error(`Could not read v2_programs: ${error.message}`);
   process.exit(2);
 }
 
 const programs = allPrograms.filter(
-  (p) => !isTrue(p?.is_archived) && !isTrue(p?.is_template),
+  (program) => !isTrue(program?.is_archived) && !isTrue(program?.is_template),
 );
 const skipped = allPrograms.length - programs.length;
 
@@ -200,7 +200,7 @@ try {
       sql: "SELECT column_name FROM information_schema.columns WHERE table_name = 'v2_programs'",
       args: [],
     })
-  ).rows.map((r) => String(r.column_name));
+  ).rows.map((row) => String(row.column_name));
 } catch {}
 const columnState = (name) =>
   columns.length === 0 ? "inconnue" : columns.includes(name) ? "présente" : "absente";
@@ -215,11 +215,11 @@ for (const program of programs) {
     // `today` is intentionally omitted → the calculator uses the real day.
     const progress = computeProgramProgress({ program, ...state });
 
-    const dq = progress.dataQuality;
+    const dataQuality = progress.dataQuality;
     const sessionsTotal = state.sessions.length;
-    const sessionsDated = state.sessions.filter((s) => toDayString(s?.scheduled_date)).length;
+    const sessionsDated = state.sessions.filter((session) => toDayString(session?.scheduled_date)).length;
     const sessionsWeekOnly = state.sessions.filter(
-      (s) => !toDayString(s?.scheduled_date) && (num(s?.week_number) ?? 0) > 0,
+      (session) => !toDayString(session?.scheduled_date) && (num(session?.week_number) ?? 0) > 0,
     ).length;
     // ── Deliverable rows, split so the raw figures agree with the score ──────
     // The calculator drops system-generated attendance rows before it counts
@@ -251,14 +251,14 @@ for (const program of programs) {
     // Excluded rows: the calculator's own tally (built with the same imported
     // marker over the same rows) is authoritative; the row scan only backs it up.
     const requirementsSystemRows = state.requirements.filter(isSystemRequirement).length;
-    const requirementsSystem = num(dq?.systemRequirements) ?? requirementsSystemRows;
+    const requirementsSystem = num(dataQuality?.systemRequirements) ?? requirementsSystemRows;
     const requirementsParticipant = participantRows.length;
     const requirementsOwnDated = participantRows.filter(requirementsOwnDate).length;
     const requirementsViaSession = participantRows.filter(
       (row) => !requirementsOwnDate(row) && requirementsSessionDate(row),
     ).length;
     const requirementsUndated =
-      num(dq?.undatedRequirements) ??
+      num(dataQuality?.undatedRequirements) ??
       participantRows.filter((row) => !requirementsOwnDate(row) && !requirementsSessionDate(row))
         .length;
 
@@ -278,17 +278,17 @@ for (const program of programs) {
         requirementsViaSession,
         requirementsUndated,
         submissionsTotal: state.submissions.length,
-        unlinkedSubmissions: dq.unlinkedSubmissions,
+        unlinkedSubmissions: dataQuality.unlinkedSubmissions,
         participantsTotal: state.participants.length,
-        participantsWithoutDate: dq.participantsWithoutEnrolmentDate,
+        participantsWithoutDate: dataQuality.participantsWithoutEnrolmentDate,
         expectedSubmissions: progress.participantWork.expected,
         noStartDate: !program?.start_date,
         noDuration: num(program?.duration_weeks) === null || num(program?.duration_weeks) <= 0,
-        missingDurationFlag: dq.missingDuration,
+        missingDurationFlag: dataQuality.missingDuration,
       },
     });
-  } catch (e) {
-    failures.push({ id: program?.id, name: program?.name, error: e.message });
+  } catch (error) {
+    failures.push({ id: program?.id, name: program?.name, error: error.message });
   }
 }
 
@@ -306,34 +306,34 @@ emit(`colonnes de filtrage — is_archived : ${columnState("is_archived")} · is
 emit("");
 
 // ─── 3b. Portfolio counters ─────────────────────────────────────────────────
-const sum = (pick) => results.reduce((total, r) => total + pick(r), 0);
+const sum = (pick) => results.reduce((total, result) => total + pick(result), 0);
 const counter = (label, value) => emit(`    ${pad(label, 62)}: ${value}`);
 
-const noStart = results.filter((r) => r.raw.noStartDate);
-const noStartButAnchored = noStart.filter((r) => r.progress.startDate);
-const noDuration = results.filter((r) => r.raw.noDuration);
-const notReady = results.filter((r) => !r.progress.ready);
+const noStart = results.filter((result) => result.raw.noStartDate);
+const noStartButAnchored = noStart.filter((result) => result.progress.startDate);
+const noDuration = results.filter((result) => result.raw.noDuration);
+const notReady = results.filter((result) => !result.progress.ready);
 
 emit("PORTEFEUILLE");
 counter("programmes analysés", results.length);
 counter("programmes sans date de début (start_date)", noStart.length);
 counter("  dont le calendrier tourne quand même (1re séance datée)", noStartButAnchored.length);
 counter("programmes sans durée déclarée (duration_weeks)", noDuration.length);
-counter("séances — total", sum((r) => r.raw.sessionsTotal));
-counter("  avec une date", sum((r) => r.raw.sessionsDated));
-counter("  sans date mais avec un numéro de semaine", sum((r) => r.raw.sessionsWeekOnly));
-counter("  sans date et sans semaine", sum((r) => r.raw.sessionsNeither));
-counter("livrables — total (toutes les lignes)", sum((r) => r.raw.requirementsTotal));
-counter("  dont exigences système de la plateforme (hors calcul)", sum((r) => r.raw.requirementsSystem));
-counter("  dont produits par les participants (base du score)", sum((r) => r.raw.requirementsParticipant));
-counter("    avec leur propre échéance", sum((r) => r.raw.requirementsOwnDated));
-counter("    datés uniquement via leur séance (ou semaine)", sum((r) => r.raw.requirementsViaSession));
-counter("    sans date et sans séance", sum((r) => r.raw.requirementsUndated));
-counter("participants actifs (comme le panneau les compte) — total", sum((r) => r.raw.participantsTotal));
-counter("  sans date d'adhésion", sum((r) => r.raw.participantsWithoutDate));
-counter("copies attendues (paires personne × livrable exigible)", sum((r) => r.raw.expectedSubmissions));
-counter("copies déposées — total", sum((r) => r.raw.submissionsTotal));
-counter("  rattachées à aucun livrable connu", sum((r) => r.raw.unlinkedSubmissions));
+counter("séances — total", sum((result) => result.raw.sessionsTotal));
+counter("  avec une date", sum((result) => result.raw.sessionsDated));
+counter("  sans date mais avec un numéro de semaine", sum((result) => result.raw.sessionsWeekOnly));
+counter("  sans date et sans semaine", sum((result) => result.raw.sessionsNeither));
+counter("livrables — total (toutes les lignes)", sum((result) => result.raw.requirementsTotal));
+counter("  dont exigences système de la plateforme (hors calcul)", sum((result) => result.raw.requirementsSystem));
+counter("  dont produits par les participants (base du score)", sum((result) => result.raw.requirementsParticipant));
+counter("    avec leur propre échéance", sum((result) => result.raw.requirementsOwnDated));
+counter("    datés uniquement via leur séance (ou semaine)", sum((result) => result.raw.requirementsViaSession));
+counter("    sans date et sans séance", sum((result) => result.raw.requirementsUndated));
+counter("participants actifs (comme le panneau les compte) — total", sum((result) => result.raw.participantsTotal));
+counter("  sans date d'adhésion", sum((result) => result.raw.participantsWithoutDate));
+counter("copies attendues (paires personne × livrable exigible)", sum((result) => result.raw.expectedSubmissions));
+counter("copies déposées — total", sum((result) => result.raw.submissionsTotal));
+counter("  rattachées à aucun livrable connu", sum((result) => result.raw.unlinkedSubmissions));
 counter("programmes « rien d'exigible » (ready === false)", notReady.length);
 emit("");
 
@@ -361,51 +361,51 @@ emit(
     "─".repeat(60),
 );
 
-const sorted = [...results].sort((a, b) => {
+const sorted = [...results].sort((left, right) => {
   // Programmes with nothing owed yet carry no percentage, so they are ranked
   // last; among themselves the name keeps the order stable and readable.
-  const rankA = a.progress.ready ? 0 : 1;
-  const rankB = b.progress.ready ? 0 : 1;
-  if (rankA !== rankB) return rankA - rankB;
-  if (a.progress.headline.percent !== b.progress.headline.percent) {
-    return a.progress.headline.percent - b.progress.headline.percent;
+  const rankLeft = left.progress.ready ? 0 : 1;
+  const rankRight = right.progress.ready ? 0 : 1;
+  if (rankLeft !== rankRight) return rankLeft - rankRight;
+  if (left.progress.headline.percent !== right.progress.headline.percent) {
+    return left.progress.headline.percent - right.progress.headline.percent;
   }
-  return String(a.program?.name ?? "").localeCompare(String(b.program?.name ?? ""));
+  return String(left.program?.name ?? "").localeCompare(String(right.program?.name ?? ""));
 });
 
-for (const r of sorted) {
-  const dq = r.progress.dataQuality;
+for (const result of sorted) {
+  const dataQuality = result.progress.dataQuality;
   const flags = [];
-  if (dq.missingStartDate) flags.push("sans-début");
-  if (dq.missingDuration) flags.push("sans-durée");
-  if (dq.undatedSessions) flags.push(`sans-date:${dq.undatedSessions}`);
+  if (dataQuality.missingStartDate) flags.push("sans-début");
+  if (dataQuality.missingDuration) flags.push("sans-durée");
+  if (dataQuality.undatedSessions) flags.push(`sans-date:${dataQuality.undatedSessions}`);
   // Sessions whose date has passed with no status recorded: they are counted as
   // not held, so this is an operational gap to close, not a scoring choice.
-  if (dq.pastSessionsWithoutStatus) {
-    flags.push(`séances-sans-statut:${dq.pastSessionsWithoutStatus}`);
+  if (dataQuality.pastSessionsWithoutStatus) {
+    flags.push(`séances-sans-statut:${dataQuality.pastSessionsWithoutStatus}`);
   }
-  if (dq.undatedRequirements) flags.push(`livr-sans-échéance:${dq.undatedRequirements}`);
-  if (dq.unlinkedSubmissions) flags.push(`copies-non-liées:${dq.unlinkedSubmissions}`);
-  if (dq.participantsWithoutEnrolmentDate) {
-    flags.push(`adhésions-sans-date:${dq.participantsWithoutEnrolmentDate}`);
+  if (dataQuality.undatedRequirements) flags.push(`livr-sans-échéance:${dataQuality.undatedRequirements}`);
+  if (dataQuality.unlinkedSubmissions) flags.push(`copies-non-liées:${dataQuality.unlinkedSubmissions}`);
+  if (dataQuality.participantsWithoutEnrolmentDate) {
+    flags.push(`adhésions-sans-date:${dataQuality.participantsWithoutEnrolmentDate}`);
   }
 
   const cells = [
-    pad(cut(r.program?.id, 36), COLS[0][1]),
-    pad(cut(r.program?.name, 28), COLS[1][1]),
+    pad(cut(result.program?.id, 36), COLS[0][1]),
+    pad(cut(result.program?.name, 28), COLS[1][1]),
     pad(
-      `${r.progress.weeksDue}/${r.progress.plannedWeeks ?? "—"}`,
+      `${result.progress.weeksDue}/${result.progress.plannedWeeks ?? "—"}`,
       COLS[2][1],
     ),
-    pad(r.progress.startDate ?? "—", COLS[3][1]),
-    pad(`${r.raw.sessionsDated}/${r.raw.sessionsTotal}`, COLS[4][1]),
+    pad(result.progress.startDate ?? "—", COLS[3][1]),
+    pad(`${result.raw.sessionsDated}/${result.raw.sessionsTotal}`, COLS[4][1]),
     pad(
-      `${r.raw.requirementsOwnDated + r.raw.requirementsViaSession}/${r.raw.requirementsParticipant} (+${r.raw.requirementsSystem} syst.)`,
+      `${result.raw.requirementsOwnDated + result.raw.requirementsViaSession}/${result.raw.requirementsParticipant} (+${result.raw.requirementsSystem} syst.)`,
       COLS[5][1],
     ),
-    pad(`${r.raw.participantsTotal} (${r.raw.participantsWithoutDate})`, COLS[6][1]),
-    pad(String(r.raw.expectedSubmissions), COLS[7][1]),
-    pad(r.progress.ready ? `${r.progress.headline.percent}%` : "rien d'exigible", COLS[8][1]),
+    pad(`${result.raw.participantsTotal} (${result.raw.participantsWithoutDate})`, COLS[6][1]),
+    pad(String(result.raw.expectedSubmissions), COLS[7][1]),
+    pad(result.progress.ready ? `${result.progress.headline.percent}%` : "rien d'exigible", COLS[8][1]),
   ];
   emit("  " + cells.join(" ") + (flags.join(" ") || "—"));
 }
@@ -419,8 +419,8 @@ emit("");
 // ─── 3d. Failures (never fatal: the scan continues past them) ───────────────
 if (failures.length > 0) {
   emit("ÉCHECS — programmes non calculables (à corriger, probablement une colonne ou un lien manquant)");
-  for (const f of failures) {
-    emit(`    ${pad(cut(f.id, 36), 38)}${pad(cut(f.name, 28), 30)}${f.error}`);
+  for (const failure of failures) {
+    emit(`    ${pad(cut(failure.id, 36), 38)}${pad(cut(failure.name, 28), 30)}${failure.error}`);
   }
   emit("");
 }
@@ -431,9 +431,9 @@ const listPrograms = (rows, detailOf) => {
     emit("    (aucun)");
     return;
   }
-  for (const r of rows) {
-    const detail = detailOf(r);
-    emit(`    ${pad(cut(r.program?.id, 36), 38)}${pad(cut(r.program?.name, 28), 30)}${detail}`);
+  for (const result of rows) {
+    const detail = detailOf(result);
+    emit(`    ${pad(cut(result.program?.id, 36), 38)}${pad(cut(result.program?.name, 28), 30)}${detail}`);
   }
 };
 
@@ -443,63 +443,63 @@ emit("");
 emit(`1. Aucune date de début — le calendrier hebdomadaire ne peut pas tourner (${noStart.length})`);
 listPrograms(
   noStart,
-  (r) =>
-    `start_date=""; ${r.raw.sessionsDated} séance(s) datée(s) → début retenu : ${r.progress.startDate ?? "aucun (semaines dues = 0)"}`,
+  (result) =>
+    `start_date=""; ${result.raw.sessionsDated} séance(s) datée(s) → début retenu : ${result.progress.startDate ?? "aucun (semaines dues = 0)"}`,
 );
 
-const undatedReq = results.filter((r) => r.raw.requirementsUndated > 0);
+const undatedReq = results.filter((result) => result.raw.requirementsUndated > 0);
 emit("");
 emit(
   `2. Livrables sans aucune date — comptés comme exigibles depuis le début, d'où un % bas dès le premier jour (${undatedReq.length})`,
 );
 listPrograms(
   undatedReq,
-  (r) =>
-    `${r.raw.requirementsUndated}/${r.raw.requirementsTotal} livrable(s) sans date` +
-    `${r.progress.startDate ? "" : " · sans début déclaré non plus"}`,
+  (result) =>
+    `${result.raw.requirementsUndated}/${result.raw.requirementsTotal} livrable(s) sans date` +
+    `${result.progress.startDate ? "" : " · sans début déclaré non plus"}`,
 );
 
-const orphanSessions = results.filter((r) => r.raw.sessionsNeither > 0);
+const orphanSessions = results.filter((result) => result.raw.sessionsNeither > 0);
 emit("");
 emit(
   `3. Séances sans date ET sans numéro de semaine — jamais dues, jamais comptées (${orphanSessions.length})`,
 );
 listPrograms(
   orphanSessions,
-  (r) =>
-    `${r.raw.sessionsNeither}/${r.raw.sessionsTotal} séance(s) sans date ni semaine` +
-    ` · sans-date signalé par le calculateur : ${r.progress.dataQuality.undatedSessions}`,
+  (result) =>
+    `${result.raw.sessionsNeither}/${result.raw.sessionsTotal} séance(s) sans date ni semaine` +
+    ` · sans-date signalé par le calculateur : ${result.progress.dataQuality.undatedSessions}`,
 );
 
-const undatedMembers = results.filter((r) => r.raw.participantsWithoutDate > 0);
+const undatedMembers = results.filter((result) => result.raw.participantsWithoutDate > 0);
 emit("");
 emit(
   `4. Participants sans date d'adhésion — attendus sur TOUT livrable, y compris ceux antérieurs à leur arrivée (${undatedMembers.length})`,
 );
 listPrograms(
   undatedMembers,
-  (r) =>
-    `${r.raw.participantsWithoutDate}/${r.raw.participantsTotal} personne(s) sans date` +
-    ` · copies attendues : ${r.raw.expectedSubmissions}`,
+  (result) =>
+    `${result.raw.participantsWithoutDate}/${result.raw.participantsTotal} personne(s) sans date` +
+    ` · copies attendues : ${result.raw.expectedSubmissions}`,
 );
 
 emit("");
 emit(`5. Rien d'exigible du tout — le panneau affichera « rien d'exigible » (${notReady.length})`);
 listPrograms(
   notReady,
-  (r) =>
-    `séances datées ${r.raw.sessionsDated} · livrables datés par les participants ${r.raw.requirementsOwnDated + r.raw.requirementsViaSession}` +
-    ` · semaine écoulée ${r.progress.weeksDue > 0 ? "oui" : "non"} (début : ${r.progress.startDate ?? "aucun"})`,
+  (result) =>
+    `séances datées ${result.raw.sessionsDated} · livrables datés par les participants ${result.raw.requirementsOwnDated + result.raw.requirementsViaSession}` +
+    ` · semaine écoulée ${result.progress.weeksDue > 0 ? "oui" : "non"} (début : ${result.progress.startDate ?? "aucun"})`,
 );
 
-const unlinked = results.filter((r) => r.raw.unlinkedSubmissions > 0);
+const unlinked = results.filter((result) => result.raw.unlinkedSubmissions > 0);
 emit("");
 emit(
   `6. Copies déposées rattachées à aucun livrable connu — invisibles dans le score (${unlinked.length})`,
 );
 listPrograms(
   unlinked,
-  (r) => `${r.raw.unlinkedSubmissions}/${r.raw.submissionsTotal} copie(s) non rattachée(s)`,
+  (result) => `${result.raw.unlinkedSubmissions}/${result.raw.submissionsTotal} copie(s) non rattachée(s)`,
 );
 
 // New signal reported by the calculator. It is phrased as a to-do, not as a bug:
@@ -507,20 +507,20 @@ listPrograms(
 // the record is the only evidence there is — so the missing status is what must
 // be filled in for the programme's own figures to stop reading as failure.
 const sessionsNoStatus = results.filter(
-  (r) => r.progress.dataQuality.pastSessionsWithoutStatus > 0,
+  (result) => result.progress.dataQuality.pastSessionsWithoutStatus > 0,
 );
 emit("");
 emit(
   `7. Séances passées sans statut enregistré — elles comptent comme NON TENUES tant que le statut n'est pas saisi (${sessionsNoStatus.length})`,
 );
-listPrograms(sessionsNoStatus, (r) => {
-  const open = r.progress.late.sessions.filter((s) => s.unrecorded);
+listPrograms(sessionsNoStatus, (result) => {
+  const open = result.progress.late.sessions.filter((session) => session.unrecorded);
   const titles = open
     .slice(0, 3)
-    .map((s) => `${s.title || "(sans titre)"}${s.week ? ` S${s.week}` : ""}`)
+    .map((session) => `${session.title || "(sans titre)"}${session.week ? ` S${session.week}` : ""}`)
     .join(" · ");
   return (
-    `${r.progress.dataQuality.pastSessionsWithoutStatus}/${r.progress.late.sessions.length} séance(s) due(s) sans statut` +
+    `${result.progress.dataQuality.pastSessionsWithoutStatus}/${result.progress.late.sessions.length} séance(s) due(s) sans statut` +
     " · statut à saisir (tenue ou non tenue)" +
     (titles ? ` · ${titles}${open.length > 3 ? " …" : ""}` : "")
   );

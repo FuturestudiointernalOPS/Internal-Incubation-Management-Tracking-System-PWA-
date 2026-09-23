@@ -4,34 +4,34 @@
 
 function isPlaceholderEmail(email) {
   if (!email || typeof email !== "string") return true;
-  const e = email.trim().toLowerCase();
-  if (!e.includes("@")) return true;
-  if (e.includes("placeholder")) return true;
-  if (e.includes("@example.") || e.includes("@test.") || e.endsWith(".local") || e.endsWith(".invalid")) return true;
-  if (e.startsWith("import-")) return true;
+  const normalized = email.trim().toLowerCase();
+  if (!normalized.includes("@")) return true;
+  if (normalized.includes("placeholder")) return true;
+  if (normalized.includes("@example.") || normalized.includes("@test.") || normalized.endsWith(".local") || normalized.endsWith(".invalid")) return true;
+  if (normalized.startsWith("import-")) return true;
   return false;
 }
 
 function resolveSubmissionEmail({ submissionData, fieldLabels, contactEmail }) {
   const data = submissionData && typeof submissionData === "object" ? submissionData : {};
-  const labelOf = (k) => {
+  const labelOf = (key) => {
     const raw =
-      fieldLabels && fieldLabels[String(k)] != null
-        ? String(fieldLabels[String(k)])
-        : String(k);
+      fieldLabels && fieldLabels[String(key)] != null
+        ? String(fieldLabels[String(key)])
+        : String(key);
     return raw.toLowerCase().trim();
   };
-  const isReal = (v) =>
-    typeof v === "string" && v.includes("@") && !isPlaceholderEmail(v);
+  const isReal = (value) =>
+    typeof value === "string" && value.includes("@") && !isPlaceholderEmail(value);
   const EMAIL_HINTS = /(e-?mail|courriel|mel|adresse\s*(e-?mail|mail))/i;
 
   const labeled = [];
   const anyReal = [];
-  for (const [k, v] of Object.entries(data)) {
-    const val = typeof v === "string" ? v.trim() : "";
-    if (!isReal(val)) continue;
-    if (EMAIL_HINTS.test(labelOf(k))) labeled.push(val);
-    else anyReal.push(val);
+  for (const [key, value] of Object.entries(data)) {
+    const trimmedValue = typeof value === "string" ? value.trim() : "";
+    if (!isReal(trimmedValue)) continue;
+    if (EMAIL_HINTS.test(labelOf(key))) labeled.push(trimmedValue);
+    else anyReal.push(trimmedValue);
   }
   if (labeled.length > 0) return labeled[0].toLowerCase();
   if (anyReal.length > 0) return anyReal[0].toLowerCase();
@@ -133,12 +133,12 @@ const cases = [
 ];
 
 let failed = 0;
-for (const c of cases) {
-  const got = resolveSubmissionEmail(c.input);
-  const ok = got === c.expect;
+for (const testCase of cases) {
+  const got = resolveSubmissionEmail(testCase.input);
+  const ok = got === testCase.expect;
   if (!ok) failed++;
-  console.log(`${ok ? "PASS" : "FAIL"} — ${c.label}`);
-  if (!ok) console.log("      got:    ", JSON.stringify(got), "\n      expect: ", JSON.stringify(c.expect));
+  console.log(`${ok ? "PASS" : "FAIL"} — ${testCase.label}`);
+  if (!ok) console.log("      got:    ", JSON.stringify(got), "\n      expect: ", JSON.stringify(testCase.expect));
 }
 console.log(failed === 0 ? "\nALL TESTS PASSED" : `\n${failed} TEST(S) FAILED`);
 process.exit(failed === 0 ? 0 : 1);

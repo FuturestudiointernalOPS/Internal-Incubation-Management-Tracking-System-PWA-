@@ -21,14 +21,14 @@ import pg from "pg";
 
 const files = [".env.audit-staging", ".env.staging"];
 let url = null;
-for (const f of files) {
+for (const envFile of files) {
   try {
-    const u = readFileSync(f, "utf-8")
+    const candidateUrl = readFileSync(envFile, "utf-8")
       .split("\n")
-      .find((l) => l.startsWith("DATABASE_URL="))
+      .find((envLine) => envLine.startsWith("DATABASE_URL="))
       ?.substring("DATABASE_URL=".length)
       .trim();
-    if (u) { url = u; break; }
+    if (candidateUrl) { url = candidateUrl; break; }
   } catch { /* next */ }
 }
 if (!url) { console.error("NO STAGING URL"); process.exit(1); }
@@ -51,29 +51,29 @@ const SOURCES = [
 try {
   // 1. Inventory
   const inventory = {};
-  for (const src of SOURCES) {
-    const r = await pool.query(src.sql);
-    inventory[src.label] = r.rows;
-    console.log(`${src.label}: ${r.rowCount} holder(s)`);
-    for (const row of r.rows) console.log("   ", JSON.stringify(row));
+  for (const source of SOURCES) {
+    const queryResult = await pool.query(source.sql);
+    inventory[source.label] = queryResult.rows;
+    console.log(`${source.label}: ${queryResult.rowCount} holder(s)`);
+    for (const row of queryResult.rows) console.log("   ", JSON.stringify(row));
   }
 
   // 2. Founder eligibility row check
-  const fe = await pool.query(
+  const founderEligibility = await pool.query(
     `SELECT id FROM feature_eligibility WHERE feature_key='ventures' AND identity_type='role' AND identity_value='founder'`,
   );
-  console.log(`feature_eligibility ventures|founder: ${fe.rowCount ? "PRESENT" : "MISSING (will add on apply)"}`);
+  console.log(`feature_eligibility ventures|founder: ${founderEligibility.rowCount ? "PRESENT" : "MISSING (will add on apply)"}`);
 
   // Before-image
   mkdirSync("scratch", { recursive: true });
   const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
   const file = `scratch/phase1-bulk-upload-before-${stamp}.json`;
   const snapshot = {};
-  for (const src of SOURCES) {
-    const all = await pool.query(`SELECT * FROM ${src.label.split("_").length === 2 ? src.label : src.label}`);
-    snapshot[src.label] = all.rows;
+  for (const source of SOURCES) {
+    const allRows = await pool.query(`SELECT * FROM ${source.label.split("_").length === 2 ? source.label : source.label}`);
+    snapshot[source.label] = allRows.rows;
   }
-  snapshot.feature_eligibility_founder = fe.rows;
+  snapshot.feature_eligibility_founder = founderEligibility.rows;
   writeFileSync(file, JSON.stringify({ host: new URL(url).host, exportedAt: new Date().toISOString(), ...snapshot }, null, 2));
   console.log("before-image:", file);
 
@@ -121,7 +121,7 @@ try {
   console.log(`\napplied ${added} bulk_upload.execute mapping row(s)`);
 
   // 4. Founder eligibility row (additive)
-  if (fe.rowCount === 0) {
+  if (founderEligibility.rowCount === 0) {
     await pool.query(
       `INSERT INTO feature_eligibility (feature_key, identity_type, identity_value, eligible, created_at)
        VALUES ('ventures','role','founder',1,NOW())`,

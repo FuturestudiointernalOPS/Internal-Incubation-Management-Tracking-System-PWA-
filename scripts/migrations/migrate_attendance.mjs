@@ -18,8 +18,8 @@ async function migrate() {
       args: [],
     });
     console.log("✅ v2_attendance table ready");
-  } catch (e) {
-    console.error("Migration error:", e.message);
+  } catch (error) {
+    console.error("Migration error:", error.message);
     process.exit(1);
   }
 }

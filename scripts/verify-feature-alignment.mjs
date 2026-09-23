@@ -53,13 +53,13 @@ for (const file of [".env.local", ".env.prod-verify", ".env.audit-staging"]) {
   const url = readUrl(file);
   if (!url) continue;
   try {
-    const p = new pg.Pool({
+    const candidatePool = new pg.Pool({
       connectionString: url,
       ssl: { rejectUnauthorized: false },
       connectionTimeoutMillis: 12000,
     });
-    await p.query("SELECT 1");
-    pool = p;
+    await candidatePool.query("SELECT 1");
+    pool = candidatePool;
     via = file;
     break;
   } catch {}
@@ -91,14 +91,14 @@ const elig = (
 ).rows;
 
 const byFeature = new Map();
-for (const r of elig) byFeature.set(r.feature_key, (byFeature.get(r.feature_key) || 0) + 1);
-for (const f of [...byFeature.keys()].sort()) console.log(`    ${f}: ${byFeature.get(f)} row(s)`);
+for (const eligibilityRow of elig) byFeature.set(eligibilityRow.feature_key, (byFeature.get(eligibilityRow.feature_key) || 0) + 1);
+for (const featureKey of [...byFeature.keys()].sort()) console.log(`    ${featureKey}: ${byFeature.get(featureKey)} row(s)`);
 
-const legacyElig = [...new Set(elig.map((r) => r.feature_key))].filter((k) => LEGACY.includes(k));
+const legacyElig = [...new Set(elig.map((eligibilityRow) => eligibilityRow.feature_key))].filter((featureKey) => LEGACY.includes(featureKey));
 if (legacyElig.length === 0) ok("no legacy feature key remains");
 else fail(`legacy feature keys still present: ${legacyElig.join(", ")}`);
 
-const missingFeatures = CANONICAL.filter((f) => !byFeature.has(f));
+const missingFeatures = CANONICAL.filter((featureKey) => !byFeature.has(featureKey));
 if (missingFeatures.length === 0) ok(`all ${CANONICAL.length} canonical features have rows`);
 else fail(`canonical features with no rows: ${missingFeatures.join(", ")}`);
 
@@ -106,8 +106,8 @@ else fail(`canonical features with no rows: ${missingFeatures.join(", ")}`);
 // on purpose (the migration never overwrites admin configuration).
 const have = new Set(
   elig
-    .filter((r) => r.identity_type === "role" && Number(r.eligible) === 1)
-    .map((r) => `${r.feature_key}|${r.identity_value}`),
+    .filter((eligibilityRow) => eligibilityRow.identity_type === "role" && Number(eligibilityRow.eligible) === 1)
+    .map((eligibilityRow) => `${eligibilityRow.feature_key}|${eligibilityRow.identity_value}`),
 );
 const missingDefaults = [];
 for (const [feature, roles] of Object.entries(FEATURE_ELIGIBILITY_DEFAULTS)) {
@@ -125,11 +125,11 @@ else
 // ── 2. responsibilities ──────────────────────────────────────────────────────
 console.log("\nresponsibilities");
 const resp = (await pool.query("SELECT id, key FROM responsibilities")).rows;
-for (const r of [...resp].sort((a, b) => String(a.key).localeCompare(String(b.key)))) {
-  console.log(`    ${r.key}`);
+for (const responsibilityRow of [...resp].sort((left, right) => String(left.key).localeCompare(String(right.key)))) {
+  console.log(`    ${responsibilityRow.key}`);
 }
 
-const legacyResp = resp.map((r) => r.key).filter((k) => LEGACY.includes(k));
+const legacyResp = resp.map((responsibilityRow) => responsibilityRow.key).filter((key) => LEGACY.includes(key));
 if (legacyResp.length === 0) ok("no legacy responsibility key remains");
 else fail(`legacy responsibility keys still present: ${legacyResp.join(", ")}`);
 
@@ -155,7 +155,7 @@ if (failures.length === 0) {
   console.log(`ALIGNED — ${warnings.length} warning(s)`);
 } else {
   console.log(`DRIFT — ${failures.length} failure(s), ${warnings.length} warning(s)`);
-  for (const f of failures) console.log(`  ✗ ${f}`);
+  for (const failure of failures) console.log(`  ✗ ${failure}`);
 }
 
 await pool.end();

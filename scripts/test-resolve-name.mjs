@@ -4,8 +4,8 @@
 
 const GENERIC_NAMES = /^(unknown|anonymous|n\/a|none|participant|null|undefined|-+|\s*)$/i;
 
-function isGenericName(v) {
-  return GENERIC_NAMES.test(typeof v === "string" ? v.trim() : "");
+function isGenericName(value) {
+  return GENERIC_NAMES.test(typeof value === "string" ? value.trim() : "");
 }
 
 const FULL_NAME_HINTS = /^(full\s*name|fullname|nom\s+complet|prenom\s*et\s*nom|prénom\s*et\s*nom|nom\s*et\s*pr[eé]nom|nom\s*&\s*pr[eé]nom)$/i;
@@ -15,22 +15,22 @@ const FR_LAST_NAME_HINTS = /^(nom|nom\s+de\s+famille)$/i;
 const NAME_HINTS = /^(name)$/i;
 
 function resolvePersonName({ contactName, contactFirstName, contactLastName, submitterName, submissionData, fieldLabels }) {
-  const clean = (v) =>
-    typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "";
+  const clean = (value) =>
+    typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
 
   const data = submissionData && typeof submissionData === "object" ? submissionData : {};
-  const stringify = (v) => {
-    if (typeof v !== "string") return "";
+  const stringify = (value) => {
+    if (typeof value !== "string") return "";
     try {
-      if (v.startsWith("{") && v.includes('"code"')) return ""; // phone objects
+      if (value.startsWith("{") && value.includes('"code"')) return ""; // phone objects
     } catch (_) {}
-    return v;
+    return value;
   };
-  const labelOf = (k) => {
+  const labelOf = (key) => {
     const raw =
-      fieldLabels && fieldLabels[String(k)] != null
-        ? String(fieldLabels[String(k)])
-        : String(k);
+      fieldLabels && fieldLabels[String(key)] != null
+        ? String(fieldLabels[String(key)])
+        : String(key);
     return raw.toLowerCase().trim();
   };
 
@@ -39,15 +39,15 @@ function resolvePersonName({ contactName, contactFirstName, contactLastName, sub
   const lastNames = [];
   let bareName = "";
 
-  for (const [k, v] of Object.entries(data)) {
-    const val = clean(stringify(v));
-    if (!val) continue;
-    const label = labelOf(k);
+  for (const [key, value] of Object.entries(data)) {
+    const cleanedValue = clean(stringify(value));
+    if (!cleanedValue) continue;
+    const label = labelOf(key);
     if (!label) continue;
-    if (FULL_NAME_HINTS.test(label)) fullNames.push(val);
-    else if (FIRST_NAME_HINTS.test(label)) firstNames.push(val);
-    else if (LAST_NAME_HINTS.test(label) || FR_LAST_NAME_HINTS.test(label)) lastNames.push(val);
-    else if (NAME_HINTS.test(label)) bareName = bareName || val;
+    if (FULL_NAME_HINTS.test(label)) fullNames.push(cleanedValue);
+    else if (FIRST_NAME_HINTS.test(label)) firstNames.push(cleanedValue);
+    else if (LAST_NAME_HINTS.test(label) || FR_LAST_NAME_HINTS.test(label)) lastNames.push(cleanedValue);
+    else if (NAME_HINTS.test(label)) bareName = bareName || cleanedValue;
   }
 
   const candidates = [];
@@ -56,7 +56,7 @@ function resolvePersonName({ contactName, contactFirstName, contactLastName, sub
   if (clean(contactName)) candidates.push(clean(contactName));
 
   // 2. Submission full-name field(s)
-  for (const n of fullNames) candidates.push(n);
+  for (const fullName of fullNames) candidates.push(fullName);
 
   // 3. CRM first (+ last) name when stored separately
   const crmFirst = clean(contactFirstName);
@@ -77,17 +77,17 @@ function resolvePersonName({ contactName, contactFirstName, contactLastName, sub
   if (clean(submitterName)) candidates.push(clean(submitterName));
 
   // 7. Any remaining name-ish answer (label or key contains name words)
-  for (const [k, v] of Object.entries(data)) {
-    const key = labelOf(k);
-    const val = clean(stringify(v));
-    if (!val || !key) continue;
+  for (const [fieldKey, fieldValue] of Object.entries(data)) {
+    const key = labelOf(fieldKey);
+    const cleanedValue = clean(stringify(fieldValue));
+    if (!cleanedValue || !key) continue;
     if (key.includes("name") || key.includes("nom") || key.includes("prénom") || key.includes("prenom")) {
-      candidates.push(val);
+      candidates.push(cleanedValue);
     }
   }
 
-  for (const c of candidates) {
-    if (c && !GENERIC_NAMES.test(c)) return c;
+  for (const candidate of candidates) {
+    if (candidate && !GENERIC_NAMES.test(candidate)) return candidate;
   }
   return "";
 }
@@ -234,12 +234,12 @@ const cases = [
 ];
 
 let failed = 0;
-for (const c of cases) {
-  const got = c.fn ? c.fn() : resolvePersonName(c.input);
-  const ok = got === c.expect;
+for (const testCase of cases) {
+  const got = testCase.fn ? testCase.fn() : resolvePersonName(testCase.input);
+  const ok = got === testCase.expect;
   if (!ok) failed++;
-  console.log(`${ok ? "PASS" : "FAIL"} — ${c.label}`);
-  if (!ok) console.log("      got:    ", JSON.stringify(got), "\n      expect: ", JSON.stringify(c.expect));
+  console.log(`${ok ? "PASS" : "FAIL"} — ${testCase.label}`);
+  if (!ok) console.log("      got:    ", JSON.stringify(got), "\n      expect: ", JSON.stringify(testCase.expect));
 }
 console.log(failed === 0 ? "\nALL TESTS PASSED" : `\n${failed} TEST(S) FAILED`);
 process.exit(failed === 0 ? 0 : 1);

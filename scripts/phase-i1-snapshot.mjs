@@ -3,16 +3,16 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import pg from "pg";
 
 const files = [".env.audit-staging", ".env.staging"];
-let url = null;
-for (const f of files) {
+let databaseUrl = null;
+for (const envFile of files) {
   try {
-    const u = readFileSync(f, "utf-8").split("\n").find((l) => l.startsWith("DATABASE_URL="))?.substring("DATABASE_URL=".length).trim();
-    if (u) { url = u; break; }
+    const candidateUrl = readFileSync(envFile, "utf-8").split("\n").find((envLine) => envLine.startsWith("DATABASE_URL="))?.substring("DATABASE_URL=".length).trim();
+    if (candidateUrl) { databaseUrl = candidateUrl; break; }
   } catch { /* next */ }
 }
-if (!url) { console.error("NO STAGING URL"); process.exit(1); }
-const pool = new pg.Pool({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 10000 });
-console.log("DB HOST:", new URL(url).host);
+if (!databaseUrl) { console.error("NO STAGING URL"); process.exit(1); }
+const pool = new pg.Pool({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 10000 });
+console.log("DB HOST:", new URL(databaseUrl).host);
 
 const TABLES = {
   contacts: "cid, name, role, status, group_name, access_profile_id, program_id, v2_team_id",
@@ -27,19 +27,19 @@ const TABLES = {
 };
 try {
   mkdirSync("scratch", { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
-  const out = { host: new URL(url).host, exportedAt: new Date().toISOString(), tables: {} };
-  for (const [t, cols] of Object.entries(TABLES)) {
+  const timestamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
+  const snapshot = { host: new URL(databaseUrl).host, exportedAt: new Date().toISOString(), tables: {} };
+  for (const [tableName, columns] of Object.entries(TABLES)) {
     try {
-      const r = await pool.query(`SELECT ${cols} FROM ${t} ORDER BY 1`);
-      out.tables[t] = { count: r.rowCount, rows: r.rows };
-      console.log(`${t}: ${r.rowCount} rows`);
-    } catch (e) {
-      console.log(`${t}: (error) ${e.message}`);
+      const queryResult = await pool.query(`SELECT ${columns} FROM ${tableName} ORDER BY 1`);
+      snapshot.tables[tableName] = { count: queryResult.rowCount, rows: queryResult.rows };
+      console.log(`${tableName}: ${queryResult.rowCount} rows`);
+    } catch (error) {
+      console.log(`${tableName}: (error) ${error.message}`);
     }
   }
-  const file = `scratch/phase-i1-before-${stamp}.json`;
-  writeFileSync(file, JSON.stringify(out, null, 2));
+  const file = `scratch/phase-i1-before-${timestamp}.json`;
+  writeFileSync(file, JSON.stringify(snapshot, null, 2));
   console.log("before-image:", file);
 } finally {
   await pool.end();

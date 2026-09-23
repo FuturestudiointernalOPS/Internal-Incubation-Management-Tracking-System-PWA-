@@ -30,7 +30,7 @@ async function run() {
       AND table_name LIKE 'venture_verification%'
       ORDER BY table_name
     `);
-    tables.rows.forEach(r => console.log(`   ✅ ${r.table_name}`));
+    tables.rows.forEach(table => console.log(`   ✅ ${table.table_name}`));
     console.log(`\n📊 ${tables.rows.length} tables créées`);
   } catch (err) {
     console.error(`❌ Erreur: ${err.message}`);

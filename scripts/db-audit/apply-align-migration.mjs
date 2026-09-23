@@ -35,7 +35,7 @@ const SQL_FILE = path.join(PROJECT_ROOT, "migrations", "align_schema_with_code.s
 const argv = process.argv.slice(2);
 const APPLY = argv.includes("--apply");
 // Optional: positional env-file path, else DB_AUDIT_ENV_FILE, else the db-audit default.
-const ENV_FILE_ARG = argv.find((a) => !a.startsWith("--"));
+const ENV_FILE_ARG = argv.find((arg) => !arg.startsWith("--"));
 const ENV_FILE = path.join(
   PROJECT_ROOT,
   process.env.DB_AUDIT_ENV_FILE || ENV_FILE_ARG || ".env.audit-readonly",
@@ -90,13 +90,13 @@ function readDatabaseUrl(envFile) {
   let contents;
   try {
     contents = readFileSync(envFile, "utf8");
-  } catch (e) {
-    console.error(`Could not read the env file: ${path.basename(envFile)} (${redact(e.code || e.message)})`);
+  } catch (error) {
+    console.error(`Could not read the env file: ${path.basename(envFile)} (${redact(error.code || error.message)})`);
     return null;
   }
   for (const line of contents.split(/\r?\n/)) {
-    const m = line.match(/^DATABASE_URL=(.*)$/);
-    if (m) return m[1].trim().replace(/^["']|["']$/g, "");
+    const match = line.match(/^DATABASE_URL=(.*)$/);
+    if (match) return match[1].trim().replace(/^["']|["']$/g, "");
   }
   return null;
 }
@@ -105,8 +105,8 @@ function readDatabaseUrl(envFile) {
 let sql;
 try {
   sql = readFileSync(SQL_FILE, "utf8");
-} catch (e) {
-  console.error(`Could not read ${path.relative(PROJECT_ROOT, SQL_FILE)}: ${redact(e.message)}`);
+} catch (error) {
+  console.error(`Could not read ${path.relative(PROJECT_ROOT, SQL_FILE)}: ${redact(error.message)}`);
   process.exit(1);
 }
 
@@ -118,9 +118,9 @@ console.log(`  statements: ${statements.length} executable`);
 
 if (problems.length > 0) {
   console.error(`\n  REFUSING TO RUN — ${problems.length} line(s) break the one-statement-per-line contract:`);
-  for (const p of problems) {
-    console.error(`    line ${p.lineNo}: ${p.reason}`);
-    console.error(`      ${p.text.slice(0, 120)}`);
+  for (const problem of problems) {
+    console.error(`    line ${problem.lineNo}: ${problem.reason}`);
+    console.error(`      ${problem.text.slice(0, 120)}`);
   }
   console.error(`\n  Fix the .sql file (one statement per line, each ending in ';') and re-run.`);
   process.exit(1);
@@ -159,8 +159,8 @@ const client = new pg.Client({
 
 try {
   await client.connect();
-} catch (e) {
-  console.error(`\n  Could not connect: ${redact(e.message)}`);
+} catch (error) {
+  console.error(`\n  Could not connect: ${redact(error.message)}`);
   console.error(`  Check the DATABASE_URL in ${path.basename(ENV_FILE)} (value not printed).`);
   process.exit(1);
 }
@@ -182,11 +182,11 @@ for (const { lineNo, sql: statement } of statements) {
     await client.query(statement);
     succeeded.push(statement);
     console.log(`  OK  [${String(lineNo).padStart(4)}] ${statement.slice(0, 96)}`);
-  } catch (e) {
+  } catch (error) {
     // Collected, never fatal — the remaining statements still run.
-    failed.push({ lineNo, statement, error: redact(e.message) });
+    failed.push({ lineNo, statement, error: redact(error.message) });
     console.log(`  ERR [${String(lineNo).padStart(4)}] ${statement.slice(0, 96)}`);
-    console.log(`           -> ${redact(e.message)}`);
+    console.log(`           -> ${redact(error.message)}`);
   }
 }
 

@@ -16,18 +16,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, "..");
 
 for (const file of [".env.staging", ".env.audit-staging"]) {
-  const url = readFileSync(resolve(projectRoot, file), "utf-8")
+  const databaseUrl = readFileSync(resolve(projectRoot, file), "utf-8")
     .split("\n")
-    .find((l) => l.startsWith("DATABASE_URL="))
+    .find((envLine) => envLine.startsWith("DATABASE_URL="))
     ?.substring("DATABASE_URL=".length)
     .trim();
-  if (!url) continue;
+  if (!databaseUrl) continue;
   try {
-    const probe = await import("pg");
-    const pool = new probe.default.Pool({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 8000 });
+    const pgModule = await import("pg");
+    const pool = new pgModule.default.Pool({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 8000 });
     await pool.query("SELECT 1");
     await pool.end();
-    process.env.DATABASE_URL = url;
+    process.env.DATABASE_URL = databaseUrl;
     console.log(`[simulate] connected via ${file}`);
     break;
   } catch {}
@@ -38,19 +38,19 @@ const { getAuthorizationContext } = await import("../src/lib/authorization/index
 await import("../src/lib/auth.js");
 
 const db = await initDb();
-const q = async (sql) => (await db.execute({ sql, args: [] })).rows;
+const runQuery = async (sql) => (await db.execute({ sql, args: [] })).rows;
 
-const contacts = await q("SELECT cid, name, email, role, status FROM contacts ORDER BY role");
+const contacts = await runQuery("SELECT cid, name, email, role, status FROM contacts ORDER BY role");
 console.log(`\nResolving authorization context for EVERY staging user with the real resolver...\n`);
 let failures = 0;
-for (const c of contacts) {
+for (const contact of contacts) {
   try {
-    const ctx = await getAuthorizationContext({ cid: c.cid, role: c.role });
-    const eff = Object.keys(ctx.effective || {}).length;
-    console.log(`OK   ${c.role.padEnd(14)} ${String(c.cid).padEnd(18)} ${(c.name || "(no name)").padEnd(14)} effective modules: ${eff}  profile: ${ctx.profile?.profileName || "none"}  isSA: ${ctx.isSuperAdmin}`);
-  } catch (e) {
+    const ctx = await getAuthorizationContext({ cid: contact.cid, role: contact.role });
+    const effectiveCount = Object.keys(ctx.effective || {}).length;
+    console.log(`OK   ${contact.role.padEnd(14)} ${String(contact.cid).padEnd(18)} ${(contact.name || "(no name)").padEnd(14)} effective modules: ${effectiveCount}  profile: ${ctx.profile?.profileName || "none"}  isSA: ${ctx.isSuperAdmin}`);
+  } catch (error) {
     failures++;
-    console.log(`FAIL ${c.role.padEnd(14)} ${String(c.cid).padEnd(18)} → ${e.message.split("\n")[0]}`);
+    console.log(`FAIL ${contact.role.padEnd(14)} ${String(contact.cid).padEnd(18)} → ${error.message.split("\n")[0]}`);
   }
 }
 console.log(`\n${failures} context resolution failure(s)`);

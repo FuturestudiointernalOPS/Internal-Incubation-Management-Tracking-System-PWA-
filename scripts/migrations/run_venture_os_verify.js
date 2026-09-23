@@ -23,12 +23,12 @@ async function run() {
       ORDER BY table_name
     `);
     console.log("✅ Nouvelles tables:");
-    tables.rows.forEach(r => console.log(`   ✅ ${r.table_name}`));
+    tables.rows.forEach(table => console.log(`   ✅ ${table.table_name}`));
 
     if (tables.rows.length < 3) {
       console.log("\n⚠️  Certaines tables manquent — recréation...");
       
-      if (!tables.rows.find(r => r.table_name === 'startup_profiles')) {
+      if (!tables.rows.find(table => table.table_name === 'startup_profiles')) {
         await client.query(`
           CREATE TABLE IF NOT EXISTS startup_profiles (
               id SERIAL PRIMARY KEY,
@@ -47,7 +47,7 @@ async function run() {
         console.log("   ✅ startup_profiles créée");
       }
       
-      if (!tables.rows.find(r => r.table_name === 'startup_profile_progress')) {
+      if (!tables.rows.find(table => table.table_name === 'startup_profile_progress')) {
         await client.query(`
           CREATE TABLE IF NOT EXISTS startup_profile_progress (
               id SERIAL PRIMARY KEY,
@@ -63,7 +63,7 @@ async function run() {
         console.log("   ✅ startup_profile_progress créée");
       }
       
-      if (!tables.rows.find(r => r.table_name === 'startup_profile_documents')) {
+      if (!tables.rows.find(table => table.table_name === 'startup_profile_documents')) {
         await client.query(`
           CREATE TABLE IF NOT EXISTS startup_profile_documents (
               id SERIAL PRIMARY KEY,
@@ -89,12 +89,12 @@ async function run() {
     console.log("\n✅ Tous les index créés");
 
     // Show final column counts
-    for (const t of ['startup_profiles', 'startup_profile_progress', 'startup_profile_documents']) {
-      const cols = await client.query(
+    for (const tableName of ['startup_profiles', 'startup_profile_progress', 'startup_profile_documents']) {
+      const columnCount = await client.query(
         `SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1`,
-        [t]
+        [tableName]
       );
-      console.log(`   ${t}: ${cols.rows[0].count} colonnes`);
+      console.log(`   ${tableName}: ${columnCount.rows[0].count} colonnes`);
     }
 
     console.log("\n✅ Migration Venture OS terminée avec succès !");

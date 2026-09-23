@@ -16,12 +16,12 @@ const DEFAULT_TEMPLATES = {
 function getTemplate(formSettings, templateKey, runSettings) {
   const custom = formSettings?.automation?.templates?.[templateKey] || {};
   const runCustom = runSettings?.templates?.[templateKey] || {};
-  const text = (v) => (typeof v === "string" ? v.trim() : v);
+  const text = (value) => (typeof value === "string" ? value.trim() : value);
   const pick = (runVal, formVal) => text(runVal) || text(formVal) || "";
-  const def = DEFAULT_TEMPLATES[templateKey];
+  const defaultTemplate = DEFAULT_TEMPLATES[templateKey];
   return {
-    subject: pick(runCustom.subject, custom.subject) || def?.subject || "",
-    body: pick(runCustom.body, custom.body) || def?.body || "",
+    subject: pick(runCustom.subject, custom.subject) || defaultTemplate?.subject || "",
+    body: pick(runCustom.body, custom.body) || defaultTemplate?.body || "",
   };
 }
 

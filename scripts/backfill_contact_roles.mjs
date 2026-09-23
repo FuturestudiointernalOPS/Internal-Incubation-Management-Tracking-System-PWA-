@@ -16,11 +16,11 @@ const contacts = await db.execute({
 let inserted = 0;
 let skipped = 0;
 
-for (const c of contacts.rows) {
+for (const contact of contacts.rows) {
   // Check if this role already exists for this contact to avoid duplicates
   const existing = await db.execute({
     sql: "SELECT id FROM contact_roles WHERE contact_cid = ? AND role = ? AND context_type IS NULL",
-    args: [c.cid, c.role],
+    args: [contact.cid, contact.role],
   });
 
   if (existing.rows.length > 0) {
@@ -31,7 +31,7 @@ for (const c of contacts.rows) {
   await db.execute({
     sql: `INSERT INTO contact_roles (contact_cid, role, is_current, started_at)
           VALUES (?, ?, true, ?)`,
-    args: [c.cid, c.role, c.created_at || new Date().toISOString()],
+    args: [contact.cid, contact.role, contact.created_at || new Date().toISOString()],
   });
   inserted++;
 }

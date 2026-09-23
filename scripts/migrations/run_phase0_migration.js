@@ -32,23 +32,23 @@ async function runMigration() {
     // Split by semicolons and run each statement
     const statements = sql
       .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith("--"));
+      .map((statement) => statement.trim())
+      .filter((statement) => statement.length > 0 && !statement.startsWith("--"));
 
-    for (const stmt of statements) {
+    for (const statement of statements) {
       try {
-        await client.query(stmt);
-        console.log(`✅ ${stmt.substring(0, 80)}...`);
+        await client.query(statement);
+        console.log(`✅ ${statement.substring(0, 80)}...`);
       } catch (err) {
         // Ignore "already exists" errors for idempotent migrations
         if (
           err.message.includes("already exists") ||
           err.message.includes("duplicate")
         ) {
-          console.log(`⏭️  Already applied: ${stmt.substring(0, 60)}...`);
+          console.log(`⏭️  Already applied: ${statement.substring(0, 60)}...`);
         } else {
           console.error(`❌ Error: ${err.message}`);
-          console.error(`   Statement: ${stmt.substring(0, 100)}`);
+          console.error(`   Statement: ${statement.substring(0, 100)}`);
         }
       }
     }

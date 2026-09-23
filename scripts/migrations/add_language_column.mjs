@@ -9,10 +9,10 @@ if (fs.existsSync(envPath)) {
   for (const line of envContent.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    let value = trimmed.slice(eqIdx + 1).trim();
+    const equalsIndex = trimmed.indexOf("=");
+    if (equalsIndex === -1) continue;
+    const key = trimmed.slice(0, equalsIndex).trim();
+    let value = trimmed.slice(equalsIndex + 1).trim();
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
       (value.startsWith("'") && value.endsWith("'"))
@@ -54,13 +54,13 @@ async function migrate() {
       });
       console.log("  ✅ language column added to contacts table");
       console.log("\n✅ Migration complete.");
-    } catch (e2) {
+    } catch (retryError) {
       // Column may already exist
-      if (e2.message.includes("already exists")) {
+      if (retryError.message.includes("already exists")) {
         console.log("  ⚠️  language column already exists");
         console.log("\n✅ Migration complete (no action needed).");
       } else {
-        console.error("❌ Migration failed:", e2.message);
+        console.error("❌ Migration failed:", retryError.message);
         process.exit(1);
       }
     }

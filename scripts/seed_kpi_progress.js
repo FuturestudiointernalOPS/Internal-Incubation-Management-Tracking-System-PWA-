@@ -10,11 +10,11 @@ async function run() {
     const programs = await client.query("SELECT id FROM v2_programs ORDER BY created_at DESC");
     let seeded = 0, skipped = 0;
     
-    for (const p of programs.rows) {
-      const kpis = await client.query("SELECT * FROM v2_kpis WHERE program_id::text = $1", [p.id]);
+    for (const program of programs.rows) {
+      const kpis = await client.query("SELECT * FROM v2_kpis WHERE program_id::text = $1", [program.id]);
       if (kpis.rows.length === 0) { skipped++; continue; }
 
-      const pc = await client.query(
+      const participantCountResult = await client.query(
         `SELECT COUNT(*) AS c
          FROM participant_programs pp
          JOIN contacts c ON pp.participant_id = c.cid
@@ -29,29 +29,29 @@ async function run() {
                AND ps.role = 'facilitator'
                AND (ps.staff_id = c.cid OR LOWER(TRIM(ps.staff_id)) = LOWER(TRIM(c.email)))
            )`,
-        [p.id]
+        [program.id]
       );
-      const total = parseInt(pc.rows[0]?.c) || 1;
+      const total = parseInt(participantCountResult.rows[0]?.c) || 1;
 
       for (const kpi of kpis.rows) {
         // Count unique approved participants for deliverables linked to this KPI
-        const app = await client.query(
+        const approvedResult = await client.query(
           `SELECT COUNT(DISTINCT s.participant_id) AS c
            FROM v2_submissions s
            WHERE s.program_id::text = $1 AND s.status = 'approved'
            AND s.deliverable_id IN (
              SELECT DISTINCT id::text FROM v2_document_requirements WHERE program_id::text = $1 AND kpi_ids LIKE $2
            )`,
-          [p.id, `%${kpi.id}%`]
+          [program.id, `%${kpi.id}%`]
         );
-        const approved = parseInt(app.rows[0]?.c) || 0;
+        const approved = parseInt(approvedResult.rows[0]?.c) || 0;
         const rate = total > 0 ? Math.round((approved / total) * 100) : 0;
 
         await client.query(
           `INSERT INTO kpi_progress (program_id, kpi_id, kpi_name, completion_rate, participant_count, approved_count, calculated_at)
            VALUES ($1, $2, $3, $4, $5, $6, NOW())
            ON CONFLICT (program_id, kpi_id) DO UPDATE SET completion_rate = $4, participant_count = $5, approved_count = $6, kpi_name = $3, calculated_at = NOW()`,
-          [String(p.id), String(kpi.id), (kpi.title || "").substring(0, 255), rate, total, approved]
+          [String(program.id), String(kpi.id), (kpi.title || "").substring(0, 255), rate, total, approved]
         );
       }
       seeded++;

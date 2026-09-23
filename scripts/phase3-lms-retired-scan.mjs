@@ -17,24 +17,24 @@ const ROOT = process.cwd();
 const RETIRED = ["assign", "enroll", "publish"];
 const SRC_DIRS = ["src/app", "src/models", "src/lib"];
 
-function walk(dir, out = []) {
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    const p = join(dir, e.name);
-    if (e.isDirectory()) walk(p, out);
-    else if (/\.(js|mjs)$/.test(e.name)) out.push(p);
+function walk(directory, collected = []) {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const entryPath = join(directory, entry.name);
+    if (entry.isDirectory()) walk(entryPath, collected);
+    else if (/\.(js|mjs)$/.test(entry.name)) collected.push(entryPath);
   }
-  return out;
+  return collected;
 }
 
 // 1. Enforcement sites — requireAuthorization("lms", <retired>).
 const sites = [];
 for (const root of SRC_DIRS) {
-  for (const f of walk(join(ROOT, root))) {
-    const src = readFileSync(f, "utf8");
-    for (const m of src.matchAll(/requireAuthorization\(\s*"lms"\s*,\s*"(assign|enroll|publish)"\)/g)) {
+  for (const file of walk(join(ROOT, root))) {
+    const src = readFileSync(file, "utf8");
+    for (const match of src.matchAll(/requireAuthorization\(\s*"lms"\s*,\s*"(assign|enroll|publish)"\)/g)) {
       sites.push({
-        file: f.replace(ROOT + "/", "").replace(/\\/g, "/"),
-        capability: `lms.${m[1]}`,
+        file: file.replace(ROOT + "/", "").replace(/\\/g, "/"),
+        capability: `lms.${match[1]}`,
       });
     }
   }
@@ -43,16 +43,16 @@ for (const root of SRC_DIRS) {
 // 2. Grant sources — any seed/INSERT writing a retired cap into a grant table.
 const offenders = [];
 for (const root of SRC_DIRS) {
-  for (const f of walk(join(ROOT, root))) {
-    const src = readFileSync(f, "utf8");
+  for (const file of walk(join(ROOT, root))) {
+    const src = readFileSync(file, "utf8");
     if (!/INSERT INTO (access_profile_capabilities|user_capabilities|role_capabilities)/.test(src)) continue;
-    for (const m of src.matchAll(
+    for (const match of src.matchAll(
       /INSERT INTO (access_profile_capabilities|user_capabilities|role_capabilities)[^;]*?/gs,
     )) {
-      const block = m[0];
-      for (const cap of RETIRED) {
-        if (new RegExp(`["']lms["']\\s*,\\s*["']${cap}["']|lms\\.${cap}`).test(block)) {
-          offenders.push(`${f.replace(ROOT + "/", "").replace(/\\/g, "/")} writes lms.${cap} in a grant INSERT`);
+      const block = match[0];
+      for (const capability of RETIRED) {
+        if (new RegExp(`["']lms["']\\s*,\\s*["']${capability}["']|lms\\.${capability}`).test(block)) {
+          offenders.push(`${file.replace(ROOT + "/", "").replace(/\\/g, "/")} writes lms.${capability} in a grant INSERT`);
         }
       }
     }
@@ -60,13 +60,13 @@ for (const root of SRC_DIRS) {
 }
 
 mkdirSync("scratch", { recursive: true });
-const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
-const outFile = `scratch/phase3-lms-retired-${stamp}.json`;
-writeFileSync(outFile, JSON.stringify({ scannedAt: new Date().toISOString(), sites, grantOffenders: offenders }, null, 2));
+const timestamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
+const outputFile = `scratch/phase3-lms-retired-${timestamp}.json`;
+writeFileSync(outputFile, JSON.stringify({ scannedAt: new Date().toISOString(), sites, grantOffenders: offenders }, null, 2));
 
 console.log(`retired-lms enforcement sites: ${sites.length}`);
-for (const s of sites) console.log(`  [${s.capability}] ${s.file}`);
+for (const site of sites) console.log(`  [${site.capability}] ${site.file}`);
 console.log(`grant-source offenders: ${offenders.length}`);
-for (const o of offenders) console.log(`  !! ${o}`);
-console.log("report:", outFile);
+for (const offender of offenders) console.log(`  !! ${offender}`);
+console.log("report:", outputFile);
 if (offenders.length > 0) process.exit(1);

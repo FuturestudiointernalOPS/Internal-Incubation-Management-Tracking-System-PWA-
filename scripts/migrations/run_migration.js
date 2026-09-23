@@ -34,18 +34,18 @@ async function run() {
     // Filter out comments and empty lines, keep statements
     const statements = sql
       .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith("--") && !s.startsWith("/*"));
+      .map((statement) => statement.trim())
+      .filter((statement) => statement.length > 0 && !statement.startsWith("--") && !statement.startsWith("/*"));
 
-    for (const stmt of statements) {
+    for (const statement of statements) {
       try {
-        await client.query(stmt);
-        console.log(`✅ ${stmt.substring(0, 100)}`);
+        await client.query(statement);
+        console.log(`✅ ${statement.substring(0, 100)}`);
       } catch (err) {
         if (
           err.message.includes("already exists")
         ) {
-          console.log(`⏭️  ${stmt.substring(0, 80)} — already exists`);
+          console.log(`⏭️  ${statement.substring(0, 80)} — already exists`);
         } else {
           console.error(`❌ ${err.message.substring(0, 100)}`);
         }

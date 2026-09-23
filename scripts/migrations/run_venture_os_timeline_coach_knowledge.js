@@ -33,23 +33,23 @@ async function run() {
     ];
 
     let count = 0;
-    for (const t of expectedTables) {
-      const res = await client.query(
+    for (const tableName of expectedTables) {
+      const queryResult = await client.query(
         `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1)`,
-        [t]
+        [tableName]
       );
-      if (res.rows[0].exists) {
-        console.log(`   ✅ ${t}`);
+      if (queryResult.rows[0].exists) {
+        console.log(`   ✅ ${tableName}`);
         count++;
       } else {
-        console.log(`   ❌ ${t} — MANQUANTE`);
+        console.log(`   ❌ ${tableName} — MANQUANTE`);
       }
     }
 
     // Check knowledge categories seeded
-    const cats = await client.query("SELECT COUNT(*) FROM knowledge_categories");
+    const knowledgeCategories = await client.query("SELECT COUNT(*) FROM knowledge_categories");
     console.log(`\n📊 ${count}/${expectedTables.length} tables créées`);
-    console.log(`📚 ${cats.rows[0].count} catégories de connaissance initialisées`);
+    console.log(`📚 ${knowledgeCategories.rows[0].count} catégories de connaissance initialisées`);
   } catch (err) {
     console.error(`❌ Erreur: ${err.message}`);
   } finally {

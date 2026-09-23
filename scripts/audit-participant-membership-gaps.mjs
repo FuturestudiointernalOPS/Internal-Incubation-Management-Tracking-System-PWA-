@@ -74,14 +74,14 @@ for (const file of envCandidates) {
   const url = readUrlFrom(file);
   if (!url) continue;
   try {
-    const probe = await import("pg");
-    const pool = new probe.default.Pool({
+    const pgModule = await import("pg");
+    const probePool = new pgModule.default.Pool({
       connectionString: url,
       ssl: { rejectUnauthorized: false },
       connectionTimeoutMillis: 8000,
     });
-    await pool.query("SELECT 1");
-    await pool.end();
+    await probePool.query("SELECT 1");
+    await probePool.end();
     process.env.DATABASE_URL = url;
     usedEnvFile = file;
     break;
@@ -103,10 +103,10 @@ const { getParticipantProgramIds } = await import("../src/lib/participant-member
 await initDb();
 console.log(`[audit] connected via ${usedEnvFile}`);
 
-const UP = (s) => String(s ?? "").trim().toUpperCase();
-const norm = (s) => String(s ?? "").trim();
+const UP = (value) => String(value ?? "").trim().toUpperCase();
+const norm = (value) => String(value ?? "").trim();
 const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
-const mk = () => {
+const ensureScratchDir = () => {
   try {
     mkdirSync(resolve(projectRoot, "scratch"), { recursive: true });
   } catch {}
@@ -126,55 +126,55 @@ async function loadEverything() {
   // status here, so neither do we — a status filter would report people as
   // "dependent on the fallback" while the app already answers from here.
   const authoritative = new Map();
-  for (const r of (
+  for (const row of (
     await db.execute({
       sql: "SELECT participant_id, program_id FROM participant_programs",
       args: [],
     })
   ).rows) {
-    const cid = norm(r.participant_id);
+    const cid = norm(row.participant_id);
     if (!cid) continue;
     if (!authoritative.has(cid)) authoritative.set(cid, new Set());
-    authoritative.get(cid).add(norm(r.program_id));
+    authoritative.get(cid).add(norm(row.program_id));
   }
 
   const familiesByName = new Map();
-  for (const r of (
+  for (const row of (
     await db.execute({
       sql: "SELECT name, program_id FROM families WHERE program_id IS NOT NULL",
       args: [],
     })
   ).rows) {
-    const key = UP(r.name);
+    const key = UP(row.name);
     if (!key) continue;
     if (!familiesByName.has(key)) familiesByName.set(key, new Set());
-    familiesByName.get(key).add(norm(r.program_id));
+    familiesByName.get(key).add(norm(row.program_id));
   }
 
   const programsByName = new Map();
   const catalog = new Set();
-  for (const r of (
+  for (const row of (
     await db.execute({ sql: "SELECT id, name FROM v2_programs", args: [] })
   ).rows) {
-    const id = norm(r.id);
+    const id = norm(row.id);
     catalog.add(id);
-    const key = UP(r.name);
+    const key = UP(row.name);
     if (!key) continue;
     if (!programsByName.has(key)) programsByName.set(key, new Set());
     programsByName.get(key).add(id);
   }
 
   const intakeByEmail = new Map();
-  for (const r of (
+  for (const row of (
     await db.execute({
       sql: "SELECT email, program_id FROM v2_participants WHERE program_id IS NOT NULL",
       args: [],
     })
   ).rows) {
-    const key = norm(r.email).toLowerCase();
+    const key = norm(row.email).toLowerCase();
     if (!key) continue;
     if (!intakeByEmail.has(key)) intakeByEmail.set(key, new Set());
-    intakeByEmail.get(key).add(norm(r.program_id));
+    intakeByEmail.get(key).add(norm(row.program_id));
   }
 
   return { contacts, authoritative, familiesByName, programsByName, intakeByEmail, catalog };
@@ -242,11 +242,11 @@ if (gaps.length > 0) {
         email: gap.contact.email,
         contact: gap.contact,
       });
-      const a = [...resolved].map(norm).sort().join("|");
-      const b = gap.entries.map((e) => e.programId).sort().join("|");
-      if (a !== b) {
+      const appResolved = [...resolved].map(norm).sort().join("|");
+      const auditResolved = gap.entries.map((entry) => entry.programId).sort().join("|");
+      if (appResolved !== auditResolved) {
         drift++;
-        console.log(`  ! mirror mismatch for ${gap.contact.cid}: app=[${a}] audit=[${b}]`);
+        console.log(`  ! mirror mismatch for ${gap.contact.cid}: app=[${appResolved}] audit=[${auditResolved}]`);
       }
     }
   } finally {
@@ -261,43 +261,43 @@ for (const gap of gaps) {
   for (const entry of gap.entries) {
     for (const label of entry.sources) bySource[label]++;
   }
-  gap.groupDerived = gap.entries.some((e) =>
-    e.sources.some((s) => s === "family" || s === "program"),
+  gap.groupDerived = gap.entries.some((entry) =>
+    entry.sources.some((source) => source === "family" || source === "program"),
   );
-  if (gap.entries.some((e) => !e.inCatalog)) dangling.push(gap);
+  if (gap.entries.some((entry) => !entry.inCatalog)) dangling.push(gap);
 }
 
 console.log("");
 console.log("─── LEGACY-SOURCE COVERAGE ───────────────────────────────────────────");
 console.log(`contacts scanned              : ${data.contacts.length}`);
 console.log(
-  `authoritative membership rows : ${[...data.authoritative.values()].reduce((n, s) => n + s.size, 0)}`,
+  `authoritative membership rows : ${[...data.authoritative.values()].reduce((total, programIdSet) => total + programIdSet.size, 0)}`,
 );
 console.log(`people dependent on the fallback: ${gaps.length}`);
 console.log(
   `  by source — field: ${bySource.field} · family: ${bySource.family} · program: ${bySource.program} · intake: ${bySource.intake}`,
 );
-console.log(`  people with a group-derived dependency: ${gaps.filter((g) => g.groupDerived).length}`);
+console.log(`  people with a group-derived dependency: ${gaps.filter((gap) => gap.groupDerived).length}`);
 console.log(`  people referencing a program that no longer exists: ${dangling.length}`);
 if (gaps.length > 0) console.log(`  mirror mismatches vs the app's own resolver: ${drift}`);
 
 if (gaps.length > 0) {
   console.log("");
   for (const gap of gaps) {
-    const c = gap.contact;
+    const contact = gap.contact;
     console.log(
-      `${c.cid}  ${c.name || "(no name)"} <${c.email || "?"}> [${c.role || "?"}/${c.status || "?"}]`,
+      `${contact.cid}  ${contact.name || "(no name)"} <${contact.email || "?"}> [${contact.role || "?"}/${contact.status || "?"}]`,
     );
-    console.log(`   group_name=${c.group_name || "—"}  program_id=${c.program_id || "—"}`);
-    for (const e of gap.entries) {
+    console.log(`   group_name=${contact.group_name || "—"}  program_id=${contact.program_id || "—"}`);
+    for (const entry of gap.entries) {
       console.log(
-        `   → ${e.programId}  via ${e.sources.join("+")}  ${e.inCatalog ? "(exists)" : "(MISSING from v2_programs)"}`,
+        `   → ${entry.programId}  via ${entry.sources.join("+")}  ${entry.inCatalog ? "(exists)" : "(MISSING from v2_programs)"}`,
       );
     }
   }
   console.log("");
   console.log("Nothing was written by this run.");
-  if (!INCLUDE_GROUPS && gaps.some((g) => g.groupDerived)) {
+  if (!INCLUDE_GROUPS && gaps.some((gap) => gap.groupDerived)) {
     console.log(
       "Group-derived dependencies are listed but are NOT copied by --apply unless",
     );
@@ -311,7 +311,7 @@ if (gaps.length > 0) {
   console.log("   (DISABLE_LEGACY_PARTICIPANT_FALLBACK=true).");
 }
 
-mk();
+ensureScratchDir();
 const reportFile = resolve(projectRoot, `scratch/participant-membership-gaps-${stamp}.json`);
 writeFileSync(
   reportFile,
@@ -323,15 +323,15 @@ writeFileSync(
       dependentOnFallback: gaps.length,
       bySource,
       mirrorMismatches: drift,
-      people: gaps.map((g) => ({
-        cid: g.contact.cid,
-        name: g.contact.name,
-        email: g.contact.email,
-        role: g.contact.role,
-        status: g.contact.status,
-        group_name: g.contact.group_name,
-        program_id: g.contact.program_id,
-        resolved: g.entries,
+      people: gaps.map((gap) => ({
+        cid: gap.contact.cid,
+        name: gap.contact.name,
+        email: gap.contact.email,
+        role: gap.contact.role,
+        status: gap.contact.status,
+        group_name: gap.contact.group_name,
+        program_id: gap.contact.program_id,
+        resolved: gap.entries,
       })),
     },
     null,
@@ -346,7 +346,7 @@ if (APPLY && gaps.length > 0) {
   for (const gap of gaps) {
     for (const entry of gap.entries) {
       if (!entry.inCatalog) continue; // never copy a dangling reference
-      const groupDerivedOnly = entry.sources.every((s) => s === "family" || s === "program");
+      const groupDerivedOnly = entry.sources.every((source) => source === "family" || source === "program");
       if (groupDerivedOnly && !INCLUDE_GROUPS) continue;
       insertable.push({ cid: gap.contact.cid, programId: entry.programId });
     }
@@ -359,16 +359,16 @@ if (APPLY && gaps.length > 0) {
     const failed = [];
     for (const row of insertable) {
       try {
-        const res = await db.execute({
+        const insertResult = await db.execute({
           sql: `INSERT INTO participant_programs (participant_id, program_id, status, accepted_at)
                 VALUES (?, ?, 'active', NOW())
                 ON CONFLICT (participant_id, program_id) DO NOTHING
                 RETURNING participant_id`,
           args: [row.cid, row.programId],
         });
-        if (res.rows.length > 0) applied.push(row);
-      } catch (e) {
-        failed.push({ ...row, error: e.message });
+        if (insertResult.rows.length > 0) applied.push(row);
+      } catch (error) {
+        failed.push({ ...row, error: error.message });
       }
     }
 
@@ -382,8 +382,8 @@ if (APPLY && gaps.length > 0) {
         `-- rollback of the membership copy ${stamp}`,
         "BEGIN;",
         ...applied.map(
-          (r) =>
-            `DELETE FROM participant_programs WHERE participant_id = '${String(r.cid).replace(/'/g, "''")}' AND CAST(program_id AS TEXT) = '${String(r.programId).replace(/'/g, "''")}';`,
+          (row) =>
+            `DELETE FROM participant_programs WHERE participant_id = '${String(row.cid).replace(/'/g, "''")}' AND CAST(program_id AS TEXT) = '${String(row.programId).replace(/'/g, "''")}';`,
         ),
         "COMMIT;",
         "",
@@ -392,7 +392,7 @@ if (APPLY && gaps.length > 0) {
 
     console.log("");
     console.log(`--apply: ${applied.length} membership(s) copied (${failed.length} failed)`);
-    for (const f of failed) console.log(`  ! ${f.cid} → ${f.programId}: ${f.error}`);
+    for (const failure of failed) console.log(`  ! ${failure.cid} → ${failure.programId}: ${failure.error}`);
     console.log(`rollback: ${rollbackFile.replace(`${projectRoot}/`, "")}`);
   }
 

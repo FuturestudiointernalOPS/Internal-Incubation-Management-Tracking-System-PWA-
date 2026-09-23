@@ -18,35 +18,35 @@ async function run() {
   try {
     // 1. Tables that need to exist but might have different schemas
     // Check venture_documents - already exists with UUID PK
-    const docCols = await client.query(`
+    const documentColumns = await client.query(`
       SELECT column_name FROM information_schema.columns 
       WHERE table_schema = 'public' AND table_name = 'venture_documents'
     `);
-    const docColNames = docCols.rows.map(r => r.column_name);
+    const documentColumnNames = documentColumns.rows.map(columnRow => columnRow.column_name);
     
     // Add missing columns to venture_documents
-    const missingDocCols = ['description', 'document_type', 'file_name', 'file_size', 'file_type', 'thumbnail_url', 'current_version', 'is_pitch_deck'];
-    for (const col of missingDocCols) {
-      if (!docColNames.includes(col)) {
+    const missingDocumentColumns = ['description', 'document_type', 'file_name', 'file_size', 'file_type', 'thumbnail_url', 'current_version', 'is_pitch_deck'];
+    for (const column of missingDocumentColumns) {
+      if (!documentColumnNames.includes(column)) {
         try {
-          if (col === 'current_version') await client.query(`ALTER TABLE venture_documents ADD COLUMN current_version INTEGER DEFAULT 1`);
-          else if (col === 'is_pitch_deck') await client.query(`ALTER TABLE venture_documents ADD COLUMN is_pitch_deck BOOLEAN DEFAULT FALSE`);
-          else if (col === 'file_size') await client.query(`ALTER TABLE venture_documents ADD COLUMN file_size BIGINT`);
-          else if (col === 'description') await client.query(`ALTER TABLE venture_documents ADD COLUMN description TEXT`);
-          else if (col === 'thumbnail_url') await client.query(`ALTER TABLE venture_documents ADD COLUMN thumbnail_url TEXT`);
-          else if (col === 'document_type') await client.query(`ALTER TABLE venture_documents ADD COLUMN document_type TEXT NOT NULL DEFAULT 'other'`);
-          else if (col === 'file_name') await client.query(`ALTER TABLE venture_documents ADD COLUMN file_name TEXT`);
-          else if (col === 'file_type') await client.query(`ALTER TABLE venture_documents ADD COLUMN file_type TEXT`);
-          console.log(`   ✅ venture_documents: added ${col}`);
-        } catch (e) { console.log(`   ⚠️  venture_documents: ${col} — ${e.message.substring(0,80)}`); }
+          if (column === 'current_version') await client.query(`ALTER TABLE venture_documents ADD COLUMN current_version INTEGER DEFAULT 1`);
+          else if (column === 'is_pitch_deck') await client.query(`ALTER TABLE venture_documents ADD COLUMN is_pitch_deck BOOLEAN DEFAULT FALSE`);
+          else if (column === 'file_size') await client.query(`ALTER TABLE venture_documents ADD COLUMN file_size BIGINT`);
+          else if (column === 'description') await client.query(`ALTER TABLE venture_documents ADD COLUMN description TEXT`);
+          else if (column === 'thumbnail_url') await client.query(`ALTER TABLE venture_documents ADD COLUMN thumbnail_url TEXT`);
+          else if (column === 'document_type') await client.query(`ALTER TABLE venture_documents ADD COLUMN document_type TEXT NOT NULL DEFAULT 'other'`);
+          else if (column === 'file_name') await client.query(`ALTER TABLE venture_documents ADD COLUMN file_name TEXT`);
+          else if (column === 'file_type') await client.query(`ALTER TABLE venture_documents ADD COLUMN file_type TEXT`);
+          console.log(`   ✅ venture_documents: added ${column}`);
+        } catch (error) { console.log(`   ⚠️  venture_documents: ${column} — ${error.message.substring(0,80)}`); }
       }
     }
 
     // 2. Check venture_document_versions - add missing columns
-    const verExists = await client.query(
+    const documentVersionsResult = await client.query(
       `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'venture_document_versions')`
     );
-    if (!verExists.rows[0].exists) {
+    if (!documentVersionsResult.rows[0].exists) {
       // It's in the list above but let me check again
       console.log("   venture_document_versions not found — will create");
     }
@@ -56,9 +56,9 @@ async function run() {
       "CREATE INDEX IF NOT EXISTS idx_venture_documents_type ON venture_documents(document_type)",
       "CREATE INDEX IF NOT EXISTS idx_venture_documents_pitch ON venture_documents(is_pitch_deck)",
     ];
-    for (const idx of docIndexes) {
-      try { await client.query(idx); console.log(`   ✅ ${idx.substring(0,60)}`); }
-      catch (e) { console.log(`   ⚠️  ${e.message.substring(0,80)}`); }
+    for (const indexStatement of docIndexes) {
+      try { await client.query(indexStatement); console.log(`   ✅ ${indexStatement.substring(0,60)}`); }
+      catch (error) { console.log(`   ⚠️  ${error.message.substring(0,80)}`); }
     }
 
     // 4. Create tables that DON'T exist yet
@@ -155,13 +155,13 @@ async function run() {
     ];
 
     let created = 0;
-    for (const ddl of newTables) {
+    for (const statement of newTables) {
       try {
-        await client.query(ddl);
+        await client.query(statement);
         created++;
-      } catch (e) {
-        if (!e.message.includes("already exists")) {
-          console.error(`   ❌ ${e.message.substring(0,120)}`);
+      } catch (error) {
+        if (!error.message.includes("already exists")) {
+          console.error(`   ❌ ${error.message.substring(0,120)}`);
         }
       }
     }
@@ -185,9 +185,9 @@ async function run() {
       "CREATE INDEX IF NOT EXISTS idx_doc_access_logs_document ON venture_document_access_logs(document_id)",
       "CREATE INDEX IF NOT EXISTS idx_doc_access_logs_share ON venture_document_access_logs(share_id)",
     ];
-    for (const idx of indexes) {
-      try { await client.query(idx); }
-      catch (e) { if (!e.message.includes("already exists")) console.log(`   ⚠️  ${e.message.substring(0,80)}`); }
+    for (const indexStatement of indexes) {
+      try { await client.query(indexStatement); }
+      catch (error) { if (!error.message.includes("already exists")) console.log(`   ⚠️  ${error.message.substring(0,80)}`); }
     }
 
     // 6. Seed data
@@ -196,10 +196,10 @@ async function run() {
       "utf-8"
     );
     // Extract only INSERT statements
-    const inserts = seedQueries.split(";").filter(s => s.trim().toUpperCase().startsWith("INSERT"));
-    for (const ins of inserts) {
-      try { await client.query(ins); }
-      catch (e) { if (!e.message.includes("duplicate") && !e.message.includes("unique")) console.log(`   ⚠️  seed: ${e.message.substring(0,80)}`); }
+    const inserts = seedQueries.split(";").filter(statement => statement.trim().toUpperCase().startsWith("INSERT"));
+    for (const insert of inserts) {
+      try { await client.query(insert); }
+      catch (error) { if (!error.message.includes("duplicate") && !error.message.includes("unique")) console.log(`   ⚠️  seed: ${error.message.substring(0,80)}`); }
     }
 
     console.log("\n✅ Full migration complete!");

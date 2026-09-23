@@ -23,17 +23,17 @@ async function run() {
       ORDER BY table_name
     `);
     console.log("✅ Tables existantes:");
-    tables.rows.forEach(r => console.log(`   - ${r.table_name}`));
+    tables.rows.forEach(table => console.log(`   - ${table.table_name}`));
 
     // Check ventures columns
-    const cols = await client.query(`
+    const columns = await client.query(`
       SELECT column_name, data_type, is_nullable 
       FROM information_schema.columns 
       WHERE table_schema = 'public' AND table_name = 'ventures'
       ORDER BY ordinal_position
     `);
     console.log("\n✅ Colonnes de ventures:");
-    cols.rows.forEach(r => console.log(`   ${r.column_name.padEnd(25)} ${r.data_type.padEnd(15)} ${r.is_nullable}`));
+    columns.rows.forEach(column => console.log(`   ${column.column_name.padEnd(25)} ${column.data_type.padEnd(15)} ${column.is_nullable}`));
 
     // Check constraints on ventures
     const constraints = await client.query(`
@@ -42,20 +42,20 @@ async function run() {
       WHERE conrelid = 'ventures'::regclass
     `);
     console.log("\n✅ Contraintes sur ventures:");
-    constraints.rows.forEach(r => console.log(`   ${r.conname} (${r.contype}): ${r.def}`));
+    constraints.rows.forEach(constraint => console.log(`   ${constraint.conname} (${constraint.contype}): ${constraint.def}`));
 
     // Check if venture_id has unique values
-    const dupes = await client.query(`
+    const duplicateVentureIds = await client.query(`
       SELECT venture_id, COUNT(*) FROM ventures 
       WHERE venture_id IS NOT NULL 
       GROUP BY venture_id 
       HAVING COUNT(*) > 1
     `);
-    console.log(`\n✅ Doublons venture_id: ${dupes.rows.length}`);
+    console.log(`\n✅ Doublons venture_id: ${duplicateVentureIds.rows.length}`);
     
     // Check null venture_ids
-    const nulls = await client.query(`SELECT COUNT(*) FROM ventures WHERE venture_id IS NULL`);
-    console.log(`✅ venture_id NULL: ${nulls.rows[0].count}`);
+    const nullVentureIds = await client.query(`SELECT COUNT(*) FROM ventures WHERE venture_id IS NULL`);
+    console.log(`✅ venture_id NULL: ${nullVentureIds.rows[0].count}`);
 
     // Try adding constraint with diagnostic
     try {
