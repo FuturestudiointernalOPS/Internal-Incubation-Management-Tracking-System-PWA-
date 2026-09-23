@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
-import { sendDecisionEmail, getTemplate, getDesignedTemplate, resolvePersonName, resolveSubmissionEmail, resolveProjectName, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun, detectLanguage, getEmailLogRow } from "@/lib/email";
+import { sendDecisionEmail, getTemplate, getDesignedTemplate, resolveResultDelayHours, ensureEmailLogTable, resolvePersonName, resolveSubmissionEmail, resolveProjectName, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun, detectLanguage, getEmailLogRow } from "@/lib/email";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded, sendAcknowledgementForSubmission } from "@/lib/platform/automation";
 import { resolveAutomationFlag } from "@/lib/platform/automationSettings";
 import { syncApprovedSubmissionToProgramGroup } from "@/lib/contact-group-sync";
@@ -46,6 +46,7 @@ import {
   getPasswordTokensByContactCids,
   getSubmissionsBySubmitterId,
   listFormRunsPage,
+  listApprovedSubmissionsAwaitingResultEmail,
   getDecisionEmailSubmissionById,
   getFieldLabelsByRunId,
   getContactNameEmailByCid,
@@ -150,6 +151,9 @@ import { removeRunReportFileObject } from "@/lib/platform/runReportFiles";
  * POST /api/platform/form-runs?action=review            — Review a submission
  * POST /api/platform/form-runs?action=assign            — Add assignment
  * POST /api/platform/form-runs?action=unassign          — Remove assignment
+ * POST /api/platform/form-runs?action=dispatch_scheduled_result_emails
+ *                                                        — Send the result emails whose
+ *                                                          scheduled time has passed (scheduler)
  *
  * PUT  /api/platform/form-runs                          — Update run metadata (including settings)
  * DELETE /api/platform/form-runs?id=X                    — Archive
@@ -689,6 +693,11 @@ export async function GET(req) {
       try {
         reportFile = runReportFileDescriptor(reportFileRow);
       } catch (_) {}
+
+      // Opening a run also delivers any result email whose scheduled time has
+      // passed, so a timer is a convenience, never the only way a scheduled
+      // result ever leaves. Deferred — it runs after this response is written.
+      scheduleResultSweep(id);
 
       return NextResponse.json({ success: true, run: run.rows[0], report_file: reportFile, assignments: await enrichedAssignmentsPromise, submissions: enrichedSubmissions, reviews: reviews.rows, evaluations, emails, field_labels: fieldLabels, filterable_fields: filterableFields });
     }
@@ -1312,6 +1321,73 @@ async function sendResultEmailForSubmission({ submission_id }) {
 }
 
 /**
+ * Deliver every result email whose scheduled time has passed.
+ *
+ * The delay is the RUN's own setting (see resolveResultDelayHours): the clock
+ * starts at the submission, so a result is "due" once `submitted_at + delay`
+ * is in the past. Only approved, evaluated submissions are candidates — the
+ * report cannot exist before that, and the query already excludes any
+ * submission whose result was sent. Sending goes through
+ * sendResultEmailForSubmission, so the per-submission sentinel, the
+ * duplicate-recipient guard and the delivery log all apply unchanged: running
+ * this twice never sends twice.
+ *
+ * Returns a small report ({ checked, sent, skipped, failed, not_due }) so a
+ * scheduler call can be observed rather than guessed at.
+ */
+async function dispatchScheduledResultEmails({ run_id = null } = {}) {
+  const summary = { checked: 0, sent: 0, skipped: 0, failed: 0, not_due: 0 };
+  try {
+    // The candidate query reads platform_email_log; create it first so a fresh
+    // database answers with "nothing to send" instead of a missing-table error.
+    await ensureEmailLogTable();
+    const candidatesResult = await listApprovedSubmissionsAwaitingResultEmail();
+    const now = Date.now();
+    for (const candidate of candidatesResult.rows || []) {
+      if (run_id != null && String(candidate.run_id) !== String(run_id)) continue;
+      const delayHours = resolveResultDelayHours(candidate.form_settings || {}, candidate.run_settings || {});
+      // No delay = no automatic send: the operator sends the result by hand.
+      if (delayHours <= 0) continue;
+      const submittedAt = candidate.submitted_at ? new Date(candidate.submitted_at).getTime() : NaN;
+      if (!Number.isFinite(submittedAt)) continue;
+      summary.checked += 1;
+      if (submittedAt + delayHours * 3600 * 1000 > now) {
+        summary.not_due += 1;
+        continue;
+      }
+      const outcome = await sendResultEmailForSubmission({ submission_id: candidate.id });
+      if (outcome.status === "sent") summary.sent += 1;
+      else if (outcome.status === "already_sent" || outcome.status === "skipped") summary.skipped += 1;
+      else summary.failed += 1;
+    }
+  } catch (error) {
+    console.error("[form-runs] Scheduled result dispatch error:", error);
+    return { ...summary, error: error?.message || "Scheduled dispatch failed" };
+  }
+  return summary;
+}
+
+// A run screen re-reads often (navigation, refresh). The sweep is cheap when
+// nothing is due, but building a report is not — so each run is swept at most
+// once per window. The window is per server instance; a second instance simply
+// sweeps its own turn, and the sentinel still prevents a double send.
+const RESULT_SWEEP_COOLDOWN_MS = 2 * 60 * 1000;
+const lastResultSweepAt = new Map();
+
+/**
+ * Ask for a sweep AFTER the current response has been written. Used on reads
+ * (opening a run) and right after an approval, so a scheduled result never
+ * waits on an external timer to exist — the timer only makes it punctual.
+ */
+function scheduleResultSweep(runId = null) {
+  const key = runId == null ? "*" : String(runId);
+  const now = Date.now();
+  if (now - (lastResultSweepAt.get(key) || 0) < RESULT_SWEEP_COOLDOWN_MS) return;
+  lastResultSweepAt.set(key, now);
+  after(() => dispatchScheduledResultEmails({ run_id: runId }).catch(() => {}));
+}
+
+/**
  * Shared approval/rejection workflow — used by BOTH the single review action
  * and the bulk review action so bulk approval is a controlled extension of
  * the individual flow, never a parallel implementation.
@@ -1460,6 +1536,14 @@ async function processReviewInternal({ submission_id, decision, comment, interna
     // Synchronous program/group sync (does NOT rely on background automation).
     if (decision === "approved" && runData.rows[0]) {
       await syncApprovedSubmissionToProgramGroup(result.rows[0]);
+    }
+
+    // A result whose scheduled time has already passed goes out as soon as the
+    // reviewer decides — no need to reopen the run for it to be picked up.
+    // The sweep honours the run's delay and is idempotent, so it is safe to ask
+    // on every decision (a delay of 0 asks for nothing).
+    if (decision === "approved") {
+      scheduleResultSweep(submissionRunResult.rows[0].run_id);
     }
   }
 
@@ -2147,6 +2231,25 @@ export async function POST(req) {
       }
 
       return NextResponse.json({ success: true, results });
+    }
+
+    // ─── SCHEDULED RESULT DISPATCH ACTION ───
+    // Delivers the result emails whose run-level delay has elapsed. Meant for a
+    // scheduler: a caller presenting the shared secret is accepted without a
+    // user session, and an authenticated operator (runs.edit) may also trigger
+    // it by hand. The secret is verified HERE, not by the gateway, so no
+    // unauthenticated traffic reaches the work itself.
+    if (action === "dispatch_scheduled_result_emails") {
+      const providedSecret = req.headers.get("x-cron-secret");
+      const cronAuthorized = !!process.env.CRON_SECRET && providedSecret === process.env.CRON_SECRET;
+      if (!cronAuthorized) {
+        if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+        const authError = await requireAuthorization("runs", "edit");
+        if (authError) return authError;
+      }
+
+      const summary = await dispatchScheduledResultEmails({ run_id: body?.run_id ?? null });
+      return NextResponse.json({ success: !summary.error, ...summary }, { status: summary.error ? 500 : 200 });
     }
 
     // ─── DELETE SUBMISSION ACTION (super admin only) ───
