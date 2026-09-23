@@ -12,6 +12,7 @@ import CourseView from "./CourseView";
 import EnrollModal from "./EnrollModal";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import { usePermissions } from "@/lib/PermissionProvider";
 import { useApi } from "@/lib/hooks/useApi";
 
@@ -37,10 +38,10 @@ const EMPTY_COURSE_READ = { payload: null, failure: null };
  * server's own key and both it and a request that never answered are translated
  * where they are shown.
  */
-const pickCourse = (d) =>
-  d?.success
-    ? { payload: d, failure: null }
-    : { payload: null, failure: d?.error || null };
+const pickCourse = (data) =>
+  data?.success
+    ? { payload: data, failure: null }
+    : { payload: null, failure: data?.error || null };
 
 /**
  * The values the metadata form starts from. The form shows these with the
@@ -58,6 +59,7 @@ const formBase = (course) => ({
 
 export default function CourseEditor({ courseId, basePath = "/admin/lms/courses" }) {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const router = useRouter();
   // UI gating only — the server re-checks every call (lms.edit / lms.delete).
   // Fails OPEN while the matrix loads, so no action flashes away.
@@ -124,8 +126,8 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
       setEditing(false);
       setEdits({});
       await refresh();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     } finally {
       setSaving(false);
     }
@@ -133,13 +135,13 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
 
   const publish = async () => {
     setValidationErrors([]);
-    if (!window.confirm(t("lms.confirm.publish"))) return;
+    if (!(await confirm({ message: t("lms.confirm.publish") }))) return;
     try {
       const res = await fetch(`/api/lms/courses/${courseId}/publish`, { method: "POST" });
       const data = await res.json();
       if (!data.success) {
         if (data.details && data.details.length) {
-          setValidationErrors(data.details.map((d) => d.key));
+          setValidationErrors(data.details.map((detail) => detail.key));
           notify("error", "lms.errors.publishValidationFailed");
         } else {
           throw new Error(data.error || "lms.errors.saveFailed");
@@ -148,34 +150,34 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
       }
       notify("success", "lms.courses.published");
       refresh();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     }
   };
 
   const archive = async () => {
-    if (!window.confirm(`${t("lms.confirm.archive")}\n${t("lms.confirm.archiveHint")}`)) return;
+    if (!(await confirm({ message: `${t("lms.confirm.archive")}\n${t("lms.confirm.archiveHint")}`, tone: "danger" }))) return;
     try {
       const res = await fetch(`/api/lms/courses/${courseId}/archive`, { method: "POST" });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.courses.archived");
       refresh();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     }
   };
 
   const remove = async () => {
-    if (!window.confirm(`${t("lms.confirm.deleteCourse")}\n${t("lms.confirm.deleteCourseHint")}`)) return;
+    if (!(await confirm({ message: `${t("lms.confirm.deleteCourse")}\n${t("lms.confirm.deleteCourseHint")}`, tone: "danger" }))) return;
     try {
       const res = await fetch(`/api/lms/courses/${courseId}`, { method: "DELETE" });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.courses.deleted");
       router.push(basePath);
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     }
   };
 

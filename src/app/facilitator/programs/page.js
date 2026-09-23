@@ -14,7 +14,8 @@ export const dynamic = "force-dynamic";
 // Module scope on purpose: the hook keys its internal callback on this function,
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop.
-const pickFacilitatorPrograms = (d) => (d?.success ? d.programs || [] : []);
+const pickFacilitatorPrograms = (response) =>
+  response?.success ? response.programs || [] : [];
 
 export default function FacilitatorPrograms() {
   useI18n();
@@ -54,28 +55,28 @@ export default function FacilitatorPrograms() {
           </div>
         ) : (
           <div className="grid gap-3">
-            {programs.map((p) => (
+            {programs.map((program) => (
               <a
-                key={p.id}
-                href={`/facilitator/program/${p.id}`}
+                key={program.id}
+                href={`/facilitator/program/${program.id}`}
                 className="flex items-center justify-between gap-4 p-5 rounded-2xl border border-[var(--border-primary)] bg-secondary hover:border-[var(--brand-orange)] transition-all"
               >
                 <div className="min-w-0">
                   <p className="text-[12px] font-black uppercase truncate">
-                    {p.name}
+                    {program.name}
                   </p>
-                  {p.description && (
+                  {program.description && (
                     <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1 line-clamp-2">
-                      {p.description}
+                      {program.description}
                     </p>
                   )}
                   <div className="flex items-center gap-3 mt-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     <span className="flex items-center gap-1">
                       <Users className="w-3 h-3" />
-                      {p.participants_count || 0} participants
+                      {program.participants_count || 0} participants
                     </span>
-                    <span>{p.status || "—"}</span>
-                    {p.duration_weeks ? <span>{p.duration_weeks} wks</span> : null}
+                    <span>{program.status || "—"}</span>
+                    {program.duration_weeks ? <span>{program.duration_weeks} wks</span> : null}
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />

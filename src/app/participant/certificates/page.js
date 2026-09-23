@@ -7,7 +7,7 @@ import { Award, Loader2 } from "lucide-react";
 // Module scope on purpose: the hook keys its internal callback on this function,
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop.
-const pickCertificates = (d) => (d?.success ? d.certificates || [] : []);
+const pickCertificates = (payload) => (payload?.success ? payload.certificates || [] : []);
 
 /**
  * PARTICIPANT CERTIFICATES — certificates issued to the current user
@@ -23,7 +23,7 @@ export default function ParticipantCertificatesPage() {
     { defaultValue: null, transform: pickCertificates },
   );
 
-  const fmt = (d) => (d ? new Date(d).toLocaleDateString() : "");
+  const formatDate = (value) => (value ? new Date(value).toLocaleDateString() : "");
 
   return (
     <>
@@ -38,20 +38,20 @@ export default function ParticipantCertificatesPage() {
               <Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" />
             </div>
           ) : certificates && certificates.length > 0 ? (
-            certificates.map((c) => (
+            certificates.map((certificate) => (
               <div
-                key={c.program_id}
+                key={certificate.program_id}
                 className="flex items-center gap-3 p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-tertiary)]"
               >
                 <Award className="w-5 h-5 text-[var(--brand-orange)] shrink-0" />
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                    {c.program_name}
+                    {certificate.program_name}
                   </p>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mt-1">
                     {t("participant.certificateIssued")}
-                    {c.completed_at || c.accepted_at
-                      ? ` · ${fmt(c.completed_at || c.accepted_at)}`
+                    {certificate.completed_at || certificate.accepted_at
+                      ? ` · ${formatDate(certificate.completed_at || certificate.accepted_at)}`
                       : ""}
                   </p>
                 </div>

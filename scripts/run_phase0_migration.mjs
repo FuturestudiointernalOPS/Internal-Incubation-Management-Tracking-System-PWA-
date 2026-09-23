@@ -34,8 +34,8 @@ for (const sql of statements) {
   try {
     await db.execute({ sql, args: [] });
     console.log("  ✓", sql.substring(0, 80) + "...");
-  } catch (e) {
-    console.log("  ⚠ Skipped (already exists):", e.message.split("\n")[0]);
+  } catch (error) {
+    console.log("  ⚠ Skipped (already exists):", error.message.split("\n")[0]);
   }
 }
 

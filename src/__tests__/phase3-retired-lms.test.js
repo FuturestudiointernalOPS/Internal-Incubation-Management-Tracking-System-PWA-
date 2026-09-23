@@ -12,13 +12,13 @@ const path = require("node:path");
 const ROOT = path.join(__dirname, "..", "..");
 const RETIRED = ["assign", "enroll", "publish"];
 
-function walk(dir, out = []) {
-  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    const p = path.join(dir, e.name);
-    if (e.isDirectory()) walk(p, out);
-    else if (/\.(js|mjs)$/.test(e.name)) out.push(p);
+function walk(dir, files = []) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) walk(fullPath, files);
+    else if (/\.(js|mjs)$/.test(entry.name)) files.push(fullPath);
   }
-  return out;
+  return files;
 }
 
 const SRC_DIRS = ["src/app", "src/models", "src/lib"];
@@ -26,27 +26,27 @@ const SRC_DIRS = ["src/app", "src/models", "src/lib"];
 describe("Retired LMS capabilities stay removed", () => {
   test("catalog no longer exposes assign/enroll/publish", () => {
     const { CAPABILITY_CATALOG } = require("@/models/authorization/capability-catalog");
-    for (const cap of RETIRED) {
-      expect(CAPABILITY_CATALOG.lms.capabilities[cap]).toBeUndefined();
+    for (const capability of RETIRED) {
+      expect(CAPABILITY_CATALOG.lms.capabilities[capability]).toBeUndefined();
     }
   });
 
   test("PERMISSION_MODULES never lists a retired capability", () => {
     const { PERMISSION_MODULES } = require("@/lib/auth");
-    for (const cap of RETIRED) {
-      expect(PERMISSION_MODULES.lms.capabilities).not.toContain(cap);
+    for (const capability of RETIRED) {
+      expect(PERMISSION_MODULES.lms.capabilities).not.toContain(capability);
     }
   });
 
   test("no route enforces a retired capability (migrated to lms.edit)", () => {
     const sites = [];
     for (const root of SRC_DIRS) {
-      for (const f of walk(path.join(ROOT, root))) {
-        const src = fs.readFileSync(f, "utf8");
-        for (const m of src.matchAll(
+      for (const file of walk(path.join(ROOT, root))) {
+        const src = fs.readFileSync(file, "utf8");
+        for (const match of src.matchAll(
           /requireAuthorization\(\s*"lms"\s*,\s*"(assign|enroll|publish)"\)/g,
         )) {
-          sites.push(`${f.replace(/\\/g, "/").split("/src/")[1]}:lms.${m[1]}`);
+          sites.push(`${file.replace(/\\/g, "/").split("/src/")[1]}:lms.${match[1]}`);
         }
       }
     }

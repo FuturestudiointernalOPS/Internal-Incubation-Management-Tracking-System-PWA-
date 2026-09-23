@@ -48,8 +48,8 @@ export default function CrmContactsPage() {
     let alive = true;
     (async () => {
       try {
-        const res = await fetch("/api/contacts");
-        const data = await res.json();
+        const response = await fetch("/api/contacts");
+        const data = await response.json();
         if (!alive) return;
         if (data.success) setContacts(data.contacts || []);
         else setError(t(data.error || "errors.somethingWrong"));
@@ -65,12 +65,12 @@ export default function CrmContactsPage() {
   }, [t]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return contacts;
-    return contacts.filter((c) =>
-      [c.name, c.email, c.role, c.group_name]
+    const query = search.trim().toLowerCase();
+    if (!query) return contacts;
+    return contacts.filter((contact) =>
+      [contact.name, contact.email, contact.role, contact.group_name]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(q)),
+        .some((value) => String(value).toLowerCase().includes(query)),
     );
   }, [contacts, search]);
 
@@ -128,7 +128,7 @@ export default function CrmContactsPage() {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
             placeholder={t("crm.directory.searchPlaceholder")}
             className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-3 pl-10 pr-4 text-sm outline-none focus:border-[var(--brand-orange)] transition-colors"
             style={{ color: "var(--text-primary)" }}

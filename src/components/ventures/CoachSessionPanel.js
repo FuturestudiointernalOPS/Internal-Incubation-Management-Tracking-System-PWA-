@@ -28,19 +28,19 @@ import { useI18n } from "@/lib/i18n";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function isCoachedByViewer(s, myCid, myName) {
-  const cid = s.coach_contact_id;
-  if (cid !== null && cid !== undefined && String(cid).trim() !== "") {
-    return !!(myCid && String(cid) === String(myCid));
+function isCoachedByViewer(session, myCid, myName) {
+  const contactId = session.coach_contact_id;
+  if (contactId !== null && contactId !== undefined && String(contactId).trim() !== "") {
+    return !!(myCid && String(contactId) === String(myCid));
   }
   // Rows without a resolved platform contact (legacy catalog coach): match by
   // the coach display name the payload carries.
-  const coach = String(s.coach_name || s.advisor_name || "").trim().toLowerCase();
+  const coach = String(session.coach_name || session.advisor_name || "").trim().toLowerCase();
   return !!(myName && coach && coach === String(myName).trim().toLowerCase());
 }
 
 export default function CoachSessionPanel({
-  session: s,
+  session,
   ventureId,
   myCid,
   myName,
@@ -57,7 +57,7 @@ export default function CoachSessionPanel({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
 
-  const mine = isCoachedByViewer(s, myCid, myName);
+  const mine = isCoachedByViewer(session, myCid, myName);
 
   const loadDetail = async (force = false) => {
     if (!force && (detail || loading)) return;
@@ -67,10 +67,10 @@ export default function CoachSessionPanel({
       const res = await fetch(`/api/ventures/${ventureId}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "get_session", session_id: s.id }),
+        body: JSON.stringify({ action: "get_session", session_id: session.id }),
       });
-      const d = await res.json();
-      if (d.success && d.session) setDetail(d.session);
+      const payload = await res.json();
+      if (payload.success && payload.session) setDetail(payload.session);
       else setLoadError(true);
     } catch (_) {
       setLoadError(true);
@@ -101,8 +101,8 @@ export default function CoachSessionPanel({
           content,
         }),
       });
-      const d = await res.json();
-      if (d.success) {
+      const payload = await res.json();
+      if (payload.success) {
         setNoteText("");
         await loadDetail(true);
       } else {
@@ -117,25 +117,25 @@ export default function CoachSessionPanel({
 
   // Operational context this session was created with. The list payload only
   // guarantees the soft refs; we never invent names that are not available.
-  const ctxParts = [];
-  if (s.journey_stage_id != null && s.journey_stage_id !== "") {
-    const stage = stageNameById[String(s.journey_stage_id)];
-    if (stage) ctxParts.push(stage);
+  const contextParts = [];
+  if (session.journey_stage_id != null && session.journey_stage_id !== "") {
+    const stage = stageNameById[String(session.journey_stage_id)];
+    if (stage) contextParts.push(stage);
   }
-  if (s.milestone_ref != null && s.milestone_ref !== "") {
-    const ref = String(s.milestone_ref);
-    if (milestoneTitleById[ref]) ctxParts.push(milestoneTitleById[ref]);
-    else if (!UUID_RE.test(ref)) ctxParts.push(s.milestone_ref);
+  if (session.milestone_ref != null && session.milestone_ref !== "") {
+    const ref = String(session.milestone_ref);
+    if (milestoneTitleById[ref]) contextParts.push(milestoneTitleById[ref]);
+    else if (!UUID_RE.test(ref)) contextParts.push(session.milestone_ref);
   }
-  if (s.task_id != null && s.task_id !== "") {
-    const taskKey = String(s.task_id);
-    ctxParts.push(
+  if (session.task_id != null && session.task_id !== "") {
+    const taskKey = String(session.task_id);
+    contextParts.push(
       taskTitleById[taskKey]
         ? taskTitleById[taskKey]
-        : `${t("venture.coach.contextTask")}: ${s.task_id}`,
+        : `${t("venture.coach.contextTask")}: ${session.task_id}`,
     );
   }
-  const contextLine = ctxParts.length ? ctxParts.join(" · ") : null;
+  const contextLine = contextParts.length ? contextParts.join(" · ") : null;
 
   const notes = detail?.notes || [];
 
@@ -144,7 +144,7 @@ export default function CoachSessionPanel({
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <p className="text-xs font-medium text-[var(--text-primary)]">
-            {s.advisor_name || s.title || "Session"}
+            {session.advisor_name || session.title || "Session"}
           </p>
           {mine && (
             <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 text-[8px] font-black uppercase tracking-widest">
@@ -152,10 +152,10 @@ export default function CoachSessionPanel({
             </span>
           )}
         </div>
-        {s.session_date && (
+        {session.session_date && (
           <p className="text-[10px] text-slate-500">
-            {new Date(s.session_date).toLocaleDateString()}
-            {s.start_time ? ` at ${s.start_time}` : ""}
+            {new Date(session.session_date).toLocaleDateString()}
+            {session.start_time ? ` at ${session.start_time}` : ""}
           </p>
         )}
         {contextLine && (
@@ -170,8 +170,8 @@ export default function CoachSessionPanel({
         className="mt-1.5"
       >
         <summary
-          onClick={(e) => {
-            e.preventDefault();
+          onClick={(event) => {
+            event.preventDefault();
             toggle();
           }}
           className="cursor-pointer list-none select-none text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--text-primary)] transition-colors"
@@ -197,14 +197,14 @@ export default function CoachSessionPanel({
                 </p>
               ) : (
                 <div className="space-y-1.5">
-                  {notes.map((n) => (
-                    <div key={n.id} className="p-2 rounded-lg bg-tertiary">
+                  {notes.map((note) => (
+                    <div key={note.id} className="p-2 rounded-lg bg-tertiary">
                       <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
-                        {n.content}
+                        {note.content}
                       </p>
                       <p className="text-[9px] text-slate-500 mt-1">
-                        {n.author_name ? `${n.author_name} · ` : ""}
-                        {n.created_at ? new Date(n.created_at).toLocaleString() : ""}
+                        {note.author_name ? `${note.author_name} · ` : ""}
+                        {note.created_at ? new Date(note.created_at).toLocaleString() : ""}
                       </p>
                     </div>
                   ))}
@@ -218,7 +218,7 @@ export default function CoachSessionPanel({
               <div className="flex items-center gap-2">
                 <input
                   value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
+                  onChange={(event) => setNoteText(event.target.value)}
                   placeholder={t("venture.coach.reportPlaceholder")}
                   className="flex-1 min-w-0 bg-primary border border-[var(--border-primary)] rounded-lg px-2.5 py-1.5 text-[10px] text-[var(--text-primary)] placeholder:text-slate-500 outline-none focus:border-[var(--brand-orange)]/50"
                 />

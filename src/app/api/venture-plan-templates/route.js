@@ -32,8 +32,8 @@ export const POST = createHandler(
 
     // Guard: only someone who manages the plan's Venture may save it as a
     // platform template. Resolve the Venture from the plan row.
-    const planRes = await db.execute({ sql: "SELECT venture_id, name FROM venture_operating_plans WHERE id = ?", args: [planId] });
-    const plan = planRes.rows?.[0];
+    const planResult = await db.execute({ sql: "SELECT venture_id, name FROM venture_operating_plans WHERE id = ?", args: [planId] });
+    const plan = planResult.rows?.[0];
     if (!plan) return NextResponse.json({ success: false, error: "Plan not found." }, { status: 404 });
 
     const { resolvePlanAccess, allowsPlanAction } = await import("@/lib/ventureOperatingPlans");

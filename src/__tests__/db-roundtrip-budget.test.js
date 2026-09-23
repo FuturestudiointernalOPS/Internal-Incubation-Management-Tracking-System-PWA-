@@ -72,8 +72,8 @@ describe("responsibilities — round-trip budget", () => {
   test("a full list costs the one-time seed plus one read, then one read", async () => {
     const { GET } = fresh("@/app/api/responsibilities/route");
 
-    const first = await GET(new Request("http://localhost/api/responsibilities"));
-    expect(first.status).toBe(200);
+    const firstResponse = await GET(new Request("http://localhost/api/responsibilities"));
+    expect(firstResponse.status).toBe(200);
     const afterFirst = statements();
 
     // First request of a process: the one-time schema check (memoised, ~20
@@ -81,8 +81,8 @@ describe("responsibilities — round-trip budget", () => {
     // work the seed alone was 24 statements and it re-ran on EVERY request.
     expect(afterFirst).toBeLessThanOrEqual(25);
 
-    const second = await GET(new Request("http://localhost/api/responsibilities"));
-    expect(second.status).toBe(200);
+    const secondResponse = await GET(new Request("http://localhost/api/responsibilities"));
+    expect(secondResponse.status).toBe(200);
     const afterSecond = statements() - afterFirst;
 
     // Warm process: the whole catalogue and schema work is done — the request

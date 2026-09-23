@@ -24,19 +24,19 @@ import { useI18n } from "@/lib/i18n";
  */
 export default function PermissionPeoplePage() {
   const { t } = useI18n();
-  const [sub, setSub] = useSubTab("access");
-  const canonical = PERMISSION_PEOPLE_SUB_ALIASES[sub] || sub;
+  const [subTab, setSubTab] = useSubTab("access");
+  const canonicalSubTab = PERMISSION_PEOPLE_SUB_ALIASES[subTab] || subTab;
 
   useEffect(() => {
-    if (canonical !== sub) defer(() => setSub(canonical));
-  }, [canonical, sub, setSub]);
+    if (canonicalSubTab !== subTab) defer(() => setSubTab(canonicalSubTab));
+  }, [canonicalSubTab, subTab, setSubTab]);
 
   return (
-    <PermissionShell active="people" sub={canonical} onSubChange={setSub}>
+    <PermissionShell active="people" sub={canonicalSubTab} onSubChange={setSubTab}>
       <p className="mb-4 text-xs font-medium text-[var(--text-secondary)]">
         {t("engineering.permissions.questionPeople")}
       </p>
-      {canonical === "jobs" ? (
+      {canonicalSubTab === "jobs" ? (
         <PermissionManager initialTab="responsibilities" />
       ) : (
         <IndividualAccessScreen />

@@ -20,14 +20,14 @@ function parseCSV(text) {
   // so logical rows are derived from the parser, never from physical lines.
   const grid = parseCSVRows(text);
   if (grid.length === 0) return { headers: [], rows: [] };
-  const headers = (grid[0] || []).map((h) => h.trim());
+  const headers = (grid[0] || []).map((header) => header.trim());
   const rows = [];
-  for (let i = 1; i < grid.length; i++) {
-    const cells = grid[i];
+  for (let rowIndex = 1; rowIndex < grid.length; rowIndex++) {
+    const cells = grid[rowIndex];
     if (cells.length === 0 || (cells.length === 1 && cells[0] === "")) continue;
     const row = {};
-    headers.forEach((h, idx) => {
-      row[h] = cells[idx] !== undefined ? cells[idx].trim() : "";
+    headers.forEach((header, columnIndex) => {
+      row[header] = cells[columnIndex] !== undefined ? cells[columnIndex].trim() : "";
     });
     rows.push(row);
   }
@@ -45,10 +45,10 @@ function normalizeInput({ csv_text, headers, rows }) {
       Array.isArray(headers) && headers.length > 0
         ? headers
         : Object.keys(rows[0] || {});
-    const normalizedRows = rows.map((r) => {
+    const normalizedRows = rows.map((sourceRow) => {
       const row = {};
-      headerList.forEach((h) => {
-        row[h] = r[h] != null ? String(r[h]).trim() : "";
+      headerList.forEach((header) => {
+        row[header] = sourceRow[header] != null ? String(sourceRow[header]).trim() : "";
       });
       return row;
     });
@@ -57,8 +57,8 @@ function normalizeInput({ csv_text, headers, rows }) {
   return parseCSV(csv_text || "");
 }
 
-function tokenize(str) {
-  return (str || "")
+function tokenize(text) {
+  return (text || "")
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
@@ -70,8 +70,8 @@ function wordOverlapScore(colName, fieldLabel) {
   const labelTokens = tokenize(fieldLabel);
   if (labelTokens.length === 0) return 0;
   let matches = 0;
-  for (const t of labelTokens) {
-    if (colTokens.has(t)) matches++;
+  for (const token of labelTokens) {
+    if (colTokens.has(token)) matches++;
   }
   return matches / labelTokens.length;
 }
@@ -80,13 +80,13 @@ function fuzzyMatch(columns, fields) {
   const mapping = {};
   const usedFields = new Set();
 
-  for (const col of columns) {
+  for (const column of columns) {
     let bestField = null;
     let bestScore = 0;
 
     for (const field of fields) {
       if (usedFields.has(field.id)) continue;
-      const score = wordOverlapScore(col, field.label);
+      const score = wordOverlapScore(column, field.label);
       if (score > bestScore) {
         bestScore = score;
         bestField = field;
@@ -94,12 +94,12 @@ function fuzzyMatch(columns, fields) {
     }
 
     if (bestField && bestScore >= 0.4) {
-      mapping[col] = bestField.id;
+      mapping[column] = bestField.id;
       usedFields.add(bestField.id);
     }
   }
 
-  const unmatched = columns.filter((c) => !mapping[c]);
+  const unmatched = columns.filter((column) => !mapping[column]);
   return { mapping, unmatched };
 }
 
@@ -122,9 +122,9 @@ export async function POST(req) {
     let parsed;
     try {
       parsed = normalizeInput({ csv_text, headers: inputHeaders, rows: inputRows });
-    } catch (e) {
+    } catch (error) {
       return NextResponse.json(
-        { success: false, error: "Failed to parse file: " + e.message },
+        { success: false, error: "Failed to parse file: " + error.message },
         { status: 400 }
       );
     }
@@ -138,14 +138,14 @@ export async function POST(req) {
     let formInfo = null;
 
     if (run_id) {
-      const runRes = await getFormRunByIdForPreview(run_id);
-      if (runRes.rows.length === 0) {
+      const runResult = await getFormRunByIdForPreview(run_id);
+      if (runResult.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Selected run not found" },
           { status: 404 }
         );
       }
-      runInfo = runRes.rows[0];
+      runInfo = runResult.rows[0];
       effectiveFormId = String(runInfo.form_id);
     }
 
@@ -156,33 +156,33 @@ export async function POST(req) {
       );
     }
 
-    const formRes = await getPlatformFormById(effectiveFormId);
-    if (formRes.rows.length === 0) {
+    const formResult = await getPlatformFormById(effectiveFormId);
+    if (formResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Form not found for the selected run" },
         { status: 404 }
       );
     }
-    formInfo = formRes.rows[0];
+    formInfo = formResult.rows[0];
 
     // ── Fetch THIS form's questions AND their configured answer options ──
     const fieldsResult = await getFormFieldsForPreview(effectiveFormId);
 
-    const formFields = fieldsResult.rows.map((f) => {
+    const formFields = fieldsResult.rows.map((formField) => {
       let options = null;
-      if (f.options) {
+      if (formField.options) {
         try {
-          options = typeof f.options === "string" ? JSON.parse(f.options) : f.options;
+          options = typeof formField.options === "string" ? JSON.parse(formField.options) : formField.options;
         } catch (_) {
           options = null;
         }
       }
       return {
-        id: f.id,
-        label: f.label,
-        field_type: f.field_type,
+        id: formField.id,
+        label: formField.label,
+        field_type: formField.field_type,
         options: Array.isArray(options) ? options : null,
-        required: !!f.required,
+        required: !!formField.required,
       };
     });
 
@@ -190,11 +190,11 @@ export async function POST(req) {
     const { mapping, unmatched } = fuzzyMatch(parsed.headers, formFields);
 
     // Build suggested mapping array for response
-    const suggestedMapping = parsed.headers.map((col) => ({
-      csv_column: col,
-      field_id: mapping[col] || null,
-      field_label: mapping[col]
-        ? formFields.find((f) => f.id === mapping[col])?.label || ""
+    const suggestedMapping = parsed.headers.map((column) => ({
+      csv_column: column,
+      field_id: mapping[column] || null,
+      field_label: mapping[column]
+        ? formFields.find((formField) => formField.id === mapping[column])?.label || ""
         : "",
     }));
 

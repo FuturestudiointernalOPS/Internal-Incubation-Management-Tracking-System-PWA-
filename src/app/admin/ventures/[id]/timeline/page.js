@@ -13,11 +13,11 @@ import { useApi } from "@/lib/hooks/useApi";
 // rather than rebuilt on every render.
 
 
-const pickVenture = (d) => (d?.success ? d.venture || null : null);
-const pickPayload = (d) => (d?.success ? d : null);
-const pickProgress = (d) => (d?.success ? d.progress : null);
-const pickJourneyReport = (d) =>
-  d?.success ? d.journey_report || null : null;
+const pickVenture = (payload) => (payload?.success ? payload.venture || null : null);
+const pickPayload = (payload) => (payload?.success ? payload : null);
+const pickProgress = (payload) => (payload?.success ? payload.progress : null);
+const pickJourneyReport = (payload) =>
+  payload?.success ? payload.journey_report || null : null;
 import { useI18n } from "@/lib/i18n";
 import {
   MILESTONE_STATUSES,
@@ -100,9 +100,9 @@ export default function VentureTimelinePage() {
 
   // Calculate date range for Gantt
   let minDate = Infinity, maxDate = -Infinity;
-  for (const r of rows) {
-    if (r.start_date) { const d = new Date(r.start_date).getTime(); if (d < minDate) minDate = d; }
-    if (r.end_date) { const d = new Date(r.end_date).getTime(); if (d > maxDate) maxDate = d; }
+  for (const row of rows) {
+    if (row.start_date) { const startTime = new Date(row.start_date).getTime(); if (startTime < minDate) minDate = startTime; }
+    if (row.end_date) { const endTime = new Date(row.end_date).getTime(); if (endTime > maxDate) maxDate = endTime; }
   }
   if (!isFinite(minDate)) minDate = now;
   if (maxDate < 0 || !isFinite(maxDate)) maxDate = minDate + 30 * 86400000;
@@ -111,20 +111,20 @@ export default function VentureTimelinePage() {
 
   const getX = (date) => {
     if (!date) return 0;
-    const pct = (new Date(date).getTime() - minDate) / (maxDate - minDate);
-    return Math.max(0, Math.min(100, pct * 100));
+    const percentage = (new Date(date).getTime() - minDate) / (maxDate - minDate);
+    return Math.max(0, Math.min(100, percentage * 100));
   };
   const getWidth = (start, end) => {
     if (!start && !end) return 0;
-    const s = start ? new Date(start).getTime() : minDate;
-    const e = end ? new Date(end).getTime() : maxDate;
-    return Math.max(3, ((e - s) / (maxDate - minDate)) * 100);
+    const startMs = start ? new Date(start).getTime() : minDate;
+    const endMs = end ? new Date(end).getTime() : maxDate;
+    return Math.max(3, ((endMs - startMs) / (maxDate - minDate)) * 100);
   };
 
-  const progressBar = (pct) => (
+  const progressBar = (percentage) => (
     <div className="w-full bg-tertiary rounded-full h-1.5 overflow-hidden">
-      <div className={`h-full rounded-full transition-all ${pct >= 80 ? "bg-emerald-500" : pct >= 40 ? "bg-amber-500" : "bg-[var(--brand-orange)]"}`}
-        style={{ width: `${Math.min(pct, 100)}%` }} />
+      <div className={`h-full rounded-full transition-all ${percentage >= 80 ? "bg-emerald-500" : percentage >= 40 ? "bg-amber-500" : "bg-[var(--brand-orange)]"}`}
+        style={{ width: `${Math.min(percentage, 100)}%` }} />
     </div>
   );
 
@@ -160,10 +160,10 @@ export default function VentureTimelinePage() {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex bg-tertiary rounded-xl border border-[var(--border-primary)] p-0.5">
-              {["gantt", "progress", "delay"].map((v) => (
-                <button key={v} onClick={() => setView(v)}
-                  className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${view === v ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}>
-                  {v === "gantt" ? "Gantt" : v === "progress" ? "Progress" : "Delays"}
+              {["gantt", "progress", "delay"].map((viewOption) => (
+                <button key={viewOption} onClick={() => setView(viewOption)}
+                  className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${view === viewOption ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}>
+                  {viewOption === "gantt" ? "Gantt" : viewOption === "progress" ? "Progress" : "Delays"}
                 </button>
               ))}
               <button onClick={() => setView("roadmap")}
@@ -217,9 +217,9 @@ export default function VentureTimelinePage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Gantt Chart</h3>
               <div className="flex gap-1 bg-tertiary rounded-lg p-0.5">
-                {["day", "week", "month"].map((z) => (
-                  <button key={z} onClick={() => setZoom(z)}
-                    className={`px-2 py-1 rounded text-[7px] font-black uppercase tracking-wider ${zoom === z ? "bg-primary text-[var(--text-primary)]" : "text-slate-500"}`}>{z}</button>
+                {["day", "week", "month"].map((zoomOption) => (
+                  <button key={zoomOption} onClick={() => setZoom(zoomOption)}
+                    className={`px-2 py-1 rounded text-[7px] font-black uppercase tracking-wider ${zoom === zoomOption ? "bg-primary text-[var(--text-primary)]" : "text-slate-500"}`}>{zoomOption}</button>
                 ))}
               </div>
             </div>
@@ -233,12 +233,12 @@ export default function VentureTimelinePage() {
                   <div className="flex border-b border-[var(--border-primary)] pb-2 mb-2">
                     <div className="w-48 shrink-0" />
                     <div className="flex-1 relative h-6">
-                      {Array.from({ length: Math.ceil(rangeDays / 7) }).map((_, i) => {
-                        const left = (i * 7 / rangeDays) * 100;
+                      {Array.from({ length: Math.ceil(rangeDays / 7) }).map((_, weekIndex) => {
+                        const left = (weekIndex * 7 / rangeDays) * 100;
                         return (
-                          <div key={i} className="absolute top-0 text-[7px] text-slate-500 font-bold"
+                          <div key={weekIndex} className="absolute top-0 text-[7px] text-slate-500 font-bold"
                             style={{ left: `${left}%` }}>
-                            {new Date(minDate + i * 7 * 86400000).toLocaleDateString()}
+                            {new Date(minDate + weekIndex * 7 * 86400000).toLocaleDateString()}
                           </div>
                         );
                       })}
@@ -251,7 +251,7 @@ export default function VentureTimelinePage() {
                       const colors = ROW_COLORS[row.type] || ROW_COLORS.task;
                       const left = getX(row.start_date);
                       const width = getWidth(row.start_date, row.end_date);
-                      const isOverdue = overdue.some((o) => o.id === row.id);
+                      const isOverdue = overdue.some((overdueItem) => overdueItem.id === row.id);
                       return (
                         <div key={row.id} className="flex items-center gap-2 py-1.5">
                           <div className="w-48 shrink-0 flex items-center gap-2 min-w-0">
@@ -288,7 +288,7 @@ export default function VentureTimelinePage() {
               <div className="space-y-3">
                 {rows.map((row) => {
                   const colors = ROW_COLORS[row.type] || ROW_COLORS.task;
-                  const isOverdue = overdue.some((o) => o.id === row.id);
+                  const isOverdue = overdue.some((overdueItem) => overdueItem.id === row.id);
                   return (
                     <div key={row.id} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                       <div className="flex items-center justify-between mb-2">
@@ -328,10 +328,10 @@ export default function VentureTimelinePage() {
                 <p className="text-[10px] text-emerald-400 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> No overdue tasks</p>
               ) : (
                 <div className="space-y-2">
-                  {delays.overdue_tasks.map((t) => (
-                    <div key={t.id} className="flex items-center justify-between p-3 bg-rose-500/5 rounded-xl border border-rose-500/20">
-                      <span className="text-[10px] font-bold text-[var(--text-primary)]">{t.title}</span>
-                      <span className="text-[8px] text-rose-400">Due: {new Date(t.due_date).toLocaleDateString()}</span>
+                  {delays.overdue_tasks.map((task) => (
+                    <div key={task.id} className="flex items-center justify-between p-3 bg-rose-500/5 rounded-xl border border-rose-500/20">
+                      <span className="text-[10px] font-bold text-[var(--text-primary)]">{task.title}</span>
+                      <span className="text-[8px] text-rose-400">Due: {new Date(task.due_date).toLocaleDateString()}</span>
                     </div>
                   ))}
                 </div>
@@ -347,10 +347,10 @@ export default function VentureTimelinePage() {
                 <p className="text-[10px] text-emerald-400 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> All milestones on track</p>
               ) : (
                 <div className="space-y-2">
-                  {delays.delayed_milestones.map((m) => (
-                    <div key={m.id} className="flex items-center justify-between p-3 bg-rose-500/5 rounded-xl border border-rose-500/20">
-                      <span className="text-[10px] font-bold text-[var(--text-primary)]">{m.title}</span>
-                      <span className="text-[8px] text-rose-400">Due: {new Date(m.due_date).toLocaleDateString()}</span>
+                  {delays.delayed_milestones.map((milestone) => (
+                    <div key={milestone.id} className="flex items-center justify-between p-3 bg-rose-500/5 rounded-xl border border-rose-500/20">
+                      <span className="text-[10px] font-bold text-[var(--text-primary)]">{milestone.title}</span>
+                      <span className="text-[8px] text-rose-400">Due: {new Date(milestone.due_date).toLocaleDateString()}</span>
                     </div>
                   ))}
                 </div>
@@ -366,8 +366,8 @@ export default function VentureTimelinePage() {
                 <p className="text-sm text-[var(--text-secondary)]">No upcoming deadlines this week</p>
               ) : (
                 <div className="space-y-2">
-                  {delays.upcoming_deadlines.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-amber-500/5 rounded-xl border border-amber-500/20">
+                  {delays.upcoming_deadlines.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-amber-500/5 rounded-xl border border-amber-500/20">
                       <div className="flex items-center gap-2">
                         <span className={`w-1.5 h-1.5 rounded-full ${item.type === "milestone" ? "bg-indigo-400" : "bg-[var(--brand-orange)]"}`} />
                         <span className="text-[10px] font-bold text-[var(--text-primary)]">{item.title}</span>
@@ -409,12 +409,12 @@ export default function VentureTimelinePage() {
               const stages = journeyReport.stages || [];
               const taskCompletion = journeyReport.task_completion || {};
               const milestonesByStatus = journeyReport.milestones_by_status || {};
-              const milestonesDone = stages.reduce((n, s) => n + (s.milestones?.completed || 0), 0);
-              const milestonesTotal = stages.reduce((n, s) => n + (s.milestones?.total || 0), 0);
+              const milestonesDone = stages.reduce((sum, stage) => sum + (stage.milestones?.completed || 0), 0);
+              const milestonesTotal = stages.reduce((sum, stage) => sum + (stage.milestones?.total || 0), 0);
               const awaitingDeliverables = journeyReport.deliverables_awaiting_review || 0;
               const upcomingSessions = journeyReport.sessions?.upcoming || 0;
               const responsibilities = journeyReport.support?.responsibilities || [];
-              const shownStatuses = MILESTONE_STATUSES.filter((s) => milestonesByStatus[s] > 0);
+              const shownStatuses = MILESTONE_STATUSES.filter((milestoneStatus) => milestonesByStatus[milestoneStatus] > 0);
               return (
                 <>
                   {/* Summary — what the operating report already computes */}
@@ -444,23 +444,23 @@ export default function VentureTimelinePage() {
                       <span className="text-[9px] font-bold text-slate-500">{t("vadmin.reports.milestonesFraction", { done: milestonesDone, total: milestonesTotal })}</span>
                     </div>
                     <div className="space-y-3">
-                      {stages.map((st, i) => (
-                        <div key={st.id} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                      {stages.map((stage, index) => (
+                        <div key={stage.id} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                           <div className="flex items-center justify-between gap-2 mb-2">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[9px] font-black text-slate-500">{String(i + 1).padStart(2, "0")}</span>
-                              <span className="text-xs font-bold text-[var(--text-primary)]">{st.name}</span>
-                              <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${journeyStatusPill(st.status)}`}>{journeyStatusLabel(st.status)}</span>
+                              <span className="text-[9px] font-black text-slate-500">{String(index + 1).padStart(2, "0")}</span>
+                              <span className="text-xs font-bold text-[var(--text-primary)]">{stage.name}</span>
+                              <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${journeyStatusPill(stage.status)}`}>{journeyStatusLabel(stage.status)}</span>
                             </div>
                             <span className="text-[9px] font-bold text-slate-500 shrink-0">
-                              {t("vadmin.reports.milestonesFraction", { done: st.milestones?.completed || 0, total: st.milestones?.total || 0 })} · {st.milestones?.progress_pct || 0}%
+                              {t("vadmin.reports.milestonesFraction", { done: stage.milestones?.completed || 0, total: stage.milestones?.total || 0 })} · {stage.milestones?.progress_pct || 0}%
                             </span>
                           </div>
-                          {progressBar(st.milestones?.progress_pct || 0)}
-                          {(st.target_date || st.completed_at) && (
+                          {progressBar(stage.milestones?.progress_pct || 0)}
+                          {(stage.target_date || stage.completed_at) && (
                             <div className="flex items-center gap-3 mt-2 text-[8px] text-slate-500">
-                              {st.target_date && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{t("venture.manager.targetDate", { date: new Date(st.target_date).toLocaleDateString() })}</span>}
-                              {st.completed_at && <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />{t("venture.manager.completedOn", { date: new Date(st.completed_at).toLocaleDateString() })}</span>}
+                              {stage.target_date && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{t("venture.manager.targetDate", { date: new Date(stage.target_date).toLocaleDateString() })}</span>}
+                              {stage.completed_at && <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />{t("venture.manager.completedOn", { date: new Date(stage.completed_at).toLocaleDateString() })}</span>}
                             </div>
                           )}
                         </div>
@@ -473,8 +473,8 @@ export default function VentureTimelinePage() {
                     <div className="card">
                       <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">{t("venture.manager.irMilestones")}</h3>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                        {shownStatuses.map((s) => (
-                          <React.Fragment key={s}>{overview(milestoneStatusLabel(s), milestonesByStatus[s])}</React.Fragment>
+                        {shownStatuses.map((milestoneStatus) => (
+                          <React.Fragment key={milestoneStatus}>{overview(milestoneStatusLabel(milestoneStatus), milestonesByStatus[milestoneStatus])}</React.Fragment>
                         ))}
                       </div>
                     </div>

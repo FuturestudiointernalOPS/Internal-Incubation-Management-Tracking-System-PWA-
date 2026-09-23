@@ -26,20 +26,21 @@ import {
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import SearchableSelect from "@/components/ui/SearchableSelect";
+import AppImage from "@/components/ui/AppImage";
 import { getCountries, getLanguages, resolveCountryCode } from "@/lib/profile-options";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 
 // ─── Read shapers (module scope: built once, never per render) ──────
-const pickAltEmails = (d) =>
-  d?.success ? (d.emails || []).filter((e) => e.label !== "primary") : [];
-const pickProfile = (d) => (d?.success && d.profile ? d.profile : null);
-const pickPrograms = (d) => (d?.success ? d.programs || [] : []);
-const pickSubmissions = (d) => (d?.success ? d.submissions || [] : []);
-const pickHistory = (d) => (d?.success ? d.history || [] : []);
-const pickTimeline = (d) => (d?.success ? d.events || [] : []);
-const pickGroup = (d) =>
-  d?.success && d.groups?.length > 0 ? d.groups[0] : null;
+const pickAltEmails = (payload) =>
+  payload?.success ? (payload.emails || []).filter((email) => email.label !== "primary") : [];
+const pickProfile = (payload) => (payload?.success && payload.profile ? payload.profile : null);
+const pickPrograms = (payload) => (payload?.success ? payload.programs || [] : []);
+const pickSubmissions = (payload) => (payload?.success ? payload.submissions || [] : []);
+const pickHistory = (payload) => (payload?.success ? payload.history || [] : []);
+const pickTimeline = (payload) => (payload?.success ? payload.events || [] : []);
+const pickGroup = (payload) =>
+  payload?.success && payload.groups?.length > 0 ? payload.groups[0] : null;
 
 // ─── Info Row ───────────────────────────────────────────────────────
 function InfoRow({ icon: Icon, label, value, editable, onChange }) {
@@ -51,7 +52,7 @@ function InfoRow({ icon: Icon, label, value, editable, onChange }) {
       {editable ? (
         <input
           defaultValue={value}
-          onChange={(e) => onChange?.(e.target.value)}
+          onChange={(event) => onChange?.(event.target.value)}
           className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg p-3 text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
         />
       ) : (
@@ -89,27 +90,27 @@ function HistoryGroup({ title, rows, roleLabel, activeLabel, completedLabel }) {
         {title}
       </p>
       <div className="space-y-2">
-        {rows.map((h) => (
+        {rows.map((row) => (
           <div
-            key={`${h.program_id}-${h.role}`}
+            key={`${row.program_id}-${row.role}`}
             className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)]"
           >
             <div className="min-w-0">
               <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                {h.program_name}
+                {row.program_name}
               </p>
               <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                {roleLabel(h.role)}
+                {roleLabel(row.role)}
               </p>
             </div>
             <span
               className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
-                h.status === "active"
+                row.status === "active"
                   ? "bg-emerald-500/10 text-emerald-400"
                   : "bg-white/5 text-[var(--text-tertiary)]"
               }`}
             >
-              {h.status === "active" ? activeLabel : completedLabel}
+              {row.status === "active" ? activeLabel : completedLabel}
             </span>
           </div>
         ))}
@@ -242,18 +243,18 @@ export default function ProfileView() {
     setAltBusy(true);
     setAltNotice("");
     try {
-      const r = await fetch("/api/contact-emails", {
+      const response = await fetch("/api/contact-emails", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      const d = await r.json();
-      if (d.success) {
+      const data = await response.json();
+      if (data.success) {
         setNewAltEmail("");
         await refreshAltEmails();
         setAltNotice(t("adminMisc.profile.altEmailsAdded"));
       } else {
-        setAltNotice(d.error || t("adminMisc.profile.altEmailsError"));
+        setAltNotice(data.error || t("adminMisc.profile.altEmailsError"));
       }
     } catch (_) {
       setAltNotice(t("adminMisc.profile.altEmailsError"));
@@ -266,13 +267,13 @@ export default function ProfileView() {
     setAltBusy(true);
     setAltNotice("");
     try {
-      const r = await fetch(`/api/contact-emails?id=${id}`, { method: "DELETE" });
-      const d = await r.json();
-      if (d.success) {
-        setAltEmails((prev) => prev.filter((e) => e.id !== id));
+      const response = await fetch(`/api/contact-emails?id=${id}`, { method: "DELETE" });
+      const data = await response.json();
+      if (data.success) {
+        setAltEmails((prev) => prev.filter((email) => email.id !== id));
         setAltNotice(t("adminMisc.profile.altEmailsRemoved"));
       } else {
-        setAltNotice(d.error || t("adminMisc.profile.altEmailsError"));
+        setAltNotice(data.error || t("adminMisc.profile.altEmailsError"));
       }
     } catch (_) {
       setAltNotice(t("adminMisc.profile.altEmailsError"));
@@ -378,8 +379,8 @@ export default function ProfileView() {
           detail: { type: "success", message: t("adminMisc.profile.photoUploadSuccess") },
         }),
       );
-    } catch (e) {
-      setPhotoMessage({ type: "error", text: e.message || t("adminMisc.profile.photoUploadFailed") });
+    } catch (error) {
+      setPhotoMessage({ type: "error", text: error.message || t("adminMisc.profile.photoUploadFailed") });
     }
     setUploadingPhoto(false);
     setTimeout(() => setPhotoMessage(null), 3000);
@@ -405,7 +406,7 @@ export default function ProfileView() {
   };
 
   const deriveCurrentRole = () => {
-    const active = history.filter((h) => h.status === "active");
+    const active = history.filter((entry) => entry.status === "active");
     const order = [
       "program_manager",
       "staff",
@@ -414,7 +415,7 @@ export default function ProfileView() {
       "participant",
     ];
     for (const role of order) {
-      if (active.some((h) => h.role === role)) return role;
+      if (active.some((entry) => entry.role === role)) return role;
     }
     return contact?.role || "participant";
   };
@@ -509,8 +510,7 @@ export default function ProfileView() {
             <div className="relative w-24 h-24 mx-auto mb-4">
               <div className="w-24 h-24 rounded-2xl bg-[var(--brand-orange)]/10 border-2 border-[var(--brand-orange)]/20 flex items-center justify-center overflow-hidden">
                 {contact.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <AppImage
                     src={contact.image}
                     alt={contact.name}
                     className="w-full h-full object-cover"
@@ -525,7 +525,7 @@ export default function ProfileView() {
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
                   className="hidden"
-                  onChange={(e) => handlePhotoUpload(e.target.files?.[0])}
+                  onChange={(event) => handlePhotoUpload(event.target.files?.[0])}
                 />
               </label>
             </div>
@@ -567,19 +567,19 @@ export default function ProfileView() {
               </p>
             ) : (
               <div className="space-y-2">
-                {programs.slice(0, 5).map((p) => (
-                  <div key={p.id} className="flex items-center justify-between">
+                {programs.slice(0, 5).map((program) => (
+                  <div key={program.id} className="flex items-center justify-between">
                     <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                      {p.name}
+                      {program.name}
                     </span>
                     <span
                       className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                        p.status === "active"
+                        program.status === "active"
                           ? "bg-emerald-500/10 text-emerald-400"
                           : "bg-white/5 text-[var(--text-tertiary)]"
                       }`}
                     >
-                      {p.status || "active"}
+                      {program.status || "active"}
                     </span>
                   </div>
                 ))}
@@ -675,18 +675,18 @@ export default function ProfileView() {
                   </p>
                 ) : (
                   <div className="space-y-1.5">
-                    {altEmails.map((e) => (
+                    {altEmails.map((email) => (
                       <div
-                        key={e.id}
+                        key={email.id}
                         className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)]"
                       >
                         <span className="text-[10px] font-bold text-[var(--text-primary)] break-all">
-                          {e.email}
+                          {email.email}
                         </span>
                         <button
                           type="button"
                           disabled={altBusy}
-                          onClick={() => removeAltEmail(e.id)}
+                          onClick={() => removeAltEmail(email.id)}
                           className="text-[9px] font-black uppercase tracking-wider text-red-400 hover:text-red-300 disabled:opacity-40 shrink-0"
                         >
                           {t("adminMisc.profile.altEmailRemove")}
@@ -699,9 +699,9 @@ export default function ProfileView() {
                   <input
                     value={newAltEmail}
                     disabled={altBusy}
-                    onChange={(e) => setNewAltEmail(e.target.value)}
+                    onChange={(event) => setNewAltEmail(event.target.value)}
                     placeholder={t("adminMisc.profile.altEmailPlaceholder")}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAltEmail(); } }}
+                    onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addAltEmail(); } }}
                     className="flex-1 min-w-0 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                   />
                   <button
@@ -732,14 +732,14 @@ export default function ProfileView() {
               <div className="space-y-5">
                 <HistoryGroup
                   title={t("adminMisc.profile.currentPrograms")}
-                  rows={history.filter((h) => h.status === "active")}
+                  rows={history.filter((entry) => entry.status === "active")}
                   roleLabel={roleLabel}
                   activeLabel={t("adminMisc.profile.activeStatus")}
                   completedLabel={t("adminMisc.profile.completedStatus")}
                 />
                 <HistoryGroup
                   title={t("adminMisc.profile.pastPrograms")}
-                  rows={history.filter((h) => h.status !== "active")}
+                  rows={history.filter((entry) => entry.status !== "active")}
                   roleLabel={roleLabel}
                   activeLabel={t("adminMisc.profile.activeStatus")}
                   completedLabel={t("adminMisc.profile.completedStatus")}
@@ -757,19 +757,19 @@ export default function ProfileView() {
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {timeline.map((e) => (
+                  {timeline.map((event) => (
                     <div
-                      key={e.id}
+                      key={event.id}
                       className="flex items-start gap-3 p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)]"
                     >
                       <Clock className="w-3.5 h-3.5 text-[var(--brand-orange)] shrink-0 mt-0.5" />
                       <div className="min-w-0">
                         <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                          {e.description}
+                          {event.description}
                         </p>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
-                          {(e.event_type || "").replace(/_/g, " ")} ·{" "}
-                          {e.created_at ? new Date(e.created_at).toLocaleDateString() : ""}
+                          {(event.event_type || "").replace(/_/g, " ")} ·{" "}
+                          {event.created_at ? new Date(event.created_at).toLocaleDateString() : ""}
                         </p>
                       </div>
                     </div>
@@ -841,20 +841,20 @@ export default function ProfileView() {
               </p>
               <div className="flex flex-wrap gap-2">
                 {programs
-                  .filter((p) => p.status === "active" || !p.status)
-                  .map((p) => (
+                  .filter((program) => program.status === "active" || !program.status)
+                  .map((program) => (
                     <div
-                      key={p.id}
+                      key={program.id}
                       className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20"
                     >
                       <p className="text-[10px] font-bold text-[var(--brand-orange)]">
-                        {p.name}
+                        {program.name}
                       </p>
                       <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                         {t("adminMisc.profile.weekProgress", {
-                          week: p.currentWeek,
-                          duration: p.durationWeeks || "?",
-                          percent: p.metrics?.percentComplete || 0,
+                          week: program.currentWeek,
+                          duration: program.durationWeeks || "?",
+                          percent: program.metrics?.percentComplete || 0,
                         })}
                       </p>
                     </div>
@@ -876,26 +876,26 @@ export default function ProfileView() {
               </div>
             ) : (
               <div className="space-y-2">
-                {submissions.slice(0, 10).map((sub) => (
+                {submissions.slice(0, 10).map((submission) => (
                   <div
-                    key={sub.id}
+                    key={submission.id}
                     className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)]"
                   >
                     <div className="flex items-center gap-3">
                       <div
                         className={`w-7 h-7 rounded-md flex items-center justify-center ${
-                          sub.status === "approved"
+                          submission.status === "approved"
                             ? "bg-emerald-500/10"
-                            : sub.status === "pending"
+                            : submission.status === "pending"
                               ? "bg-amber-500/10"
                               : "bg-white/5"
                         }`}
                       >
                         <FileText
                           className={`w-3.5 h-3.5 ${
-                            sub.status === "approved"
+                            submission.status === "approved"
                               ? "text-emerald-400"
-                              : sub.status === "pending"
+                              : submission.status === "pending"
                                 ? "text-amber-400"
                                 : "text-[var(--text-tertiary)]"
                           }`}
@@ -903,11 +903,11 @@ export default function ProfileView() {
                       </div>
                       <div>
                         <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                          {t("adminMisc.profile.deliverableNumber", { id: sub.document_id || sub.deliverable_id })}
+                          {t("adminMisc.profile.deliverableNumber", { id: submission.document_id || submission.deliverable_id })}
                         </p>
                         <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                          {sub.created_at
-                            ? new Date(sub.created_at).toLocaleDateString()
+                          {submission.created_at
+                            ? new Date(submission.created_at).toLocaleDateString()
                             : ""}
                         </p>
                       </div>
@@ -915,23 +915,23 @@ export default function ProfileView() {
                     <div className="flex items-center gap-2">
                       <span
                         className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                          sub.status === "approved"
+                          submission.status === "approved"
                             ? "bg-emerald-500/10 text-emerald-400"
-                            : sub.status === "pending"
+                            : submission.status === "pending"
                               ? "bg-amber-500/10 text-amber-400"
                               : "bg-white/5 text-[var(--text-tertiary)]"
                         }`}
                       >
-                        {sub.status || "draft"}
+                        {submission.status || "draft"}
                       </span>
-                      {sub.score > 0 && (
+                      {submission.score > 0 && (
                         <span className="text-[10px] font-bold text-emerald-400">
-                          {sub.score} pts
+                          {submission.score} pts
                         </span>
                       )}
-                      {sub.file_url && (
+                      {submission.file_url && (
                         <a
-                          href={sub.file_url}
+                          href={submission.file_url}
                           target="_blank"
                           className="text-[var(--brand-orange)] hover:underline" rel="noreferrer"
                         >

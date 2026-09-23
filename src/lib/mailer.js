@@ -1,39 +1,35 @@
 /**
  * IMPACTOS MAILER
  *
- * General-purpose email sender using Resend.
- * Falls back gracefully when Resend is not configured.
+ * Thin compatibility front over the platform email service.
+ *
+ * It used to be a standalone Resend-only sender that returned a *simulated*
+ * success (`{ success: true, mock: true }`) when no Resend key was configured.
+ * Callers therefore reported "sent" for an email that never left the system,
+ * and a Resend failure left no visible trace.
+ *
+ * It now delegates to the shared transport, which:
+ *   - picks the configured provider (Google Workspace first, Resend fallback),
+ *   - automatically switches to the OTHER channel when one has no credentials,
+ *   - refuses placeholder recipients,
+ *   - and reports a REAL outcome (`success: false` when nothing was sent).
+ *
+ * The `{ to, subject, body, isHtml, fromName }` signature is preserved so
+ * existing callers keep working unchanged.
  */
 
+import { sendEmail as sendPlatformEmail } from "@/lib/email";
+
+/** The shared transport sends HTML only; render a plain body faithfully. */
+function plainTextToHtml(text) {
+  const escaped = String(text ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; white-space: pre-wrap;">${escaped}</div>`;
+}
+
 export async function sendEmail({ to, subject, body, isHtml, fromName }) {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.warn("Mailer: Resend not configured — skipping email to:", to);
-    return { success: true, mock: true, note: "Resend not configured" };
-  }
-
-  const fromAddr = process.env.RESEND_FROM_EMAIL || "noreply@impactos.dev";
-
-  try {
-    const { Resend } = await import("resend");
-    const resend = new Resend(apiKey);
-    const from = fromName ? `${fromName} <${fromAddr}>` : fromAddr;
-
-    const { data, error } = await resend.emails.send({
-      from,
-      to,
-      subject,
-      ...(isHtml ? { html: body } : { text: body }),
-    });
-
-    if (error) {
-      console.error("Mailer: Resend error:", error);
-      return { success: false, error: error.message || JSON.stringify(error) };
-    }
-
-    return { success: true, data };
-  } catch (e) {
-    console.error("Mailer: Send error:", e.message);
-    return { success: false, error: e.message };
-  }
+  const html = isHtml ? String(body ?? "") : plainTextToHtml(body);
+  return sendPlatformEmail({ to, subject, html, fromName });
 }

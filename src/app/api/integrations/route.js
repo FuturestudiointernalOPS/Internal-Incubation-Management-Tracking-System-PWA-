@@ -11,8 +11,8 @@ export const GET = createHandler(async (req) => {
   const capError = await requireAuthorization("settings", "view");
   if (capError) return capError;
 
-  const s = new URL(req.url).searchParams;
-    const type = s.get("type");
+  const searchParams = new URL(req.url).searchParams;
+    const type = searchParams.get("type");
 
     if (type === "providers") {
       const providers = await getIntegrationProviders();
@@ -20,11 +20,11 @@ export const GET = createHandler(async (req) => {
     }
 
     const filters = {
-      ventureId: s.get("venture_id"),
-      provider: s.get("provider"),
-      status: s.get("status"),
-      limit: s.get("limit") ? parseInt(s.get("limit")) : undefined,
-      offset: s.get("offset") ? parseInt(s.get("offset")) : undefined,
+      ventureId: searchParams.get("venture_id"),
+      provider: searchParams.get("provider"),
+      status: searchParams.get("status"),
+      limit: searchParams.get("limit") ? parseInt(searchParams.get("limit")) : undefined,
+      offset: searchParams.get("offset") ? parseInt(searchParams.get("offset")) : undefined,
     };
 
     const integrations = await getIntegrations(filters);

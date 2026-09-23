@@ -89,9 +89,9 @@ export default function WorkspacesPage() {
   useEffect(() => {
     const loadWorkspaces = async (bypassCache = false) => {
       const url = "/api/workspaces";
-      const apply = (d) => {
-        if (!d) return;
-        if (d.success) setData(d);
+      const applyWorkspaces = (payload) => {
+        if (!payload) return;
+        if (payload.success) setData(payload);
         else setError(true);
       };
       let painted = false;
@@ -102,19 +102,19 @@ export default function WorkspacesPage() {
         if (!bypassCache) {
           const cached = cacheGet(url);
           if (cached !== null && cached.success) {
-            apply(cached);
+            applyWorkspaces(cached);
             setLoading(false);
             painted = true;
           }
         }
-        const res = await fetch(url);
-        if (res.status === 401) {
+        const response = await fetch(url);
+        if (response.status === 401) {
           router.replace("/login");
           return;
         }
-        const d = await res.json();
-        if (d.success) cacheSet(url, d);
-        apply(d);
+        const payload = await response.json();
+        if (payload.success) cacheSet(url, payload);
+        applyWorkspaces(payload);
       } catch (_) {
         if (!painted) setError(true);
       } finally {
@@ -212,20 +212,20 @@ export default function WorkspacesPage() {
                 {(contexts.org_memberships.length > 0 ||
                   contexts.responsibilities.length > 0) && (
                   <Group icon={Building2} label={t("common.workspaces.groupFutureStudio")}>
-                    {contexts.org_memberships.map((g, i) => (
+                    {contexts.org_memberships.map((membership, index) => (
                       <ContextCard
-                        key={`org-${g.group_name}-${i}`}
-                        title={g.group_name}
-                        role={orgLabel(g.group_name)}
-                        href={g.href}
+                        key={`org-${membership.group_name}-${index}`}
+                        title={membership.group_name}
+                        role={orgLabel(membership.group_name)}
+                        href={membership.href}
                       />
                     ))}
-                    {contexts.responsibilities.map((r, i) => (
+                    {contexts.responsibilities.map((responsibility, index) => (
                       <ContextCard
-                        key={`resp-${r.key}-${i}`}
-                        title={r.name}
-                        role={roleLabel(r.key)}
-                        href={r.href}
+                        key={`resp-${responsibility.key}-${index}`}
+                        title={responsibility.name}
+                        role={roleLabel(responsibility.key)}
+                        href={responsibility.href}
                       />
                     ))}
                   </Group>
@@ -237,21 +237,21 @@ export default function WorkspacesPage() {
                     icon={Building2}
                     label={t("common.workspaces.groupPast")}
                   >
-                    {contexts.org_history.map((m, i) => (
+                    {contexts.org_history.map((membership, index) => (
                       <div
-                        key={`past-${m.group_name}-${i}`}
+                        key={`past-${membership.group_name}-${index}`}
                         className="flex items-center justify-between gap-4 p-5 rounded-2xl border border-[var(--border-primary)] bg-secondary opacity-60"
                       >
                         <div className="min-w-0">
                           <p className="text-[12px] font-black uppercase truncate text-[var(--text-primary)]">
-                            {m.group_name}
+                            {membership.group_name}
                           </p>
                           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
-                            {m.status}
-                            {m.started_at
-                              ? ` · ${new Date(m.started_at).toLocaleDateString()} → ${
-                                  m.expires_at
-                                    ? new Date(m.expires_at).toLocaleDateString()
+                            {membership.status}
+                            {membership.started_at
+                              ? ` · ${new Date(membership.started_at).toLocaleDateString()} → ${
+                                  membership.expires_at
+                                    ? new Date(membership.expires_at).toLocaleDateString()
                                     : "…"
                                 }`
                               : ""}
@@ -266,21 +266,21 @@ export default function WorkspacesPage() {
                 {(contexts.program_assignments.length > 0 ||
                   contexts.program_participations.length > 0) && (
                   <Group icon={GraduationCap} label={t("common.workspaces.groupPrograms")}>
-                    {contexts.program_assignments.map((a, i) => (
+                    {contexts.program_assignments.map((assignment, index) => (
                       <ContextCard
-                        key={`assign-${a.program_id}-${i}`}
-                        title={a.program_name || a.program_id}
-                        role={roleLabel(a.role || a.title)}
-                        href={a.href}
+                        key={`assign-${assignment.program_id}-${index}`}
+                        title={assignment.program_name || assignment.program_id}
+                        role={roleLabel(assignment.role || assignment.title)}
+                        href={assignment.href}
                       />
                     ))}
-                    {contexts.program_participations.map((p, i) => (
+                    {contexts.program_participations.map((participation, index) => (
                       <ContextCard
-                        key={`part-${p.program_id}-${i}`}
-                        title={p.program_name || p.program_id}
+                        key={`part-${participation.program_id}-${index}`}
+                        title={participation.program_name || participation.program_id}
                         role={roleLabel("participant")}
-                        href={p.href}
-                        completed={p.completed}
+                        href={participation.href}
+                        completed={participation.completed}
                       />
                     ))}
                   </Group>
@@ -289,11 +289,11 @@ export default function WorkspacesPage() {
                 {/* Ventures — existing memberships (labeled Venture, not Participant) */}
                 {contexts.venture_memberships.length > 0 && (
                   <Group icon={Rocket} label={t("common.workspaces.groupVentures")}>
-                    {contexts.venture_memberships.map((v, i) => (
+                    {contexts.venture_memberships.map((membership, index) => (
                       <ContextCard
-                        key={`venture-${v.venture_id}-${i}`}
+                        key={`venture-${membership.venture_id}-${index}`}
                         title={t("common.workspaces.roleVenture")}
-                        href={v.href}
+                        href={membership.href}
                       />
                     ))}
                   </Group>
@@ -301,12 +301,12 @@ export default function WorkspacesPage() {
               </div>
             ) : hasLegacy ? (
               <div className="grid gap-3">
-                {data.workspaces.map((w, i) => (
+                {data.workspaces.map((workspace, index) => (
                   <ContextCard
-                    key={`${w.program_id}-${i}`}
-                    title={w.program_name}
-                    role={`${t("common.workspaces.role")}: ${w.title}`}
-                    href={w.href}
+                    key={`${workspace.program_id}-${index}`}
+                    title={workspace.program_name}
+                    role={`${t("common.workspaces.role")}: ${workspace.title}`}
+                    href={workspace.href}
                   />
                 ))}
               </div>

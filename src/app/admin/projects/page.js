@@ -30,16 +30,16 @@ import { useSearchParams } from "next/navigation";
 
 const EMPTY_LIST = [];
 
-const pickProjects = (d) => (d?.success ? d.projects || [] : []);
+const pickProjects = (payload) => (payload?.success ? payload.projects || [] : []);
 
 /** The analytics summary is optional: a refusal is an absent summary. */
-const pickAnalytics = (d) => (d?.success ? d.analytics || null : null);
+const pickAnalytics = (payload) => (payload?.success ? payload.analytics || null : null);
 
 /** The people a project lead can be chosen from. */
-const pickActiveStaff = (d) =>
-  d?.success
-    ? (d.contacts || []).filter(
-        (c) => c.status === "active" && c.role !== "participant",
+const pickActiveStaff = (payload) =>
+  payload?.success
+    ? (payload.contacts || []).filter(
+        (contact) => contact.status === "active" && contact.role !== "participant",
       )
     : [];
 
@@ -156,15 +156,15 @@ export default function AdminProjects() {
 
   const fetchMembers = useCallback(async (projectId) => {
     try {
-      const res = await fetch(`/api/projects/members?project_id=${projectId}`);
-      const data = await res.json();
+      const response = await fetch(`/api/projects/members?project_id=${projectId}`);
+      const data = await response.json();
       if (data.success)
         setProjectMembers((prev) => ({
           ...prev,
           [projectId]: data.members || [],
         }));
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     }
   }, []);
 
@@ -188,8 +188,8 @@ export default function AdminProjects() {
         }),
       });
       refreshProjects();
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setSavingEdit(false);
     }
@@ -204,8 +204,8 @@ export default function AdminProjects() {
         body: JSON.stringify({ id: project.id, status: "Archived" }),
       });
       refreshProjects();
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setActionLoading(false);
     }
@@ -220,8 +220,8 @@ export default function AdminProjects() {
         body: JSON.stringify({ id: project.id, status: "Active" }),
       });
       refreshProjects();
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setActionLoading(false);
     }
@@ -236,8 +236,8 @@ export default function AdminProjects() {
         body: JSON.stringify({ id: project.id, status: newStatus }),
       });
       refreshProjects();
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setActionLoading(false);
     }
@@ -247,7 +247,7 @@ export default function AdminProjects() {
     if (!newProject.name.trim()) return;
     setCreating(true);
     try {
-      const res = await fetch("/api/projects", {
+      const response = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -261,7 +261,7 @@ export default function AdminProjects() {
           status: "Active",
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success && data.project_id) {
         // Add selected members
         for (const memberId of selectedMembers) {
@@ -317,8 +317,8 @@ export default function AdminProjects() {
         { method: "DELETE" },
       );
       fetchMembers(projectId);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -334,17 +334,18 @@ export default function AdminProjects() {
         }),
       });
       fetchMembers(projectId);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     }
   };
 
   const filteredProjects = useMemo(() => {
-    return projects.filter((p) => {
-      const matchesSearch = p.name
+    return projects.filter((project) => {
+      const matchesSearch = project.name
         ?.toLowerCase()
         .includes(search.toLowerCase());
-      const matchesStatus = filterStatus === "all" || p.status === filterStatus;
+      const matchesStatus =
+        filterStatus === "all" || project.status === filterStatus;
       return matchesSearch && matchesStatus;
     });
   }, [projects, search, filterStatus]);
@@ -541,25 +542,25 @@ export default function AdminProjects() {
                   {t("staff.opReport.productivity")}
                 </p>
                 <div className="flex items-end gap-2 h-16">
-                  {[...analytics.weeklyProductivity].reverse().map((w) => {
+                  {[...analytics.weeklyProductivity].reverse().map((weekStat) => {
                     const max = Math.max(
-                      ...analytics.weeklyProductivity.map((x) => x.completed),
+                      ...analytics.weeklyProductivity.map((weekEntry) => weekEntry.completed),
                       1,
                     );
                     return (
                       <div
-                        key={`${w.year}-${w.week}`}
+                        key={`${weekStat.year}-${weekStat.week}`}
                         className="flex-1 h-full flex flex-col justify-end items-center gap-1"
-                        title={`${t("staff.table.week")} ${w.week}, ${w.year}: ${w.completed}`}
+                        title={`${t("staff.table.week")} ${weekStat.week}, ${weekStat.year}: ${weekStat.completed}`}
                       >
                         <div
                           className="w-full bg-[var(--brand-orange)] opacity-60 rounded-t"
                           style={{
-                            height: `${Math.max((w.completed / max) * 100, 4)}%`,
+                            height: `${Math.max((weekStat.completed / max) * 100, 4)}%`,
                           }}
                         />
                         <span className="text-[10px] font-medium text-[var(--text-secondary)]">
-                          {w.week}
+                          {weekStat.week}
                         </span>
                       </div>
                     );
@@ -576,7 +577,7 @@ export default function AdminProjects() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder={t("common.search")}
               className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
             />
@@ -585,7 +586,7 @@ export default function AdminProjects() {
             <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(event) => setFilterStatus(event.target.value)}
               className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="all">
@@ -769,8 +770,8 @@ export default function AdminProjects() {
                           {/* Status quick actions */}
                           {project.status === "Active" && (
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              onClick={(event) => {
+                                event.stopPropagation();
                                 quickStatus(project, "Paused");
                               }}
                               disabled={actionLoading}
@@ -783,8 +784,8 @@ export default function AdminProjects() {
                           )}
                           {project.status === "Paused" && (
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              onClick={(event) => {
+                                event.stopPropagation();
                                 quickStatus(project, "Active");
                               }}
                               disabled={actionLoading}
@@ -797,8 +798,8 @@ export default function AdminProjects() {
                           )}
                           {project.status === "Active" && (
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              onClick={(event) => {
+                                event.stopPropagation();
                                 quickStatus(
                                   project,
                                   "Completed",
@@ -814,8 +815,8 @@ export default function AdminProjects() {
                             </button>
                           )}
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={(event) => {
+                              event.stopPropagation();
                               setShowMemberModal(project.id);
                               setEditProject({
                                 id: project.id,
@@ -840,8 +841,8 @@ export default function AdminProjects() {
                             {t("adminMisc.projectsList.edit")}
                           </button>
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={(event) => {
+                              event.stopPropagation();
                               if (project.status === "Archived") {
                                 handleUnarchiveProject(project);
                               } else {
@@ -880,7 +881,7 @@ export default function AdminProjects() {
         >
           <div
             className="card w-full max-w-lg space-y-4 max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
@@ -899,8 +900,8 @@ export default function AdminProjects() {
                 </label>
                 <input
                   value={editProject.name}
-                  onChange={(e) =>
-                    setEditProject((p) => ({ ...p, name: e.target.value }))
+                  onChange={(event) =>
+                    setEditProject((previous) => ({ ...previous, name: event.target.value }))
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
@@ -912,10 +913,10 @@ export default function AdminProjects() {
                 </label>
                 <textarea
                   value={editProject.description}
-                  onChange={(e) =>
-                    setEditProject((p) => ({
-                      ...p,
-                      description: e.target.value,
+                  onChange={(event) =>
+                    setEditProject((previous) => ({
+                      ...previous,
+                      description: event.target.value,
                     }))
                   }
                   placeholder={t("adminMisc.projectsList.descriptionPlaceholder")}
@@ -929,8 +930,8 @@ export default function AdminProjects() {
                 </label>
                 <select
                   value={editProject.status}
-                  onChange={(e) =>
-                    setEditProject((p) => ({ ...p, status: e.target.value }))
+                  onChange={(event) =>
+                    setEditProject((previous) => ({ ...previous, status: event.target.value }))
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
                 >
@@ -957,8 +958,8 @@ export default function AdminProjects() {
                 </label>
                 <select
                   value={editProject.priority || "medium"}
-                  onChange={(e) =>
-                    setEditProject((p) => ({ ...p, priority: e.target.value }))
+                  onChange={(event) =>
+                    setEditProject((previous) => ({ ...previous, priority: event.target.value }))
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm font-bold outline-none appearance-none cursor-pointer"
                 >
@@ -983,10 +984,10 @@ export default function AdminProjects() {
                 <input
                   type="date"
                   value={editProject.start_date || ""}
-                  onChange={(e) =>
-                    setEditProject((p) => ({
-                      ...p,
-                      start_date: e.target.value,
+                  onChange={(event) =>
+                    setEditProject((previous) => ({
+                      ...previous,
+                      start_date: event.target.value,
                     }))
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
@@ -999,8 +1000,8 @@ export default function AdminProjects() {
                 <input
                   type="date"
                   value={editProject.end_date || ""}
-                  onChange={(e) =>
-                    setEditProject((p) => ({ ...p, end_date: e.target.value }))
+                  onChange={(event) =>
+                    setEditProject((previous) => ({ ...previous, end_date: event.target.value }))
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
                 />
@@ -1010,29 +1011,29 @@ export default function AdminProjects() {
                   {t("adminMisc.projectsList.projectLeads")}
                 </label>
                 <div className="max-h-32 overflow-y-auto space-y-1 border border-[var(--border-primary)] rounded-lg p-2">
-                  {allStaff.map((s) => {
+                  {allStaff.map((staffMember) => {
                     const isSelected = editProject.leads.includes(
-                      s.cid || s.id,
+                      staffMember.cid || staffMember.id,
                     );
                     return (
                       <label
-                        key={s.cid || s.id}
+                        key={staffMember.cid || staffMember.id}
                         className="flex items-center gap-2 p-1.5 hover:bg-white/5 rounded cursor-pointer transition-colors"
                       >
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setEditProject((p) => ({
-                                ...p,
-                                leads: [...p.leads, s.cid || s.id],
+                          onChange={(event) => {
+                            if (event.target.checked) {
+                              setEditProject((previous) => ({
+                                ...previous,
+                                leads: [...previous.leads, staffMember.cid || staffMember.id],
                               }));
                             } else {
-                              setEditProject((p) => ({
-                                ...p,
-                                leads: p.leads.filter(
-                                  (id) => id !== (s.cid || s.id),
+                              setEditProject((previous) => ({
+                                ...previous,
+                                leads: previous.leads.filter(
+                                  (id) => id !== (staffMember.cid || staffMember.id),
                                 ),
                               }));
                             }
@@ -1040,7 +1041,7 @@ export default function AdminProjects() {
                           className="rounded border-[var(--border-primary)] bg-transparent text-[var(--brand-orange)] focus:ring-[var(--brand-orange)]/50"
                         />
                         <span className="text-[10px] text-[var(--text-primary)]">
-                          {s.name}
+                          {staffMember.name}
                         </span>
                       </label>
                     );
@@ -1075,7 +1076,7 @@ export default function AdminProjects() {
                   accept=".pdf,.doc,.docx,.txt,.png,.jpg"
                   id="edit-concept-file"
                   className="hidden"
-                  onChange={(e) => setEditConceptFile(e.target.files[0])}
+                  onChange={(event) => setEditConceptFile(event.target.files[0])}
                 />
                 <button
                   onClick={() =>
@@ -1093,18 +1094,18 @@ export default function AdminProjects() {
                       setUploadingEditConcept(true);
                       try {
                         const { uploadFile } = await import("@/lib/storage");
-                        const r = await uploadFile(
+                        const uploadResult = await uploadFile(
                           "project-files",
                           `concepts/${Date.now()}-${editConceptFile.name}`,
                           editConceptFile,
                         );
-                        if (r.success)
-                          setEditProject((p) => ({
-                            ...p,
-                            conceptNoteUrl: r.url,
+                        if (uploadResult.success)
+                          setEditProject((previous) => ({
+                            ...previous,
+                            conceptNoteUrl: uploadResult.url,
                           }));
-                      } catch (e) {
-                        console.error(e);
+                      } catch (error) {
+                        console.error(error);
                       } finally {
                         setUploadingEditConcept(false);
                         setEditConceptFile(null);
@@ -1129,10 +1130,10 @@ export default function AdminProjects() {
               <input
                 type="url"
                 value={editProject.conceptNoteUrl || ""}
-                onChange={(e) =>
-                  setEditProject((p) => ({
-                    ...p,
-                    conceptNoteUrl: e.target.value,
+                onChange={(event) =>
+                  setEditProject((previous) => ({
+                    ...previous,
+                    conceptNoteUrl: event.target.value,
                   }))
                 }
                 placeholder={t("adminMisc.projectsList.pasteLinkPlaceholder")}
@@ -1161,25 +1162,25 @@ export default function AdminProjects() {
                     {t("adminMisc.projectsList.noCollaborators")}
                   </p>
                 ) : (
-                  (projectMembers[showMemberModal] || []).map((m) => (
+                  (projectMembers[showMemberModal] || []).map((member) => (
                     <div
-                      key={m.user_cid}
+                      key={member.user_cid}
                       className="flex items-center justify-between p-2 rounded-lg bg-tertiary/50"
                     >
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
-                          {m.name?.charAt(0) || "?"}
+                          {member.name?.charAt(0) || "?"}
                         </div>
                         <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                          {m.name || m.user_cid}
+                          {member.name || member.user_cid}
                         </span>
                         <span className="text-[10px] font-medium text-[var(--text-secondary)] uppercase">
-                          {m.role}
+                          {member.role}
                         </span>
                       </div>
                       <button
                         onClick={() =>
-                          handleRemoveMember(showMemberModal, m.user_cid)
+                          handleRemoveMember(showMemberModal, member.user_cid)
                         }
                         className="text-[10px] font-bold uppercase text-rose-400 hover:text-rose-300"
                       >
@@ -1199,23 +1200,24 @@ export default function AdminProjects() {
                   </option>
                   {allStaff
                     .filter(
-                      (s) =>
+                      (staffMember) =>
                         !(projectMembers[showMemberModal] || []).find(
-                          (m) => m.user_cid === (s.cid || s.id),
+                          (member) =>
+                            member.user_cid === (staffMember.cid || staffMember.id),
                         ),
                     )
-                    .map((s) => (
-                      <option key={s.cid || s.id} value={s.cid || s.id}>
-                        {s.name}
+                    .map((staffMember) => (
+                      <option key={staffMember.cid || staffMember.id} value={staffMember.cid || staffMember.id}>
+                        {staffMember.name}
                       </option>
                     ))}
                 </select>
                 <button
                   onClick={() => {
-                    const sel = document.getElementById("add-collab-select");
-                    if (sel?.value) {
-                      handleAddMember(showMemberModal, sel.value);
-                      sel.value = "";
+                    const selectElement = document.getElementById("add-collab-select");
+                    if (selectElement?.value) {
+                      handleAddMember(showMemberModal, selectElement.value);
+                      selectElement.value = "";
                     }
                   }}
                   className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold uppercase tracking-wide hover:brightness-110"
@@ -1239,7 +1241,7 @@ export default function AdminProjects() {
             aria-modal="true"
             aria-labelledby="create-project-title"
             className="card w-full max-w-lg flex flex-col max-h-[90vh] my-auto"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             {/* Sticky header */}
             <div className="flex items-center justify-between shrink-0 px-5 pt-5 pb-3 border-b border-[var(--border-primary)]">
@@ -1264,8 +1266,8 @@ export default function AdminProjects() {
                 <input
                   id="project-name"
                   value={newProject.name}
-                  onChange={(e) =>
-                    setNewProject((p) => ({ ...p, name: e.target.value }))
+                  onChange={(event) =>
+                    setNewProject((previous) => ({ ...previous, name: event.target.value }))
                   }
                   placeholder={t("adminMisc.projectsList.projectNameExample")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
@@ -1279,10 +1281,10 @@ export default function AdminProjects() {
                 <textarea
                   id="project-description"
                   value={newProject.description}
-                  onChange={(e) =>
-                    setNewProject((p) => ({
-                      ...p,
-                      description: e.target.value,
+                  onChange={(event) =>
+                    setNewProject((previous) => ({
+                      ...previous,
+                      description: event.target.value,
                     }))
                   }
                   placeholder={t("adminMisc.projectsList.descriptionGoalsPlaceholder")}
@@ -1301,10 +1303,10 @@ export default function AdminProjects() {
                     id="project-start-date"
                     type="date"
                     value={newProject.start_date}
-                    onChange={(e) =>
-                      setNewProject((p) => ({
-                        ...p,
-                        start_date: e.target.value,
+                    onChange={(event) =>
+                      setNewProject((previous) => ({
+                        ...previous,
+                        start_date: event.target.value,
                       }))
                     }
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
@@ -1318,8 +1320,8 @@ export default function AdminProjects() {
                     id="project-end-date"
                     type="date"
                     value={newProject.end_date}
-                    onChange={(e) =>
-                      setNewProject((p) => ({ ...p, end_date: e.target.value }))
+                    onChange={(event) =>
+                      setNewProject((previous) => ({ ...previous, end_date: event.target.value }))
                     }
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                   />
@@ -1343,7 +1345,7 @@ export default function AdminProjects() {
                       id="project-concept-file"
                       type="file"
                       accept=".pdf,.doc,.docx,.txt,.png,.jpg"
-                      onChange={(e) => setConceptNoteFile(e.target.files[0])}
+                      onChange={(event) => setConceptNoteFile(event.target.files[0])}
                       className="flex-1 text-[10px] text-[var(--text-secondary)] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:tracking-wider file:bg-[var(--brand-orange)] file:text-black file:cursor-pointer hover:file:brightness-110"
                     />
                     {conceptNoteFile && (
@@ -1360,13 +1362,13 @@ export default function AdminProjects() {
                               conceptNoteFile,
                             );
                             if (uploadResult.success) {
-                              setNewProject((p) => ({
-                                ...p,
+                              setNewProject((previous) => ({
+                                ...previous,
                                 conceptNoteUrl: uploadResult.url,
                               }));
                             }
-                          } catch (e) {
-                            console.error(e);
+                          } catch (error) {
+                            console.error(error);
                           } finally {
                             setUploadingConcept(false);
                             setConceptNoteFile(null);
@@ -1394,10 +1396,10 @@ export default function AdminProjects() {
                     id="project-concept-url"
                     type="url"
                     value={newProject.conceptNoteUrlInput}
-                    onChange={(e) =>
-                      setNewProject((p) => ({
-                        ...p,
-                        conceptNoteUrlInput: e.target.value,
+                    onChange={(event) =>
+                      setNewProject((previous) => ({
+                        ...previous,
+                        conceptNoteUrlInput: event.target.value,
                       }))
                     }
                     placeholder={t("adminMisc.projectsList.pasteLinkPlaceholder")}
@@ -1425,27 +1427,29 @@ export default function AdminProjects() {
                   {t("adminMisc.projectsList.projectLeads")}
                 </label>
                 <div className="max-h-32 overflow-y-auto space-y-1 border border-[var(--border-primary)] rounded-lg p-2">
-                  {allStaff.map((s) => {
-                    const isSelected = newProject.leads.includes(s.cid || s.id);
+                  {allStaff.map((staffMember) => {
+                    const isSelected = newProject.leads.includes(
+                      staffMember.cid || staffMember.id,
+                    );
                     return (
                       <label
-                        key={s.cid || s.id}
+                        key={staffMember.cid || staffMember.id}
                         className="flex items-center gap-2 p-1.5 hover:bg-white/5 rounded cursor-pointer transition-colors"
                       >
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setNewProject((p) => ({
-                                ...p,
-                                leads: [...p.leads, s.cid || s.id],
+                          onChange={(event) => {
+                            if (event.target.checked) {
+                              setNewProject((previous) => ({
+                                ...previous,
+                                leads: [...previous.leads, staffMember.cid || staffMember.id],
                               }));
                             } else {
-                              setNewProject((p) => ({
-                                ...p,
-                                leads: p.leads.filter(
-                                  (id) => id !== (s.cid || s.id),
+                              setNewProject((previous) => ({
+                                ...previous,
+                                leads: previous.leads.filter(
+                                  (id) => id !== (staffMember.cid || staffMember.id),
                                 ),
                               }));
                             }
@@ -1453,7 +1457,7 @@ export default function AdminProjects() {
                           className="rounded border-[var(--border-primary)] bg-transparent text-[var(--brand-orange)] focus:ring-[var(--brand-orange)]/50"
                         />
                         <span className="text-[10px] text-[var(--text-primary)]">
-                          {s.name}
+                          {staffMember.name}
                         </span>
                       </label>
                     );
@@ -1467,12 +1471,12 @@ export default function AdminProjects() {
                   })}
                 </label>
                 <div className="max-h-32 overflow-y-auto space-y-1 border border-[var(--border-primary)] rounded-lg p-2">
-                  {allStaff.map((s) => {
-                    const sid = s.cid || s.id;
-                    const isSelected = selectedMembers.includes(sid);
+                  {allStaff.map((staffMember) => {
+                    const staffId = staffMember.cid || staffMember.id;
+                    const isSelected = selectedMembers.includes(staffId);
                     return (
                       <label
-                        key={sid}
+                        key={staffId}
                         className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-tertiary cursor-pointer text-[10px]"
                       >
                         <input
@@ -1481,14 +1485,14 @@ export default function AdminProjects() {
                           onChange={() =>
                             setSelectedMembers((prev) =>
                               isSelected
-                                ? prev.filter((id) => id !== sid)
-                                : [...prev, sid],
+                                ? prev.filter((id) => id !== staffId)
+                                : [...prev, staffId],
                             )
                           }
                           className="accent-[var(--brand-orange)]"
                         />
-                        <span className="font-bold">{s.name}</span>
-                        <span className="text-slate-500">{s.role}</span>
+                        <span className="font-bold">{staffMember.name}</span>
+                        <span className="text-slate-500">{staffMember.role}</span>
                       </label>
                     );
                   })}

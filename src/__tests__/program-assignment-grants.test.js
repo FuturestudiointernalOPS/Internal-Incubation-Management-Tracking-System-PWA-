@@ -40,19 +40,19 @@ function resetState() {
 }
 
 async function mockExecute(query) {
-  const q = typeof query === "string" ? query : query.sql || "";
+  const sqlText = typeof query === "string" ? query : query.sql || "";
   const args = typeof query === "string" ? [] : query.args || [];
 
   // Schema self-healing
-  if (/^\s*(CREATE TABLE|CREATE INDEX)/i.test(q)) return { rows: [] };
+  if (/^\s*(CREATE TABLE|CREATE INDEX)/i.test(sqlText)) return { rows: [] };
 
   // Registry mapping (program manager)
-  if (q.includes("FROM context_role_profiles")) {
+  if (sqlText.includes("FROM context_role_profiles")) {
     return { rows: mockState.registry ? [mockState.registry] : [] };
   }
 
   // Program defaults batch
-  if (q.includes("facilitator_default_permissions AS def")) {
+  if (sqlText.includes("facilitator_default_permissions AS def")) {
     return {
       rows: args.map((id) => ({
         id,
@@ -62,12 +62,12 @@ async function mockExecute(query) {
   }
 
   // Assignment rows (staff join)
-  if (q.includes("FROM v2_program_staff")) {
+  if (sqlText.includes("FROM v2_program_staff")) {
     return { rows: mockState.assignments };
   }
 
   // Named manager lookup
-  if (q.includes("assigned_pm_id AS TEXT) = ?")) {
+  if (sqlText.includes("assigned_pm_id AS TEXT) = ?")) {
     return {
       rows: mockState.managedProgramIds.map((id) => ({
         program_id: id,
@@ -82,29 +82,29 @@ async function mockExecute(query) {
   }
 
   // Profile capabilities (registry path + assignment profile path)
-  if (q.includes("FROM access_profile_capabilities")) {
+  if (sqlText.includes("FROM access_profile_capabilities")) {
     mockState.profileCapsQueriedFor.push(args);
     return { rows: mockState.profileCaps };
   }
 
-  if (q.includes("SELECT module, capability, access_level, granted_by, expires_at FROM user_capabilities")) {
-    return { rows: mockState.userCaps.filter((r) => r.user_cid === String(args[0])) };
+  if (sqlText.includes("SELECT module, capability, access_level, granted_by, expires_at FROM user_capabilities")) {
+    return { rows: mockState.userCaps.filter((row) => row.user_cid === String(args[0])) };
   }
 
-  if (q.includes("FROM context_applied_grants") && q.includes("SELECT")) {
+  if (sqlText.includes("FROM context_applied_grants") && sqlText.includes("SELECT")) {
     const [cid, context, roleKey] = args;
     return {
       rows: mockState.applied.filter(
-        (r) =>
-          r.user_cid === cid && r.context === context && r.role_key === roleKey,
+        (row) =>
+          row.user_cid === cid && row.context === context && row.role_key === roleKey,
       ),
     };
   }
 
-  if (q.includes("INSERT INTO user_capabilities")) {
+  if (sqlText.includes("INSERT INTO user_capabilities")) {
     const [user_cid, module, capability, access_level, granted_by, expires_at] = args;
     mockState.userCaps = mockState.userCaps.filter(
-      (r) => !(r.user_cid === user_cid && r.module === module && r.capability === capability),
+      (row) => !(row.user_cid === user_cid && row.module === module && row.capability === capability),
     );
     mockState.userCaps.push({
       user_cid,
@@ -117,16 +117,16 @@ async function mockExecute(query) {
     return { rows: [] };
   }
 
-  if (q.includes("INSERT INTO context_applied_grants")) {
+  if (sqlText.includes("INSERT INTO context_applied_grants")) {
     const [user_cid, context, role_key, source_ref, module, capability, access_level] = args;
     mockState.applied = mockState.applied.filter(
-      (r) =>
+      (row) =>
         !(
-          r.user_cid === user_cid &&
-          r.context === context &&
-          r.role_key === role_key &&
-          r.module === module &&
-          r.capability === capability
+          row.user_cid === user_cid &&
+          row.context === context &&
+          row.role_key === role_key &&
+          row.module === module &&
+          row.capability === capability
         ),
     );
     mockState.applied.push({
@@ -141,38 +141,38 @@ async function mockExecute(query) {
     return { rows: [] };
   }
 
-  if (q.includes("DELETE FROM user_capabilities")) {
+  if (sqlText.includes("DELETE FROM user_capabilities")) {
     const [user_cid, module, capability, granted_by] = args;
     mockState.userCaps = mockState.userCaps.filter(
-      (r) =>
+      (row) =>
         !(
-          r.user_cid === user_cid &&
-          r.module === module &&
-          r.capability === capability &&
-          r.granted_by === granted_by
+          row.user_cid === user_cid &&
+          row.module === module &&
+          row.capability === capability &&
+          row.granted_by === granted_by
         ),
     );
     return { rows: [] };
   }
 
-  if (q.includes("DELETE FROM context_applied_grants")) {
+  if (sqlText.includes("DELETE FROM context_applied_grants")) {
     if (args.length === 2) {
       const [user_cid, context, role_key] = args;
       mockState.applied = mockState.applied.filter(
-        (r) =>
-          !(r.user_cid === user_cid && r.context === context && r.role_key === role_key),
+        (row) =>
+          !(row.user_cid === user_cid && row.context === context && row.role_key === role_key),
       );
       return { rows: [] };
     }
     const [user_cid, context, role_key, module, capability] = args;
     mockState.applied = mockState.applied.filter(
-      (r) =>
+      (row) =>
         !(
-          r.user_cid === user_cid &&
-          r.context === context &&
-          r.role_key === role_key &&
-          r.module === module &&
-          r.capability === capability
+          row.user_cid === user_cid &&
+          row.context === context &&
+          row.role_key === role_key &&
+          row.module === module &&
+          row.capability === capability
         ),
     );
     return { rows: [] };
@@ -183,7 +183,7 @@ async function mockExecute(query) {
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
-  default: { execute: jest.fn(async (q) => mockExecute(q)) },
+  default: { execute: jest.fn(async (query) => mockExecute(query)) },
   initDb: jest.fn(async () => true),
 }));
 
@@ -230,11 +230,11 @@ function assignment(programId, permissions, extra = {}) {
 
 function ours(module, capability) {
   return mockState.userCaps.filter(
-    (r) =>
-      r.user_cid === CID &&
-      r.module === module &&
-      r.capability === capability &&
-      r.granted_by === FACILITATOR_SENTINEL,
+    (row) =>
+      row.user_cid === CID &&
+      row.module === module &&
+      row.capability === capability &&
+      row.granted_by === FACILITATOR_SENTINEL,
   );
 }
 
@@ -420,8 +420,8 @@ describe("syncContextGrantsForUser — program facilitator", () => {
     expect(result.profile).toBe("Assigned Program Manager");
     expect(result.applied.sort()).toEqual(["programs.edit", "programs.view"]);
     const sentinel = contextGrantSentinel("program", "program_manager");
-    const rows = mockState.userCaps.filter((r) => r.granted_by === sentinel);
-    expect(rows.map((r) => r.module).every((m) => m === "programs")).toBe(true);
+    const rows = mockState.userCaps.filter((row) => row.granted_by === sentinel);
+    expect(rows.map((row) => row.module).every((module) => module === "programs")).toBe(true);
   });
 
   test("an unsupported context is refused instead of silently revoking everything", async () => {

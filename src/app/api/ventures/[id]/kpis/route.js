@@ -15,24 +15,24 @@ import {
 
 
 async function resolveVentureDbId(ventureId) {
-  const r = await getKpisVentureId(ventureId);
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await getKpisVentureId(ventureId);
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 // Live auto-calc for the sources we actually have data for. Anything else
 // falls back to the manually-entered current_value — don't over-build.
 async function autoCalc(dbId, source) {
   if (source === "customer_interviews") {
-    const r = await countKpiCustomerInterviews(dbId);
-    return parseInt(r.rows?.[0]?.c || 0);
+    const countResult = await countKpiCustomerInterviews(dbId);
+    return parseInt(countResult.rows?.[0]?.c || 0);
   }
   if (source === "milestones") {
-    const r = await getKpiAverageMilestoneProgress(dbId);
-    return Math.round(parseFloat(r.rows?.[0]?.avg_progress || 0));
+    const progressResult = await getKpiAverageMilestoneProgress(dbId);
+    return Math.round(parseFloat(progressResult.rows?.[0]?.avg_progress || 0));
   }
   if (source === "tasks") {
-    const r = await countKpiDoneTasks(dbId);
-    return parseInt(r.rows?.[0]?.c || 0);
+    const countResult = await countKpiDoneTasks(dbId);
+    return parseInt(countResult.rows?.[0]?.c || 0);
   }
   return null;
 }
@@ -48,10 +48,10 @@ export async function GET(req, { params }) {
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const r = await getKpiAssignments(dbId);
+    const assignmentsResult = await getKpiAssignments(dbId);
 
     const kpis = [];
-    for (const row of r.rows || []) {
+    for (const row of assignmentsResult.rows || []) {
       let currentValue = row.current_value;
       if (row.auto_calc_source) {
         const computed = await autoCalc(dbId, row.auto_calc_source);
@@ -64,8 +64,8 @@ export async function GET(req, { params }) {
     }
 
     return NextResponse.json({ success: true, kpis });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -86,16 +86,16 @@ export async function POST(req, { params }) {
 
     try {
       await createKpiAssignment(dbId, kpi_definition_id, target_value ?? null);
-    } catch (e) {
-      if (e.message?.includes("UNIQUE") || e.message?.includes("duplicate")) {
+    } catch (error) {
+      if (error.message?.includes("UNIQUE") || error.message?.includes("duplicate")) {
         return NextResponse.json({ success: false, error: "KPI already assigned to this venture" }, { status: 409 });
       }
-      throw e;
+      throw error;
     }
 
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -117,15 +117,15 @@ export async function PATCH(req, { params }) {
     }
 
     // Manual update only allowed when the assigned KPI has no auto_calc_source.
-    const check = await getKpiAssignmentAutoCalcSource(assignmentId, dbId);
-    if (!check.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (check.rows[0].auto_calc_source) {
+    const autoCalcCheck = await getKpiAssignmentAutoCalcSource(assignmentId, dbId);
+    if (!autoCalcCheck.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    if (autoCalcCheck.rows[0].auto_calc_source) {
       return NextResponse.json({ success: false, error: "This KPI is auto-calculated and cannot be edited manually." }, { status: 400 });
     }
 
     await updateKpiManualValue(current_value, assignmentId, dbId);
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -36,10 +36,10 @@ export async function GET(req) {
 
     const report = await buildContextGrantReadiness({ limit });
     return NextResponse.json(report);
-  } catch (err) {
-    console.error("[Context Grant Readiness] error:", err);
+  } catch (error) {
+    console.error("[Context Grant Readiness] error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

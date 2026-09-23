@@ -9,10 +9,10 @@ if (fs.existsSync(envPath)) {
   for (const line of envContent.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    let value = trimmed.slice(eqIdx + 1).trim();
+    const equalsIndex = trimmed.indexOf("=");
+    if (equalsIndex === -1) continue;
+    const key = trimmed.slice(0, equalsIndex).trim();
+    let value = trimmed.slice(equalsIndex + 1).trim();
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
       (value.startsWith("'") && value.endsWith("'"))
@@ -44,19 +44,19 @@ function parseJsonArray(value) {
   // Already an array (though unlikely from TEXT columns — defensive)
   if (Array.isArray(value)) return value;
 
-  const str = String(value).trim();
-  if (!str) return [];
+  const text = String(value).trim();
+  if (!text) return [];
 
   // Try JSON.parse first — the seed script stores JSON arrays like ["a","b"]
   try {
-    const parsed = JSON.parse(str);
+    const parsed = JSON.parse(text);
     if (Array.isArray(parsed)) {
       return parsed.filter((item) => item && String(item).trim().length > 0);
     }
     return [];
   } catch {
     // Not valid JSON; treat as a plain text string (single-item array)
-    const trimmed = str;
+    const trimmed = text;
     if (trimmed.length > 0) {
       return [trimmed];
     }
@@ -64,10 +64,10 @@ function parseJsonArray(value) {
   }
 }
 
-function truncate(str, maxLen) {
-  if (!str) return "";
-  const s = String(str).trim();
-  return s.length > maxLen ? s.slice(0, maxLen) : s;
+function truncate(text, maxLen) {
+  if (!text) return "";
+  const trimmed = String(text).trim();
+  return trimmed.length > maxLen ? trimmed.slice(0, maxLen) : trimmed;
 }
 
 async function backfill() {
@@ -99,9 +99,9 @@ async function backfill() {
   let taskCount = 0;
   let skipCount = 0;
 
-  for (let i = 0; i < totalReports; i++) {
-    const report = reports[i];
-    console.log(`Processing report ${i + 1} of ${totalReports}...`);
+  for (let index = 0; index < totalReports; index++) {
+    const report = reports[index];
+    console.log(`Processing report ${index + 1} of ${totalReports}...`);
 
     const reportType = report.report_type;
     const userId = report.user_id;

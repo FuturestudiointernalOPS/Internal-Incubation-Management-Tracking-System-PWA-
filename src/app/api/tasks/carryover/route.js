@@ -44,8 +44,8 @@ export const GET = createHandler(async (req) => {
   const result = await getCarryoverEligibleTasks(user_id, week_number, year);
   const tasksWithBlockers = await Promise.all(
     result.rows.map(async (task) => {
-      const blockerRes = await getBlockersForTask(task.id);
-      return { ...task, blockers: blockerRes.rows || [] };
+      const blockersResult = await getBlockersForTask(task.id);
+      return { ...task, blockers: blockersResult.rows || [] };
     }),
   );
   return NextResponse.json({ success: true, tasks: tasksWithBlockers });
@@ -70,24 +70,24 @@ export const POST = createHandler(async (req) => {
   const oldId = parseInt(task_id);
 
   // 1. Fetch the original task
-  const origRes = await getTaskRowById(oldId);
-  if (origRes.rows.length === 0) {
+  const originalResult = await getTaskRowById(oldId);
+  if (originalResult.rows.length === 0) {
     return NextResponse.json(
       { success: false, error: "Task not found" },
       { status: 404 },
     );
   }
-  const orig = origRes.rows[0];
+  const originalTask = originalResult.rows[0];
 
   // 2. Follow chain forward to find the LATEST clone (not the original)
   // This prevents repeatedly cloning the same original task each week.
   // Completed/archived copies are never carried again — a finished task must
   // stay finished (Phase 1 carry-over fix, enforced in getLatestCarriedOverClone).
-  let taskToClone = orig;
+  let taskToClone = originalTask;
   while (true) {
-    const nextRes = await getLatestCarriedOverClone(taskToClone.id);
-    if (nextRes.rows.length === 0) break;
-    taskToClone = nextRes.rows[0];
+    const nextCloneResult = await getLatestCarriedOverClone(taskToClone.id);
+    if (nextCloneResult.rows.length === 0) break;
+    taskToClone = nextCloneResult.rows[0];
   }
   const sourceTask = taskToClone;
 
@@ -123,7 +123,7 @@ export const POST = createHandler(async (req) => {
   const sourceId = sourceTask.id;
 
   // 3. Clone the LATEST task in the chain — preserve ALL fields including context
-  const cloneRes = await createCarriedOverClone({
+  const cloneResult = await createCarriedOverClone({
     user_id,
     user_name,
     target_week,
@@ -131,7 +131,7 @@ export const POST = createHandler(async (req) => {
     sourceId,
     sourceTask,
   });
-  const newId = Number(cloneRes.rows[0]?.id ?? cloneRes.lastInsertRowid);
+  const newId = Number(cloneResult.rows[0]?.id ?? cloneResult.lastInsertRowid);
 
   // 4. Migrate blockers from the LATEST task (not the original)
   await migrateBlockersToTask(newId, sourceId);

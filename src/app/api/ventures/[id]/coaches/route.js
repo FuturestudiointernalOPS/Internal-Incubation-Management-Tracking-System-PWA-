@@ -14,8 +14,8 @@ export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
   const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
   if (access.error) return access.error;
-  const s = new URL(req.url).searchParams;
-  const type = s.get("type");
+  const searchParams = new URL(req.url).searchParams;
+  const type = searchParams.get("type");
 
   // No type (or "assigned") = the Venture's ACTIVE assignments (page default
   // tab). Fixes the wiring bug where the global coach catalog was shown as the
@@ -48,8 +48,8 @@ export const POST = createHandler(async (req, { params }) => {
         notes: body.notes,
       });
       return NextResponse.json({ success: true, ...result });
-    } catch (e) {
-      return NextResponse.json({ success: false, error: e.message }, { status: 400 });
+    } catch (error) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
   }
 
@@ -77,8 +77,8 @@ export const POST = createHandler(async (req, { params }) => {
       createdBy: req.session?.cid,
     });
     return NextResponse.json({ success: true, coach_id: result.id });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
   }
 });
 

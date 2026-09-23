@@ -33,7 +33,7 @@ function makeDb({ milestone = null, stage = null, list = [] } = {}) {
   };
 }
 
-const MS = { id: "MS-1", title: "Pitch Deck", status: "not_started", journey_stage_id: "ST-1" };
+const MILESTONE = { id: "MS-1", title: "Pitch Deck", status: "not_started", journey_stage_id: "ST-1" };
 const STAGE = { id: "ST-1", name: "Family & Friends", status: "active" };
 
 describe("session material paths", () => {
@@ -73,8 +73,8 @@ describe("normalizeSessionMaterials", () => {
     expect(normalizeSessionMaterials([{ path: "deliverables/VNT-1/x.pdf" }])).toBeNull();
     expect(normalizeSessionMaterials([{ path: "" }])).toBeNull();
     expect(normalizeSessionMaterials([null])).toBeNull();
-    const tooMany = Array.from({ length: SESSION_MATERIALS_MAX + 1 }, (_, i) => ({
-      path: `sessions/VNT-1/MS-1/${i}.pdf`,
+    const tooMany = Array.from({ length: SESSION_MATERIALS_MAX + 1 }, (_, materialIndex) => ({
+      path: `sessions/VNT-1/MS-1/${materialIndex}.pdf`,
     }));
     expect(normalizeSessionMaterials(tooMany)).toBeNull();
   });
@@ -82,7 +82,7 @@ describe("normalizeSessionMaterials", () => {
 
 describe("assertBookableMilestone — strictly the current milestone", () => {
   test("allows the milestone the chain has released", async () => {
-    const out = await assertBookableMilestone(makeDb({ milestone: MS, stage: STAGE, list: [MS] }), {
+    const out = await assertBookableMilestone(makeDb({ milestone: MILESTONE, stage: STAGE, list: [MILESTONE] }), {
       dbId: 7,
       milestoneId: "MS-1",
     });
@@ -91,7 +91,7 @@ describe("assertBookableMilestone — strictly the current milestone", () => {
 
   test("refuses a locked milestone and says it is locked", async () => {
     const out = await assertBookableMilestone(
-      makeDb({ milestone: { ...MS, status: "locked" }, stage: STAGE }),
+      makeDb({ milestone: { ...MILESTONE, status: "locked" }, stage: STAGE }),
       { dbId: 7, milestoneId: "MS-1" },
     );
     expect(out.ok).toBe(false);
@@ -100,7 +100,7 @@ describe("assertBookableMilestone — strictly the current milestone", () => {
 
   test("refuses a completed milestone and says it is completed", async () => {
     const out = await assertBookableMilestone(
-      makeDb({ milestone: { ...MS, status: "completed" }, stage: STAGE }),
+      makeDb({ milestone: { ...MILESTONE, status: "completed" }, stage: STAGE }),
       { dbId: 7, milestoneId: "MS-1" },
     );
     expect(out.ok).toBe(false);
@@ -109,7 +109,7 @@ describe("assertBookableMilestone — strictly the current milestone", () => {
 
   test("refuses a milestone in a Journey that has not started", async () => {
     const out = await assertBookableMilestone(
-      makeDb({ milestone: MS, stage: { ...STAGE, status: "locked" } }),
+      makeDb({ milestone: MILESTONE, stage: { ...STAGE, status: "locked" } }),
       { dbId: 7, milestoneId: "MS-1" },
     );
     expect(out.ok).toBe(false);
@@ -118,7 +118,7 @@ describe("assertBookableMilestone — strictly the current milestone", () => {
 
   test("refuses a milestone in a finished Journey", async () => {
     const out = await assertBookableMilestone(
-      makeDb({ milestone: MS, stage: { ...STAGE, status: "completed" } }),
+      makeDb({ milestone: MILESTONE, stage: { ...STAGE, status: "completed" } }),
       { dbId: 7, milestoneId: "MS-1" },
     );
     expect(out.ok).toBe(false);
@@ -133,7 +133,7 @@ describe("assertBookableMilestone — strictly the current milestone", () => {
         // later in the same Journey.
         milestone: later,
         stage: STAGE,
-        list: [MS, later],
+        list: [MILESTONE, later],
       }),
       { dbId: 7, milestoneId: "MS-2" },
     );
@@ -145,7 +145,7 @@ describe("assertBookableMilestone — strictly the current milestone", () => {
   test("a released-but-not-first milestone is refused with the current one named", async () => {
     const second = { id: "MS-2", title: "Business Plan", status: "not_started", journey_stage_id: "ST-1" };
     const out = await assertBookableMilestone(
-      makeDb({ milestone: second, stage: STAGE, list: [MS, second] }),
+      makeDb({ milestone: second, stage: STAGE, list: [MILESTONE, second] }),
       { dbId: 7, milestoneId: "MS-2" },
     );
     expect(out.ok).toBe(false);
@@ -154,7 +154,7 @@ describe("assertBookableMilestone — strictly the current milestone", () => {
 
   test("an archived milestone is refused", async () => {
     const out = await assertBookableMilestone(
-      makeDb({ milestone: { ...MS, is_archived: true }, stage: STAGE }),
+      makeDb({ milestone: { ...MILESTONE, is_archived: true }, stage: STAGE }),
       { dbId: 7, milestoneId: "MS-1" },
     );
     expect(out.ok).toBe(false);

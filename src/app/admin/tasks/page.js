@@ -29,7 +29,7 @@ import { useSessionUser } from "@/lib/hooks/useSessionUser";
 
 const EMPTY_LIST = [];
 
-const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
+const pickList = (field) => (payload) => (payload?.success ? payload[field] || [] : []);
 
 // `pickList(...)` has to be CALLED here, once, rather than at the call site: it is
 // a factory, so `pickList("tasks")` written inline is a new function on every
@@ -90,10 +90,10 @@ function formatStatusLabel(status, t) {
   const config = STATUS_CONFIG[status];
   if (config) {
     const statusKey =
-      "status." + status.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+      "status." + status.replace(/_([a-z])/g, (_, character) => character.toUpperCase());
     return t ? t(statusKey) : config.label;
   }
-  return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return status.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function getStatusColor(status) {
@@ -174,7 +174,7 @@ export default function AdminTasks() {
   const handleAddComment = async () => {
     if (!commentInput.trim() || !currentUserCid || !viewingTask) return;
     try {
-      const res = await fetch("/api/tasks/comments", {
+      const response = await fetch("/api/tasks/comments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -184,22 +184,22 @@ export default function AdminTasks() {
           body: commentInput.trim(),
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setCommentInput("");
         refreshComments();
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     }
   };
 
   // Build user list from tasks
   const users = useMemo(() => {
     const userMap = {};
-    tasks.forEach((t) => {
-      if (t.user_id && !userMap[t.user_id]) {
-        userMap[t.user_id] = { id: t.user_id, name: t.user_name };
+    tasks.forEach((task) => {
+      if (task.user_id && !userMap[task.user_id]) {
+        userMap[task.user_id] = { id: task.user_id, name: task.user_name };
       }
     });
     return Object.values(userMap);
@@ -208,26 +208,26 @@ export default function AdminTasks() {
   // Build project map
   const projectMap = useMemo(() => {
     const map = { "": null };
-    projects.forEach((p) => {
-      map[p.id] = p.name || p.title;
+    projects.forEach((project) => {
+      map[project.id] = project.name || project.title;
     });
     return map;
   }, [projects]);
 
   const filteredTasks = useMemo(() => {
-    return tasks.filter((t) => {
+    return tasks.filter((task) => {
       const matchesSearch =
-        t.title?.toLowerCase().includes(search.toLowerCase()) ||
-        t.user_name?.toLowerCase().includes(search.toLowerCase()) ||
-        String(t.created_week).includes(search) ||
-        String(t.created_year).includes(search);
+        task.title?.toLowerCase().includes(search.toLowerCase()) ||
+        task.user_name?.toLowerCase().includes(search.toLowerCase()) ||
+        String(task.created_week).includes(search) ||
+        String(task.created_year).includes(search);
       const matchesUser =
-        filterUser === "All Users" || t.user_id === filterUser;
-      const matchesStatus = filterStatus === "all" || t.status === filterStatus;
+        filterUser === "All Users" || task.user_id === filterUser;
+      const matchesStatus = filterStatus === "all" || task.status === filterStatus;
       const matchesProject =
         filterProject === "All Projects" ||
-        (filterProject === "Independent" && !t.project_id) ||
-        t.project_id === filterProject;
+        (filterProject === "Independent" && !task.project_id) ||
+        task.project_id === filterProject;
       return matchesSearch && matchesUser && matchesStatus && matchesProject;
     });
   }, [tasks, search, filterUser, filterStatus, filterProject]);
@@ -235,23 +235,23 @@ export default function AdminTasks() {
   const stats = useMemo(() => {
     return {
       total: tasks.length,
-      pending: tasks.filter((t) => t.status === "pending").length,
-      inProgress: tasks.filter((t) => t.status === "in_progress").length,
-      blocked: tasks.filter((t) => t.status === "blocked").length,
-      completed: tasks.filter((t) => t.status === "completed").length,
-      carriedOver: tasks.filter((t) => t.status === "carried_over").length,
+      pending: tasks.filter((task) => task.status === "pending").length,
+      inProgress: tasks.filter((task) => task.status === "in_progress").length,
+      blocked: tasks.filter((task) => task.status === "blocked").length,
+      completed: tasks.filter((task) => task.status === "completed").length,
+      carriedOver: tasks.filter((task) => task.status === "carried_over").length,
     };
   }, [tasks]);
 
   const handleStatusUpdate = async (taskId, newStatus) => {
     setStatusUpdating(taskId);
     try {
-      const res = await fetch("/api/tasks", {
+      const response = await fetch("/api/tasks", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: taskId, status: newStatus }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         refreshTasks();
         refreshProjects();
@@ -269,8 +269,8 @@ export default function AdminTasks() {
         const retryData = await retryRes.json();
         if (retryData.success) { refreshTasks(); refreshProjects(); }
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setStatusUpdating(null);
     }
@@ -391,7 +391,7 @@ export default function AdminTasks() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder={t("common.search")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
             />
@@ -401,13 +401,13 @@ export default function AdminTasks() {
             <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <select
               value={filterUser}
-              onChange={(e) => setFilterUser(e.target.value)}
+              onChange={(event) => setFilterUser(event.target.value)}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="All Users">{t("adminMisc.tasks.allUsers")}</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
                 </option>
               ))}
             </select>
@@ -417,7 +417,7 @@ export default function AdminTasks() {
             <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(event) => setFilterStatus(event.target.value)}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="all">{t("adminMisc.tasks.allStatuses")}</option>
@@ -433,14 +433,14 @@ export default function AdminTasks() {
             <ListTodo className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <select
               value={filterProject}
-              onChange={(e) => setFilterProject(e.target.value)}
+              onChange={(event) => setFilterProject(event.target.value)}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="All Projects">{t("adminMisc.tasks.allProjects")}</option>
               <option value="Independent">{t("adminMisc.tasks.independentTasks")}</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name || p.title}
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name || project.title}
                 </option>
               ))}
             </select>
@@ -450,12 +450,12 @@ export default function AdminTasks() {
             <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(event) => setSortBy(event.target.value)}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
-              {sortOptions.map((opt) => (
-                <option key={opt.id} value={opt.id}>
-                  {opt.label}
+              {sortOptions.map((sortOption) => (
+                <option key={sortOption.id} value={sortOption.id}>
+                  {sortOption.label}
                 </option>
               ))}
             </select>
@@ -788,18 +788,18 @@ export default function AdminTasks() {
                       })}
                     </p>
                     <div className="space-y-1.5">
-                      {viewingTask.blockers.map((b) => (
+                      {viewingTask.blockers.map((blocker) => (
                         <div
-                          key={b.id}
+                          key={blocker.id}
                           className="flex items-center justify-between p-2 rounded-lg bg-primary border border-[var(--border-primary)]"
                         >
                           <span className="text-[10px] font-bold">
-                            {b.title}
+                            {blocker.title}
                           </span>
                           <span
-                            className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${b.status === "active" ? "bg-rose-500/10 text-rose-500" : "bg-emerald-500/10 text-emerald-500"}`}
+                            className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${blocker.status === "active" ? "bg-rose-500/10 text-rose-500" : "bg-emerald-500/10 text-emerald-500"}`}
                           >
-                            {b.status === "active"
+                            {blocker.status === "active"
                               ? t("status.active")
                               : t("status.resolved")}
                           </span>
@@ -818,24 +818,24 @@ export default function AdminTasks() {
                     <select
                       value={assignValue}
                       disabled={assigningUser}
-                      onChange={async (e) => {
-                        const val = e.target.value;
-                        if (!val) return;
+                      onChange={async (event) => {
+                        const selectedUserId = event.target.value;
+                        if (!selectedUserId) return;
                         setAssigningUser(true);
                         try {
-                          const res = await fetch(`/api/tasks`, {
+                          const response = await fetch(`/api/tasks`, {
                             method: "PUT",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
                               id: viewingTask.id,
-                              assigned_to: val,
+                              assigned_to: selectedUserId,
                             }),
                           });
-                          const data = await res.json();
+                          const data = await response.json();
                           if (data.success) {
                             setViewingTask((prev) => ({
                               ...prev,
-                              assigned_to: val,
+                              assigned_to: selectedUserId,
                             }));
                           } else {
                             window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || t("adminMisc.tasks.assignFailed")) || "") || (data.error || t("adminMisc.tasks.assignFailed")) } }));
@@ -847,9 +847,9 @@ export default function AdminTasks() {
                       className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all appearance-none cursor-pointer disabled:opacity-40 disabled:cursor-wait"
                     >
                       <option value="">{t("adminMisc.tasks.unassigned")}</option>
-                      {allUsers.map((u) => (
-                        <option key={u.cid} value={u.cid}>
-                          {u.name}
+                      {allUsers.map((user) => (
+                        <option key={user.cid} value={user.cid}>
+                          {user.name}
                         </option>
                       ))}
                     </select>
@@ -862,21 +862,21 @@ export default function AdminTasks() {
                   </p>
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {["pending", "in_progress", "blocked", "completed"].map(
-                      (s) => {
-                        if (viewingTask.status === s) return null;
+                      (statusOption) => {
+                        if (viewingTask.status === statusOption) return null;
                         return (
                           <button
-                            key={s}
+                            key={statusOption}
                             onClick={() => {
-                              handleStatusUpdate(viewingTask.id, s);
+                              handleStatusUpdate(viewingTask.id, statusOption);
                               setViewingTask(null);
                             }}
                             disabled={statusUpdating !== null}
-                            className={`text-[8px] font-black uppercase tracking-widest px-3 py-2 rounded-lg border transition-all ${STATUS_CONFIG[s]?.bg} ${STATUS_CONFIG[s]?.color} ${STATUS_CONFIG[s]?.border} hover:brightness-110 disabled:opacity-40 disabled:cursor-wait`}
+                            className={`text-[8px] font-black uppercase tracking-widest px-3 py-2 rounded-lg border transition-all ${STATUS_CONFIG[statusOption]?.bg} ${STATUS_CONFIG[statusOption]?.color} ${STATUS_CONFIG[statusOption]?.border} hover:brightness-110 disabled:opacity-40 disabled:cursor-wait`}
                           >
                             {t(
                               "status." +
-                                (s === "in_progress" ? "inProgress" : s),
+                                (statusOption === "in_progress" ? "inProgress" : statusOption),
                             )}
                           </button>
                         );
@@ -891,16 +891,16 @@ export default function AdminTasks() {
                     {t("adminMisc.tasks.comments")}
                   </p>
                   <div className="space-y-2 mb-3 max-h-32 overflow-y-auto">
-                    {comments.map((c) => (
+                    {comments.map((comment) => (
                       <div
-                        key={c.id}
+                        key={comment.id}
                         className="text-[10px] p-2 rounded-lg bg-primary border border-[var(--border-primary)]"
                       >
                         <span className="font-bold text-[var(--text-primary)]">
-                          {c.sender_name}:
+                          {comment.sender_name}:
                         </span>{" "}
                         <span className="text-[var(--text-secondary)]">
-                          {c.body}
+                          {comment.body}
                         </span>
                       </div>
                     ))}
@@ -914,9 +914,9 @@ export default function AdminTasks() {
                     <input
                       type="text"
                       value={commentInput}
-                      onChange={(e) => setCommentInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleAddComment();
+                      onChange={(event) => setCommentInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") handleAddComment();
                       }}
                       placeholder={t("adminMisc.tasks.addCommentPlaceholder")}
                       className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"

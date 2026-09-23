@@ -25,9 +25,9 @@ export const GET = createHandler(async (req) => {
       { status: 401 },
     );
   }
-  const taskRes = await getTaskAccessById(task_id);
-  const t = taskRes.rows[0];
-  if (!t) {
+  const taskResult = await getTaskAccessById(task_id);
+  const task = taskResult.rows[0];
+  if (!task) {
     return NextResponse.json(
       { success: false, error: "Task not found" },
       { status: 404 },
@@ -40,9 +40,9 @@ export const GET = createHandler(async (req) => {
   ];
   if (
     !staffSide.includes(session.role) &&
-    String(t.user_id) !== String(session.cid) &&
-    String(t.assigned_to || "") !== String(session.cid) &&
-    String(t.supervisor_id || "") !== String(session.cid)
+    String(task.user_id) !== String(session.cid) &&
+    String(task.assigned_to || "") !== String(session.cid) &&
+    String(task.supervisor_id || "") !== String(session.cid)
   ) {
     return NextResponse.json(
       { success: false, error: "You do not have access to this task." },

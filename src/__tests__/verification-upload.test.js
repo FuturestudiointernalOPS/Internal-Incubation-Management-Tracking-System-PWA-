@@ -16,7 +16,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const mockRead = (p) => fs.readFileSync(path.join(process.cwd(), p), "utf8");
+const mockRead = (relPath) => fs.readFileSync(path.join(process.cwd(), relPath), "utf8");
 
 const mockDb = { execute: jest.fn(async () => ({ rows: [] })) };
 

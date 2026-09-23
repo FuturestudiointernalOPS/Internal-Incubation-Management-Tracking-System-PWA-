@@ -11,8 +11,8 @@
 const { jsPDF } = require("jspdf");
 const { buildSubmissionResultPdf, buildComposedReportPdf } = require("@/models/platform/resultPdf");
 
-const M = 46; // page margin used by the builder
-const TOL = 0.75;
+const MARGIN = 46; // page margin used by the builder
+const TOLERANCE = 0.75;
 const PAGE_W = 595.28; // A4 width in pt
 
 const FAMILY = {
@@ -23,17 +23,17 @@ const FAMILY = {
 };
 
 const probe = new jsPDF({ unit: "pt", format: "a4" });
-const textWidth = (baseFont, size, str) => {
+const textWidth = (baseFont, size, text) => {
   const [family, style] = FAMILY[baseFont] || FAMILY.Helvetica;
   probe.setFont(family, style);
   probe.setFontSize(size);
-  return probe.getTextWidth(str);
+  return probe.getTextWidth(text);
 };
 
-const unescapePdf = (s) =>
-  s
+const unescapePdf = (escaped) =>
+  escaped
     .replace(/\\([()\\])/g, "$1")
-    .replace(/\\([0-7]{1,3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)));
+    .replace(/\\([0-7]{1,3})/g, (_, octalDigits) => String.fromCharCode(parseInt(octalDigits, 8)));
 
 /** Every text run actually written to the document, with its position. */
 function drawnRuns(bytes) {
@@ -41,8 +41,8 @@ function drawnRuns(bytes) {
   expect(pdf).not.toMatch(/FlateDecode/); // the stream must stay readable here
 
   const fonts = {};
-  for (const m of pdf.matchAll(/\/F(\d+) 0 obj[\s\S]{0,200}?\/BaseFont \/([A-Za-z-]+)/g)) {
-    fonts[`/F${m[1]}`] = m[2];
+  for (const match of pdf.matchAll(/\/F(\d+) 0 obj[\s\S]{0,200}?\/BaseFont \/([A-Za-z-]+)/g)) {
+    fonts[`/F${match[1]}`] = match[2];
   }
 
   const runs = [];
@@ -53,28 +53,28 @@ function drawnRuns(bytes) {
     let leading = 11.5;
     let x = 0;
     let y = 0;
-    const ops = body.matchAll(
+    const operations = body.matchAll(
       /\/(F\d+) ([\d.]+) Tf|([\d.-]+) TL|([\d.-]+) ([\d.-]+) (?:Td|Tm)|T\*|\(((?:[^()\\]|\\.)*)\) Tj|\[((?:[^\]])*)\] TJ|BT|ET/g,
     );
-    for (const tok of ops) {
-      if (tok[0] === "BT") {
+    for (const token of operations) {
+      if (token[0] === "BT") {
         x = 0;
         y = 0;
-      } else if (tok[0] === "T*") {
+      } else if (token[0] === "T*") {
         y -= leading;
         runs.push({ x, y, text: "<next line>", font, size });
-      } else if (tok[1]) {
-        font = `/${tok[1]}`;
-        size = parseFloat(tok[2]);
-      } else if (tok[3] !== undefined) {
-        leading = parseFloat(tok[3]);
-      } else if (tok[4] !== undefined) {
-        x += parseFloat(tok[4]);
-        y += parseFloat(tok[5]);
-      } else if (tok[6] !== undefined || tok[7] !== undefined) {
-        const raw = (tok[6] !== undefined ? tok[6] : tok[7]).replace(/\)\s*[\d.-]+\s*\(/g, "");
-        const str = unescapePdf(raw);
-        if (str) runs.push({ x, y, text: str, font, size });
+      } else if (token[1]) {
+        font = `/${token[1]}`;
+        size = parseFloat(token[2]);
+      } else if (token[3] !== undefined) {
+        leading = parseFloat(token[3]);
+      } else if (token[4] !== undefined) {
+        x += parseFloat(token[4]);
+        y += parseFloat(token[5]);
+      } else if (token[6] !== undefined || token[7] !== undefined) {
+        const raw = (token[6] !== undefined ? token[6] : token[7]).replace(/\)\s*[\d.-]+\s*\(/g, "");
+        const text = unescapePdf(raw);
+        if (text) runs.push({ x, y, text, font, size });
       }
     }
   }
@@ -83,13 +83,13 @@ function drawnRuns(bytes) {
 
 /** Runs that don't fit the print area. The footer sits outside on purpose. */
 function outOfMargin(runs, fonts) {
-  return runs.filter((r) => {
-    const str = r.text === "<next line>" ? "M" : r.text;
-    const w = textWidth(fonts[r.font] || "Helvetica", r.size, str);
-    const isFooter = /Impact OS|Thank you|Merci pour/.test(r.text);
-    if (r.x + w > PAGE_W - M + TOL) return true; // past the right edge
-    if (r.x < M - TOL) return true; // past the left edge
-    if (r.y < M - TOL && !isFooter) return true; // below the bottom margin
+  return runs.filter((run) => {
+    const text = run.text === "<next line>" ? "M" : run.text;
+    const width = textWidth(fonts[run.font] || "Helvetica", run.size, text);
+    const isFooter = /Impact OS|Thank you|Merci pour/.test(run.text);
+    if (run.x + width > PAGE_W - MARGIN + TOLERANCE) return true; // past the right edge
+    if (run.x < MARGIN - TOLERANCE) return true; // past the left edge
+    if (run.y < MARGIN - TOLERANCE && !isFooter) return true; // below the bottom margin
     return false;
   });
 }
@@ -106,9 +106,9 @@ const bigForm = {
     decision: "revision_requested",
     comment: long("Votre candidature présente des points solides mais nous souhaitons des précisions.", 40),
   },
-  dimensions: Array.from({ length: 4 }, (_, i) => ({
-    name: long(`Dimension ${i + 1} — capacité à structurer et documenter votre modèle économique`, 4),
-    score: (i % 10) + 1,
+  dimensions: Array.from({ length: 4 }, (_, dimensionIndex) => ({
+    name: long(`Dimension ${dimensionIndex + 1} — capacité à structurer et documenter votre modèle économique`, 4),
+    score: (dimensionIndex % 10) + 1,
     feedback: long("Le raisonnement est clair et documenté, la démonstration reste à compléter.", 25),
     strengths: [long("Bonne connaissance du terrain et des acteurs locaux", 12)],
     improvements: ["Budget: " + "https://exemple.test/".repeat(40)],
@@ -154,7 +154,7 @@ describe("result PDF layout", () => {
         ],
       }),
     );
-    const linkLines = runs.filter((r) => r.text.includes("xxxx"));
+    const linkLines = runs.filter((run) => run.text.includes("xxxx"));
     expect(linkLines.length).toBeGreaterThan(1); // split, not one huge line
     expect(outOfMargin(runs, fonts)).toEqual([]);
   });
@@ -182,8 +182,8 @@ describe("composed report PDF layout", () => {
   test("a long composed report fits the margins and paginates", () => {
     const composed = {
       title: long("Rapport Founder Fit personnalisé", 6),
-      sections: Array.from({ length: 6 }, (_, i) => ({
-        heading: long(`Section ${i + 1} — ce que vos réponses révèlent`, 5),
+      sections: Array.from({ length: 6 }, (_, sectionIndex) => ({
+        heading: long(`Section ${sectionIndex + 1} — ce que vos réponses révèlent`, 5),
         blocks: [
           { type: "paragraph", text: long("Votre réponse montre une compréhension claire du problème client.", 40) },
           { type: "bullet", text: long("Point à documenter", 12) },
@@ -225,5 +225,49 @@ describe("composed report PDF layout", () => {
     );
     expect(pdf.startsWith("%PDF")).toBe(true);
     expect(outOfMargin(runs, fonts)).toEqual([]);
+  });
+
+  test("the form's questions and the participant's answers are appended last", () => {
+    const { runs, fonts } = drawnRuns(
+      buildComposedReportPdf({
+        lang: "fr",
+        document: {
+          title: "Rapport personnalise",
+          sections: [{ heading: "Synthese", blocks: [{ type: "paragraph", text: "Votre projet avance bien." }] }],
+        },
+        sections: [
+          {
+            title: "Votre projet",
+            items: [
+              { label: "Nom du projet ?", value: long("Un nom de projet tres long ", 20) },
+              { label: "Probleme resolu ?", value: "Celui de la tracabilite." },
+            ],
+          },
+        ],
+      }),
+    );
+
+    // A long answer must wrap rather than run off the sheet.
+    expect(outOfMargin(runs, fonts)).toEqual([]);
+
+    // The report is the READING; the answers are the evidence it was drawn from,
+    // so they must come AFTER everything the instruction composed.
+    const lines = runs.map((run) => run.text);
+    const composed = lines.findIndex((line) => line.includes("Synthese"));
+    const answers = lines.findIndex((line) => line.includes("Vos r"));
+    expect(composed).toBeGreaterThan(-1);
+    expect(answers).toBeGreaterThan(composed);
+    expect(lines.some((line) => line.includes("Nom du projet"))).toBe(true);
+    expect(lines.some((line) => line.includes("Celui de la tracabilite"))).toBe(true);
+  });
+
+  test("without answers, no empty section is drawn", () => {
+    const { runs } = drawnRuns(
+      buildComposedReportPdf({
+        lang: "en",
+        document: { title: "Report", sections: [{ heading: "Summary", blocks: [{ type: "paragraph", text: "Body." }] }] },
+      }),
+    );
+    expect(runs.some((run) => run.text.includes("Your Responses"))).toBe(false);
   });
 });

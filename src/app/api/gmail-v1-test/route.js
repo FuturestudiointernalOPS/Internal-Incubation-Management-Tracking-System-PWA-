@@ -40,16 +40,16 @@ const SENDER_EMAIL = process.env.GMAIL_SENDER_EMAIL || "info@futurestudio.bj";
 const SENDER_NAME = "Future Studio";
 
 /** Map provider errors to safe, non-sensitive categories for the response. */
-function classifyError(err) {
-  const msg = String(err?.message || err?.response?.data?.error || "").toLowerCase();
-  if (msg.includes("invalid_grant")) return "refresh_token_invalid_or_revoked";
-  if (msg.includes("invalid_client")) return "client_id_or_secret_invalid";
-  if (msg.includes("access_denied") || msg.includes("insufficient") || msg.includes("forbidden"))
+function classifyError(error) {
+  const message = String(error?.message || error?.response?.data?.error || "").toLowerCase();
+  if (message.includes("invalid_grant")) return "refresh_token_invalid_or_revoked";
+  if (message.includes("invalid_client")) return "client_id_or_secret_invalid";
+  if (message.includes("access_denied") || message.includes("insufficient") || message.includes("forbidden"))
     return "permission_or_scope_denied";
-  if (msg.includes("quota") || msg.includes("rate")) return "quota_or_rate_limit";
-  if (msg.includes("daily limit")) return "daily_send_limit_reached";
-  if (msg.includes("delegation") || msg.includes("send-as")) return "sender_identity_not_authorized";
-  if (msg.includes("enabled") || msg.includes("not found") || msg.includes("404")) return "gmail_api_not_enabled";
+  if (message.includes("quota") || message.includes("rate")) return "quota_or_rate_limit";
+  if (message.includes("daily limit")) return "daily_send_limit_reached";
+  if (message.includes("delegation") || message.includes("send-as")) return "sender_identity_not_authorized";
+  if (message.includes("enabled") || message.includes("not found") || message.includes("404")) return "gmail_api_not_enabled";
   return "unknown_error";
 }
 
@@ -88,13 +88,13 @@ export async function GET() {
     // Step 1 — authenticate (refresh token validity)
     let accessToken;
     try {
-      const tokenRes = await auth.getAccessToken();
-      accessToken = tokenRes.token;
+      const tokenResult = await auth.getAccessToken();
+      accessToken = tokenResult.token;
       report.authentication = "SUCCESS";
-    } catch (e) {
-      console.error("[gmail-v1-test] Token refresh failed:", classifyError(e));
+    } catch (error) {
+      console.error("[gmail-v1-test] Token refresh failed:", classifyError(error));
       report.authentication = "FAILED";
-      report.error = classifyError(e);
+      report.error = classifyError(error);
       return NextResponse.json({ success: false, report });
     }
 
@@ -109,8 +109,8 @@ export async function GET() {
       const gmailProfile = google.gmail({ version: "v1", auth });
       const profile = await gmailProfile.users.getProfile({ userId: "me" });
       report.authenticated_sender = profile.data.emailAddress || null;
-    } catch (e) {
-      console.error("[gmail-v1-test] Profile read failed:", classifyError(e));
+    } catch (error) {
+      console.error("[gmail-v1-test] Profile read failed:", classifyError(error));
       report.authenticated_sender = null;
     }
 
@@ -133,23 +133,23 @@ export async function GET() {
         .replace(/\//g, "_")
         .replace(/=+$/, "");
 
-      const sendRes = await gmail.users.messages.send({
+      const sendResult = await gmail.users.messages.send({
         userId: "me",
         requestBody: { raw: encoded },
       });
 
       report.gmail_api = "AVAILABLE";
       report.test_email = "SENT";
-      report.message_id = sendRes.data.id || null;
+      report.message_id = sendResult.data.id || null;
       report.from = `${SENDER_NAME} <${SENDER_EMAIL}>`;
       report.reply_to = SENDER_EMAIL;
       report.to = TEST_RECIPIENT;
       return NextResponse.json({ success: true, report });
-    } catch (e) {
-      console.error("[gmail-v1-test] Send failed:", classifyError(e));
+    } catch (error) {
+      console.error("[gmail-v1-test] Send failed:", classifyError(error));
       report.gmail_api = "FAILED";
       report.test_email = "FAILED";
-      report.error = classifyError(e);
+      report.error = classifyError(error);
       return NextResponse.json({ success: false, report });
     }
   } catch {

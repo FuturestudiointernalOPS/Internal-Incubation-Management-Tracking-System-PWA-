@@ -32,9 +32,9 @@ export async function GET(req) {
 
     // Try v2_groups (by id OR registration_id)
     if (!group) {
-      const v2result = await findV2GroupForGroupInfo(id);
-      if (v2result.rows.length > 0) {
-        group = v2result.rows[0];
+      const v2GroupResult = await findV2GroupForGroupInfo(id);
+      if (v2GroupResult.rows.length > 0) {
+        group = v2GroupResult.rows[0];
       }
     }
 
@@ -45,9 +45,9 @@ export async function GET(req) {
     // Fetch program registration window if program_id exists
     let registration_window = null;
     if (group.program_id) {
-      const progResult = await getProgramRegistrationWindow(group.program_id);
-      if (progResult.rows.length > 0) {
-        registration_window = progResult.rows[0].registration_window;
+      const programResult = await getProgramRegistrationWindow(group.program_id);
+      if (programResult.rows.length > 0) {
+        registration_window = programResult.rows[0].registration_window;
       }
     }
 

@@ -64,15 +64,15 @@ function parseFiscalYear(fiscalYear) {
  * Returns aggregated budget overview for a data source / fiscal year.
  */
 export async function getSummary(dataSourceId, year) {
-  const ds = await resolveDataSource(dataSourceId);
-  const fiscalYear = year || ds.fiscal_year || "2025-2026";
+  const dataSource = await resolveDataSource(dataSourceId);
+  const fiscalYear = year || dataSource.fiscal_year || "2025-2026";
 
   // Total planned budget
   const plannedRes = await db.execute(
     `SELECT COALESCE(SUM(planned_amount), 0) AS total
      FROM finance_budget_lines
      WHERE data_source_id = ? AND fiscal_year = ?`,
-    [ds.id, fiscalYear],
+    [dataSource.id, fiscalYear],
   );
   const totalPlannedBudget = Number(plannedRes.rows[0]?.total || 0);
 
@@ -81,7 +81,7 @@ export async function getSummary(dataSourceId, year) {
     `SELECT COALESCE(SUM(amount), 0) AS total
      FROM finance_transactions
      WHERE data_source_id = ? AND type = 'expense' AND archived = false`,
-    [ds.id],
+    [dataSource.id],
   );
   const totalActualSpending = Number(spendingRes.rows[0]?.total || 0);
 
@@ -90,7 +90,7 @@ export async function getSummary(dataSourceId, year) {
     `SELECT COALESCE(SUM(amount), 0) AS total
      FROM finance_transactions
      WHERE data_source_id = ? AND type = 'revenue' AND archived = false`,
-    [ds.id],
+    [dataSource.id],
   );
   const totalActualRevenue = Number(revenueRes.rows[0]?.total || 0);
 
@@ -107,8 +107,8 @@ export async function getSummary(dataSourceId, year) {
     totalActualRevenue,
     remainingBudget,
     executionRate,
-    dataSourceId: ds.id,
-    lastSyncAt: ds.last_sync_at,
+    dataSourceId: dataSource.id,
+    lastSyncAt: dataSource.last_sync_at,
   };
 }
 
@@ -121,8 +121,8 @@ export async function getSummary(dataSourceId, year) {
  * per-month planned data exists in the schema yet.
  */
 export async function getMonthly(dataSourceId, year) {
-  const ds = await resolveDataSource(dataSourceId);
-  const fiscalYear = year || ds.fiscal_year || "2025-2026";
+  const dataSource = await resolveDataSource(dataSourceId);
+  const fiscalYear = year || dataSource.fiscal_year || "2025-2026";
   const { start, end } = parseFiscalYear(fiscalYear);
 
   if (!start || !end) {
@@ -134,7 +134,7 @@ export async function getMonthly(dataSourceId, year) {
     `SELECT COALESCE(SUM(planned_amount), 0) AS total
      FROM finance_budget_lines
      WHERE data_source_id = ? AND fiscal_year = ?`,
-    [ds.id, fiscalYear],
+    [dataSource.id, fiscalYear],
   );
   const totalPlannedBudget = Number(plannedRes.rows[0]?.total || 0);
   const monthlyPlanned = Math.round(totalPlannedBudget / 12);
@@ -152,7 +152,7 @@ export async function getMonthly(dataSourceId, year) {
        AND date <= ?::DATE
      GROUP BY DATE_TRUNC('month', date), type
      ORDER BY month_start`,
-    [ds.id, start, end],
+    [dataSource.id, start, end],
   );
 
   // Build month map: { "2025-09": { revenue: X, spending: Y }, ... }
@@ -182,13 +182,13 @@ export async function getMonthly(dataSourceId, year) {
   ];
 
   const monthlyData = [];
-  for (let i = 0; i < 12; i++) {
-    const y = i < 4 ? year1 : year2; // Sept-Dec use year1, Jan-Aug use year2
-    const key = `${y}-${fiscalMonths[i]}`;
+  for (let index = 0; index < 12; index++) {
+    const calendarYear = index < 4 ? year1 : year2; // Sept-Dec use year1, Jan-Aug use year2
+    const key = `${calendarYear}-${fiscalMonths[index]}`;
     const entry = monthMap[key] || { revenue: 0, spending: 0 };
     monthlyData.push({
       monthKey: key,
-      monthLabel: monthLabels[i],
+      monthLabel: monthLabels[index],
       plannedRevenue: 0, // Not tracked per-month yet
       actualRevenue: entry.revenue,
       plannedSpending: monthlyPlanned,
@@ -201,7 +201,7 @@ export async function getMonthly(dataSourceId, year) {
     months: monthLabels,
     data: monthlyData,
     totalPlannedBudget,
-    dataSourceId: ds.id,
+    dataSourceId: dataSource.id,
   };
 }
 
@@ -212,7 +212,7 @@ export async function getMonthly(dataSourceId, year) {
  * Returns paginated, filtered transaction list.
  */
 export async function getTransactions(dataSourceId, filters = {}) {
-  const ds = await resolveDataSource(dataSourceId);
+  const dataSource = await resolveDataSource(dataSourceId);
 
   const {
     type,
@@ -227,7 +227,7 @@ export async function getTransactions(dataSourceId, filters = {}) {
     "data_source_id = ?",
     "archived = false",
   ];
-  const params = [ds.id];
+  const params = [dataSource.id];
 
   if (type && type !== "all") {
     conditions.push("type = ?");
@@ -268,14 +268,14 @@ export async function getTransactions(dataSourceId, filters = {}) {
   );
 
   return {
-    transactions: dataRes.rows.map((r) => ({
-      ...r,
-      amount: Number(r.amount),
+    transactions: dataRes.rows.map((row) => ({
+      ...row,
+      amount: Number(row.amount),
     })),
     total,
     limit,
     offset,
-    dataSourceId: ds.id,
+    dataSourceId: dataSource.id,
   };
 }
 
@@ -286,8 +286,8 @@ export async function getTransactions(dataSourceId, filters = {}) {
  * Returns planned budget per program for a given data source / fiscal year.
  */
 export async function getBudgetLines(dataSourceId, year) {
-  const ds = await resolveDataSource(dataSourceId);
-  const fiscalYear = year || ds.fiscal_year || "2025-2026";
+  const dataSource = await resolveDataSource(dataSourceId);
+  const fiscalYear = year || dataSource.fiscal_year || "2025-2026";
 
   const result = await db.execute(
     `SELECT
@@ -302,19 +302,19 @@ export async function getBudgetLines(dataSourceId, year) {
      JOIN finance_programs fp ON fp.id = bl.program_id
      WHERE bl.data_source_id = ? AND bl.fiscal_year = ?
      ORDER BY fp.code`,
-    [ds.id, fiscalYear],
+    [dataSource.id, fiscalYear],
   );
 
   return {
-    budgetLines: result.rows.map((r) => ({
-      id: r.id,
-      programId: r.program_id,
-      programCode: r.program_code,
-      programName: r.program_name,
-      plannedAmount: Number(r.planned_amount),
-      fiscalYear: r.fiscal_year,
+    budgetLines: result.rows.map((row) => ({
+      id: row.id,
+      programId: row.program_id,
+      programCode: row.program_code,
+      programName: row.program_name,
+      plannedAmount: Number(row.planned_amount),
+      fiscalYear: row.fiscal_year,
     })),
-    dataSourceId: ds.id,
+    dataSourceId: dataSource.id,
   };
 }
 
@@ -334,23 +334,23 @@ export async function insertTransaction({
   amount,
 }) {
   // Find the internal data source
-  const dsRes = await db.execute(
+  const dataSourceResult = await db.execute(
     "SELECT id FROM data_sources WHERE source_type = 'internal' AND status = 'active' LIMIT 1",
   );
-  if (dsRes.rows.length === 0) {
+  if (dataSourceResult.rows.length === 0) {
     throw new Error("Internal data source not found. Run the schema migration first.");
   }
-  const internalSourceId = dsRes.rows[0].id;
+  const internalSourceId = dataSourceResult.rows[0].id;
 
   // Look up program by budget code
   let programId = null;
   if (budget_code) {
-    const progRes = await db.execute(
+    const programResult = await db.execute(
       "SELECT id FROM finance_programs WHERE code = ?",
       [budget_code],
     );
-    if (progRes.rows.length > 0) {
-      programId = progRes.rows[0].id;
+    if (programResult.rows.length > 0) {
+      programId = programResult.rows[0].id;
     }
   }
 

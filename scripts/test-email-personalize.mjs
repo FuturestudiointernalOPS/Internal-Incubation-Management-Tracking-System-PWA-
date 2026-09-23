@@ -37,12 +37,12 @@ function check(name, condition, detail = "") {
 // Simulate "AI returns different wording for each text segment".
 function simulateAi(parts, rewordFn) {
   const segments = parts
-    .filter((p) => p.type === "text" && p.value.trim().length > 0)
-    .map((p) => rewordFn(p.value));
+    .filter((part) => part.type === "text" && part.value.trim().length > 0)
+    .map((part) => rewordFn(part.value));
   return splicePersonalizedSegments(parts, segments);
 }
 
-const reword = (s) => `[AI] ${s.trim()} personalized. `;
+const reword = (text) => `[AI] ${text.trim()} personalized. `;
 
 console.log("\nTEST A — Paragraphs remain separate");
 {
@@ -104,10 +104,10 @@ console.log("\nTEST G — Placeholder variables survive");
 
   // G1: AI drops a placeholder → restored deterministically (mirrors the
   // route's Tier-2 pipeline: restore → strip unknown → splice)
-  const originals = parts.filter((p) => p.type === "text" && p.value.trim().length > 0).map((p) => p.value);
+  const originals = parts.filter((part) => part.type === "text" && part.value.trim().length > 0).map((part) => part.value);
   const aiOutput = ["Dear friend, your score is great."];
-  const cleaned = originals.map((original, i) =>
-    stripUnknownPlaceholders(ensureSegmentPlaceholders(original, aiOutput[i]), new Set(["name", "score"]))
+  const cleaned = originals.map((original, index) =>
+    stripUnknownPlaceholders(ensureSegmentPlaceholders(original, aiOutput[index]), new Set(["name", "score"]))
   );
   const dropped = splicePersonalizedSegments(parts, cleaned);
   check("dropped placeholder restored", dropped.includes("{{name}}") && dropped.includes("{{score}}"));
@@ -118,20 +118,20 @@ console.log("\nTEST G — Placeholder variables survive");
   check("invented variable stripped", !stripped.includes("{{first_name}}") && stripped.includes("{{name}}"));
 
   // G3: structural validator rejects unknown variables
-  const v1 = validateStructure(draft, invented, new Set(["name", "score"]));
-  check("validator rejects unknown placeholder", v1.ok === false && v1.reason.includes("unknown_placeholder"));
+  const unknownPlaceholder = validateStructure(draft, invented, new Set(["name", "score"]));
+  check("validator rejects unknown placeholder", unknownPlaceholder.ok === false && unknownPlaceholder.reason.includes("unknown_placeholder"));
 
   // G4: validator rejects missing placeholder
-  const v2 = validateStructure(draft, "<p>Dear friend, your score is {{score}}.</p>", new Set(["name", "score"]));
-  check("validator rejects missing placeholder", v2.ok === false && v2.reason.includes("missing_placeholder"));
+  const missingPlaceholder = validateStructure(draft, "<p>Dear friend, your score is {{score}}.</p>", new Set(["name", "score"]));
+  check("validator rejects missing placeholder", missingPlaceholder.ok === false && missingPlaceholder.reason.includes("missing_placeholder"));
 
   // G5: validator rejects changed structure
-  const v3 = validateStructure(draft, "<p>Dear {{name}}, your score is {{score}}.</p><p>extra</p>", new Set(["name", "score"]));
-  check("validator rejects structure change", v3.ok === false && v3.reason === "structure_changed");
+  const structureChanged = validateStructure(draft, "<p>Dear {{name}}, your score is {{score}}.</p><p>extra</p>", new Set(["name", "score"]));
+  check("validator rejects structure change", structureChanged.ok === false && structureChanged.reason === "structure_changed");
 
   // G6: valid personalization passes
-  const v4 = validateStructure(draft, "<p>Dear {{name}}, your AI score is {{score}}.</p>", new Set(["name", "score"]));
-  check("validator accepts valid personalization", v4.ok === true);
+  const validPersonalization = validateStructure(draft, "<p>Dear {{name}}, your AI score is {{score}}.</p>", new Set(["name", "score"]));
+  check("validator accepts valid personalization", validPersonalization.ok === true);
 
   // G7: ensureSegmentPlaceholders idempotent on good segments
   const kept = ensureSegmentPlaceholders("Dear {{name}}", "Dear friend");
@@ -144,10 +144,10 @@ console.log("\nTEST H — Empty subject follows the default-subject contract");
   check("provided subject can be personalized", finalizeSubject("Welcome {{name}}", "Bonjour {{name}}") === "Bonjour {{name}}");
   check("invalid personalized subject falls back to draft", finalizeSubject("Welcome {{name}}", null) === "Welcome {{name}}");
 
-  const ok = validateSubject("Welcome {{name}}", "Bonjour {{name}}", new Set(["name"]));
-  check("subject validator accepts valid", ok.ok === true);
-  const bad = validateSubject("Welcome {{name}}", "Bonjour", new Set(["name"]));
-  check("subject validator rejects missing placeholder", bad.ok === false);
+  const validSubject = validateSubject("Welcome {{name}}", "Bonjour {{name}}", new Set(["name"]));
+  check("subject validator accepts valid", validSubject.ok === true);
+  const invalidSubject = validateSubject("Welcome {{name}}", "Bonjour", new Set(["name"]));
+  check("subject validator rejects missing placeholder", invalidSubject.ok === false);
   // At send time the empty subject resolves via email.js getTemplate:
   // run.settings.templates → form.automation.templates → DEFAULT_TEMPLATES.
 }
@@ -156,7 +156,7 @@ console.log("\nTEST — Spliced result always matches the original skeleton");
 {
   const draft = "<p>A</p>\n\n<ul><li>• x</li></ul><p>B <strong>C</strong> <a href=\"https://x.y\">link</a>.</p>";
   const parts = splitHtmlParts(draft);
-  const out = splicePersonalizedSegments(parts, parts.filter((p) => p.type === "text" && p.value.trim()).map(() => "reworded"));
+  const out = splicePersonalizedSegments(parts, parts.filter((part) => part.type === "text" && part.value.trim()).map(() => "reworded"));
   check("skeleton identical by construction", tagSkeleton(out) === tagSkeleton(draft));
   check("whitespace gaps preserved", out.includes("</p>\n\n<ul>"));
 }
@@ -179,9 +179,9 @@ console.log("\nTEST — normalizeToHtml (plain text → paragraphs)");
 console.log("\nTEST — Markdown symbols never reach the recipient (screenshot regression)");
 {
   // 1. French emphasis lines from the reported email
-  const fr = normalizeToHtml("*Bootcamp Pré-Entrepreneuriat de Future Studio*\n\n*Confirmez votre participation*");
-  check("single-asterisk emphasis becomes <em>", fr.includes("<em>Bootcamp Pré-Entrepreneuriat de Future Studio</em>"));
-  check("no literal * remains (emphasis)", !fr.replace(/<[^>]+>/g, "").includes("*"));
+  const frenchText = normalizeToHtml("*Bootcamp Pré-Entrepreneuriat de Future Studio*\n\n*Confirmez votre participation*");
+  check("single-asterisk emphasis becomes <em>", frenchText.includes("<em>Bootcamp Pré-Entrepreneuriat de Future Studio</em>"));
+  check("no literal * remains (emphasis)", !frenchText.replace(/<[^>]+>/g, "").includes("*"));
 
   // 2. Bold
   const bold = normalizeToHtml("**Félicitations** vous êtes retenu.");
@@ -194,8 +194,8 @@ console.log("\nTEST — Markdown symbols never reach the recipient (screenshot r
   check("no bullet asterisks remain", !list.replace(/<[^>]+>/g, "").includes("*"));
 
   // 4. Signature line
-  const sig = normalizeToHtml("*L'équipe Future Studio*");
-  check("signature emphasis converted", sig.includes("<em>L'équipe Future Studio</em>") && !sig.includes("*"));
+  const signature = normalizeToHtml("*L'équipe Future Studio*");
+  check("signature emphasis converted", signature.includes("<em>L'équipe Future Studio</em>") && !signature.includes("*"));
 
   // 5. Markdown inside an HTML template — only text nodes converted
   const htmlDraft = normalizeToHtml('<p>Bonjour,</p>\n\n<p>**Confirmez votre participation** avant le 20.</p>\n\n<p><a href="https://chat.whatsapp.com/abc">Rejoindre le groupe</a></p>');
@@ -207,8 +207,8 @@ console.log("\nTEST — Markdown symbols never reach the recipient (screenshot r
   check("existing HTML untouched", untouched === "<p><strong>Already</strong> formatted <em>HTML</em></p>");
 
   // 7. Plain text still escapes raw HTML characters
-  const esc = normalizeToHtml("5 < 6 & 7");
-  check("plain text escapes &lt; and &amp;", esc.includes("&lt;") && esc.includes("&amp;"));
+  const escaped = normalizeToHtml("5 < 6 & 7");
+  check("plain text escapes &lt; and &amp;", escaped.includes("&lt;") && escaped.includes("&amp;"));
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

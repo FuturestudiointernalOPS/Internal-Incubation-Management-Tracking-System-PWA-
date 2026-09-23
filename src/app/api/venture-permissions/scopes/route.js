@@ -12,7 +12,7 @@ export async function GET() {
     if (authError) return authError;
     const scopes = await listScopeTypes(db);
     return NextResponse.json({ success: true, scopes });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

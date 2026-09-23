@@ -48,8 +48,8 @@ export default function AdminLayout({ children }) {
       let answered = false;
       try {
         // Try session API first
-        const res = await fetch("/api/auth/session");
-        const data = await res.json();
+        const response = await fetch("/api/auth/session");
+        const data = await response.json();
         answered = true;
         if (data.authenticated && data.user) {
           // The cached copy restored above is only a first-paint shortcut. Now

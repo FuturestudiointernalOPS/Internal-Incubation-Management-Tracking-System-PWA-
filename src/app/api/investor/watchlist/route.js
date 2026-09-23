@@ -21,10 +21,10 @@ export async function POST(req) {
     const { venture_id, personal_notes } = await req.json();
     if (!venture_id) return NextResponse.json({ success: false, error: "venture_id required" }, { status: 400 });
 
-    const prof = await getInvestorProfileIdForWatchlist(session.cid || session.id);
-    if (prof.rows.length === 0) return NextResponse.json({ success: false, error: "Profile not found" }, { status: 404 });
+    const profileResult = await getInvestorProfileIdForWatchlist(session.cid || session.id);
+    if (profileResult.rows.length === 0) return NextResponse.json({ success: false, error: "Profile not found" }, { status: 404 });
 
-    const investorId = prof.rows[0].id;
+    const investorId = profileResult.rows[0].id;
     const existing = await findWatchlistEntry(investorId, venture_id);
 
     if (existing.rows.length > 0) {

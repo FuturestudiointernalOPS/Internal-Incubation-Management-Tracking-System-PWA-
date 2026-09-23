@@ -18,9 +18,9 @@ export const GET = createHandler(
     const result = await listSegments();
     return NextResponse.json({
       success: true,
-      segments: result.rows.map((r) => ({
-        ...r,
-        filters: JSON.parse(r.criteria || '{}'),
+      segments: result.rows.map((row) => ({
+        ...row,
+        filters: JSON.parse(row.criteria || '{}'),
       })),
     });
   },

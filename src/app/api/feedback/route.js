@@ -40,9 +40,9 @@ export const GET = createHandler(async (req) => {
   const program_id = searchParams.get("program_id");
 
   const { rows } = await listFeedback(program_id);
-  const feedback = rows.map((r) => ({
-    ...r,
-    v2_participants: r.participant_name ? { name: r.participant_name } : null,
+  const feedback = rows.map((row) => ({
+    ...row,
+    v2_participants: row.participant_name ? { name: row.participant_name } : null,
   }));
   return NextResponse.json({ success: true, feedback });
 });

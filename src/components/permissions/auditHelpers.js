@@ -8,10 +8,10 @@
 export function splitAuditReason(details) {
   const text = String(details || "");
   const marker = " Reason: ";
-  const idx = text.indexOf(marker);
-  if (idx === -1) return { text, reason: "" };
+  const markerIndex = text.indexOf(marker);
+  if (markerIndex === -1) return { text, reason: "" };
   return {
-    text: text.slice(0, idx),
-    reason: text.slice(idx + marker.length).trim(),
+    text: text.slice(0, markerIndex),
+    reason: text.slice(markerIndex + marker.length).trim(),
   };
 }

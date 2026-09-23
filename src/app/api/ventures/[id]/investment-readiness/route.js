@@ -31,8 +31,8 @@ const DOC_CATEGORY_MAP = {
 };
 
 async function resolveVentureDbId(ventureId) {
-  const r = await getInvestmentReadinessVentureId(ventureId);
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await getInvestmentReadinessVentureId(ventureId);
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 export async function GET(req, { params }) {
@@ -46,20 +46,20 @@ export async function GET(req, { params }) {
 
 
     // Fetch all approved/shared documents for this venture
-    const docs = await getVentureInvestmentDocuments(dbId);
+    const documentsResult = await getVentureInvestmentDocuments(dbId);
 
-    const allDocs = docs.rows || [];
+    const allDocuments = documentsResult.rows || [];
 
     // Build the checklist with real document data
     const checklist = REQUIRED_DOCUMENTS.map(req => {
       const mappedCategories = DOC_CATEGORY_MAP[req.key] || ["general"];
       // Find documents matching this category (case-insensitive partial match on name too)
-      const matching = allDocs.filter(d => 
-        mappedCategories.some(cat => (d.category || "").toLowerCase().includes(cat.toLowerCase())) ||
-        (d.name || "").toLowerCase().includes(req.key.replace(/_/g, " ")) ||
-        (d.name || "").toLowerCase().includes(req.label.toLowerCase())
+      const matching = allDocuments.filter(documentRow =>
+        mappedCategories.some(category => (documentRow.category || "").toLowerCase().includes(category.toLowerCase())) ||
+        (documentRow.name || "").toLowerCase().includes(req.key.replace(/_/g, " ")) ||
+        (documentRow.name || "").toLowerCase().includes(req.label.toLowerCase())
       );
-      const approved = matching.filter(d => d.approval_status === "approved" || d.approval_status === "shared_with_investor");
+      const approved = matching.filter(documentRow => documentRow.approval_status === "approved" || documentRow.approval_status === "shared_with_investor");
       const hasAny = matching.length > 0;
       const hasApproved = approved.length > 0;
 
@@ -68,16 +68,16 @@ export async function GET(req, { params }) {
         label: req.label,
         icon: req.icon,
         status: hasApproved ? "approved" : hasAny ? "submitted" : "missing",
-        documents: matching.map(d => ({ name: d.name, status: d.approval_status })),
+        documents: matching.map(documentRow => ({ name: documentRow.name, status: documentRow.approval_status })),
       };
     });
 
-    const approvedCount = checklist.filter(d => d.status === "approved").length;
+    const approvedCount = checklist.filter(item => item.status === "approved").length;
     const totalRequired = checklist.length;
     const readinessPercent = Math.round((approvedCount / totalRequired) * 100);
     const isInvestmentReady = readinessPercent === 100;
-    const missing = checklist.filter(d => d.status === "missing");
-    const submitted = checklist.filter(d => d.status === "submitted");
+    const missing = checklist.filter(item => item.status === "missing");
+    const submitted = checklist.filter(item => item.status === "submitted");
 
     // Roadmap-derived readiness (Vinance 3 — Phase 3): computed live over the
     // whole defined Venture progression. Additive cutover — legacy keys above
@@ -97,7 +97,7 @@ export async function GET(req, { params }) {
       },
       roadmap_readiness: roadmap,
     });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -20,20 +20,20 @@ function rowsOf(result) {
 
 /** Milestone ids bound to one journey stage. */
 async function stageMilestoneIds(db, { dbId, stageId }) {
-  const r = await db
+  const result = await db
     .execute({
       sql: "SELECT id FROM venture_milestones WHERE venture_id = ? AND journey_stage_id = ?",
       args: [dbId, String(stageId)],
     })
     .catch(() => ({ rows: [] }));
-  return rowsOf(r).map((m) => m.id);
+  return rowsOf(result).map((milestone) => milestone.id);
 }
 
 /** True when the stage's journey has any filed work (submissions/reviews/deliverables). */
 export async function stageHasFiledWork(db, { dbId, stageId }) {
   const milestoneIds = await stageMilestoneIds(db, { dbId, stageId });
-  for (const mid of milestoneIds) {
-    if (await milestoneHasFiledWork(db, mid)) return true;
+  for (const milestoneId of milestoneIds) {
+    if (await milestoneHasFiledWork(db, milestoneId)) return true;
   }
   return false;
 }
@@ -104,11 +104,11 @@ export async function restoreJourneyStages(db, { dbId, stageIds = [] }) {
 
 /** Re-serialize stage_order (1..n) for every remaining stage of the Venture. */
 async function renumberStages(db, dbId) {
-  const r = await db.execute({
+  const result = await db.execute({
     sql: "SELECT id FROM venture_journey_stages WHERE venture_id = ? ORDER BY stage_order ASC",
     args: [dbId],
   });
-  const rows = rowsOf(r);
+  const rows = rowsOf(result);
   for (let i = 0; i < rows.length; i += 1) {
     await db.execute({
       sql: "UPDATE venture_journey_stages SET stage_order = ? WHERE id = ?",
@@ -151,17 +151,17 @@ export async function deleteJourneyStages(db, { dbId, stageIds = [] }) {
 
       // Best-effort cleanup of optional child rows (outside the core
       // transaction so a missing legacy table can never abort the delete).
-      for (const mid of milestoneIds) {
+      for (const milestoneId of milestoneIds) {
         const taskRows = await db
           .execute({
             sql: "SELECT id FROM venture_tasks WHERE milestone_id = ?",
-            args: [String(mid)],
+            args: [String(milestoneId)],
           })
           .catch(() => ({ rows: [] }));
-        for (const t of rowsOf(taskRows)) {
-          await db.execute({ sql: "DELETE FROM venture_task_reviews WHERE task_id = ?", args: [t.id] }).catch(() => {});
-          await db.execute({ sql: "DELETE FROM venture_task_comments WHERE task_id = ?", args: [t.id] }).catch(() => {});
-          await db.execute({ sql: "DELETE FROM venture_task_attachments WHERE task_id = ?", args: [t.id] }).catch(() => {});
+        for (const task of rowsOf(taskRows)) {
+          await db.execute({ sql: "DELETE FROM venture_task_reviews WHERE task_id = ?", args: [task.id] }).catch(() => {});
+          await db.execute({ sql: "DELETE FROM venture_task_comments WHERE task_id = ?", args: [task.id] }).catch(() => {});
+          await db.execute({ sql: "DELETE FROM venture_task_attachments WHERE task_id = ?", args: [task.id] }).catch(() => {});
         }
       }
       await db
@@ -169,10 +169,10 @@ export async function deleteJourneyStages(db, { dbId, stageIds = [] }) {
         .catch(() => {});
 
       await db.transaction(async (query) => {
-        for (const mid of milestoneIds) {
-          await query("DELETE FROM venture_deliverables WHERE milestone_id = ?", [String(mid)]);
-          await query("DELETE FROM venture_tasks WHERE milestone_id = ?", [String(mid)]);
-          await query("DELETE FROM venture_milestones WHERE id = ? AND venture_id = ?", [String(mid), dbId]);
+        for (const milestoneId of milestoneIds) {
+          await query("DELETE FROM venture_deliverables WHERE milestone_id = ?", [String(milestoneId)]);
+          await query("DELETE FROM venture_tasks WHERE milestone_id = ?", [String(milestoneId)]);
+          await query("DELETE FROM venture_milestones WHERE id = ? AND venture_id = ?", [String(milestoneId), dbId]);
         }
         await query("DELETE FROM venture_journey_stages WHERE id = ? AND venture_id = ?", [id, dbId]);
       });

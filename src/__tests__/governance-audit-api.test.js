@@ -68,18 +68,18 @@ describe("GET /api/engineering/permissions/audit — viewer API", () => {
     expect(data.page).toBe(2);
     expect(data.pageSize).toBe(10);
     // Server-side pagination — never loads the whole table.
-    expect(mockExecutedQueries.some((q) => q.includes("LIMIT ? OFFSET ?"))).toBe(true);
-    expect(mockExecutedQueries.some((q) => q.includes("COUNT(*) AS n"))).toBe(true);
+    expect(mockExecutedQueries.some((statement) => statement.includes("LIMIT ? OFFSET ?"))).toBe(true);
+    expect(mockExecutedQueries.some((statement) => statement.includes("COUNT(*) AS n"))).toBe(true);
   });
 
   test("filters are applied server-side (q, action, module, date range)", async () => {
     await auditRoute.GET(getReq("q=staff&action=granted&module=projects&from=2026-01-01&to=2026-12-31"));
-    const all = mockExecutedQueries.join("\n");
-    expect(all).toContain("actor_name ILIKE ?");
-    expect(all).toContain("action = ?");
-    expect(all).toContain("module = ?");
-    expect(all).toContain("created_at >= ?");
-    expect(all).toContain("created_at <= ?");
+    const allStatements = mockExecutedQueries.join("\n");
+    expect(allStatements).toContain("actor_name ILIKE ?");
+    expect(allStatements).toContain("action = ?");
+    expect(allStatements).toContain("module = ?");
+    expect(allStatements).toContain("created_at >= ?");
+    expect(allStatements).toContain("created_at <= ?");
   });
 
   test("pageSize is capped server-side (max 100)", async () => {
@@ -112,7 +112,7 @@ describe("Protected profile safeguards (role-default profiles)", () => {
     const data = await res.json();
     expect(data.success).toBe(false);
     expect(String(data.error)).toMatch(/staff/i);
-    expect(mockExecutedQueries.some((q) => q.includes("UPDATE access_profiles SET is_active"))).toBe(false);
+    expect(mockExecutedQueries.some((statement) => statement.includes("UPDATE access_profiles SET is_active"))).toBe(false);
   });
 
   test("deleting a role-default profile → rejected (change the role default first)", async () => {
@@ -122,6 +122,6 @@ describe("Protected profile safeguards (role-default profiles)", () => {
     const data = await res.json();
     expect(data.success).toBe(false);
     expect(String(data.error)).toMatch(/default for role/i);
-    expect(mockExecutedQueries.some((q) => q.includes("DELETE FROM access_profiles"))).toBe(false);
+    expect(mockExecutedQueries.some((statement) => statement.includes("DELETE FROM access_profiles"))).toBe(false);
   });
 });

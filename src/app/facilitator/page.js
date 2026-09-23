@@ -28,8 +28,10 @@ const EVENT_META = {
 // A read that fails reports null rather than an empty list. The difference
 // matters below: an empty program list is what tells a facilitator they have no
 // role yet, so it must not be manufactured by a request that failed.
-const pickDashboardEvents = (d) => (d?.success ? d.events || [] : null);
-const pickDashboardPrograms = (d) => (d?.success ? d.programs || [] : null);
+const pickDashboardEvents = (response) =>
+  response?.success ? response.events || [] : null;
+const pickDashboardPrograms = (response) =>
+  response?.success ? response.programs || [] : null;
 const FACILITATOR_DASHBOARD_ENDPOINTS = [
   { key: "events", url: "/api/calendar", transform: pickDashboardEvents },
   {
@@ -53,8 +55,8 @@ export default function FacilitatorDashboard() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const upcoming = allEvents
-    .filter((e) => e.date && new Date(e.date) >= today)
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .filter((event) => event.date && new Date(event.date) >= today)
+    .sort((eventA, eventB) => new Date(eventA.date) - new Date(eventB.date))
     .slice(0, 8);
 
   // A facilitator with no assigned programs has no role in the system yet. This
@@ -129,30 +131,30 @@ export default function FacilitatorDashboard() {
                     </p>
                   </div>
                 ) : (
-                  upcoming.map((e) => {
-                  const meta = EVENT_META[e.source] || {
-                    label: e.type || e.source,
+                  upcoming.map((event) => {
+                  const eventMeta = EVENT_META[event.source] || {
+                    label: event.type || event.source,
                     color: "text-[var(--text-secondary)]",
                     bg: "bg-tertiary",
                   };
                   return (
                     <div
-                      key={e.id}
+                      key={event.id}
                       className="flex items-center gap-3 p-4 rounded-2xl border border-[var(--border-primary)] bg-secondary"
                     >
-                      <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase shrink-0 ${meta.bg} ${meta.color}`}>
-                        {meta.label}
+                      <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase shrink-0 ${eventMeta.bg} ${eventMeta.color}`}>
+                        {eventMeta.label}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">{e.title}</p>
-                        {e.description && (
+                        <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">{event.title}</p>
+                        {event.description && (
                           <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">
-                            {e.description}
+                            {event.description}
                           </p>
                         )}
                       </div>
                       <span className="text-[10px] font-medium text-[var(--text-secondary)] shrink-0">
-                        {new Date(e.date).toLocaleDateString()}
+                        {new Date(event.date).toLocaleDateString()}
                       </span>
                     </div>
                   );

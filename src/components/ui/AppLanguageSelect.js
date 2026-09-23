@@ -8,10 +8,10 @@ import { LANGUAGES } from "@/lib/languages";
  * `value` is an ISO 639-1 language code (e.g. "en", "fr").
  */
 export default function AppLanguageSelect({ value, onChange, ...props }) {
-  const options = LANGUAGES.map((l) => ({
-    value: l.code,
-    label: l.native,
-    search: `${l.en} ${l.fr} ${l.code}`,
+  const options = LANGUAGES.map((language) => ({
+    value: language.code,
+    label: language.native,
+    search: `${language.en} ${language.fr} ${language.code}`,
   }));
 
   return <AppSearchSelect options={options} value={value} onChange={onChange} {...props} />;

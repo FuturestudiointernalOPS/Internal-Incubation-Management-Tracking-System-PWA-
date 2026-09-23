@@ -6,26 +6,26 @@
 export const IMPACT_CACHE = {
   get: (key) => {
     try {
-      const item = localStorage.getItem(`impactos_cache_${key}`);
-      if (!item) return null;
-      return JSON.parse(item);
+      const storedValue = localStorage.getItem(`impactos_cache_${key}`);
+      if (!storedValue) return null;
+      return JSON.parse(storedValue);
     } catch {
       return null;
     }
   },
-  set: (key, data) => {
+  set: (key, value) => {
     try {
-      localStorage.setItem(`impactos_cache_${key}`, JSON.stringify(data));
-    } catch (e) {
-      console.warn('Cache write failed', e);
+      localStorage.setItem(`impactos_cache_${key}`, JSON.stringify(value));
+    } catch (error) {
+      console.warn('Cache write failed', error);
     }
   },
   clear: (key) => {
     if (key) {
       localStorage.removeItem(`impactos_cache_${key}`);
     } else {
-      Object.keys(localStorage).forEach(k => {
-        if (k.startsWith('impactos_cache_')) localStorage.removeItem(k);
+      Object.keys(localStorage).forEach(storageKey => {
+        if (storageKey.startsWith('impactos_cache_')) localStorage.removeItem(storageKey);
       });
     }
   }

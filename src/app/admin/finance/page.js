@@ -28,10 +28,10 @@ function formatXOF(val) {
 const DATA_SOURCES_URL = "/api/admin/finance/data-sources";
 
 /** The sources the selector offers: the active ones, internal ledger excluded. */
-const pickActiveDataSources = (d) =>
-  d?.success
-    ? (d.dataSources || []).filter(
-        (ds) => ds.status === "active" && ds.sourceType !== "internal",
+const pickActiveDataSources = (payload) =>
+  payload?.success
+    ? (payload.dataSources || []).filter(
+        (dataSource) => dataSource.status === "active" && dataSource.sourceType !== "internal",
       )
     : [];
 
@@ -40,7 +40,7 @@ const pickActiveDataSources = (d) =>
  * that drew its cards from one would show noughts where it has no numbers, so
  * absence is reported as absence.
  */
-const pickFinancePayload = (d) => (d?.success ? d : null);
+const pickFinancePayload = (payload) => (payload?.success ? payload : null);
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
@@ -100,7 +100,7 @@ export default function FinanceDashboard() {
   const statuses = [sourcesStatus, summaryStatus, monthlyStatus];
   const authError = statuses.includes(401) || syncExpired;
   const refused =
-    statuses.find((s) => s !== null && s >= 400 && s !== 401) ?? null;
+    statuses.find((statusCode) => statusCode !== null && statusCode >= 400 && statusCode !== 401) ?? null;
   const lost = sourcesError || summaryError || monthlyError;
   const fetchError = authError
     ? null

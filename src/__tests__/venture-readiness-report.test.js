@@ -133,26 +133,26 @@ describe("GET /api/ventures/[id]/investment-readiness — roadmap engine cutover
     const data = await readJson(res);
 
     // Legacy contract untouched: checklist + document-derived score present.
-    const ir = data.investment_readiness;
-    expect(Array.isArray(ir.checklist)).toBe(true);
-    expect(ir.checklist.length).toBe(8); // REQUIRED_DOCUMENTS list
-    expect(typeof ir.readiness_percent).toBe("number");
-    expect(typeof ir.is_investment_ready).toBe("boolean");
-    expect(Array.isArray(ir.missing_documents)).toBe(true);
-    expect(Array.isArray(ir.submitted_documents)).toBe(true);
+    const investmentReadiness = data.investment_readiness;
+    expect(Array.isArray(investmentReadiness.checklist)).toBe(true);
+    expect(investmentReadiness.checklist.length).toBe(8); // REQUIRED_DOCUMENTS list
+    expect(typeof investmentReadiness.readiness_percent).toBe("number");
+    expect(typeof investmentReadiness.is_investment_ready).toBe("boolean");
+    expect(Array.isArray(investmentReadiness.missing_documents)).toBe(true);
+    expect(Array.isArray(investmentReadiness.submitted_documents)).toBe(true);
 
     // Roadmap engine (fixtures: 1/3 journeys, 2/3 milestones, 2/4 tasks, 2/3 approved).
-    const rr = data.roadmap_readiness;
-    expect(rr.counts.journeys).toEqual({ total: 3, completed: 1 });
-    expect(rr.counts.milestones).toEqual({ total: 3, completed: 2 });
-    expect(rr.counts.tasks).toEqual({ total: 4, completed: 2 });
-    expect(rr.counts.deliverables).toEqual({ reviewed: 3, approved: 2, outstanding: 1 });
-    expect(rr.components.journeys).toBe(33);
-    expect(rr.components.milestones).toBe(67);
-    expect(rr.components.tasks).toBe(50);
-    expect(rr.components.deliverables).toBe(67);
+    const roadmapReadiness = data.roadmap_readiness;
+    expect(roadmapReadiness.counts.journeys).toEqual({ total: 3, completed: 1 });
+    expect(roadmapReadiness.counts.milestones).toEqual({ total: 3, completed: 2 });
+    expect(roadmapReadiness.counts.tasks).toEqual({ total: 4, completed: 2 });
+    expect(roadmapReadiness.counts.deliverables).toEqual({ reviewed: 3, approved: 2, outstanding: 1 });
+    expect(roadmapReadiness.components.journeys).toBe(33);
+    expect(roadmapReadiness.components.milestones).toBe(67);
+    expect(roadmapReadiness.components.tasks).toBe(50);
+    expect(roadmapReadiness.components.deliverables).toBe(67);
     // Weighted: 33*.3 + 67*.3 + 50*.25 + 67*.15 = 53 (rounded)
-    expect(rr.overall_percent).toBe(53);
+    expect(roadmapReadiness.overall_percent).toBe(53);
   });
 });
 
@@ -161,29 +161,29 @@ describe("GET /api/ventures/[id]/journey-report — operating report", () => {
     const res = await reportGET(new Request("http://localhost/api/ventures/VNT-TEST/journey-report"), ctx);
     expect(res.status).toBe(200);
     const data = await readJson(res);
-    const rep = data.journey_report;
+    const journeyReport = data.journey_report;
 
-    expect(rep.journey_progression).toEqual({ total: 2, completed: 1, progress_pct: 50 });
+    expect(journeyReport.journey_progression).toEqual({ total: 2, completed: 1, progress_pct: 50 });
 
     // Stage grouping: s1 has 2/2 milestones complete, s2 has 0/1.
-    const s1 = rep.stages.find((s) => s.id === "s1");
-    const s2 = rep.stages.find((s) => s.id === "s2");
-    expect(s1.milestones).toEqual({ total: 2, completed: 2, progress_pct: 100 });
-    expect(s2.milestones).toEqual({ total: 1, completed: 0, progress_pct: 0 });
+    const firstStage = journeyReport.stages.find((stage) => stage.id === "s1");
+    const secondStage = journeyReport.stages.find((stage) => stage.id === "s2");
+    expect(firstStage.milestones).toEqual({ total: 2, completed: 2, progress_pct: 100 });
+    expect(secondStage.milestones).toEqual({ total: 1, completed: 0, progress_pct: 0 });
 
-    expect(rep.milestones_by_status).toEqual({ completed: 2, in_progress: 1 });
-    expect(rep.tasks_by_status).toEqual({ in_progress: 1, cancelled: 1, done: 1, review: 1, backlog: 1 });
-    expect(rep.task_completion).toEqual({ total: 5, completed: 1, progress_pct: 20 });
+    expect(journeyReport.milestones_by_status).toEqual({ completed: 2, in_progress: 1 });
+    expect(journeyReport.tasks_by_status).toEqual({ in_progress: 1, cancelled: 1, done: 1, review: 1, backlog: 1 });
+    expect(journeyReport.task_completion).toEqual({ total: 5, completed: 1, progress_pct: 20 });
 
     // Overdue = open statuses only (cancelled/done excluded, null due excluded).
-    expect(rep.overdue.length).toBe(2);
-    expect(rep.overdue.every((t) => ["in_progress", "review"].includes(t.status))).toBe(true);
+    expect(journeyReport.overdue.length).toBe(2);
+    expect(journeyReport.overdue.every((task) => ["in_progress", "review"].includes(task.status))).toBe(true);
 
-    expect(rep.submissions).toEqual({ reviewed_total: 2, approved: 1, changes_requested: 1 });
-    expect(rep.sessions.by_status).toEqual({ scheduled: 1, completed: 1 });
-    expect(rep.sessions.upcoming).toBe(1);
-    expect(rep.sessions.venture_facing_scheduled).toBe(1);
-    expect(rep.support).toEqual({
+    expect(journeyReport.submissions).toEqual({ reviewed_total: 2, approved: 1, changes_requested: 1 });
+    expect(journeyReport.sessions.by_status).toEqual({ scheduled: 1, completed: 1 });
+    expect(journeyReport.sessions.upcoming).toBe(1);
+    expect(journeyReport.sessions.venture_facing_scheduled).toBe(1);
+    expect(journeyReport.support).toEqual({
       assignments: 2,
       responsibilities: ["lead_manager", "facilitator"],
     });

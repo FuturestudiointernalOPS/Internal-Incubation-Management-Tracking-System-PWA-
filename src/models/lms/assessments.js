@@ -27,11 +27,11 @@ export async function getQuestion(questionId) {
 
 function normalizePassMark(passMark) {
   if (passMark == null || passMark === "") return null;
-  const n = Number(passMark);
-  if (Number.isNaN(n) || n < 0 || n > 100) {
+  const percent = Number(passMark);
+  if (Number.isNaN(percent) || percent < 0 || percent > 100) {
     throw new LmsError("lms.errors.invalidPassMark", 400);
   }
-  return Math.round(n);
+  return Math.round(percent);
 }
 
 const QUESTION_TYPES = ["multiple_choice", "true_false"];
@@ -172,14 +172,14 @@ export async function deleteAssessment(assessmentId) {
 
 function validateQuestionData({ question_type, options, correct_answer }) {
   if (question_type === "multiple_choice") {
-    const opts = Array.isArray(options) ? options : [];
-    if (opts.length < 2) throw new LmsError("lms.errors.mcOptionsRequired", 400);
-    const keys = opts.map((o) => String(o.key));
+    const optionList = Array.isArray(options) ? options : [];
+    if (optionList.length < 2) throw new LmsError("lms.errors.mcOptionsRequired", 400);
+    const keys = optionList.map((option) => String(option.key));
     if (!Array.isArray(correct_answer) || correct_answer.length === 0) {
       throw new LmsError("lms.errors.correctAnswerRequired", 400);
     }
-    for (const c of correct_answer) {
-      if (!keys.includes(String(c))) {
+    for (const answer of correct_answer) {
+      if (!keys.includes(String(answer))) {
         throw new LmsError("lms.errors.correctAnswerRequired", 400);
       }
     }
@@ -246,9 +246,9 @@ export async function updateQuestion(
 
   // Type is immutable per question — it always matches the assessment's type.
   const type = existing.question_type || "multiple_choice";
-  const opts = options !== undefined ? options : existing.options;
+  const optionList = options !== undefined ? options : existing.options;
   const answer = correctAnswer !== undefined ? correctAnswer : existing.correct_answer;
-  validateQuestionData({ question_type: type, options: opts, correct_answer: answer });
+  validateQuestionData({ question_type: type, options: optionList, correct_answer: answer });
 
   const sets = [];
   const args = [];
@@ -259,7 +259,7 @@ export async function updateQuestion(
   }
   if (options !== undefined) {
     sets.push("options = ?::jsonb");
-    args.push(JSON.stringify(opts));
+    args.push(JSON.stringify(optionList));
   }
   if (correctAnswer !== undefined) {
     sets.push("correct_answer = ?::jsonb");

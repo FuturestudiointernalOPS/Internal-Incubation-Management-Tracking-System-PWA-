@@ -39,15 +39,15 @@ export function ensureTokenHashColumns() {
       for (const sql of statements) {
         try {
           await db.execute(sql);
-        } catch (e) {
+        } catch (error) {
           // A missing table (e.g. venture_invite_links before first use) must
           // not fail the whole self-heal batch or trigger endless retries.
-          console.warn("[TokenHashing] skipped statement:", e.message);
+          console.warn("[TokenHashing] skipped statement:", error.message);
         }
       }
       return true;
-    })().catch((e) => {
-      console.warn("[TokenHashing] ensureTokenHashColumns failed:", e.message);
+    })().catch((error) => {
+      console.warn("[TokenHashing] ensureTokenHashColumns failed:", error.message);
       ensurePromise = null; // allow retry on the next call
       return false;
     });

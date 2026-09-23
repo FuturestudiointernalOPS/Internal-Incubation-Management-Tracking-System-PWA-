@@ -43,20 +43,20 @@ export async function GET() {
 
     let isProgramParticipant = false;
     try {
-      const pp = await hasParticipantProgramMembership(cid);
-      if (pp.rows?.length > 0) isProgramParticipant = true;
+      const programMembership = await hasParticipantProgramMembership(cid);
+      if (programMembership.rows?.length > 0) isProgramParticipant = true;
     } catch (_) {}
     if (!isProgramParticipant) {
       try {
-        const vp = await hasV2ParticipantRecord(cid);
-        if (vp.rows?.length > 0) isProgramParticipant = true;
+        const v2ParticipantRecord = await hasV2ParticipantRecord(cid);
+        if (v2ParticipantRecord.rows?.length > 0) isProgramParticipant = true;
       } catch (_) {}
     }
 
     let ventures = [];
     try {
-      const vm = await getVentureMembershipsForContact(cid);
-      ventures = vm.rows || [];
+      const ventureMemberships = await getVentureMembershipsForContact(cid);
+      ventures = ventureMemberships.rows || [];
     } catch (_) {}
 
     // Founder follows the ONE classification the landing rule also uses (an

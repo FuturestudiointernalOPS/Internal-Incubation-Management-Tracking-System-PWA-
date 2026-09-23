@@ -62,10 +62,10 @@ for (const file of [".env.local", ".env.prod-verify", ".env.audit-staging"]) {
   const url = readUrl(file);
   if (!url) continue;
   try {
-    const p = new pg.Pool({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 12000 });
-    await p.query("SELECT 1");
+    const candidatePool = new pg.Pool({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 12000 });
+    await candidatePool.query("SELECT 1");
     console.log(`[phase3] connected via ${file}`);
-    pool = p;
+    pool = candidatePool;
     break;
   } catch {}
 }
@@ -75,26 +75,26 @@ if (!pool) {
 }
 
 try {
-  const prof = await pool.query("SELECT id, name FROM access_profiles WHERE name = 'Staff Default' AND is_active = 1");
-  if (prof.rows.length === 0) {
+  const profileResult = await pool.query("SELECT id, name FROM access_profiles WHERE name = 'Staff Default' AND is_active = 1");
+  if (profileResult.rows.length === 0) {
     console.error("Staff Default profile not found");
     process.exit(3);
   }
-  const profileId = prof.rows[0].id;
+  const profileId = profileResult.rows[0].id;
 
   const before = await pool.query(
     "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = $1 ORDER BY module, capability",
     [profileId]
   );
   console.log(`\n[phase3] profile #${profileId} (Staff Default) — current caps: ${before.rows.length}`);
-  const beforeSet = new Set(before.rows.map((r) => `${r.module}.${r.capability}`));
-  for (const r of before.rows) console.log(`  ${r.module}.${r.capability} = ${r.access_level}`);
+  const beforeSet = new Set(before.rows.map((capabilityRow) => `${capabilityRow.module}.${capabilityRow.capability}`));
+  for (const capabilityRow of before.rows) console.log(`  ${capabilityRow.module}.${capabilityRow.capability} = ${capabilityRow.access_level}`);
 
-  const present = REMOVE.filter(([m, c]) => beforeSet.has(`${m}.${c}`));
-  const absent = REMOVE.filter(([m, c]) => !beforeSet.has(`${m}.${c}`));
+  const present = REMOVE.filter(([module, capability]) => beforeSet.has(`${module}.${capability}`));
+  const absent = REMOVE.filter(([module, capability]) => !beforeSet.has(`${module}.${capability}`));
   console.log(`\n[phase3] to remove: ${present.length} (already absent: ${absent.length})`);
-  for (const [m, c] of present) console.log(`  - ${m}.${c}`);
-  for (const [m, c] of absent) console.log(`  (skip, absent) ${m}.${c}`);
+  for (const [module, capability] of present) console.log(`  - ${module}.${capability}`);
+  for (const [module, capability] of absent) console.log(`  (skip, absent) ${module}.${capability}`);
 
   if (MODE === "dry") {
     console.log("\n[phase3] DRY-RUN — no changes. Re-run with --apply to remove the rows above.");
@@ -106,17 +106,17 @@ try {
       // many placeholders).
       let deleted = 0;
       for (const [module, capability] of REMOVE) {
-        const del = await client.query(
+        const deleteResult = await client.query(
           "DELETE FROM access_profile_capabilities WHERE profile_id = $1 AND module = $2 AND capability = $3",
           [profileId, module, capability]
         );
-        deleted += del.rowCount;
+        deleted += deleteResult.rowCount;
       }
       await client.query("COMMIT");
       console.log(`\n[phase3] APPLIED — deleted ${deleted} capability row(s) from Staff Default.`);
-    } catch (e) {
+    } catch (error) {
       await client.query("ROLLBACK");
-      throw e;
+      throw error;
     } finally {
       client.release();
     }
@@ -126,14 +126,14 @@ try {
       await client.query("BEGIN");
       let inserted = 0;
       for (const name of BACKFILL_MIGRATIONS) {
-        const r = await client.query("INSERT INTO authz_migrations (name) VALUES ($1) ON CONFLICT (name) DO NOTHING", [name]);
-        if (r.rowCount > 0) inserted++;
+        const insertResult = await client.query("INSERT INTO authz_migrations (name) VALUES ($1) ON CONFLICT (name) DO NOTHING", [name]);
+        if (insertResult.rowCount > 0) inserted++;
       }
       await client.query("COMMIT");
       console.log(`\n[phase3] RECORDED ${inserted} migration name(s) — the guarded backfills will skip on every boot from now on.`);
-    } catch (e) {
+    } catch (error) {
       await client.query("ROLLBACK");
-      throw e;
+      throw error;
     } finally {
       client.release();
     }
@@ -144,8 +144,8 @@ try {
     [profileId]
   );
   console.log(`\n[phase3] expected final caps: ${after.rows.length} (11 = Option B)`);
-} catch (e) {
-  console.error(`[phase3] ERROR: ${e.message}`);
+} catch (error) {
+  console.error(`[phase3] ERROR: ${error.message}`);
   process.exit(1);
 } finally {
   await pool.end();

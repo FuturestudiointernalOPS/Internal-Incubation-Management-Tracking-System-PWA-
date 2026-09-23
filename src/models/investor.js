@@ -880,8 +880,8 @@ function buildVentureSearchQuery({ search, industry, country, stage, fundingMin,
   // Text search
   if (search) {
     sql += ` AND (p.name ILIKE ? OR p.description ILIKE ? OR p.industry ILIKE ?)`;
-    const q = `%${search}%`;
-    args.push(q, q, q);
+    const searchPattern = `%${search}%`;
+    args.push(searchPattern, searchPattern, searchPattern);
   }
 
   // Industry filter
@@ -889,7 +889,7 @@ function buildVentureSearchQuery({ search, industry, country, stage, fundingMin,
     const industries = industry.split(",").filter(Boolean);
     if (industries.length > 0) {
       sql += ` AND (${industries.map(() => "p.industry ILIKE ?").join(" OR ")})`;
-      industries.forEach(i => args.push(`%${i.trim()}%`));
+      industries.forEach(industryName => args.push(`%${industryName.trim()}%`));
     }
   }
 
@@ -898,7 +898,7 @@ function buildVentureSearchQuery({ search, industry, country, stage, fundingMin,
     const countries = country.split(",").filter(Boolean);
     if (countries.length > 0) {
       sql += ` AND (${countries.map(() => "p.country ILIKE ?").join(" OR ")})`;
-      countries.forEach(c => args.push(`%${c.trim()}%`));
+      countries.forEach(countryName => args.push(`%${countryName.trim()}%`));
     }
   }
 
@@ -907,7 +907,7 @@ function buildVentureSearchQuery({ search, industry, country, stage, fundingMin,
     const stages = stage.split(",").filter(Boolean);
     if (stages.length > 0) {
       sql += ` AND (${stages.map(() => "p.business_stage ILIKE ?").join(" OR ")})`;
-      stages.forEach(s => args.push(`%${s.trim()}%`));
+      stages.forEach(stageName => args.push(`%${stageName.trim()}%`));
     }
   }
 

@@ -100,9 +100,9 @@ export const PATCH = createHandler(
           uploadedBy: session.cid || "system",
         });
         return NextResponse.json({ success: true, ...result });
-      } catch (e) {
+      } catch (error) {
         return NextResponse.json(
-          { success: false, error: e.message },
+          { success: false, error: error.message },
           { status: 400 },
         );
       }

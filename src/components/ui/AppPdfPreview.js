@@ -72,8 +72,8 @@ export default function AppPdfPreview({
           return;
         }
         setSettled({ key: requestKey, url: objectUrl, error: null });
-      } catch (e) {
-        if (!cancelled) setSettled({ key: requestKey, url: null, error: e?.message || "" });
+      } catch (loadError) {
+        if (!cancelled) setSettled({ key: requestKey, url: null, error: loadError?.message || "" });
       }
     })();
     return () => {

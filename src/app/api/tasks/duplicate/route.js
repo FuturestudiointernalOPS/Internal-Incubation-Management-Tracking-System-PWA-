@@ -9,13 +9,13 @@ import {
 } from "@/models/taskLifecycle";
 
 function getWeekNumber(date) {
-  const d = new Date(
+  const targetDate = new Date(
     Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
   );
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  const dayNum = targetDate.getUTCDay() || 7;
+  targetDate.setUTCDate(targetDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(targetDate.getUTCFullYear(), 0, 1));
+  return Math.ceil(((targetDate - yearStart) / 86400000 + 1) / 7);
 }
 
 /**
@@ -88,8 +88,8 @@ export async function POST(req) {
     // Optionally copy subtasks
     const subtasks = await getSubtasksByParentId(task_id);
 
-    for (const st of subtasks.rows) {
-      await createSubtaskCopy(st, created_week, created_year, newTaskId);
+    for (const subtask of subtasks.rows) {
+      await createSubtaskCopy(subtask, created_week, created_year, newTaskId);
     }
 
     // Fetch the newly created task to return

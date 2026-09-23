@@ -64,17 +64,17 @@ describe("GET /api/ventures/[id]/notes — contextual scope filters", () => {
     expect(res.status).toBe(200);
     const data = await readJson(res);
     expect(data.notes.length).toBe(2);
-    const q = executed.find((e) => e.sql.includes("FROM venture_notes WHERE venture_id = ?"));
-    expect(q.sql).not.toContain("scope_ref_type = ?");
+    const query = executed.find((entry) => entry.sql.includes("FROM venture_notes WHERE venture_id = ?"));
+    expect(query.sql).not.toContain("scope_ref_type = ?");
   });
 
   test("?scope_type + ?scope_id filter to exactly that object's notes", async () => {
     const res = await GET(new Request("http://localhost/api/ventures/VNT-TEST/notes?scope_type=milestone&scope_id=m1"), ctx);
     expect(res.status).toBe(200);
-    const q = executed.find((e) => e.sql.includes("FROM venture_notes WHERE venture_id = ?"));
-    expect(q.sql).toContain("AND scope_ref_type = ?");
-    expect(q.sql).toContain("AND scope_ref_id = ?");
-    expect(q.args).toEqual(["VNT-TEST", "milestone", "m1"]);
+    const query = executed.find((entry) => entry.sql.includes("FROM venture_notes WHERE venture_id = ?"));
+    expect(query.sql).toContain("AND scope_ref_type = ?");
+    expect(query.sql).toContain("AND scope_ref_id = ?");
+    expect(query.args).toEqual(["VNT-TEST", "milestone", "m1"]);
   });
 });
 
@@ -98,7 +98,7 @@ describe("POST /api/ventures/[id]/notes — attachments", () => {
     expect(data.success).toBe(true);
     expect(data.id).toBe(99);
 
-    const insert = executed.find((e) => e.sql.includes("INSERT INTO venture_notes"));
+    const insert = executed.find((entry) => entry.sql.includes("INSERT INTO venture_notes"));
     expect(insert.sql).toContain("attachments");
     const attachments = JSON.parse(insert.args[7]);
     expect(attachments).toEqual([
@@ -115,7 +115,7 @@ describe("POST /api/ventures/[id]/notes — attachments", () => {
       }),
       ctx,
     );
-    const insert = executed.find((e) => e.sql.includes("INSERT INTO venture_notes"));
+    const insert = executed.find((entry) => entry.sql.includes("INSERT INTO venture_notes"));
     expect(insert.sql).not.toContain("attachments");
     expect(insert.args.length).toBe(7);
   });
@@ -131,7 +131,7 @@ describe("POST /api/ventures/[id]/notes — milestone-only scope (Vinance 3 rule
       ctx,
     );
     expect(res.status).toBe(400);
-    expect(executed.find((e) => e.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
+    expect(executed.find((entry) => entry.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
   });
 
   test("a non-milestone scope (journey_stage) is refused", async () => {
@@ -143,7 +143,7 @@ describe("POST /api/ventures/[id]/notes — milestone-only scope (Vinance 3 rule
       ctx,
     );
     expect(res.status).toBe(400);
-    expect(executed.find((e) => e.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
+    expect(executed.find((entry) => entry.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
   });
 });
 

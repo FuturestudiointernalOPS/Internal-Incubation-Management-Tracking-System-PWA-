@@ -11,7 +11,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export const GET = createHandler({ roles: ["super_admin"] }, async () => {
-  const [progRes, partRes, staffRes, logRes, activeProgList] =
+  const [programsResult, participantsResult, staffResult, logsResult, activePrograms] =
     await Promise.all([
       countActiveV2Programs(),
       countParticipantContacts(),
@@ -24,12 +24,12 @@ export const GET = createHandler({ roles: ["super_admin"] }, async () => {
     {
       success: true,
       stats: {
-        programs: progRes.rows[0].count,
-        participants: partRes.rows[0].count,
-        totalStaff: staffRes.rows[0].count,
+        programs: programsResult.rows[0].count,
+        participants: participantsResult.rows[0].count,
+        totalStaff: staffResult.rows[0].count,
       },
-      activity: logRes.rows,
-      activePrograms: activeProgList.rows,
+      activity: logsResult.rows,
+      activePrograms: activePrograms.rows,
     },
     { headers: { "Cache-Control": "no-store, max-age=0" } },
   );

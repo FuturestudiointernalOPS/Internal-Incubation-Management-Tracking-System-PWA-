@@ -36,14 +36,14 @@ export async function GET(_req) {
     const cid = session.cid;
     const email = session.email;
 
-    const contactRes = await getProgressContactByCid(cid);
-    if (contactRes.rows.length === 0) {
+    const contactResult = await getProgressContactByCid(cid);
+    if (contactResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Participant not found" },
         { status: 404 },
       );
     }
-    const contact = contactRes.rows[0];
+    const contact = contactResult.rows[0];
 
     const programIds = new Set(
       await getParticipantProgramIds({ cid, email, contact }),
@@ -57,49 +57,49 @@ export async function GET(_req) {
     let overallKpiPoints = 0,
       overallKpiMax = 0,
       overallDeliverables = 0,
-      overallCompletedDels = 0;
+      overallCompletedDeliverables = 0;
     let totalStandups = 0,
       totalCheckins = 0,
       totalRetros = 0,
       totalReflections = 0;
 
-    for (const pid of Array.from(programIds)) {
+    for (const programId of Array.from(programIds)) {
       const [
-        progRes,
-        sesRes,
-        delRes,
-        subRes,
-        attRes,
-        kpiRes,
-        standupRes,
-        checkinRes,
-        retroRes,
-        reflectRes,
+        programResult,
+        sessionsResult,
+        deliverablesResult,
+        submissionsResult,
+        attendanceResult,
+        kpisResult,
+        standupsResult,
+        checkinsResult,
+        retrosResult,
+        reflectionsResult,
       ] = await Promise.all([
-        getProgressProgramById(pid),
-        getProgressSessionsByProgramId(pid),
-        getProgressDeliverablesByProgramId(pid),
-        getProgressSubmissionsByProgram(cid, pid),
-        getProgressAttendanceByProgram(pid, cid),
-        getProgressKpisByProgramId(pid),
+        getProgressProgramById(programId),
+        getProgressSessionsByProgramId(programId),
+        getProgressDeliverablesByProgramId(programId),
+        getProgressSubmissionsByProgram(cid, programId),
+        getProgressAttendanceByProgram(programId, cid),
+        getProgressKpisByProgramId(programId),
         getProgressStandupsByUser(cid),
-        getProgressCheckinsByParticipantProgram(cid, pid),
+        getProgressCheckinsByParticipantProgram(cid, programId),
         getProgressRetrosByUser(cid),
         getProgressReflectionsByUser(cid),
       ]);
 
-      const program = progRes.rows[0];
+      const program = programResult.rows[0];
       if (!program) continue;
 
-      const sessions = sesRes.rows || [];
-      const deliverables = delRes.rows || [];
-      const submissions = subRes.rows || [];
-      const attendance = attRes.rows || [];
-      const kpis = kpiRes.rows || [];
-      const standups = standupRes.rows || [];
-      const checkins = checkinRes.rows || [];
-      const retros = retroRes.rows || [];
-      const reflections = reflectRes.rows || [];
+      const sessions = sessionsResult.rows || [];
+      const deliverables = deliverablesResult.rows || [];
+      const submissions = submissionsResult.rows || [];
+      const attendance = attendanceResult.rows || [];
+      const kpis = kpisResult.rows || [];
+      const standups = standupsResult.rows || [];
+      const checkins = checkinsResult.rows || [];
+      const retros = retrosResult.rows || [];
+      const reflections = reflectionsResult.rows || [];
 
       totalStandups += standups.length;
       totalCheckins += checkins.length;
@@ -113,50 +113,50 @@ export async function GET(_req) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const checkUnlocked = (s) => {
-        const st = String(s.status || "").toLowerCase();
-        if (["active", "in progress", "completed"].includes(st)) return true;
-        if (!s.scheduled_date) return true;
-        const sched = new Date(s.scheduled_date);
-        sched.setHours(0, 0, 0, 0);
-        return sched <= today;
+      const checkUnlocked = (session) => {
+        const status = String(session.status || "").toLowerCase();
+        if (["active", "in progress", "completed"].includes(status)) return true;
+        if (!session.scheduled_date) return true;
+        const scheduledDate = new Date(session.scheduled_date);
+        scheduledDate.setHours(0, 0, 0, 0);
+        return scheduledDate <= today;
       };
 
       const unlockedSessions = sessions.filter(checkUnlocked);
 
       const unlockedSessionWeekNumbers = new Set(
-        unlockedSessions.map((s) => s.week_number || 1),
+        unlockedSessions.map((session) => session.week_number || 1),
       );
       // Resolve a deliverable's week from its session (type-safe string
       // comparison), falling back to its own week_number, then to 1.
-      const deliverableWeek = (d) => {
-        if (d.session_id != null) {
-          const s = sessions.find((x) => String(x.id) === String(d.session_id));
-          if (s?.week_number != null) return s.week_number;
+      const deliverableWeek = (deliverable) => {
+        if (deliverable.session_id != null) {
+          const matchingSession = sessions.find((session) => String(session.id) === String(deliverable.session_id));
+          if (matchingSession?.week_number != null) return matchingSession.week_number;
         }
-        return d.week_number ?? 1;
+        return deliverable.week_number ?? 1;
       };
-      const unlockedDeliverables = deliverables.filter((d) =>
-        unlockedSessionWeekNumbers.has(deliverableWeek(d)),
+      const unlockedDeliverables = deliverables.filter((deliverable) =>
+        unlockedSessionWeekNumbers.has(deliverableWeek(deliverable)),
       );
 
       const currentWeek =
         unlockedSessions.length > 0
-          ? Math.max(...unlockedSessions.map((s) => s.week_number || 1))
+          ? Math.max(...unlockedSessions.map((session) => session.week_number || 1))
           : 1;
 
       // System-generated attendance deliverables are recorded by staff, not
       // submitted by participants — exclude them from completion.
       const nonAttendanceDeliverables = unlockedDeliverables.filter(
-        (d) => !d.title?.toLowerCase().includes("attendance"),
+        (deliverable) => !deliverable.title?.toLowerCase().includes("attendance"),
       );
       const totalDeliverables = nonAttendanceDeliverables.length || 1;
-      const completedDeliverables = nonAttendanceDeliverables.filter((d) =>
+      const completedDeliverables = nonAttendanceDeliverables.filter((deliverable) =>
         submissions.some(
-          (s) =>
-            s.status === "approved" &&
-            (String(s.document_id) === String(d.id) ||
-              String(s.deliverable_id) === String(d.id)),
+          (submission) =>
+            submission.status === "approved" &&
+            (String(submission.document_id) === String(deliverable.id) ||
+              String(submission.deliverable_id) === String(deliverable.id)),
         ),
       ).length;
       const programCompletion = Math.round(
@@ -167,34 +167,34 @@ export async function GET(_req) {
       // sessions, so duplicate attendance rows (same session recorded on
       // multiple dates) can never push the rate above 100%.
       const unlockedSessionIds = new Set(
-        unlockedSessions.map((s) => String(s.id)),
+        unlockedSessions.map((session) => String(session.id)),
       );
       const attendedSessions = new Set(
         attendance
           .filter(
-            (a) =>
-              a.status === "present" &&
-              unlockedSessionIds.has(String(a.session_id)),
+            (record) =>
+              record.status === "present" &&
+              unlockedSessionIds.has(String(record.session_id)),
           )
-          .map((a) => String(a.session_id)),
+          .map((record) => String(record.session_id)),
       ).size;
       // Expected attendance = sessions unlocked so far (future sessions don't count).
       const totalSessions = unlockedSessions.length || 1;
       // A program "tracks" attendance only when attendance records actually exist.
-      const attMetaRes = await countProgressAttendanceByProgramId(pid);
-      const attendanceTracked = parseInt(attMetaRes.rows[0]?.total || 0) > 0;
+      const attendanceMetaResult = await countProgressAttendanceByProgramId(programId);
+      const attendanceTracked = parseInt(attendanceMetaResult.rows[0]?.total || 0) > 0;
       const attendanceRate = Math.round(
         (attendedSessions / totalSessions) * 100,
       );
       // KPI attendance factor only considers the days where presence was actually
       // marked for this participant (unmarked sessions don't penalize it).
       const markedAttendanceDays = new Set(
-        attendance.map((a) => a.date).filter(Boolean),
+        attendance.map((record) => record.date).filter(Boolean),
       ).size;
       const presentAttendanceDays = new Set(
         attendance
-          .filter((a) => a.status === "present")
-          .map((a) => a.date)
+          .filter((record) => record.status === "present")
+          .map((record) => record.date)
           .filter(Boolean),
       ).size;
       const markedAttendanceRate =
@@ -203,7 +203,7 @@ export async function GET(_req) {
           : 0;
 
       const approvedSubmissions = submissions.filter(
-        (s) => s.status === "approved",
+        (submission) => submission.status === "approved",
       ).length;
       const totalSubmissions = submissions.length || 1;
       const assignmentCompletion = Math.round(
@@ -213,52 +213,52 @@ export async function GET(_req) {
       // ─── KPI Achievement — per participant ───
       // Each KPI counts as "achieved" only if the participant has an APPROVED
       // submission on a deliverable linked to that KPI.
-      const approvedSubs = submissions.filter((s) => s.status === "approved");
+      const approvedSubmissionRows = submissions.filter((submission) => submission.status === "approved");
       const deliverableIdsByKpi = new Map();
-      for (const d of deliverables) {
+      for (const deliverable of deliverables) {
         let linkedKpiIds = [];
         try {
           linkedKpiIds =
-            typeof d.kpi_ids === "string"
-              ? JSON.parse(d.kpi_ids || "[]")
-              : d.kpi_ids || [];
+            typeof deliverable.kpi_ids === "string"
+              ? JSON.parse(deliverable.kpi_ids || "[]")
+              : deliverable.kpi_ids || [];
         } catch (_) {
           linkedKpiIds = [];
         }
-        for (const kid of linkedKpiIds) {
-          const key = String(kid);
-          if (!deliverableIdsByKpi.has(key)) {
-            deliverableIdsByKpi.set(key, new Set());
+        for (const kpiId of linkedKpiIds) {
+          const kpiKey = String(kpiId);
+          if (!deliverableIdsByKpi.has(kpiKey)) {
+            deliverableIdsByKpi.set(kpiKey, new Set());
           }
-          deliverableIdsByKpi.get(key).add(String(d.id));
+          deliverableIdsByKpi.get(kpiKey).add(String(deliverable.id));
         }
       }
       const perKpiAchieved = kpis.map((kpi) => {
-        const linked = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
-        return approvedSubs.some(
-          (s) =>
-            linked.has(String(s.deliverable_id)) ||
-            linked.has(String(s.document_id)),
+        const linkedDeliverableIds = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
+        return approvedSubmissionRows.some(
+          (submission) =>
+            linkedDeliverableIds.has(String(submission.deliverable_id)) ||
+            linkedDeliverableIds.has(String(submission.document_id)),
         );
       });
       const totalKpis = kpis.length;
       const targetMetKpis = perKpiAchieved.filter(Boolean).length;
       // Attendance counts as an extra factor in KPI achievement when the
       // program actually tracks attendance (at least one record exists).
-      const kpiFactors = perKpiAchieved.map((ok) => (ok ? 100 : 0));
+      const kpiFactors = perKpiAchieved.map((isAchieved) => (isAchieved ? 100 : 0));
       if (attendanceTracked) kpiFactors.push(markedAttendanceRate);
       const kpiCompletion =
         kpiFactors.length > 0
           ? Math.round(
-              kpiFactors.reduce((sum, v) => sum + v, 0) / kpiFactors.length,
+              kpiFactors.reduce((sum, factor) => sum + factor, 0) / kpiFactors.length,
             )
           : 0;
 
       const weeksWithRituals = new Set();
-      standups.forEach((s) => weeksWithRituals.add(s.week_number));
-      checkins.forEach((c) => weeksWithRituals.add(c.week_number));
-      retros.forEach((r) => weeksWithRituals.add(r.week_number));
-      reflections.forEach((r) => weeksWithRituals.add(r.week_number));
+      standups.forEach((standup) => weeksWithRituals.add(standup.week_number));
+      checkins.forEach((checkin) => weeksWithRituals.add(checkin.week_number));
+      retros.forEach((retro) => weeksWithRituals.add(retro.week_number));
+      reflections.forEach((reflection) => weeksWithRituals.add(reflection.week_number));
       const totalWeeks = program.duration_weeks || currentWeek || 1;
       const ritualParticipation = Math.round(
         (weeksWithRituals.size / totalWeeks) * 100,
@@ -272,70 +272,70 @@ export async function GET(_req) {
         targetMetKpis * 100 + (attendanceTracked ? markedAttendanceRate : 0);
       overallKpiMax += totalKpis * 100 + (attendanceTracked ? 100 : 0);
       overallDeliverables += totalDeliverables;
-      overallCompletedDels += completedDeliverables;
+      overallCompletedDeliverables += completedDeliverables;
 
       const milestones = [];
-      sessions.forEach((s) => {
-        const att = attendance.find(
-          (a) => String(a.session_id) === String(s.id),
+      sessions.forEach((session) => {
+        const attendanceRecord = attendance.find(
+          (record) => String(record.session_id) === String(session.id),
         );
         milestones.push({
-          id: `session-${s.id}`,
-          title: `Attended: ${s.title}`,
+          id: `session-${session.id}`,
+          title: `Attended: ${session.title}`,
           type: "attendance",
-          week: s.week_number,
-          achieved: att?.status === "present",
-          date: att?.date || s.start_at,
+          week: session.week_number,
+          achieved: attendanceRecord?.status === "present",
+          date: attendanceRecord?.date || session.start_at,
         });
       });
-      deliverables.forEach((d) => {
+      deliverables.forEach((deliverable) => {
         // Attendance tasks are recorded by staff, not submitted by participants.
-        if (d.title?.toLowerCase().includes("attendance")) return;
-        const sub = submissions.find(
-          (s) =>
-            String(s.document_id) === String(d.id) ||
-            String(s.deliverable_id) === String(d.id),
+        if (deliverable.title?.toLowerCase().includes("attendance")) return;
+        const matchedSubmission = submissions.find(
+          (submission) =>
+            String(submission.document_id) === String(deliverable.id) ||
+            String(submission.deliverable_id) === String(deliverable.id),
         );
         milestones.push({
-          id: `deliverable-${d.id}`,
-          title: `Completed: ${d.title}`,
+          id: `deliverable-${deliverable.id}`,
+          title: `Completed: ${deliverable.title}`,
           type: "deliverable",
-          week: d.week_number || 0,
-          achieved: sub?.status === "approved",
-          date: sub?.created_at || d.created_at,
-          score: sub?.score || 0,
+          week: deliverable.week_number || 0,
+          achieved: matchedSubmission?.status === "approved",
+          date: matchedSubmission?.created_at || deliverable.created_at,
+          score: matchedSubmission?.score || 0,
         });
       });
 
       const historyByWeek = [];
-      for (let w = 1; w <= currentWeek; w++) {
-        const weekDels = deliverables.filter(
-          (d) =>
-            (d.week_number || 1) === w &&
-            !d.title?.toLowerCase().includes("attendance"),
+      for (let week = 1; week <= currentWeek; week++) {
+        const weekDeliverables = deliverables.filter(
+          (deliverable) =>
+            (deliverable.week_number || 1) === week &&
+            !deliverable.title?.toLowerCase().includes("attendance"),
         );
-        const weekDelsCompleted = weekDels.filter((d) =>
+        const weekCompletedDeliverables = weekDeliverables.filter((deliverable) =>
           submissions.some(
-            (s) =>
-              s.status === "approved" &&
-              (String(s.document_id) === String(d.id) ||
-                String(s.deliverable_id) === String(d.id)),
+            (submission) =>
+              submission.status === "approved" &&
+              (String(submission.document_id) === String(deliverable.id) ||
+                String(submission.deliverable_id) === String(deliverable.id)),
           ),
         ).length;
-        const weekSessions = sessions.filter((s) => (s.week_number || 1) === w);
-        const weekAttended = weekSessions.filter((s) =>
+        const weekSessions = sessions.filter((session) => (session.week_number || 1) === week);
+        const weekAttended = weekSessions.filter((session) =>
           attendance.some(
-            (a) =>
-              String(a.session_id) === String(s.id) && a.status === "present",
+            (record) =>
+              String(record.session_id) === String(session.id) && record.status === "present",
           ),
         ).length;
         historyByWeek.push({
-          week: w,
-          deliverablesCompleted: weekDelsCompleted,
-          deliverablesTotal: weekDels.length,
+          week: week,
+          deliverablesCompleted: weekCompletedDeliverables,
+          deliverablesTotal: weekDeliverables.length,
           sessionsAttended: weekAttended,
           sessionsTotal: weekSessions.length,
-          hasRitual: weeksWithRituals.has(w),
+          hasRitual: weeksWithRituals.has(week),
         });
       }
 
@@ -366,9 +366,9 @@ export async function GET(_req) {
           retros: retros.length,
           reflections: reflections.length,
         },
-        milestones: milestones.sort((a, b) => {
-          if (a.achieved !== b.achieved) return a.achieved ? -1 : 1;
-          return (b.week || 0) - (a.week || 0);
+        milestones: milestones.sort((first, second) => {
+          if (first.achieved !== second.achieved) return first.achieved ? -1 : 1;
+          return (second.week || 0) - (first.week || 0);
         }),
         history: historyByWeek,
       });
@@ -376,7 +376,7 @@ export async function GET(_req) {
 
     const overallProgramCompletion =
       overallDeliverables > 0
-        ? Math.round((overallCompletedDels / overallDeliverables) * 100)
+        ? Math.round((overallCompletedDeliverables / overallDeliverables) * 100)
         : 0;
     const overallAttendanceRate =
       overallSessions > 0
@@ -409,7 +409,7 @@ export async function GET(_req) {
           programsData.length > 0
             ? Math.round(
                 programsData.reduce(
-                  (acc, p) => acc + p.metrics.ritualParticipation,
+                  (accumulator, program) => accumulator + program.metrics.ritualParticipation,
                   0,
                 ) / programsData.length,
               )
@@ -422,7 +422,7 @@ export async function GET(_req) {
         sessions: overallSessions,
         attended: overallAttended,
         deliverables: overallDeliverables,
-        completedDeliverables: overallCompletedDels,
+        completedDeliverables: overallCompletedDeliverables,
         rituals: totalRituals,
         programs: programsData.length,
       },

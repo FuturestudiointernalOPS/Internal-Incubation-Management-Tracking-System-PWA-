@@ -20,8 +20,8 @@ export const GET = createHandler(async (req, { params }) => {
   if (!(await isStaffActorForVenture(db, id, session))) {
     return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
   }
-  const s = new URL(req.url).searchParams;
-  const type = s.get("type") || "analytics";
+  const searchParams = new URL(req.url).searchParams;
+  const type = searchParams.get("type") || "analytics";
 
   if (type === "analytics") {
     const data = await getVentureAnalytics(id);
@@ -35,12 +35,12 @@ export const GET = createHandler(async (req, { params }) => {
 
   if (type === "tasks") {
     const tasks = await getTasksReport(id, {
-      status: s.get("status"),
-      priority: s.get("priority"),
-      assigned_cid: s.get("assigned_cid"),
-      due_before: s.get("due_before"),
-      due_after: s.get("due_after"),
-      limit: s.get("limit"),
+      status: searchParams.get("status"),
+      priority: searchParams.get("priority"),
+      assigned_cid: searchParams.get("assigned_cid"),
+      due_before: searchParams.get("due_before"),
+      due_after: searchParams.get("due_after"),
+      limit: searchParams.get("limit"),
     });
     return NextResponse.json({ success: true, tasks });
   }
@@ -51,8 +51,8 @@ export const GET = createHandler(async (req, { params }) => {
   }
 
   if (type === "export") {
-    const format = s.get("format") || "json";
-    const exportType = s.get("export_type") || "tasks";
+    const format = searchParams.get("format") || "json";
+    const exportType = searchParams.get("export_type") || "tasks";
     const data = await getExportData(id, exportType);
 
     if (format === "csv") {
@@ -60,7 +60,7 @@ export const GET = createHandler(async (req, { params }) => {
       const headers = Object.keys(data[0]);
       const csvRows = [headers.join(",")];
       for (const row of data) {
-        csvRows.push(headers.map((h) => `"${(row[h] || "").replace(/"/g, '""')}"`).join(","));
+        csvRows.push(headers.map((header) => `"${(row[header] || "").replace(/"/g, '""')}"`).join(","));
       }
       return new NextResponse(csvRows.join("\n"), {
         headers: {

@@ -12,6 +12,7 @@ import CourseStatusBadge from "./CourseStatusBadge";
 import CourseThumb from "./CourseThumb";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import { formatDate } from "@/lib/constants";
 import { useApi } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
@@ -35,9 +36,9 @@ const EMPTY_COURSES_READ = { list: [], failure: false };
  * answered - were shown as the same panel, so the shaper reports the refusal and
  * the panel stays exactly as it was.
  */
-const pickCourses = (d) =>
-  d?.success
-    ? { list: d.courses || [], failure: false }
+const pickCourses = (data) =>
+  data?.success
+    ? { list: data.courses || [], failure: false }
     : { list: [], failure: true };
 
 /**
@@ -46,6 +47,7 @@ const pickCourses = (d) =>
  */
 export default function CourseList({ basePath = "/admin/lms/courses" }) {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const router = useRouter();
   // UI gating only — the server re-checks every call (lms.create / lms.edit).
   // Fails OPEN while the matrix loads, so no action flashes away.
@@ -90,20 +92,20 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", successKey);
       refresh();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     } finally {
       setBusyId(null);
     }
   };
 
-  const confirmPublish = (course) => {
-    if (!window.confirm(t("lms.confirm.publish"))) return;
+  const confirmPublish = async (course) => {
+    if (!(await confirm({ message: t("lms.confirm.publish") }))) return;
     runAction(course.id, "publish", "lms.courses.published");
   };
 
-  const confirmArchive = (course) => {
-    if (!window.confirm(t("lms.confirm.archive"))) return;
+  const confirmArchive = async (course) => {
+    if (!(await confirm({ message: t("lms.confirm.archive"), tone: "danger" }))) return;
     runAction(course.id, "archive", "lms.courses.archived");
   };
 
@@ -131,14 +133,14 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
           icon={Search}
           placeholder={t("lms.courses.searchPlaceholder")}
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(event) => setSearch(event.target.value)}
         />
         <AppSelect
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          options={STATUS_OPTIONS.map((o) => ({
-            value: o.value,
-            label: o.value === "" ? t("lms.courses.filterAll") : t(`lms.status.${o.label}`),
+          onChange={(event) => setStatus(event.target.value)}
+          options={STATUS_OPTIONS.map((option) => ({
+            value: option.value,
+            label: option.value === "" ? t("lms.courses.filterAll") : t(`lms.status.${option.label}`),
           }))}
         />
       </div>

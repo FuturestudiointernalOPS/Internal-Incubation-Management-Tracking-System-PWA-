@@ -27,9 +27,9 @@ import { useApi } from "@/lib/hooks/useApi";
 // value and the normaliser stable for the hook (inline values would refetch on
 // every render).
 const EMPTY_PENDING_USERS = { pendingUsers: [], grouped: {}, total: 0 };
-const pickPendingUsers = (d) =>
-  d?.success
-    ? { pendingUsers: d.pendingUsers || [], grouped: d.grouped || {}, total: d.total || 0 }
+const pickPendingUsers = (payload) =>
+  payload?.success
+    ? { pendingUsers: payload.pendingUsers || [], grouped: payload.grouped || {}, total: payload.total || 0 }
     : EMPTY_PENDING_USERS;
 
 export default function PendingUsersPage() {
@@ -194,9 +194,9 @@ export default function PendingUsersPage() {
 
   const filteredUsers = searchQuery
     ? pendingUsers.filter(
-        (u) =>
-          u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          u.email?.toLowerCase().includes(searchQuery.toLowerCase()),
+        (user) =>
+          user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          user.email?.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     : pendingUsers;
 
@@ -204,9 +204,9 @@ export default function PendingUsersPage() {
   if (searchQuery) {
     // Re-group filtered results
     for (const user of filteredUsers) {
-      const g = user.group_name || "UNASSIGNED";
-      if (!filteredGrouped[g]) filteredGrouped[g] = [];
-      filteredGrouped[g].push(user);
+      const groupName = user.group_name || "UNASSIGNED";
+      if (!filteredGrouped[groupName]) filteredGrouped[groupName] = [];
+      filteredGrouped[groupName].push(user);
     }
   }
 
@@ -290,7 +290,7 @@ export default function PendingUsersPage() {
             type="text"
             placeholder={t("adminMisc.pendingUsers.searchPlaceholder")}
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(event) => setSearchQuery(event.target.value)}
             className="w-full bg-primary border border-[var(--border-primary)] rounded-lg py-3 pl-12 pr-4 text-sm font-medium outline-none focus:border-[var(--brand-orange)] transition-all"
           />
         </div>

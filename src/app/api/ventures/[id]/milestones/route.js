@@ -16,15 +16,15 @@ export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
   const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
   if (access.error) return access.error;
-  const ventureRes = await getVentureDbIdForMilestoneList(id);
-  const ventureDbId = ventureRes.rows?.[0]?.id;
+  const ventureResult = await getVentureDbIdForMilestoneList(id);
+  const ventureDbId = ventureResult.rows?.[0]?.id;
   if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-  const r = await db.execute({ sql: "SELECT * FROM venture_milestones WHERE venture_id = ? ORDER BY created_at DESC", args: [ventureDbId] });
+  const milestonesResult = await db.execute({ sql: "SELECT * FROM venture_milestones WHERE venture_id = ? ORDER BY created_at DESC", args: [ventureDbId] });
   // Archived (soft-deleted) milestones stay in the database (history is kept)
   // but are hidden from default lists. Row-level filter: environments whose
   // schema predates the is_archived column keep working (field is undefined).
   const includeArchived = new URL(req.url).searchParams.get("include_archived") === "1";
-  const rows = (r.rows || []).filter((m) => includeArchived || m.is_archived !== true);
+  const rows = (milestonesResult.rows || []).filter((milestone) => includeArchived || milestone.is_archived !== true);
   // Roadmap visibility: a member sees every milestone that exists on the map,
   // but the work inside a not-yet-released one is withheld. The projection is
   // shared with the journey read so the two surfaces cannot drift apart —
@@ -52,19 +52,19 @@ export const POST = createHandler(async (req, { params }) => {
   const { title, description, target_date } = body;
   if (!title?.trim()) return NextResponse.json({ success: false, error: "Milestone title is required." }, { status: 400 });
 
-  const ventureRes = await getVentureDbIdForMilestoneCreate(id);
-  const ventureDbId = ventureRes.rows?.[0]?.id;
+  const ventureResult = await getVentureDbIdForMilestoneCreate(id);
+  const ventureDbId = ventureResult.rows?.[0]?.id;
   if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
   // Journey binding (Phase 2): a milestone may belong to a Journey stage.
   // The stage must exist on THIS Venture when provided.
   const { journey_stage_id } = body;
   if (journey_stage_id) {
-    const stageRes = await db.execute({
+    const stageResult = await db.execute({
       sql: "SELECT 1 FROM venture_journey_stages WHERE id = ? AND venture_id = ?",
       args: [journey_stage_id, ventureDbId],
     }).catch(() => ({ rows: [] }));
-    if (!(stageRes.rows || []).length) {
+    if (!(stageResult.rows || []).length) {
       return NextResponse.json({ success: false, error: "Unknown journey stage for this Venture." }, { status: 400 });
     }
   }
@@ -76,15 +76,15 @@ export const POST = createHandler(async (req, { params }) => {
   // releases the first one.
   let initialStatus = await computeInitialMilestoneStatus(db, { dbId: ventureDbId, stageId: journey_stage_id || null });
   if (journey_stage_id) {
-    const stageRes = await db.execute({
+    const stageResult = await db.execute({
       sql: "SELECT status FROM venture_journey_stages WHERE id = ? AND venture_id = ?",
       args: [journey_stage_id, ventureDbId],
     }).catch(() => ({ rows: [] }));
-    const stageStatus = stageRes.rows?.[0]?.status;
+    const stageStatus = stageResult.rows?.[0]?.status;
     if (stageStatus && stageStatus !== "active") initialStatus = "locked";
   }
 
-  const randomUUID = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; const v = c==='x'?r:(r&0x3|0x8); return v.toString(16); });
+  const randomUUID = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => { const random = Math.random()*16|0; const value = char==='x'?random:(random&0x3|0x8); return value.toString(16); });
 
   await db.execute({
     sql: `INSERT INTO venture_milestones (id, venture_id, title, description, target_date, status, progress, created_by, journey_stage_id, objective, start_date, priority, owner_cid, display_order) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
@@ -101,8 +101,8 @@ export const PATCH = createHandler(async (req, { params }) => {
   if (access.error) return access.error;
   const { session } = access;
   const { searchParams } = new URL(req.url);
-  const mid = searchParams.get("id");
-  if (!mid) return NextResponse.json({ success: false, error: "Milestone ID required." }, { status: 400 });
+  const milestoneId = searchParams.get("id");
+  if (!milestoneId) return NextResponse.json({ success: false, error: "Milestone ID required." }, { status: 400 });
 
   const body = await req.json();
   const { progress, status, title, description, target_date } = body;
@@ -111,12 +111,12 @@ export const PATCH = createHandler(async (req, { params }) => {
   // Completion authority (Phase 3, locked decision): ONLY the Venture's
   // assigned Lead Manager or a Super Admin may mark a milestone completed.
   if (completing) {
-    const vRes = await db.execute({
+    const ventureResult = await db.execute({
       sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?",
       args: [id, id],
     }).catch(() => ({ rows: [] }));
-    const ventureDbId = vRes.rows?.[0]?.id;
-    const code = vRes.rows?.[0]?.venture_id || (typeof id === "string" && id.startsWith("VNT-") ? id : null);
+    const ventureDbId = ventureResult.rows?.[0]?.id;
+    const code = ventureResult.rows?.[0]?.venture_id || (typeof id === "string" && id.startsWith("VNT-") ? id : null);
     if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const authorized = await isMilestoneLeadAuthority(db, { code, cid: session.cid, role: session.role });
     if (!authorized) {
@@ -139,14 +139,14 @@ export const PATCH = createHandler(async (req, { params }) => {
   if (body.journey_stage_id !== undefined) {
     // Allow clearing the binding with null, or moving to another stage.
     if (body.journey_stage_id) {
-      const vRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
-      const ventureDbId = vRes.rows?.[0]?.id;
+      const ventureResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+      const ventureDbId = ventureResult.rows?.[0]?.id;
       if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-      const stageRes = await db.execute({
+      const stageResult = await db.execute({
         sql: "SELECT 1 FROM venture_journey_stages WHERE id = ? AND venture_id = ?",
         args: [body.journey_stage_id, ventureDbId],
       }).catch(() => ({ rows: [] }));
-      if (!(stageRes.rows || []).length) {
+      if (!(stageResult.rows || []).length) {
         return NextResponse.json({ success: false, error: "Unknown journey stage for this Venture." }, { status: 400 });
       }
     }
@@ -155,17 +155,17 @@ export const PATCH = createHandler(async (req, { params }) => {
   }
 
   if (updates.length === 1) return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
-  args.push(mid);
+  args.push(milestoneId);
   try {
     await db.execute({ sql: `UPDATE venture_milestones SET ${updates.join(", ")} WHERE id = ?`, args });
-  } catch (e) {
+  } catch (error) {
     // Safety net for older databases whose milestone table predates the
     // updated_at column: retry without it rather than failing the whole save.
-    if (!isUnknownColumnError(e)) throw e;
-    const keep = updates.map((u, i) => [u, args[i]]).filter(([u]) => !u.startsWith("updated_at"));
+    if (!isUnknownColumnError(error)) throw error;
+    const keep = updates.map((clause, index) => [clause, args[index]]).filter(([clause]) => !clause.startsWith("updated_at"));
     await db.execute({
-      sql: `UPDATE venture_milestones SET ${keep.map(([u]) => u).join(", ")} WHERE id = ?`,
-      args: [...keep.map(([, a]) => a), mid],
+      sql: `UPDATE venture_milestones SET ${keep.map(([clause]) => clause).join(", ")} WHERE id = ?`,
+      args: [...keep.map(([, arg]) => arg), milestoneId],
     });
   }
 
@@ -175,42 +175,42 @@ export const PATCH = createHandler(async (req, { params }) => {
   // TOLD a journey just closed — that is the moment its closing report is owed.
   let journeyOutcome = null;
   if (completing) {
-    const vRes = await db.execute({
+    const ventureResult = await db.execute({
       sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?",
       args: [id, id],
     }).catch(() => ({ rows: [] }));
-    const ventureDbId = vRes.rows?.[0]?.id || null;
+    const ventureDbId = ventureResult.rows?.[0]?.id || null;
     if (ventureDbId) {
-      const outcome = await completeMilestoneAndUnlockNext(db, { dbId: ventureDbId, milestoneId: mid });
-      const milestoneRes = await db.execute({
+      const outcome = await completeMilestoneAndUnlockNext(db, { dbId: ventureDbId, milestoneId });
+      const milestoneResult = await db.execute({
         sql: "SELECT title, journey_stage_id FROM venture_milestones WHERE id = ?",
-        args: [mid],
+        args: [milestoneId],
       }).catch(() => ({ rows: [] }));
-      const m = milestoneRes.rows?.[0];
+      const milestone = milestoneResult.rows?.[0];
       try {
         await notifyVentureFounders(
           ventureDbId,
           "Milestone approved",
-          `The milestone "${m?.title || ""}" has been completed and approved.`,
-          { journey_stage_id: m?.journey_stage_id || null, milestone_id: mid },
-          { templateKey: "venture.notif.milestoneApproved", params: { milestoneTitle: m?.title || "" }, dedupeKey: `milestone-completed:${mid}` },
+          `The milestone "${milestone?.title || ""}" has been completed and approved.`,
+          { journey_stage_id: milestone?.journey_stage_id || null, milestone_id: milestoneId },
+          { templateKey: "venture.notif.milestoneApproved", params: { milestoneTitle: milestone?.title || "" }, dedupeKey: `milestone-completed:${milestoneId}` },
         );
       } catch (_) {}
       try {
         const { addVentureHistory } = await import("@/lib/ventures");
-        await addVentureHistory({ venture_id: id, event_type: "MILESTONE_COMPLETED", description: `Milestone "${m?.title || mid}" completed${outcome?.unlocked_milestone_id ? " — next milestone unlocked" : ""}` });
+        await addVentureHistory({ venture_id: id, event_type: "MILESTONE_COMPLETED", description: `Milestone "${milestone?.title || milestoneId}" completed${outcome?.unlocked_milestone_id ? " — next milestone unlocked" : ""}` });
       } catch (_) {}
 
       // A Journey is never closed by hand: once EVERY milestone in it is
       // completed it closes automatically and the next journey becomes current.
       const stageOutcome = await completeStageIfAllMilestonesDone(db, {
         dbId: ventureDbId,
-        stageId: m?.journey_stage_id,
+        stageId: milestone?.journey_stage_id,
         cid: session.cid,
       });
       if (stageOutcome?.completed) {
         journeyOutcome = {
-          id: m?.journey_stage_id ? String(m.journey_stage_id) : null,
+          id: milestone?.journey_stage_id ? String(milestone.journey_stage_id) : null,
           name: stageOutcome.stage_name || null,
           next_stage_id: stageOutcome.next_stage_id || null,
         };
@@ -227,11 +227,11 @@ export const PATCH = createHandler(async (req, { params }) => {
             ventureDbId,
             "Journey completed",
             `All milestones in "${stageOutcome.stage_name || "your journey"}" are completed.`,
-            { journey_stage_id: m?.journey_stage_id || null },
+            { journey_stage_id: milestone?.journey_stage_id || null },
             {
               templateKey: "venture.notif.journeyCompleted",
               params: { stageName: stageOutcome.stage_name || "" },
-              dedupeKey: `journey-completed:${m?.journey_stage_id}`,
+              dedupeKey: `journey-completed:${milestone?.journey_stage_id}`,
             },
           );
         } catch (_) {}

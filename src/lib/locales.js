@@ -139,7 +139,7 @@ const EN = [
   enRootMisc,
   enLms,
   enMembership,
-].reduce((acc, mod) => deepMerge(acc, mod), {});
+].reduce((merged, module) => deepMerge(merged, module), {});
 
 const FR = [
   frCommon,
@@ -172,7 +172,7 @@ const FR = [
   frRootMisc,
   frLms,
   frMembership,
-].reduce((acc, mod) => deepMerge(acc, mod), {});
+].reduce((merged, module) => deepMerge(merged, module), {});
 
 export const LOCALE_REGISTRY = {
   en: EN,

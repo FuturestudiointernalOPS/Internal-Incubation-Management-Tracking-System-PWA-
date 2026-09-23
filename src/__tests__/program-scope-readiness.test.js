@@ -21,24 +21,24 @@
 let mockState = {};
 
 async function mockExecute(query) {
-  const q = typeof query === "string" ? query : query.sql || "";
-  if (/^\s*(CREATE TABLE|CREATE INDEX)/i.test(q)) return { rows: [] };
-  if (q.includes("FROM role_access_profile_defaults")) {
+  const sqlText = typeof query === "string" ? query : query.sql || "";
+  if (/^\s*(CREATE TABLE|CREATE INDEX)/i.test(sqlText)) return { rows: [] };
+  if (sqlText.includes("FROM role_access_profile_defaults")) {
     return { rows: mockState.roleDefaults };
   }
-  if (q.includes("EXISTS (")) return { rows: mockState.templates };
-  if (q.includes("FROM contacts")) return { rows: mockState.holders };
-  if (q.includes("FROM access_profile_capabilities")) {
+  if (sqlText.includes("EXISTS (")) return { rows: mockState.templates };
+  if (sqlText.includes("FROM contacts")) return { rows: mockState.holders };
+  if (sqlText.includes("FROM access_profile_capabilities")) {
     return { rows: mockState.profileCaps };
   }
-  if (q.includes("FROM v2_program_staff")) return { rows: mockState.attachments };
-  if (q.includes("FROM v2_programs")) return { rows: mockState.programs };
+  if (sqlText.includes("FROM v2_program_staff")) return { rows: mockState.attachments };
+  if (sqlText.includes("FROM v2_programs")) return { rows: mockState.programs };
   return { rows: [] };
 }
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
-  default: { execute: jest.fn(async (q) => mockExecute(q)) },
+  default: { execute: jest.fn(async (query) => mockExecute(query)) },
   initDb: jest.fn(async () => true),
 }));
 
@@ -226,7 +226,7 @@ describe("template split — what the portfolio template would stop granting", (
 
     const report = await buildProgramScopeReadiness();
 
-    const reported = report.removals.map((r) => `${r.module}.${r.capability}`).sort();
+    const reported = report.removals.map((removal) => `${removal.module}.${removal.capability}`).sort();
     expect(reported).toEqual(["contacts.create", "ventures.edit"]);
     for (const removal of report.removals) {
       expect(removal.profile).toBe("Program Manager");

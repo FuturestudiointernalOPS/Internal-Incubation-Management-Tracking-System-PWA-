@@ -23,9 +23,9 @@ import {
   Layers,
 } from "lucide-react";
 
-function formatDate(d) {
-  if (!d) return "";
-  return new Date(d).toLocaleString("fr-FR", {
+function formatDate(dateValue) {
+  if (!dateValue) return "";
+  return new Date(dateValue).toLocaleString("fr-FR", {
     day: "2-digit", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit", second: "2-digit",
   });
@@ -77,10 +77,10 @@ const REPORT_TYPE_KEYS = {
 // functions, so inline arrows would give them a new identity on every render and
 // refetch in a loop. A read that fails reports null, so the summary parts cannot
 // be assembled out of a half-failed set.
-const pickPayload = (d) => (d?.success ? d : null);
-const pickHealthResults = (d) => (d?.success ? d.results || d.checks || [] : []);
-const pickJobs = (d) => (d?.success ? d.jobs || [] : []);
-const pickReports = (d) => (d?.success ? d.reports || [] : []);
+const pickPayload = (payload) => (payload?.success ? payload : null);
+const pickHealthResults = (payload) => (payload?.success ? payload.results || payload.checks || [] : []);
+const pickJobs = (payload) => (payload?.success ? payload.jobs || [] : []);
+const pickReports = (payload) => (payload?.success ? payload.reports || [] : []);
 
 // The endpoints this console reads, at module scope for the same reason.
 // The job statistics fed two separate states, so they are read once and shared.
@@ -205,14 +205,14 @@ export default function SystemMonitoringPage() {
   const runHealthCheck = async () => {
     setRunningHealth(true);
     try {
-      const res = await fetch("/api/system/health");
-      const data = await res.json();
+      const response = await fetch("/api/system/health");
+      const data = await response.json();
       if (data.success) setHealth(data.results || []);
       // Re-fetch status after health check
       const statusRes = await fetch("/api/system/status");
       const statusData = await statusRes.json();
       if (statusData.success) setStatus(statusData);
-    } catch (err) { console.error(err); }
+    } catch (error) { console.error(error); }
     finally { setRunningHealth(false); }
   };
 
@@ -220,10 +220,10 @@ export default function SystemMonitoringPage() {
     setGeneratingReport(true);
     try {
       await fetch(`/api/system/reports?type=generate&report_type=${type}`);
-      const res = await fetch("/api/system/reports?limit=10");
-      const data = await res.json();
+      const response = await fetch("/api/system/reports?limit=10");
+      const data = await response.json();
       if (data.success) setReports(data.reports || []);
-    } catch (err) { console.error(err); }
+    } catch (error) { console.error(error); }
     finally { setGeneratingReport(false); }
   };
 
@@ -280,14 +280,14 @@ export default function SystemMonitoringPage() {
             {activeTab === "overview" && (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                  {(Array.isArray(health) ? health : []).map((c) => {
-                    const Icon = COMPONENT_ICONS[c.component] || Activity;
+                  {(Array.isArray(health) ? health : []).map((component) => {
+                    const Icon = COMPONENT_ICONS[component.component] || Activity;
                     return (
-                      <div key={c.id || c.component} className={`rounded-xl p-3 border ${STATUS_COLORS[c.status] || STATUS_COLORS.healthy}`}>
+                      <div key={component.id || component.component} className={`rounded-xl p-3 border ${STATUS_COLORS[component.status] || STATUS_COLORS.healthy}`}>
                         <Icon size={16} className="mb-1.5" />
-                        <p className="text-xs font-medium capitalize truncate">{t(COMPONENT_KEYS[c.component] || "") || c.component}</p>
-                        <p className={`text-[10px] mt-0.5 ${c.status === "healthy" ? "text-emerald-400" : c.status === "degraded" ? "text-amber-400" : "text-red-400"}`}>
-                          {t(STATUS_KEYS[c.status] || "") || c.status}
+                        <p className="text-xs font-medium capitalize truncate">{t(COMPONENT_KEYS[component.component] || "") || component.component}</p>
+                        <p className={`text-[10px] mt-0.5 ${component.status === "healthy" ? "text-emerald-400" : component.status === "degraded" ? "text-amber-400" : "text-red-400"}`}>
+                          {t(STATUS_KEYS[component.status] || "") || component.status}
                         </p>
                       </div>
                     );
@@ -329,19 +329,19 @@ export default function SystemMonitoringPage() {
             {activeTab === "health" && (
               <div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {(Array.isArray(health) ? health : []).map((c) => {
-                    const Icon = COMPONENT_ICONS[c.component] || Activity;
+                  {(Array.isArray(health) ? health : []).map((component) => {
+                    const Icon = COMPONENT_ICONS[component.component] || Activity;
                     return (
-                      <div key={c.id || c.component} className={`rounded-xl p-4 border ${STATUS_COLORS[c.status] || STATUS_COLORS.healthy}`}>
+                      <div key={component.id || component.component} className={`rounded-xl p-4 border ${STATUS_COLORS[component.status] || STATUS_COLORS.healthy}`}>
                         <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2"><Icon size={18} /><span className="font-medium capitalize">{t(COMPONENT_KEYS[c.component] || "") || c.component}</span></div>
-                          {c.status === "healthy" ? <CheckCircle2 size={18} className="text-emerald-400" /> :
-                           c.status === "degraded" ? <AlertTriangle size={18} className="text-amber-400" /> :
+                          <div className="flex items-center gap-2"><Icon size={18} /><span className="font-medium capitalize">{t(COMPONENT_KEYS[component.component] || "") || component.component}</span></div>
+                          {component.status === "healthy" ? <CheckCircle2 size={18} className="text-emerald-400" /> :
+                           component.status === "degraded" ? <AlertTriangle size={18} className="text-amber-400" /> :
                            <XCircle size={18} className="text-red-400" />}
                         </div>
-                        <p className="text-xs text-gray-400">{c.message || t("adminMisc.system.noMessage")}</p>
-                        {c.response_time_ms != null && <p className="text-xs text-gray-500 mt-2">{t("adminMisc.system.responseTime", { ms: c.response_time_ms })}</p>}
-                        <p className="text-[10px] text-gray-600 mt-1">{formatDate(c.checked_at)}</p>
+                        <p className="text-xs text-gray-400">{component.message || t("adminMisc.system.noMessage")}</p>
+                        {component.response_time_ms != null && <p className="text-xs text-gray-500 mt-2">{t("adminMisc.system.responseTime", { ms: component.response_time_ms })}</p>}
+                        <p className="text-[10px] text-gray-600 mt-1">{formatDate(component.checked_at)}</p>
                       </div>
                     );
                   })}
@@ -363,19 +363,19 @@ export default function SystemMonitoringPage() {
                 </div>
                 {status?.open_alerts?.length > 0 ? (
                   <div className="divide-y divide-gray-800/50">
-                    {status.open_alerts.map((a) => (
-                      <div key={a.id} className="flex items-start gap-3 p-4">
-                        {a.severity === "critical" ? <AlertCircle size={16} className="mt-0.5 text-red-400 shrink-0" /> :
+                    {status.open_alerts.map((alert) => (
+                      <div key={alert.id} className="flex items-start gap-3 p-4">
+                        {alert.severity === "critical" ? <AlertCircle size={16} className="mt-0.5 text-red-400 shrink-0" /> :
                          <AlertTriangle size={16} className="mt-0.5 text-amber-400 shrink-0" />}
                         <div>
-                          <p className="text-sm font-medium">{a.title}</p>
-                          {a.message && <p className="text-xs text-gray-400 mt-1">{a.message}</p>}
+                          <p className="text-sm font-medium">{alert.title}</p>
+                          {alert.message && <p className="text-xs text-gray-400 mt-1">{alert.message}</p>}
                           <div className="flex gap-2 mt-1.5 text-[10px] text-gray-500">
-                            <span className={`px-1.5 py-0.5 rounded ${a.severity === "critical" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>
-                              {a.severity}
+                            <span className={`px-1.5 py-0.5 rounded ${alert.severity === "critical" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>
+                              {alert.severity}
                             </span>
-                            <span>{a.alert_type?.replace(/_/g, " ")}</span>
-                            <span>{formatDate(a.created_at)}</span>
+                            <span>{alert.alert_type?.replace(/_/g, " ")}</span>
+                            <span>{formatDate(alert.created_at)}</span>
                           </div>
                         </div>
                       </div>
@@ -405,10 +405,10 @@ export default function SystemMonitoringPage() {
                   <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
                     <h3 className="text-sm font-medium mb-4">{t("adminMisc.system.slowEndpoints")}</h3>
                     <div className="space-y-1.5">
-                      {apiMonitor.slow_endpoints.map((e, i) => (
-                        <div key={i} className="flex justify-between text-xs">
-                          <span className="text-gray-400 font-mono truncate max-w-[250px]">{e.endpoint}</span>
-                          <span className="text-amber-400">{Math.round(e.avg_ms)}ms</span>
+                      {apiMonitor.slow_endpoints.map((endpoint, index) => (
+                        <div key={index} className="flex justify-between text-xs">
+                          <span className="text-gray-400 font-mono truncate max-w-[250px]">{endpoint.endpoint}</span>
+                          <span className="text-amber-400">{Math.round(endpoint.avg_ms)}ms</span>
                         </div>
                       ))}
                     </div>
@@ -431,8 +431,8 @@ export default function SystemMonitoringPage() {
                   <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
                     <h3 className="text-sm font-medium mb-4">{t("adminMisc.system.tables")}</h3>
                     <div className="space-y-1 max-h-[300px] overflow-y-auto">
-                      {dbInfo.tables.slice(0, 15).map((row, i) => (
-                        <div key={i} className="flex justify-between text-xs py-1 border-b border-gray-800/30">
+                      {dbInfo.tables.slice(0, 15).map((row, rowIndex) => (
+                        <div key={rowIndex} className="flex justify-between text-xs py-1 border-b border-gray-800/30">
                           <span className="text-gray-400">{row.tablename}</span>
                           <span className="text-gray-500">{t("adminMisc.system.rows", { count: row.approx_rows })}</span>
                         </div>
@@ -489,19 +489,19 @@ export default function SystemMonitoringPage() {
                         <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.system.started")}</th>
                       </tr></thead>
                       <tbody>
-                        {jobs.map((j) => (
-                          <tr key={j.id} className="border-b border-gray-800/50">
-                            <td className="p-3 text-sm">{j.job_name}</td>
-                            <td className="p-3 text-sm text-gray-400">{j.job_type}</td>
+                        {jobs.map((job) => (
+                          <tr key={job.id} className="border-b border-gray-800/50">
+                            <td className="p-3 text-sm">{job.job_name}</td>
+                            <td className="p-3 text-sm text-gray-400">{job.job_type}</td>
                             <td className="p-3">
                               <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                j.status === "completed" ? "bg-emerald-500/10 text-emerald-400" :
-                                j.status === "running" ? "bg-blue-500/10 text-blue-400" :
-                                j.status === "failed" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"
-                              }`}>{j.status}</span>
+                                job.status === "completed" ? "bg-emerald-500/10 text-emerald-400" :
+                                job.status === "running" ? "bg-blue-500/10 text-blue-400" :
+                                job.status === "failed" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"
+                              }`}>{job.status}</span>
                             </td>
-                            <td className="p-3 text-sm text-gray-400">{j.duration_ms ? `${j.duration_ms}ms` : "-"}</td>
-                            <td className="p-3 text-sm text-gray-500">{formatDate(j.created_at)}</td>
+                            <td className="p-3 text-sm text-gray-400">{job.duration_ms ? `${job.duration_ms}ms` : "-"}</td>
+                            <td className="p-3 text-sm text-gray-500">{formatDate(job.created_at)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -545,13 +545,13 @@ export default function SystemMonitoringPage() {
                         <th className="text-left p-3 text-xs text-gray-400">{t("adminMisc.system.generated")}</th>
                       </tr></thead>
                       <tbody>
-                        {reports.map((r) => (
-                          <tr key={r.id} className="border-b border-gray-800/50">
-                            <td className="p-3 text-sm font-medium">{r.title}</td>
-                            <td className="p-3"><span className="text-xs px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full">{t(REPORT_TYPE_KEYS[r.report_type] || "") || r.report_type}</span></td>
-                            <td className="p-3 text-sm text-gray-400">{r.period_start} → {r.period_end}</td>
-                            <td className="p-3 text-sm text-gray-500 truncate max-w-[300px]">{r.summary}</td>
-                            <td className="p-3 text-sm text-gray-500 whitespace-nowrap">{formatDate(r.created_at)}</td>
+                        {reports.map((report) => (
+                          <tr key={report.id} className="border-b border-gray-800/50">
+                            <td className="p-3 text-sm font-medium">{report.title}</td>
+                            <td className="p-3"><span className="text-xs px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full">{t(REPORT_TYPE_KEYS[report.report_type] || "") || report.report_type}</span></td>
+                            <td className="p-3 text-sm text-gray-400">{report.period_start} → {report.period_end}</td>
+                            <td className="p-3 text-sm text-gray-500 truncate max-w-[300px]">{report.summary}</td>
+                            <td className="p-3 text-sm text-gray-500 whitespace-nowrap">{formatDate(report.created_at)}</td>
                           </tr>
                         ))}
                       </tbody>

@@ -18,8 +18,8 @@ import { useApi } from "@/lib/hooks/useApi";
 
 const EMPTY_LIST = [];
 
-const pickFullState = (d) => (d?.success ? d : null);
-const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
+const pickFullState = (payload) => (payload?.success ? payload : null);
+const pickList = (field) => (payload) => (payload?.success ? payload[field] || [] : []);
 
 // Called once, here: `pickList` is a factory, so calling it at the call site would
 // hand the read a new identity on every render and re-issue its request.
@@ -38,9 +38,9 @@ const pickAttendance = pickList("attendance");
  * programme has an id, only the programme's own runs are consulted - there is no
  * fallback to a group's run.
  */
-const pickRegistrationLink = (d) => {
-  const run = (d?.success ? d.runs || [] : []).find(
-    (x) => x.status === "active" && x.public_slug,
+const pickRegistrationLink = (payload) => {
+  const run = (payload?.success ? payload.runs || [] : []).find(
+    (formRun) => formRun.status === "active" && formRun.public_slug,
   );
   if (!run) return null;
   return {
@@ -128,26 +128,26 @@ export default function SuperAdminExecutiveView({ params }) {
     { defaultValue: null, transform: pickRegistrationLink, deps: [registrationSourceId] },
   );
 
-  const handleAddFollowup = async (wn, sid = null) => {
+  const handleAddFollowup = async (weekNumber, sessionId = null) => {
     if (!newFollowup.comment.trim()) return;
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/followups', {
+      const response = await fetch('/api/followups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           program_id: id,
-          week_number: wn,
-          session_id: sid,
+          week_number: weekNumber,
+          session_id: sessionId,
           comment: newFollowup.comment
         })
       });
-      if ((await res.json()).success) {
+      if ((await response.json()).success) {
         setNewFollowup({ week: null, session_id: null, comment: '' });
         reload();
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsSubmitting(false);
     }
@@ -156,35 +156,35 @@ export default function SuperAdminExecutiveView({ params }) {
   const handleKpiAction = async (action, kpiId = null) => {
     setIsSubmitting(true);
     try {
-      let res;
+      let response;
       if (action === 'create') {
-        res = await fetch('/api/kpis', {
+        response = await fetch('/api/kpis', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ program_id: id, ...kpiForm })
         });
       } else if (action === 'update') {
-        res = await fetch('/api/kpis', {
+        response = await fetch('/api/kpis', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: kpiId, ...kpiForm })
         });
       } else if (action === 'delete') {
-        res = await fetch('/api/kpis', {
+        response = await fetch('/api/kpis', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: kpiId })
         });
       }
       
-      if (res && (await res.json()).success) {
+      if (response && (await response.json()).success) {
         setKpiForm({ title: '', target_value: '' });
         setIsEditingKpi(null);
         reload();
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: action === 'create' ? t("adminMisc.programDetail.kpiCreated") : action === 'update' ? t("adminMisc.programDetail.kpiUpdated") : t("adminMisc.programDetail.kpiDeleted") } }));
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsSubmitting(false);
     }
@@ -197,7 +197,7 @@ export default function SuperAdminExecutiveView({ params }) {
   );
 
   const totalWeeks = program.duration_weeks || 13;
-  const weeks = Array.from({ length: totalWeeks }, (_, i) => i + 1);
+  const weeks = Array.from({ length: totalWeeks }, (_, index) => index + 1);
 
   // ── Completion rate: based on program duration (elapsed weeks ÷ total weeks) ──
   // Robust start date: explicit start_date → created_at → first session → first submission.
@@ -374,14 +374,14 @@ export default function SuperAdminExecutiveView({ params }) {
                           type="text"
                           placeholder={t("adminMisc.programDetail.kpiTitlePlaceholder")}
                           value={kpiForm.title}
-                          onChange={e => setKpiForm({...kpiForm, title: e.target.value})}
+                          onChange={event => setKpiForm({...kpiForm, title: event.target.value})}
                           className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#FF6600]/50 transition-all"
                        />
                        <input 
                           type="text"
                           placeholder={t("adminMisc.programDetail.targetPlaceholder")}
                           value={kpiForm.target_value}
-                          onChange={e => setKpiForm({...kpiForm, target_value: e.target.value})}
+                          onChange={event => setKpiForm({...kpiForm, target_value: event.target.value})}
                           className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#FF6600]/50 transition-all"
                        />
                     </div>
@@ -421,9 +421,9 @@ export default function SuperAdminExecutiveView({ params }) {
                        <div className="space-y-4">
                           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-left">{t("adminMisc.programDetail.attachedFiles")}</p>
                           <div className="grid grid-cols-1 gap-3">
-                             {program.knowledge_assets?.map((asset, idx) => (
+                             {program.knowledge_assets?.map((asset, index) => (
                                 <a 
-                                   key={idx} 
+                                   key={index} 
                                    href={asset.url} 
                                    target="_blank" 
                                    rel="noopener noreferrer"
@@ -459,41 +459,41 @@ export default function SuperAdminExecutiveView({ params }) {
            <div className="space-y-8 relative">
               <div className="absolute left-[27px] top-0 bottom-0 w-px bg-white/5" />
               
-              {weeks.map(wn => {
-                 const weekReports = reports.filter(r => r.week_number === wn);
-                 const weekFollowups = followups.filter(f => f.week_number === wn);
-                 const weekSessions = sessions.filter(s => s.week_number === wn);
-                 const weekDocs = requirements.filter(r => r.session_id && weekSessions.map(s => s.id).includes(r.session_id));
+              {weeks.map(weekNumber => {
+                 const weekReports = reports.filter(report => report.week_number === weekNumber);
+                 const weekFollowups = followups.filter(followup => followup.week_number === weekNumber);
+                 const weekSessions = sessions.filter(session => session.week_number === weekNumber);
+                 const weekDocs = requirements.filter(requirement => requirement.session_id && weekSessions.map(session => session.id).includes(requirement.session_id));
 
                  // Week completion = % of unique participants who completed the
                  // week (valid submission OR presence) vs total participants.
-                 const weekSessionIds = weekSessions.map((s) => String(s.id));
-                 const weekDocIds = weekDocs.map((d) => String(d.id));
+                 const weekSessionIds = weekSessions.map((session) => String(session.id));
+                 const weekDocIds = weekDocs.map((doc) => String(doc.id));
                  const weekSubmitters = new Set(
                    submissions
                      .filter(
-                       (s) =>
-                         (weekDocIds.includes(String(s.document_id)) ||
-                          weekDocIds.includes(String(s.deliverable_id))) &&
-                         s.status !== "rejected" &&
-                         s.participant_id != null,
+                       (submission) =>
+                         (weekDocIds.includes(String(submission.document_id)) ||
+                          weekDocIds.includes(String(submission.deliverable_id))) &&
+                         submission.status !== "rejected" &&
+                         submission.participant_id != null,
                      )
-                     .map((s) => String(s.participant_id)),
+                     .map((submission) => String(submission.participant_id)),
                  );
                  const weekPresentCount = attendance.filter(
-                   (a) =>
-                     weekSessionIds.includes(String(a.session_id)) &&
-                     a.status === "present",
+                   (attendanceRecord) =>
+                     weekSessionIds.includes(String(attendanceRecord.session_id)) &&
+                     attendanceRecord.status === "present",
                  ).length;
                  const weekPresentIds = new Set(
                    attendance
                      .filter(
-                       (a) =>
-                         weekSessionIds.includes(String(a.session_id)) &&
-                         a.status === "present" &&
-                         a.participant_id != null,
+                       (attendanceRecord) =>
+                         weekSessionIds.includes(String(attendanceRecord.session_id)) &&
+                         attendanceRecord.status === "present" &&
+                         attendanceRecord.participant_id != null,
                      )
-                     .map((a) => String(a.participant_id)),
+                     .map((attendanceRecord) => String(attendanceRecord.participant_id)),
                  );
                  const weekCompleters = new Set([
                    ...weekSubmitters,
@@ -504,15 +504,15 @@ export default function SuperAdminExecutiveView({ params }) {
                      ? Math.min(100, (weekCompleters.size / participants.length) * 100)
                      : 0;
 
-                 const isCompleted = weekSessions.length > 0 && weekSessions.every(s => s.status === 'completed');
+                 const isCompleted = weekSessions.length > 0 && weekSessions.every(session => session.status === 'completed');
 
                  return (
-                    <div key={`week-${wn}`} className="relative pl-16">
+                    <div key={`week-${weekNumber}`} className="relative pl-16">
                        {/* DOT */}
                        <div className={`absolute left-0 top-0 w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all ${
                           weekReports.length > 0 ? 'bg-[#FF6600] border-[#FF6600] text-black shadow-[0_0_20px_rgba(255,102,0,0.3)]' : 'bg-primary border-[var(--border-primary)] text-[var(--text-secondary)]'
                        }`}>
-                          <span className="text-lg font-black">{wn}</span>
+                          <span className="text-lg font-black">{weekNumber}</span>
                        </div>
 
                        <div className="ios-card bg-secondary border-[var(--border-primary)] !p-10 hover:bg-tertiary transition-all text-left space-y-10">
@@ -520,7 +520,7 @@ export default function SuperAdminExecutiveView({ params }) {
                              <div className="flex-1 space-y-4">
                                 <div className="flex items-center gap-3">
                                    <h4 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-                                      {weekSessions[0]?.title || t("adminMisc.programDetail.weekActivities", { week: wn })}
+                                      {weekSessions[0]?.title || t("adminMisc.programDetail.weekActivities", { week: weekNumber })}
                                    </h4>
                                    {isCompleted && <CheckCircle2 className="w-5 h-5 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]" />}
                                 </div>
@@ -563,17 +563,17 @@ export default function SuperAdminExecutiveView({ params }) {
                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.activities")}</p>
                                 </div>
                                 <div className="space-y-3">
-                                   {weekSessions.map((session, sIdx) => {
-                                      const sessionFollowups = followups.filter(f => f.session_id === session.id);
+                                   {weekSessions.map((session, sessionIndex) => {
+                                      const sessionFollowups = followups.filter(followup => followup.session_id === session.id);
                                       let materials = [];
                                       try {
                                         materials = session.resource_links ? JSON.parse(session.resource_links) : [];
-                                      } catch (e) {
-                                        console.error("Failed to parse resource links:", e);
+                                      } catch (error) {
+                                        console.error("Failed to parse resource links:", error);
                                         materials = [];
                                       }                                      
                                       return (
-                                         <div key={`session-${session.id || sIdx}-${sIdx}`} className="space-y-2">
+                                         <div key={`session-${session.id || sessionIndex}-${sessionIndex}`} className="space-y-2">
                                             <div 
                                                onClick={() => setSelectedSession(selectedSession === session.id ? null : session.id)}
                                                className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-[#FF6600]/30 cursor-pointer transition-all"
@@ -609,9 +609,9 @@ export default function SuperAdminExecutiveView({ params }) {
                                                            <div className="space-y-3">
                                                               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.lessonMaterials")}</p>
                                                               <div className="flex flex-wrap gap-2">
-                                                                 {materials.map((m, mIdx) => (
-                                                                    <a key={`material-${mIdx}`} href={m.url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-black/40 border border-white/10 rounded-xl text-[10px] font-bold text-[#FF6600] uppercase tracking-widest hover:bg-[#FF6600] hover:text-black transition-all">
-                                                                       {m.title || t("adminMisc.programDetail.resourceLink")}
+                                                                 {materials.map((material, materialIndex) => (
+                                                                    <a key={`material-${materialIndex}`} href={material.url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-black/40 border border-white/10 rounded-xl text-[10px] font-bold text-[#FF6600] uppercase tracking-widest hover:bg-[#FF6600] hover:text-black transition-all">
+                                                                       {material.title || t("adminMisc.programDetail.resourceLink")}
                                                                     </a>
                                                                  ))}
                                                               </div>
@@ -623,7 +623,7 @@ export default function SuperAdminExecutiveView({ params }) {
                                                            <div className="flex justify-between items-center">
                                                               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.activityFeedback")}</p>
                                                               <button 
-                                                                 onClick={() => setNewFollowup({ week: wn, session_id: session.id, comment: '' })}
+                                                                 onClick={() => setNewFollowup({ week: weekNumber, session_id: session.id, comment: '' })}
                                                                  className="text-[10px] font-bold text-[#FF6600] uppercase tracking-wide"
                                                               >
                                                                  + {t("adminMisc.programDetail.leaveComment")}
@@ -631,13 +631,13 @@ export default function SuperAdminExecutiveView({ params }) {
                                                            </div>
 
                                                            <div className="space-y-2">
-                                                              {sessionFollowups.map((f, fIdx) => (
-                                                                 <div key={`sf-${f.id || fIdx}-${fIdx}`} className="p-3 rounded-xl bg-[#FF6600]/5 border border-[#FF6600]/10 flex gap-3">
+                                                              {sessionFollowups.map((followup, followupIndex) => (
+                                                                 <div key={`sf-${followup.id || followupIndex}-${followupIndex}`} className="p-3 rounded-xl bg-[#FF6600]/5 border border-[#FF6600]/10 flex gap-3">
                                                                     <div className="w-6 h-6 rounded-lg bg-[#FF6600]/20 flex items-center justify-center text-[#FF6600] shrink-0">
                                                                        <Target className="w-3 h-3" />
                                                                     </div>
                                                                     <div className="flex-1 min-w-0">
-                                                                       <p className="text-[10px] text-white font-bold">{f.comment}</p>
+                                                                       <p className="text-[10px] text-white font-bold">{followup.comment}</p>
                                                                     </div>
                                                                  </div>
                                                               ))}
@@ -647,7 +647,7 @@ export default function SuperAdminExecutiveView({ params }) {
                                                               <div className="space-y-3 mt-4">
                                                                  <textarea 
                                                                     value={newFollowup.comment}
-                                                                    onChange={e => setNewFollowup({...newFollowup, comment: e.target.value})}
+                                                                    onChange={event => setNewFollowup({...newFollowup, comment: event.target.value})}
                                                                     placeholder={t("adminMisc.programDetail.feedbackPlaceholder")}
                                                                     className="w-full bg-black/60 border border-white/10 rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[#FF6600]/50 transition-all resize-none"
                                                                     rows={2}
@@ -656,7 +656,7 @@ export default function SuperAdminExecutiveView({ params }) {
                                                                     <button onClick={() => setNewFollowup({ week: null, session_id: null, comment: '' })} className="px-4 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide">{t("adminMisc.programDetail.cancel")}</button>
                                                                     <button 
                                                                        disabled={isSubmitting || !newFollowup.comment.trim()}
-                                                                       onClick={() => handleAddFollowup(wn, session.id)}
+                                                                       onClick={() => handleAddFollowup(weekNumber, session.id)}
                                                                        className="px-4 py-1.5 bg-[#FF6600] text-black text-sm font-bold uppercase tracking-wide rounded-lg hover:bg-white transition-all"
                                                                     >
                                                                        {isSubmitting ? '...' : t("adminMisc.programDetail.post")}
@@ -683,8 +683,8 @@ export default function SuperAdminExecutiveView({ params }) {
                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.requiredTasks")}</p>
                                 </div>
                                 <div className="space-y-3">
-                                   {weekDocs.map((doc, dIdx) => (
-                                      <div key={`doc-${doc.id || dIdx}-${dIdx}`} className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                                   {weekDocs.map((doc, docIndex) => (
+                                      <div key={`doc-${doc.id || docIndex}-${docIndex}`} className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5">
                                          <div className="flex items-center gap-4">
                                             <CheckCircle2 className={`w-4 h-4 ${doc.is_completed ? 'text-emerald-500' : 'text-slate-800'}`} />
                                             <p className="text-xs font-black text-white uppercase tracking-tighter truncate max-w-[200px]">{doc.title}</p>
@@ -694,7 +694,7 @@ export default function SuperAdminExecutiveView({ params }) {
                                    ))}
                                    {/* Auto-added presence task for weeks with scheduled sessions */}
                                    {weekSessionIds.length > 0 && (
-                                      <div key={`presence-${wn}`} className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                                      <div key={`presence-${weekNumber}`} className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5">
                                          <div className="flex items-center gap-4">
                                             <CheckCircle2 className={`w-4 h-4 ${weekPresentCount > 0 ? 'text-emerald-500' : 'text-slate-800'}`} />
                                             <p className="text-xs font-black text-white uppercase tracking-tighter truncate max-w-[200px]">{t("pmMisc.workspace.attendance")}</p>
@@ -710,8 +710,8 @@ export default function SuperAdminExecutiveView({ params }) {
                           {/* REPORT CONTENT */}
                           {(weekReports.length > 0) && (
                              <div className="mt-10 space-y-6">
-                                {weekReports.map((report, rIdx) => (
-                                   <div key={`report-${report.id || rIdx}`} className="p-8 rounded-3xl bg-white/[0.03] border border-white/5 space-y-6">
+                                {weekReports.map((report, reportIndex) => (
+                                   <div key={`report-${report.id || reportIndex}`} className="p-8 rounded-3xl bg-white/[0.03] border border-white/5 space-y-6">
                                       <div className="flex items-center justify-between">
                                          <div className="flex items-center gap-3">
                                             <MessageSquare className={`w-4 h-4 ${report.report_type === 'pm' ? 'text-[var(--brand-orange)]' : 'text-emerald-500'}`} />
@@ -805,7 +805,7 @@ export default function SuperAdminExecutiveView({ params }) {
                              <div className="flex items-center justify-between">
                                 <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.adminComments")}</h5>
                                 <button 
-                                   onClick={() => setNewFollowup({ week: wn, comment: '' })}
+                                   onClick={() => setNewFollowup({ week: weekNumber, comment: '' })}
                                    className="text-[10px] font-bold text-[#FF6600] uppercase tracking-wide hover:text-white transition-colors"
                                 >
                                    + {t("adminMisc.programDetail.addComment")}
@@ -813,19 +813,19 @@ export default function SuperAdminExecutiveView({ params }) {
                              </div>
 
                              <div className="space-y-4">
-                                {weekFollowups.map((f, wfIdx) => (
-                                   <div key={`wf-${f.id || wfIdx}-${wfIdx}`} className="p-5 rounded-2xl bg-[#FF6600]/5 border border-[#FF6600]/10 flex gap-4">
+                                {weekFollowups.map((followup, followupIndex) => (
+                                   <div key={`wf-${followup.id || followupIndex}-${followupIndex}`} className="p-5 rounded-2xl bg-[#FF6600]/5 border border-[#FF6600]/10 flex gap-4">
                                       <div className="w-8 h-8 rounded-lg bg-[#FF6600]/20 flex items-center justify-center text-[#FF6600] shrink-0">
                                          <Users className="w-4 h-4" />
                                       </div>
                                       <div className="flex-1 min-w-0">
-                                         <p className="text-xs text-white font-bold">{f.comment}</p>
-                                         <p className="text-[10px] font-bold text-[#FF6600]/50 uppercase mt-2">{new Date(f.created_at).toLocaleString()}</p>
+                                         <p className="text-xs text-white font-bold">{followup.comment}</p>
+                                         <p className="text-[10px] font-bold text-[#FF6600]/50 uppercase mt-2">{new Date(followup.created_at).toLocaleString()}</p>
                                       </div>
                                    </div>
                                 ))}
 
-                                {newFollowup.week === wn && (
+                                {newFollowup.week === weekNumber && (
                                    <motion.div 
                                       initial={{ opacity: 0, y: 10 }}
                                       animate={{ opacity: 1, y: 0 }}
@@ -833,7 +833,7 @@ export default function SuperAdminExecutiveView({ params }) {
                                    >
                                       <textarea 
                                          value={newFollowup.comment}
-                                         onChange={e => setNewFollowup({...newFollowup, comment: e.target.value})}
+                                         onChange={event => setNewFollowup({...newFollowup, comment: event.target.value})}
                                          placeholder={t("adminMisc.programDetail.commentPlaceholder")}
                                          className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-sm font-bold text-white outline-none focus:border-[#FF6600]/50 transition-all resize-none"
                                          rows={3}
@@ -847,7 +847,7 @@ export default function SuperAdminExecutiveView({ params }) {
                                          </button>
                                          <button 
                                             disabled={isSubmitting || !newFollowup.comment.trim()}
-                                            onClick={() => handleAddFollowup(wn)}
+                                            onClick={() => handleAddFollowup(weekNumber)}
                                             className="px-6 py-2 bg-[#FF6600] text-black text-sm font-bold uppercase tracking-wide rounded-lg hover:bg-white transition-all disabled:opacity-50"
                                          >
                                             {isSubmitting ? t("adminMisc.programDetail.saving") : t("adminMisc.programDetail.postComment")}

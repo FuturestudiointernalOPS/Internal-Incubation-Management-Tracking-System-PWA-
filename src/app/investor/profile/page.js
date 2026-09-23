@@ -14,8 +14,8 @@ import { useApi } from "@/lib/hooks/useApi";
 
 // ─── Read shaping (module scope: built once, never per render) ───────────
 
-const pickInvestorProfile = (d) =>
-  d?.success ? d.profile || null : null;
+const pickInvestorProfile = (response) =>
+  response?.success ? response.profile || null : null;
 
 // The values the two forms start from. They are a pure shaping of what was
 // stored, so the forms are the stored profile with the person's own edits laid
@@ -34,19 +34,19 @@ const EMPTY_PROFILE_FORM = {
   philosophy: "",
 };
 
-const profileToForm = (p) =>
-  p
+const profileToForm = (storedProfile) =>
+  storedProfile
     ? {
-        orgName: p.organization_name || "",
-        biography: p.biography || "",
-        website: p.website || "",
-        linkedin: p.linkedin || "",
-        industries: p.industries || [],
-        countries: p.countries || [],
-        stages: p.startup_stages || [],
-        ticketMin: p.ticket_size_min || "",
-        ticketMax: p.ticket_size_max || "",
-        philosophy: p.investment_philosophy || "",
+        orgName: storedProfile.organization_name || "",
+        biography: storedProfile.biography || "",
+        website: storedProfile.website || "",
+        linkedin: storedProfile.linkedin || "",
+        industries: storedProfile.industries || [],
+        countries: storedProfile.countries || [],
+        stages: storedProfile.startup_stages || [],
+        ticketMin: storedProfile.ticket_size_min || "",
+        ticketMax: storedProfile.ticket_size_max || "",
+        philosophy: storedProfile.investment_philosophy || "",
       }
     : EMPTY_PROFILE_FORM;
 
@@ -82,13 +82,13 @@ export default function InvestorProfilePage() {
   const baseForm = useMemo(() => profileToForm(profile), [profile]);
   const field = (name) => edits[name] ?? baseForm[name];
   const setField = (name, value) =>
-    setEdits((prev) => ({ ...prev, [name]: value }));
+    setEdits((previousEdits) => ({ ...previousEdits, [name]: value }));
   const toggleField = (name, item) => {
     const current = field(name);
     setField(
       name,
       current.includes(item)
-        ? current.filter((i) => i !== item)
+        ? current.filter((option) => option !== item)
         : [...current, item],
     );
   };
@@ -97,7 +97,7 @@ export default function InvestorProfilePage() {
   const saveProfile = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/investor/profile", {
+      const response = await fetch("/api/investor/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -107,7 +107,7 @@ export default function InvestorProfilePage() {
           linkedin: field("linkedin"),
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setToast({ type: "success", message: t("investorMisc.profile.saved") });
         setProfile(data.profile);
@@ -121,7 +121,7 @@ export default function InvestorProfilePage() {
   const savePreferences = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/investor/preferences", {
+      const response = await fetch("/api/investor/preferences", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -133,7 +133,7 @@ export default function InvestorProfilePage() {
           investment_philosophy: field("philosophy"),
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setToast({ type: "success", message: t("investorMisc.profile.preferencesSaved") });
       } else {
@@ -203,14 +203,14 @@ export default function InvestorProfilePage() {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.profile.organizationName")}</label>
                   <div className="relative mt-1.5">
                     <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
-                    <input value={field("orgName")} onChange={e => setField("orgName", e.target.value)}
+                    <input value={field("orgName")} onChange={event => setField("orgName", event.target.value)}
                       placeholder={t("investorMisc.profile.orgNamePlaceholder")}
                       className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                   </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.profile.biography")}</label>
-                  <textarea value={field("biography")} onChange={e => setField("biography", e.target.value)}
+                  <textarea value={field("biography")} onChange={event => setField("biography", event.target.value)}
                     rows={3} placeholder={t("investorMisc.profile.bioPlaceholder")}
                     className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 resize-none" />
                 </div>
@@ -219,7 +219,7 @@ export default function InvestorProfilePage() {
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.profile.website")}</label>
                     <div className="relative mt-1.5">
                       <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
-                      <input value={field("website")} onChange={e => setField("website", e.target.value)}
+                      <input value={field("website")} onChange={event => setField("website", event.target.value)}
                         placeholder="https://..."
                         className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                     </div>
@@ -228,7 +228,7 @@ export default function InvestorProfilePage() {
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.profile.linkedin")}</label>
                     <div className="relative mt-1.5">
                       <Link className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
-                      <input value={field("linkedin")} onChange={e => setField("linkedin", e.target.value)}
+                      <input value={field("linkedin")} onChange={event => setField("linkedin", event.target.value)}
                         placeholder="linkedin.com/in/..."
                         className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                     </div>
@@ -251,14 +251,14 @@ export default function InvestorProfilePage() {
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.profile.industries")}</label>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {INDUSTRY_OPTIONS.map(ind => (
-                      <button key={ind} onClick={() => toggleField("industries", ind)}
+                    {INDUSTRY_OPTIONS.map(industry => (
+                      <button key={industry} onClick={() => toggleField("industries", industry)}
                         className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
-                          field("industries").includes(ind)
+                          field("industries").includes(industry)
                             ? "bg-[var(--brand-orange)] text-white"
                             : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}>
-                        {ind}
+                        {industry}
                       </button>
                     ))}
                   </div>
@@ -270,14 +270,14 @@ export default function InvestorProfilePage() {
                     <MapPin className="w-3 h-3" /> {t("investorMisc.profile.countries")}
                   </label>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {COUNTRY_OPTIONS.map(c => (
-                      <button key={c} onClick={() => toggleField("countries", c)}
+                    {COUNTRY_OPTIONS.map(country => (
+                      <button key={country} onClick={() => toggleField("countries", country)}
                         className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
-                          field("countries").includes(c)
+                          field("countries").includes(country)
                             ? "bg-[var(--brand-orange)] text-white"
                             : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}>
-                        {c}
+                        {country}
                       </button>
                     ))}
                   </div>
@@ -289,14 +289,14 @@ export default function InvestorProfilePage() {
                     <TrendingUp className="w-3 h-3" /> {t("investorMisc.profile.startupStages")}
                   </label>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {STAGE_OPTIONS.map(s => (
-                      <button key={s} onClick={() => toggleField("stages", s)}
+                    {STAGE_OPTIONS.map(stage => (
+                      <button key={stage} onClick={() => toggleField("stages", stage)}
                         className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
-                          field("stages").includes(s)
+                          field("stages").includes(stage)
                             ? "bg-[var(--brand-orange)] text-white"
                             : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}>
-                        {s}
+                        {stage}
                       </button>
                     ))}
                   </div>
@@ -308,10 +308,10 @@ export default function InvestorProfilePage() {
                     <DollarSign className="w-3 h-3" /> {t("investorMisc.profile.ticketSize")}
                   </label>
                   <div className="grid grid-cols-2 gap-3 mt-2">
-                    <input value={field("ticketMin")} onChange={e => setField("ticketMin", e.target.value)}
+                    <input value={field("ticketMin")} onChange={event => setField("ticketMin", event.target.value)}
                       type="number" placeholder={t("investorMisc.profile.min")}
                       className="px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
-                    <input value={field("ticketMax")} onChange={e => setField("ticketMax", e.target.value)}
+                    <input value={field("ticketMax")} onChange={event => setField("ticketMax", event.target.value)}
                       type="number" placeholder={t("investorMisc.profile.max")}
                       className="px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                   </div>
@@ -320,7 +320,7 @@ export default function InvestorProfilePage() {
                 {/* Philosophy */}
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.profile.investmentPhilosophy")}</label>
-                  <textarea value={field("philosophy")} onChange={e => setField("philosophy", e.target.value)}
+                  <textarea value={field("philosophy")} onChange={event => setField("philosophy", event.target.value)}
                     rows={2} placeholder={t("investorMisc.profile.philosophyPlaceholder")}
                     className="w-full mt-2 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 resize-none" />
                 </div>

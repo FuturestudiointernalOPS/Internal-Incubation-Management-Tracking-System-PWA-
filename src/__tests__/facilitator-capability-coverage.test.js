@@ -78,18 +78,18 @@ function capabilityArgsInRoutes() {
   const found = new Set();
   (function walk(dir) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) walk(full);
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(fullPath);
       else if (entry.name === "route.js") {
-        const src = fs.readFileSync(full, "utf8");
-        for (const m of src.matchAll(/capability:\s*"([a-z_.]+)"/g)) found.add(m[1]);
+        const src = fs.readFileSync(fullPath, "utf8");
+        for (const match of src.matchAll(/capability:\s*"([a-z_.]+)"/g)) found.add(match[1]);
       }
     }
   })(API_ROOT);
   return found;
 }
 
-const sorted = (arr) => [...arr].sort();
+const sorted = (values) => [...values].sort();
 
 describe("facilitator vocabulary — one list, three declarations", () => {
   test("FACILITATOR_CAPABILITY_KEYS matches PERMISSION_MODULES.facilitator", () => {
@@ -121,10 +121,10 @@ describe("facilitator capability enforcement census", () => {
 
   test("the unenforced remainder is exactly the documented list", () => {
     const used = capabilityArgsInRoutes();
-    const actuallyEnforced = FACILITATOR_CAPABILITY_KEYS.filter((k) => used.has(k));
+    const actuallyEnforced = FACILITATOR_CAPABILITY_KEYS.filter((key) => used.has(key));
     expect(sorted(actuallyEnforced)).toEqual(sorted(Object.keys(ENFORCED)));
 
-    const notEnforced = FACILITATOR_CAPABILITY_KEYS.filter((k) => !used.has(k));
+    const notEnforced = FACILITATOR_CAPABILITY_KEYS.filter((key) => !used.has(key));
     expect(sorted(notEnforced)).toEqual(sorted(ASSIGNMENT_ONLY));
   });
 });
@@ -133,10 +133,10 @@ describe("buildFullFacilitatorPermissions covers the whole vocabulary", () => {
   const { buildFullFacilitatorPermissions } = require("@/lib/facilitator-permissions");
 
   test("every declared key is granted by the full-access default", () => {
-    const full = buildFullFacilitatorPermissions();
+    const permissions = buildFullFacilitatorPermissions();
     for (const key of FACILITATOR_CAPABILITY_KEYS) {
-      expect(typeof full[key]).toBe("number");
-      expect(full[key]).toBeGreaterThan(0);
+      expect(typeof permissions[key]).toBe("number");
+      expect(permissions[key]).toBeGreaterThan(0);
     }
   });
 });

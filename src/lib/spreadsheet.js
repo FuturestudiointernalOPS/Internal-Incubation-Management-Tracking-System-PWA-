@@ -62,8 +62,8 @@ export function isBlankRow(row) {
 export function gridWidth(grid) {
   let width = 0;
   for (const row of grid || []) {
-    const len = Array.isArray(row) ? row.length : 0;
-    if (len > width) width = len;
+    const rowLength = Array.isArray(row) ? row.length : 0;
+    if (rowLength > width) width = rowLength;
   }
   return width;
 }

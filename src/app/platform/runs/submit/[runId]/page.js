@@ -21,8 +21,8 @@ const EMPTY_OBJECT = {};
 const EMPTY_LIST = [];
 
 /** The run and the person's own submission, whole: both are read from one body. */
-const pickRunPayload = (d) => (d?.success ? d : null);
-const pickFormPayload = (d) => (d?.success ? d : null);
+const pickRunPayload = (response) => (response?.success ? response : null);
+const pickFormPayload = (response) => (response?.success ? response : null);
 
 export default function SubmitFormPage() {
   const params = useParams();
@@ -83,7 +83,7 @@ export default function SubmitFormPage() {
   // would be shut until an effect opened it.
   const [closedSections, setClosedSections] = useState(EMPTY_OBJECT);
 
-  const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
+  const notify = (message) => { setNotification(message); setTimeout(() => setNotification(null), 3000); };
 
   // The read's outcome, derived. A payload that says it failed carries its own
   // message, and a request that never got an answer is the network's.
@@ -103,41 +103,41 @@ export default function SubmitFormPage() {
   const loading = runLoading || formLoading || formPending;
 
   const updateField = (fieldId, value) => {
-    setAnswerEdits((prev) => ({ ...prev, [fieldId]: value }));
+    setAnswerEdits((previousEdits) => ({ ...previousEdits, [fieldId]: value }));
     // Clear error for this field
-    setErrors((prev) => {
-      const next = { ...prev };
-      delete next[fieldId];
-      return next;
+    setErrors((previousErrors) => {
+      const nextErrors = { ...previousErrors };
+      delete nextErrors[fieldId];
+      return nextErrors;
     });
   };
 
   const validate = () => {
     const newErrors = {};
-    fields.forEach((f) => {
-      if (f.required && (!answers[f.id] || (typeof answers[f.id] === "string" && !answers[f.id].trim()))) {
-        newErrors[f.id] = t("platformMisc.runSubmitDetail.fieldRequired", { label: f.label });
+    fields.forEach((field) => {
+      if (field.required && (!answers[field.id] || (typeof answers[field.id] === "string" && !answers[field.id].trim()))) {
+        newErrors[field.id] = t("platformMisc.runSubmitDetail.fieldRequired", { label: field.label });
       }
       // Validate based on field type and validation rules
-      if (answers[f.id] && f.validation) {
-        const v = f.validation;
-        if (f.field_type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(answers[f.id])) {
-          newErrors[f.id] = t("platformMisc.runSubmitDetail.invalidEmail");
+      if (answers[field.id] && field.validation) {
+        const validation = field.validation;
+        if (field.field_type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(answers[field.id])) {
+          newErrors[field.id] = t("platformMisc.runSubmitDetail.invalidEmail");
         }
-        if (v.minLength && String(answers[f.id]).length < v.minLength) {
-          newErrors[f.id] = t("platformMisc.runSubmitDetail.minLength", { count: v.minLength });
+        if (validation.minLength && String(answers[field.id]).length < validation.minLength) {
+          newErrors[field.id] = t("platformMisc.runSubmitDetail.minLength", { count: validation.minLength });
         }
-        if (v.maxLength && String(answers[f.id]).length > v.maxLength) {
-          newErrors[f.id] = t("platformMisc.runSubmitDetail.maxLength", { count: v.maxLength });
+        if (validation.maxLength && String(answers[field.id]).length > validation.maxLength) {
+          newErrors[field.id] = t("platformMisc.runSubmitDetail.maxLength", { count: validation.maxLength });
         }
-        if (v.min !== undefined && Number(answers[f.id]) < v.min) {
-          newErrors[f.id] = t("platformMisc.runSubmitDetail.minValue", { value: v.min });
+        if (validation.min !== undefined && Number(answers[field.id]) < validation.min) {
+          newErrors[field.id] = t("platformMisc.runSubmitDetail.minValue", { value: validation.min });
         }
-        if (v.max !== undefined && Number(answers[f.id]) > v.max) {
-          newErrors[f.id] = t("platformMisc.runSubmitDetail.maxValue", { value: v.max });
+        if (validation.max !== undefined && Number(answers[field.id]) > validation.max) {
+          newErrors[field.id] = t("platformMisc.runSubmitDetail.maxValue", { value: validation.max });
         }
-        if (v.pattern && !new RegExp(v.pattern).test(answers[f.id])) {
-          newErrors[f.id] = v.message || t("platformMisc.runSubmitDetail.invalidFormat");
+        if (validation.pattern && !new RegExp(validation.pattern).test(answers[field.id])) {
+          newErrors[field.id] = validation.message || t("platformMisc.runSubmitDetail.invalidFormat");
         }
       }
     });
@@ -148,12 +148,12 @@ export default function SubmitFormPage() {
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/platform/form-runs?action=submit", {
+      const response = await fetch("/api/platform/form-runs?action=submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ run_id: parseInt(runId), data: answers, status: "draft" }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setSavedSubmission(data.submission);
         notify(t("platformMisc.runSubmitDetail.draftSaved"));
@@ -168,12 +168,12 @@ export default function SubmitFormPage() {
     if (!validate()) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/platform/form-runs?action=submit", {
+      const response = await fetch("/api/platform/form-runs?action=submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ run_id: parseInt(runId), data: answers, status: "submitted" }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setSavedSubmission(data.submission);
         setSuccess(true);
@@ -206,7 +206,7 @@ export default function SubmitFormPage() {
         return (
           <textarea
             value={value}
-            onChange={(e) => updateField(field.id, e.target.value)}
+            onChange={(event) => updateField(field.id, event.target.value)}
             rows={4}
             placeholder={field.placeholder || ""}
             disabled={isDisabled}
@@ -220,7 +220,7 @@ export default function SubmitFormPage() {
           <input
             type="number"
             value={value}
-            onChange={(e) => updateField(field.id, e.target.value)}
+            onChange={(event) => updateField(field.id, event.target.value)}
             placeholder={field.placeholder || ""}
             disabled={isDisabled}
             className={inputClass}
@@ -234,7 +234,7 @@ export default function SubmitFormPage() {
           <input
             type="email"
             value={value}
-            onChange={(e) => updateField(field.id, e.target.value)}
+            onChange={(event) => updateField(field.id, event.target.value)}
             placeholder={field.placeholder || t("platformMisc.runSubmitDetail.emailExample")}
             disabled={isDisabled}
             className={inputClass}
@@ -245,7 +245,7 @@ export default function SubmitFormPage() {
         return (
           <AppPhoneInput
             value={value}
-            onChange={(next) => updateField(field.id, next)}
+            onChange={(nextValue) => updateField(field.id, nextValue)}
             placeholder={field.placeholder || t("platformMisc.runSubmitDetail.phoneExample")}
             disabled={isDisabled}
             inputClassName={inputClass + " flex-1"}
@@ -257,7 +257,7 @@ export default function SubmitFormPage() {
           <input
             type="date"
             value={value}
-            onChange={(e) => updateField(field.id, e.target.value)}
+            onChange={(event) => updateField(field.id, event.target.value)}
             disabled={isDisabled}
             className={inputClass}
           />
@@ -268,7 +268,7 @@ export default function SubmitFormPage() {
           <input
             type="time"
             value={value}
-            onChange={(e) => updateField(field.id, e.target.value)}
+            onChange={(event) => updateField(field.id, event.target.value)}
             disabled={isDisabled}
             className={inputClass}
           />
@@ -279,7 +279,7 @@ export default function SubmitFormPage() {
           <input
             type="url"
             value={value}
-            onChange={(e) => updateField(field.id, e.target.value)}
+            onChange={(event) => updateField(field.id, event.target.value)}
             placeholder={field.placeholder || "https://"}
             disabled={isDisabled}
             className={inputClass}
@@ -291,13 +291,13 @@ export default function SubmitFormPage() {
         return (
           <select
             value={value}
-            onChange={(e) => updateField(field.id, e.target.value)}
+            onChange={(event) => updateField(field.id, event.target.value)}
             disabled={isDisabled}
             className={inputClass}
           >
             <option value="">{field.placeholder || t("platformMisc.runSubmitDetail.select")}</option>
-            {options.map((opt, i) => (
-              <option key={i} value={opt.value || opt}>{opt.label || opt}</option>
+            {options.map((option, index) => (
+              <option key={index} value={option.value || option}>{option.label || option}</option>
             ))}
           </select>
         );
@@ -307,18 +307,18 @@ export default function SubmitFormPage() {
         const options = field.options || [];
         return (
           <div className="space-y-2">
-            {options.map((opt, i) => (
-              <label key={i} className={cn("flex items-center gap-2 text-[11px] font-bold text-[var(--text-primary)]", isDisabled && "opacity-60")}>
+            {options.map((option, index) => (
+              <label key={index} className={cn("flex items-center gap-2 text-[11px] font-bold text-[var(--text-primary)]", isDisabled && "opacity-60")}>
                 <input
                   type="radio"
                   name={`field-${field.id}`}
-                  value={opt.value || opt}
-                  checked={String(value) === String(opt.value || opt)}
-                  onChange={(e) => updateField(field.id, e.target.value)}
+                  value={option.value || option}
+                  checked={String(value) === String(option.value || option)}
+                  onChange={(event) => updateField(field.id, event.target.value)}
                   disabled={isDisabled}
                   className="accent-[var(--brand-orange)]"
                 />
-                {opt.label || opt}
+                {option.label || option}
               </label>
             ))}
           </div>
@@ -332,7 +332,7 @@ export default function SubmitFormPage() {
             <input
               type="checkbox"
               checked={checked}
-              onChange={(e) => updateField(field.id, e.target.checked)}
+              onChange={(event) => updateField(field.id, event.target.checked)}
               disabled={isDisabled}
               className="accent-[var(--brand-orange)]"
             />
@@ -346,24 +346,24 @@ export default function SubmitFormPage() {
         const selected = Array.isArray(value) ? value : [];
         return (
           <div className="space-y-2">
-            {options.map((opt, i) => {
-              const optValue = opt.value || opt;
-              const isChecked = selected.includes(optValue);
+            {options.map((option, index) => {
+              const optionValue = option.value || option;
+              const isChecked = selected.includes(optionValue);
               return (
-                <label key={i} className={cn("flex items-center gap-2 text-[11px] font-bold text-[var(--text-primary)]", isDisabled && "opacity-60")}>
+                <label key={index} className={cn("flex items-center gap-2 text-[11px] font-bold text-[var(--text-primary)]", isDisabled && "opacity-60")}>
                   <input
                     type="checkbox"
                     checked={isChecked}
-                    onChange={(e) => {
-                      const next = e.target.checked
-                        ? [...selected, optValue]
-                        : selected.filter((v) => v !== optValue);
-                      updateField(field.id, next);
+                    onChange={(event) => {
+                      const nextValue = event.target.checked
+                        ? [...selected, optionValue]
+                        : selected.filter((selectedValue) => selectedValue !== optionValue);
+                      updateField(field.id, nextValue);
                     }}
                     disabled={isDisabled}
                     className="accent-[var(--brand-orange)]"
                   />
-                  {opt.label || opt}
+                  {option.label || option}
                 </label>
               );
             })}
@@ -376,14 +376,14 @@ export default function SubmitFormPage() {
         const current = parseInt(value) || 0;
         return (
           <div className={cn("flex items-center gap-1", isDisabled && "opacity-60")}>
-            {Array.from({ length: max }, (_, i) => (
+            {Array.from({ length: max }, (_, starIndex) => (
               <button
-                key={i}
+                key={starIndex}
                 type="button"
-                onClick={() => !isDisabled && updateField(field.id, String(i + 1))}
-                className={cn("transition-colors", i < current ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]")}
+                onClick={() => !isDisabled && updateField(field.id, String(starIndex + 1))}
+                className={cn("transition-colors", starIndex < current ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]")}
               >
-                <Star className={cn("w-5 h-5", i < current ? "fill-current" : "")} />
+                <Star className={cn("w-5 h-5", starIndex < current ? "fill-current" : "")} />
               </button>
             ))}
           </div>
@@ -395,7 +395,7 @@ export default function SubmitFormPage() {
           <div className={cn("p-3 rounded-xl border border-dashed border-[var(--border-primary)] text-center", isDisabled && "opacity-60")}>
             <input
               type="file"
-              onChange={(e) => updateField(field.id, e.target.files?.[0]?.name || "")}
+              onChange={(event) => updateField(field.id, event.target.files?.[0]?.name || "")}
               disabled={isDisabled}
               className="text-[10px] text-[var(--text-secondary)]"
             />
@@ -411,7 +411,7 @@ export default function SubmitFormPage() {
           <input
             type="text"
             value={value}
-            onChange={(e) => updateField(field.id, e.target.value)}
+            onChange={(event) => updateField(field.id, event.target.value)}
             placeholder={field.placeholder || ""}
             disabled={isDisabled}
             className={inputClass}
@@ -554,7 +554,7 @@ export default function SubmitFormPage() {
         {/* Form fields by section */}
         {sections.length > 0 ? (
           sections.map((section) => {
-            const sectionFields = fields.filter((f) => f.section_id === section.id);
+            const sectionFields = fields.filter((field) => field.section_id === section.id);
             if (sectionFields.length === 0) return null;
             const isExpanded = !closedSections[section.id];
 
@@ -562,7 +562,7 @@ export default function SubmitFormPage() {
               <div key={section.id} className="rounded-2xl bg-secondary border border-[var(--border-primary)] overflow-hidden">
                 <button
                   type="button"
-                  onClick={() => setClosedSections((prev) => ({ ...prev, [section.id]: isExpanded }))}
+                  onClick={() => setClosedSections((previousClosed) => ({ ...previousClosed, [section.id]: isExpanded }))}
                   className="w-full flex items-center justify-between px-5 py-4 hover:bg-tertiary/50 transition-colors"
                 >
                   <div className="text-left">

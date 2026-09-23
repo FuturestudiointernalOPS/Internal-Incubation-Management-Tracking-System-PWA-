@@ -71,14 +71,14 @@ export async function generateFramework(documentText) {
     if (!Array.isArray(parsed.dimensions) || parsed.dimensions.length === 0) return null;
 
     // Normalize weights to sum to 100
-    const totalWeight = parsed.dimensions.reduce((s, d) => s + (d.weight || 0), 0);
+    const totalWeight = parsed.dimensions.reduce((sum, dimension) => sum + (dimension.weight || 0), 0);
     if (totalWeight > 0 && totalWeight !== 100) {
-      parsed.dimensions = parsed.dimensions.map((d) => ({
-        ...d,
-        weight: Math.round(((d.weight || 0) / totalWeight) * 100),
+      parsed.dimensions = parsed.dimensions.map((dimension) => ({
+        ...dimension,
+        weight: Math.round(((dimension.weight || 0) / totalWeight) * 100),
       }));
       // Fix rounding: adjust last dimension
-      const newTotal = parsed.dimensions.reduce((s, d) => s + d.weight, 0);
+      const newTotal = parsed.dimensions.reduce((sum, dimension) => sum + dimension.weight, 0);
       if (newTotal !== 100 && parsed.dimensions.length > 0) {
         parsed.dimensions[parsed.dimensions.length - 1].weight += (100 - newTotal);
       }
@@ -100,8 +100,8 @@ export async function generateFramework(documentText) {
     }
 
     return parsed;
-  } catch (e) {
-    console.error("[AI Framework] Generation failed:", e.message);
+  } catch (error) {
+    console.error("[AI Framework] Generation failed:", error.message);
     return null;
   }
 }

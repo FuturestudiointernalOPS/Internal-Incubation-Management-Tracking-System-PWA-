@@ -48,9 +48,9 @@ export const dynamic = "force-dynamic";
 
 function parseExpiresAt(raw) {
   if (raw === null || raw === undefined || raw === "") return null;
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return null; // invalid → caller decides
-  return d;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return null; // invalid → caller decides
+  return date;
 }
 
 export async function GET(req) {
@@ -81,24 +81,24 @@ export async function GET(req) {
 
     let events = [];
     if (withHistory) {
-      const evWhere = [];
-      const evArgs = [];
+      const eventWhere = [];
+      const eventArgs = [];
       if (group) {
-        evWhere.push("ev.group_name = ?");
-        evArgs.push(normalizeGroupName(group));
+        eventWhere.push("ev.group_name = ?");
+        eventArgs.push(normalizeGroupName(group));
       }
       if (userCid) {
-        evWhere.push("ev.user_cid = ?");
-        evArgs.push(userCid);
+        eventWhere.push("ev.user_cid = ?");
+        eventArgs.push(userCid);
       }
-      const evWhereSql = evWhere.length ? `WHERE ${evWhere.join(" AND ")}` : "";
-      events = (await listMembershipEvents(evWhereSql, evArgs)).rows;
+      const eventWhereSql = eventWhere.length ? `WHERE ${eventWhere.join(" AND ")}` : "";
+      events = (await listMembershipEvents(eventWhereSql, eventArgs)).rows;
     }
 
     const protectedGroups = {};
-    for (const m of memberships) {
-      if (protectedGroups[m.group_name] === undefined) {
-        protectedGroups[m.group_name] = await isGroupProtected(m.group_name);
+    for (const membership of memberships) {
+      if (protectedGroups[membership.group_name] === undefined) {
+        protectedGroups[membership.group_name] = await isGroupProtected(membership.group_name);
       }
     }
 
@@ -108,8 +108,8 @@ export async function GET(req) {
       events,
       protected: protectedGroups,
     });
-  } catch (e) {
-    console.error("[org-membership] GET error:", e.message);
+  } catch (error) {
+    console.error("[org-membership] GET error:", error.message);
     return NextResponse.json(
       { success: false, error: "errors.somethingWrong" },
       { status: 500 },
@@ -215,8 +215,8 @@ export async function PUT(req) {
 
     const updated = await getMembership(userCid, groupName);
     return NextResponse.json({ success: true, membership: updated });
-  } catch (e) {
-    console.error("[org-membership] PUT error:", e.message);
+  } catch (error) {
+    console.error("[org-membership] PUT error:", error.message);
     return NextResponse.json(
       { success: false, error: "errors.somethingWrong" },
       { status: 500 },

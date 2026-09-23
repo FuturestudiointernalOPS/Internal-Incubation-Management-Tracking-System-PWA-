@@ -15,9 +15,9 @@ export default function CourseFormFields({ value, onChange, errors = {} }) {
   const { t } = useI18n();
   const isFree = value.is_free !== false;
 
-  const set = (field) => (e) => onChange({ ...value, [field]: e.target.value });
-  const setFree = (e) =>
-    onChange({ ...value, is_free: e.target.value === "free", price: e.target.value === "free" ? null : value.price });
+  const set = (field) => (event) => onChange({ ...value, [field]: event.target.value });
+  const setFree = (event) =>
+    onChange({ ...value, is_free: event.target.value === "free", price: event.target.value === "free" ? null : value.price });
 
   return (
     <div className="space-y-5">

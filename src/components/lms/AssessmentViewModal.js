@@ -6,7 +6,7 @@ import AppButton from "@/components/ui/AppButton";
 import RichTextContent from "@/components/ui/RichTextContent";
 import { useI18n } from "@/lib/i18n";
 
-const letter = (i) => String.fromCharCode(65 + i);
+const letter = (index) => String.fromCharCode(65 + index);
 
 /**
  * Read-only view of one assessment (opened by clicking an assessment in the
@@ -64,13 +64,13 @@ export default function AssessmentViewModal({ isOpen, onClose, onEdit, assessmen
             </p>
           ) : (
             <div className="space-y-3">
-              {questions.map((q, index) => {
-                const isMc = q.question_type !== "true_false";
-                const options = Array.isArray(q.options) ? q.options : [];
-                const correct = (q.correct_answer || []).map(String);
+              {questions.map((question, index) => {
+                const isMc = question.question_type !== "true_false";
+                const options = Array.isArray(question.options) ? question.options : [];
+                const correct = (question.correct_answer || []).map(String);
                 return (
                   <div
-                    key={q.id}
+                    key={question.id}
                     className="rounded-lg border p-3"
                     style={{ background: "var(--surface-2)", borderColor: "var(--border-primary)" }}
                   >
@@ -78,10 +78,10 @@ export default function AssessmentViewModal({ isOpen, onClose, onEdit, assessmen
                       <HelpCircle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--text-tertiary)" }} />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>
-                          {index + 1}. {q.question}
+                          {index + 1}. {question.question}
                         </p>
                         <p className="text-[9px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-tertiary)" }}>
-                          {q.question_type === "true_false" ? t("lms.questions.typeTf") : t("lms.questions.typeMc")} · {q.points || 1}{" "}
+                          {question.question_type === "true_false" ? t("lms.questions.typeTf") : t("lms.questions.typeMc")} · {question.points || 1}{" "}
                           {t("lms.questions.points")}
                         </p>
                       </div>
@@ -89,16 +89,16 @@ export default function AssessmentViewModal({ isOpen, onClose, onEdit, assessmen
 
                     <div className="mt-2 space-y-1">
                       {isMc ? (
-                        options.map((o, oi) => {
+                        options.map((option, optionIndex) => {
                           const isCorrect =
-                            correct.includes(String(o.key)) || correct.includes(letter(oi));
+                            correct.includes(String(option.key)) || correct.includes(letter(optionIndex));
                           return (
                             <p
-                              key={oi}
+                              key={optionIndex}
                               className={`text-[11px] font-bold ${isCorrect ? "text-emerald-500" : ""}`}
                               style={isCorrect ? undefined : { color: "var(--text-secondary)" }}
                             >
-                              {letter(oi)}. {o.text}
+                              {letter(optionIndex)}. {option.text}
                               {isCorrect ? " ✓" : ""}
                             </p>
                           );

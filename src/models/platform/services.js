@@ -64,12 +64,12 @@ export const SERVICE_DEFINITIONS = {
  * List all available services with their metadata.
  */
 export function listServices() {
-  return Object.entries(SERVICE_DEFINITIONS).map(([key, def]) => ({
+  return Object.entries(SERVICE_DEFINITIONS).map(([key, definition]) => ({
     id: key,
-    ...def,
+    ...definition,
     // Non-optional services are always ready. Optional ones need env vars —
     // shown as "Ready" when non-optional, "Pending" when optional (client can't check env).
-    loaded: !def.optional,
+    loaded: !definition.optional,
   }));
 }
 

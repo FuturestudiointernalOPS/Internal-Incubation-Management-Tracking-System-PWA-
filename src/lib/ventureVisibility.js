@@ -71,7 +71,7 @@ export function projectMilestoneForVenture(milestone, { unsealed = false } = {})
 
 /** Project a flat milestone list (the `/milestones` read). */
 export function projectMilestonesForVenture(milestones, { unsealed = false } = {}) {
-  return (milestones || []).map((m) => projectMilestoneForVenture(m, { unsealed }));
+  return (milestones || []).map((milestone) => projectMilestoneForVenture(milestone, { unsealed }));
 }
 
 /**
@@ -88,7 +88,7 @@ export function projectJourneyStageForVenture(stage, { unsealed = false } = {}) 
     milestones: projectMilestonesForVenture(all, { unsealed }),
     milestone_counts: {
       total: all.length,
-      completed: all.filter((m) => m.status === "completed").length,
+      completed: all.filter((milestone) => milestone.status === "completed").length,
     },
     sealed: !unsealed && stage.status === "locked",
   };
@@ -100,5 +100,5 @@ export function projectJourneyStageForVenture(stage, { unsealed = false } = {}) 
 
 /** Project a full journey read (the `/journey` stages array). */
 export function projectJourneyStagesForVenture(stages, { unsealed = false } = {}) {
-  return (stages || []).map((s) => projectJourneyStageForVenture(s, { unsealed }));
+  return (stages || []).map((stage) => projectJourneyStageForVenture(stage, { unsealed }));
 }

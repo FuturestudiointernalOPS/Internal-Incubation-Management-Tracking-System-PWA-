@@ -13,6 +13,8 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
+import { useDialogs } from "@/components/ui/DialogProvider";
+import { findUnknownTemplateVariables, TEMPLATE_VARIABLES } from "@/lib/constants";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -21,8 +23,8 @@ import { usePermissions } from "@/lib/PermissionProvider";
 const FORMS_URL = "/api/platform/forms";
 const COLLECTIONS_URL = "/api/platform/collections";
 
-const pickForms = (d) => (d?.success ? d.forms || [] : []);
-const pickCollections = (d) => (d?.success ? d.collections || [] : []);
+const pickForms = (response) => (response?.success ? response.forms || [] : []);
+const pickCollections = (response) => (response?.success ? response.collections || [] : []);
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +104,7 @@ export default function PlatformForms() {
   const router = useRouter();
   const { t } = useI18n();
   const { can } = usePermissions();
+  const { confirm } = useDialogs();
   const canCreate = can("forms", "create");
   const canEdit = can("forms", "edit");
   const [search, setSearch] = useState("");
@@ -180,7 +183,7 @@ export default function PlatformForms() {
     success_message: "",
   };
 
-  const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
+  const notify = (message) => { setNotification(message); setTimeout(() => setNotification(null), 3000); };
 
   const genTempId = () => `tmp-${now}-${++tempIdSeq.current}`;
 
@@ -210,18 +213,18 @@ export default function PlatformForms() {
     setTemplateConfig(formSettings.automation?.templates || null);
 
     try {
-      const res = await fetch(`/api/platform/forms?id=${form.id}`);
-      const data = await res.json();
+      const response = await fetch(`/api/platform/forms?id=${form.id}`);
+      const data = await response.json();
       if (data.success) {
-        const loadedSections = (data.sections || []).map(s => ({ ...s, id: String(s.id) }));
-        const loadedFields = (data.fields || []).map(f => ({ ...f, _tmpId: genTempId(), section_id: f.section_id ? String(f.section_id) : null }));
+        const loadedSections = (data.sections || []).map(section => ({ ...section, id: String(section.id) }));
+        const loadedFields = (data.fields || []).map(field => ({ ...field, _tmpId: genTempId(), section_id: field.section_id ? String(field.section_id) : null }));
         
         // Auto-create default section if none exist
         if (loadedSections.length === 0) {
           const defaultSection = { id: genTempId(), title: "Section 1", description: "", sort_order: 0 };
           loadedSections.push(defaultSection);
           // Assign any loaded fields to this section
-          loadedFields.forEach(f => { if (!f.section_id) f.section_id = defaultSection.id; });
+          loadedFields.forEach(field => { if (!field.section_id) field.section_id = defaultSection.id; });
         }
         
         setSections(loadedSections);
@@ -232,9 +235,9 @@ export default function PlatformForms() {
 
     // Load AI evaluation framework if exists
     try {
-      const fwRes = await fetch(`/api/platform/ai/evaluation-config?form_id=${form.id}`);
-      const fwData = await fwRes.json();
-      if (fwData.success && fwData.framework) setAiEvalFramework(fwData.framework);
+      const frameworkResponse = await fetch(`/api/platform/ai/evaluation-config?form_id=${form.id}`);
+      const frameworkData = await frameworkResponse.json();
+      if (frameworkData.success && frameworkData.framework) setAiEvalFramework(frameworkData.framework);
       else setAiEvalFramework(null);
     } catch (_) {}
   };
@@ -243,15 +246,15 @@ export default function PlatformForms() {
     if (!createForm.name.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/platform/forms", {
+      const response = await fetch("/api/platform/forms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...createForm,
-          tags: createForm.tags ? createForm.tags.split(",").map((t) => t.trim()) : [],
+          tags: createForm.tags ? createForm.tags.split(",").map((tag) => tag.trim()) : [],
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("platformMisc.forms.notifyFormCreated"));
         setShowCreate(false);
@@ -273,24 +276,24 @@ export default function PlatformForms() {
     setSaving(false);
   };
 
-  const handlePublish = async (opts) => {
+  const handlePublish = async (options) => {
     if (!editingForm) return;
-    const skipSave = opts?.skipSave;
+    const skipSave = options?.skipSave;
     if (!skipSave) setSaving(true);
     try {
-      let fwData = null;
+      let framework = null;
       try {
-        const fwRes = await fetch(`/api/platform/ai/evaluation-config?form_id=${editingForm.id}`);
-        const fwJson = await fwRes.json();
-        if (fwJson.success && fwJson.framework) fwData = fwJson.framework;
+        const frameworkResponse = await fetch(`/api/platform/ai/evaluation-config?form_id=${editingForm.id}`);
+        const frameworkData = await frameworkResponse.json();
+        if (frameworkData.success && frameworkData.framework) framework = frameworkData.framework;
       } catch {}
 
-      const res = await fetch("/api/platform/forms", {
+      const response = await fetch("/api/platform/forms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "publish", id: editingForm.id, fields, sections, evaluation_framework: fwData }),
+        body: JSON.stringify({ action: "publish", id: editingForm.id, fields, sections, evaluation_framework: framework }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("platformMisc.forms.notifyPublishedVersion", { version: data.version }));
         setEditingForm((prev) => ({ ...prev, status: "published", version: data.version }));
@@ -302,36 +305,36 @@ export default function PlatformForms() {
 
   const addSection = async () => {
     const tempId = genTempId();
-    setSections((prev) => {
-      const next = [
-        ...prev,
-        { id: tempId, title: "New Section", description: "", sort_order: prev.length },
+    setSections((previousSections) => {
+      const nextSections = [
+        ...previousSections,
+        { id: tempId, title: "New Section", description: "", sort_order: previousSections.length },
       ];
       setActiveSectionId(tempId); // New section becomes active
-      return next;
+      return nextSections;
     });
   };
 
-  const updateSection = (idx, updates) => {
-    setSections((prev) => prev.map((s, i) => (i === idx ? { ...s, ...updates } : s)));
+  const updateSection = (sectionIndex, updates) => {
+    setSections((previousSections) => previousSections.map((section, index) => (index === sectionIndex ? { ...section, ...updates } : section)));
   };
 
-  const removeSection = (idx) => {
-    const removedSection = sections[idx];
-    setSections((prev) => prev.filter((_, i) => i !== idx));
+  const removeSection = (sectionIndex) => {
+    const removedSection = sections[sectionIndex];
+    setSections((previousSections) => previousSections.filter((_, index) => index !== sectionIndex));
     // Orphan fields that belonged to this section
     if (removedSection?.id) {
-      setFields((prev) => prev.map((f) =>
-        f.section_id === removedSection.id ? { ...f, section_id: null } : f
+      setFields((previousFields) => previousFields.map((field) =>
+        field.section_id === removedSection.id ? { ...field, section_id: null } : field
       ));
     }
   };
 
   const addField = (fieldType, sectionId) => {
-    const typeInfo = FIELD_TYPES.find((t) => t.value === fieldType) || FIELD_TYPES[0];
+    const typeInfo = FIELD_TYPES.find((fieldTypeOption) => fieldTypeOption.value === fieldType) || FIELD_TYPES[0];
     const tempId = genTempId();
     const targetSectionId = sectionId || activeSectionId || (sections.length > 0 ? sections[sections.length - 1].id : null);
-    setFields((prev) => {
+    setFields((previousFields) => {
       const newField = {
         id: null,
         _tmpId: tempId,
@@ -348,56 +351,56 @@ export default function PlatformForms() {
             : fieldType === "rating"
             ? [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }]
             : null,
-        sort_order: prev.length,
+        sort_order: previousFields.length,
       };
       // Auto-select the new field so user can configure it immediately
       setSelectedFieldId(tempId);
-      return [...prev, newField];
+      return [...previousFields, newField];
     });
     setAddingFieldType(null);
   };
 
-  const updateField = (tmpId, updates) => {
-    setFields((prev) => prev.map((f) => (f._tmpId === tmpId ? { ...f, ...updates } : f)));
+  const updateField = (tempId, updates) => {
+    setFields((previousFields) => previousFields.map((field) => (field._tmpId === tempId ? { ...field, ...updates } : field)));
   };
 
-  const removeField = (tmpId) => {
-    setFields((prev) => prev.filter((f) => f._tmpId !== tmpId));
-    if (selectedFieldId === tmpId) setSelectedFieldId(null);
+  const removeField = (tempId) => {
+    setFields((previousFields) => previousFields.filter((field) => field._tmpId !== tempId));
+    if (selectedFieldId === tempId) setSelectedFieldId(null);
   };
 
-  const moveField = (tmpId, direction) => {
-    setFields((prev) => {
-      const idx = prev.findIndex((f) => f._tmpId === tmpId);
-      if (idx === -1) return prev;
-      const next = [...prev];
-      const target = idx + direction;
-      if (target < 0 || target >= next.length) return prev;
-      [next[idx], next[target]] = [next[target], next[idx]];
-      return next.map((f, i) => ({ ...f, sort_order: i }));
+  const moveField = (tempId, direction) => {
+    setFields((previousFields) => {
+      const currentIndex = previousFields.findIndex((field) => field._tmpId === tempId);
+      if (currentIndex === -1) return previousFields;
+      const nextFields = [...previousFields];
+      const target = currentIndex + direction;
+      if (target < 0 || target >= nextFields.length) return previousFields;
+      [nextFields[currentIndex], nextFields[target]] = [nextFields[target], nextFields[currentIndex]];
+      return nextFields.map((field, index) => ({ ...field, sort_order: index }));
     });
   };
 
-  const addOption = (tmpId) => {
-    setFields((prev) => prev.map((f) => {
-      if (f._tmpId !== tmpId || !f.options) return f;
-      return { ...f, options: [...f.options, { label: t("platformMisc.forms.optionDefault", { n: f.options.length + 1 }), value: `option-${f.options.length + 1}` }] };
+  const addOption = (tempId) => {
+    setFields((previousFields) => previousFields.map((field) => {
+      if (field._tmpId !== tempId || !field.options) return field;
+      return { ...field, options: [...field.options, { label: t("platformMisc.forms.optionDefault", { n: field.options.length + 1 }), value: `option-${field.options.length + 1}` }] };
     }));
   };
 
-  const updateOption = (tmpId, optIdx, key, value) => {
-    setFields((prev) => prev.map((f) => {
-      if (f._tmpId !== tmpId || !f.options) return f;
-      const opts = [...f.options];
-      opts[optIdx] = { ...opts[optIdx], [key]: value };
-      return { ...f, options: opts };
+  const updateOption = (tempId, optionIndex, key, value) => {
+    setFields((previousFields) => previousFields.map((field) => {
+      if (field._tmpId !== tempId || !field.options) return field;
+      const nextOptions = [...field.options];
+      nextOptions[optionIndex] = { ...nextOptions[optionIndex], [key]: value };
+      return { ...field, options: nextOptions };
     }));
   };
 
-  const removeOption = (tmpId, optIdx) => {
-    setFields((prev) => prev.map((f) => {
-      if (f._tmpId !== tmpId || !f.options) return f;
-      return { ...f, options: f.options.filter((_, j) => j !== optIdx) };
+  const removeOption = (tempId, optionIndex) => {
+    setFields((previousFields) => previousFields.map((field) => {
+      if (field._tmpId !== tempId || !field.options) return field;
+      return { ...field, options: field.options.filter((_, index) => index !== optionIndex) };
     }));
   };
 
@@ -415,15 +418,15 @@ export default function PlatformForms() {
     const isRepublishing = editingForm.status === "published" && skipRepublishPrompt === true;
     try {
       // Delete sections that were removed by the user
-      const currentSections = sections.filter((s) => s.id && !String(s.id).startsWith("tmp-"));
+      const currentSections = sections.filter((section) => section.id && !String(section.id).startsWith("tmp-"));
       try {
         const existing = await fetch(`/api/platform/forms?id=${editingForm.id}`);
         const existingData = await existing.json();
         if (existingData.success) {
           // Delete removed sections
           if (existingData.sections) {
-            const existingIds = existingData.sections.map((s) => s.id);
-            const keptIds = currentSections.map((s) => s.id);
+            const existingIds = existingData.sections.map((section) => section.id);
+            const keptIds = currentSections.map((section) => section.id);
             for (const existingId of existingIds) {
               if (!keptIds.includes(existingId)) {
                 await fetch(`/api/platform/forms`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editingForm.id, sections: [{ id: existingId, _delete: true }] }) });
@@ -432,8 +435,8 @@ export default function PlatformForms() {
           }
           // Delete removed fields
           if (existingData.fields) {
-            const currentFieldIds = fields.filter((f) => f.id && !String(f.id).startsWith("fld-")).map((f) => f.id);
-            const existingFieldIds = existingData.fields.map((f) => f.id);
+            const currentFieldIds = fields.filter((field) => field.id && !String(field.id).startsWith("fld-")).map((field) => field.id);
+            const existingFieldIds = existingData.fields.map((field) => field.id);
             for (const existingId of existingFieldIds) {
               if (!currentFieldIds.includes(existingId)) {
                 await fetch(`/api/platform/forms`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editingForm.id, fields: [{ id: existingId, _delete: true }] }) });
@@ -444,14 +447,14 @@ export default function PlatformForms() {
       } catch (_) {}
 
       // Strip temp IDs for new sections
-      const cleanSections = sections.map((s) => (String(s.id).startsWith("tmp-") ? { ...s, id: null } : s));
+      const cleanSections = sections.map((section) => (String(section.id).startsWith("tmp-") ? { ...section, id: null } : section));
       const payload = { id: editingForm.id, fields, sections: cleanSections };
-      const res = await fetch("/api/platform/forms", {
+      const response = await fetch("/api/platform/forms", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         // Also save scoring config in a separate call
         if (scoringConfig) {
@@ -474,12 +477,12 @@ export default function PlatformForms() {
         
         // Reload to get real DB IDs for new sections/fields
         try {
-          const refresh = await fetch(`/api/platform/forms?id=${editingForm.id}`);
-          const fresh = await refresh.json();
-          if (fresh.success) {
-            setSections((fresh.sections || []).map(s => ({ ...s, id: String(s.id) })));
-            setFields((fresh.fields || []).map(f => ({ ...f, _tmpId: genTempId(), section_id: f.section_id ? String(f.section_id) : null })));
-            setEditingForm(fresh.form || editingForm);
+          const refreshResponse = await fetch(`/api/platform/forms?id=${editingForm.id}`);
+          const freshData = await refreshResponse.json();
+          if (freshData.success) {
+            setSections((freshData.sections || []).map(section => ({ ...section, id: String(section.id) })));
+            setFields((freshData.fields || []).map(field => ({ ...field, _tmpId: genTempId(), section_id: field.section_id ? String(field.section_id) : null })));
+            setEditingForm(freshData.form || editingForm);
           }
         } catch (_) {}
       } else notify(t((data.error || t("platformMisc.forms.saveFailed")) || "") || (data.error || t("platformMisc.forms.saveFailed")));
@@ -488,9 +491,9 @@ export default function PlatformForms() {
   };
 
   const handleDuplicate = async (form) => {
-    if (!confirm(t("platformMisc.forms.confirmDuplicate", { name: form.name }))) return;
+    if (!(await confirm({ message: t("platformMisc.forms.confirmDuplicate", { name: form.name }) }))) return;
     try {
-      const res = await fetch("/api/platform/forms", {
+      const response = await fetch("/api/platform/forms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -501,19 +504,19 @@ export default function PlatformForms() {
           tags: form.tags,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         // Copy fields from source
-        const srcRes = await fetch(`/api/platform/forms?id=${form.id}`);
-        const srcData = await srcRes.json();
-        if (srcData.success) {
+        const sourceResponse = await fetch(`/api/platform/forms?id=${form.id}`);
+        const sourceData = await sourceResponse.json();
+        if (sourceData.success) {
           await fetch("/api/platform/forms", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               id: data.form.id,
-              fields: srcData.fields.map((f) => ({ ...f, id: null })),
-              sections: srcData.sections.map((s) => ({ ...s, id: null })),
+              fields: sourceData.fields.map((field) => ({ ...field, id: null })),
+              sections: sourceData.sections.map((section) => ({ ...section, id: null })),
             }),
           });
         }
@@ -523,25 +526,25 @@ export default function PlatformForms() {
     } catch (_) {}
   };
 
-  const handleArchive = async (id) => {
-    const form = forms.find((f) => f.id === id);
+  const handleArchive = async (formId) => {
+    const form = forms.find((candidate) => candidate.id === formId);
     if (!form) return;
-    setArchiveConfirm({ id, name: form.name, action: "archive" });
+    setArchiveConfirm({ id: formId, name: form.name, action: "archive" });
   };
 
-  const handleUnarchive = async (id) => {
-    const form = forms.find((f) => f.id === id);
+  const handleUnarchive = async (formId) => {
+    const form = forms.find((candidate) => candidate.id === formId);
     if (!form) return;
-    setArchiveConfirm({ id, name: form.name, action: "unarchive" });
+    setArchiveConfirm({ id: formId, name: form.name, action: "unarchive" });
   };
 
-  const handleDeletePermanently = async (id) => {
-    const form = forms.find((f) => f.id === id);
+  const handleDeletePermanently = async (formId) => {
+    const form = forms.find((candidate) => candidate.id === formId);
     if (!form) return;
-    if (!confirm(t("platformMisc.forms.deleteFormConfirm"))) return;
+    if (!(await confirm({ message: t("platformMisc.forms.deleteFormConfirm"), tone: "danger" }))) return;
     try {
-      const res = await fetch(`/api/platform/forms?id=${id}&permanent=true`, { method: "DELETE" });
-      const data = await res.json();
+      const response = await fetch(`/api/platform/forms?id=${formId}&permanent=true`, { method: "DELETE" });
+      const data = await response.json();
       if (data.success) {
         notify(t("platformMisc.forms.notifyFormDeleted"));
         refreshForms();
@@ -568,16 +571,16 @@ export default function PlatformForms() {
     setArchiveConfirm(null);
   };
 
-  const renderFieldPreview = (fld) => {
-    const Icon = FIELD_ICONS[fld.field_type] || Type;
-    const tmpId = fld._tmpId;
+  const renderFieldPreview = (field) => {
+    const Icon = FIELD_ICONS[field.field_type] || Type;
+    const tempId = field._tmpId;
     return (
       <div
-        key={tmpId}
-        onClick={() => setSelectedFieldId(selectedFieldId === tmpId ? null : tmpId)}
+        key={tempId}
+        onClick={() => setSelectedFieldId(selectedFieldId === tempId ? null : tempId)}
         className={cn(
           "p-4 rounded-xl border transition-all cursor-pointer group",
-          selectedFieldId === tmpId
+          selectedFieldId === tempId
             ? "border-[var(--brand-orange)] bg-[var(--brand-orange)]/5"
             : "border-[var(--border-primary)] bg-secondary hover:border-[var(--text-secondary)]",
         )}
@@ -587,41 +590,41 @@ export default function PlatformForms() {
             <Icon className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
             <div className="min-w-0">
               <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                {fld.label || t("platformMisc.forms.untitled")}
-                {fld.required && <span className="text-rose-500 ml-1">*</span>}
+                {field.label || t("platformMisc.forms.untitled")}
+                {field.required && <span className="text-rose-500 ml-1">*</span>}
               </p>
               <p className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-widest">
-                {FIELD_TYPE_KEYS[fld.field_type] ? t("platformMisc.forms." + FIELD_TYPE_KEYS[fld.field_type]) : fld.field_type}
+                {FIELD_TYPE_KEYS[field.field_type] ? t("platformMisc.forms." + FIELD_TYPE_KEYS[field.field_type]) : field.field_type}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-            <button onClick={(e) => { e.stopPropagation(); moveField(tmpId, -1); }}><ChevronUp className="w-3 h-3" /></button>
-            <button onClick={(e) => { e.stopPropagation(); moveField(tmpId, 1); }}><ChevronDown className="w-3 h-3" /></button>
-            <button onClick={(e) => { e.stopPropagation(); removeField(tmpId); }} className="text-rose-500"><Trash2 className="w-3 h-3" /></button>
+            <button onClick={(event) => { event.stopPropagation(); moveField(tempId, -1); }}><ChevronUp className="w-3 h-3" /></button>
+            <button onClick={(event) => { event.stopPropagation(); moveField(tempId, 1); }}><ChevronDown className="w-3 h-3" /></button>
+            <button onClick={(event) => { event.stopPropagation(); removeField(tempId); }} className="text-rose-500"><Trash2 className="w-3 h-3" /></button>
           </div>
         </div>
 
         {/* Field editor (expanded) */}
-        {selectedFieldId === tmpId && (
-          <div className="mt-4 pt-4 border-t border-[var(--border-primary)] space-y-3" onClick={(e) => e.stopPropagation()}>
+        {selectedFieldId === tempId && (
+          <div className="mt-4 pt-4 border-t border-[var(--border-primary)] space-y-3" onClick={(event) => event.stopPropagation()}>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.fieldEditorLabel")}</label>
                 <input
-                  value={fld.label}
-                  onChange={(e) => updateField(tmpId, { label: e.target.value })}
+                  value={field.label}
+                  onChange={(event) => updateField(tempId, { label: event.target.value })}
                   className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
                 />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.fieldEditorType")}</label>
                 <select
-                  value={fld.field_type}
-                  onChange={(e) => {
-                    const newType = e.target.value;
+                  value={field.field_type}
+                  onChange={(event) => {
+                    const newType = event.target.value;
                     const needsOptions = ["select", "radio", "checkbox", "multiselect", "rating"].includes(newType);
-                    updateField(tmpId, { field_type: newType, options: needsOptions ? (newType === "rating" ? [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }] : [{ label: t("platformMisc.forms.optionDefault", { n: 1 }), value: "option-1" }]) : null });
+                    updateField(tempId, { field_type: newType, options: needsOptions ? (newType === "rating" ? [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }] : [{ label: t("platformMisc.forms.optionDefault", { n: 1 }), value: "option-1" }]) : null });
                   }}
                   className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
                 >
@@ -634,52 +637,52 @@ export default function PlatformForms() {
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.fieldEditorSection")}</label>
               <select
-                value={fld.section_id || ""}
-                onChange={(e) => updateField(tmpId, { section_id: e.target.value || null })}
+                value={field.section_id || ""}
+                onChange={(event) => updateField(tempId, { section_id: event.target.value || null })}
                 className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
               >
                 <option value="">{t("platformMisc.forms.fieldSectionNone")}</option>
-                {sections.map((s) => (
-                  <option key={s.id} value={s.id}>{s.title}</option>
+                {sections.map((section) => (
+                  <option key={section.id} value={section.id}>{section.title}</option>
                 ))}
               </select>
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.fieldEditorPlaceholder")}</label>
               <input
-                value={fld.placeholder || ""}
-                onChange={(e) => updateField(tmpId, { placeholder: e.target.value })}
+                value={field.placeholder || ""}
+                onChange={(event) => updateField(tempId, { placeholder: event.target.value })}
                 className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
               />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.fieldEditorHelpText")}</label>
               <input
-                value={fld.help_text || ""}
-                onChange={(e) => updateField(tmpId, { help_text: e.target.value })}
+                value={field.help_text || ""}
+                onChange={(event) => updateField(tempId, { help_text: event.target.value })}
                 className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
               />
             </div>
             <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-primary)]">
-              <input type="checkbox" checked={fld.required} onChange={(e) => updateField(tmpId, { required: e.target.checked })} />
+              <input type="checkbox" checked={field.required} onChange={(event) => updateField(tempId, { required: event.target.checked })} />
               {t("platformMisc.forms.fieldRequired")}
             </label>
 
             {/* Options editor */}
-            {fld.options && (
+            {field.options && (
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.fieldOptions")}</label>
-                {fld.options.map((opt, oIdx) => (
-                  <div key={oIdx} className="flex items-center gap-2">
+                {field.options.map((option, optionIndex) => (
+                  <div key={optionIndex} className="flex items-center gap-2">
                     <input
-                      value={opt.label}
-                      onChange={(e) => updateOption(tmpId, oIdx, "label", e.target.value)}
+                      value={option.label}
+                      onChange={(event) => updateOption(tempId, optionIndex, "label", event.target.value)}
                       className="flex-1 px-3 py-1.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
                     />
-                    <button onClick={() => removeOption(tmpId, oIdx)} className="text-rose-500"><Trash2 className="w-3 h-3" /></button>
+                    <button onClick={() => removeOption(tempId, optionIndex)} className="text-rose-500"><Trash2 className="w-3 h-3" /></button>
                   </div>
                 ))}
-                <button onClick={() => addOption(tmpId)} className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline">{t("platformMisc.forms.addOption")}</button>
+                <button onClick={() => addOption(tempId)} className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline">{t("platformMisc.forms.addOption")}</button>
               </div>
             )}
 
@@ -687,37 +690,37 @@ export default function PlatformForms() {
             <div className="space-y-2 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50">{t("platformMisc.forms.validationTitle")}</p>
               <div className="grid grid-cols-2 gap-2">
-                {["text", "textarea"].includes(fld.field_type) && (
+                {["text", "textarea"].includes(field.field_type) && (
                   <>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.validationMinLength")}</label>
-                      <input type="number" value={fld.validation?.minLength || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), minLength: e.target.value ? parseInt(e.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" />
+                      <input type="number" value={field.validation?.minLength || ""} onChange={(event) => updateField(tempId, { validation: { ...(field.validation || {}), minLength: event.target.value ? parseInt(event.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.validationMaxLength")}</label>
-                      <input type="number" value={fld.validation?.maxLength || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), maxLength: e.target.value ? parseInt(e.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" />
+                      <input type="number" value={field.validation?.maxLength || ""} onChange={(event) => updateField(tempId, { validation: { ...(field.validation || {}), maxLength: event.target.value ? parseInt(event.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" />
                     </div>
                   </>
                 )}
-                {["number", "currency"].includes(fld.field_type) && (
+                {["number", "currency"].includes(field.field_type) && (
                   <>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.validationMinValue")}</label>
-                      <input type="number" value={fld.validation?.min || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), min: e.target.value ? parseFloat(e.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" />
+                      <input type="number" value={field.validation?.min || ""} onChange={(event) => updateField(tempId, { validation: { ...(field.validation || {}), min: event.target.value ? parseFloat(event.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.validationMaxValue")}</label>
-                      <input type="number" value={fld.validation?.max || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), max: e.target.value ? parseFloat(e.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" />
+                      <input type="number" value={field.validation?.max || ""} onChange={(event) => updateField(tempId, { validation: { ...(field.validation || {}), max: event.target.value ? parseFloat(event.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" />
                     </div>
                   </>
                 )}
-                {["file"].includes(fld.field_type) && (
+                {["file"].includes(field.field_type) && (
                   <>
-                    <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.validationMaxSizeMb")}</label><input type="number" value={fld.validation?.maxSize || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), maxSize: e.target.value ? parseInt(e.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" /></div>
-                    <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.validationAllowedTypes")}</label><input value={fld.validation?.acceptedFiles || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), acceptedFiles: e.target.value } })} placeholder=".pdf,.jpg" className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.validationMaxSizeMb")}</label><input type="number" value={field.validation?.maxSize || ""} onChange={(event) => updateField(tempId, { validation: { ...(field.validation || {}), maxSize: event.target.value ? parseInt(event.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.validationAllowedTypes")}</label><input value={field.validation?.acceptedFiles || ""} onChange={(event) => updateField(tempId, { validation: { ...(field.validation || {}), acceptedFiles: event.target.value } })} placeholder=".pdf,.jpg" className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" /></div>
                   </>
                 )}
-                <div className="col-span-2 space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.validationErrorMessage")}</label><input value={fld.validation?.errorMessage || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), errorMessage: e.target.value } })} placeholder={t("platformMisc.forms.validationErrorMessagePlaceholder")} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" /></div>
+                <div className="col-span-2 space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.validationErrorMessage")}</label><input value={field.validation?.errorMessage || ""} onChange={(event) => updateField(tempId, { validation: { ...(field.validation || {}), errorMessage: event.target.value } })} placeholder={t("platformMisc.forms.validationErrorMessagePlaceholder")} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" /></div>
               </div>
             </div>
 
@@ -725,19 +728,19 @@ export default function PlatformForms() {
             <div className="space-y-2 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50">{t("platformMisc.forms.conditionalLogicTitle")}</p>
               <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.conditionalShowOnlyWhen")}</label>
-                <select value={fld.conditional_logic?.field_id || ""} onChange={(e) => updateField(tmpId, { conditional_logic: { ...(fld.conditional_logic || {}), field_id: e.target.value || undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none">
+                <select value={field.conditional_logic?.field_id || ""} onChange={(event) => updateField(tempId, { conditional_logic: { ...(field.conditional_logic || {}), field_id: event.target.value || undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none">
                   <option value="">{t("platformMisc.forms.conditionalAlwaysVisible")}</option>
-                  {fields.filter((f) => f !== fld).slice(0, 20).map((f) => <option key={f.label} value={f.label}>{f.label}</option>)}
+                  {fields.filter((candidate) => candidate !== field).slice(0, 20).map((candidate) => <option key={candidate.label} value={candidate.label}>{candidate.label}</option>)}
                 </select>
               </div>
-              {fld.conditional_logic?.field_id && (
+              {field.conditional_logic?.field_id && (
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.conditionalOperator")}</label>
-                    <select value={fld.conditional_logic?.operator || "equals"} onChange={(e) => updateField(tmpId, { conditional_logic: { ...fld.conditional_logic, operator: e.target.value } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none">
+                    <select value={field.conditional_logic?.operator || "equals"} onChange={(event) => updateField(tempId, { conditional_logic: { ...field.conditional_logic, operator: event.target.value } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none">
                       <option value="equals">{t("platformMisc.forms.operatorEquals")}</option><option value="not_equals">{t("platformMisc.forms.operatorNotEquals")}</option><option value="contains">{t("platformMisc.forms.operatorContains")}</option><option value="greater_than">{t("platformMisc.forms.operatorGreaterThan")}</option><option value="less_than">{t("platformMisc.forms.operatorLessThan")}</option>
                     </select>
                   </div>
-                  <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.conditionalValue")}</label><input value={fld.conditional_logic?.value || ""} onChange={(e) => updateField(tmpId, { conditional_logic: { ...fld.conditional_logic, value: e.target.value } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" /></div>
+                  <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.conditionalValue")}</label><input value={field.conditional_logic?.value || ""} onChange={(event) => updateField(tempId, { conditional_logic: { ...field.conditional_logic, value: event.target.value } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" /></div>
                 </div>
               )}
             </div>
@@ -770,9 +773,9 @@ export default function PlatformForms() {
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" />
-            <input type="text" placeholder={t("platformMisc.forms.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)]" />
+            <input type="text" placeholder={t("platformMisc.forms.searchPlaceholder")} value={search} onChange={(event) => setSearch(event.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)]" />
           </div>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]">
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]">
             <option value="all">{t("platformMisc.forms.statusAll")}</option>
             <option value="draft">{t("platformMisc.forms.statusDraft")}</option>
             <option value="published">{t("platformMisc.forms.statusPublished")}</option>
@@ -784,33 +787,33 @@ export default function PlatformForms() {
           <div className="flex items-center justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" /></div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {forms.filter((f) => !search || f.name.toLowerCase().includes(search.toLowerCase())).map((f) => {
-              const col = f.collection_id ? collections.find((c) => c.id === f.collection_id) : null;
+            {forms.filter((form) => !search || form.name.toLowerCase().includes(search.toLowerCase())).map((form) => {
+              const collection = form.collection_id ? collections.find((candidate) => candidate.id === form.collection_id) : null;
               return (
-                <div key={f.id} className="p-5 rounded-2xl bg-secondary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all group">
+                <div key={form.id} className="p-5 rounded-2xl bg-secondary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all group">
                   <div className="flex items-start justify-between mb-3">
                     <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
                       <FileText className="w-5 h-5 text-[var(--brand-orange)]" />
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                      <button onClick={() => openBuilder(f)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:bg-tertiary"><Edit3 className="w-3 h-3" /></button>
-                      <button onClick={() => handleDuplicate(f)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-blue-500 hover:bg-tertiary"><Copy className="w-3 h-3" /></button>
-                      {f.status !== "archived" ? (
-                        <button onClick={() => handleArchive(f.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary" title={t("platformMisc.forms.archiveTitle")}><Archive className="w-3 h-3" /></button>
+                      <button onClick={() => openBuilder(form)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:bg-tertiary"><Edit3 className="w-3 h-3" /></button>
+                      <button onClick={() => handleDuplicate(form)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-blue-500 hover:bg-tertiary"><Copy className="w-3 h-3" /></button>
+                      {form.status !== "archived" ? (
+                        <button onClick={() => handleArchive(form.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary" title={t("platformMisc.forms.archiveTitle")}><Archive className="w-3 h-3" /></button>
                       ) : (
                         <>
-                          <button onClick={() => handleUnarchive(f.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-tertiary" title={t("platformMisc.forms.restoreTitle")}><RotateCcw className="w-3 h-3" /></button>
-                          <button onClick={() => handleDeletePermanently(f.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary" title={t("platformMisc.forms.deleteTitle")}><Trash2 className="w-3 h-3" /></button>
+                          <button onClick={() => handleUnarchive(form.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-tertiary" title={t("platformMisc.forms.restoreTitle")}><RotateCcw className="w-3 h-3" /></button>
+                          <button onClick={() => handleDeletePermanently(form.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary" title={t("platformMisc.forms.deleteTitle")}><Trash2 className="w-3 h-3" /></button>
                         </>
                       )}
                     </div>
                   </div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">{f.name}</h3>
-                  {f.description && <p className="text-[10px] text-[var(--text-secondary)] mt-1">{f.description}</p>}
-                  {col && <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-2 opacity-50">{t("platformMisc.forms.inCollection", { name: col.name })}</p>}
+                  <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">{form.name}</h3>
+                  {form.description && <p className="text-[10px] text-[var(--text-secondary)] mt-1">{form.description}</p>}
+                  {collection && <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-2 opacity-50">{t("platformMisc.forms.inCollection", { name: collection.name })}</p>}
                   <div className="flex items-center gap-2 mt-3">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${f.status === "published" ? "text-emerald-500 bg-emerald-500/10" : f.status === "draft" ? "text-amber-500 bg-amber-500/10" : "text-rose-500 bg-rose-500/10"}`}>{FORM_STATUS_KEYS[f.status] ? t("platformMisc.forms." + FORM_STATUS_KEYS[f.status]) : f.status}</span>
-                    <span className="text-[10px] font-medium text-[var(--text-secondary)]">v{f.version || 1}</span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${form.status === "published" ? "text-emerald-500 bg-emerald-500/10" : form.status === "draft" ? "text-amber-500 bg-amber-500/10" : "text-rose-500 bg-rose-500/10"}`}>{FORM_STATUS_KEYS[form.status] ? t("platformMisc.forms." + FORM_STATUS_KEYS[form.status]) : form.status}</span>
+                    <span className="text-[10px] font-medium text-[var(--text-secondary)]">v{form.version || 1}</span>
                   </div>
 
                 </div>
@@ -822,7 +825,7 @@ export default function PlatformForms() {
         {/* Create modal */}
         {showCreate && (
           <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => { setShowCreate(false); setCreateMode("manual"); setAiGenText(""); }}>
-            <div className="card w-full max-w-md space-y-5" onClick={(e) => e.stopPropagation()}>
+            <div className="card w-full max-w-md space-y-5" onClick={(event) => event.stopPropagation()}>
               <div className="flex justify-between items-center">
                 <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{t("platformMisc.forms.newForm")}</h3>
                 <button onClick={() => { setShowCreate(false); setCreateMode("manual"); setAiGenText(""); }}><X className="w-5 h-5" /></button>
@@ -837,15 +840,15 @@ export default function PlatformForms() {
               {createMode === "manual" ? (
                 <>
                   <div className="space-y-4">
-                    <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.name")}</label><input value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]" placeholder={t("platformMisc.forms.namePlaceholder")} /></div>
-                    <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.description")}</label><textarea value={createForm.description} onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)] resize-none" placeholder={t("platformMisc.forms.descriptionPlaceholder")} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.name")}</label><input value={createForm.name} onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]" placeholder={t("platformMisc.forms.namePlaceholder")} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.description")}</label><textarea value={createForm.description} onChange={(event) => setCreateForm({ ...createForm, description: event.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)] resize-none" placeholder={t("platformMisc.forms.descriptionPlaceholder")} /></div>
                     <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.collection")}</label>
-                      <select value={createForm.collection_id} onChange={(e) => setCreateForm({ ...createForm, collection_id: e.target.value })} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]">
+                      <select value={createForm.collection_id} onChange={(event) => setCreateForm({ ...createForm, collection_id: event.target.value })} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]">
                         <option value="">{t("platformMisc.forms.none")}</option>
-                        {collections.filter((c) => c.status !== "archived" || String(c.id) === createForm.collection_id).map((c) => <option key={c.id} value={c.id}>{c.name}{c.status === "archived" ? t("platformMisc.forms.archivedSuffix") : ""}</option>)}
+                        {collections.filter((collection) => collection.status !== "archived" || String(collection.id) === createForm.collection_id).map((collection) => <option key={collection.id} value={collection.id}>{collection.name}{collection.status === "archived" ? t("platformMisc.forms.archivedSuffix") : ""}</option>)}
                       </select>
                     </div>
-                    <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.tags")}</label><input value={createForm.tags} onChange={(e) => setCreateForm({ ...createForm, tags: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]" placeholder={t("platformMisc.forms.tagsPlaceholder")} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.tags")}</label><input value={createForm.tags} onChange={(event) => setCreateForm({ ...createForm, tags: event.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]" placeholder={t("platformMisc.forms.tagsPlaceholder")} /></div>
                   </div>
                   <div className="flex gap-3"><button onClick={() => setShowCreate(false)} className="flex-1 btn btn-secondary">{t("platformMisc.forms.cancel")}</button><button onClick={handleCreateForm} disabled={saving || !createForm.name.trim()} className="flex-1 btn btn-primary">{saving ? t("platformMisc.forms.creating") : t("platformMisc.forms.createAndEdit")}</button></div>
                 </>
@@ -855,15 +858,15 @@ export default function PlatformForms() {
                     <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">{t("platformMisc.forms.aiGenHint")}</p>
                     <textarea
                       value={aiGenText}
-                      onChange={(e) => setAiGenText(e.target.value)}
+                      onChange={(event) => setAiGenText(event.target.value)}
                       rows={8}
                       placeholder={t("platformMisc.forms.aiGenTextPlaceholder")}
                       className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)] resize-none"
                     />
                     <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.collection")}</label>
-                      <select value={createForm.collection_id} onChange={(e) => setCreateForm({ ...createForm, collection_id: e.target.value })} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]">
+                      <select value={createForm.collection_id} onChange={(event) => setCreateForm({ ...createForm, collection_id: event.target.value })} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]">
                         <option value="">{t("platformMisc.forms.none")}</option>
-                        {collections.filter((c) => c.status !== "archived" || String(c.id) === createForm.collection_id).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        {collections.filter((collection) => collection.status !== "archived" || String(collection.id) === createForm.collection_id).map((collection) => <option key={collection.id} value={collection.id}>{collection.name}</option>)}
                       </select>
                     </div>
                   </div>
@@ -875,8 +878,8 @@ export default function PlatformForms() {
                         if (!aiGenText.trim()) return;
                         setAiGenLoading(true);
                         try {
-                          const res = await fetch("/api/platform/ai/generate-all", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: aiGenText, collection_id: createForm.collection_id || null }) });
-                          const data = await res.json();
+                          const response = await fetch("/api/platform/ai/generate-all", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: aiGenText, collection_id: createForm.collection_id || null }) });
+                          const data = await response.json();
                           if (data.success) {
                             const parts = [];
                             if (data.sections) parts.push(t("platformMisc.forms.aiPartsSections", { count: data.sections }));
@@ -914,7 +917,7 @@ export default function PlatformForms() {
       {/* Archive Confirmation Modal */}
       {archiveConfirm && (
         <div className="fixed inset-0 z-[500] bg-black/50 flex items-center justify-center p-6" onClick={() => setArchiveConfirm(null)}>
-          <div className="card w-full max-w-sm space-y-5" onClick={(e) => e.stopPropagation()}>
+          <div className="card w-full max-w-sm space-y-5" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5 text-rose-500" />
@@ -965,8 +968,8 @@ export default function PlatformForms() {
   }
 
   // ─── BUILDER VIEW ───
-  const formFieldsForSection = (sectionId) => fields.filter((f) => f.section_id === sectionId);
-  const orphanFields = fields.filter((f) => !f.section_id);
+  const formFieldsForSection = (sectionId) => fields.filter((field) => field.section_id === sectionId);
+  const orphanFields = fields.filter((field) => !field.section_id);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -1006,12 +1009,12 @@ export default function PlatformForms() {
                 // Auto-create a run for this form and navigate to it
                 setSaving(true);
                 try {
-                  const res = await fetch("/api/platform/form-runs", {
+                  const response = await fetch("/api/platform/form-runs", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ form_id: editingForm.id, name: editingForm.name + " Run", description: "Auto-created from form builder" }),
                   });
-                  const data = await res.json();
+                  const data = await response.json();
                   if (data.success) {
                     notify(t("platformMisc.forms.runCreated"));
                     // Launch the run
@@ -1050,7 +1053,7 @@ export default function PlatformForms() {
           {/* Enable toggle & global settings */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <label className="flex items-center gap-3 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer">
-              <input type="checkbox" checked={scoringConfig.enabled} onChange={(e) => setScoringConfig({ ...scoringConfig, enabled: e.target.checked })} className="w-4 h-4 rounded accent-indigo-500" />
+              <input type="checkbox" checked={scoringConfig.enabled} onChange={(event) => setScoringConfig({ ...scoringConfig, enabled: event.target.checked })} className="w-4 h-4 rounded accent-indigo-500" />
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">{t("platformMisc.forms.scoringEnable")}</p>
                 <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.forms.scoringAutoCalc")}</p>
@@ -1058,12 +1061,12 @@ export default function PlatformForms() {
             </label>
             <div className="space-y-1 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.scoringMaxPerQuestion")}</label>
-              <input type="number" min={0} value={scoringConfig.max_per_question ?? ""} onChange={(e) => { const v = e.target.value; setScoringConfig({ ...scoringConfig, max_per_question: v === "" ? 0 : parseInt(v) || 0 }); }} className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none" placeholder="0" />
+              <input type="number" min={0} value={scoringConfig.max_per_question ?? ""} onChange={(event) => { const nextValue = event.target.value; setScoringConfig({ ...scoringConfig, max_per_question: nextValue === "" ? 0 : parseInt(nextValue) || 0 }); }} className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none" placeholder="0" />
             </div>
             <div className="space-y-1 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.scoringTotalWeight")}</label>
-              <p className={`text-xl font-black ${Object.values(scoringConfig.sections || {}).reduce((s, sec) => s + (sec.weight || 0), 0) === 100 ? "text-emerald-400" : "text-rose-400"}`}>
-                {Object.values(scoringConfig.sections || {}).reduce((s, sec) => s + (sec.weight || 0), 0)}%
+              <p className={`text-xl font-black ${Object.values(scoringConfig.sections || {}).reduce((total, section) => total + (section.weight || 0), 0) === 100 ? "text-emerald-400" : "text-rose-400"}`}>
+                {Object.values(scoringConfig.sections || {}).reduce((total, section) => total + (section.weight || 0), 0)}%
               </p>
             </div>
           </div>
@@ -1082,45 +1085,45 @@ export default function PlatformForms() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border-primary)]">
-                    {sections.map((sec) => {
-                      const sectionFields = fields.filter((f) => f.section_id === sec.id);
-                      const ratingFields = sectionFields.filter((f) => f.field_type === "rating");
-                      const sectionKey = sec.title;
+                    {sections.map((section) => {
+                      const sectionFields = fields.filter((field) => field.section_id === section.id);
+                      const ratingFields = sectionFields.filter((field) => field.field_type === "rating");
+                      const sectionKey = section.title;
                       const currentWeight = (scoringConfig.sections?.[sectionKey]?.weight) || 0;
                       const currentLabels = scoringConfig.sections?.[sectionKey]?.field_labels || [];
                       return (
-                        <tr key={sec.title} className="text-[10px] font-bold text-[var(--text-primary)]">
-                          <td className="px-3 py-2">{sec.title}</td>
+                        <tr key={section.title} className="text-[10px] font-bold text-[var(--text-primary)]">
+                          <td className="px-3 py-2">{section.title}</td>
                           <td className="px-3 py-2">
                             <input
                               type="number"
                               min={0}
                               max={100}
                               value={currentWeight}
-                              onChange={(e) => setScoringConfig({
+                              onChange={(event) => setScoringConfig({
                                 ...scoringConfig,
-                                sections: { ...scoringConfig.sections, [sectionKey]: { ...scoringConfig.sections?.[sectionKey], weight: parseInt(e.target.value) || 0, field_labels: scoringConfig.sections?.[sectionKey]?.field_labels || ratingFields.map((f) => f.label) } },
+                                sections: { ...scoringConfig.sections, [sectionKey]: { ...scoringConfig.sections?.[sectionKey], weight: parseInt(event.target.value) || 0, field_labels: scoringConfig.sections?.[sectionKey]?.field_labels || ratingFields.map((field) => field.label) } },
                               })}
                               className="w-16 px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
                             />
                           </td>
                           <td className="px-3 py-2">
                             <div className="flex flex-wrap gap-1">
-                              {ratingFields.map((f) => {
-                                const isScored = currentLabels.includes(f.label);
+                              {ratingFields.map((field) => {
+                                const isScored = currentLabels.includes(field.label);
                                 return (
                                   <button
-                                    key={f.label}
+                                    key={field.label}
                                     onClick={() => {
-                                      const next = isScored ? currentLabels.filter((l) => l !== f.label) : [...currentLabels, f.label];
+                                      const nextLabels = isScored ? currentLabels.filter((label) => label !== field.label) : [...currentLabels, field.label];
                                       setScoringConfig({
                                         ...scoringConfig,
-                                        sections: { ...scoringConfig.sections, [sectionKey]: { ...scoringConfig.sections?.[sectionKey], weight: currentWeight, field_labels: next } },
+                                        sections: { ...scoringConfig.sections, [sectionKey]: { ...scoringConfig.sections?.[sectionKey], weight: currentWeight, field_labels: nextLabels } },
                                       });
                                     }}
                                     className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase transition-all ${isScored ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "bg-tertiary text-[var(--text-secondary)] border border-[var(--border-primary)]"}`}
                                   >
-                                    {f.label.substring(0, 30)}{f.label.length > 30 ? "..." : ""}
+                                    {field.label.substring(0, 30)}{field.label.length > 30 ? "..." : ""}
                                   </button>
                                 );
                               })}
@@ -1137,18 +1140,18 @@ export default function PlatformForms() {
               {/* Rankings */}
               <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] pt-2">{t("platformMisc.forms.scoringRankingThresholds")}</h4>
               <div className="space-y-2">
-                {(scoringConfig.rankings || []).map((rank, idx) => (
-                  <div key={idx} className="flex items-center gap-2 p-2 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                {(scoringConfig.rankings || []).map((rank, index) => (
+                  <div key={index} className="flex items-center gap-2 p-2 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                     <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: rank.color || "#64748b" }} />
                     <input
                       type="number"
                       min={0}
                       max={100}
                       value={rank.min}
-                      onChange={(e) => {
-                        const next = [...(scoringConfig.rankings || [])];
-                        next[idx] = { ...next[idx], min: parseInt(e.target.value) || 0 };
-                        setScoringConfig({ ...scoringConfig, rankings: next });
+                      onChange={(event) => {
+                        const nextRankings = [...(scoringConfig.rankings || [])];
+                        nextRankings[index] = { ...nextRankings[index], min: parseInt(event.target.value) || 0 };
+                        setScoringConfig({ ...scoringConfig, rankings: nextRankings });
                       }}
                       className="w-14 px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none text-center"
                       placeholder={t("platformMisc.forms.rankingMin")}
@@ -1159,10 +1162,10 @@ export default function PlatformForms() {
                       min={0}
                       max={100}
                       value={rank.max}
-                      onChange={(e) => {
-                        const next = [...(scoringConfig.rankings || [])];
-                        next[idx] = { ...next[idx], max: parseInt(e.target.value) || 0 };
-                        setScoringConfig({ ...scoringConfig, rankings: next });
+                      onChange={(event) => {
+                        const nextRankings = [...(scoringConfig.rankings || [])];
+                        nextRankings[index] = { ...nextRankings[index], max: parseInt(event.target.value) || 0 };
+                        setScoringConfig({ ...scoringConfig, rankings: nextRankings });
                       }}
                       className="w-14 px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none text-center"
                       placeholder={t("platformMisc.forms.rankingMax")}
@@ -1170,10 +1173,10 @@ export default function PlatformForms() {
                     <input
                       type="text"
                       value={rank.label}
-                      onChange={(e) => {
-                        const next = [...(scoringConfig.rankings || [])];
-                        next[idx] = { ...next[idx], label: e.target.value };
-                        setScoringConfig({ ...scoringConfig, rankings: next });
+                      onChange={(event) => {
+                        const nextRankings = [...(scoringConfig.rankings || [])];
+                        nextRankings[index] = { ...nextRankings[index], label: event.target.value };
+                        setScoringConfig({ ...scoringConfig, rankings: nextRankings });
                       }}
                       className="flex-1 px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
                       placeholder={t("platformMisc.forms.rankingLabel")}
@@ -1181,18 +1184,18 @@ export default function PlatformForms() {
                     <input
                       type="text"
                       value={rank.color || ""}
-                      onChange={(e) => {
-                        const next = [...(scoringConfig.rankings || [])];
-                        next[idx] = { ...next[idx], color: e.target.value };
-                        setScoringConfig({ ...scoringConfig, rankings: next });
+                      onChange={(event) => {
+                        const nextRankings = [...(scoringConfig.rankings || [])];
+                        nextRankings[index] = { ...nextRankings[index], color: event.target.value };
+                        setScoringConfig({ ...scoringConfig, rankings: nextRankings });
                       }}
                       className="w-20 px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none font-mono"
                       placeholder="#color"
                     />
                     <button onClick={() => {
-                      const next = [...(scoringConfig.rankings || [])];
-                      next.splice(idx, 1);
-                      setScoringConfig({ ...scoringConfig, rankings: next });
+                      const nextRankings = [...(scoringConfig.rankings || [])];
+                      nextRankings.splice(index, 1);
+                      setScoringConfig({ ...scoringConfig, rankings: nextRankings });
                     }} className="text-rose-500 hover:text-rose-400 shrink-0"><MinusCircle className="w-3.5 h-3.5" /></button>
                   </div>
                 ))}
@@ -1243,34 +1246,34 @@ export default function PlatformForms() {
           </p>
 
           {(() => {
-            const wf = workflowConfig || { decisions: [], statusLabels: {} };
+            const workflow = workflowConfig || { decisions: [], statusLabels: {} };
             const defaults = [
               { id: "approved", defaultLabel: "Approve", defaultColor: "emerald" },
               { id: "rejected", defaultLabel: "Reject", defaultColor: "rose" },
               { id: "revision_requested", defaultLabel: "Request Revision", defaultColor: "amber" },
             ];
-            const decisions = defaults.map(d => {
-              const existing = (wf.decisions || []).find(x => x.id === d.id);
-              return existing || { id: d.id, label: d.defaultLabel, color: d.defaultColor, icon: "CheckCircle2" };
+            const decisions = defaults.map(defaultDecision => {
+              const existing = (workflow.decisions || []).find(candidate => candidate.id === defaultDecision.id);
+              return existing || { id: defaultDecision.id, label: defaultDecision.defaultLabel, color: defaultDecision.defaultColor, icon: "CheckCircle2" };
             });
 
             return (
               <div className="space-y-4">
                 <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("platformMisc.forms.workflowDecisionButtons")}</h4>
                 <div className="grid grid-cols-3 gap-3">
-                  {decisions.map((d, i) => (
-                    <div key={d.id} className="space-y-2 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                  {decisions.map((decision, index) => (
+                    <div key={decision.id} className="space-y-2 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                        {d.id === "approved" ? t("platformMisc.forms.decisionPositive") : d.id === "rejected" ? t("platformMisc.forms.decisionNegative") : t("platformMisc.forms.decisionNeedsWork")}
+                        {decision.id === "approved" ? t("platformMisc.forms.decisionPositive") : decision.id === "rejected" ? t("platformMisc.forms.decisionNegative") : t("platformMisc.forms.decisionNeedsWork")}
                       </label>
                       <input
-                        value={d.label}
-                        onChange={e => {
-                          const next = [...decisions];
-                          next[i] = { ...next[i], label: e.target.value };
-                          setWorkflowConfig({ ...wf, decisions: next });
+                        value={decision.label}
+                        onChange={event => {
+                          const nextDecisions = [...decisions];
+                          nextDecisions[index] = { ...nextDecisions[index], label: event.target.value };
+                          setWorkflowConfig({ ...workflow, decisions: nextDecisions });
                         }}
-                        placeholder={t("platformMisc.forms." + DECISION_DEFAULT_KEYS[d.id])}
+                        placeholder={t("platformMisc.forms." + DECISION_DEFAULT_KEYS[decision.id])}
                         className="w-full px-2 py-1.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
                       />
                     </div>
@@ -1285,15 +1288,15 @@ export default function PlatformForms() {
                     { id: "rejected", defaultLabel: "Rejected" },
                     { id: "revision_requested", defaultLabel: "Revision" },
                     { id: "draft", defaultLabel: "Draft" },
-                  ].map(st => {
-                    const val = (wf.statusLabels || {})[st.id] || "";
+                  ].map(statusOption => {
+                    const labelValue = (workflow.statusLabels || {})[statusOption.id] || "";
                     return (
-                      <div key={st.id} className="space-y-2 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms." + WORKFLOW_STATUS_LABEL_KEYS[st.id])} →</label>
+                      <div key={statusOption.id} className="space-y-2 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms." + WORKFLOW_STATUS_LABEL_KEYS[statusOption.id])} →</label>
                         <input
-                          value={val}
-                          onChange={e => setWorkflowConfig({ ...wf, statusLabels: { ...(wf.statusLabels || {}), [st.id]: e.target.value } })}
-                          placeholder={t("platformMisc.forms." + WORKFLOW_STATUS_LABEL_KEYS[st.id])}
+                          value={labelValue}
+                          onChange={event => setWorkflowConfig({ ...workflow, statusLabels: { ...(workflow.statusLabels || {}), [statusOption.id]: event.target.value } })}
+                          placeholder={t("platformMisc.forms." + WORKFLOW_STATUS_LABEL_KEYS[statusOption.id])}
                           className="w-full px-2 py-1.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
                         />
                       </div>
@@ -1307,9 +1310,9 @@ export default function PlatformForms() {
                 {/* Venture Application flag — approval of this form's submissions creates a Venture */}
                 {(() => {
                   const ventureOwner = forms.find(
-                    (f) =>
-                      f.id !== editingForm?.id &&
-                      (f.settings?.venture_application === true || f.settings?.venture_application === "true")
+                    (candidate) =>
+                      candidate.id !== editingForm?.id &&
+                      (candidate.settings?.venture_application === true || candidate.settings?.venture_application === "true")
                   );
                   const locked = !!ventureOwner && !isVentureForm;
                   return (
@@ -1319,7 +1322,7 @@ export default function PlatformForms() {
                           type="checkbox"
                           checked={isVentureForm}
                           disabled={locked}
-                          onChange={(e) => setIsVentureForm(e.target.checked)}
+                          onChange={(event) => setIsVentureForm(event.target.checked)}
                           className="mt-0.5 w-4 h-4 accent-[var(--brand-orange)]"
                         />
                         <span>
@@ -1340,21 +1343,21 @@ export default function PlatformForms() {
 
                 {(() => {
                   const autoCfg = automationConfig || DEFAULT_AUTOMATION;
-                  const update = (path, val) => {
-                    const next = JSON.parse(JSON.stringify(autoCfg));
+                  const update = (path, value) => {
+                    const nextConfig = JSON.parse(JSON.stringify(autoCfg));
                     const keys = path.split(".");
-                    let obj = next;
-                    for (let i = 0; i < keys.length - 1; i++) obj = obj[keys[i]];
-                    obj[keys[keys.length - 1]] = val;
-                    setAutomationConfig(next);
+                    let target = nextConfig;
+                    for (let keyIndex = 0; keyIndex < keys.length - 1; keyIndex++) target = target[keys[keyIndex]];
+                    target[keys[keys.length - 1]] = value;
+                    setAutomationConfig(nextConfig);
                   };
                   const Toggle = ({ path, label, desc }) => {
                     const keys = path.split(".");
-                    let val = autoCfg;
-                    for (const k of keys) val = val?.[k];
+                    let currentValue = autoCfg;
+                    for (const key of keys) currentValue = currentValue?.[key];
                     return (
                       <label className="flex items-center gap-3 p-2 rounded-lg bg-tertiary/50 cursor-pointer hover:bg-amber-500/5 transition-all">
-                        <input type="checkbox" checked={!!val} onChange={(e) => update(path, e.target.checked)} className="w-3.5 h-3.5 rounded accent-amber-500 shrink-0" />
+                        <input type="checkbox" checked={!!currentValue} onChange={(event) => update(path, event.target.checked)} className="w-3.5 h-3.5 rounded accent-amber-500 shrink-0" />
                         <div><p className="text-[10px] font-bold text-[var(--text-primary)]">{label}</p>{desc && <p className="text-[10px] font-medium text-[var(--text-secondary)]">{desc}</p>}</div>
                       </label>
                     );
@@ -1378,7 +1381,7 @@ export default function PlatformForms() {
                           min="0"
                           max="100"
                           value={autoCfg.auto_approve_cutoff ?? 80}
-                          onChange={(e) => update("auto_approve_cutoff", e.target.value === "" ? null : parseFloat(e.target.value))}
+                          onChange={(event) => update("auto_approve_cutoff", event.target.value === "" ? null : parseFloat(event.target.value))}
                           className="w-24 px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-emerald-500"
                         />
                         <span className="text-[10px] font-bold text-[var(--text-secondary)]">%</span>
@@ -1392,7 +1395,7 @@ export default function PlatformForms() {
                 <p className="text-[10px] font-medium text-[var(--text-secondary)] mb-3">{t("platformMisc.forms.workflowSuccessHint")}</p>
                 <textarea
                   value={automationConfig?.success_message || DEFAULT_AUTOMATION.success_message || ""}
-                  onChange={(e) => setAutomationConfig({ ...(automationConfig || DEFAULT_AUTOMATION), success_message: e.target.value })}
+                  onChange={(event) => setAutomationConfig({ ...(automationConfig || DEFAULT_AUTOMATION), success_message: event.target.value })}
                   rows={4}
                   placeholder={t("platformMisc.forms.successMessagePlaceholder")}
                   className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-amber-500 resize-y font-mono"
@@ -1402,7 +1405,7 @@ export default function PlatformForms() {
                   <input
                     type="url"
                     value={automationConfig?.redirect_after_submit || ""}
-                    onChange={(e) => setAutomationConfig({ ...(automationConfig || DEFAULT_AUTOMATION), redirect_after_submit: e.target.value })}
+                    onChange={(event) => setAutomationConfig({ ...(automationConfig || DEFAULT_AUTOMATION), redirect_after_submit: event.target.value })}
                     placeholder="https://example.com/thank-you"
                     className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-amber-500"
                   />
@@ -1460,35 +1463,35 @@ export default function PlatformForms() {
           </p>
 
           {(() => {
-            const tmpl = templateConfig || {};
-            const update = (key, field, val) => {
-              const next = JSON.parse(JSON.stringify(tmpl));
-              if (!next[key]) next[key] = {};
-              next[key][field] = val;
-              setTemplateConfig(next);
+            const templateData = templateConfig || {};
+            const updateTemplate = (templateKey, fieldName, value) => {
+              const nextTemplates = JSON.parse(JSON.stringify(templateData));
+              if (!nextTemplates[templateKey]) nextTemplates[templateKey] = {};
+              nextTemplates[templateKey][fieldName] = value;
+              setTemplateConfig(nextTemplates);
             };
 
             // Ask the existing AI layer to write (or improve) a template,
             // then fill the subject/body fields — saving stays manual.
-            const personalize = async (tKey, label) => {
+            const personalize = async (templateKey, label) => {
               if (personalizing) return;
-              setPersonalizing(tKey);
+              setPersonalizing(templateKey);
               try {
-                const res = await fetch("/api/platform/ai/personalize-template", {
+                const response = await fetch("/api/platform/ai/personalize-template", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    template_key: tKey,
+                    template_key: templateKey,
                     form_name: editingForm?.name || "",
                     organization: "Future Studio",
-                    existing_subject: tmpl[tKey]?.subject || "",
-                    existing_body: tmpl[tKey]?.body || "",
+                    existing_subject: templateData[templateKey]?.subject || "",
+                    existing_body: templateData[templateKey]?.body || "",
                   }),
                 });
-                const data = await res.json();
+                const data = await response.json();
                 if (data.success) {
-                  update(tKey, "subject", data.subject);
-                  update(tKey, "body", data.body);
+                  updateTemplate(templateKey, "subject", data.subject);
+                  updateTemplate(templateKey, "body", data.body);
                   notify(t("platformMisc.forms.templatePersonalized", { label }));
                 } else {
                   notify(data.error || t("platformMisc.forms.templatePersonalizeFailed"));
@@ -1501,6 +1504,12 @@ export default function PlatformForms() {
 
             const TemplateEditor = ({ label, icon: Icon, tKey, desc, defaultSubject, defaultBody, vars, onPersonalize, personalizingKey }) => {
               const { t } = useI18n();
+              // Names the sender will not fill in — it removes them, so the author
+              // is told before sending rather than discovering it in the sent mail.
+              const unknownVariables = findUnknownTemplateVariables(
+                `${templateData[tKey]?.subject || ""} ${templateData[tKey]?.body || ""}`,
+                vars || [],
+              );
               return (
                 <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                   <div className="flex items-center gap-2 mb-1">
@@ -1520,8 +1529,8 @@ export default function PlatformForms() {
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.templateSubject")}</label>
                     <input
-                      value={tmpl[tKey]?.subject || ""}
-                      onChange={(e) => update(tKey, "subject", e.target.value)}
+                      value={templateData[tKey]?.subject || ""}
+                      onChange={(event) => updateTemplate(tKey, "subject", event.target.value)}
                       placeholder={defaultSubject}
                       className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
                     />
@@ -1529,8 +1538,8 @@ export default function PlatformForms() {
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.templateBody")}</label>
                     <textarea
-                      value={tmpl[tKey]?.body || ""}
-                      onChange={(e) => update(tKey, "body", e.target.value)}
+                      value={templateData[tKey]?.body || ""}
+                      onChange={(event) => updateTemplate(tKey, "body", event.target.value)}
                       rows={4}
                       placeholder={defaultBody}
                       className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-cyan-500 resize-y font-mono"
@@ -1538,6 +1547,11 @@ export default function PlatformForms() {
                   </div>
                   {vars && (
                     <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.forms.templateVariables", { vars: vars.join(", ") })}</p>
+                  )}
+                  {unknownVariables.length > 0 && (
+                    <p className="text-[10px] font-bold text-amber-500">
+                      {t("platformMisc.forms.templateUnknownVariables", { vars: unknownVariables.join(", ") })}
+                    </p>
                   )}
                 </div>
               );
@@ -1551,7 +1565,7 @@ export default function PlatformForms() {
                   desc={t("platformMisc.forms.templateSubmissionDesc")}
                   defaultSubject={t("platformMisc.forms.templateSubmissionSubject")}
                   defaultBody={t("platformMisc.forms.templateSubmissionBody")}
-                  vars={["name", "form_name", "organization"]}
+                  vars={TEMPLATE_VARIABLES.acknowledgement}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
                 />
@@ -1561,7 +1575,7 @@ export default function PlatformForms() {
                   desc={t("platformMisc.forms.templateApprovalDesc")}
                   defaultSubject={t("platformMisc.forms.templateApprovalSubject")}
                   defaultBody={t("platformMisc.forms.templateApprovalBody")}
-                  vars={["name", "form_name", "program_name", "group_name", "organization"]}
+                  vars={TEMPLATE_VARIABLES.approval}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
                 />
@@ -1571,7 +1585,7 @@ export default function PlatformForms() {
                   desc={t("platformMisc.forms.templateActivationDesc")}
                   defaultSubject={t("platformMisc.forms.templateActivationSubject")}
                   defaultBody={t("platformMisc.forms.templateActivationBody")}
-                  vars={["name", "organization", "activation_link"]}
+                  vars={TEMPLATE_VARIABLES.activation}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
                 />
@@ -1581,7 +1595,7 @@ export default function PlatformForms() {
                   desc={t("platformMisc.forms.templateExistingUserDesc")}
                   defaultSubject={t("platformMisc.forms.templateExistingUserSubject")}
                   defaultBody={t("platformMisc.forms.templateExistingUserBody")}
-                  vars={["name", "organization", "login_url"]}
+                  vars={TEMPLATE_VARIABLES.existing_user}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
                 />
@@ -1591,10 +1605,46 @@ export default function PlatformForms() {
                   desc={t("platformMisc.forms.templateRejectionDesc")}
                   defaultSubject={t("platformMisc.forms.templateRejectionSubject")}
                   defaultBody={t("platformMisc.forms.templateRejectionBody")}
-                  vars={["name", "form_name", "organization"]}
+                  vars={TEMPLATE_VARIABLES.rejection}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
                 />
+                <TemplateEditor
+                  label={t("platformMisc.forms.templateResultLabel")} icon={FileText}
+                  tKey="result"
+                  desc={t("platformMisc.forms.templateResultDesc")}
+                  defaultSubject={t("platformMisc.forms.templateResultSubject")}
+                  defaultBody={t("platformMisc.forms.templateResultBody")}
+                  vars={TEMPLATE_VARIABLES.result}
+                  onPersonalize={personalize}
+                  personalizingKey={personalizing}
+                />
+
+                {/* The result message can also be timed: the delay lives with the
+                    template it belongs to, and a run may override it. */}
+                <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                    <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{t("platformMisc.forms.templateResultDelayTitle")}</p>
+                  </div>
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.forms.templateResultDelayDesc")}</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      value={templateData.result?.delay_hours ?? ""}
+                      placeholder="0"
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        // Empty means "not set" (no automatic send), not a 0 the
+                        // resolver would have to distinguish from "inherited".
+                        updateTemplate("result", "delay_hours", raw === "" ? undefined : Math.max(0, parseInt(raw, 10) || 0));
+                      }}
+                      className="w-24 px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
+                    />
+                    <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.forms.templateResultDelayHint")}</span>
+                  </div>
+                </div>
               </div>
             );
           })()}
@@ -1615,12 +1665,12 @@ export default function PlatformForms() {
                 onClick={async () => {
                   setSaving(true);
                   try {
-                    const res = await fetch("/api/platform/ai/evaluation-config", {
+                    const response = await fetch("/api/platform/ai/evaluation-config", {
                       method: "PUT",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ form_id: editingForm.id, framework: aiEvalFramework })
                     });
-                    if (res.ok) notify(t("platformMisc.forms.aiEvalFrameworkSaved"));
+                    if (response.ok) notify(t("platformMisc.forms.aiEvalFrameworkSaved"));
                     else notify(t("platformMisc.forms.aiEvalSaveFailed"));
                   } catch {}
                   setSaving(false);
@@ -1640,10 +1690,10 @@ export default function PlatformForms() {
             <input
               type="checkbox"
               checked={!!(editingForm?.settings?.ai_evaluation)}
-              onChange={async (e) => {
-                const enabled = e.target.checked;
+              onChange={async (event) => {
+                const enabled = event.target.checked;
                 const updatedSettings = { ...(editingForm?.settings || {}), ai_evaluation: enabled };
-                setEditingForm(prev => ({ ...prev, settings: updatedSettings }));
+                setEditingForm(previousForm => ({ ...previousForm, settings: updatedSettings }));
                 try {
                   await fetch("/api/platform/forms", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editingForm.id, settings: updatedSettings }) });
                   notify(enabled ? t("platformMisc.forms.aiEvalEnabled") : t("platformMisc.forms.aiEvalDisabled"));
@@ -1661,7 +1711,7 @@ export default function PlatformForms() {
             <>
               {/* Weight validation */}
               {(() => {
-                const total = (aiEvalFramework.dimensions || []).reduce((s, d) => s + (parseInt(d.weight) || 0), 0);
+                const total = (aiEvalFramework.dimensions || []).reduce((sum, dimension) => sum + (parseInt(dimension.weight) || 0), 0);
                 return total !== 100 ? (
                   <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[10px] font-bold text-amber-400">
                     {t("platformMisc.forms.aiEvalWeightsWarning", { total })}
@@ -1685,15 +1735,15 @@ export default function PlatformForms() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border-primary)]">
-                    {(aiEvalFramework.dimensions || []).map((d, i) => (
-                      <tr key={i} className="text-[10px]">
+                    {(aiEvalFramework.dimensions || []).map((dimension, index) => (
+                      <tr key={index} className="text-[10px]">
                         <td className="px-2 py-1.5">
                           <input
-                            value={d.name}
-                            onChange={(e) => {
-                              const dims = [...aiEvalFramework.dimensions];
-                              dims[i] = { ...dims[i], name: e.target.value };
-                              setAiEvalFramework({ ...aiEvalFramework, dimensions: dims });
+                            value={dimension.name}
+                            onChange={(event) => {
+                              const dimensions = [...aiEvalFramework.dimensions];
+                              dimensions[index] = { ...dimensions[index], name: event.target.value };
+                              setAiEvalFramework({ ...aiEvalFramework, dimensions });
                             }}
                             className="w-full px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
                           />
@@ -1703,22 +1753,22 @@ export default function PlatformForms() {
                             type="number"
                             min={0}
                             max={100}
-                            value={d.weight}
-                            onChange={(e) => {
-                              const dims = [...aiEvalFramework.dimensions];
-                              dims[i] = { ...dims[i], weight: parseInt(e.target.value) || 0 };
-                              setAiEvalFramework({ ...aiEvalFramework, dimensions: dims });
+                            value={dimension.weight}
+                            onChange={(event) => {
+                              const dimensions = [...aiEvalFramework.dimensions];
+                              dimensions[index] = { ...dimensions[index], weight: parseInt(event.target.value) || 0 };
+                              setAiEvalFramework({ ...aiEvalFramework, dimensions });
                             }}
                             className="w-full px-1 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                         </td>
                         <td className="px-2 py-1.5">
                           <input
-                            value={(d.criteria || []).join(", ")}
-                            onChange={(e) => {
-                              const dims = [...aiEvalFramework.dimensions];
-                              dims[i] = { ...dims[i], criteria: e.target.value.split(",").map(c => c.trim()).filter(Boolean) };
-                              setAiEvalFramework({ ...aiEvalFramework, dimensions: dims });
+                            value={(dimension.criteria || []).join(", ")}
+                            onChange={(event) => {
+                              const dimensions = [...aiEvalFramework.dimensions];
+                              dimensions[index] = { ...dimensions[index], criteria: event.target.value.split(",").map(criterion => criterion.trim()).filter(Boolean) };
+                              setAiEvalFramework({ ...aiEvalFramework, dimensions });
                             }}
                             className="w-full px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] text-[var(--text-primary)] outline-none"
                             placeholder={t("platformMisc.forms.aiEvalCriteriaPlaceholder")}
@@ -1727,9 +1777,9 @@ export default function PlatformForms() {
                         <td className="px-2 py-1.5">
                           <button
                             onClick={() => {
-                              const dims = [...aiEvalFramework.dimensions];
-                              dims.splice(i, 1);
-                              setAiEvalFramework({ ...aiEvalFramework, dimensions: dims });
+                              const dimensions = [...aiEvalFramework.dimensions];
+                              dimensions.splice(index, 1);
+                              setAiEvalFramework({ ...aiEvalFramework, dimensions });
                             }}
                             className="text-rose-500 hover:text-rose-400"
                           ><X className="w-3 h-3" /></button>
@@ -1758,15 +1808,15 @@ export default function PlatformForms() {
               <div className="flex gap-2">
                 <button
                   onClick={async () => {
-                    const total = (aiEvalFramework.dimensions || []).reduce((s, d) => s + (parseInt(d.weight) || 0), 0);
+                    const total = (aiEvalFramework.dimensions || []).reduce((sum, dimension) => sum + (parseInt(dimension.weight) || 0), 0);
                     if (total !== 100) { notify(t("platformMisc.forms.aiEvalWeightsMustTotal")); return; }
                     if (!editingForm?.id) { notify(t("platformMisc.forms.aiEvalNoForm")); return; }
                     setAiEvalLoading(true);
                     try {
                       const payload = { form_id: Number(editingForm.id), framework: aiEvalFramework, source_document: aiEvalText?.substring(0, 500) || null };
-                      const res = await fetch("/api/platform/ai/evaluation-config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-                      if (res.ok) notify(t("platformMisc.forms.aiEvalFrameworkSaved"));
-                      else { const err = await res.json(); notify(t((err.error || t("platformMisc.forms.saveFailed")) || "") || (err.error || t("platformMisc.forms.saveFailed"))); }
+                      const response = await fetch("/api/platform/ai/evaluation-config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+                      if (response.ok) notify(t("platformMisc.forms.aiEvalFrameworkSaved"));
+                      else { const errorData = await response.json(); notify(t((errorData.error || t("platformMisc.forms.saveFailed")) || "") || (errorData.error || t("platformMisc.forms.saveFailed"))); }
                     } catch (_) { notify(t("platformMisc.forms.saveFailed")); }
                     setAiEvalLoading(false);
                   }}
@@ -1777,7 +1827,7 @@ export default function PlatformForms() {
                 </button>
                 <button
                   onClick={async () => {
-                    if (!confirm(t("platformMisc.forms.aiEvalRemoveConfirm"))) return;
+                    if (!(await confirm({ message: t("platformMisc.forms.aiEvalRemoveConfirm"), tone: "danger" }))) return;
                     await fetch(`/api/platform/ai/evaluation-config?form_id=${editingForm?.id}`, { method: "DELETE" });
                     setAiEvalFramework(null);
                     notify(t("platformMisc.forms.aiEvalFrameworkRemoved"));
@@ -1796,7 +1846,7 @@ export default function PlatformForms() {
               </p>
               <textarea
                 value={aiEvalText}
-                onChange={(e) => setAiEvalText(e.target.value)}
+                onChange={(event) => setAiEvalText(event.target.value)}
                 rows={6}
                 placeholder={t("platformMisc.forms.aiEvalTextPlaceholder")}
                 className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)] resize-none"
@@ -1807,8 +1857,8 @@ export default function PlatformForms() {
                   if (!aiEvalText.trim()) return;
                   setAiEvalLoading(true);
                   try {
-                    const res = await fetch("/api/platform/ai/generate-framework", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: aiEvalText }) });
-                    const data = await res.json();
+                    const response = await fetch("/api/platform/ai/generate-framework", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: aiEvalText }) });
+                    const data = await response.json();
                     if (data.success && data.framework) {
                       setAiEvalFramework(data.framework);
                       // Auto-save framework with safe form_id
@@ -1847,16 +1897,16 @@ export default function PlatformForms() {
               </button>
             ))}
             {/* Per-section quick-add */}
-            {sections.map((sec) => (
-              <div key={sec.id} className="pt-2 border-t border-[var(--border-primary)]">
+            {sections.map((section) => (
+              <div key={section.id} className="pt-2 border-t border-[var(--border-primary)]">
                 <button
-                  onClick={() => setActiveSectionId(sec.id)}
-                  className={`w-full text-left p-1 rounded text-[10px] font-bold uppercase mb-1 transition-all ${activeSectionId === sec.id ? 'text-[var(--brand-orange)] bg-[var(--brand-orange)]/10' : 'text-[var(--text-secondary)] opacity-50'}`}
+                  onClick={() => setActiveSectionId(section.id)}
+                  className={`w-full text-left p-1 rounded text-[10px] font-bold uppercase mb-1 transition-all ${activeSectionId === section.id ? 'text-[var(--brand-orange)] bg-[var(--brand-orange)]/10' : 'text-[var(--text-secondary)] opacity-50'}`}
                 >
-                  {t("platformMisc.forms.paletteInto", { title: sec.title })} {activeSectionId === sec.id && '✓'}
+                  {t("platformMisc.forms.paletteInto", { title: section.title })} {activeSectionId === section.id && '✓'}
                 </button>
                 {FIELD_TYPES.slice(0, 6).map((type) => (
-                  <button key={type.value} onClick={() => addField(type.value, sec.id)} className="w-full flex items-center gap-2 p-1.5 rounded text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary">
+                  <button key={type.value} onClick={() => addField(type.value, section.id)} className="w-full flex items-center gap-2 p-1.5 rounded text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary">
                     <type.icon className="w-3 h-3" />{t("platformMisc.forms." + FIELD_TYPE_KEYS[type.value])}
                   </button>
                 ))}
@@ -1875,23 +1925,23 @@ export default function PlatformForms() {
             </div>
 
             {/* Sections */}
-            {sections.map((sec, sIdx) => (
-              <div key={sIdx} className="space-y-3">
+            {sections.map((section, sectionIndex) => (
+              <div key={sectionIndex} className="space-y-3">
                 {!previewMode ? (
                   <div className="flex items-center gap-2 group">
-                    <input value={sec.title} onChange={(e) => updateSection(sIdx, { title: e.target.value })} className="text-sm font-black uppercase text-[var(--text-primary)] bg-transparent outline-none border-b-2 border-transparent focus:border-[var(--brand-orange)]" />
-                    <button onClick={() => { if (sIdx > 0) { const next = [...sections]; [next[sIdx], next[sIdx-1]] = [next[sIdx-1], next[sIdx]]; setSections(next.map((s, i) => ({ ...s, sort_order: i }))); } }} disabled={sIdx === 0} className="opacity-0 group-hover:opacity-100 text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-20"><ChevronUp className="w-3 h-3" /></button>
-                    <button onClick={() => { if (sIdx < sections.length - 1) { const next = [...sections]; [next[sIdx], next[sIdx+1]] = [next[sIdx+1], next[sIdx]]; setSections(next.map((s, i) => ({ ...s, sort_order: i }))); } }} disabled={sIdx === sections.length - 1} className="opacity-0 group-hover:opacity-100 text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-20"><ChevronDown className="w-3 h-3" /></button>
-                    <button onClick={() => removeSection(sIdx)} className="opacity-0 group-hover:opacity-100 text-rose-500"><Trash2 className="w-3 h-3" /></button>
+                    <input value={section.title} onChange={(event) => updateSection(sectionIndex, { title: event.target.value })} className="text-sm font-black uppercase text-[var(--text-primary)] bg-transparent outline-none border-b-2 border-transparent focus:border-[var(--brand-orange)]" />
+                    <button onClick={() => { if (sectionIndex > 0) { const nextSections = [...sections]; [nextSections[sectionIndex], nextSections[sectionIndex-1]] = [nextSections[sectionIndex-1], nextSections[sectionIndex]]; setSections(nextSections.map((item, index) => ({ ...item, sort_order: index }))); } }} disabled={sectionIndex === 0} className="opacity-0 group-hover:opacity-100 text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-20"><ChevronUp className="w-3 h-3" /></button>
+                    <button onClick={() => { if (sectionIndex < sections.length - 1) { const nextSections = [...sections]; [nextSections[sectionIndex], nextSections[sectionIndex+1]] = [nextSections[sectionIndex+1], nextSections[sectionIndex]]; setSections(nextSections.map((item, index) => ({ ...item, sort_order: index }))); } }} disabled={sectionIndex === sections.length - 1} className="opacity-0 group-hover:opacity-100 text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-20"><ChevronDown className="w-3 h-3" /></button>
+                    <button onClick={() => removeSection(sectionIndex)} className="opacity-0 group-hover:opacity-100 text-rose-500"><Trash2 className="w-3 h-3" /></button>
                   </div>
                 ) : (
-                  <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)] pb-2 border-b border-[var(--border-primary)]">{sec.title}</h2>
+                  <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)] pb-2 border-b border-[var(--border-primary)]">{section.title}</h2>
                 )}
-                {sec.description && !previewMode && (
-                  <textarea value={sec.description} onChange={(e) => updateSection(sIdx, { description: e.target.value })} className="w-full text-[10px] text-[var(--text-secondary)] bg-transparent outline-none resize-none" rows={1} />
+                {section.description && !previewMode && (
+                  <textarea value={section.description} onChange={(event) => updateSection(sectionIndex, { description: event.target.value })} className="w-full text-[10px] text-[var(--text-secondary)] bg-transparent outline-none resize-none" rows={1} />
                 )}
                 <div className="space-y-2">
-                  {formFieldsForSection(sections[sIdx]?.id).map((fld) => renderFieldPreview(fld))}
+                  {formFieldsForSection(sections[sectionIndex]?.id).map((field) => renderFieldPreview(field))}
                 </div>
               </div>
             ))}
@@ -1903,7 +1953,7 @@ export default function PlatformForms() {
                   {t("platformMisc.forms.orphanFieldsTitle", { count: orphanFields.length })}
                 </p>
                 <div className="space-y-2">
-                  {orphanFields.map((fld) => <div key={fld._tmpId}>{renderFieldPreview(fld)}</div>)}
+                  {orphanFields.map((field) => <div key={field._tmpId}>{renderFieldPreview(field)}</div>)}
                 </div>
               </div>
             )}
@@ -1916,7 +1966,7 @@ export default function PlatformForms() {
       {/* Republish Confirmation Modal */}
       {showRepublishConfirm && (
         <div className="fixed inset-0 z-[500] bg-black/50 flex items-center justify-center p-6" onClick={() => setShowRepublishConfirm(false)}>
-          <div className="card w-full max-w-md space-y-5" onClick={(e) => e.stopPropagation()}>
+          <div className="card w-full max-w-md space-y-5" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5 text-indigo-500" />

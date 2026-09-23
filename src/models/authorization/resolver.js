@@ -104,10 +104,10 @@ function ensureEligibilitySeeded() {
         // call: a failure is reported and never propagated, so a single missing
         // column cannot turn every gated request into a 500. The migration
         // marker is still unwritten, so the seed does retry on the next boot.
-        .catch((e) => {
+        .catch((error) => {
           console.error(
             "[Authz] one-time eligibility seed failed (not recorded, retried on the next boot):",
-            e.message,
+            error.message,
           );
         })
         .finally(() => {
@@ -143,23 +143,23 @@ function fetchUserRestrictions(cid) {
 
 /** Group DB rows [{module, capability, access_level}] into {module:{cap:level}} (max-merge). */
 export function rowsToCaps(rows) {
-  const caps = {};
-  for (const r of rows || []) {
-    caps[r.module] ??= {};
-    const lvl = Number(r.access_level ?? 0);
-    if (lvl > (caps[r.module][r.capability] ?? 0)) {
-      caps[r.module][r.capability] = lvl;
+  const capabilities = {};
+  for (const row of rows || []) {
+    capabilities[row.module] ??= {};
+    const level = Number(row.access_level ?? 0);
+    if (level > (capabilities[row.module][row.capability] ?? 0)) {
+      capabilities[row.module][row.capability] = level;
     }
   }
-  return caps;
+  return capabilities;
 }
 
 /** Group DB rows [{module, capability}] into {module:Set(capabilities)}. */
 export function rowsToRestrictions(rows) {
   const restrictions = {};
-  for (const r of rows || []) {
-    restrictions[r.module] ??= new Set();
-    restrictions[r.module].add(r.capability);
+  for (const row of rows || []) {
+    restrictions[row.module] ??= new Set();
+    restrictions[row.module].add(row.capability);
   }
   return restrictions;
 }
@@ -176,16 +176,16 @@ export function rowsToRestrictions(rows) {
  * projection idempotent.
  */
 export function restrictionsToJson(restrictions) {
-  const out = {};
+  const output = {};
   for (const [module, capabilities] of Object.entries(restrictions || {})) {
-    out[module] = {};
-    const caps =
+    output[module] = {};
+    const capabilityList =
       capabilities instanceof Set
         ? capabilities
         : Object.keys(capabilities || {});
-    for (const capability of caps) out[module][capability] = true;
+    for (const capability of capabilityList) output[module][capability] = true;
   }
-  return out;
+  return output;
 }
 
 /**
@@ -194,34 +194,34 @@ export function restrictionsToJson(restrictions) {
  */
 export function mergeEffectiveCapabilities(baseCaps, groupCaps, grants, restrictions) {
   const merged = {};
-  const add = (src) => {
-    for (const [mod, caps] of Object.entries(src || {})) {
-      merged[mod] ??= {};
-      for (const [cap, lvl] of Object.entries(caps)) {
-        if (lvl > (merged[mod][cap] ?? 0)) merged[mod][cap] = lvl;
+  const add = (sourceCaps) => {
+    for (const [module, capabilities] of Object.entries(sourceCaps || {})) {
+      merged[module] ??= {};
+      for (const [capability, level] of Object.entries(capabilities)) {
+        if (level > (merged[module][capability] ?? 0)) merged[module][capability] = level;
       }
     }
   };
   add(baseCaps);
   add(groupCaps);
   add(grants);
-  for (const [mod, caps] of Object.entries(restrictions || {})) {
-    if (!merged[mod]) continue;
-    for (const cap of caps) delete merged[mod][cap];
+  for (const [module, capabilities] of Object.entries(restrictions || {})) {
+    if (!merged[module]) continue;
+    for (const capability of capabilities) delete merged[module][capability];
   }
   return merged;
 }
 
 /** Full capability matrix a Super Admin has by default (all modules, FULL). */
 function buildSuperAdminMatrix() {
-  const m = {};
-  for (const [mod, def] of Object.entries(PERMISSION_MODULES)) {
-    m[mod] = {};
-    for (const capability of def.capabilities) {
-      m[mod][capability] = ACCESS_LEVELS.FULL;
+  const matrix = {};
+  for (const [module, definition] of Object.entries(PERMISSION_MODULES)) {
+    matrix[module] = {};
+    for (const capability of definition.capabilities) {
+      matrix[module][capability] = ACCESS_LEVELS.FULL;
     }
   }
-  return m;
+  return matrix;
 }
 
 // ─── Context resolution ─────────────────────────────────────────────────────
@@ -329,14 +329,14 @@ export async function resolveAuthorizationContext({ cid, role }) {
   const capsSql = profileId
     ? "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ?"
     : "SELECT module, capability, access_level FROM role_capabilities WHERE role = ?";
-  const groupPh = groups.map(() => "?").join(",");
-  const eligPh = groups.length ? groups.map(() => "?").join(",") : "NULL";
+  const groupPlaceholders = groups.map(() => "?").join(",");
+  const eligibilityPlaceholders = groups.length ? groups.map(() => "?").join(",") : "NULL";
   const [capsRes, groupCapsRes, eligRes] = await Promise.all([
     db.execute({ sql: capsSql, args: profileId ? [profileId] : [role] }),
     groups.length > 0
       ? db.execute({
           sql: `SELECT module, capability, access_level FROM group_capabilities
-                WHERE group_name IN (${groupPh})`,
+                WHERE group_name IN (${groupPlaceholders})`,
           args: groups,
         })
       : Promise.resolve({ rows: [] }),
@@ -344,7 +344,7 @@ export async function resolveAuthorizationContext({ cid, role }) {
       sql: `SELECT feature_key, identity_type, identity_value, eligible
             FROM feature_eligibility
             WHERE (identity_type = 'role' AND identity_value = ?)
-               OR (identity_type = 'group' AND identity_value IN (${eligPh}))`,
+               OR (identity_type = 'group' AND identity_value IN (${eligibilityPlaceholders}))`,
       args: [role, ...groups],
     }),
   ]);
@@ -494,14 +494,14 @@ export function buildPermissionExplanation(ctx) {
   const eligibility = {};
   for (const featureKey of new Set(Object.values(MODULE_TO_FEATURE))) {
     const rows = (ctx.eligibilityRows || []).filter(
-      (r) => r.feature_key === featureKey,
+      (row) => row.feature_key === featureKey,
     );
     eligibility[featureKey] = {
       eligible: evaluateEligibility(rows, featureKey),
-      sources: rows.map((r) => ({
-        identity_type: r.identity_type,
-        identity_value: r.identity_value,
-        eligible: Number(r.eligible),
+      sources: rows.map((row) => ({
+        identity_type: row.identity_type,
+        identity_value: row.identity_value,
+        eligible: Number(row.eligible),
       })),
     };
   }
@@ -524,8 +524,8 @@ export async function can(user, module, capability, minLevel = 1) {
   try {
     const ctx = await getAuthorizationContext(user);
     return authorize(ctx, module, capability, minLevel);
-  } catch (e) {
-    console.error("[Authorization] can() error:", e.message);
+  } catch (error) {
+    console.error("[Authorization] can() error:", error.message);
     return false;
   }
 }
@@ -552,8 +552,8 @@ export async function requireAuthorization(module, capability, minLevel = 1) {
       );
     }
     return null;
-  } catch (e) {
-    console.error("[Authorization] requireAuthorization error:", e.message);
+  } catch (error) {
+    console.error("[Authorization] requireAuthorization error:", error.message);
     return NextResponse.json(
       { success: false, error: "errors.authzSystemFailure" },
       { status: 500 },

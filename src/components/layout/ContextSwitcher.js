@@ -38,9 +38,9 @@ export default function ContextSwitcher() {
     // memberships) meant four statements on the widest database burst of every
     // page in the product, for data this component never reads.
     fetch("/api/workspaces?scope=contexts")
-      .then(async (r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d && d.success) setData(d);
+      .then(async (response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (payload && payload.success) setData(payload);
       })
       .catch(() => {});
   }, []);
@@ -65,23 +65,23 @@ export default function ContextSwitcher() {
     router.push(href || "/workspaces");
   };
 
-  const ctx = data?.contexts || null;
+  const contexts = data?.contexts || null;
   const orgItems = [
-    ...(ctx?.org_memberships || []).map((g) => ({
-      key: `org-${g.group_name}`,
-      title: g.group_name,
-      labelKey: roleLabelKey(/intern/i.test(String(g.group_name || "")) ? "intern" : "staff"),
-      href: g.href,
+    ...(contexts?.org_memberships || []).map((group) => ({
+      key: `org-${group.group_name}`,
+      title: group.group_name,
+      labelKey: roleLabelKey(/intern/i.test(String(group.group_name || "")) ? "intern" : "staff"),
+      href: group.href,
       type: "org",
-      contextId: g.group_name,
+      contextId: group.group_name,
     })),
-    ...(ctx?.responsibilities || []).map((r) => ({
-      key: `resp-${r.key}`,
-      title: r.name,
-      labelKey: roleLabelKey(r.key),
-      href: r.href,
+    ...(contexts?.responsibilities || []).map((responsibility) => ({
+      key: `resp-${responsibility.key}`,
+      title: responsibility.name,
+      labelKey: roleLabelKey(responsibility.key),
+      href: responsibility.href,
       type: "responsibility",
-      contextId: r.key,
+      contextId: responsibility.key,
     })),
   ];
   const programItems = [
@@ -89,35 +89,35 @@ export default function ContextSwitcher() {
     // NOT switcher items — they are the staff surface's own work and appear as
     // stat cards on the dashboard. The switcher is for moving between genuinely
     // different surfaces, never between contexts of the same one.
-    ...(ctx?.program_participations || []).map((p) => ({
-      key: `part-${p.program_id}`,
-      title: p.program_name || p.program_id,
+    ...(contexts?.program_participations || []).map((participation) => ({
+      key: `part-${participation.program_id}`,
+      title: participation.program_name || participation.program_id,
       labelKey: "roleParticipant",
-      href: p.href,
+      href: participation.href,
       type: "program_participation",
-      contextId: p.program_id,
-      completed: p.completed,
+      contextId: participation.program_id,
+      completed: participation.completed,
     })),
   ];
-  const ventureItems = (ctx?.venture_memberships || []).map((v) => ({
-    key: `venture-${v.venture_id}`,
-    title: v.venture_name || v.venture_id,
-    labelKey: contextRoleLabelKey({ kind: "venture", row: v }),
-    href: v.href,
+  const ventureItems = (contexts?.venture_memberships || []).map((membership) => ({
+    key: `venture-${membership.venture_id}`,
+    title: membership.venture_name || membership.venture_id,
+    labelKey: contextRoleLabelKey({ kind: "venture", row: membership }),
+    href: membership.href,
     type: "venture",
-    contextId: v.venture_id,
+    contextId: membership.venture_id,
   }));
 
   // LMS learner context — one aggregate "My Learning" item (navigation
   // label), labelled Learner, gated server-side by active enrollment.
   const learningItem =
-    ctx?.learning?.enrolled && data?.user
+    contexts?.learning?.enrolled && data?.user
       ? [
           {
             key: "learning",
             title: t("navigation.learning"),
             labelKey: "roleLearner",
-            href: ctx.learning.href || "/participant/learning",
+            href: contexts.learning.href || "/participant/learning",
             type: "learning",
             contextId: "lms",
           },

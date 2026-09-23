@@ -51,23 +51,23 @@ function normalizeOptions(raw) {
   }
   if (!Array.isArray(parsed)) return [];
   return parsed
-    .map((o) => (typeof o === "string" ? o : o?.label || o?.value || String(o)))
-    .filter((s) => s != null && String(s).trim() !== "");
+    .map((option) => (typeof option === "string" ? option : option?.label || option?.value || String(option)))
+    .filter((option) => option != null && String(option).trim() !== "");
 }
 
-function answerValue(v) {
-  if (v === undefined || v === null) return "";
-  if (typeof v === "string") {
+function answerValue(value) {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "string") {
     try {
-      if (v.startsWith("{") && v.includes('"code"')) {
-        const p = JSON.parse(v);
-        if (p.code != null) return `${p.code} ${p.number || ""}`.trim();
+      if (value.startsWith("{") && value.includes('"code"')) {
+        const parsedCode = JSON.parse(value);
+        if (parsedCode.code != null) return `${parsedCode.code} ${parsedCode.number || ""}`.trim();
       }
     } catch (_) {}
-    return v;
+    return value;
   }
-  if (typeof v === "object") return JSON.stringify(v);
-  return String(v);
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
 }
 
 export async function GET(req) {
@@ -120,10 +120,10 @@ export async function GET(req) {
     const fieldsRes = await getFormFieldsForScores(effectiveFormId);
     const labelById = {};
     const filterableFields = [];
-    for (const f of fieldsRes.rows) {
-      labelById[String(f.id)] = f.label;
-      const opts = normalizeOptions(f.options);
-      if (opts.length > 0) filterableFields.push({ label: f.label, options: opts });
+    for (const field of fieldsRes.rows) {
+      labelById[String(field.id)] = field.label;
+      const options = normalizeOptions(field.options);
+      if (options.length > 0) filterableFields.push({ label: field.label, options: options });
     }
 
     // Score boundaries apply on top of the run/form scope
@@ -158,20 +158,20 @@ export async function GET(req) {
     const respondentsRes = await listScoreRespondents(whereQualifying, qualifyingArgs, sortDir);
 
     // Batch-load contact emails (single query instead of one per respondent)
-    const cids = [...new Set(respondentsRes.rows.map((r) => r.submitter_id).filter(Boolean))];
+    const cids = [...new Set(respondentsRes.rows.map((respondent) => respondent.submitter_id).filter(Boolean))];
     const emailMap = new Map();
     if (cids.length > 0) {
       try {
-        const cres = await getContactEmailsByCids(cids);
-        for (const row of cres.rows) emailMap.set(row.cid, row.email || "");
+        const contactEmailsResult = await getContactEmailsByCids(cids);
+        for (const row of contactEmailsResult.rows) emailMap.set(row.cid, row.email || "");
       } catch (_) {}
     }
 
     const rankings = new Set();
-    const respondents = respondentsRes.rows.map((r) => {
+    const respondents = respondentsRes.rows.map((respondent) => {
       // Answers keyed by field LABEL (never hardcoded — derived from the form)
       const answers = {};
-      const subData = r.submission_data || {};
+      const subData = respondent.submission_data || {};
       for (const [key, value] of Object.entries(subData)) {
         if (key.startsWith("_")) continue;
         const label = labelById[String(key)] || key;
@@ -184,10 +184,10 @@ export async function GET(req) {
       const email = resolveSubmissionEmail({
         submissionData: subData,
         fieldLabels: labelById,
-        contactEmail: emailMap.get(r.submitter_id) || "",
+        contactEmail: emailMap.get(respondent.submitter_id) || "",
       });
 
-      if (r.ranking) rankings.add(r.ranking);
+      if (respondent.ranking) rankings.add(respondent.ranking);
 
       return {
         // Best real name — resolved deterministically with the form's actual
@@ -195,16 +195,16 @@ export async function GET(req) {
         name:
           resolvePersonName({
             contactName: "",
-            submitterName: r.name || "",
+            submitterName: respondent.name || "",
             submissionData: subData,
             fieldLabels: labelById,
-          }) || r.name || "Unknown",
+          }) || respondent.name || "Unknown",
         email,
-        score: r.score,
-        ranking: r.ranking || "",
-        recommendation: r.recommendation || "",
-        submission_id: r.submission_id,
-        status: r.submission_status || "submitted",
+        score: respondent.score,
+        ranking: respondent.ranking || "",
+        recommendation: respondent.recommendation || "",
+        submission_id: respondent.submission_id,
+        status: respondent.submission_status || "submitted",
         answers,
       };
     });

@@ -35,25 +35,25 @@ const EMPTY_MODULES = {};
  * copied before sorting because it comes back through a shared cache: sorting it
  * in place would reorder the cached copy for every other screen reading it.
  */
-const pickPeople = (d) => {
-  if (!d?.success) return [];
-  return [...(d.contacts || [])].sort((a, b) => {
-    if (a.status === "active" && b.status !== "active") return -1;
-    if (a.status !== "active" && b.status === "active") return 1;
-    return (a.name || "").localeCompare(b.name || "");
+const pickPeople = (payload) => {
+  if (!payload?.success) return [];
+  return [...(payload.contacts || [])].sort((first, second) => {
+    if (first.status === "active" && second.status !== "active") return -1;
+    if (first.status !== "active" && second.status === "active") return 1;
+    return (first.name || "").localeCompare(second.name || "");
   });
 };
 
-const pickModules = (d) => (d?.success ? d.modules || {} : EMPTY_MODULES);
+const pickModules = (payload) => (payload?.success ? payload.modules || {} : EMPTY_MODULES);
 
 const filterPeople = (people, query) => {
-  const q = query.trim().toLowerCase();
-  if (!q) return people;
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return people;
   return people.filter(
-    (u) =>
-      (u.name || "").toLowerCase().includes(q) ||
-      (u.email || "").toLowerCase().includes(q) ||
-      (u.cid || "").toLowerCase().includes(q),
+    (person) =>
+      (person.name || "").toLowerCase().includes(normalizedQuery) ||
+      (person.email || "").toLowerCase().includes(normalizedQuery) ||
+      (person.cid || "").toLowerCase().includes(normalizedQuery),
   );
 };
 
@@ -146,15 +146,15 @@ export default function UserAccessSummary() {
         individualRestrictions: permsData.individualRestrictions || [],
         assignments: rolesData.success ? rolesData.roles || [] : [],
       });
-    } catch (e) {
-      console.error("Failed to fetch user summary", e);
+    } catch (error) {
+      console.error("Failed to fetch user summary", error);
     } finally {
       setLoading(false);
     }
   };
 
   const currentSupervisor = userData?.user?.supervisor_cid
-    ? allUsers.find((u) => u.cid === userData.user.supervisor_cid) || {
+    ? allUsers.find((person) => person.cid === userData.user.supervisor_cid) || {
         cid: userData.user.supervisor_cid,
         name: userData.user.supervisor_cid,
         email: "",
@@ -163,12 +163,12 @@ export default function UserAccessSummary() {
 
   const filteredSupervisors = (() => {
     if (!supervisorQuery.trim()) return allUsers.slice(0, 8);
-    const q = supervisorQuery.toLowerCase();
+    const normalizedQuery = supervisorQuery.toLowerCase();
     return allUsers
       .filter(
-        (u) =>
-          (u.name || "").toLowerCase().includes(q) ||
-          (u.email || "").toLowerCase().includes(q),
+        (person) =>
+          (person.name || "").toLowerCase().includes(normalizedQuery) ||
+          (person.email || "").toLowerCase().includes(normalizedQuery),
       )
       .slice(0, 8);
   })();
@@ -178,7 +178,7 @@ export default function UserAccessSummary() {
     setSupervisorMsg("");
     setSupervisorError("");
     try {
-      const res = await fetch("/api/engineering/permissions", {
+      const response = await fetch("/api/engineering/permissions", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -187,7 +187,7 @@ export default function UserAccessSummary() {
           supervisor_cid: supervisor.cid,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setSupervisorMsg(t("adminMisc.access.supervisorAssigned"));
         setShowSupervisorPicker(false);
@@ -211,7 +211,7 @@ export default function UserAccessSummary() {
     setSupervisorMsg("");
     setSupervisorError("");
     try {
-      const res = await fetch("/api/engineering/permissions", {
+      const response = await fetch("/api/engineering/permissions", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -219,7 +219,7 @@ export default function UserAccessSummary() {
           user_cid: selectedUser.cid,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setSupervisorMsg(t("adminMisc.access.supervisorRemoved"));
         await fetchUserSummary(selectedUser);
@@ -286,7 +286,7 @@ export default function UserAccessSummary() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
               <input
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={t("adminMisc.access.searchPlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 text-sm font-bold transition-all"
               />
@@ -300,10 +300,10 @@ export default function UserAccessSummary() {
             ) : (
               <>
                 <div className="space-y-1 max-w-md">
-                  {paginatedUsers.map((u) => (
+                  {paginatedUsers.map((person) => (
                     <button
-                      key={u.cid}
-                      onClick={() => fetchUserSummary(u)}
+                      key={person.cid}
+                      onClick={() => fetchUserSummary(person)}
                       className="w-full ios-card !p-4 border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left flex items-center justify-between"
                     >
                       <div className="flex items-center gap-4">
@@ -312,10 +312,10 @@ export default function UserAccessSummary() {
                         </div>
                         <div>
                           <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
-                            {u.name}
+                            {person.name}
                           </p>
                           <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                            {u.email} · {u.role} · {u.status}
+                            {person.email} · {person.role} · {person.status}
                           </p>
                         </div>
                       </div>
@@ -372,9 +372,9 @@ export default function UserAccessSummary() {
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-orange-500/10 text-[var(--brand-orange)] uppercase">
                       {userData.user.role}
                     </span>
-                    {(userData.groups || []).map((g) => (
-                      <span key={g} className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase">
-                        {g}
+                    {(userData.groups || []).map((group) => (
+                      <span key={group} className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase">
+                        {group}
                       </span>
                     ))}
                     {/* Access Profile Badge */}
@@ -453,8 +453,8 @@ export default function UserAccessSummary() {
                     </div>
                     {(() => {
                       const userRole = userData.user?.role || selectedUser?.role;
-                      const blocked = (userData.responsibilities || []).filter((r) =>
-                        isResponsibilityBlockedForRole(userRole, r.key, r.allowed_roles),
+                      const blocked = (userData.responsibilities || []).filter((responsibility) =>
+                        isResponsibilityBlockedForRole(userRole, responsibility.key, responsibility.allowed_roles),
                       );
                       if (blocked.length === 0) return null;
                       return (
@@ -466,7 +466,7 @@ export default function UserAccessSummary() {
                           <p className="text-sm text-amber-400/90 mt-1">
                             {t("adminMisc.access.roleIncompatibilityBody", {
                               role: userRole,
-                              features: blocked.map((b) => b.name).join(", "),
+                              features: blocked.map((responsibility) => responsibility.name).join(", "),
                             })}
                           </p>
                         </div>
@@ -476,12 +476,12 @@ export default function UserAccessSummary() {
                       <p className="text-sm text-[var(--text-secondary)]">{t("adminMisc.access.noResponsibilities")}</p>
                     ) : (
                       <div className="flex flex-wrap gap-2">
-                        {userData.responsibilities.map((r) => {
+                        {userData.responsibilities.map((responsibility) => {
                           const userRole = userData.user?.role || selectedUser?.role;
-                          const blocked = isResponsibilityBlockedForRole(userRole, r.key, r.allowed_roles);
+                          const blocked = isResponsibilityBlockedForRole(userRole, responsibility.key, responsibility.allowed_roles);
                           return (
                             <span
-                              key={r.id}
+                              key={responsibility.id}
                               title={blocked ? t("adminMisc.access.roleIncompatibilityTitle") : undefined}
                               className={`text-[10px] font-bold px-2 py-1 rounded uppercase flex items-center gap-1 ${
                                 blocked
@@ -490,7 +490,7 @@ export default function UserAccessSummary() {
                               }`}
                             >
                               {blocked && <AlertTriangle className="w-2.5 h-2.5" />}
-                              {r.name}
+                              {responsibility.name}
                             </span>
                           );
                         })}
@@ -513,18 +513,18 @@ export default function UserAccessSummary() {
                       <p className="text-sm text-[var(--text-secondary)]">{t("adminMisc.access.noAssignments")}</p>
                     ) : (
                       <div className="space-y-2">
-                        {(userData.assignments || []).map((a, i) => {
+                        {(userData.assignments || []).map((assignment, index) => {
                           let scopeLabel = "";
                           try {
-                            const s = typeof a.scope === "string" ? JSON.parse(a.scope) : a.scope;
-                            if (s?.type === "program") scopeLabel = "Program";
-                            else if (s?.type === "groups") scopeLabel = `Groups (${(s.groupIds || []).length})`;
-                            else if (s?.type === "individuals") scopeLabel = `Individuals (${(s.cids || []).length})`;
+                            const scope = typeof assignment.scope === "string" ? JSON.parse(assignment.scope) : assignment.scope;
+                            if (scope?.type === "program") scopeLabel = "Program";
+                            else if (scope?.type === "groups") scopeLabel = `Groups (${(scope.groupIds || []).length})`;
+                            else if (scope?.type === "individuals") scopeLabel = `Individuals (${(scope.cids || []).length})`;
                           } catch (_) {}
-                          const isCurrent = a.is_current !== false;
+                          const isCurrent = assignment.is_current !== false;
                           return (
                             <div
-                              key={i}
+                              key={index}
                               className={`rounded-xl border p-3 ${
                                 isCurrent
                                   ? "border-[var(--brand-orange)]/20 bg-[var(--brand-orange)]/[0.03]"
@@ -533,7 +533,7 @@ export default function UserAccessSummary() {
                             >
                               <div className="flex items-center justify-between">
                                 <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
-                                  {a.title || a.role}
+                                  {assignment.title || assignment.role}
                                 </p>
                                 {isCurrent ? (
                                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 uppercase">
@@ -547,39 +547,39 @@ export default function UserAccessSummary() {
                               </div>
                               <div className="mt-1.5 space-y-0.5">
                                 <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                                  {a.context_type} · {a.context_id || "global"}
+                                  {assignment.context_type} · {assignment.context_id || "global"}
                                   {scopeLabel ? ` · ${scopeLabel}` : ""}
                                 </p>
-                                {a.status && (
+                                {assignment.status && (
                                   <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                                    Status: {a.status}
+                                    Status: {assignment.status}
                                   </p>
                                 )}
-                                {(a.capability_overrides || a.permissions) &&
-                                  typeof (a.capability_overrides || a.permissions) === "object" &&
-                                  Object.keys(a.capability_overrides || a.permissions).length > 0 && (
+                                {(assignment.capability_overrides || assignment.permissions) &&
+                                  typeof (assignment.capability_overrides || assignment.permissions) === "object" &&
+                                  Object.keys(assignment.capability_overrides || assignment.permissions).length > 0 && (
                                     <div className="flex flex-wrap gap-1 pt-1">
-                                      {Object.keys(a.capability_overrides || a.permissions).map((k) => (
+                                      {Object.keys(assignment.capability_overrides || assignment.permissions).map((capability) => (
                                         <span
-                                          key={k}
+                                          key={capability}
                                           className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase"
                                         >
-                                          {k.replace(/\./g, " ")}
+                                          {capability.replace(/\./g, " ")}
                                         </span>
                                       ))}
                                     </div>
                                   )}
                                 {(() => {
                                   const blockedFeatures = (userData.responsibilities || [])
-                                    .filter((r) => isResponsibilityBlockedForRole(a.role, r.key, r.allowed_roles))
-                                    .map((r) => r.name);
+                                    .filter((responsibility) => isResponsibilityBlockedForRole(assignment.role, responsibility.key, responsibility.allowed_roles))
+                                    .map((responsibility) => responsibility.name);
                                   if (blockedFeatures.length === 0) return null;
                                   return (
                                     <p className="flex items-start gap-1 text-sm font-bold text-amber-400 pt-1">
                                       <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
                                       <span>
                                         {t("adminMisc.access.assignmentRoleWarning", {
-                                          role: a.role,
+                                          role: assignment.role,
                                           features: blockedFeatures.join(", "),
                                         })}
                                       </span>
@@ -638,28 +638,28 @@ export default function UserAccessSummary() {
                       <div className="space-y-2">
                         <input
                           value={supervisorQuery}
-                          onChange={(e) => setSupervisorQuery(e.target.value)}
+                          onChange={(event) => setSupervisorQuery(event.target.value)}
                           placeholder={t("adminMisc.access.supervisorSearchPlaceholder")}
                           className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50"
                         />
                         <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
-                          {filteredSupervisors.map((u) => (
+                          {filteredSupervisors.map((person) => (
                             <button
-                              key={u.cid}
-                              onClick={() => assignSupervisor(u)}
+                              key={person.cid}
+                              onClick={() => assignSupervisor(person)}
                               disabled={savingSupervisor}
                               className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-tertiary transition-all text-left"
                             >
                               <div className="min-w-0">
                                 <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide truncate">
-                                  {u.name || u.cid}
+                                  {person.name || person.cid}
                                 </p>
                                 <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">
-                                  {u.email}
+                                  {person.email}
                                 </p>
                               </div>
                               <span className="text-[10px] font-bold text-[var(--brand-orange)] shrink-0">
-                                {u.role}
+                                {person.role}
                               </span>
                             </button>
                           ))}
@@ -705,15 +705,15 @@ export default function UserAccessSummary() {
                           <div>
                             <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 mb-1.5">{t("adminMisc.access.grants")}</p>
                             <div className="space-y-1">
-                              {userData.individualGrants.map((g, i) => (
-                                <div key={i} className="flex items-center gap-2 text-[10px] font-medium">
+                              {userData.individualGrants.map((grant, index) => (
+                                <div key={index} className="flex items-center gap-2 text-[10px] font-medium">
                                   <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                  <span className="text-[var(--text-primary)]">{g.module}.{g.capability.replace(/_/g, " ")}</span>
-                                  <span className={ACCESS_COLORS[g.access_level] || "text-slate-500"}>({t(ACCESS_LEVEL_KEYS[g.access_level] || "adminMisc.access.accessLevelNone")})</span>
-                                  {g.expires_at && (
+                                  <span className="text-[var(--text-primary)]">{grant.module}.{grant.capability.replace(/_/g, " ")}</span>
+                                  <span className={ACCESS_COLORS[grant.access_level] || "text-slate-500"}>({t(ACCESS_LEVEL_KEYS[grant.access_level] || "adminMisc.access.accessLevelNone")})</span>
+                                  {grant.expires_at && (
                                     <span className="text-[var(--text-secondary)] flex items-center gap-1">
                                       <Clock className="w-2.5 h-2.5" />
-                                      {new Date(g.expires_at).toLocaleDateString()}
+                                      {new Date(grant.expires_at).toLocaleDateString()}
                                     </span>
                                   )}
                                 </div>
@@ -725,14 +725,14 @@ export default function UserAccessSummary() {
                           <div>
                             <p className="text-[10px] font-bold uppercase tracking-widest text-red-400 mb-1.5">{t("adminMisc.access.restrictions")}</p>
                             <div className="space-y-1">
-                              {userData.individualRestrictions.map((r, i) => (
-                                <div key={i} className="flex items-center gap-2 text-[10px] font-medium">
+                              {userData.individualRestrictions.map((restriction, index) => (
+                                <div key={index} className="flex items-center gap-2 text-[10px] font-medium">
                                   <X className="w-3 h-3 text-red-400" />
-                                  <span className="text-[var(--text-primary)]">{r.module}.{r.capability.replace(/_/g, " ")}</span>
-                                  {r.expires_at && (
+                                  <span className="text-[var(--text-primary)]">{restriction.module}.{restriction.capability.replace(/_/g, " ")}</span>
+                                  {restriction.expires_at && (
                                     <span className="text-[var(--text-secondary)] flex items-center gap-1">
                                       <Clock className="w-2.5 h-2.5" />
-                                      {new Date(r.expires_at).toLocaleDateString()}
+                                      {new Date(restriction.expires_at).toLocaleDateString()}
                                     </span>
                                   )}
                                 </div>
@@ -756,7 +756,7 @@ export default function UserAccessSummary() {
                   <div className="space-y-4">
                     {MODULE_CATEGORIES.map((category) => {
                       const hasAccess = category.modules.some(
-                        (m) => userData.effectivePermissions[m] && Object.keys(userData.effectivePermissions[m]).length > 0,
+                        (moduleKey) => userData.effectivePermissions[moduleKey] && Object.keys(userData.effectivePermissions[moduleKey]).length > 0,
                       );
                       if (!hasAccess) return null;
                       return (
@@ -774,13 +774,13 @@ export default function UserAccessSummary() {
                                   {modData?.name || modKey}
                                 </p>
                                 <div className="flex flex-wrap gap-1.5">
-                                  {Object.entries(permissions).map(([cap, level]) => (
-                                    <span key={cap} className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                                  {Object.entries(permissions).map(([capability, level]) => (
+                                    <span key={capability} className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
                                       level > 0
                                         ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
                                         : "bg-slate-500/10 text-[var(--text-secondary)]"
                                     }`}>
-                                      {cap.replace(/_/g, " ")}
+                                      {capability.replace(/_/g, " ")}
                                       <span className={`ml-1 ${ACCESS_COLORS[level] || "text-slate-500"}`}>
                                         {ACCESS_SHORT[level] || "—"}
                                       </span>

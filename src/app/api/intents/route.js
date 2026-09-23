@@ -76,18 +76,18 @@ export async function GET(req) {
 
     // Batch per-intent task counts into ONE grouped query instead of one
     // query per intent. Produces identical `taskCounts` per intent.
-    const intentIds = result.rows.map((i) => String(i.id));
+    const intentIds = result.rows.map((intent) => String(intent.id));
     const countMap = {};
     if (intentIds.length > 0) {
-      const countRes = await getIntentTaskCounts(intentIds);
-      for (const r of countRes.rows || []) countMap[r.iid] = r;
+      const countResult = await getIntentTaskCounts(intentIds);
+      for (const countRow of countResult.rows || []) countMap[countRow.iid] = countRow;
     }
 
     const intents = result.rows.map((intent) => {
-      const iid = String(intent.id);
+      const intentId = String(intent.id);
       return {
         ...intent,
-        taskCounts: countMap[iid] || {
+        taskCounts: countMap[intentId] || {
           active_count: 0,
           completed_count: 0,
           total_count: 0,
@@ -148,8 +148,8 @@ export async function POST(req) {
     const finalContextType = context_type || "staff";
 
     // SECURITY: Verify responsible person exists
-    const respCheck = await getContactForResponsibleCheck(finalResponsibleId);
-    if (respCheck.rows.length === 0) {
+    const responsibleCheck = await getContactForResponsibleCheck(finalResponsibleId);
+    if (responsibleCheck.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Responsible person not found." },
         { status: 400 },
@@ -333,7 +333,7 @@ export async function PUT(req) {
       user_name: session.name || "",
       action: "updated",
       details: `Intent "${intent.title}" updated`,
-      metadata: { updated_fields: Object.keys(body).filter((k) => k !== "id") },
+      metadata: { updated_fields: Object.keys(body).filter((key) => key !== "id") },
     });
 
     return NextResponse.json({ success: true, action: "updated" });

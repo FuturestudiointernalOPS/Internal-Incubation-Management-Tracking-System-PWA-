@@ -8,10 +8,10 @@ if (fs.existsSync(envPath)) {
   for (const line of envContent.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    let value = trimmed.slice(eqIdx + 1).trim();
+    const equalsIndex = trimmed.indexOf("=");
+    if (equalsIndex === -1) continue;
+    const key = trimmed.slice(0, equalsIndex).trim();
+    let value = trimmed.slice(equalsIndex + 1).trim();
     if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
     if (!process.env[key]) process.env[key] = value;
   }
@@ -43,8 +43,8 @@ async function migrate() {
       args: [],
     });
     console.log("  ✅ task_assignment_log table created");
-  } catch (e) {
-    console.error("  ❌ task_assignment_log:", e.message);
+  } catch (error) {
+    console.error("  ❌ task_assignment_log:", error.message);
   }
 
   // Index for fast task history queries
@@ -54,8 +54,8 @@ async function migrate() {
       args: [],
     });
     console.log("  ✅ idx_task_log_task_id index created");
-  } catch (e) {
-    console.log("  ⚠️  index:", e.message);
+  } catch (error) {
+    console.log("  ⚠️  index:", error.message);
   }
 
   // Index for actor queries
@@ -65,8 +65,8 @@ async function migrate() {
       args: [],
     });
     console.log("  ✅ idx_task_log_actor index created");
-  } catch (e) {
-    console.log("  ⚠️  index:", e.message);
+  } catch (error) {
+    console.log("  ⚠️  index:", error.message);
   }
 
   console.log("\n✅ Phase 2 complete.");

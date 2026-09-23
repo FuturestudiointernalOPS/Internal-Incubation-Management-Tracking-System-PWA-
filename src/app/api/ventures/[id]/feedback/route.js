@@ -17,11 +17,11 @@ export const GET = createHandler(async (req, { params }) => {
   if (!(await isStaffActorForVenture(db, id, session))) {
     return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
   }
-  const s = new URL(req.url).searchParams;
-  const type = s.get("type") || "list";
+  const searchParams = new URL(req.url).searchParams;
+  const type = searchParams.get("type") || "list";
 
   if (type === "list") {
-    const feedback = await listFeedback({ ventureId: id, coachId: s.get("coach_id"), sessionId: s.get("session_id") });
+    const feedback = await listFeedback({ ventureId: id, coachId: searchParams.get("coach_id"), sessionId: searchParams.get("session_id") });
     return NextResponse.json({ success: true, feedback });
   }
 
@@ -45,10 +45,10 @@ export const GET = createHandler(async (req, { params }) => {
     return NextResponse.json({ success: true, ...data });
   }
 
-  if (type === "detail" && s.get("feedback_id")) {
-    const f = await getFeedback(parseInt(s.get("feedback_id")));
-    if (!f) return NextResponse.json({ success: false, error: "Feedback not found." }, { status: 404 });
-    return NextResponse.json({ success: true, feedback: f });
+  if (type === "detail" && searchParams.get("feedback_id")) {
+    const feedbackEntry = await getFeedback(parseInt(searchParams.get("feedback_id")));
+    if (!feedbackEntry) return NextResponse.json({ success: false, error: "Feedback not found." }, { status: 404 });
+    return NextResponse.json({ success: true, feedback: feedbackEntry });
   }
 
   return NextResponse.json({ success: false, error: "Invalid type." }, { status: 400 });
@@ -72,7 +72,7 @@ export const POST = createHandler(async (req, { params }) => {
         comments: body.comments, isAnonymous: body.is_anonymous,
       });
       return NextResponse.json({ success: true, feedback_id: result.id });
-    } catch (e) { return NextResponse.json({ success: false, error: e.message }, { status: 400 }); }
+    } catch (error) { return NextResponse.json({ success: false, error: error.message }, { status: 400 }); }
   }
 
   if (body.action === "delete") {

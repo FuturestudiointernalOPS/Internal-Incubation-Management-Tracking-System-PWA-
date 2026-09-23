@@ -6,6 +6,7 @@ import { I18nProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/lib/ThemeProvider";
 import NavHistoryTracker from "@/components/NavHistoryTracker";
 import NavigationLoader from "@/components/ui/NavigationLoader";
+import { DialogProvider } from "@/components/ui/DialogProvider";
 
 export default function RootLayout({ children }) {
   // Global error capture — reports uncaught errors to /api/errors
@@ -167,11 +168,13 @@ export default function RootLayout({ children }) {
       <body className="antialiased min-h-screen">
         <ThemeProvider>
           <I18nProvider>
-            <Suspense fallback={null}>
-              <NavigationLoader />
-            </Suspense>
-            <NavHistoryTracker />
-            {children}
+            <DialogProvider>
+              <Suspense fallback={null}>
+                <NavigationLoader />
+              </Suspense>
+              <NavHistoryTracker />
+              {children}
+            </DialogProvider>
           </I18nProvider>
         </ThemeProvider>
       </body>

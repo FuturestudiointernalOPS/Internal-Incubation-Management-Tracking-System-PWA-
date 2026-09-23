@@ -15,10 +15,10 @@ import { useApi } from "@/lib/hooks/useApi";
 // rather than on every render.
 const EMPTY_ENROLLMENTS = { list: [], failure: null };
 
-const pickEnrollments = (d) =>
-  d?.success
-    ? { list: d.enrollments || [], failure: null }
-    : { list: [], failure: d?.error || "lms.enroll.loadFailed" };
+const pickEnrollments = (data) =>
+  data?.success
+    ? { list: data.enrollments || [], failure: null }
+    : { list: [], failure: data?.error || "lms.enroll.loadFailed" };
 
 /**
  * Admin enrollment enabler — list a course's learners and enroll by email/cid.
@@ -72,8 +72,8 @@ export default function EnrollModal({ isOpen, onClose, courseId }) {
       notify("success", "lms.enroll.enrolled");
       setIdentifier("");
       refreshEnrollments();
-    } catch (e) {
-      notify("error", e.message || "lms.enroll.userNotFound");
+    } catch (error) {
+      notify("error", error.message || "lms.enroll.userNotFound");
     } finally {
       setSaving(false);
     }
@@ -88,9 +88,9 @@ export default function EnrollModal({ isOpen, onClose, courseId }) {
             label={t("lms.enroll.emailOrCid")}
             icon={UserPlus}
             value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
+            onChange={(event) => setIdentifier(event.target.value)}
             placeholder={t("lms.enroll.emailOrCidPlaceholder")}
-            onKeyDown={(e) => e.key === "Enter" && enroll()}
+            onKeyDown={(event) => event.key === "Enter" && enroll()}
           />
           <AppButton className="sm:self-end" variant="primary" icon={Plus} loading={saving} onClick={enroll}>
             {t("lms.enroll.enroll")}
@@ -108,22 +108,22 @@ export default function EnrollModal({ isOpen, onClose, courseId }) {
             </p>
           ) : (
             <div className="space-y-2">
-              {enrollments.map((e) => (
+              {enrollments.map((enrollment) => (
                 <div
-                  key={e.id}
+                  key={enrollment.id}
                   className="flex items-center gap-3 p-3 rounded-lg border flex-wrap"
                   style={{ background: "var(--surface-2)", borderColor: "var(--border-primary)" }}
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold truncate" style={{ color: "var(--text-primary)" }}>
-                      {e.learner?.name || e.user_cid}
+                      {enrollment.learner?.name || enrollment.user_cid}
                     </p>
                     <p className="text-[9px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-tertiary)" }}>
-                      {e.learner?.email || e.user_cid} · {t(`lms.status.${e.status}`)?.replace("lms.status.", "") || e.status}
+                      {enrollment.learner?.email || enrollment.user_cid} · {t(`lms.status.${enrollment.status}`)?.replace("lms.status.", "") || enrollment.status}
                     </p>
                   </div>
                   <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--text-tertiary)" }}>
-                    {e.source} · {formatDate(e.enrolled_at)}
+                    {enrollment.source} · {formatDate(enrollment.enrolled_at)}
                   </span>
                 </div>
               ))}

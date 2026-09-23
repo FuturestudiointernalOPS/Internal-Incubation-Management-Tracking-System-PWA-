@@ -53,9 +53,9 @@ describe("GET /api/dashboard — task statistics definition", () => {
 
     // Find the task-stats query (query #7)
     const statsQuery = executedQueries.find(
-      (q) =>
-        q.sql.includes("SELECT id, title, end_date, status, priority, project_id") &&
-        q.sql.includes("FROM tasks"),
+      (query) =>
+        query.sql.includes("SELECT id, title, end_date, status, priority, project_id") &&
+        query.sql.includes("FROM tasks"),
     );
     expect(statsQuery).toBeDefined();
     expect(statsQuery.sql).toContain("parent_task_id IS NULL");
@@ -63,7 +63,7 @@ describe("GET /api/dashboard — task statistics definition", () => {
 
     // Quick-access "my tasks" query (#14) also excludes subtasks/archived
     const myTasksQuery = executedQueries.find(
-      (q) => q.sql.includes("FROM tasks WHERE user_id::text = ?::text"),
+      (query) => query.sql.includes("FROM tasks WHERE user_id::text = ?::text"),
     );
     expect(myTasksQuery).toBeDefined();
     expect(myTasksQuery.sql).toContain("parent_task_id IS NULL");

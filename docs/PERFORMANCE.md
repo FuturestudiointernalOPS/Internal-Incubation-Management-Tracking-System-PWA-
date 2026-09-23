@@ -241,6 +241,94 @@ for sixty-five) as well as the outcome - everyone assigned, everyone enrolled, t
 facilitator refused rather than assigned, and a removal that does not revoke the
 learning already granted.
 
+## The run detail screen — twelve sequential reads, now four waves
+
+The platform Run screen (the Responses table) awaited each of its reads one
+before the next: the run, then assignments, then submissions, then reviews, then
+the AI evaluations, the email logs, the form's fields, the report file, the
+contacts, the tokens and the assignment enrichment. **Twelve statements, twelve
+waves** — every one waiting on the one before it.
+
+Only the Run itself is a dependency: everything else needs just its id, or the
+`form_id` the Run carries. So the seven reads that need only the id go out in one
+wave, the contact lookups overlap the assignment enrichment, and the token
+lookup follows the contacts (it is keyed on them).
+
+| Run detail (`GET /api/platform/form-runs?id=…`) | Statements | Waves | Burst |
+| ----------------------------------------------- | ---------: | ----: | ----: |
+| before                                          |         12 |    12 |     1 |
+| now                                             |         12 | **5** |     7 |
+
+Five is the FIRST call of a process; on a warm process the report-file read (it
+is preceded by a once-per-process schema check) joins the second wave and it is
+**four**. Same statement count — the reads are the same, they no longer queue.
+`src/__tests__/db-audit-form-runs.test.js` asserts the budget.
+
+## The contacts registry — the self-heal left the read path
+
+`/api/contacts/full-state` called `reconcileProgramGroups()` on every load. That
+routine is a safety net for records that predate the event-driven repair — the
+normal path fixes a person when their submission is approved
+(`syncApprovedSubmissionToProgramGroup`) — but it is **several writing
+statements**, and a read endpoint was paying for them on every visit.
+
+It now runs at most once per window per process (60s), shared by callers that
+arrive while it is in flight, and never retried inside the window after a
+failure. The net is kept; the per-request cost is gone.
+
+The other reads were also a chain of their own: contacts, then families, then
+teams, then the invitation tokens, then the activation email log. The three
+registry reads are independent (one wave) and the two status reads are
+independent of each other (a second wave).
+
+| Registry (`GET /api/contacts/full-state`, repeat load) | Statements | Waves | Burst |
+| ------------------------------------------------------ | ---------: | ----: | ----: |
+| before                                                 |         10 |    10 |     1 |
+| now                                                    |      **5** | **2** |     3 |
+
+The measurement is a REPEAT load (the case every visit but the first one is):
+the first load pays the reconciliation once. `src/__tests__/db-audit-form-runs.test.js`
+asserts both the fall in statements and the two waves.
+
+The program Full State bundle is also measured there: **eighteen statements in
+ONE wave**, with a burst of fifteen against the ten-connection pool. The wave
+depth is right — the surplus simply waits for a slot, which is why its statement
+COUNT, not its burst, is the thing to reduce next.
+
+## The program workspace bundle — the extras that rode on top
+
+The program workspace reads its fourteen tables in ONE wave already, so its wave
+depth was never the problem. What rode on top of the bundle was:
+
+- **the note's attachments were a second read, and a dependent step.** The bundle
+  returns the program row; the attachments were then asked for using the note id
+  that row carries, so they cost a round trip *and* a wave. They are now
+  aggregated into the program row itself (`jsonb_agg`), so listing them costs
+  neither.
+- **the staleness question was asked on EVERY load with metrics.** "When was this
+  program's progress last calculated?" is one cheap read, but it was a read per
+  load, issued in the background — competing for the same ten connections the
+  response needs. It is now asked at most once per 30-second window per program.
+  The five-minute TTL still decides whether anything is recalculated; the window
+  only removes the per-load round trip.
+
+| Program workspace (`GET /api/pm/full-state`, steady load) | Statements |
+| --------------------------------------------------------- | ---------: |
+| before                                                    |         18 |
+| now                                                       |     **15** |
+
+Both figures come from the same harness in `src/__tests__/db-sequencing-audit.test.js`,
+which asserts the budget. The two removals are exact — one read that was also a
+dependent step, and one read per load.
+
+What is deliberately NOT done: collapsing the bundle's fourteen single-table
+reads into one aggregated row. That would take the statement count far lower,
+but it changes every column's serialized shape for every consumer of this
+payload, and it needs a real database to measure — the "rewrite all the queries
+first" this guide rules out. The burst still exceeds the ten-connection pool, so
+the surplus waits for a slot; the statement COUNT is the lever, and it is a
+larger, riskier change than this pass.
+
 ## Instrumentation (guard against regression)
 
 - `getDbMetrics()` / `resetDbMetrics()` in `src/lib/db.js` expose `queries`,

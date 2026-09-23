@@ -8,6 +8,7 @@
     "passwordsDontMatch": "Passwords do not match.",
     "networkError": "Network error. Please try again.",
     "somethingWrong": "Something went wrong. Please try again.",
+    "taskCreateFailed": "Could not create the task.",
     "authRequired": "Authentication required.",
     "insufficientPermissions": "Insufficient permissions.",
     "invalidEligibilityChanges": "Invalid eligibility configuration.",

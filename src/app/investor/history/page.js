@@ -34,9 +34,9 @@ const STAGE_COLORS = {
 // reaches a `.map` / `.total_*` read. Module scope keeps both the value and the
 // normaliser stable for the hook (inline values would refetch every render).
 const EMPTY_DECISION_REPORT = { decisions: [], history: [], stats: {} };
-const pickDecisionReport = (d) =>
-  d?.success
-    ? { decisions: d.decisions || [], history: d.history || [], stats: d.stats || {} }
+const pickDecisionReport = (response) =>
+  response?.success
+    ? { decisions: response.decisions || [], history: response.history || [], stats: response.stats || {} }
     : EMPTY_DECISION_REPORT;
 
 export default function InvestmentHistoryPage() {
@@ -53,28 +53,28 @@ export default function InvestmentHistoryPage() {
 
   const exportCSV = () => {
     const headers = "Venture,Industry,Stage,Decision,Amount,Date\n";
-    const rows = history.map(h =>
-      `"${h.venture_name || ""}","${h.decision_type || h.stage}","${h.stage}","${h.decision_type ? t(DECISION_LABELS[h.decision_type]) : ""}","${h.investment_amount || ""}","${h.decision_date || h.stage_changed_at || ""}"`
+    const rows = history.map(entry =>
+      `"${entry.venture_name || ""}","${entry.decision_type || entry.stage}","${entry.stage}","${entry.decision_type ? t(DECISION_LABELS[entry.decision_type]) : ""}","${entry.investment_amount || ""}","${entry.decision_date || entry.stage_changed_at || ""}"`
     ).join("\n");
     const blob = new Blob([headers + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "investment_history.csv"; a.click();
+    const link = document.createElement("a");
+    link.href = url; link.download = "investment_history.csv"; link.click();
     URL.revokeObjectURL(url);
   };
 
   const exportJSON = () => {
     const blob = new Blob([JSON.stringify({ decisions, history, stats }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "investment_report.json"; a.click();
+    const link = document.createElement("a");
+    link.href = url; link.download = "investment_report.json"; link.click();
     URL.revokeObjectURL(url);
   };
 
   const exportPrintable = () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
-    const html = `<!DOCTYPE html><html><head><title>Investment Report</title><style>body{font-family:Arial;padding:40px;color:#333}h1{font-size:20px;text-transform:uppercase}h2{font-size:14px;color:#f60;margin-top:24px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #ddd;padding:8px;font-size:12px;text-align:left}th{background:#f5f5f5}.amount{text-align:right}.stat{display:inline-block;margin:0 24px 12px 0}.stat span{font-size:24px;font-weight:bold;color:#f60}</style></head><body><h1>Investment Report</h1><p>Generated: ${new Date().toLocaleDateString()}</p><h2>Summary</h2><div><div class="stat"><span>${stats.total_decisions||0}</span> Decisions</div><div class="stat"><span>${stats.total_invested||0}</span> Invested</div><div class="stat"><span>$${(stats.total_capital||0).toLocaleString()}</span> Capital</div></div><h2>Decisions</h2><table><tr><th>Venture</th><th>Decision</th><th>Amount</th><th>Date</th></tr>${decisions.map(d=>`<tr><td>${d.venture_name||""}</td><td>${DECISION_LABELS[d.decision_type]?t(DECISION_LABELS[d.decision_type]):d.decision_type}</td><td class="amount">${d.investment_amount?"$"+Number(d.investment_amount).toLocaleString():"—"}</td><td>${new Date(d.decision_date).toLocaleDateString()}</td></tr>`).join("")}</table><h2>Activity Timeline</h2><table><tr><th>Venture</th><th>Stage</th><th>Date</th><th>Notes</th></tr>${history.map(h=>`<tr><td>${h.venture_name||""}</td><td>${h.stage?.replace(/_/g," ")||""}</td><td>${new Date(h.stage_changed_at||h.created_at).toLocaleDateString()}</td><td>${h.notes||(h.decision_type?t(DECISION_LABELS[h.decision_type]):"")}</td></tr>`).join("")}</table></body></html>`;
+    const html = `<!DOCTYPE html><html><head><title>Investment Report</title><style>body{font-family:Arial;padding:40px;color:#333}h1{font-size:20px;text-transform:uppercase}h2{font-size:14px;color:#f60;margin-top:24px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #ddd;padding:8px;font-size:12px;text-align:left}th{background:#f5f5f5}.amount{text-align:right}.stat{display:inline-block;margin:0 24px 12px 0}.stat span{font-size:24px;font-weight:bold;color:#f60}</style></head><body><h1>Investment Report</h1><p>Generated: ${new Date().toLocaleDateString()}</p><h2>Summary</h2><div><div class="stat"><span>${stats.total_decisions||0}</span> Decisions</div><div class="stat"><span>${stats.total_invested||0}</span> Invested</div><div class="stat"><span>$${(stats.total_capital||0).toLocaleString()}</span> Capital</div></div><h2>Decisions</h2><table><tr><th>Venture</th><th>Decision</th><th>Amount</th><th>Date</th></tr>${decisions.map(decision=>`<tr><td>${decision.venture_name||""}</td><td>${DECISION_LABELS[decision.decision_type]?t(DECISION_LABELS[decision.decision_type]):decision.decision_type}</td><td class="amount">${decision.investment_amount?"$"+Number(decision.investment_amount).toLocaleString():"—"}</td><td>${new Date(decision.decision_date).toLocaleDateString()}</td></tr>`).join("")}</table><h2>Activity Timeline</h2><table><tr><th>Venture</th><th>Stage</th><th>Date</th><th>Notes</th></tr>${history.map(entry=>`<tr><td>${entry.venture_name||""}</td><td>${entry.stage?.replace(/_/g," ")||""}</td><td>${new Date(entry.stage_changed_at||entry.created_at).toLocaleDateString()}</td><td>${entry.notes||(entry.decision_type?t(DECISION_LABELS[entry.decision_type]):"")}</td></tr>`).join("")}</table></body></html>`;
     printWindow.document.write(html);
     printWindow.document.close();
     setTimeout(() => printWindow.print(), 500);
@@ -109,13 +109,13 @@ export default function InvestmentHistoryPage() {
             { label: t("investorMisc.history.invested"), value: stats.total_invested || 0, icon: TrendingUp, color: "text-emerald-400" },
             { label: t("investorMisc.history.totalCapital"), value: `$${(stats.total_capital || 0).toLocaleString()}`, icon: DollarSign, color: "text-[var(--brand-orange)]" },
             { label: t("investorMisc.history.declined"), value: stats.total_declined || 0, icon: XCircle, color: "text-rose-400" },
-          ].map((s, i) => (
-            <AppCard key={i} padding="md">
+          ].map((stat, index) => (
+            <AppCard key={index} padding="md">
               <div className="flex items-center gap-3">
-                <s.icon className={`w-5 h-5 ${s.color}`} />
+                <stat.icon className={`w-5 h-5 ${stat.color}`} />
                 <div>
-                  <p className="text-xl font-black text-[var(--text-primary)]">{s.value}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{s.label}</p>
+                  <p className="text-xl font-black text-[var(--text-primary)]">{stat.value}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{stat.label}</p>
                 </div>
               </div>
             </AppCard>
@@ -126,26 +126,26 @@ export default function InvestmentHistoryPage() {
         {decisions.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">{t("investorMisc.history.decisions")}</h3>
-            {decisions.map(d => (
-              <AppCard key={d.id} padding="md">
+            {decisions.map(decision => (
+              <AppCard key={decision.id} padding="md">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <Building2 className="w-8 h-8 text-[var(--brand-orange)]/60" />
                     <div>
-                      <p className="text-sm font-bold text-[var(--text-primary)]">{d.venture_name || t("investorMisc.history.venture")}</p>
-                      <p className="text-[10px] text-[var(--text-secondary)]">{d.industry || ""}</p>
+                      <p className="text-sm font-bold text-[var(--text-primary)]">{decision.venture_name || t("investorMisc.history.venture")}</p>
+                      <p className="text-[10px] text-[var(--text-secondary)]">{decision.industry || ""}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 text-right">
                     <div>
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${DECISION_COLORS[d.decision_type] || "bg-slate-500/10 text-slate-400"}`}>
-                        {t(DECISION_LABELS[d.decision_type] || d.decision_type)}
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${DECISION_COLORS[decision.decision_type] || "bg-slate-500/10 text-slate-400"}`}>
+                        {t(DECISION_LABELS[decision.decision_type] || decision.decision_type)}
                       </span>
-                      {d.investment_amount && (
-                        <p className="text-xs font-bold text-emerald-400 mt-1">${Number(d.investment_amount).toLocaleString()}</p>
+                      {decision.investment_amount && (
+                        <p className="text-xs font-bold text-emerald-400 mt-1">${Number(decision.investment_amount).toLocaleString()}</p>
                       )}
                     </div>
-                    <span className="text-[10px] text-[var(--text-tertiary)]">{new Date(d.decision_date).toLocaleDateString()}</span>
+                    <span className="text-[10px] text-[var(--text-tertiary)]">{new Date(decision.decision_date).toLocaleDateString()}</span>
                   </div>
                 </div>
               </AppCard>
@@ -163,24 +163,24 @@ export default function InvestmentHistoryPage() {
             </div>
           ) : (
             <div className="relative pl-8 space-y-4 before:absolute before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-[var(--border-primary)]">
-              {history.map((h, i) => (
-                <div key={i} className="relative">
-                  <div className={`absolute -left-[25px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--surface-1)] ${STAGE_COLORS[h.stage]?.replace("text-", "bg-") || "bg-slate-400"}`} />
+              {history.map((entry, index) => (
+                <div key={index} className="relative">
+                  <div className={`absolute -left-[25px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--surface-1)] ${STAGE_COLORS[entry.stage]?.replace("text-", "bg-") || "bg-slate-400"}`} />
                   <AppCard padding="sm">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs font-bold text-[var(--text-primary)]">
-                          {h.venture_name || t("investorMisc.history.venture")} — <span className={STAGE_COLORS[h.stage] || "text-slate-400"}>{h.stage?.replace(/_/g, " ")}</span>
+                          {entry.venture_name || t("investorMisc.history.venture")} — <span className={STAGE_COLORS[entry.stage] || "text-slate-400"}>{entry.stage?.replace(/_/g, " ")}</span>
                         </p>
-                        {h.notes && <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">{h.notes}</p>}
-                        {h.decision_type && (
-                          <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${DECISION_COLORS[h.decision_type]}`}>
-                            {t(DECISION_LABELS[h.decision_type])}
-                            {h.investment_amount ? ` — $${Number(h.investment_amount).toLocaleString()}` : ""}
+                        {entry.notes && <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">{entry.notes}</p>}
+                        {entry.decision_type && (
+                          <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${DECISION_COLORS[entry.decision_type]}`}>
+                            {t(DECISION_LABELS[entry.decision_type])}
+                            {entry.investment_amount ? ` — $${Number(entry.investment_amount).toLocaleString()}` : ""}
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] text-[var(--text-tertiary)] shrink-0">{new Date(h.stage_changed_at || h.created_at).toLocaleDateString()}</span>
+                      <span className="text-[10px] text-[var(--text-tertiary)] shrink-0">{new Date(entry.stage_changed_at || entry.created_at).toLocaleDateString()}</span>
                     </div>
                   </AppCard>
                 </div>

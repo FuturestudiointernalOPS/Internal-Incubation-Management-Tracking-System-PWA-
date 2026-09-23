@@ -66,7 +66,7 @@ export default function CatalogView() {
           return (
             <div key={row.feature} className="border-b border-[var(--border-primary)] last:border-0">
               <button
-                onClick={() => setExpanded((p) => ({ ...p, [row.feature]: !p[row.feature] }))}
+                onClick={() => setExpanded((prev) => ({ ...prev, [row.feature]: !prev[row.feature] }))}
                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary/60"
               >
                 <span className="text-xs font-black uppercase tracking-widest text-[var(--text-primary)]">
@@ -83,24 +83,24 @@ export default function CatalogView() {
                       {t("engineering.permissions.catalogNoModules")}
                     </p>
                   )}
-                  {row.modules.map((m) => (
+                  {row.modules.map((module) => (
                     <div
-                      key={m.module}
+                      key={module.module}
                       className="rounded-lg border border-[var(--border-primary)] bg-secondary/40 px-3 py-2"
                     >
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-[11px] font-black text-[var(--text-primary)]">
-                          {m.module.replace(/_/g, " ")}
+                          {module.module.replace(/_/g, " ")}
                         </span>
-                        {m.locked && (
+                        {module.locked && (
                           <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-400/10 border border-amber-400/30 text-[9px] font-black uppercase tracking-widest text-amber-400">
                             <Lock className="w-2.5 h-2.5" /> {t("engineering.permissions.moduleLocked")}
                           </span>
                         )}
                       </div>
                       <div className="flex flex-wrap gap-1.5">
-                        {m.caps.map((cap) => {
-                          const def = data.catalog[m.module]?.capabilities?.[cap] || {};
+                        {module.caps.map((cap) => {
+                          const def = data.catalog[module.module]?.capabilities?.[cap] || {};
                           return (
                             <span
                               key={cap}

@@ -172,6 +172,28 @@
     "roles": {
       "groupLeader": "Chef de groupe",
       "staff": "Personnel"
+    },
+    "ventureReview": {
+      "commentPrompt": "Ajouter un commentaire pour la Venture (facultatif)",
+      "reviewFailed": "Échec de l'examen."
+    },
+    "ventureWorkspace": {
+      "unavailable": "Venture indisponible",
+      "unavailableHint": "Vous ne pouvez accéder qu'aux Ventures qui vous sont explicitement assignées.",
+      "backToMyVentures": "Retour à mes Ventures",
+      "myRole": "Mon rôle sur cette Venture",
+      "noAssignment": "Aucune affectation active trouvée.",
+      "needsAttention": "Requiert votre attention ({count})",
+      "nothingToReview": "Rien n'attend votre revue.",
+      "submissionMeta": "v{version} par {name}",
+      "foundersAndMembers": "Fondateurs et membres ({count})",
+      "noMembers": "Aucun membre pour le moment.",
+      "about": "À propos",
+      "readPanesNote": "Les volets de lecture affichés dépendent de votre affectation. Les outils de gestion complets se configurent via les autorisations de la Venture.",
+      "noSessions": "Aucune session planifiée.",
+      "listSubtitle": "Les Ventures qui vous sont attribuées — l'accès dépend de l'affectation, jamais du rôle staff seul.",
+      "listEmpty": "Aucune affectation de Venture pour le moment",
+      "listEmptyHint": "Lorsque le Super Admin vous affectera à une Venture comme Lead Manager, Coach ou Facilitateur, elle apparaîtra ici."
     }
   }
 }

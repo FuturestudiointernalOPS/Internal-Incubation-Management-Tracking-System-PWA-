@@ -33,14 +33,14 @@ for (const file of envCandidates) {
   const url = readUrlFrom(file);
   if (!url) continue;
   try {
-    const probe = await import("pg");
-    const pool = new probe.default.Pool({
+    const pgModule = await import("pg");
+    const probePool = new pgModule.default.Pool({
       connectionString: url,
       ssl: { rejectUnauthorized: false },
       connectionTimeoutMillis: 8000,
     });
-    await pool.query("SELECT 1");
-    await pool.end();
+    await probePool.query("SELECT 1");
+    await probePool.end();
     process.env.DATABASE_URL = url;
     console.log(`[diagnose] connected via ${file}`);
     break;
@@ -61,52 +61,52 @@ if (!targetCid) {
 }
 
 const db = await initDb();
-const q = async (name, sql) => {
+const runQuery = async (name, sql) => {
   try {
-    const r = await db.execute({ sql, args: [] });
-    return { name, rows: r.rows };
-  } catch (e) {
-    throw new Error(`Query "${name}" failed: ${e.message}`);
+    const result = await db.execute({ sql, args: [] });
+    return { name, rows: result.rows };
+  } catch (error) {
+    throw new Error(`Query "${name}" failed: ${error.message}`);
   }
 };
 
 const results = await Promise.all([
-  q("contacts", "SELECT cid, access_profile_id, group_name, role FROM contacts"),
-  q("grants", "SELECT user_cid, module, capability, access_level FROM user_capabilities WHERE (expires_at IS NULL OR expires_at > NOW())"),
-  q("restrictions", "SELECT user_cid, module, capability FROM user_capability_restrictions WHERE (expires_at IS NULL OR expires_at > NOW())"),
-  q("profiles", "SELECT id, name, is_active FROM access_profiles"),
-  q("role defaults", "SELECT rpd.role_name, ap.id, ap.name, ap.is_active FROM role_access_profile_defaults rpd JOIN access_profiles ap ON ap.id = rpd.access_profile_id"),
-  q("profile caps", "SELECT profile_id, module, capability, access_level FROM access_profile_capabilities"),
-  q("role caps", "SELECT role, module, capability, access_level FROM role_capabilities"),
-  q("user groups", "SELECT user_cid, group_name FROM user_groups"),
-  q("group caps", "SELECT group_name, module, capability, access_level FROM group_capabilities"),
-  q("eligibility", "SELECT feature_key, identity_type, identity_value, eligible FROM feature_eligibility"),
+  runQuery("contacts", "SELECT cid, access_profile_id, group_name, role FROM contacts"),
+  runQuery("grants", "SELECT user_cid, module, capability, access_level FROM user_capabilities WHERE (expires_at IS NULL OR expires_at > NOW())"),
+  runQuery("restrictions", "SELECT user_cid, module, capability FROM user_capability_restrictions WHERE (expires_at IS NULL OR expires_at > NOW())"),
+  runQuery("profiles", "SELECT id, name, is_active FROM access_profiles"),
+  runQuery("role defaults", "SELECT rpd.role_name, ap.id, ap.name, ap.is_active FROM role_access_profile_defaults rpd JOIN access_profiles ap ON ap.id = rpd.access_profile_id"),
+  runQuery("profile caps", "SELECT profile_id, module, capability, access_level FROM access_profile_capabilities"),
+  runQuery("role caps", "SELECT role, module, capability, access_level FROM role_capabilities"),
+  runQuery("user groups", "SELECT user_cid, group_name FROM user_groups"),
+  runQuery("group caps", "SELECT group_name, module, capability, access_level FROM group_capabilities"),
+  runQuery("eligibility", "SELECT feature_key, identity_type, identity_value, eligible FROM feature_eligibility"),
 ]);
-const map = Object.fromEntries(results.map((r) => [r.name, r.rows]));
+const map = Object.fromEntries(results.map((result) => [result.name, result.rows]));
 const groupBy = (rows, key) => {
-  const m = new Map();
-  for (const r of rows) {
-    const k = r[key];
-    if (!m.has(k)) m.set(k, []);
-    m.get(k).push(r);
+  const grouped = new Map();
+  for (const row of rows) {
+    const groupKey = row[key];
+    if (!grouped.has(groupKey)) grouped.set(groupKey, []);
+    grouped.get(groupKey).push(row);
   }
-  return m;
+  return grouped;
 };
 const data = {
-  contactsMap: new Map(map.contacts.map((r) => [r.cid, r])),
+  contactsMap: new Map(map.contacts.map((contact) => [contact.cid, contact])),
   grantsByUser: groupBy(map.grants, "user_cid"),
   restrictionsByUser: groupBy(map.restrictions, "user_cid"),
-  profiles: new Map(map.profiles.map((r) => [r.id, r])),
-  roleDefaults: new Map(map["role defaults"].map((r) => [r.role_name, r])),
+  profiles: new Map(map.profiles.map((profile) => [profile.id, profile])),
+  roleDefaults: new Map(map["role defaults"].map((roleDefault) => [roleDefault.role_name, roleDefault])),
   profileCapsByProfile: groupBy(map["profile caps"], "profile_id"),
   roleCapsByRole: groupBy(map["role caps"], "role"),
   groupsByUser: (() => {
-    const m = new Map();
-    for (const r of map["user groups"]) {
-      if (!m.has(r.user_cid)) m.set(r.user_cid, []);
-      m.get(r.user_cid).push(r.group_name);
+    const grouped = new Map();
+    for (const row of map["user groups"]) {
+      if (!grouped.has(row.user_cid)) grouped.set(row.user_cid, []);
+      grouped.get(row.user_cid).push(row.group_name);
     }
-    return m;
+    return grouped;
   })(),
   groupCapsByGroup: groupBy(map["group caps"], "group_name"),
   eligRowsAll: map.eligibility,
@@ -117,26 +117,26 @@ function buildCtx(user, data) {
   const grants = rowsToCaps(data.grantsByUser.get(cid) || []);
   const restrictions = rowsToRestrictions(data.restrictionsByUser.get(cid) || []);
   if (role === "super_admin") {
-    const m = {};
-    for (const [mod, def] of Object.entries(PERMISSION_MODULES)) {
-      m[mod] = {};
-      for (const cap of def.capabilities) m[mod][cap] = ACCESS_LEVELS.FULL;
+    const superAdminCaps = {};
+    for (const [module, moduleDef] of Object.entries(PERMISSION_MODULES)) {
+      superAdminCaps[module] = {};
+      for (const capability of moduleDef.capabilities) superAdminCaps[module][capability] = ACCESS_LEVELS.FULL;
     }
     return {
       cid, role, isSuperAdmin: true, groups: [], profile: null,
-      eligibility: null, eligibilityRows: [], baseCaps: m, groupCaps: {},
-      effective: mergeEffectiveCapabilities(m, {}, grants, restrictions), grants, restrictions,
+      eligibility: null, eligibilityRows: [], baseCaps: superAdminCaps, groupCaps: {},
+      effective: mergeEffectiveCapabilities(superAdminCaps, {}, grants, restrictions), grants, restrictions,
     };
   }
   const contact = data.contactsMap.get(cid) || {};
   let profileId = null, profileName = null, profileSource = "legacy";
   if (contact.access_profile_id) {
-    const p = data.profiles.get(contact.access_profile_id);
-    if (p && Number(p.is_active) === 1) { profileId = p.id; profileName = p.name; profileSource = "user"; }
+    const profile = data.profiles.get(contact.access_profile_id);
+    if (profile && Number(profile.is_active) === 1) { profileId = profile.id; profileName = profile.name; profileSource = "user"; }
   }
   if (!profileId && role) {
-    const p = data.roleDefaults.get(role);
-    if (p && Number(p.is_active) === 1) { profileId = p.id; profileName = p.name; profileSource = "role"; }
+    const roleDefault = data.roleDefaults.get(role);
+    if (roleDefault && Number(roleDefault.is_active) === 1) { profileId = roleDefault.id; profileName = roleDefault.name; profileSource = "role"; }
   }
   let baseCaps;
   if (profileId) baseCaps = rowsToCaps(data.profileCapsByProfile.get(profileId) || []);
@@ -145,12 +145,12 @@ function buildCtx(user, data) {
   if (groups.length === 0 && contact.group_name) groups = [contact.group_name];
   let groupCaps = {};
   if (groups.length > 0) {
-    groupCaps = rowsToCaps(groups.flatMap((g) => data.groupCapsByGroup.get(g) || []));
+    groupCaps = rowsToCaps(groups.flatMap((group) => data.groupCapsByGroup.get(group) || []));
   }
   const eligRows = data.eligRowsAll.filter(
-    (r) =>
-      (r.identity_type === "role" && r.identity_value === role) ||
-      (r.identity_type === "group" && groups.includes(r.identity_value)),
+    (eligibilityRow) =>
+      (eligibilityRow.identity_type === "role" && eligibilityRow.identity_value === role) ||
+      (eligibilityRow.identity_type === "group" && groups.includes(eligibilityRow.identity_value)),
   );
   const eligibility = {};
   for (const featureKey of new Set(Object.values(MODULE_TO_FEATURE))) {
@@ -175,11 +175,11 @@ const user = { cid: targetCid, role };
 const ctx = buildCtx(user, data);
 
 const fmt = (level) => (level ? `level ${level}` : "—");
-const check = (module, cap, minLevel = 1) => {
-  const decision = authorize(ctx, module, cap, minLevel);
-  const eff = ctx.effective?.[module]?.[cap] ?? 0;
+const check = (module, capability, minLevel = 1) => {
+  const decision = authorize(ctx, module, capability, minLevel);
+  const eff = ctx.effective?.[module]?.[capability] ?? 0;
   const elig = ctx.isSuperAdmin ? true : ctx.eligibility?.[MODULE_TO_FEATURE[module]];
-  return `${decision ? "ALLOW" : "DENY"}  (eligible=${elig}, ${module}.${cap}=${fmt(eff)}${eff >= minLevel ? "" : `, needs ≥${minLevel}`})`;
+  return `${decision ? "ALLOW" : "DENY"}  (eligible=${elig}, ${module}.${capability}=${fmt(eff)}${eff >= minLevel ? "" : `, needs ≥${minLevel}`})`;
 };
 
 console.log("\n" + "=".repeat(78));
@@ -189,7 +189,7 @@ console.log(`Profile source: ${ctx.profile?.profileSource}${ctx.profile?.profile
 console.log(`Groups: ${ctx.groups.length ? ctx.groups.join(", ") : "(none)"}`);
 console.log(`Base caps (role_capabilities ${ctx.profile?.profileId ? "or profile" : "fallback"}): ${JSON.stringify(ctx.baseCaps)}`);
 console.log(`Grants: ${JSON.stringify(ctx.grants)}`);
-console.log(`Restrictions: ${Object.keys(ctx.restrictions).length ? JSON.stringify([...Object.entries(ctx.restrictions)].map(([m, s]) => [m, [...s]])) : "none"}`);
+console.log(`Restrictions: ${Object.keys(ctx.restrictions).length ? JSON.stringify([...Object.entries(ctx.restrictions)].map(([module, deniedSet]) => [module, [...deniedSet]])) : "none"}`);
 console.log("\n— Route verdicts (current authorization behavior) —");
 console.log(`GET  /api/internal-comms        messaging.view   → ${check("messaging", "view")}`);
 console.log(`POST /api/internal-comms        messaging.send   → ${check("messaging", "send")}`);
@@ -209,10 +209,10 @@ if (!["super_admin", "program_manager"].includes(role)) {
 }
 
 // what caps exist for messaging anywhere
-const messagingCaps = map["role caps"].filter((r) => r.module === "messaging");
-const messagingGrants = map.grants.filter((r) => r.module === "messaging");
+const messagingCaps = map["role caps"].filter((row) => row.module === "messaging");
+const messagingGrants = map.grants.filter((grant) => grant.module === "messaging");
 console.log("\n— messaging capability rows anywhere in the DB —");
 console.log(`role_capabilities: ${messagingCaps.length ? JSON.stringify(messagingCaps) : "NONE (no role has messaging caps)"}`);
 console.log(`user_capabilities: ${messagingGrants.length ? JSON.stringify(messagingGrants) : "NONE"}`);
-console.log(`feature_eligibility (communication): ${JSON.stringify(map.eligibility.filter((r) => r.feature_key === "communication"))}`);
+console.log(`feature_eligibility (communication): ${JSON.stringify(map.eligibility.filter((row) => row.feature_key === "communication"))}`);
 process.exit(0);

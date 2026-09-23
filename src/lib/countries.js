@@ -98,23 +98,23 @@ function buildNames() {
 /** Human-readable English country name for a code (or for legacy text values). */
 export function countryName(codeOrName) {
   if (!codeOrName) return "";
-  const v = String(codeOrName).trim();
-  if (v.length === 2 && COUNTRY_CODES.includes(v.toUpperCase())) {
-    return buildNames()[v.toUpperCase()];
+  const normalized = String(codeOrName).trim();
+  if (normalized.length === 2 && COUNTRY_CODES.includes(normalized.toUpperCase())) {
+    return buildNames()[normalized.toUpperCase()];
   }
   // Legacy free-text values (e.g. "Benin") — return as-is so nothing breaks.
-  return v;
+  return normalized;
 }
 
 /** Country display label: "🇧🇯 Benin" — code-aware, falls back to legacy text. */
 export function countryLabel(codeOrName) {
-  const v = String(codeOrName || "").trim();
-  if (!v) return "";
-  if (v.length === 2 && COUNTRY_CODES.includes(v.toUpperCase())) {
-    const code = v.toUpperCase();
+  const normalized = String(codeOrName || "").trim();
+  if (!normalized) return "";
+  if (normalized.length === 2 && COUNTRY_CODES.includes(normalized.toUpperCase())) {
+    const code = normalized.toUpperCase();
     return `${countryFlag(code)} ${buildNames()[code]}`;
   }
-  return v;
+  return normalized;
 }
 
 /** All countries with resolved names + flags, sorted by name. */
@@ -124,7 +124,7 @@ export function allCountries() {
     code,
     name: names[code],
     flag: countryFlag(code),
-  })).sort((a, b) => a.name.localeCompare(b.name));
+  })).sort((first, second) => first.name.localeCompare(second.name));
 }
 
 // ── Shared UI country/phone API (ISO alpha-2 -> E.164 dial codes) ─────────
@@ -176,15 +176,15 @@ export function getCountryOptions() {
         nameFr: localizedName(iso, "fr"),
       };
     })
-    .filter((c) => c.dial);
+    .filter((country) => country.dial);
 
   // Common countries first for a nicer default ordering.
   const priority = new Set(["BJ", "NG", "GH", "KE", "ZA", "EG", "FR", "GB", "US", "CA"]);
-  cachedCountries.sort((a, b) => {
-    const pa = priority.has(a.iso) ? 0 : 1;
-    const pb = priority.has(b.iso) ? 0 : 1;
-    if (pa !== pb) return pa - pb;
-    return a.nameEn.localeCompare(b.nameEn);
+  cachedCountries.sort((first, second) => {
+    const firstPriority = priority.has(first.iso) ? 0 : 1;
+    const secondPriority = priority.has(second.iso) ? 0 : 1;
+    if (firstPriority !== secondPriority) return firstPriority - secondPriority;
+    return first.nameEn.localeCompare(second.nameEn);
   });
 
   return cachedCountries;

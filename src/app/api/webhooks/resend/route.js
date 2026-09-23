@@ -46,7 +46,7 @@ export async function POST(req) {
       .createHmac("sha256", Buffer.from(secretKey, "base64"))
       .update(signedContent)
       .digest("base64");
-    const signatures = svixSig.split(" ").map((s) => s.split(",")[1]).filter(Boolean);
+    const signatures = svixSig.split(" ").map((signaturePart) => signaturePart.split(",")[1]).filter(Boolean);
     if (!signatures.includes(expected)) {
       return NextResponse.json({ success: false, error: "Invalid signature" }, { status: 401 });
     }
@@ -63,7 +63,7 @@ export async function POST(req) {
     const createdAt = payload.data?.created_at || payload.created_at;
     const ok = await recordResendEvent({ email_id: emailId, status, error: reason, createdAt });
     return NextResponse.json({ success: true, recorded: ok, status, email_id: emailId });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

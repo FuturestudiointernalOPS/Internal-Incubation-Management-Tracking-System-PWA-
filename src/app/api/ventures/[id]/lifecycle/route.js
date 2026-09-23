@@ -41,8 +41,8 @@ export async function POST(req, { params }) {
     // Resolve the VNT code (ventures store the code as their business key).
     let ventureId = id;
     if (typeof id === "string" && id.includes("-") && !id.startsWith("VNT-")) {
-      const byId = await getLifecycleVentureByUuid(id);
-      if (byId.rows?.[0]) ventureId = byId.rows[0].venture_id;
+      const ventureByUuid = await getLifecycleVentureByUuid(id);
+      if (ventureByUuid.rows?.[0]) ventureId = ventureByUuid.rows[0].venture_id;
     }
 
     if (!["super_admin"].includes(session.role)) {
@@ -66,8 +66,8 @@ export async function POST(req, { params }) {
       );
     }
 
-    const exists = await getLifecycleVentureId(ventureId);
-    if (exists.rows.length === 0) {
+    const ventureExists = await getLifecycleVentureId(ventureId);
+    if (ventureExists.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Venture not found." }, { status: 404 });
     }
 

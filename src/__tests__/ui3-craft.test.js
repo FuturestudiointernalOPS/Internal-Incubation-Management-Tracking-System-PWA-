@@ -48,7 +48,7 @@ describe("UI-3b — keyboard and screen-reader support", () => {
   test("matrix rows are keyboard-operable and labelled", () => {
     const src = read(PEOPLE);
     expect(src).toContain("tabIndex={0}");
-    expect(src).toContain('e.key === "Enter"');
+    expect(src).toContain('event.key === "Enter"');
     expect(src).toContain('role="region"');
     expect(src).toContain("peopleRowAria");
   });
@@ -60,8 +60,8 @@ describe("UI-3b — keyboard and screen-reader support", () => {
   });
 
   test("every focusable control in the new screens has a visible focus ring", () => {
-    for (const rel of [SHELL, PEOPLE, LIVE, CONTEXT, OVERVIEW]) {
-      expect(read(rel)).toContain("focus-visible:ring-2");
+    for (const relativePath of [SHELL, PEOPLE, LIVE, CONTEXT, OVERVIEW]) {
+      expect(read(relativePath)).toContain("focus-visible:ring-2");
     }
   });
 

@@ -46,8 +46,8 @@ describe("UI-3a — design-system fixes", () => {
 
   test("the governance stat cards no longer use hardcoded hex colors", () => {
     const src = read(center);
-    for (const hex of ["#10B981", "#F59E0B", "#EF4444", "#94A3B8"]) {
-      expect(src).not.toContain(hex);
+    for (const hexColor of ["#10B981", "#F59E0B", "#EF4444", "#94A3B8"]) {
+      expect(src).not.toContain(hexColor);
     }
     expect(src).toContain("StatCard");
   });

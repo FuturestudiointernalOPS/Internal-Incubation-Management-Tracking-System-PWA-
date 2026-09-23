@@ -120,16 +120,16 @@ export async function GET(req) {
     const { rows } = await getAllPrograms();
 
     // Assignment-only callers may only see the single program they resolved.
-    const scopedRows = !canReadDirectory && id ? rows.filter((r) => String(r.id) === String(id)) : rows;
+    const scopedRows = !canReadDirectory && id ? rows.filter((row) => String(row.id) === String(id)) : rows;
 
     // Parse JSON columns
-    const programs = scopedRows.map((r) => ({
-      ...r,
-      topics: r.topics ? JSON.parse(r.topics) : [],
-      outcomes: r.outcomes ? JSON.parse(r.outcomes) : [],
-      deliverables: r.deliverables ? JSON.parse(r.deliverables) : [],
-      resources: r.resources ? JSON.parse(r.resources) : [],
-      feedback_enabled: !!r.feedback_enabled,
+    const programs = scopedRows.map((row) => ({
+      ...row,
+      topics: row.topics ? JSON.parse(row.topics) : [],
+      outcomes: row.outcomes ? JSON.parse(row.outcomes) : [],
+      deliverables: row.deliverables ? JSON.parse(row.deliverables) : [],
+      resources: row.resources ? JSON.parse(row.resources) : [],
+      feedback_enabled: !!row.feedback_enabled,
     }));
 
     return NextResponse.json({ success: true, programs });

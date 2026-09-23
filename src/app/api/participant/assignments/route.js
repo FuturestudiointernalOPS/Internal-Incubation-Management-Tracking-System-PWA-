@@ -56,64 +56,64 @@ export async function GET(req) {
     );
 
     const allAssignments = [];
-    for (const pid of programIds) {
-      if (filterProgramId && pid !== filterProgramId) continue;
+    for (const programId of programIds) {
+      if (filterProgramId && programId !== filterProgramId) continue;
 
       const [progRes, delRes, subRes] = await Promise.all([
-        getAssignmentsProgramById(pid),
-        getAssignmentsDeliverablesByProgramId(pid),
-        getAssignmentsSubmissionsByProgram(cid, pid),
+        getAssignmentsProgramById(programId),
+        getAssignmentsDeliverablesByProgramId(programId),
+        getAssignmentsSubmissionsByProgram(cid, programId),
       ]);
 
         const program = progRes.rows[0];
         if (!program) continue;
-        const deliverables = (delRes.rows || []).filter((d) => {
+        const deliverables = (delRes.rows || []).filter((deliverable) => {
           // Apply the requirement's stored assignee scoping. A PM can target a
           // requirement at everyone, a team, or a single individual. Without
           // this filter every participant would incorrectly see every
           // requirement regardless of how the PM scoped it.
-          const type = String(d.assignee_type || "all").toLowerCase();
+          const type = String(deliverable.assignee_type || "all").toLowerCase();
           if (type === "all" || !type) return true;
           if (type === "team") {
             const teamIds = [contact.v2_team_id, contact.team_id]
               .filter(Boolean)
-              .map((t) => String(t));
-            return teamIds.length > 0 && teamIds.includes(String(d.assignee_id));
+              .map((teamId) => String(teamId));
+            return teamIds.length > 0 && teamIds.includes(String(deliverable.assignee_id));
           }
           if (type === "individual") {
-            return String(d.assignee_id) === String(cid);
+            return String(deliverable.assignee_id) === String(cid);
           }
           return true; // unknown scope — stay safe and visible
         });
         const submissions = subRes.rows || [];
 
-        for (const d of deliverables) {
+        for (const deliverable of deliverables) {
           // Match by document_id (preferred) or deliverable_id (legacy/int compat)
-          const sub = submissions.find(
-            (s) =>
-              String(s.document_id) === String(d.id) ||
-              String(s.deliverable_id) === String(d.id),
+          const matchedSubmission = submissions.find(
+            (submission) =>
+              String(submission.document_id) === String(deliverable.id) ||
+              String(submission.deliverable_id) === String(deliverable.id),
           );
         allAssignments.push({
-          id: d.id,
-          title: d.title,
-          description: d.description,
-          allowedFormat: d.allowed_format,
-          resourceUrl: d.resource_url || null,
-          resourceLabel: d.resource_label || null,
-          weight: d.weight,
-          programId: pid,
+          id: deliverable.id,
+          title: deliverable.title,
+          description: deliverable.description,
+          allowedFormat: deliverable.allowed_format,
+          resourceUrl: deliverable.resource_url || null,
+          resourceLabel: deliverable.resource_label || null,
+          weight: deliverable.weight,
+          programId,
           programName: program.name,
-          dueDate: d.due_date || d.created_at,
-          submission: sub
+          dueDate: deliverable.due_date || deliverable.created_at,
+          submission: matchedSubmission
             ? {
-                id: sub.id,
-                status: sub.status,
-                fileUrl: sub.file_url,
-                score: sub.score,
-                submittedAt: sub.created_at,
-                feedback: sub.feedback || null,
-                rejectionReason: sub.rejection_reason || null,
+                id: matchedSubmission.id,
+                status: matchedSubmission.status,
+                fileUrl: matchedSubmission.file_url,
+                score: matchedSubmission.score,
+                submittedAt: matchedSubmission.created_at,
+                feedback: matchedSubmission.feedback || null,
+                rejectionReason: matchedSubmission.rejection_reason || null,
               }
             : null,
         });
@@ -121,11 +121,11 @@ export async function GET(req) {
     }
 
     const now = new Date();
-    allAssignments.sort((a, b) => {
-      const aOverdue = !a.submission && new Date(a.dueDate) < now ? 1 : 0;
-      const bOverdue = !b.submission && new Date(b.dueDate) < now ? 1 : 0;
-      if (aOverdue !== bOverdue) return bOverdue - aOverdue;
-      return new Date(b.dueDate) - new Date(a.dueDate);
+    allAssignments.sort((first, second) => {
+      const firstOverdue = !first.submission && new Date(first.dueDate) < now ? 1 : 0;
+      const secondOverdue = !second.submission && new Date(second.dueDate) < now ? 1 : 0;
+      if (firstOverdue !== secondOverdue) return secondOverdue - firstOverdue;
+      return new Date(second.dueDate) - new Date(first.dueDate);
     });
 
     return NextResponse.json({
@@ -167,17 +167,17 @@ export async function POST(req) {
     const existing = await getExistingSubmission(cid, deliverable_id);
 
     if (existing.rows.length > 0) {
-      const prev = existing.rows[0];
+      const previousSubmission = existing.rows[0];
       // Archive previous version
       await archiveSubmissionVersion(
-        prev.id,
+        previousSubmission.id,
         cid,
         deliverable_id,
-        prev.file_url,
-        prev.version || 1,
+        previousSubmission.file_url,
+        previousSubmission.version || 1,
       );
       // Update with new version
-      await updateSubmissionVersion(file_url || null, prev.id);
+      await updateSubmissionVersion(file_url || null, previousSubmission.id);
     } else {
       await insertSubmission(cid, program_id, deliverable_id, file_url || null);
     }

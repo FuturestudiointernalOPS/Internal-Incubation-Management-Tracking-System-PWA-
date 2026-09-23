@@ -53,7 +53,7 @@ export async function GET(req) {
     }
 
     const implemented = isScopePolicyImplemented(policy);
-    const ids = await resolveScopeIds(policy, cid);
+    const resolvedScopeIds = await resolveScopeIds(policy, cid);
     const withinScope =
       resourceId && resourceId !== ""
         ? await isWithinScope(policy, cid, resourceId)
@@ -68,13 +68,13 @@ export async function GET(req) {
       cid,
       resource_id: resourceId || null,
       within_scope: withinScope,
-      resolved_count: ids ? ids.length : 0,
-      resolved_ids: ids || [],
+      resolved_count: resolvedScopeIds ? resolvedScopeIds.length : 0,
+      resolved_ids: resolvedScopeIds || [],
     });
-  } catch (err) {
-    console.error("[Scope Check] GET error:", err);
+  } catch (error) {
+    console.error("[Scope Check] GET error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

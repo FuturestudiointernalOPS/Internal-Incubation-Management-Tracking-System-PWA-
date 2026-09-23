@@ -12,7 +12,7 @@ import { useSessionUser } from "@/lib/hooks/useSessionUser";
 
 const EMPTY_LIST = [];
 
-const pickVentures = (d) => (d?.success ? d.ventures || [] : []);
+const pickVentures = (payload) => (payload?.success ? payload.ventures || [] : []);
 
 export default function ParticipantVentures() {
   const { t } = useI18n();
@@ -35,8 +35,8 @@ export default function ParticipantVentures() {
   // Form/Run. This button opens the configured Venture Run.
   async function openVentureApplication() {
     try {
-      const res = await fetch("/api/platform/venture-run");
-      const data = await res.json();
+      const response = await fetch("/api/platform/venture-run");
+      const data = await response.json();
       if (data.success && data.url) {
         window.location.href = data.url;
       } else {
@@ -46,8 +46,8 @@ export default function ParticipantVentures() {
           })
         );
       }
-    } catch (e) {
-      console.error("Failed to resolve Venture Run", e);
+    } catch (error) {
+      console.error("Failed to resolve Venture Run", error);
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
           detail: { type: "error", message: t("venture.loadError"), duration: 4000 },
@@ -85,44 +85,44 @@ export default function ParticipantVentures() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {ventures.map((v) => (
+            {ventures.map((venture) => (
               <div
-                key={v.id}
-                onClick={() => router.push(`/participant/ventures/${v.venture_id || v.id}`)}
+                key={venture.id}
+                onClick={() => router.push(`/participant/ventures/${venture.venture_id || venture.id}`)}
                 className="rounded-xl p-5 transition-all cursor-pointer border"
                 style={{
                   backgroundColor: "rgb(255 255 255 / 0.05)",
                   borderColor: "rgb(255 255 255 / 0.1)",
                   color: "var(--text-primary)"
                 }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--brand-orange)"; e.currentTarget.style.boxShadow = "0 4px 20px rgb(255 102 0 / 0.15)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = "rgb(255 255 255 / 0.1)"; e.currentTarget.style.boxShadow = "none"; }}
+                onMouseEnter={event => { event.currentTarget.style.borderColor = "var(--brand-orange)"; event.currentTarget.style.boxShadow = "0 4px 20px rgb(255 102 0 / 0.15)"; }}
+                onMouseLeave={event => { event.currentTarget.style.borderColor = "rgb(255 255 255 / 0.1)"; event.currentTarget.style.boxShadow = "none"; }}
               >
                 <div className="flex items-start justify-between mb-3">
                   {/* Same display rule as every other Ventures surface: the
                       company name first, the legacy `name` column only as a
                       fallback (it can still hold a pre-fix intake-run label). */}
-                  <h3 className="font-semibold text-lg">{v.company_name || v.name}</h3>
+                  <h3 className="font-semibold text-lg">{venture.company_name || venture.name}</h3>
                   <span className="text-xs px-2 py-1 rounded-full font-medium"
                     style={{
-                      backgroundColor: v.status === "active" ? "rgb(16 185 129 / 0.2)" : v.status === "paused" ? "rgb(245 158 11 / 0.2)" : v.status === "graduated" ? "rgb(168 85 247 / 0.2)" : "rgb(255 255 255 / 0.1)",
-                      color: v.status === "active" ? "#10b981" : v.status === "paused" ? "#f59e0b" : v.status === "graduated" ? "#a855f7" : "var(--text-secondary)"
+                      backgroundColor: venture.status === "active" ? "rgb(16 185 129 / 0.2)" : venture.status === "paused" ? "rgb(245 158 11 / 0.2)" : venture.status === "graduated" ? "rgb(168 85 247 / 0.2)" : "rgb(255 255 255 / 0.1)",
+                      color: venture.status === "active" ? "#10b981" : venture.status === "paused" ? "#f59e0b" : venture.status === "graduated" ? "#a855f7" : "var(--text-secondary)"
                     }}
                   >
-                    {t(`venture.statuses.${v.status || "active"}`)}
+                    {t(`venture.statuses.${venture.status || "active"}`)}
                   </span>
                 </div>
-                {v.description && (
-                  <p className="text-sm mb-3 line-clamp-2" style={{ color: "var(--text-secondary)" }}>{v.description}</p>
+                {venture.description && (
+                  <p className="text-sm mb-3 line-clamp-2" style={{ color: "var(--text-secondary)" }}>{venture.description}</p>
                 )}
                 <div className="flex items-center gap-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-                  <span>{t(`venture.stages.${v.business_stage || "idea"}`)}</span>
+                  <span>{t(`venture.stages.${venture.business_stage || "idea"}`)}</span>
                   <span>•</span>
-                  <span>{v.founder_count || 0} {t("venture.founderCount")}</span>
-                  {v.industry && (
+                  <span>{venture.founder_count || 0} {t("venture.founderCount")}</span>
+                  {venture.industry && (
                     <>
                       <span>•</span>
-                      <span>{v.industry}</span>
+                      <span>{venture.industry}</span>
                     </>
                   )}
                 </div>

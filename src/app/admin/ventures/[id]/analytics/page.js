@@ -25,8 +25,8 @@ const KPI_FORMAT = {
 // Module scope on purpose: the hook keys its internal callback on these
 // functions, so inline arrows would give them a new identity on every render and
 // refetch in a loop.
-const pickVenture = (d) => (d?.success ? d.venture : null);
-const pickVentureAnalytics = (d) => (d?.success ? d : null);
+const pickVenture = (payload) => (payload?.success ? payload.venture : null);
+const pickVentureAnalytics = (payload) => (payload?.success ? payload : null);
 
 export default function VentureAnalyticsPage() {
   const { id } = useParams();
@@ -46,24 +46,24 @@ export default function VentureAnalyticsPage() {
   const loading = ventureLoading || analyticsLoading;
 
   const handleExport = async () => {
-    const res = await fetch(`/api/ventures/${id}/analytics?type=export&format=csv`);
-    const blob = await res.blob();
+    const response = await fetch(`/api/ventures/${id}/analytics?type=export&format=csv`);
+    const blob = await response.blob();
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = `investment-analytics-${id}.csv`; a.click();
+    const downloadLink = document.createElement("a"); downloadLink.href = url; downloadLink.download = `investment-analytics-${id}.csv`; downloadLink.click();
     URL.revokeObjectURL(url);
   };
 
   const renderValue = (key, value) => {
     if (value === undefined || value === null) return "—";
-    const fmt = KPI_FORMAT[key];
-    if (fmt === "pct") return `${value}%`;
-    if (fmt === "currency") return `$${(value).toLocaleString()}`;
+    const format = KPI_FORMAT[key];
+    if (format === "pct") return `${value}%`;
+    if (format === "currency") return `$${(value).toLocaleString()}`;
     return typeof value === "number" ? value.toLocaleString() : value;
   };
 
-  const progressBar = (pct, color) => (
+  const progressBar = (percentage, color) => (
     <div className="w-full bg-tertiary rounded-full h-2 overflow-hidden">
-      <div className={`h-full rounded-full ${color || "bg-[var(--brand-orange)]"}`} style={{ width: `${Math.min(pct||0, 100)}%` }} />
+      <div className={`h-full rounded-full ${color || "bg-[var(--brand-orange)]"}`} style={{ width: `${Math.min(percentage||0, 100)}%` }} />
     </div>
   );
 
@@ -71,7 +71,7 @@ export default function VentureAnalyticsPage() {
     <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
-  const a = analytics || {};
+  const analyticsData = analytics || {};
 
   // Priority KPIs for the top row
   const priorityKPIs = ["readiness_score", "total_matches", "active_opportunities", "pipeline_value", "win_rate", "investor_engagement_score"];
@@ -102,15 +102,15 @@ export default function VentureAnalyticsPage() {
             <div key={key} className="p-4 rounded-2xl bg-tertiary border border-[var(--border-primary)]">
               <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{KPI_LABELS[key] || key}</p>
               <p className={`text-xl font-black mt-1 ${
-                key === "win_rate" && (a[key]||0) >= 50 ? "text-emerald-400" :
-                key === "win_rate" && (a[key]||0) < 30 ? "text-rose-400" :
-                key === "readiness_score" && (a[key]||0) >= 50 ? "text-emerald-400" :
-                key === "readiness_score" && (a[key]||0) < 25 ? "text-rose-400" :
-                key === "investor_engagement_score" && (a[key]||0) >= 50 ? "text-emerald-400" :
+                key === "win_rate" && (analyticsData[key]||0) >= 50 ? "text-emerald-400" :
+                key === "win_rate" && (analyticsData[key]||0) < 30 ? "text-rose-400" :
+                key === "readiness_score" && (analyticsData[key]||0) >= 50 ? "text-emerald-400" :
+                key === "readiness_score" && (analyticsData[key]||0) < 25 ? "text-rose-400" :
+                key === "investor_engagement_score" && (analyticsData[key]||0) >= 50 ? "text-emerald-400" :
                 "text-[var(--text-primary)]"
-              }`}>{renderValue(key, a[key])}</p>
+              }`}>{renderValue(key, analyticsData[key])}</p>
               {["readiness_score", "win_rate", "investor_engagement_score", "avg_match_score"].includes(key) && (
-                <div className="mt-2">{progressBar(a[key]||0, (a[key]||0) >= 70 ? "bg-emerald-500" : (a[key]||0) >= 40 ? "bg-amber-500" : "bg-rose-500")}</div>
+                <div className="mt-2">{progressBar(analyticsData[key]||0, (analyticsData[key]||0) >= 70 ? "bg-emerald-500" : (analyticsData[key]||0) >= 40 ? "bg-amber-500" : "bg-rose-500")}</div>
               )}
             </div>
           ))}
@@ -120,30 +120,30 @@ export default function VentureAnalyticsPage() {
         <div className="card">
           <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">All Metrics</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {Object.entries(KPI_LABELS).filter(([k]) => !priorityKPIs.includes(k)).map(([key, label]) => (
+            {Object.entries(KPI_LABELS).filter(([kpiKey]) => !priorityKPIs.includes(kpiKey)).map(([key, label]) => (
               <div key={key} className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                 <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{label}</p>
-                <p className="text-base font-black mt-1">{renderValue(key, a[key])}</p>
+                <p className="text-base font-black mt-1">{renderValue(key, analyticsData[key])}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Pipeline Funnel */}
-        {(a.pipeline_funnel || []).length > 0 && (
+        {(analyticsData.pipeline_funnel || []).length > 0 && (
           <div className="card">
             <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-3">Pipeline Funnel</h3>
             <div className="space-y-2">
-              {a.pipeline_funnel.map((stage) => {
-                const maxCount = Math.max(...a.pipeline_funnel.map((s) => s.count), 1);
-                const pct = (stage.count / maxCount) * 100;
+              {analyticsData.pipeline_funnel.map((stage) => {
+                const maxCount = Math.max(...analyticsData.pipeline_funnel.map((funnelStage) => funnelStage.count), 1);
+                const percentage = (stage.count / maxCount) * 100;
                 const stageLabel = stage.stage?.replace(/_/g, " ") || "";
                 return (
                   <div key={stage.stage} className="flex items-center gap-3">
                     <span className="text-[10px] font-bold text-[var(--text-secondary)] w-28 capitalize truncate">{stageLabel}</span>
                     <div className="flex-1 bg-tertiary rounded-full h-6 overflow-hidden relative">
                       <div className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full flex items-center justify-end px-3"
-                        style={{ width: `${Math.max(pct, 5)}%` }}>
+                        style={{ width: `${Math.max(percentage, 5)}%` }}>
                         <span className="text-[10px] font-bold text-black">{stage.count}</span>
                       </div>
                     </div>
@@ -156,17 +156,17 @@ export default function VentureAnalyticsPage() {
         )}
 
         {/* Monthly Activity Trend */}
-        {(a.monthly_activity || []).length > 0 && (
+        {(analyticsData.monthly_activity || []).length > 0 && (
           <div className="card">
             <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-3">Monthly Activity</h3>
             <div className="flex items-end gap-2 h-32">
-              {a.monthly_activity.slice(-6).map((m, i) => {
-                const maxAct = Math.max(...a.monthly_activity.map((x) => x.activities), 1);
-                const h = (m.activities / maxAct) * 100;
+              {analyticsData.monthly_activity.slice(-6).map((month, index) => {
+                const maxActivities = Math.max(...analyticsData.monthly_activity.map((entry) => entry.activities), 1);
+                const barHeight = (month.activities / maxActivities) * 100;
                 return (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="w-full bg-[var(--brand-orange)]/30 rounded-t" style={{ height: `${h}%` }} />
-                    <span className="text-[10px] text-[var(--text-secondary)]">{m.month?.slice(5, 10) || ""}</span>
+                  <div key={index} className="flex-1 flex flex-col items-center gap-1">
+                    <div className="w-full bg-[var(--brand-orange)]/30 rounded-t" style={{ height: `${barHeight}%` }} />
+                    <span className="text-[10px] text-[var(--text-secondary)]">{month.month?.slice(5, 10) || ""}</span>
                   </div>
                 );
               })}
@@ -175,17 +175,17 @@ export default function VentureAnalyticsPage() {
         )}
 
         {/* Funding Trend */}
-        {(a.funding_trend || []).length > 0 && (
+        {(analyticsData.funding_trend || []).length > 0 && (
           <div className="card">
             <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-3">Funding Trend (Closed Deals)</h3>
             <div className="flex items-end gap-2 h-32">
-              {a.funding_trend.slice(-6).map((m, i) => {
-                const maxAmt = Math.max(...a.funding_trend.map((x) => x.amount), 1);
-                const h = (m.amount / maxAmt) * 100;
+              {analyticsData.funding_trend.slice(-6).map((month, index) => {
+                const maxAmount = Math.max(...analyticsData.funding_trend.map((entry) => entry.amount), 1);
+                const barHeight = (month.amount / maxAmount) * 100;
                 return (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="w-full bg-emerald-500/30 rounded-t" style={{ height: `${h}%` }} />
-                    <span className="text-[10px] text-[var(--text-secondary)]">{m.month?.slice(5, 10) || ""}</span>
+                  <div key={index} className="flex-1 flex flex-col items-center gap-1">
+                    <div className="w-full bg-emerald-500/30 rounded-t" style={{ height: `${barHeight}%` }} />
+                    <span className="text-[10px] text-[var(--text-secondary)]">{month.month?.slice(5, 10) || ""}</span>
                   </div>
                 );
               })}
@@ -201,19 +201,19 @@ export default function VentureAnalyticsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
               <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Uploaded</p>
-              <p className="text-lg font-black">{a.documents_uploaded || 0}</p>
+              <p className="text-lg font-black">{analyticsData.documents_uploaded || 0}</p>
             </div>
             <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
               <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase"><Eye className="w-3 h-3 inline" /> Views</p>
-              <p className="text-lg font-black">{a.documents_viewed || 0}</p>
+              <p className="text-lg font-black">{analyticsData.documents_viewed || 0}</p>
             </div>
             <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
               <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase"><DownloadIcon className="w-3 h-3 inline" /> Downloads</p>
-              <p className="text-lg font-black">{a.documents_downloaded || 0}</p>
+              <p className="text-lg font-black">{analyticsData.documents_downloaded || 0}</p>
             </div>
             <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
               <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Pitch Views</p>
-              <p className="text-lg font-black">{a.pitch_deck_views || 0}</p>
+              <p className="text-lg font-black">{analyticsData.pitch_deck_views || 0}</p>
             </div>
           </div>
         </div>

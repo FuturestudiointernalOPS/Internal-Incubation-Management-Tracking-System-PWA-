@@ -36,7 +36,7 @@ export async function GET(req) {
     await initDb();
     const { searchParams } = new URL(req.url);
 
-    const q = searchParams.get("q")?.trim();
+    const searchQuery = searchParams.get("q")?.trim();
     const actor = searchParams.get("actor")?.trim();
     const target = searchParams.get("target")?.trim();
     const action = searchParams.get("action")?.trim();
@@ -51,12 +51,12 @@ export async function GET(req) {
 
     const where = [];
     const args = [];
-    if (q) {
-      const like = `%${q}%`;
+    if (searchQuery) {
+      const likePattern = `%${searchQuery}%`;
       where.push(
         "(actor_name ILIKE ? OR target_name ILIKE ? OR action ILIKE ? OR module ILIKE ? OR capability ILIKE ? OR details ILIKE ?)",
       );
-      args.push(like, like, like, like, like, like);
+      args.push(likePattern, likePattern, likePattern, likePattern, likePattern, likePattern);
     }
     if (actor) {
       where.push("actor_name ILIKE ?");
@@ -92,16 +92,19 @@ export async function GET(req) {
     }
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-    const countRes = await countPermissionAudits(whereSql, args);
-    const total = parseInt(countRes.rows[0]?.n || 0);
+    const countResult = await countPermissionAudits(whereSql, args);
+    const total = parseInt(countResult.rows[0]?.n || 0);
 
     const entries = (
       await listPermissionAudits(whereSql, [...args, pageSize, offset])
     ).rows;
 
     return NextResponse.json({ success: true, entries, total, page, pageSize });
-  } catch (err) {
-    console.error("[Permissions] Audit GET error:", err);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error("[Permissions] Audit GET error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }

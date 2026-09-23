@@ -49,14 +49,14 @@ export default function ParticipantDashboard() {
           apply(cached);
           setLoading(false);
         }
-        const res = await fetch(url);
-        const data = await res.json();
+        const response = await fetch(url);
+        const data = await response.json();
         if (data.success) {
           cacheSet(url, data);
           apply(data);
         }
-      } catch (e) {
-        console.error("Failed to load dashboard data", e);
+      } catch (error) {
+        console.error("Failed to load dashboard data", error);
       } finally {
         setLoading(false);
       }

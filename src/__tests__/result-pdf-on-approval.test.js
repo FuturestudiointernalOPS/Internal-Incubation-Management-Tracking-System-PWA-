@@ -72,8 +72,8 @@ describe("AI result PDF on approval — server invariants", () => {
 
   test("the outcome is reported back to the caller", () => {
     expect(src).toMatch(/result_pdf: resultPdf \};/);
-    expect(src).toMatch(/result_pdf: res\.result_pdf \|\| null/);
-    expect(src).toMatch(/result_pdf_error: res\.result_pdf \? res\.result_pdf\.error : undefined/);
+    expect(src).toMatch(/result_pdf: reviewResult\.result_pdf \|\| null/);
+    expect(src).toMatch(/result_pdf_error: reviewResult\.result_pdf \? reviewResult\.result_pdf\.error : undefined/);
   });
 
   test("the refusal never sends a half-done decision email", () => {

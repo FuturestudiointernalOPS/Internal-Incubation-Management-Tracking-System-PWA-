@@ -116,8 +116,8 @@ async function saveSessionVersion(sessionId, userId) {
       userId || null,
     );
     await setSessionVersion(currentVersion + 1, sessionId);
-  } catch (e) {
-    console.warn("Versioning save failed (non-critical):", e.message);
+  } catch (error) {
+    console.warn("Versioning save failed (non-critical):", error.message);
   }
 }
 
@@ -128,8 +128,8 @@ async function saveSessionVersion(sessionId, userId) {
 async function recalculateKpiForProgram(programId) {
   try {
     await recalculateKpiProgress(programId);
-  } catch (e) {
-    console.warn("KPI recalculate trigger failed (non-critical):", e.message);
+  } catch (error) {
+    console.warn("KPI recalculate trigger failed (non-critical):", error.message);
   }
 }
 
@@ -274,8 +274,8 @@ export async function POST(req) {
     if (action === "send_reminder") {
       let sent = 0;
       try {
-        const cnt = await countActiveParticipantsForProgram(program_id);
-        sent = cnt.rows[0]?.cnt || 0;
+        const activeParticipantCount = await countActiveParticipantsForProgram(program_id);
+        sent = activeParticipantCount.rows[0]?.cnt || 0;
       } catch {
         sent = 112;
       }
@@ -425,12 +425,12 @@ export async function POST(req) {
       { success: false, error: "Invalid action" },
       { status: 400 },
     );
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error(error);
     return NextResponse.json(
       {
         success: false,
-        error: `Curriculum feature not available in this schema: ${e.message}`,
+        error: `Curriculum feature not available in this schema: ${error.message}`,
       },
       { status: 501 },
     );
@@ -466,10 +466,10 @@ export async function PUT(req) {
         // Fetch current session data for conflict check
         const current = await getSessionSchedule(targetId);
         if (current.rows.length > 0) {
-          const cur = current.rows[0];
-          const checkDate = field === "scheduled_date" ? value : cur.scheduled_date;
-          const checkStart = field === "start_time" ? value : cur.start_time;
-          const checkEnd = field === "end_time" ? value : cur.end_time;
+          const currentRow = current.rows[0];
+          const checkDate = field === "scheduled_date" ? value : currentRow.scheduled_date;
+          const checkStart = field === "start_time" ? value : currentRow.start_time;
+          const checkEnd = field === "end_time" ? value : currentRow.end_time;
           if (checkDate && checkStart && checkEnd) {
             const conflictCheck = await findSessionScheduleConflictExcludingId(
               program_id,
@@ -550,12 +550,12 @@ export async function PUT(req) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error(error);
     return NextResponse.json(
       {
         success: false,
-        error: `Curriculum feature not available in this schema: ${e.message}`,
+        error: `Curriculum feature not available in this schema: ${error.message}`,
       },
       { status: 501 },
     );
@@ -573,8 +573,8 @@ export async function DELETE(req) {
     if (type === "session") {
       // If no program_id provided, fetch it from the session before deleting
       if (!targetProgramId) {
-        const sesRes = await getSessionProgramId(id);
-        targetProgramId = sesRes.rows[0]?.program_id;
+        const sessionProgramResult = await getSessionProgramId(id);
+        targetProgramId = sessionProgramResult.rows[0]?.program_id;
       }
       await deleteSession(id);
       await deleteAttendanceForSession(id);
@@ -582,8 +582,8 @@ export async function DELETE(req) {
     } else {
       // If no program_id provided, fetch it from the doc req before deleting
       if (!targetProgramId) {
-        const docRes = await getRequirementProgramId(id);
-        targetProgramId = docRes.rows[0]?.program_id;
+        const requirementProgramResult = await getRequirementProgramId(id);
+        targetProgramId = requirementProgramResult.rows[0]?.program_id;
       }
       await deleteRequirement(id);
     }
@@ -593,12 +593,12 @@ export async function DELETE(req) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error(error);
     return NextResponse.json(
       {
         success: false,
-        error: `Curriculum feature not available in this schema: ${e.message}`,
+        error: `Curriculum feature not available in this schema: ${error.message}`,
       },
       { status: 501 },
     );

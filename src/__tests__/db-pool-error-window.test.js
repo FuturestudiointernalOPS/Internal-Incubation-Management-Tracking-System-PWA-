@@ -44,8 +44,8 @@ afterEach(() => {
 
 async function freshDb() {
   process.env.DATABASE_URL = "postgres://user:pass@localhost:5432/test";
-  const mod = await import("@/lib/db");
-  return mod.default;
+  const dbModule = await import("@/lib/db");
+  return dbModule.default;
 }
 
 /** Create the pool, then return the handler it registered for idle failures. */

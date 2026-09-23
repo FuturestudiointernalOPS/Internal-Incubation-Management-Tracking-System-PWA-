@@ -36,26 +36,26 @@ describe("groupNotificationContext — pure breadcrumb tree", () => {
     expect(out.general).toBe(0);
     expect(out.ventures.length).toBe(2);
 
-    const v1 = out.ventures.find((v) => v.venture_id === "v1");
-    expect(v1.count).toBe(5);
-    expect(v1.journeys.length).toBe(1);
-    const j1 = v1.journeys[0];
-    expect(j1.journey_stage_id).toBe("j1");
-    expect(j1.count).toBe(4); // rows 1–4
-    expect(j1.milestones.length).toBe(2);
-    expect(j1.sessions.length).toBe(1); // row 4 (no milestone)
+    const firstVenture = out.ventures.find((venture) => venture.venture_id === "v1");
+    expect(firstVenture.count).toBe(5);
+    expect(firstVenture.journeys.length).toBe(1);
+    const firstJourney = firstVenture.journeys[0];
+    expect(firstJourney.journey_stage_id).toBe("j1");
+    expect(firstJourney.count).toBe(4); // rows 1–4
+    expect(firstJourney.milestones.length).toBe(2);
+    expect(firstJourney.sessions.length).toBe(1); // row 4 (no milestone)
 
-    const m1 = j1.milestones.find((m) => m.milestone_id === "m1");
-    expect(m1.count).toBe(2);
-    expect(m1.tasks[0]).toEqual({ task_id: "t1", count: 2 });
+    const firstMilestone = firstJourney.milestones.find((milestone) => milestone.milestone_id === "m1");
+    expect(firstMilestone.count).toBe(2);
+    expect(firstMilestone.tasks[0]).toEqual({ task_id: "t1", count: 2 });
 
     // Row 5 attaches to the venture directly.
-    expect(v1.sessions.length).toBe(1);
-    expect(v1.sessions[0]).toEqual({ session_id: "s8", count: 1 });
+    expect(firstVenture.sessions.length).toBe(1);
+    expect(firstVenture.sessions[0]).toEqual({ session_id: "s8", count: 1 });
 
-    const v2 = out.ventures.find((v) => v.venture_id === "v2");
-    expect(v2.count).toBe(1);
-    expect(v2.journeys[0].milestones[0].tasks[0]).toEqual({ task_id: "t9", count: 1 });
+    const secondVenture = out.ventures.find((venture) => venture.venture_id === "v2");
+    expect(secondVenture.count).toBe(1);
+    expect(secondVenture.journeys[0].milestones[0].tasks[0]).toEqual({ task_id: "t9", count: 1 });
   });
 });
 

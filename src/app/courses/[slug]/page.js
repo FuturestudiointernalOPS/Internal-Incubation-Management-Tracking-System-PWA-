@@ -16,6 +16,7 @@ import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import RichTextContent from "@/components/ui/RichTextContent";
+import AppImage from "@/components/ui/AppImage";
 
 /**
  * PUBLIC COURSE DETAIL (Phase 7)
@@ -42,15 +43,15 @@ export default function PublicCourseDetailPage({ params }) {
   useEffect(() => {
     let active = true;
     fetch(`/api/public/courses/${slug}`)
-      .then((r) => r.json())
-      .then((d) => {
+      .then((response) => response.json())
+      .then((payload) => {
         if (!active) return;
-        if (!d.success) throw new Error(d.error || "lms.public.loadFailed");
-        setData(d);
+        if (!payload.success) throw new Error(payload.error || "lms.public.loadFailed");
+        setData(payload);
       })
-      .catch((e) => {
+      .catch((loadError) => {
         if (!active) return;
-        setError(e.message || "lms.public.loadFailed");
+        setError(loadError.message || "lms.public.loadFailed");
       });
     return () => {
       active = false;
@@ -59,8 +60,8 @@ export default function PublicCourseDetailPage({ params }) {
 
   useEffect(() => {
     fetch("/api/auth/session")
-      .then((r) => r.json())
-      .then((d) => setAuthed(!!(d.authenticated && d.user)))
+      .then((response) => response.json())
+      .then((sessionData) => setAuthed(!!(sessionData.authenticated && sessionData.user)))
       .catch(() => setAuthed(false));
   }, []);
 
@@ -74,14 +75,14 @@ export default function PublicCourseDetailPage({ params }) {
     setEnrolling(true);
     setEnrollError(null);
     try {
-      const res = await fetch(`/api/public/courses/${slug}`, { method: "POST" });
-      const d = await res.json();
-      if (!d.success) {
-        throw new Error(d.error || "lms.public.enrollFailed");
+      const response = await fetch(`/api/public/courses/${slug}`, { method: "POST" });
+      const payload = await response.json();
+      if (!payload.success) {
+        throw new Error(payload.error || "lms.public.enrollFailed");
       }
-      router.push(`/participant/learning/${d.courseId}`);
-    } catch (e) {
-      setEnrollError(e.message || "lms.public.enrollFailed");
+      router.push(`/participant/learning/${payload.courseId}`);
+    } catch (enrollFailure) {
+      setEnrollError(enrollFailure.message || "lms.public.enrollFailed");
     } finally {
       setEnrolling(false);
     }
@@ -138,8 +139,7 @@ export default function PublicCourseDetailPage({ params }) {
             style={{ background: "var(--surface-3)" }}
           >
             {course.thumbnail_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={course.thumbnail_url} alt={course.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+              <AppImage src={course.thumbnail_url} alt={course.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
             ) : (
               <GraduationCap className="w-14 h-14" style={{ color: "var(--text-tertiary)" }} />
             )}
@@ -221,15 +221,15 @@ export default function PublicCourseDetailPage({ params }) {
                   {t("lms.public.whatYouWillLearn")}
                 </h2>
                 <div className="mt-4 space-y-4">
-                  {structure.sections.map((section, i) => (
-                    <div key={i} className="space-y-1.5">
+                  {structure.sections.map((section, sectionIndex) => (
+                    <div key={sectionIndex} className="space-y-1.5">
                       <p className="text-xs font-black uppercase tracking-tight">
-                        {i + 1}. {section.title}
+                        {sectionIndex + 1}. {section.title}
                       </p>
                       <ul className="space-y-1">
-                        {section.lessons.map((lesson, j) => (
+                        {section.lessons.map((lesson, lessonIndex) => (
                           <li
-                            key={j}
+                            key={lessonIndex}
                             className="flex items-center gap-2 text-[11px]"
                             style={{ color: "var(--text-secondary)" }}
                           >

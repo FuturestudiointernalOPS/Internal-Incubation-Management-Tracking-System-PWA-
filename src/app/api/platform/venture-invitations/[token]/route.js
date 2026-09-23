@@ -44,8 +44,8 @@ export async function GET(req, { params }) {
       status: invitation.status,
       run: { run_id: run.id, name: run.name, slug: run.public_slug, url: ventureRunUrl(run) },
     });
-  } catch (e) {
-    console.error("Venture invitation resolve error:", e);
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    console.error("Venture invitation resolve error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

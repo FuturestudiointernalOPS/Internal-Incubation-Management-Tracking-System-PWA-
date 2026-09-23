@@ -48,8 +48,8 @@ export const dynamic = "force-dynamic";
  */
 
 async function fetchAllRows() {
-  const r = await listFeatureEligibilityRows();
-  return r.rows;
+  const result = await listFeatureEligibilityRows();
+  return result.rows;
 }
 
 export async function GET() {
@@ -59,19 +59,25 @@ export async function GET() {
     if (authError) return authError;
 
     const session = await getSession();
-    const ctx = await getAuthorizationContext(session);
-    const canConfigure = authorize(ctx, "permissions", "configure_eligibility");
+    const authorizationContext = await getAuthorizationContext(session);
+    const canConfigure = authorize(
+      authorizationContext,
+      "permissions",
+      "configure_eligibility",
+    );
 
     const rows = await fetchAllRows();
 
     // Distinct groups from user_groups + contacts.group_name fallback.
-    const groupsRes = await Promise.all([
+    const groupResults = await Promise.all([
       listDistinctUserGroupNames(),
       listDistinctContactGroupNames(),
     ]);
     const groups = [
       ...new Set(
-        [...groupsRes[0].rows, ...groupsRes[1].rows].map((r) => r.group_name),
+        [...groupResults[0].rows, ...groupResults[1].rows].map(
+          (row) => row.group_name,
+        ),
       ),
     ].sort();
 
@@ -82,18 +88,18 @@ export async function GET() {
     // exactly how Staff Default became unsavable. Derived from the data, never a
     // new allowlist: nothing becomes configurable that the engine does not
     // already enforce.
-    const [eligibilityRolesRes, roleDefaultsRes] = await Promise.all([
+    const [eligibilityRolesResult, roleDefaultsResult] = await Promise.all([
       listEligibilityRoleIdentities(),
       listRoleAccessProfileDefaults(),
     ]);
     const agreedIdentities = new Set(ELIGIBILITY_IDENTITIES);
     const extraRoles = [
       ...new Set([
-        ...eligibilityRolesRes.rows.map((r) => r.identity_value),
-        ...roleDefaultsRes.rows.map((r) => r.role_name),
+        ...eligibilityRolesResult.rows.map((row) => row.identity_value),
+        ...roleDefaultsResult.rows.map((row) => row.role_name),
       ]),
     ]
-      .filter((r) => r && !agreedIdentities.has(r))
+      .filter((identity) => identity && !agreedIdentities.has(identity))
       .sort();
 
     return NextResponse.json({
@@ -118,8 +124,8 @@ export async function GET() {
       rows,
       canConfigure: !!canConfigure,
     });
-  } catch (e) {
-    console.error("[eligibility] GET error:", e.message);
+  } catch (error) {
+    console.error("[eligibility] GET error:", error.message);
     return NextResponse.json(
       { success: false, error: "errors.somethingWrong" },
       { status: 500 },
@@ -156,26 +162,30 @@ export async function PUT(req) {
     // first attempt reports the impacted templates and asks for an explicit
     // confirmation (`confirm: true`), so the admin decides knowingly.
     const downgrades = normalized.filter(
-      (c) => c.identity_type === "role" && c.eligible !== 1,
+      (change) => change.identity_type === "role" && change.eligible !== 1,
     );
     if (downgrades.length > 0 && body?.confirm !== true) {
       const impacts = [];
-      for (const c of downgrades) {
-        const impactRes = await findTemplatesGrantingFeature(
-          c.identity_value,
-          c.feature_key,
+      for (const change of downgrades) {
+        const impactResult = await findTemplatesGrantingFeature(
+          change.identity_value,
+          change.feature_key,
         );
         const byTemplate = new Map();
-        for (const r of impactRes.rows || []) {
-          if (!byTemplate.has(r.id)) {
-            byTemplate.set(r.id, { id: r.id, name: r.name, capabilities: [] });
+        for (const row of impactResult.rows || []) {
+          if (!byTemplate.has(row.id)) {
+            byTemplate.set(row.id, {
+              id: row.id,
+              name: row.name,
+              capabilities: [],
+            });
           }
-          byTemplate.get(r.id).capabilities.push(`${r.module}.${r.capability}`);
+          byTemplate.get(row.id).capabilities.push(`${row.module}.${row.capability}`);
         }
         if (byTemplate.size > 0) {
           impacts.push({
-            role: c.identity_value,
-            feature: c.feature_key,
+            role: change.identity_value,
+            feature: change.feature_key,
             templates: [...byTemplate.values()],
           });
         }
@@ -193,29 +203,29 @@ export async function PUT(req) {
       }
     }
 
-    for (const c of normalized) {
+    for (const change of normalized) {
       // Read the previous value for the audit trail.
-      const prev = (
+      const previousRow = (
         await getEligibilityRow(
-          c.feature_key,
-          c.identity_type,
-          c.identity_value,
+          change.feature_key,
+          change.identity_type,
+          change.identity_value,
         )
       ).rows[0];
-      const prevValue = prev ? Number(prev.eligible) : null;
+      const prevValue = previousRow ? Number(previousRow.eligible) : null;
 
-      if (c.eligible === null) {
+      if (change.eligible === null) {
         await deleteEligibilityRow(
-          c.feature_key,
-          c.identity_type,
-          c.identity_value,
+          change.feature_key,
+          change.identity_type,
+          change.identity_value,
         );
       } else {
         await upsertEligibilityRow(
-          c.feature_key,
-          c.identity_type,
-          c.identity_value,
-          c.eligible,
+          change.feature_key,
+          change.identity_type,
+          change.identity_value,
+          change.eligible,
         );
       }
 
@@ -224,11 +234,11 @@ export async function PUT(req) {
         actorCid: session?.cid,
         actorName: session?.name,
         targetCid: "system",
-        targetName: `${c.identity_type}:${c.identity_value}`,
+        targetName: `${change.identity_type}:${change.identity_value}`,
         action: "eligibility_changed",
         details:
-          `${c.feature_key} ${c.identity_type}:${c.identity_value} ` +
-          `${prevValue === null ? "unset" : prevValue} → ${c.eligible === null ? "unset" : c.eligible}`,
+          `${change.feature_key} ${change.identity_type}:${change.identity_value} ` +
+          `${prevValue === null ? "unset" : prevValue} → ${change.eligible === null ? "unset" : change.eligible}`,
       });
     }
 
@@ -238,8 +248,8 @@ export async function PUT(req) {
 
     const rows = await fetchAllRows();
     return NextResponse.json({ success: true, rows });
-  } catch (e) {
-    console.error("[eligibility] PUT error:", e.message);
+  } catch (error) {
+    console.error("[eligibility] PUT error:", error.message);
     return NextResponse.json(
       { success: false, error: "errors.somethingWrong" },
       { status: 500 },

@@ -53,8 +53,8 @@ export async function GET(req) {
       payload.summary = await getProgramLearningSummary(programId);
     }
     return NextResponse.json(payload);
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }
 
@@ -83,7 +83,7 @@ export async function POST(req) {
       requirement,
       enrollment,
     });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

@@ -12,13 +12,13 @@ import ContextScopeView from "@/components/permissions/ContextScopeView";
  */
 export default function PermissionContextScopePage() {
   const { t } = useI18n();
-  const [sub, setSub] = useSubTab("roles");
+  const [subTab, setSubTab] = useSubTab("roles");
   return (
-    <PermissionShell active="context" sub={sub} onSubChange={setSub}>
+    <PermissionShell active="context" sub={subTab} onSubChange={setSubTab}>
       <p className="mb-4 text-xs font-medium text-[var(--text-secondary)]">
         {t("engineering.permissions.questionWhere")}
       </p>
-      <ContextScopeView sub={sub} />
+      <ContextScopeView sub={subTab} />
     </PermissionShell>
   );
 }

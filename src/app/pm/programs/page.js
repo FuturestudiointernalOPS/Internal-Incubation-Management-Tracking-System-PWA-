@@ -23,8 +23,8 @@ import { useSessionUser } from "@/lib/hooks/useSessionUser";
 // The reading hook keys its internal work on these, so they are made once here
 // rather than rebuilt on every render.
 
-const pickPrograms = (d) => (d?.success ? d.programs || [] : []);
-const pickTasks = (d) => (d?.success ? d.tasks || [] : []);
+const pickPrograms = (payload) => (payload?.success ? payload.programs || [] : []);
+const pickTasks = (payload) => (payload?.success ? payload.tasks || [] : []);
 
 /** The archive/status filters the four tabs ask for. */
 const TAB_QUERY = {
@@ -76,10 +76,10 @@ export default function PMProgramsRegistry() {
   const loading = !cid || programsLoading;
 
   const filtered = programs.filter(
-    (p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.description &&
-        p.description.toLowerCase().includes(search.toLowerCase())),
+    (program) =>
+      program.name.toLowerCase().includes(search.toLowerCase()) ||
+      (program.description &&
+        program.description.toLowerCase().includes(search.toLowerCase())),
   );
 
   return (
@@ -108,7 +108,7 @@ export default function PMProgramsRegistry() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder={t("common.search")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl pl-12 pr-6 py-4 text-[var(--text-primary)] outline-none focus:border-[#FF6600]/50 font-bold transition-all"
             />
@@ -231,9 +231,9 @@ export default function PMProgramsRegistry() {
           ) : (
             filtered.map((program) => {
               const statusKey = String(program.status || "active").toLowerCase();
-              const statusCfg =
+              const statusConfig =
                 PROGRAM_STATUS_STYLE[statusKey] || PROGRAM_STATUS_STYLE.active;
-              const statusLabel = t(statusCfg.key);
+              const statusLabel = t(statusConfig.key);
               return (
               <motion.div
                 key={program.id}
@@ -247,7 +247,7 @@ export default function PMProgramsRegistry() {
                         <div className="p-2.5 rounded-xl bg-[#FF6600]/10 text-[#FF6600] border border-[#FF6600]/20">
                           <Briefcase className="w-5 h-5" />
                         </div>
-                        <span className={`text-[10px] font-bold uppercase tracking-widest ${statusCfg.text}`}>
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${statusConfig.text}`}>
                           {statusLabel}
                         </span>
                       </div>
@@ -256,8 +256,8 @@ export default function PMProgramsRegistry() {
                       </h3>
                     </div>
                     <div className="mt-8 flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${statusCfg.dot} shadow-[0_0_8px_rgba(255,102,0,0.35)]`} />
-                      <span className={`text-[10px] font-black uppercase tracking-widest ${statusCfg.text}`}>
+                      <div className={`w-2 h-2 rounded-full ${statusConfig.dot} shadow-[0_0_8px_rgba(255,102,0,0.35)]`} />
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${statusConfig.text}`}>
                         {statusLabel}
                       </span>
                     </div>
@@ -312,7 +312,7 @@ export default function PMProgramsRegistry() {
                         <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest mb-1">
                           {statusLabel}
                         </p>
-                        <p className={`text-lg font-black uppercase tracking-tighter flex items-center gap-2 ${statusCfg.value}`}>
+                        <p className={`text-lg font-black uppercase tracking-tighter flex items-center gap-2 ${statusConfig.value}`}>
                           {statusLabel}{" "}
                           <Activity className="w-3.5 h-3.5 opacity-40" />
                         </p>
@@ -320,10 +320,10 @@ export default function PMProgramsRegistry() {
                       <div className="flex items-center justify-end">
                         {activeTab === "archived" ? (
                           <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
+                            onClick={async (event) => {
+                              event.stopPropagation();
                               try {
-                                const res = await fetch("/api/pm/programs", {
+                                const response = await fetch("/api/pm/programs", {
                                   method: "PUT",
                                   headers: {
                                     "Content-Type": "application/json",
@@ -333,7 +333,7 @@ export default function PMProgramsRegistry() {
                                     is_archived: 0,
                                   }),
                                 });
-                                if ((await res.json()).success) {
+                                if ((await response.json()).success) {
                                   refreshPrograms();
                                   window.dispatchEvent(
                                     new CustomEvent("impactos:notify", {
@@ -353,7 +353,7 @@ export default function PMProgramsRegistry() {
                           </button>
                         ) : (
                           <button 
-                            onClick={(e) => { e.stopPropagation(); router.push(`/pm/programs/${program.id}`); }}
+                            onClick={(event) => { event.stopPropagation(); router.push(`/pm/programs/${program.id}`); }}
                             className="btn-prime !py-3 !px-6 shadow-xl shadow-blue-600/10">
                             {t("common.view", "View")}{" "}
                             <ArrowRight className="w-4 h-4 ml-2" />

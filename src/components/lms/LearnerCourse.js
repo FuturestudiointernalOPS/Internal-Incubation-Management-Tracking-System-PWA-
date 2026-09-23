@@ -30,10 +30,10 @@ const EMPTY_COURSE_READ = { payload: null, failure: null };
  * for) and both it and a request that never answered are translated where they
  * are shown.
  */
-const pickCourse = (d) =>
-  d?.success
-    ? { payload: d, failure: null }
-    : { payload: null, failure: d?.error || null };
+const pickCourse = (data) =>
+  data?.success
+    ? { payload: data, failure: null }
+    : { payload: null, failure: data?.error || null };
 
 export default function LearnerCourse({ courseId }) {
   const { t } = useI18n();
@@ -169,14 +169,14 @@ export default function LearnerCourse({ courseId }) {
 
       {/* Sections */}
       <div className="space-y-3">
-        {sections.map((section, si) => (
+        {sections.map((section, sectionIndex) => (
           <div key={section.id} className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border-primary)" }}>
             <div
               className="flex items-center gap-3 px-4 py-3 flex-wrap"
               style={{ background: "var(--surface-2)" }}
             >
               <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>
-                {si + 1}
+                {sectionIndex + 1}
               </p>
               <p className="text-xs font-black uppercase tracking-wider flex-1 min-w-0 truncate" style={{ color: "var(--text-primary)" }}>
                 {section.title}
@@ -218,9 +218,9 @@ export default function LearnerCourse({ courseId }) {
                   role="button"
                   tabIndex={0}
                   onClick={() => openLesson(lesson.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
                       openLesson(lesson.id);
                     }
                   }}

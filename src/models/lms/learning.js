@@ -72,18 +72,18 @@ async function finalizeCourseCompletion({ course, enrollment, courseProgress }) 
  *            completedRequired: number, totalRequired: number}}
  */
 export function computeCourseProgress(sections = [], progress = {}, assessments = []) {
-  const lessons = (sections || []).flatMap((s) => s.lessons || []);
+  const lessons = (sections || []).flatMap((section) => section.lessons || []);
   const total = lessons.length;
-  const requiredLessons = lessons.filter((l) => l.is_required !== false);
+  const requiredLessons = lessons.filter((lesson) => lesson.is_required !== false);
   const totalRequiredLessons = requiredLessons.length;
-  const completedLessons = lessons.filter((l) => progress[l.id] === "completed").length;
+  const completedLessons = lessons.filter((lesson) => progress[lesson.id] === "completed").length;
   const completedRequiredLessons = requiredLessons.filter(
-    (l) => progress[l.id] === "completed",
+    (lesson) => progress[lesson.id] === "completed",
   ).length;
 
-  const requiredAssessments = (assessments || []).filter((a) => a.is_required !== false);
-  const satisfiedRequiredAssessments = requiredAssessments.filter((a) => a.passed).length;
-  const allRequiredAssessmentsPassed = requiredAssessments.every((a) => a.passed);
+  const requiredAssessments = (assessments || []).filter((assessment) => assessment.is_required !== false);
+  const satisfiedRequiredAssessments = requiredAssessments.filter((assessment) => assessment.passed).length;
+  const allRequiredAssessmentsPassed = requiredAssessments.every((assessment) => assessment.passed);
 
   const totalRequired = totalRequiredLessons + requiredAssessments.length;
   const completedRequired = completedRequiredLessons + satisfiedRequiredAssessments;
@@ -165,7 +165,7 @@ export async function loadStructure(courseId) {
     args: [courseId],
   });
   const sections = sectionsRes.rows;
-  const sectionIds = sections.map((s) => s.id);
+  const sectionIds = sections.map((section) => section.id);
 
   let lessons = [];
   if (sectionIds.length > 0) {
@@ -187,14 +187,14 @@ export async function loadStructure(courseId) {
   ).rows;
 
   const lessonsBySection = {};
-  for (const l of lessons) {
-    (lessonsBySection[String(l.section_id)] ??= []).push(l);
+  for (const lesson of lessons) {
+    (lessonsBySection[String(lesson.section_id)] ??= []).push(lesson);
   }
 
-  return sections.map((s) => ({
-    ...s,
-    lessons: lessonsBySection[String(s.id)] || [],
-    assessment: assessments.find((a) => String(a.section_id) === String(s.id)) || null,
+  return sections.map((section) => ({
+    ...section,
+    lessons: lessonsBySection[String(section.id)] || [],
+    assessment: assessments.find((assessment) => String(assessment.section_id) === String(section.id)) || null,
   }));
 }
 
@@ -217,13 +217,13 @@ export async function loadAssessmentStates(userCid, courseId) {
     args: [courseId],
   });
   const byId = new Map();
-  for (const a of assessmentsRes.rows) {
-    byId.set(String(a.id), {
-      id: a.id,
-      title: a.title,
-      pass_mark: a.pass_mark,
-      is_required: a.is_required,
-      section_id: a.section_id,
+  for (const assessment of assessmentsRes.rows) {
+    byId.set(String(assessment.id), {
+      id: assessment.id,
+      title: assessment.title,
+      pass_mark: assessment.pass_mark,
+      is_required: assessment.is_required,
+      section_id: assessment.section_id,
       passed: false,
       attempted: false,
       bestPercent: null,
@@ -238,13 +238,13 @@ export async function loadAssessmentStates(userCid, courseId) {
       args: [userCid, ...ids],
     });
     for (const row of attemptsRes.rows) {
-      const s = byId.get(String(row.assessment_id));
-      if (!s) continue;
-      s.attempted = true;
+      const state = byId.get(String(row.assessment_id));
+      if (!state) continue;
+      state.attempted = true;
       const percent =
         row.total_points > 0 ? Math.round((row.score / row.total_points) * 100) : 0;
-      if (s.bestPercent == null || percent > s.bestPercent) s.bestPercent = percent;
-      if (row.passed) s.passed = true;
+      if (state.bestPercent == null || percent > state.bestPercent) state.bestPercent = percent;
+      if (row.passed) state.passed = true;
     }
   }
   return byId;
@@ -296,12 +296,12 @@ export async function getLearnerCourses(userCid) {
   const enrollments = enrollRes.rows;
   if (enrollments.length === 0) return [];
 
-  const courseIds = [...new Set(enrollments.map((e) => String(e.course_id)))];
+  const courseIds = [...new Set(enrollments.map((enrollment) => String(enrollment.course_id)))];
   const coursesRes = await db.execute({
     sql: `SELECT * FROM lms_courses WHERE id IN (${courseIds.map(() => "?").join(",")})`,
     args: courseIds,
   });
-  const courseById = new Map(coursesRes.rows.map((c) => [String(c.id), c]));
+  const courseById = new Map(coursesRes.rows.map((course) => [String(course.id), course]));
 
   const result = [];
   for (const enrollment of enrollments) {
@@ -310,10 +310,10 @@ export async function getLearnerCourses(userCid) {
     const structure = await loadStructure(course.id);
     const progress = await loadEnrollmentProgress(enrollment.id);
     const assessmentStates = await loadAssessmentStates(userCid, course.id);
-    const assessmentProgress = [...assessmentStates.values()].map((s) => ({
-      id: s.id,
-      is_required: s.is_required,
-      passed: s.passed,
+    const assessmentProgress = [...assessmentStates.values()].map((state) => ({
+      id: state.id,
+      is_required: state.is_required,
+      passed: state.passed,
     }));
     const courseProgress = computeCourseProgress(structure, progress, assessmentProgress);
     const certificate = await finalizeCourseCompletion({ course, enrollment, courseProgress });
@@ -345,10 +345,10 @@ export async function getLearnerCourse(courseId, userCid) {
   const structure = await loadStructure(courseId);
   const progress = await loadEnrollmentProgress(enrollment.id);
   const assessmentStates = await loadAssessmentStates(userCid, courseId);
-  const assessmentProgress = [...assessmentStates.values()].map((s) => ({
-    id: s.id,
-    is_required: s.is_required,
-    passed: s.passed,
+  const assessmentProgress = [...assessmentStates.values()].map((state) => ({
+    id: state.id,
+    is_required: state.is_required,
+    passed: state.passed,
   }));
   const courseProgress = computeCourseProgress(structure, progress, assessmentProgress);
   const continueLesson = courseProgress.complete ? null : findContinueLesson(structure, progress);
@@ -357,25 +357,25 @@ export async function getLearnerCourse(courseId, userCid) {
   // Section material, signed for the learner (uploads get a short-lived link).
   const resourcesBySection = await learnerSectionResourcesByCourse(courseId);
 
-  const sections = structure.map((s) => {
-    const completedInSection = s.lessons.filter((l) => progress[String(l.id)] === "completed").length;
+  const sections = structure.map((section) => {
+    const completedInSection = section.lessons.filter((lesson) => progress[String(lesson.id)] === "completed").length;
     return {
-      id: s.id,
-      title: s.title,
-      description: s.description ?? null,
-      position: s.position,
-      resources: resourcesBySection.get(String(s.id)) || [],
-      assessment: s.assessment ? learnerAssessment(assessmentStates.get(String(s.assessment.id))) : null,
-      progress: { completed: completedInSection, total: s.lessons.length },
-      lessons: s.lessons.map((l) => ({
-        id: l.id,
-        title: l.title,
-        description: l.description ?? null,
-        position: l.position,
-        is_required: l.is_required,
-        duration_minutes: l.duration_minutes,
-        youtube_video_id: l.youtube_video_id,
-        state: progress[String(l.id)] === "completed" ? "completed" : "not_started",
+      id: section.id,
+      title: section.title,
+      description: section.description ?? null,
+      position: section.position,
+      resources: resourcesBySection.get(String(section.id)) || [],
+      assessment: section.assessment ? learnerAssessment(assessmentStates.get(String(section.assessment.id))) : null,
+      progress: { completed: completedInSection, total: section.lessons.length },
+      lessons: section.lessons.map((lesson) => ({
+        id: lesson.id,
+        title: lesson.title,
+        description: lesson.description ?? null,
+        position: lesson.position,
+        is_required: lesson.is_required,
+        duration_minutes: lesson.duration_minutes,
+        youtube_video_id: lesson.youtube_video_id,
+        state: progress[String(lesson.id)] === "completed" ? "completed" : "not_started",
       })),
     };
   });
@@ -388,7 +388,7 @@ export async function getLearnerCourse(courseId, userCid) {
   }
 
   const courseAssessments = [...assessmentStates.values()]
-    .filter((s) => !s.section_id)
+    .filter((state) => !state.section_id)
     .map(learnerAssessment);
 
   return {
@@ -477,10 +477,10 @@ async function computeEnrollmentProgress(courseId, enrollment, userCid) {
   const structure = await loadStructure(courseId);
   const progress = await loadEnrollmentProgress(enrollment.id);
   const assessmentStates = await loadAssessmentStates(userCid, courseId);
-  const assessmentProgress = [...assessmentStates.values()].map((s) => ({
-    id: s.id,
-    is_required: s.is_required,
-    passed: s.passed,
+  const assessmentProgress = [...assessmentStates.values()].map((state) => ({
+    id: state.id,
+    is_required: state.is_required,
+    passed: state.passed,
   }));
   return computeCourseProgress(structure, progress, assessmentProgress);
 }
@@ -533,16 +533,16 @@ export async function getAssessmentForTake(assessmentId, userCid) {
       pass_mark: assessment.pass_mark,
       is_required: assessment.is_required,
     },
-    questions: questions.map((q) => ({
-      id: q.id,
-      question: q.question,
-      question_type: q.question_type,
-      options: parseJson(q.options),
-      points: q.points,
-      position: q.position,
+    questions: questions.map((question) => ({
+      id: question.id,
+      question: question.question,
+      question_type: question.question_type,
+      options: parseJson(question.options),
+      points: question.points,
+      position: question.position,
     })),
     attempts: attemptsRes.rows,
-    passed: attemptsRes.rows.some((a) => a.passed),
+    passed: attemptsRes.rows.some((attempt) => attempt.passed),
   };
 }
 
@@ -561,10 +561,10 @@ export async function submitAssessment(assessmentId, userCid, submittedAnswers) 
   const { course, enrollment } = await assertAssessmentAccess(assessment, userCid);
 
   const questionRows = await loadAssessmentQuestions(assessmentId);
-  const questions = questionRows.map((q) => ({
-    ...q,
-    options: parseJson(q.options),
-    correct_answer: parseJson(q.correct_answer, []),
+  const questions = questionRows.map((question) => ({
+    ...question,
+    options: parseJson(question.options),
+    correct_answer: parseJson(question.correct_answer, []),
   }));
 
   const result = scoreAssessment(questions, submittedAnswers);
@@ -579,8 +579,8 @@ export async function submitAssessment(assessmentId, userCid, submittedAnswers) 
   let attempt;
   try {
     attempt = await insertAttemptTransaction(userCid, assessmentId, result, passed, submittedAnswers);
-  } catch (e) {
-    if (!/unique/i.test(String(e.message))) throw e;
+  } catch (error) {
+    if (!/unique/i.test(String(error.message))) throw error;
     attempt = await insertAttemptTransaction(userCid, assessmentId, result, passed, submittedAnswers);
   }
 
@@ -659,22 +659,22 @@ export async function listEnrollments(courseId) {
     args: [courseId],
   });
   const enrollments = enrollRes.rows;
-  const cids = [...new Set(enrollments.map((e) => e.user_cid))];
+  const cids = [...new Set(enrollments.map((enrollment) => enrollment.user_cid))];
   const byCid = new Map();
   if (cids.length > 0) {
     const contactsRes = await db.execute({
       sql: `SELECT cid, name, email FROM contacts WHERE cid IN (${cids.map(() => "?").join(",")})`,
       args: cids,
     });
-    for (const c of contactsRes.rows) byCid.set(String(c.cid), c);
+    for (const contact of contactsRes.rows) byCid.set(String(contact.cid), contact);
   }
-  return enrollments.map((e) => ({
-    id: e.id,
-    user_cid: e.user_cid,
-    source: e.source,
-    status: e.status,
-    enrolled_at: e.enrolled_at,
-    completed_at: e.completed_at,
-    learner: byCid.get(String(e.user_cid)) || null,
+  return enrollments.map((enrollment) => ({
+    id: enrollment.id,
+    user_cid: enrollment.user_cid,
+    source: enrollment.source,
+    status: enrollment.status,
+    enrolled_at: enrollment.enrolled_at,
+    completed_at: enrollment.completed_at,
+    learner: byCid.get(String(enrollment.user_cid)) || null,
   }));
 }

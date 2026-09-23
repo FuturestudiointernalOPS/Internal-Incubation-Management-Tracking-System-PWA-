@@ -16,12 +16,12 @@ export async function createPlaybookTemplate({ name, description, stages = [], c
   await initDb();
   if (!name || !name.trim()) throw new Error("Playbook name is required.");
 
-  const tpl = await db.execute({
+  const insertedTemplate = await db.execute({
     sql: `INSERT INTO venture_playbook_templates (name, description, is_active, created_by, created_at, updated_at)
           VALUES (?, ?, TRUE, ?, NOW(), NOW()) RETURNING id`,
     args: [name.trim(), description || null, createdBy || "system"],
   });
-  const templateId = tpl.rows[0].id;
+  const templateId = insertedTemplate.rows[0].id;
 
   let order = 1;
   for (const stage of stages || []) {
@@ -33,25 +33,25 @@ export async function createPlaybookTemplate({ name, description, stages = [], c
     });
     const stageId = stageRes.rows[0].id;
 
-    let msort = 1;
-    for (const ms of stage.milestones || []) {
-      if (!ms?.name) continue;
-      const msRes = await db.execute({
+    let milestoneSortOrder = 1;
+    for (const milestone of stage.milestones || []) {
+      if (!milestone?.name) continue;
+      const milestoneResult = await db.execute({
         sql: `INSERT INTO venture_milestone_templates (name, description, expected_outcome, default_due_days, is_active, created_by, created_at, updated_at)
               VALUES (?, ?, ?, ?, TRUE, ?, NOW(), NOW()) RETURNING id`,
-        args: [ms.name, ms.description || null, ms.expected_outcome || null, ms.default_due_days || null, createdBy || "system"],
+        args: [milestone.name, milestone.description || null, milestone.expected_outcome || null, milestone.default_due_days || null, createdBy || "system"],
       });
-      const msId = msRes.rows[0].id;
+      const milestoneTemplateId = milestoneResult.rows[0].id;
       await db.execute({
         sql: "INSERT INTO venture_playbook_stage_milestones (stage_id, milestone_template_id, sort_order) VALUES (?, ?, ?)",
-        args: [stageId, msId, msort++],
+        args: [stageId, milestoneTemplateId, milestoneSortOrder++],
       });
-      for (const tk of ms.tasks || []) {
-        if (!tk?.name) continue;
+      for (const taskTemplate of milestone.tasks || []) {
+        if (!taskTemplate?.name) continue;
         await db.execute({
           sql: `INSERT INTO venture_task_templates (milestone_template_id, name, description, requirement_type, is_active, created_at)
                 VALUES (?, ?, ?, ?, TRUE, NOW())`,
-          args: [msId, tk.name, tk.description || null, tk.requirement_type || "activity"],
+          args: [milestoneTemplateId, taskTemplate.name, taskTemplate.description || null, taskTemplate.requirement_type || "activity"],
         });
       }
     }
@@ -91,7 +91,7 @@ export async function assignPlaybookToVenture({ templateId, ventureId, actorCid 
           JOIN venture_milestone_templates m ON m.id = sm.milestone_template_id
           WHERE sm.stage_id IN (${stages.map(() => "?").join(", ")})
           ORDER BY sm.sort_order ASC`,
-    args: stages.map((s) => s.id),
+    args: stages.map((stage) => stage.id),
   });
   const milestones = milestoneRes.rows || [];
 
@@ -100,7 +100,7 @@ export async function assignPlaybookToVenture({ templateId, ventureId, actorCid 
           FROM venture_task_templates t
           WHERE t.milestone_template_id IN (${milestones.length ? milestones.map(() => "?").join(", ") : "NULL"})
           ORDER BY t.id ASC`,
-    args: milestones.map((m) => m.id),
+    args: milestones.map((milestone) => milestone.id),
   });
   const tasks = taskRes.rows || [];
 
@@ -119,21 +119,21 @@ export async function assignPlaybookToVenture({ templateId, ventureId, actorCid 
             VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())`,
       args: [instanceId, stage.id, stage.stage_order, stage.name, stage.description, stage.objective, stage.completion_criteria],
     });
-    const stageMilestones = milestones.filter((m) => Number(m.stage_id) === Number(stage.id));
-    for (const ms of stageMilestones) {
-      const due = ms.default_due_days ? new Date(now.getTime() + ms.default_due_days * 86400e3).toISOString() : null;
-      const msRes = await db.execute({
+    const stageMilestones = milestones.filter((milestone) => Number(milestone.stage_id) === Number(stage.id));
+    for (const milestone of stageMilestones) {
+      const dueDate = milestone.default_due_days ? new Date(now.getTime() + milestone.default_due_days * 86400e3).toISOString() : null;
+      const milestoneResult = await db.execute({
         sql: `INSERT INTO venture_milestones (venture_id, template_id, title, description, status, progress, target_date, created_at, updated_at)
               VALUES (?, ?, ?, ?, 'not_started', 0, ?, NOW(), NOW()) RETURNING id`,
-        args: [ventureId, ms.id, ms.name, ms.description || ms.expected_outcome || null, due],
+        args: [ventureId, milestone.id, milestone.name, milestone.description || milestone.expected_outcome || null, dueDate],
       });
-      const milestoneId = msRes.rows[0].id;
-      const msTasks = tasks.filter((t) => Number(t.milestone_template_id) === Number(ms.id));
-      for (const tk of msTasks) {
+      const milestoneId = milestoneResult.rows[0].id;
+      const milestoneTaskTemplates = tasks.filter((taskTemplate) => Number(taskTemplate.milestone_template_id) === Number(milestone.id));
+      for (const taskTemplate of milestoneTaskTemplates) {
         await db.execute({
           sql: `INSERT INTO venture_tasks (venture_id, milestone_id, template_id, title, description, requirement_type, status, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, 'backlog', NOW(), NOW())`,
-          args: [ventureId, milestoneId, tk.id, tk.name, tk.description || null, tk.requirement_type || "activity"],
+          args: [ventureId, milestoneId, taskTemplate.id, taskTemplate.name, taskTemplate.description || null, taskTemplate.requirement_type || "activity"],
         });
       }
     }

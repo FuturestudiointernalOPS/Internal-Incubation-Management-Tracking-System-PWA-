@@ -157,6 +157,12 @@ export async function ensureVentureSchema() {
     "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMP",
     "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS suspended_by TEXT",
     "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
+    // venture_member_invitations: a founder adds a member by email; the person
+    // only joins after opening the emailed link (invite ≠ member)
+    "CREATE TABLE IF NOT EXISTS venture_member_invitations (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL, email TEXT NOT NULL, name TEXT, member_type TEXT NOT NULL DEFAULT 'team_member', role TEXT, contact_id TEXT, invited_by TEXT, token TEXT, token_hash TEXT, status TEXT NOT NULL DEFAULT 'pending', expires_at TIMESTAMPTZ, accepted_at TIMESTAMPTZ, responded_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW())",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_vmi_token_hash ON venture_member_invitations(token_hash) WHERE token_hash IS NOT NULL",
+    "CREATE INDEX IF NOT EXISTS idx_vmi_venture_status ON venture_member_invitations(venture_id, status)",
+    "CREATE INDEX IF NOT EXISTS idx_vmi_email ON venture_member_invitations(LOWER(email))",
     // venture_milestones: runtime columns the code already reads/writes
     "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS progress INTEGER DEFAULT 0",
     "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS target_date TIMESTAMP",
@@ -428,7 +434,7 @@ export async function resolveTeamMembersForPromotion(teamId) {
           WHERE p.v2_team_id = ? AND c2.deleted = 0`,
     args: [teamId, teamId],
   });
-  return (res.rows || []).filter((r) => r && r.contact_id);
+  return (res.rows || []).filter((member) => member && member.contact_id);
 }
 
 /**
@@ -718,12 +724,12 @@ export async function createVentureNotification({
   const cols = ["recipient_id", "title", "message", "type", "is_read", "created_at"];
   const placeholders = ["?", "?", "?", "?", 0, "NOW()"];
   const args = [recipient_id, title, message, type];
-  for (const [key, col] of Object.entries(NOTIFICATION_CONTEXT_COLS)) {
-    const val = context ? context[key] : undefined;
-    if (val !== undefined && val !== null && val !== "") {
-      cols.push(col);
+  for (const [key, column] of Object.entries(NOTIFICATION_CONTEXT_COLS)) {
+    const contextValue = context ? context[key] : undefined;
+    if (contextValue !== undefined && contextValue !== null && contextValue !== "") {
+      cols.push(column);
       placeholders.push("?");
-      args.push(String(val));
+      args.push(String(contextValue));
     }
   }
   if (templateKey) {
@@ -752,27 +758,27 @@ export async function createVentureNotification({
 export async function notifyVentureFounders(dbId, title, message, context = {}, template = {}) {
   try {
     // venture_members stores venture_id as the VNT code (TEXT)
-    const v = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [dbId] });
-    const code = v.rows?.[0]?.venture_id || dbId;
-    const ctx = { ...(context || {}), venture_id: context?.venture_id || dbId };
+    const ventureResult = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [dbId] });
+    const code = ventureResult.rows?.[0]?.venture_id || dbId;
+    const notificationContext = { ...(context || {}), venture_id: context?.venture_id || dbId };
     const { templateKey = null, params = null, dedupeKey = null } = template || {};
     const founders = await db.execute({
       sql: "SELECT contact_id FROM venture_members WHERE venture_id = ? AND member_type = 'founder' AND removed_at IS NULL",
       args: [code],
     });
-    for (const f of founders.rows || []) {
-      if (f.contact_id) {
+    for (const founder of founders.rows || []) {
+      if (founder.contact_id) {
         await createVentureNotification({
-          recipient_id: f.contact_id, title, message, context: ctx,
+          recipient_id: founder.contact_id, title, message, context: notificationContext,
           templateKey, params, dedupeKey,
         });
       }
     }
     // Also notify the venture venture_id (for super admin overview)
-    const vid = v.rows?.[0]?.venture_id;
+    const vid = ventureResult.rows?.[0]?.venture_id;
     if (vid) {
       await createVentureNotification({
-        recipient_id: "sa", title: `[${vid}] ${title}`, message, context: ctx,
+        recipient_id: "sa", title: `[${vid}] ${title}`, message, context: notificationContext,
         templateKey, params, dedupeKey: dedupeKey ? `sa:${dedupeKey}` : null,
       });
     }
@@ -853,9 +859,9 @@ export async function getVentureById(ventureId) {
             ORDER BY al.created_at DESC LIMIT 20`,
       args: [key],
     });
-    activity = (activityRes.rows || []).map((a) => ({
-      ...a,
-      actor_name: a.actor_resolved_name || a.actor_name || null,
+    activity = (activityRes.rows || []).map((activityRow) => ({
+      ...activityRow,
+      actor_name: activityRow.actor_resolved_name || activityRow.actor_name || null,
     }));
   } catch (_) {}
 
@@ -1204,7 +1210,7 @@ export async function copyFoundersToVenture({
     if (!participant.email) continue;
     // Check if this email was already added from contacts
     const alreadyAdded = founders.some(
-      (f) => f.email.toLowerCase() === participant.email.toLowerCase()
+      (founder) => founder.email.toLowerCase() === participant.email.toLowerCase()
     );
     if (alreadyAdded) continue;
     founders.push({
@@ -1344,15 +1350,15 @@ export const WIZARD_STEP_VALIDATORS = {
         return errors;
       }
       const emails = new Set();
-      data.founders.forEach((f, i) => {
-        if (!f.name?.trim()) errors.push(`Founder ${i + 1}: Name is required`);
-        if (!f.email?.trim()) errors.push(`Founder ${i + 1}: Email is required`);
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) errors.push(`Founder ${i + 1}: Invalid email format`);
-        else if (emails.has(f.email.toLowerCase())) errors.push(`Founder ${i + 1}: Duplicate email`);
-        else emails.add(f.email.toLowerCase());
-        if (!f.position?.trim()) errors.push(`Founder ${i + 1}: Position is required`);
-        if (f.linkedin && !/^https?:\/\/(www\.)?linkedin\.com\/.+/.test(f.linkedin)) {
-          errors.push(`Founder ${i + 1}: LinkedIn must be a valid LinkedIn URL`);
+      data.founders.forEach((founder, index) => {
+        if (!founder.name?.trim()) errors.push(`Founder ${index + 1}: Name is required`);
+        if (!founder.email?.trim()) errors.push(`Founder ${index + 1}: Email is required`);
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(founder.email)) errors.push(`Founder ${index + 1}: Invalid email format`);
+        else if (emails.has(founder.email.toLowerCase())) errors.push(`Founder ${index + 1}: Duplicate email`);
+        else emails.add(founder.email.toLowerCase());
+        if (!founder.position?.trim()) errors.push(`Founder ${index + 1}: Position is required`);
+        if (founder.linkedin && !/^https?:\/\/(www\.)?linkedin\.com\/.+/.test(founder.linkedin)) {
+          errors.push(`Founder ${index + 1}: LinkedIn must be a valid LinkedIn URL`);
         }
       });
       return errors;
@@ -1366,9 +1372,9 @@ export const WIZARD_STEP_VALIDATORS = {
       if (!data.team_size && data.team_size !== 0) errors.push("Team size is required");
       else if (isNaN(data.team_size) || data.team_size < 1) errors.push("Team size must be at least 1");
       if (Array.isArray(data.members)) {
-        data.members.forEach((m, i) => {
-          if (!m.name?.trim()) errors.push(`Member ${i + 1}: Name is required`);
-          if (!m.role?.trim()) errors.push(`Member ${i + 1}: Role is required`);
+        data.members.forEach((member, index) => {
+          if (!member.name?.trim()) errors.push(`Member ${index + 1}: Name is required`);
+          if (!member.role?.trim()) errors.push(`Member ${index + 1}: Role is required`);
         });
       }
       return errors;
@@ -1454,16 +1460,16 @@ export function calculateCompletion(profileData) {
 
     let filledCount = 0;
     for (const field of requiredFields) {
-      const val = stepData[field];
+      const fieldValue = stepData[field];
       if (field === "team_size") {
-        if (val !== undefined && val !== null && val !== "") filledCount++;
+        if (fieldValue !== undefined && fieldValue !== null && fieldValue !== "") filledCount++;
       } else if (field === "founders") {
-        if (Array.isArray(val) && val.length > 0) filledCount++;
-      } else if (Array.isArray(val)) {
-        if (val.length > 0) filledCount++;
-      } else if (typeof val === "string" && val.trim()) {
+        if (Array.isArray(fieldValue) && fieldValue.length > 0) filledCount++;
+      } else if (Array.isArray(fieldValue)) {
+        if (fieldValue.length > 0) filledCount++;
+      } else if (typeof fieldValue === "string" && fieldValue.trim()) {
         filledCount++;
-      } else if (typeof val === "number" || typeof val === "boolean") {
+      } else if (typeof fieldValue === "number" || typeof fieldValue === "boolean") {
         filledCount++;
       }
     }
@@ -1884,12 +1890,12 @@ export async function listFounders(ventureId) {
     args: [ventureId],
   });
 
-  return res.rows.map((f) => ({
-    ...f,
-    role_label: VENTURE_ROLE_LABELS[f.role] || f.role,
-    is_suspended: !!f.suspended_at,
-    invitation_expired: f.invitation_expires_at
-      ? new Date(f.invitation_expires_at) < new Date()
+  return res.rows.map((founder) => ({
+    ...founder,
+    role_label: VENTURE_ROLE_LABELS[founder.role] || founder.role,
+    is_suspended: !!founder.suspended_at,
+    invitation_expired: founder.invitation_expires_at
+      ? new Date(founder.invitation_expires_at) < new Date()
       : false,
   }));
 }
@@ -1945,8 +1951,8 @@ export async function inviteFounder({
   });
 
   if (existing.rows.length > 0) {
-    const f = existing.rows[0];
-    if (f.status === "accepted") {
+    const founder = existing.rows[0];
+    if (founder.status === "accepted") {
       throw new Error("A founder with this email already exists and has accepted.");
     }
     // Re-send invitation for pending founders
@@ -1958,10 +1964,10 @@ export async function inviteFounder({
             SET invitation_token = ?, invitation_sent_at = NOW(), invitation_expires_at = ?,
                 role = ?, name = ?, status = 'pending', updated_at = NOW()
             WHERE id = ?`,
-      args: [token, expiresAt, role, name.trim(), f.id],
+      args: [token, expiresAt, role, name.trim(), founder.id],
     });
 
-    return { id: f.id, token, expires_at: expiresAt, isResend: true };
+    return { id: founder.id, token, expires_at: expiresAt, isResend: true };
   }
 
   // Create new founder record
@@ -2357,7 +2363,7 @@ export async function submitVerification({ ventureId, submittedBy }) {
     if (item.category === "email_verification" || item.category === "phone_verification") {
       continue; // These are verified by other means
     }
-    const hasDoc = documents.some((d) => d.category === item.category);
+    const hasDoc = documents.some((document) => document.category === item.category);
     if (!hasDoc && item.status !== "not_applicable") {
       missingCategories.push(VERIFICATION_CATEGORY_LABELS[item.category] || item.category);
     }
@@ -2575,18 +2581,18 @@ export async function listMilestones(ventureId, projectId) {
   if (projectId) { sql += " AND vm.project_id = ?"; args.push(projectId); }
   sql += " ORDER BY vm.display_order ASC, vm.created_at ASC";
   const res = await db.execute({ sql, args });
-  return (res.rows || []).map((m) => ({
-    ...m,
-    assigned_members: typeof m.assigned_members === "string" ? JSON.parse(m.assigned_members) : (m.assigned_members || []),
+  return (res.rows || []).map((milestone) => ({
+    ...milestone,
+    assigned_members: typeof milestone.assigned_members === "string" ? JSON.parse(milestone.assigned_members) : (milestone.assigned_members || []),
   }));
 }
 
 export async function getMilestone(milestoneId) {
   const res = await db.execute({ sql: "SELECT * FROM venture_milestones WHERE id = ?", args: [milestoneId] });
   if (res.rows.length === 0) return null;
-  const m = res.rows[0];
-  m.assigned_members = typeof m.assigned_members === "string" ? JSON.parse(m.assigned_members) : (m.assigned_members || []);
-  return m;
+  const milestone = res.rows[0];
+  milestone.assigned_members = typeof milestone.assigned_members === "string" ? JSON.parse(milestone.assigned_members) : (milestone.assigned_members || []);
+  return milestone;
 }
 
 export async function createMilestone({ ventureId, projectId, title, description, priority, dueDate, ownerCid, assignedMembers, displayOrder, createdBy }) {
@@ -2609,10 +2615,10 @@ export async function createMilestone({ ventureId, projectId, title, description
 export async function updateMilestone(milestoneId, updates) {
   const allowed = ["title", "description", "status", "priority", "due_date", "owner_cid", "assigned_members", "completion_percentage", "display_order"];
   const sets = []; const args = [];
-  for (const f of allowed) {
-    if (updates[f] !== undefined) {
-      if (f === "assigned_members") { sets.push("assigned_members = ?::jsonb"); args.push(JSON.stringify(updates[f])); }
-      else { sets.push(`${f} = ?`); args.push(updates[f]); }
+  for (const column of allowed) {
+    if (updates[column] !== undefined) {
+      if (column === "assigned_members") { sets.push("assigned_members = ?::jsonb"); args.push(JSON.stringify(updates[column])); }
+      else { sets.push(`${column} = ?`); args.push(updates[column]); }
     }
   }
   if (sets.length === 0) return { updated: false };
@@ -2654,17 +2660,23 @@ export async function createDeliverable({ milestoneId, ventureId, title, descrip
 
 export async function updateDeliverable(deliverableId, updates, actorCid, actorName) {
   const allowed = ["title", "description", "deliverable_type", "status", "due_date", "assigned_cid", "attachment_url", "attachment_name", "approval_status", "reviewer_cid", "reviewer_name", "rejection_reason"];
-  const sets = []; const args = [];
-  for (const f of allowed) {
-    if (updates[f] !== undefined) { sets.push(`${f} = ?`); args.push(updates[f]); }
+  // One assignment per column. The list used to be built by pushing, and the
+  // approval workflow pushed a column the caller may already have supplied —
+  // `status` on a submission, `reviewer_cid` / `reviewer_name` on a review —
+  // which Postgres refuses outright ("multiple assignments to same column"),
+  // losing the submission the founder had just uploaded. A Map cannot.
+  const assignments = new Map();
+  for (const column of allowed) {
+    if (updates[column] !== undefined) assignments.set(column, updates[column]);
   }
 
-  // Handle approval workflow
-  if (updates.approval_status === "approved" || updates.approval_status === "rejected") {
-    sets.push("reviewer_cid = ?"); args.push(updates.reviewer_cid || actorCid);
-    sets.push("reviewer_name = ?"); args.push(updates.reviewer_name || actorName);
-    sets.push("reviewed_at = NOW()");
-    if (updates.approval_status === "approved") sets.push("status = 'completed'");
+  // Handle approval workflow. Its values win over the caller's, exactly as they
+  // did when the same column was assigned twice and the last one took effect.
+  const reviewed = updates.approval_status === "approved" || updates.approval_status === "rejected";
+  if (reviewed) {
+    assignments.set("reviewer_cid", updates.reviewer_cid || actorCid);
+    assignments.set("reviewer_name", updates.reviewer_name || actorName);
+    if (updates.approval_status === "approved") assignments.set("status", "completed");
 
     await db.execute({
       sql: `INSERT INTO venture_deliverable_reviews (deliverable_id, reviewer_cid, reviewer_name, decision, comments)
@@ -2673,7 +2685,12 @@ export async function updateDeliverable(deliverableId, updates, actorCid, actorN
     });
   }
 
-  if (updates.status === "submitted") sets.push("status = 'submitted'");
+  const sets = []; const args = [];
+  for (const [column, value] of assignments) {
+    sets.push(`${column} = ?`);
+    args.push(value);
+  }
+  if (reviewed) sets.push("reviewed_at = NOW()");
 
   if (sets.length === 0) return { updated: false };
   sets.push("updated_at = NOW()");
@@ -2681,15 +2698,15 @@ export async function updateDeliverable(deliverableId, updates, actorCid, actorN
   await db.execute({ sql: `UPDATE venture_deliverables SET ${sets.join(", ")} WHERE id = ?`, args });
 
   // Recalculate milestone completion
-  const d = await getDeliverable(deliverableId);
-  if (d) {
-    const cnt = await db.execute({
+  const deliverable = await getDeliverable(deliverableId);
+  if (deliverable) {
+    const countResult = await db.execute({
       sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status IN ('approved','completed') THEN 1 ELSE 0 END) as d FROM venture_deliverables WHERE milestone_id = ?",
-      args: [d.milestone_id],
+      args: [deliverable.milestone_id],
     });
-    const r = cnt.rows[0] || { t: 0, d: 0 };
-    const pct = r.t > 0 ? Math.round((r.d / r.t) * 100) : 0;
-    await db.execute({ sql: "UPDATE venture_milestones SET completion_percentage = ?, updated_at = NOW() WHERE id = ?", args: [pct, d.milestone_id] });
+    const counts = countResult.rows[0] || { t: 0, d: 0 };
+    const pct = counts.t > 0 ? Math.round((counts.d / counts.t) * 100) : 0;
+    await db.execute({ sql: "UPDATE venture_milestones SET completion_percentage = ?, updated_at = NOW() WHERE id = ?", args: [pct, deliverable.milestone_id] });
   }
 
   return { updated: true };
@@ -2715,26 +2732,26 @@ export async function listTasks(ventureId, milestoneId, status, assignedCid) {
   if (assignedCid) { sql += " AND vt.assigned_cid = ?"; args.push(assignedCid); }
   sql += " ORDER BY vt.display_order ASC, vt.created_at DESC";
   const res = await db.execute({ sql, args });
-  return (res.rows || []).map((t) => ({
-    ...t,
-    labels: typeof t.labels === "string" ? JSON.parse(t.labels) : (t.labels || []),
-    checklist: typeof t.checklist === "string" ? JSON.parse(t.checklist) : (t.checklist || []),
+  return (res.rows || []).map((task) => ({
+    ...task,
+    labels: typeof task.labels === "string" ? JSON.parse(task.labels) : (task.labels || []),
+    checklist: typeof task.checklist === "string" ? JSON.parse(task.checklist) : (task.checklist || []),
   }));
 }
 
 export async function getTask(taskId) {
   const res = await db.execute({ sql: "SELECT * FROM venture_tasks WHERE id = ?", args: [taskId] });
   if (res.rows.length === 0) return null;
-  const t = res.rows[0];
-  t.labels = typeof t.labels === "string" ? JSON.parse(t.labels) : (t.labels || []);
-  t.checklist = typeof t.checklist === "string" ? JSON.parse(t.checklist) : (t.checklist || []);
-  return t;
+  const task = res.rows[0];
+  task.labels = typeof task.labels === "string" ? JSON.parse(task.labels) : (task.labels || []);
+  task.checklist = typeof task.checklist === "string" ? JSON.parse(task.checklist) : (task.checklist || []);
+  return task;
 }
 
 export async function createTask({ ventureId, milestoneId, title, description, priority, dueDate, estimatedHours, assignedCid, assignedName, reporterCid, reporterName, labels, displayOrder, parentTaskId }) {
   if (!displayOrder) {
-    const o = await db.execute({ sql: "SELECT COALESCE(MAX(display_order), 0) + 1 as n FROM venture_tasks WHERE venture_id = ?", args: [ventureId] });
-    displayOrder = o.rows[0]?.n || 1;
+    const orderResult = await db.execute({ sql: "SELECT COALESCE(MAX(display_order), 0) + 1 as n FROM venture_tasks WHERE venture_id = ?", args: [ventureId] });
+    displayOrder = orderResult.rows[0]?.n || 1;
   }
   const res = await db.execute({
     sql: `INSERT INTO venture_tasks (venture_id, milestone_id, title, description, priority, due_date, estimated_hours, assigned_cid, assigned_name, reporter_cid, reporter_name, labels, display_order, parent_task_id)
@@ -2747,10 +2764,10 @@ export async function createTask({ ventureId, milestoneId, title, description, p
 export async function updateTask(taskId, updates) {
   const allowed = ["title", "description", "status", "priority", "due_date", "estimated_hours", "actual_hours", "assigned_cid", "assigned_name", "labels", "checklist", "display_order"];
   const sets = []; const args = [];
-  for (const f of allowed) {
-    if (updates[f] !== undefined) {
-      if (f === "labels" || f === "checklist") { sets.push(`${f} = ?::jsonb`); args.push(JSON.stringify(updates[f])); }
-      else { sets.push(`${f} = ?`); args.push(updates[f]); }
+  for (const column of allowed) {
+    if (updates[column] !== undefined) {
+      if (column === "labels" || column === "checklist") { sets.push(`${column} = ?::jsonb`); args.push(JSON.stringify(updates[column])); }
+      else { sets.push(`${column} = ?`); args.push(updates[column]); }
     }
   }
   if (sets.length === 0) return { updated: false };
@@ -2827,9 +2844,9 @@ export async function calculateProjectProgress(ventureId) {
        FROM venture_milestones WHERE venture_id = ?`,
     args: [ventureId],
   });
-  const m = ms.rows[0] || { total: 0, done: 0, delayed: 0, cancelled: 0 };
-  result.milestones = { total: parseInt(m.total) || 0, done: parseInt(m.done) || 0, delayed: parseInt(m.delayed) || 0, cancelled: parseInt(m.cancelled) || 0 };
-  result.delayed += parseInt(m.delayed) || 0;
+  const milestoneCounts = ms.rows[0] || { total: 0, done: 0, delayed: 0, cancelled: 0 };
+  result.milestones = { total: parseInt(milestoneCounts.total) || 0, done: parseInt(milestoneCounts.done) || 0, delayed: parseInt(milestoneCounts.delayed) || 0, cancelled: parseInt(milestoneCounts.cancelled) || 0 };
+  result.delayed += parseInt(milestoneCounts.delayed) || 0;
 
   // Tasks
   const ts = await db.execute({
@@ -2839,9 +2856,9 @@ export async function calculateProjectProgress(ventureId) {
        FROM venture_tasks WHERE venture_id = ?`,
     args: [ventureId],
   });
-  const t = ts.rows[0] || { total: 0, done: 0, blocked: 0 };
-  result.tasks = { total: parseInt(t.total) || 0, done: parseInt(t.done) || 0, blocked: parseInt(t.blocked) || 0 };
-  result.blocked += parseInt(t.blocked) || 0;
+  const taskCounts = ts.rows[0] || { total: 0, done: 0, blocked: 0 };
+  result.tasks = { total: parseInt(taskCounts.total) || 0, done: parseInt(taskCounts.done) || 0, blocked: parseInt(taskCounts.blocked) || 0 };
+  result.blocked += parseInt(taskCounts.blocked) || 0;
 
   // Deliverables
   const ds = await db.execute({
@@ -2850,8 +2867,8 @@ export async function calculateProjectProgress(ventureId) {
        FROM venture_deliverables WHERE venture_id = ?`,
     args: [ventureId],
   });
-  const d = ds.rows[0] || { total: 0, done: 0 };
-  result.deliverables = { total: parseInt(d.total) || 0, done: parseInt(d.done) || 0 };
+  const deliverableCounts = ds.rows[0] || { total: 0, done: 0 };
+  result.deliverables = { total: parseInt(deliverableCounts.total) || 0, done: parseInt(deliverableCounts.done) || 0 };
 
   // Overall progress: weighted average (milestones 40%, tasks 40%, deliverables 20%)
   const totalWeight =
@@ -2883,17 +2900,17 @@ export async function getProjectTimeline(ventureId) {
     sql: `SELECT id, title, status, completion_percentage as progress, due_date, created_at FROM venture_milestones WHERE venture_id = ? ORDER BY display_order ASC, created_at ASC`,
     args: [ventureId],
   });
-  for (const m of milestones.rows || []) {
+  for (const milestone of milestones.rows || []) {
     events.push({
-      id: `milestone-${m.id}`,
+      id: `milestone-${milestone.id}`,
       type: "milestone",
       reference_type: "milestone",
-      reference_id: m.id,
-      title: m.title,
-      status: m.status,
-      progress: m.progress || 0,
-      start_date: m.created_at,
-      end_date: m.due_date,
+      reference_id: milestone.id,
+      title: milestone.title,
+      status: milestone.status,
+      progress: milestone.progress || 0,
+      start_date: milestone.created_at,
+      end_date: milestone.due_date,
       parent_id: null,
     });
   }
@@ -2903,19 +2920,19 @@ export async function getProjectTimeline(ventureId) {
     sql: `SELECT id, title, status, milestone_id, due_date, created_at FROM venture_tasks WHERE venture_id = ? ORDER BY created_at ASC`,
     args: [ventureId],
   });
-  for (const t of tasks.rows || []) {
+  for (const task of tasks.rows || []) {
     const progressMap = { backlog: 0, todo: 0, in_progress: 50, review: 80, done: 100, blocked: 0, cancelled: 0 };
     events.push({
-      id: `task-${t.id}`,
+      id: `task-${task.id}`,
       type: "task",
       reference_type: "task",
-      reference_id: t.id,
-      title: t.title,
-      status: t.status,
-      progress: progressMap[t.status] || 0,
-      start_date: t.created_at,
-      end_date: t.due_date,
-      parent_id: t.milestone_id ? `milestone-${t.milestone_id}` : null,
+      reference_id: task.id,
+      title: task.title,
+      status: task.status,
+      progress: progressMap[task.status] || 0,
+      start_date: task.created_at,
+      end_date: task.due_date,
+      parent_id: task.milestone_id ? `milestone-${task.milestone_id}` : null,
     });
   }
 
@@ -2924,19 +2941,19 @@ export async function getProjectTimeline(ventureId) {
     sql: `SELECT vd.id, vd.title, vd.status, vd.milestone_id, vd.due_date, vd.created_at FROM venture_deliverables vd WHERE vd.venture_id = ? ORDER BY vd.created_at ASC`,
     args: [ventureId],
   });
-  for (const d of deliverables.rows || []) {
+  for (const deliverable of deliverables.rows || []) {
     const progressMap = { pending: 0, in_progress: 30, submitted: 70, approved: 100, rejected: 0, completed: 100 };
     events.push({
-      id: `deliverable-${d.id}`,
+      id: `deliverable-${deliverable.id}`,
       type: "deliverable",
       reference_type: "deliverable",
-      reference_id: d.id,
-      title: d.title,
-      status: d.status,
-      progress: progressMap[d.status] || 0,
-      start_date: d.created_at,
-      end_date: d.due_date,
-      parent_id: d.milestone_id ? `milestone-${d.milestone_id}` : null,
+      reference_id: deliverable.id,
+      title: deliverable.title,
+      status: deliverable.status,
+      progress: progressMap[deliverable.status] || 0,
+      start_date: deliverable.created_at,
+      end_date: deliverable.due_date,
+      parent_id: deliverable.milestone_id ? `milestone-${deliverable.milestone_id}` : null,
     });
   }
 
@@ -2948,12 +2965,12 @@ export async function getProjectTimeline(ventureId) {
 
   // Overdue detection
   const now = new Date();
-  const overdue = events.filter((e) => e.end_date && new Date(e.end_date) < now && e.progress < 100);
+  const overdue = events.filter((event) => event.end_date && new Date(event.end_date) < now && event.progress < 100);
 
   return {
     events,
     dependencies: deps.rows || [],
-    overdue: overdue.map((e) => ({ id: e.id, title: e.title, type: e.type, due_date: e.end_date, progress: e.progress })),
+    overdue: overdue.map((event) => ({ id: event.id, title: event.title, type: event.type, due_date: event.end_date, progress: event.progress })),
   };
 }
 
@@ -2965,13 +2982,13 @@ export async function getGanttData(ventureId) {
   const progress = await calculateProjectProgress(ventureId);
 
   // Sort: milestones first, then by parent grouping
-  const sorted = [...timeline.events].sort((a, b) => {
-    if (a.type === "milestone" && b.type !== "milestone") return -1;
-    if (a.type !== "milestone" && b.type === "milestone") return 1;
-    if (a.parent_id && b.parent_id && a.parent_id !== b.parent_id) {
-      return a.parent_id.localeCompare(b.parent_id);
+  const sorted = [...timeline.events].sort((first, second) => {
+    if (first.type === "milestone" && second.type !== "milestone") return -1;
+    if (first.type !== "milestone" && second.type === "milestone") return 1;
+    if (first.parent_id && second.parent_id && first.parent_id !== second.parent_id) {
+      return first.parent_id.localeCompare(second.parent_id);
     }
-    if (a.start_date && b.start_date) return new Date(a.start_date) - new Date(b.start_date);
+    if (first.start_date && second.start_date) return new Date(first.start_date) - new Date(second.start_date);
     return 0;
   });
 
@@ -3048,13 +3065,13 @@ export async function getVentureAnalytics(ventureId) {
     db.execute({ sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status IN ('approved','completed') THEN 1 ELSE 0 END) as done FROM venture_deliverables WHERE venture_id=?", args: [ventureId] }),
   ]);
 
-  const m = mRes.rows[0] || { t: 0, done: 0, delayed: 0 };
-  const t = tRes.rows[0] || { t: 0, done: 0, blocked: 0, overdue: 0 };
-  const d = dRes.rows[0] || { t: 0, done: 0 };
+  const milestoneCounts = mRes.rows[0] || { t: 0, done: 0, delayed: 0 };
+  const taskCounts = tRes.rows[0] || { t: 0, done: 0, blocked: 0, overdue: 0 };
+  const deliverableCounts = dRes.rows[0] || { t: 0, done: 0 };
 
-  const milestones = { total: parseInt(m.t)||0, done: parseInt(m.done)||0, delayed: parseInt(m.delayed)||0 };
-  const tasks = { total: parseInt(t.t)||0, done: parseInt(t.done)||0, blocked: parseInt(t.blocked)||0, overdue: parseInt(t.overdue)||0 };
-  const deliverables = { total: parseInt(d.t)||0, done: parseInt(d.done)||0 };
+  const milestones = { total: parseInt(milestoneCounts.t)||0, done: parseInt(milestoneCounts.done)||0, delayed: parseInt(milestoneCounts.delayed)||0 };
+  const tasks = { total: parseInt(taskCounts.t)||0, done: parseInt(taskCounts.done)||0, blocked: parseInt(taskCounts.blocked)||0, overdue: parseInt(taskCounts.overdue)||0 };
+  const deliverables = { total: parseInt(deliverableCounts.t)||0, done: parseInt(deliverableCounts.done)||0 };
 
   // ── Overall completion ──
   const totalWeight = (milestones.total > 0 ? 40 : 0) + (tasks.total > 0 ? 40 : 0) + (deliverables.total > 0 ? 20 : 0);
@@ -3083,8 +3100,8 @@ export async function getVentureAnalytics(ventureId) {
        FROM venture_tasks WHERE venture_id=? AND status='done' AND due_date IS NOT NULL`,
     args: [ventureId],
   });
-  const o = onTime.rows[0] || { total: 0, on_time: 0 };
-  const onTimeDelivery = parseInt(o.total) > 0 ? Math.round((parseInt(o.on_time)/parseInt(o.total))*100) : 0;
+  const onTimeCounts = onTime.rows[0] || { total: 0, on_time: 0 };
+  const onTimeDelivery = parseInt(onTimeCounts.total) > 0 ? Math.round((parseInt(onTimeCounts.on_time)/parseInt(onTimeCounts.total))*100) : 0;
 
   // ── Status distribution ──
   const statusDist = await db.execute({
@@ -3092,14 +3109,14 @@ export async function getVentureAnalytics(ventureId) {
     args: [ventureId],
   });
   const taskStatusDist = {};
-  for (const r of statusDist.rows || []) taskStatusDist[r.status] = parseInt(r.cnt);
+  for (const row of statusDist.rows || []) taskStatusDist[row.status] = parseInt(row.cnt);
 
   const msStatusDist = await db.execute({
     sql: `SELECT status, COUNT(*) as cnt FROM venture_milestones WHERE venture_id=? GROUP BY status ORDER BY cnt DESC`,
     args: [ventureId],
   });
   const milestoneStatusDist = {};
-  for (const r of msStatusDist.rows || []) milestoneStatusDist[r.status] = parseInt(r.cnt);
+  for (const row of msStatusDist.rows || []) milestoneStatusDist[row.status] = parseInt(row.cnt);
 
   // ── Trend (last 30 days activity) ──
   const trend = await db.execute({
@@ -3111,12 +3128,12 @@ export async function getVentureAnalytics(ventureId) {
 
   const activityTrend = [];
   const dayMap = {};
-  for (const r of trend.rows || []) {
-    const day = r.day;
+  for (const row of trend.rows || []) {
+    const day = row.day;
     if (!dayMap[day]) { dayMap[day] = { date: day, total: 0, completed: 0, created: 0 }; activityTrend.push(dayMap[day]); }
-    dayMap[day].total += parseInt(r.cnt);
-    if (r.action?.includes('COMPLETED') || r.action?.includes('APPROVED')) dayMap[day].completed += parseInt(r.cnt);
-    if (r.action?.includes('CREATED')) dayMap[day].created += parseInt(r.cnt);
+    dayMap[day].total += parseInt(row.cnt);
+    if (row.action?.includes('COMPLETED') || row.action?.includes('APPROVED')) dayMap[day].completed += parseInt(row.cnt);
+    if (row.action?.includes('CREATED')) dayMap[day].created += parseInt(row.cnt);
   }
 
   // ── Workload distribution ──
@@ -3175,10 +3192,10 @@ export async function getMilestonesReport(ventureId) {
        FROM venture_milestones vm WHERE vm.venture_id=? ORDER BY vm.created_at DESC`,
     args: [ventureId],
   });
-  return (res.rows || []).map((m) => ({
-    ...m,
-    deliverables_progress: m.del_total > 0 ? Math.round((m.del_done/m.del_total)*100) : 0,
-    tasks_progress: m.task_total > 0 ? Math.round((m.task_done/m.task_total)*100) : 0,
+  return (res.rows || []).map((milestone) => ({
+    ...milestone,
+    deliverables_progress: milestone.del_total > 0 ? Math.round((milestone.del_done/milestone.del_total)*100) : 0,
+    tasks_progress: milestone.task_total > 0 ? Math.round((milestone.task_done/milestone.task_total)*100) : 0,
   }));
 }
 
@@ -3222,15 +3239,15 @@ export async function getTeamProductivity(ventureId) {
     args: [ventureId],
   });
 
-  return (members.rows || []).map((m) => ({
-    ...m,
-    total_tasks: parseInt(m.total_tasks)||0,
-    completed: parseInt(m.completed)||0,
-    blocked: parseInt(m.blocked)||0,
-    overdue: parseInt(m.overdue)||0,
-    total_estimated: parseFloat(m.total_estimated)||0,
-    completed_estimated: parseFloat(m.completed_estimated)||0,
-    completion_rate: parseInt(m.total_tasks) > 0 ? Math.round((parseInt(m.completed)/parseInt(m.total_tasks))*100) : 0,
+  return (members.rows || []).map((member) => ({
+    ...member,
+    total_tasks: parseInt(member.total_tasks)||0,
+    completed: parseInt(member.completed)||0,
+    blocked: parseInt(member.blocked)||0,
+    overdue: parseInt(member.overdue)||0,
+    total_estimated: parseFloat(member.total_estimated)||0,
+    completed_estimated: parseFloat(member.completed_estimated)||0,
+    completion_rate: parseInt(member.total_tasks) > 0 ? Math.round((parseInt(member.completed)/parseInt(member.total_tasks))*100) : 0,
   }));
 }
 
@@ -3240,22 +3257,22 @@ export async function getTeamProductivity(ventureId) {
 export async function getExportData(ventureId, type = "tasks") {
   if (type === "tasks") {
     const tasks = await getTasksReport(ventureId);
-    return tasks.map((t) => ({
-      Title: t.title, Status: t.status, Priority: t.priority,
-      Assignee: t.assigned_name || "", Milestone: t.milestone_title || "",
-      "Due Date": t.due_date ? new Date(t.due_date).toLocaleDateString() : "",
-      "Est. Hours": t.estimated_hours || "",
-      "Created At": new Date(t.created_at).toLocaleDateString(),
+    return tasks.map((task) => ({
+      Title: task.title, Status: task.status, Priority: task.priority,
+      Assignee: task.assigned_name || "", Milestone: task.milestone_title || "",
+      "Due Date": task.due_date ? new Date(task.due_date).toLocaleDateString() : "",
+      "Est. Hours": task.estimated_hours || "",
+      "Created At": new Date(task.created_at).toLocaleDateString(),
     }));
   }
   if (type === "milestones") {
     const ms = await getMilestonesReport(ventureId);
-    return ms.map((m) => ({
-      Title: m.title, Status: m.status, Priority: m.priority,
-      "Due Date": m.due_date ? new Date(m.due_date).toLocaleDateString() : "",
-      "Completion %": m.completion_percentage,
-      Deliverables: `${m.del_done||0}/${m.del_total||0}`,
-      Tasks: `${m.task_done||0}/${m.task_total||0}`,
+    return ms.map((milestone) => ({
+      Title: milestone.title, Status: milestone.status, Priority: milestone.priority,
+      "Due Date": milestone.due_date ? new Date(milestone.due_date).toLocaleDateString() : "",
+      "Completion %": milestone.completion_percentage,
+      Deliverables: `${milestone.del_done||0}/${milestone.del_total||0}`,
+      Tasks: `${milestone.task_done||0}/${milestone.task_total||0}`,
     }));
   }
   return [];
@@ -3274,22 +3291,22 @@ export async function listCoaches(coachType) {
   if (coachType) { sql += " AND coach_type = ?"; args.push(coachType); }
   sql += " ORDER BY full_name ASC";
   const res = await db.execute({ sql, args });
-  return (res.rows || []).map((c) => ({
-    ...c,
-    areas_of_expertise: typeof c.areas_of_expertise === "string" ? JSON.parse(c.areas_of_expertise) : (c.areas_of_expertise || []),
-    industries: typeof c.industries === "string" ? JSON.parse(c.industries) : (c.industries || []),
-    languages: typeof c.languages === "string" ? JSON.parse(c.languages) : (c.languages || []),
+  return (res.rows || []).map((coach) => ({
+    ...coach,
+    areas_of_expertise: typeof coach.areas_of_expertise === "string" ? JSON.parse(coach.areas_of_expertise) : (coach.areas_of_expertise || []),
+    industries: typeof coach.industries === "string" ? JSON.parse(coach.industries) : (coach.industries || []),
+    languages: typeof coach.languages === "string" ? JSON.parse(coach.languages) : (coach.languages || []),
   }));
 }
 
 export async function getCoach(coachId) {
   const res = await db.execute({ sql: "SELECT * FROM venture_coaches WHERE id = ?", args: [coachId] });
   if (res.rows.length === 0) return null;
-  const c = res.rows[0];
-  c.areas_of_expertise = typeof c.areas_of_expertise === "string" ? JSON.parse(c.areas_of_expertise) : (c.areas_of_expertise || []);
-  c.industries = typeof c.industries === "string" ? JSON.parse(c.industries) : (c.industries || []);
-  c.languages = typeof c.languages === "string" ? JSON.parse(c.languages) : (c.languages || []);
-  return c;
+  const coach = res.rows[0];
+  coach.areas_of_expertise = typeof coach.areas_of_expertise === "string" ? JSON.parse(coach.areas_of_expertise) : (coach.areas_of_expertise || []);
+  coach.industries = typeof coach.industries === "string" ? JSON.parse(coach.industries) : (coach.industries || []);
+  coach.languages = typeof coach.languages === "string" ? JSON.parse(coach.languages) : (coach.languages || []);
+  return coach;
 }
 
 export async function createCoach({ coachType, fullName, email, phone, organization, biography, yearsExperience, areasOfExpertise, industries, languages, timezone, linkedinUrl, websiteUrl, createdBy }) {
@@ -3304,11 +3321,11 @@ export async function createCoach({ coachType, fullName, email, phone, organizat
 export async function updateCoach(coachId, updates) {
   const allowed = ["full_name", "photo_url", "email", "phone", "organization", "biography", "years_experience", "availability", "timezone", "linkedin_url", "website_url", "status", "coach_type"];
   const sets = []; const args = [];
-  for (const f of allowed) {
-    if (updates[f] !== undefined) {
-      if (f === "areas_of_expertise" || f === "industries" || f === "languages") {
-        sets.push(`${f} = ?::jsonb`); args.push(JSON.stringify(updates[f]));
-      } else { sets.push(`${f} = ?`); args.push(updates[f]); }
+  for (const column of allowed) {
+    if (updates[column] !== undefined) {
+      if (column === "areas_of_expertise" || column === "industries" || column === "languages") {
+        sets.push(`${column} = ?::jsonb`); args.push(JSON.stringify(updates[column]));
+      } else { sets.push(`${column} = ?`); args.push(updates[column]); }
     }
   }
   if (sets.length === 0) return { updated: false };
@@ -3335,10 +3352,10 @@ export async function getVentureAssignments(ventureId) {
        ORDER BY vca.is_primary DESC, vca.assignment_date ASC`,
     args: [ventureId],
   });
-  return (res.rows || []).map((a) => ({
-    ...a,
-    areas_of_expertise: typeof a.areas_of_expertise === "string" ? JSON.parse(a.areas_of_expertise) : (a.areas_of_expertise || []),
-    industries: typeof a.industries === "string" ? JSON.parse(a.industries) : (a.industries || []),
+  return (res.rows || []).map((assignment) => ({
+    ...assignment,
+    areas_of_expertise: typeof assignment.areas_of_expertise === "string" ? JSON.parse(assignment.areas_of_expertise) : (assignment.areas_of_expertise || []),
+    industries: typeof assignment.industries === "string" ? JSON.parse(assignment.industries) : (assignment.industries || []),
   }));
 }
 
@@ -3459,18 +3476,18 @@ export async function createSession({ ventureId, title, description, sessionType
   let res;
   try {
     res = await db.execute({ sql: insertSql, args: insertArgs });
-  } catch (e) {
+  } catch (error) {
     // Older database missing the newest columns: drop them one at a time, so a
     // database only one migration behind keeps its deliverable link.
-    if (!isUnknownColumnError(e)) throw e;
+    if (!isUnknownColumnError(error)) throw error;
     try {
       res = await db.execute({
         sql: `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes, journey_stage_id, milestone_ref, task_id, coach_contact_id, deliverable_id)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
         args: insertArgs.slice(0, -1),
       });
-    } catch (e2) {
-      if (!isUnknownColumnError(e2)) throw e2;
+    } catch (retryError) {
+      if (!isUnknownColumnError(retryError)) throw retryError;
       res = await db.execute({
         sql: `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes, journey_stage_id, milestone_ref, task_id, coach_contact_id)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
@@ -3491,17 +3508,17 @@ export async function updateSession(sessionId, updates) {
   const sets = []; const args = [];
   // `materials` is a JSONB column: callers hand over an array, the column gets
   // the serialized form (null when the list is cleared).
-  for (const f of allowed) {
-    if (updates[f] === undefined) continue;
-    sets.push(`${f} = ?`);
-    args.push(f === "materials" ? (Array.isArray(updates[f]) && updates[f].length > 0 ? JSON.stringify(updates[f]) : null) : updates[f]);
+  for (const column of allowed) {
+    if (updates[column] === undefined) continue;
+    sets.push(`${column} = ?`);
+    args.push(column === "materials" ? (Array.isArray(updates[column]) && updates[column].length > 0 ? JSON.stringify(updates[column]) : null) : updates[column]);
   }
   if (sets.length === 0) return { updated: false };
   if (updates.start_time || updates.end_time) {
-    const s = await db.execute({ sql: "SELECT * FROM venture_sessions WHERE id = ?", args: [sessionId] });
-    if (s.rows.length > 0) {
-      const c = await checkDoubleBooking({ ventureId: s.rows[0].venture_id, coachId: s.rows[0].coach_id, startTime: updates.start_time||s.rows[0].start_time, endTime: updates.end_time||s.rows[0].end_time, excludeSessionId: sessionId });
-      if (c.conflict) throw new Error(c.message);
+    const sessionResult = await db.execute({ sql: "SELECT * FROM venture_sessions WHERE id = ?", args: [sessionId] });
+    if (sessionResult.rows.length > 0) {
+      const bookingCheck = await checkDoubleBooking({ ventureId: sessionResult.rows[0].venture_id, coachId: sessionResult.rows[0].coach_id, startTime: updates.start_time||sessionResult.rows[0].start_time, endTime: updates.end_time||sessionResult.rows[0].end_time, excludeSessionId: sessionId });
+      if (bookingCheck.conflict) throw new Error(bookingCheck.message);
     }
   }
   sets.push("updated_at = NOW()"); args.push(sessionId);
@@ -3517,8 +3534,8 @@ export async function cancelSession(sessionId) {
 }
 
 export async function rescheduleSession(sessionId, newStartTime, newEndTime) {
-  const s = await db.execute({ sql: "SELECT * FROM venture_sessions WHERE id = ?", args: [sessionId] });
-  if (s.rows.length === 0) throw new Error("Session not found.");
+  const sessionResult = await db.execute({ sql: "SELECT * FROM venture_sessions WHERE id = ?", args: [sessionId] });
+  if (sessionResult.rows.length === 0) throw new Error("Session not found.");
   // Vinance 3: the same scheduling floor that guards booking also guards a
   // reschedule — a parseable window, an end after the start, and a start at
   // least SESSION_MIN_LEAD_MINUTES ahead.
@@ -3531,8 +3548,8 @@ export async function rescheduleSession(sessionId, newStartTime, newEndTime) {
   if (startAt.getTime() < Date.now() + SESSION_MIN_LEAD_MINUTES * 60 * 1000) {
     throw new Error(`A session must start at least ${SESSION_MIN_LEAD_MINUTES} minutes from now.`);
   }
-  const c = await checkDoubleBooking({ ventureId: s.rows[0].venture_id, coachId: s.rows[0].coach_id, startTime: newStartTime, endTime: newEndTime, excludeSessionId: sessionId });
-  if (c.conflict) throw new Error(c.message);
+  const bookingCheck = await checkDoubleBooking({ ventureId: sessionResult.rows[0].venture_id, coachId: sessionResult.rows[0].coach_id, startTime: newStartTime, endTime: newEndTime, excludeSessionId: sessionId });
+  if (bookingCheck.conflict) throw new Error(bookingCheck.message);
   await db.execute({ sql: "UPDATE venture_sessions SET start_time = ?, end_time = ?, status = 'rescheduled', updated_at = NOW() WHERE id = ?", args: [newStartTime, newEndTime, sessionId] });
   await db.execute({ sql: `INSERT INTO venture_session_activity (session_id, action, details) VALUES (?, 'SESSION_RESCHEDULED', ?::jsonb)`, args: [sessionId, JSON.stringify({ new_start: newStartTime, new_end: newEndTime })] });
   return { success: true };
@@ -3571,7 +3588,7 @@ export async function createActionItem({ sessionId, title, description, ownerCid
 export async function updateActionItem(itemId, updates) {
   const allowed = ["title", "description", "owner_cid", "owner_name", "priority", "due_date", "status", "completed_at"];
   const sets = []; const args = [];
-  for (const f of allowed) { if (updates[f] !== undefined) { sets.push(`${f} = ?`); args.push(updates[f]); } }
+  for (const column of allowed) { if (updates[column] !== undefined) { sets.push(`${column} = ?`); args.push(updates[column]); } }
   if (sets.length === 0) return { updated: false };
   sets.push("updated_at = NOW()"); args.push(itemId);
   await db.execute({ sql: `UPDATE venture_session_action_items SET ${sets.join(", ")} WHERE id = ?`, args });
@@ -3593,23 +3610,23 @@ export async function listResources({ category, type, search, featured, limit = 
   if (search) { sql += " AND (kr.title ILIKE ? OR kr.description ILIKE ?)"; args.push(`%${search}%`, `%${search}%`); }
   sql += " ORDER BY kr.is_featured DESC, kr.created_at DESC LIMIT ? OFFSET ?"; args.push(limit, offset);
   const res = await db.execute({ sql, args });
-  return (res.rows || []).map((r) => ({ ...r, tags: typeof r.tags === "string" ? JSON.parse(r.tags) : (r.tags || []) }));
+  return (res.rows || []).map((row) => ({ ...row, tags: typeof row.tags === "string" ? JSON.parse(row.tags) : (row.tags || []) }));
 }
 
 export async function getResource(resourceId, userCid) {
   const res = await db.execute({ sql: `SELECT kr.*, kc.name as category_name FROM knowledge_resources kr LEFT JOIN knowledge_categories kc ON kr.category_id = kc.id WHERE kr.id = ?`, args: [resourceId] });
   if (res.rows.length === 0) return null;
-  const r = res.rows[0]; r.tags = typeof r.tags === "string" ? JSON.parse(r.tags) : (r.tags || []);
+  const resource = res.rows[0]; resource.tags = typeof resource.tags === "string" ? JSON.parse(resource.tags) : (resource.tags || []);
   await db.execute({ sql: "UPDATE knowledge_resources SET view_count = view_count + 1 WHERE id = ?", args: [resourceId] });
   if (userCid) {
     await db.execute({ sql: `INSERT INTO knowledge_progress (resource_id, user_cid, last_viewed_at) VALUES (?, ?, NOW()) ON CONFLICT (resource_id, user_cid) DO UPDATE SET last_viewed_at = NOW()`, args: [resourceId, userCid] });
     await db.execute({ sql: `INSERT INTO knowledge_activity (resource_id, user_cid, action) VALUES (?, ?, 'RESOURCE_VIEWED')`, args: [resourceId, userCid] });
-    const bm = await db.execute({ sql: "SELECT id FROM knowledge_bookmarks WHERE resource_id = ? AND user_cid = ?", args: [resourceId, userCid] });
-    r.is_bookmarked = bm.rows.length > 0;
-    const pg = await db.execute({ sql: "SELECT is_completed FROM knowledge_progress WHERE resource_id = ? AND user_cid = ?", args: [resourceId, userCid] });
-    r.is_completed = pg.rows.length > 0 && pg.rows[0].is_completed;
+    const bookmarkResult = await db.execute({ sql: "SELECT id FROM knowledge_bookmarks WHERE resource_id = ? AND user_cid = ?", args: [resourceId, userCid] });
+    resource.is_bookmarked = bookmarkResult.rows.length > 0;
+    const progressResult = await db.execute({ sql: "SELECT is_completed FROM knowledge_progress WHERE resource_id = ? AND user_cid = ?", args: [resourceId, userCid] });
+    resource.is_completed = progressResult.rows.length > 0 && progressResult.rows[0].is_completed;
   }
-  return r;
+  return resource;
 }
 
 export async function createResource({ title, description, resourceType, categoryId, url, content, fileUrl, fileSize, fileType, estimatedMinutes, authorName, authorCid, tags, isFeatured }) {
@@ -3627,7 +3644,7 @@ export async function createResource({ title, description, resourceType, categor
 export async function updateResource(resourceId, updates) {
   const allowed = ["title", "description", "resource_type", "category_id", "url", "content", "file_url", "file_size", "file_type", "estimated_minutes", "tags", "status", "is_featured"];
   const sets = []; const args = [];
-  for (const f of allowed) { if (updates[f] !== undefined) { sets.push(`${f} = ?`); args.push(updates[f]); } }
+  for (const column of allowed) { if (updates[column] !== undefined) { sets.push(`${column} = ?`); args.push(updates[column]); } }
   if (sets.length === 0) return { updated: false };
   sets.push("updated_at = NOW()"); args.push(resourceId);
   await db.execute({ sql: `UPDATE knowledge_resources SET ${sets.join(", ")} WHERE id = ?`, args });
@@ -3642,8 +3659,8 @@ export async function deleteResource(resourceId) {
 export async function listCategories() {
   const res = await db.execute({ sql: "SELECT * FROM knowledge_categories ORDER BY display_order ASC" });
   for (const cat of res.rows || []) {
-    const c = await db.execute({ sql: "SELECT COUNT(*) as cnt FROM knowledge_resources WHERE category_id = ? AND status = 'published'", args: [cat.id] });
-    cat.resource_count = parseInt(c.rows[0]?.cnt || 0);
+    const countResult = await db.execute({ sql: "SELECT COUNT(*) as cnt FROM knowledge_resources WHERE category_id = ? AND status = 'published'", args: [cat.id] });
+    cat.resource_count = parseInt(countResult.rows[0]?.cnt || 0);
   }
   return res.rows || [];
 }
@@ -3657,7 +3674,7 @@ export async function toggleBookmark(resourceId, userCid) {
 
 export async function getUserBookmarks(userCid) {
   const res = await db.execute({ sql: `SELECT kr.*, kb.created_at as bookmarked_at FROM knowledge_bookmarks kb JOIN knowledge_resources kr ON kb.resource_id = kr.id WHERE kb.user_cid = ? ORDER BY kb.created_at DESC`, args: [userCid] });
-  return (res.rows || []).map((r) => ({ ...r, tags: typeof r.tags === "string" ? JSON.parse(r.tags) : (r.tags || []) }));
+  return (res.rows || []).map((row) => ({ ...row, tags: typeof row.tags === "string" ? JSON.parse(row.tags) : (row.tags || []) }));
 }
 
 export async function markResourceComplete(resourceId, userCid) {
@@ -3666,13 +3683,13 @@ export async function markResourceComplete(resourceId, userCid) {
 }
 
 export async function getRecommendedResources(ventureId) {
-  const v = await db.execute({ sql: "SELECT industry FROM ventures WHERE venture_id = ?", args: [ventureId] });
-  const industry = v.rows[0]?.industry || "";
+  const ventureResult = await db.execute({ sql: "SELECT industry FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  const industry = ventureResult.rows[0]?.industry || "";
   const res = await db.execute({
     sql: `SELECT kr.*, kc.name as category_name FROM knowledge_resources kr LEFT JOIN knowledge_categories kc ON kr.category_id = kc.id WHERE kr.status = 'published' AND (kr.is_featured = TRUE OR kr.tags::text ILIKE ?) ORDER BY kr.view_count DESC, kr.created_at DESC LIMIT 10`,
     args: [`%${industry}%`],
   });
-  return (res.rows || []).map((r) => ({ ...r, tags: typeof r.tags === "string" ? JSON.parse(r.tags) : (r.tags || []) }));
+  return (res.rows || []).map((row) => ({ ...row, tags: typeof row.tags === "string" ? JSON.parse(row.tags) : (row.tags || []) }));
 }
 
 // =============================================================================
@@ -3700,14 +3717,14 @@ export async function getLearningProgress(ventureId, userCid) {
 }
 
 export async function getPersonalizedRecommendations(ventureId, userCid, limit = 10) {
-  const vRes = await db.execute({ sql: "SELECT industry, business_stage FROM ventures WHERE venture_id = ?", args: [ventureId] });
-  const venture = vRes.rows[0] || {};
+  const ventureResult = await db.execute({ sql: "SELECT industry, business_stage FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  const venture = ventureResult.rows[0] || {};
   const industry = venture.industry || "";
   const stage = venture.business_stage || "";
   const completed = await db.execute({ sql: "SELECT resource_id FROM knowledge_progress WHERE user_cid = ? AND is_completed = TRUE", args: [userCid] });
-  const completedIds = new Set((completed.rows || []).map((r) => r.resource_id));
+  const completedIds = new Set((completed.rows || []).map((row) => row.resource_id));
   const bookmarked = await db.execute({ sql: "SELECT resource_id FROM knowledge_bookmarks WHERE user_cid = ?", args: [userCid] });
-  const bookmarkedIds = new Set((bookmarked.rows || []).map((r) => r.resource_id));
+  const bookmarkedIds = new Set((bookmarked.rows || []).map((row) => row.resource_id));
 
   const res = await db.execute({
     sql: `SELECT kr.*, kc.name as category_name FROM knowledge_resources kr LEFT JOIN knowledge_categories kc ON kr.category_id = kc.id WHERE kr.status = 'published' ORDER BY (CASE WHEN kr.tags::text ILIKE ? THEN 3 ELSE 0 END) + (CASE WHEN kr.tags::text ILIKE ? THEN 2 ELSE 0 END) + (kr.view_count * 0.01) + (CASE WHEN kr.is_featured THEN 2 ELSE 0 END) DESC LIMIT ?`,
@@ -3715,16 +3732,16 @@ export async function getPersonalizedRecommendations(ventureId, userCid, limit =
   });
 
   const results = [];
-  for (const r of res.rows || []) {
+  for (const resource of res.rows || []) {
     if (results.length >= limit) break;
-    if (completedIds.has(r.id)) continue;
-    r.is_bookmarked = bookmarkedIds.has(r.id);
-    r.tags = typeof r.tags === "string" ? JSON.parse(r.tags) : (r.tags || []);
-    const tagsLower = (r.tags || []).map((t) => t.toLowerCase());
-    r.recommendation_reason = tagsLower.some((t) => industry.toLowerCase().includes(t))
-      ? "Based on your industry" : r.is_featured ? "Featured resource" : "Popular resource";
-    results.push(r);
-    await db.execute({ sql: `INSERT INTO learning_recommendation_log (venture_id, resource_id, reason, score) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING`, args: [ventureId, r.id, r.recommendation_reason, 0] }).catch(() => {});
+    if (completedIds.has(resource.id)) continue;
+    resource.is_bookmarked = bookmarkedIds.has(resource.id);
+    resource.tags = typeof resource.tags === "string" ? JSON.parse(resource.tags) : (resource.tags || []);
+    const tagsLower = (resource.tags || []).map((tag) => tag.toLowerCase());
+    resource.recommendation_reason = tagsLower.some((tag) => industry.toLowerCase().includes(tag))
+      ? "Based on your industry" : resource.is_featured ? "Featured resource" : "Popular resource";
+    results.push(resource);
+    await db.execute({ sql: `INSERT INTO learning_recommendation_log (venture_id, resource_id, reason, score) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING`, args: [ventureId, resource.id, resource.recommendation_reason, 0] }).catch(() => {});
   }
   return results;
 }
@@ -3743,7 +3760,7 @@ export async function listLearningPaths(level) {
   if (level) { sql += " AND level = ?"; args.push(level); }
   sql += " ORDER BY level ASC, name ASC";
   const res = await db.execute({ sql, args });
-  return (res.rows || []).map((p) => ({ ...p, resource_ids: typeof p.resource_ids === "string" ? JSON.parse(p.resource_ids) : (p.resource_ids || []) }));
+  return (res.rows || []).map((path) => ({ ...path, resource_ids: typeof path.resource_ids === "string" ? JSON.parse(path.resource_ids) : (path.resource_ids || []) }));
 }
 
 export async function createLearningPath({ name, description, level, categoryId, resourceIds, estimatedHours, createdBy }) {
@@ -3762,8 +3779,8 @@ export async function getVentureLearningPaths(ventureId) {
   const paths = [];
   for (const row of res.rows || []) {
     const resourceIds = typeof row.resource_ids === "string" ? JSON.parse(row.resource_ids) : (row.resource_ids || []);
-    const cnt = resourceIds.length > 0 ? (await db.execute({ sql: `SELECT COUNT(*) as c FROM knowledge_progress WHERE resource_id = ANY($1) AND is_completed = TRUE`, args: [resourceIds] }).catch(() => ({ rows: [{ c: 0 }] }))).rows[0]?.c || 0 : 0;
-    paths.push({ ...row, resource_ids: resourceIds, completion: resourceIds.length > 0 ? Math.round((cnt / resourceIds.length) * 100) : 0 });
+    const completedCount = resourceIds.length > 0 ? (await db.execute({ sql: `SELECT COUNT(*) as c FROM knowledge_progress WHERE resource_id = ANY($1) AND is_completed = TRUE`, args: [resourceIds] }).catch(() => ({ rows: [{ c: 0 }] }))).rows[0]?.c || 0 : 0;
+    paths.push({ ...row, resource_ids: resourceIds, completion: resourceIds.length > 0 ? Math.round((completedCount / resourceIds.length) * 100) : 0 });
   }
   return paths;
 }
@@ -3778,9 +3795,9 @@ export async function assignLearningPath({ ventureId, pathId, assignedBy }) {
 // =============================================================================
 
 export async function submitFeedback({ sessionId, ventureId, coachId, founderCid, ratingOverall, ratingCommunication, ratingExpertise, ratingAvailability, ratingHelpfulness, comments, isAnonymous }) {
-  const s = await db.execute({ sql: "SELECT status FROM venture_sessions WHERE id = ?", args: [sessionId] });
-  if (s.rows.length === 0) throw new Error("Session not found.");
-  if (!["completed", "in_progress"].includes(s.rows[0].status)) throw new Error("Feedback requires a completed or in-progress session.");
+  const sessionResult = await db.execute({ sql: "SELECT status FROM venture_sessions WHERE id = ?", args: [sessionId] });
+  if (sessionResult.rows.length === 0) throw new Error("Session not found.");
+  if (!["completed", "in_progress"].includes(sessionResult.rows[0].status)) throw new Error("Feedback requires a completed or in-progress session.");
   if (!ratingOverall || ratingOverall < 1 || ratingOverall > 5) throw new Error("Rating must be 1-5.");
 
   const id = (await db.execute({
@@ -3795,8 +3812,8 @@ export async function submitFeedback({ sessionId, ventureId, coachId, founderCid
 }
 
 export async function getFeedback(feedbackId) {
-  const r = await db.execute({ sql: "SELECT vmf.*, vs.title as session_title FROM venture_mentor_feedback vmf LEFT JOIN venture_sessions vs ON vmf.session_id = vs.id WHERE vmf.id = ?", args: [feedbackId] });
-  return r.rows[0] || null;
+  const result = await db.execute({ sql: "SELECT vmf.*, vs.title as session_title FROM venture_mentor_feedback vmf LEFT JOIN venture_sessions vs ON vmf.session_id = vs.id WHERE vmf.id = ?", args: [feedbackId] });
+  return result.rows[0] || null;
 }
 
 export async function listFeedback({ ventureId, coachId, sessionId }) {
@@ -3806,21 +3823,21 @@ export async function listFeedback({ ventureId, coachId, sessionId }) {
   if (coachId) { sql += " AND vmf.coach_id = ?"; args.push(parseInt(coachId)); }
   if (sessionId) { sql += " AND vmf.session_id = ?"; args.push(parseInt(sessionId)); }
   sql += " ORDER BY vmf.created_at DESC LIMIT 50";
-  const r = await db.execute({ sql, args });
-  return r.rows || [];
+  const result = await db.execute({ sql, args });
+  return result.rows || [];
 }
 
 export async function deleteFeedback(feedbackId) {
-  const f = await getFeedback(feedbackId);
-  if (!f) return { success: false };
+  const feedback = await getFeedback(feedbackId);
+  if (!feedback) return { success: false };
   await db.execute({ sql: "DELETE FROM venture_mentor_feedback WHERE id = ?", args: [feedbackId] });
-  if (f.coach_id) await recalculateCoachAnalytics(f.coach_id);
+  if (feedback.coach_id) await recalculateCoachAnalytics(feedback.coach_id);
   return { success: true };
 }
 
 async function recalculateCoachAnalytics(coachId) {
   if (!coachId) return;
-  const [rR, sR, aR, cR, vR, acR, hR] = await Promise.all([
+  const [ratingResult, sessionResult, attendanceResult, cancelledResult, assignmentResult, actionItemResult, hoursResult] = await Promise.all([
     db.execute({ sql: "SELECT AVG(rating_overall) as r, COUNT(*) as c FROM venture_mentor_feedback WHERE coach_id=?", args: [coachId] }),
     db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE coach_id=? AND status='completed'", args: [coachId] }),
     db.execute({ sql: `SELECT COUNT(*) as a FROM venture_session_attendance WHERE session_id IN (SELECT id FROM venture_sessions WHERE coach_id=?) AND status='attended'`, args: [coachId] }),
@@ -3829,14 +3846,14 @@ async function recalculateCoachAnalytics(coachId) {
     db.execute({ sql: `SELECT COUNT(*) as c FROM venture_session_action_items vai JOIN venture_sessions vs ON vai.session_id=vs.id WHERE vs.coach_id=? AND vai.status='completed'`, args: [coachId] }),
     db.execute({ sql: `SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (end_time-start_time))/3600),0) as h FROM venture_sessions WHERE coach_id=? AND status='completed'`, args: [coachId] }),
   ]);
-  const avgR = parseFloat(rR.rows[0]?.r)||0;
-  const fCount = parseInt(rR.rows[0]?.c)||0;
-  const sC = parseInt(sR.rows[0]?.c)||0;
-  const attended = parseInt(aR.rows[0]?.a)||0;
-  const cancelled = parseInt(cR.rows[0]?.c)||0;
-  const totalS = sC + cancelled || 1;
-  const typeR = await db.execute({ sql: "SELECT coach_type FROM venture_coaches WHERE id=?", args: [coachId] });
-  const ct = typeR.rows[0]?.coach_type || "coach";
+  const averageRating = parseFloat(ratingResult.rows[0]?.r)||0;
+  const feedbackCount = parseInt(ratingResult.rows[0]?.c)||0;
+  const sessionsCompleted = parseInt(sessionResult.rows[0]?.c)||0;
+  const attended = parseInt(attendanceResult.rows[0]?.a)||0;
+  const cancelled = parseInt(cancelledResult.rows[0]?.c)||0;
+  const totalSessions = sessionsCompleted + cancelled || 1;
+  const coachTypeResult = await db.execute({ sql: "SELECT coach_type FROM venture_coaches WHERE id=?", args: [coachId] });
+  const coachType = coachTypeResult.rows[0]?.coach_type || "coach";
 
   await db.execute({
     sql: `INSERT INTO venture_mentor_analytics (coach_id, coach_type, average_rating, sessions_completed, attendance_rate, cancellation_rate, assigned_ventures, completed_action_items, mentoring_hours, founder_satisfaction, engagement_score, last_calculated)
@@ -3846,22 +3863,22 @@ async function recalculateCoachAnalytics(coachId) {
           assigned_ventures=EXCLUDED.assigned_ventures, completed_action_items=EXCLUDED.completed_action_items,
           mentoring_hours=EXCLUDED.mentoring_hours, founder_satisfaction=EXCLUDED.founder_satisfaction,
           engagement_score=EXCLUDED.engagement_score, last_calculated=NOW(), updated_at=NOW()`,
-    args: [coachId, ct, Math.round(avgR*100)/100, sC, sC>0?Math.round((attended/sC)*100):0, Math.round((cancelled/totalS)*100),
-      parseInt(vR.rows[0]?.c)||0, parseInt(acR.rows[0]?.c)||0, Math.round(parseFloat(hR.rows[0]?.h||0)*100)/100,
-      fCount>0?Math.round(avgR*20):0, Math.min(100, Math.round((sC*5)+(parseInt(vR.rows[0]?.c||0)*10)+(parseInt(acR.rows[0]?.c||0)*3)+(parseFloat(hR.rows[0]?.h||0)*2)))],
+    args: [coachId, coachType, Math.round(averageRating*100)/100, sessionsCompleted, sessionsCompleted>0?Math.round((attended/sessionsCompleted)*100):0, Math.round((cancelled/totalSessions)*100),
+      parseInt(assignmentResult.rows[0]?.c)||0, parseInt(actionItemResult.rows[0]?.c)||0, Math.round(parseFloat(hoursResult.rows[0]?.h||0)*100)/100,
+      feedbackCount>0?Math.round(averageRating*20):0, Math.min(100, Math.round((sessionsCompleted*5)+(parseInt(assignmentResult.rows[0]?.c||0)*10)+(parseInt(actionItemResult.rows[0]?.c||0)*3)+(parseFloat(hoursResult.rows[0]?.h||0)*2)))],
   });
 }
 
 export async function getMentorAnalytics(coachType) {
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT vma.*, vc.full_name, vc.email, vc.photo_url, vc.organization, vc.areas_of_expertise FROM venture_mentor_analytics vma JOIN venture_coaches vc ON vma.coach_id = vc.id WHERE vma.coach_type=? AND vc.status='active' ORDER BY vma.engagement_score DESC LIMIT 50`,
     args: [coachType],
   });
-  return (r.rows||[]).map((r) => ({...r, areas_of_expertise: typeof r.areas_of_expertise==="string"?JSON.parse(r.areas_of_expertise):(r.areas_of_expertise||[])}));
+  return (result.rows||[]).map((row) => ({...row, areas_of_expertise: typeof row.areas_of_expertise==="string"?JSON.parse(row.areas_of_expertise):(row.areas_of_expertise||[])}));
 }
 
 export async function getSessionAnalytics(ventureId) {
-  const [tR, cR, ccR, nR, hR, fR] = await Promise.all([
+  const [totalResult, completedResult, cancelledResult, noShowResult, hoursResult, feedbackResult] = await Promise.all([
     db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=?", args: [ventureId] }),
     db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND status='completed'", args: [ventureId] }),
     db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND status='cancelled'", args: [ventureId] }),
@@ -3869,13 +3886,13 @@ export async function getSessionAnalytics(ventureId) {
     db.execute({ sql: `SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (end_time-start_time))/3600),0) as h FROM venture_sessions WHERE venture_id=? AND status='completed'`, args: [ventureId] }),
     db.execute({ sql: "SELECT AVG(rating_overall) as r, COUNT(*) as c FROM venture_mentor_feedback WHERE venture_id=?", args: [ventureId] }),
   ]);
-  const total = parseInt(tR.rows[0]?.c||0);
+  const total = parseInt(totalResult.rows[0]?.c||0);
   return {
-    total_sessions: total, completed: parseInt(cR.rows[0]?.c||0),
-    cancelled: parseInt(ccR.rows[0]?.c||0), no_shows: parseInt(nR.rows[0]?.c||0),
-    total_hours: Math.round(parseFloat(hR.rows[0]?.h||0)*10)/10,
-    average_rating: parseFloat(fR.rows[0]?.r)||0, feedback_count: parseInt(fR.rows[0]?.c||0),
-    completion_rate: total>0?Math.round((parseInt(cR.rows[0]?.c||0)/total)*100):0,
+    total_sessions: total, completed: parseInt(completedResult.rows[0]?.c||0),
+    cancelled: parseInt(cancelledResult.rows[0]?.c||0), no_shows: parseInt(noShowResult.rows[0]?.c||0),
+    total_hours: Math.round(parseFloat(hoursResult.rows[0]?.h||0)*10)/10,
+    average_rating: parseFloat(feedbackResult.rows[0]?.r)||0, feedback_count: parseInt(feedbackResult.rows[0]?.c||0),
+    completion_rate: total>0?Math.round((parseInt(completedResult.rows[0]?.c||0)/total)*100):0,
   };
 }
 
@@ -3904,8 +3921,8 @@ export const INVESTMENT_LEVELS = [
 ];
 
 function getInvestmentLevel(score) {
-  for (const l of INVESTMENT_LEVELS) {
-    if (score >= l.min && score <= l.max) return { level: l.level, label: l.label, color: l.color };
+  for (const investmentLevel of INVESTMENT_LEVELS) {
+    if (score >= investmentLevel.min && score <= investmentLevel.max) return { level: investmentLevel.level, label: investmentLevel.label, color: investmentLevel.color };
   }
   return { level: "not_ready", label: "Not Ready", color: "text-rose-400 bg-rose-500/10" };
 }
@@ -3922,15 +3939,15 @@ export async function calculateInvestmentReadiness(ventureId) {
   try {
     const pRes = await db.execute({ sql: "SELECT * FROM startup_profiles WHERE venture_id = ?", args: [ventureId] });
     if (pRes.rows.length > 0) {
-      const p = pRes.rows[0];
+      const profile = pRes.rows[0];
       let filled = 0; const total = 5;
-      for (let i = 1; i <= total; i++) {
-        const key = `step_${i}_data`;
-        const data = typeof p[key] === "string" ? JSON.parse(p[key]) : (p[key] || {});
+      for (let stepIndex = 1; stepIndex <= total; stepIndex++) {
+        const key = `step_${stepIndex}_data`;
+        const data = typeof profile[key] === "string" ? JSON.parse(profile[key]) : (profile[key] || {});
         if (Object.keys(data).length > 0) filled++;
       }
       profileScore = Math.round((filled / total) * 100);
-      if (p.is_submitted) profileScore = Math.min(100, profileScore + 20);
+      if (profile.is_submitted) profileScore = Math.min(100, profileScore + 20);
     }
   } catch { profileScore = 0; }
   scores.startup_profile = Math.min(100, profileScore);
@@ -3965,8 +3982,8 @@ export async function calculateInvestmentReadiness(ventureId) {
   let productScore = 0;
   try {
     const ms = await db.execute({ sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as d FROM venture_milestones WHERE venture_id=?", args: [ventureId] });
-    const m = ms.rows[0] || { t: 0, d: 0 };
-    productScore = parseInt(m.t) > 0 ? Math.round((parseInt(m.d)/parseInt(m.t))*100) : 0;
+    const milestoneCounts = ms.rows[0] || { t: 0, d: 0 };
+    productScore = parseInt(milestoneCounts.t) > 0 ? Math.round((parseInt(milestoneCounts.d)/parseInt(milestoneCounts.t))*100) : 0;
     const dels = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_deliverables WHERE venture_id=? AND status IN ('approved','completed')", args: [ventureId] });
     if (parseInt(dels.rows[0]?.c||0) > 3) productScore = Math.min(100, productScore + 20);
   } catch { productScore = 0; }
@@ -3976,8 +3993,8 @@ export async function calculateInvestmentReadiness(ventureId) {
   let tractionScore = 0;
   try {
     const ts = await db.execute({ sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as d FROM venture_tasks WHERE venture_id=?", args: [ventureId] });
-    const t = ts.rows[0] || { t: 0, d: 0 };
-    tractionScore = parseInt(t.t) > 0 ? Math.round((parseInt(t.d)/parseInt(t.t))*100) : 0;
+    const taskCounts = ts.rows[0] || { t: 0, d: 0 };
+    tractionScore = parseInt(taskCounts.t) > 0 ? Math.round((parseInt(taskCounts.d)/parseInt(taskCounts.t))*100) : 0;
   } catch { tractionScore = 0; }
   scores.traction = tractionScore;
 
@@ -3987,8 +4004,8 @@ export async function calculateInvestmentReadiness(ventureId) {
     const vent = await db.execute({ sql: "SELECT industry, business_stage FROM ventures WHERE venture_id=?", args: [ventureId] });
     if (vent.rows[0]?.industry) marketScore = 30;
     if (vent.rows[0]?.business_stage) marketScore += 20;
-    const s = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND status='completed'", args: [ventureId] });
-    if (parseInt(s.rows[0]?.c||0) > 0) marketScore = Math.min(100, marketScore + 20);
+    const sessionResult = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND status='completed'", args: [ventureId] });
+    if (parseInt(sessionResult.rows[0]?.c||0) > 0) marketScore = Math.min(100, marketScore + 20);
   } catch { marketScore = 0; }
   scores.market_validation = marketScore;
 
@@ -4005,11 +4022,11 @@ export async function calculateInvestmentReadiness(ventureId) {
   // 8. Team (founders + coaches assigned)
   let teamScore = 0;
   try {
-    const f = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_founders WHERE venture_id=? AND status='accepted'", args: [ventureId] });
-    const founders = parseInt(f.rows[0]?.c||0);
+    const founderResult = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_founders WHERE venture_id=? AND status='accepted'", args: [ventureId] });
+    const founders = parseInt(founderResult.rows[0]?.c||0);
     teamScore = Math.min(50, founders * 25);
-    const c = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_coach_assignments WHERE venture_id=? AND status='active'", args: [ventureId] });
-    if (parseInt(c.rows[0]?.c||0) > 0) teamScore = Math.min(100, teamScore + 30);
+    const coachResult = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_coach_assignments WHERE venture_id=? AND status='active'", args: [ventureId] });
+    if (parseInt(coachResult.rows[0]?.c||0) > 0) teamScore = Math.min(100, teamScore + 30);
   } catch { teamScore = 0; }
   scores.team = teamScore;
 
@@ -4026,8 +4043,8 @@ export async function calculateInvestmentReadiness(ventureId) {
   // 10. Pitch Readiness (pitch review sessions + documents)
   let pitchScore = 0;
   try {
-    const s = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND session_type='pitch_review' AND status='completed'", args: [ventureId] });
-    if (parseInt(s.rows[0]?.c||0) > 0) pitchScore = 50;
+    const pitchSessionResult = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND session_type='pitch_review' AND status='completed'", args: [ventureId] });
+    if (parseInt(pitchSessionResult.rows[0]?.c||0) > 0) pitchScore = 50;
     const docs = await db.execute({ sql: `SELECT COUNT(*) as c FROM venture_verification_documents vvd JOIN venture_verifications vv ON vvd.verification_id=vv.id WHERE vv.venture_id=?` });
     if (parseInt(docs.rows[0]?.c||0) > 2) pitchScore = Math.min(100, pitchScore + 30);
   } catch { pitchScore = 0; }
@@ -4044,11 +4061,11 @@ export async function calculateInvestmentReadiness(ventureId) {
   const categoryResults = [];
 
   for (const cat of INVESTMENT_CATEGORIES) {
-    const w = weights[cat] || 10;
-    const s = scores[cat] || 0;
-    totalWeighted += s * w;
-    totalWeight += w;
-    categoryResults.push({ category: cat, score: s, weight: w });
+    const weight = weights[cat] || 10;
+    const score = scores[cat] || 0;
+    totalWeighted += score * weight;
+    totalWeight += weight;
+    categoryResults.push({ category: cat, score, weight });
   }
 
   const overallScore = totalWeight > 0 ? Math.round(totalWeighted / totalWeight) : 0;
@@ -4103,7 +4120,7 @@ export async function evaluateInvestmentReadiness(ventureId) {
  * Generate recommendations for weak categories.
  */
 export async function generateRecommendations(ventureId, assessmentId, result) {
-  const weakCategories = result.categories.filter((c) => c.score < 50);
+  const weakCategories = result.categories.filter((category) => category.score < 50);
 
   const recommendationTemplates = {
     startup_profile: { title: "Complete Your Startup Profile", description: "Fill in all sections of the Startup Profile Wizard to improve investor confidence.", effort: "2-4 hours", impact: "high" },
@@ -4205,20 +4222,20 @@ export async function listInvestors({ status, search, limit = 50 } = {}) {
   if (status) { sql += " AND status = ?"; args.push(status); }
   if (search) { sql += " AND (name ILIKE ? OR organization ILIKE ?)"; args.push(`%${search}%`, `%${search}%`); }
   sql += " ORDER BY name ASC LIMIT ?"; args.push(limit);
-  const r = await db.execute({ sql, args });
-  return (r.rows || []).map((i) => ({...i, industries: typeof i.industries==="string"?JSON.parse(i.industries):(i.industries||[]), preferred_countries: typeof i.preferred_countries==="string"?JSON.parse(i.preferred_countries):(i.preferred_countries||[]), portfolio: typeof i.portfolio==="string"?JSON.parse(i.portfolio):(i.portfolio||[])}));
+  const result = await db.execute({ sql, args });
+  return (result.rows || []).map((investor) => ({...investor, industries: typeof investor.industries==="string"?JSON.parse(investor.industries):(investor.industries||[]), preferred_countries: typeof investor.preferred_countries==="string"?JSON.parse(investor.preferred_countries):(investor.preferred_countries||[]), portfolio: typeof investor.portfolio==="string"?JSON.parse(investor.portfolio):(investor.portfolio||[])}));
 }
 
 export async function getInvestor(investorId) {
-  const r = await db.execute({ sql: "SELECT * FROM venture_investors WHERE id=?", args: [investorId] });
-  if (r.rows.length === 0) return null;
-  const i = r.rows[0];
-  i.industries = typeof i.industries==="string"?JSON.parse(i.industries):(i.industries||[]);
-  i.preferred_countries = typeof i.preferred_countries==="string"?JSON.parse(i.preferred_countries):(i.preferred_countries||[]);
-  i.portfolio = typeof i.portfolio==="string"?JSON.parse(i.portfolio):(i.portfolio||[]);
-  const p = await db.execute({ sql: "SELECT * FROM venture_investor_preferences WHERE investor_id=?", args: [investorId] });
-  i.preferences = p.rows[0] || null;
-  return i;
+  const result = await db.execute({ sql: "SELECT * FROM venture_investors WHERE id=?", args: [investorId] });
+  if (result.rows.length === 0) return null;
+  const investor = result.rows[0];
+  investor.industries = typeof investor.industries==="string"?JSON.parse(investor.industries):(investor.industries||[]);
+  investor.preferred_countries = typeof investor.preferred_countries==="string"?JSON.parse(investor.preferred_countries):(investor.preferred_countries||[]);
+  investor.portfolio = typeof investor.portfolio==="string"?JSON.parse(investor.portfolio):(investor.portfolio||[]);
+  const preferencesResult = await db.execute({ sql: "SELECT * FROM venture_investor_preferences WHERE investor_id=?", args: [investorId] });
+  investor.preferences = preferencesResult.rows[0] || null;
+  return investor;
 }
 
 export async function createInvestor({ name, email, organization, investmentThesis, industries, preferredCountries, preferredStage, minTicket, maxTicket, portfolio, websiteUrl, linkedinUrl, createdBy }) {
@@ -4230,26 +4247,26 @@ export async function createInvestor({ name, email, organization, investmentThes
 }
 
 export async function calculateMatchScore(ventureId, investor) {
-  const v = (await db.execute({ sql: "SELECT industry, business_stage FROM ventures WHERE venture_id=?", args: [ventureId] })).rows[0];
-  if (!v) return { score: 0, reasons: [], strengths: [], weaknesses: [] };
+  const venture = (await db.execute({ sql: "SELECT industry, business_stage FROM ventures WHERE venture_id=?", args: [ventureId] })).rows[0];
+  if (!venture) return { score: 0, reasons: [], strengths: [], weaknesses: [] };
 
   const reasons = []; const strengths = []; const weaknesses = [];
   let score = 0;
   let readinessScore = 0;
-  try { const a = await db.execute({ sql: "SELECT overall_score FROM investment_assessments WHERE venture_id=? ORDER BY calculated_at DESC LIMIT 1", args: [ventureId] }); readinessScore = a.rows[0]?.overall_score||0; } catch {}
+  try { const assessmentResult = await db.execute({ sql: "SELECT overall_score FROM investment_assessments WHERE venture_id=? ORDER BY calculated_at DESC LIMIT 1", args: [ventureId] }); readinessScore = assessmentResult.rows[0]?.overall_score||0; } catch {}
 
-  const inds = typeof investor.industries==="string"?JSON.parse(investor.industries):(investor.industries||[]);
+  const investorIndustries = typeof investor.industries==="string"?JSON.parse(investor.industries):(investor.industries||[]);
 
   // Industry (30pts)
-  if (inds.length > 0) {
-    const match = inds.some((i) => (v.industry||"").toLowerCase().includes(i.toLowerCase()) || i.toLowerCase().includes((v.industry||"").toLowerCase()));
+  if (investorIndustries.length > 0) {
+    const match = investorIndustries.some((industry) => (venture.industry||"").toLowerCase().includes(industry.toLowerCase()) || industry.toLowerCase().includes((venture.industry||"").toLowerCase()));
     if (match) { score += 30; reasons.push("Industry alignment"); strengths.push("Industry matches investor focus"); }
     else weaknesses.push("Industry may not align");
   } else score += 15;
 
   // Stage (20pts)
   if (investor.preferred_stage) {
-    if (investor.preferred_stage === v.business_stage) { score += 20; reasons.push("Stage alignment"); strengths.push("Business stage matches"); }
+    if (investor.preferred_stage === venture.business_stage) { score += 20; reasons.push("Stage alignment"); strengths.push("Business stage matches"); }
     else weaknesses.push(`Investor prefers ${investor.preferred_stage}`);
   } else score += 10;
 
@@ -4262,14 +4279,14 @@ export async function calculateMatchScore(ventureId, investor) {
   } else weaknesses.push(`Readiness (${readinessScore}) below minimum (${minR})`);
 
   // Traction (15pts)
-  const t = (await db.execute({ sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as d FROM venture_tasks WHERE venture_id=?", args: [ventureId] })).rows[0]||{t:0,d:0};
-  const tr = parseInt(t.t)>0?Math.round((parseInt(t.d)/parseInt(t.t))*100):0;
-  if (tr >= (pref.min_traction_score||0)) { score += Math.min(15, Math.round(tr/7)); if (tr>50) reasons.push("Proven traction"); }
+  const taskCounts = (await db.execute({ sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as d FROM venture_tasks WHERE venture_id=?", args: [ventureId] })).rows[0]||{t:0,d:0};
+  const tractionRate = parseInt(taskCounts.t)>0?Math.round((parseInt(taskCounts.d)/parseInt(taskCounts.t))*100):0;
+  if (tractionRate >= (pref.min_traction_score||0)) { score += Math.min(15, Math.round(tractionRate/7)); if (tractionRate>50) reasons.push("Proven traction"); }
   else weaknesses.push(`Traction below minimum`);
 
   // Team (15pts)
-  const fs = (await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_founders WHERE venture_id=? AND status='accepted'", args: [ventureId] })).rows[0]?.c||0;
-  if (fs >= (pref.min_team_size||1)) { score += Math.min(15, fs*5); reasons.push("Qualified team"); strengths.push(`${fs} founder(s)`); }
+  const founderCount = (await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_founders WHERE venture_id=? AND status='accepted'", args: [ventureId] })).rows[0]?.c||0;
+  if (founderCount >= (pref.min_team_size||1)) { score += Math.min(15, founderCount*5); reasons.push("Qualified team"); strengths.push(`${founderCount} founder(s)`); }
   else weaknesses.push(`Team size below minimum`);
 
   return { score: Math.min(100, score), reasons, strengths, weaknesses };
@@ -4277,14 +4294,14 @@ export async function calculateMatchScore(ventureId, investor) {
 
 export async function generateMatches(ventureId) {
   const investors = await listInvestors({ status: "active" });
-  for (const inv of investors) {
-    const m = await calculateMatchScore(ventureId, inv);
-    if (m.score > 0) {
+  for (const investor of investors) {
+    const match = await calculateMatchScore(ventureId, investor);
+    if (match.score > 0) {
       await db.execute({
         sql: `INSERT INTO venture_investor_matches (venture_id, investor_id, match_score, match_reasons, strengths, weaknesses)
               VALUES (?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb)
               ON CONFLICT (venture_id, investor_id) DO UPDATE SET match_score=EXCLUDED.match_score, updated_at=NOW()`,
-        args: [ventureId, inv.id, m.score, JSON.stringify(m.reasons), JSON.stringify(m.strengths), JSON.stringify(m.weaknesses)],
+        args: [ventureId, investor.id, match.score, JSON.stringify(match.reasons), JSON.stringify(match.strengths), JSON.stringify(match.weaknesses)],
       });
     }
   }
@@ -4292,18 +4309,18 @@ export async function generateMatches(ventureId) {
 }
 
 export async function getVentureMatches(ventureId, minScore = 0) {
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT vim.*, vi.name as investor_name, vi.organization, vi.photo_url, vi.investment_thesis,
        vi.industries, vi.preferred_stage, vi.min_ticket, vi.max_ticket, vi.website_url, vi.linkedin_url
        FROM venture_investor_matches vim JOIN venture_investors vi ON vim.investor_id = vi.id
        WHERE vim.venture_id=? AND vim.match_score>=? ORDER BY vim.match_score DESC`,
     args: [ventureId, minScore],
   });
-  return (r.rows||[]).map((m) => ({...m,
-    industries: typeof m.industries==="string"?JSON.parse(m.industries):(m.industries||[]),
-    match_reasons: typeof m.match_reasons==="string"?JSON.parse(m.match_reasons):(m.match_reasons||[]),
-    strengths: typeof m.strengths==="string"?JSON.parse(m.strengths):(m.strengths||[]),
-    weaknesses: typeof m.weaknesses==="string"?JSON.parse(m.weaknesses):(m.weaknesses||[]),
+  return (result.rows||[]).map((match) => ({...match,
+    industries: typeof match.industries==="string"?JSON.parse(match.industries):(match.industries||[]),
+    match_reasons: typeof match.match_reasons==="string"?JSON.parse(match.match_reasons):(match.match_reasons||[]),
+    strengths: typeof match.strengths==="string"?JSON.parse(match.strengths):(match.strengths||[]),
+    weaknesses: typeof match.weaknesses==="string"?JSON.parse(match.weaknesses):(match.weaknesses||[]),
   }));
 }
 
@@ -4313,8 +4330,8 @@ export async function updateMatchStatus(matchId, status) {
   if (status === "viewed") sets.push("viewed_by_founder = TRUE");
   args.push(matchId);
   await db.execute({ sql: `UPDATE venture_investor_matches SET ${sets.join(", ")}, updated_at=NOW() WHERE id=?`, args });
-  const m = await db.execute({ sql: "SELECT venture_id, investor_id FROM venture_investor_matches WHERE id=?", args: [matchId] });
-  if (m.rows.length > 0) await db.execute({ sql: `INSERT INTO venture_match_history (match_id, venture_id, investor_id, action) VALUES (?, ?, ?, ?)`, args: [matchId, m.rows[0].venture_id, m.rows[0].investor_id, `MATCH_${status.toUpperCase()}`] });
+  const matchResult = await db.execute({ sql: "SELECT venture_id, investor_id FROM venture_investor_matches WHERE id=?", args: [matchId] });
+  if (matchResult.rows.length > 0) await db.execute({ sql: `INSERT INTO venture_match_history (match_id, venture_id, investor_id, action) VALUES (?, ?, ?, ?)`, args: [matchId, matchResult.rows[0].venture_id, matchResult.rows[0].investor_id, `MATCH_${status.toUpperCase()}`] });
   return { success: true };
 }
 
@@ -4370,14 +4387,14 @@ export async function updateDocument(docId, updates) {
   if (updates.file_url) {
     const doc = (await db.execute({ sql: "SELECT * FROM venture_documents WHERE id=?", args: [docId] })).rows[0];
     if (doc) {
-      const nv = (doc.current_version||0) + 1;
-      await db.execute({ sql: `INSERT INTO venture_document_versions (document_id, version, file_name, file_size, file_url, uploaded_by, change_notes) VALUES (?, ?, ?, ?, ?, ?, ?)`, args: [docId, nv, updates.file_name||doc.file_name, updates.file_size||null, updates.file_url, updates.uploaded_by||"system", updates.change_notes||`v${nv}`] });
-      updates.current_version = nv;
+      const nextVersion = (doc.current_version||0) + 1;
+      await db.execute({ sql: `INSERT INTO venture_document_versions (document_id, version, file_name, file_size, file_url, uploaded_by, change_notes) VALUES (?, ?, ?, ?, ?, ?, ?)`, args: [docId, nextVersion, updates.file_name||doc.file_name, updates.file_size||null, updates.file_url, updates.uploaded_by||"system", updates.change_notes||`v${nextVersion}`] });
+      updates.current_version = nextVersion;
     }
   }
   const allowed = ["title","description","document_type","category","file_name","file_size","file_type","file_url","thumbnail_url","current_version"];
   const sets = []; const args = [];
-  for (const f of allowed) { if (updates[f] !== undefined) { sets.push(`${f}=?`); args.push(updates[f]); } }
+  for (const column of allowed) { if (updates[column] !== undefined) { sets.push(`${column}=?`); args.push(updates[column]); } }
   if (sets.length === 0) return { updated: false };
   sets.push("updated_at=NOW()"); args.push(docId);
   await db.execute({ sql: `UPDATE venture_documents SET ${sets.join(",")} WHERE id=?`, args });
@@ -4403,12 +4420,12 @@ export async function createShareLink({ documentId, ventureId, sharedWithEmail, 
 }
 
 export async function getShareByToken(token) {
-  const r = await db.execute({ sql: "SELECT * FROM venture_document_shares WHERE share_token=? AND is_revoked=FALSE", args: [token] });
-  if (r.rows.length === 0) return null;
-  const s = r.rows[0];
-  if (s.expires_at && new Date(s.expires_at) < new Date()) return null;
-  if (s.max_downloads && s.download_count >= s.max_downloads) return null;
-  return s;
+  const result = await db.execute({ sql: "SELECT * FROM venture_document_shares WHERE share_token=? AND is_revoked=FALSE", args: [token] });
+  if (result.rows.length === 0) return null;
+  const share = result.rows[0];
+  if (share.expires_at && new Date(share.expires_at) < new Date()) return null;
+  if (share.max_downloads && share.download_count >= share.max_downloads) return null;
+  return share;
 }
 
 export async function revokeShare(shareId) {
@@ -4501,10 +4518,10 @@ export async function updateOpportunity(oppId, updates) {
     }
   }
 
-  for (const f of allowed) {
-    if (updates[f] !== undefined) {
-      if (f === "tags") { sets.push("tags=?::jsonb"); args.push(JSON.stringify(updates[f])); }
-      else { sets.push(`${f}=?`); args.push(updates[f]); }
+  for (const column of allowed) {
+    if (updates[column] !== undefined) {
+      if (column === "tags") { sets.push("tags=?::jsonb"); args.push(JSON.stringify(updates[column])); }
+      else { sets.push(`${column}=?`); args.push(updates[column]); }
     }
   }
   if (sets.length === 0) return { updated: false };
@@ -4556,15 +4573,15 @@ export async function getPipelineAnalytics(ventureId) {
     args: [ventureId],
   });
 
-  const t = total.rows[0] || {};
+  const totals = total.rows[0] || {};
   return {
     by_stage: stages.rows || [],
-    total_opportunities: parseInt(t.total_opps) || 0,
-    total_pipeline_value: parseFloat(t.total_pipeline) || 0,
-    won: parseInt(t.won) || 0,
-    lost: parseInt(t.lost) || 0,
-    win_rate: (parseInt(t.won) + parseInt(t.lost)) > 0
-      ? Math.round((parseInt(t.won) / (parseInt(t.won) + parseInt(t.lost))) * 100) : 0,
+    total_opportunities: parseInt(totals.total_opps) || 0,
+    total_pipeline_value: parseFloat(totals.total_pipeline) || 0,
+    won: parseInt(totals.won) || 0,
+    lost: parseInt(totals.lost) || 0,
+    win_rate: (parseInt(totals.won) + parseInt(totals.lost)) > 0
+      ? Math.round((parseInt(totals.won) / (parseInt(totals.won) + parseInt(totals.lost))) * 100) : 0,
   };
 }
 
@@ -4581,14 +4598,14 @@ export async function getInvestmentAnalytics(ventureId) {
 
   // 1. Investment Readiness
   try {
-    const a = await db.execute({ sql: "SELECT overall_score FROM investment_assessments WHERE venture_id=? ORDER BY calculated_at DESC LIMIT 1", args: [ventureId] });
-    results.readiness_score = a.rows[0]?.overall_score || 0;
+    const assessmentResult = await db.execute({ sql: "SELECT overall_score FROM investment_assessments WHERE venture_id=? ORDER BY calculated_at DESC LIMIT 1", args: [ventureId] });
+    results.readiness_score = assessmentResult.rows[0]?.overall_score || 0;
   } catch { results.readiness_score = 0; }
 
   // 2. Investor Matches
   try {
-    const m = await db.execute({ sql: "SELECT COUNT(*) as t, AVG(match_score) as avg FROM venture_investor_matches WHERE venture_id=?", args: [ventureId] });
-    const matches = m.rows[0] || {};
+    const matchResult = await db.execute({ sql: "SELECT COUNT(*) as t, AVG(match_score) as avg FROM venture_investor_matches WHERE venture_id=?", args: [ventureId] });
+    const matches = matchResult.rows[0] || {};
     results.total_matches = parseInt(matches.t) || 0;
     results.avg_match_score = Math.round(parseFloat(matches.avg) || 0);
 
@@ -4602,7 +4619,7 @@ export async function getInvestmentAnalytics(ventureId) {
 
   // 3. Fundraising Pipeline
   try {
-    const p = await db.execute({
+    const pipelineResult = await db.execute({
       sql: `SELECT COUNT(*) as total,
        SUM(CASE WHEN stage NOT IN ('closed_won','closed_lost') THEN 1 ELSE 0 END) as active,
        SUM(CASE WHEN stage='closed_won' THEN 1 ELSE 0 END) as won,
@@ -4613,21 +4630,21 @@ export async function getInvestmentAnalytics(ventureId) {
        FROM fundraising_opportunities WHERE venture_id=?`,
       args: [ventureId],
     });
-    const pp = p.rows[0] || {};
-    results.active_opportunities = parseInt(pp.active) || 0;
-    results.total_opportunities = parseInt(pp.total) || 0;
-    results.closed_investments = parseInt(pp.won) || 0;
-    results.pipeline_value = parseFloat(pp.pipeline_value) || 0;
-    results.closed_value = parseFloat(pp.closed_value) || 0;
-    results.avg_probability = Math.round(parseFloat(pp.avg_prob) || 0);
-    results.win_rate = (parseInt(pp.won) + parseInt(pp.lost)) > 0
-      ? Math.round((parseInt(pp.won) / (parseInt(pp.won) + parseInt(pp.lost))) * 100) : 0;
+    const pipelineTotals = pipelineResult.rows[0] || {};
+    results.active_opportunities = parseInt(pipelineTotals.active) || 0;
+    results.total_opportunities = parseInt(pipelineTotals.total) || 0;
+    results.closed_investments = parseInt(pipelineTotals.won) || 0;
+    results.pipeline_value = parseFloat(pipelineTotals.pipeline_value) || 0;
+    results.closed_value = parseFloat(pipelineTotals.closed_value) || 0;
+    results.avg_probability = Math.round(parseFloat(pipelineTotals.avg_prob) || 0);
+    results.win_rate = (parseInt(pipelineTotals.won) + parseInt(pipelineTotals.lost)) > 0
+      ? Math.round((parseInt(pipelineTotals.won) / (parseInt(pipelineTotals.won) + parseInt(pipelineTotals.lost))) * 100) : 0;
   } catch { results.active_opportunities = 0; results.pipeline_value = 0; results.win_rate = 0; results.closed_investments = 0; }
 
   // 4. Data Room
   try {
-    const d = await db.execute({ sql: "SELECT COUNT(*) as t FROM venture_documents WHERE venture_id=?", args: [ventureId] });
-    results.documents_uploaded = parseInt(d.rows[0]?.t || 0);
+    const documentResult = await db.execute({ sql: "SELECT COUNT(*) as t FROM venture_documents WHERE venture_id=?", args: [ventureId] });
+    results.documents_uploaded = parseInt(documentResult.rows[0]?.t || 0);
 
     const views = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_document_access_logs WHERE venture_id=? AND access_type='view'", args: [ventureId] });
     results.documents_viewed = parseInt(views.rows[0]?.c || 0);
@@ -4649,7 +4666,7 @@ export async function getInvestmentAnalytics(ventureId) {
        WHEN 'term_sheet' THEN 6 WHEN 'closed_won' THEN 7 WHEN 'closed_lost' THEN 8 ELSE 9 END`,
       args: [ventureId],
     });
-    results.pipeline_funnel = (funnel.rows || []).map((r) => ({ stage: r.stage, count: parseInt(r.count), value: parseFloat(r.value) }));
+    results.pipeline_funnel = (funnel.rows || []).map((row) => ({ stage: row.stage, count: parseInt(row.count), value: parseFloat(row.value) }));
   } catch { results.pipeline_funnel = []; }
 
   // 6. Monthly activity trend
@@ -4662,8 +4679,8 @@ export async function getInvestmentAnalytics(ventureId) {
        GROUP BY month ORDER BY month`,
       args: [ventureId],
     }).catch(() => ({ rows: [] }));
-    results.monthly_activity = (trend.rows || []).map((r) => ({
-      month: r.month, activities: parseInt(r.activities), created: parseInt(r.created), viewed: parseInt(r.viewed),
+    results.monthly_activity = (trend.rows || []).map((row) => ({
+      month: row.month, activities: parseInt(row.activities), created: parseInt(row.created), viewed: parseInt(row.viewed),
     }));
   } catch { results.monthly_activity = []; }
 
@@ -4677,8 +4694,8 @@ export async function getInvestmentAnalytics(ventureId) {
        GROUP BY month ORDER BY month`,
       args: [ventureId],
     }).catch(() => ({ rows: [] }));
-    results.funding_trend = (fundingTrend.rows || []).map((r) => ({
-      month: r.month, deals: parseInt(r.deals), amount: parseFloat(r.amount),
+    results.funding_trend = (fundingTrend.rows || []).map((row) => ({
+      month: row.month, deals: parseInt(row.deals), amount: parseFloat(row.amount),
     }));
   } catch { results.funding_trend = []; }
 
@@ -4721,14 +4738,14 @@ export async function getInvestmentReportSummary(ventureId) {
  * Get all system settings grouped by category.
  */
 export async function getSystemSettings() {
-  const r = await db.execute({ sql: "SELECT * FROM system_settings ORDER BY category, setting_key" });
+  const result = await db.execute({ sql: "SELECT * FROM system_settings ORDER BY category, setting_key" });
   const settings = {};
-  for (const row of r.rows || []) {
+  for (const row of result.rows || []) {
     if (!settings[row.category]) settings[row.category] = {};
-    let val = row.setting_value;
-    if (row.setting_type === "boolean") val = val === "true";
-    else if (row.setting_type === "integer") val = parseInt(val) || 0;
-    settings[row.category][row.setting_key] = { value: val, type: row.setting_type, description: row.description, updated_at: row.updated_at };
+    let settingValue = row.setting_value;
+    if (row.setting_type === "boolean") settingValue = settingValue === "true";
+    else if (row.setting_type === "integer") settingValue = parseInt(settingValue) || 0;
+    settings[row.category][row.setting_key] = { value: settingValue, type: row.setting_type, description: row.description, updated_at: row.updated_at };
   }
   return settings;
 }
@@ -4748,8 +4765,8 @@ export async function updateSetting(settingKey, value, updatedBy) {
 // ─── Feature Flags ─────────────────────────────────────────────────────────
 
 export async function getFeatureFlags() {
-  const r = await db.execute({ sql: "SELECT * FROM feature_flags ORDER BY category, flag_name" });
-  return r.rows || [];
+  const result = await db.execute({ sql: "SELECT * FROM feature_flags ORDER BY category, flag_name" });
+  return result.rows || [];
 }
 
 export async function updateFeatureFlag(flagKey, isEnabled, updatedBy) {
@@ -4766,16 +4783,16 @@ export async function updateFeatureFlag(flagKey, isEnabled, updatedBy) {
 
 export async function isFeatureEnabled(flagKey) {
   try {
-    const r = await db.execute({ sql: "SELECT is_enabled FROM feature_flags WHERE flag_key=?", args: [flagKey] });
-    return r.rows.length > 0 ? !!r.rows[0].is_enabled : true;
+    const result = await db.execute({ sql: "SELECT is_enabled FROM feature_flags WHERE flag_key=?", args: [flagKey] });
+    return result.rows.length > 0 ? !!result.rows[0].is_enabled : true;
   } catch { return true; }
 }
 
 // ─── Role Management ───────────────────────────────────────────────────────
 
 export async function getSystemRoles() {
-  const r = await db.execute({ sql: "SELECT * FROM system_roles ORDER BY name" });
-  return (r.rows || []).map((role) => ({
+  const result = await db.execute({ sql: "SELECT * FROM system_roles ORDER BY name" });
+  return (result.rows || []).map((role) => ({
     ...role,
     permissions: typeof role.permissions === "string" ? JSON.parse(role.permissions) : (role.permissions || {}),
   }));
@@ -4784,10 +4801,10 @@ export async function getSystemRoles() {
 export async function updateRole(roleId, updates) {
   const allowed = ["name", "description", "permissions", "is_active"];
   const sets = []; const args = [];
-  for (const f of allowed) {
-    if (updates[f] !== undefined) {
-      if (f === "permissions") { sets.push("permissions=?::jsonb"); args.push(JSON.stringify(updates[f])); }
-      else { sets.push(`${f}=?`); args.push(updates[f]); }
+  for (const column of allowed) {
+    if (updates[column] !== undefined) {
+      if (column === "permissions") { sets.push("permissions=?::jsonb"); args.push(JSON.stringify(updates[column])); }
+      else { sets.push(`${column}=?`); args.push(updates[column]); }
     }
   }
   if (sets.length === 0) return { updated: false };
@@ -4835,8 +4852,8 @@ export async function getSystemInfo() {
 }
 
 export async function getAdminActivityLogs(limit = 50) {
-  const r = await db.execute({ sql: "SELECT * FROM admin_activity_logs ORDER BY created_at DESC LIMIT ?", args: [limit] });
-  return r.rows || [];
+  const result = await db.execute({ sql: "SELECT * FROM admin_activity_logs ORDER BY created_at DESC LIMIT ?", args: [limit] });
+  return result.rows || [];
 }
 
 // =============================================================================
@@ -4889,8 +4906,8 @@ export async function deleteNotification(notifId) {
 }
 
 export async function getUnreadCount(recipientId) {
-  const r = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_notifications WHERE (recipient_id=? OR recipient_type='all') AND status='unread'", args: [recipientId] });
-  return parseInt(r.rows[0]?.c||0);
+  const result = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_notifications WHERE (recipient_id=? OR recipient_type='all') AND status='unread'", args: [recipientId] });
+  return parseInt(result.rows[0]?.c||0);
 }
 
 export async function getNotificationTemplates() {
@@ -4898,14 +4915,14 @@ export async function getNotificationTemplates() {
 }
 
 export async function renderTemplate(templateKey, variables) {
-  const t = (await db.execute({ sql: "SELECT * FROM venture_notification_templates WHERE template_key=? AND is_active=TRUE", args: [templateKey] })).rows[0];
-  if (!t) return null;
-  let title = t.title_template, body = t.body_template||"";
-  for (const [k, v] of Object.entries(variables||{})) {
-    title = title.replace(new RegExp(`{{${k}}}`, "g"), String(v));
-    body = body.replace(new RegExp(`{{${k}}}`, "g"), String(v));
+  const template = (await db.execute({ sql: "SELECT * FROM venture_notification_templates WHERE template_key=? AND is_active=TRUE", args: [templateKey] })).rows[0];
+  if (!template) return null;
+  let title = template.title_template, body = template.body_template||"";
+  for (const [variableKey, variableValue] of Object.entries(variables||{})) {
+    title = title.replace(new RegExp(`{{${variableKey}}}`, "g"), String(variableValue));
+    body = body.replace(new RegExp(`{{${variableKey}}}`, "g"), String(variableValue));
   }
-  return { title, body, channels: typeof t.channels==="string"?JSON.parse(t.channels):(t.channels||["in_app"]) };
+  return { title, body, channels: typeof template.channels==="string"?JSON.parse(template.channels):(template.channels||["in_app"]) };
 }
 
 export async function getNotificationPreferences(userCid) {
@@ -4973,8 +4990,8 @@ export async function logAuditEvent({ eventType, actorCid, actorName, actorRole,
       ],
     })).rows[0]?.id;
     return { id };
-  } catch (e) {
-    console.error("Audit log error:", e.message);
+  } catch (error) {
+    console.error("Audit log error:", error.message);
     return null;
   }
 }
@@ -5039,8 +5056,8 @@ export async function logSecurityEvent({ eventType, actorCid, actorName, targetC
       ],
     })).rows[0]?.id;
     return { id };
-  } catch (e) {
-    console.error("Security event log error:", e.message);
+  } catch (error) {
+    console.error("Security event log error:", error.message);
     return null;
   }
 }
@@ -5138,10 +5155,10 @@ export async function revokeUserSessions(userCid, exceptToken, revokedBy) {
     sql: "UPDATE user_sessions SET expires_at=NOW(), logout_time=NOW(), session_status='revoked' WHERE user_cid=? AND token!=? AND expires_at > NOW()",
     args: [userCid, exceptToken],
   });
-  for (const s of sessions) {
+  for (const session of sessions) {
     await logAuditEvent({
       eventType: "SESSION_REVOKED", actorCid: revokedBy,
-      entityType: "session", entityId: s.token.substring(0, 8),
+      entityType: "session", entityId: session.token.substring(0, 8),
       description: `Bulk revoked session for user ${userCid}`,
       severity: "info",
     });
@@ -5166,8 +5183,8 @@ export async function logLoginHistory({ userCid, userName, userEmail, action, ip
         failureReason||null, sessionId||null,
       ],
     });
-  } catch (e) {
-    console.error("Login history log error:", e.message);
+  } catch (error) {
+    console.error("Login history log error:", error.message);
   }
 }
 
@@ -5344,10 +5361,10 @@ export async function createIntegration({ provider, label, ventureId, config, cr
 export async function updateIntegration(id, updates, updatedBy) {
   const allowed = ["label", "config", "credentials_encrypted", "status"];
   const sets = []; const args = [];
-  for (const f of allowed) {
-    if (updates[f] !== undefined) {
-      if (f === "config") { sets.push("config=?::jsonb"); args.push(JSON.stringify(updates[f])); }
-      else { sets.push(`${f}=?`); args.push(updates[f]); }
+  for (const column of allowed) {
+    if (updates[column] !== undefined) {
+      if (column === "config") { sets.push("config=?::jsonb"); args.push(JSON.stringify(updates[column])); }
+      else { sets.push(`${column}=?`); args.push(updates[column]); }
     }
   }
   if (updates.status === "disconnected") {
@@ -5365,13 +5382,13 @@ export async function updateIntegration(id, updates, updatedBy) {
 }
 
 export async function deleteIntegration(id, deletedBy) {
-  const integ = (await db.execute({ sql: "SELECT * FROM integration_configs WHERE id=?", args: [id] })).rows[0];
-  if (!integ) throw new Error("Integration not found.");
+  const integration = (await db.execute({ sql: "SELECT * FROM integration_configs WHERE id=?", args: [id] })).rows[0];
+  if (!integration) throw new Error("Integration not found.");
   await db.execute({ sql: "DELETE FROM integration_configs WHERE id=?", args: [id] });
   await logAuditEvent({
     eventType: "INTEGRATION_REMOVED", actorCid: deletedBy,
     entityType: "integration", entityId: String(id),
-    description: `Integration deleted: ${integ.provider}`,
+    description: `Integration deleted: ${integration.provider}`,
     severity: "warning",
   });
   return { success: true };
@@ -5483,8 +5500,8 @@ export async function logApiUsage({ apiKeyId, endpoint, method, ipAddress, respo
       sql: `INSERT INTO api_usage_logs (api_key_id, endpoint, method, ip_address, response_status, duration_ms, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       args: [apiKeyId||null, endpoint, method||null, ipAddress||null, responseStatus||null, durationMs||null, userAgent||null],
     });
-  } catch (e) {
-    console.error("API usage log error:", e.message);
+  } catch (error) {
+    console.error("API usage log error:", error.message);
   }
 }
 
@@ -5562,8 +5579,8 @@ export async function getWebhooks({ ventureId, event, isActive, limit=50, offset
 }
 
 export async function deleteWebhook(id, _deletedBy) {
-  const wh = (await db.execute({ sql: "SELECT * FROM webhooks WHERE id=?", args: [id] })).rows[0];
-  if (!wh) throw new Error("Webhook not found.");
+  const webhook = (await db.execute({ sql: "SELECT * FROM webhooks WHERE id=?", args: [id] })).rows[0];
+  if (!webhook) throw new Error("Webhook not found.");
   await db.execute({ sql: "DELETE FROM webhooks WHERE id=?", args: [id] });
   return { success: true };
 }
@@ -5581,9 +5598,9 @@ export async function triggerWebhookEvent(eventType, payload, { ventureId } = {}
   })).rows || [];
 
   let triggered = 0;
-  for (const wh of webhooks) {
-    triggerWebhookDelivery(wh, eventType, payload).catch((e) =>
-      console.error(`Webhook ${wh.id} delivery failed:`, e.message)
+  for (const webhook of webhooks) {
+    triggerWebhookDelivery(webhook, eventType, payload).catch((deliveryError) =>
+      console.error(`Webhook ${webhook.id} delivery failed:`, deliveryError.message)
     );
     triggered++;
   }
@@ -5627,9 +5644,9 @@ async function triggerWebhookDelivery(webhook, eventType, payload) {
       status = "failed";
       errorMessage = `HTTP ${responseStatus}: ${responseBody?.substring(0, 200) || "Unknown"}`;
     }
-  } catch (e) {
+  } catch (error) {
     status = "failed";
-    errorMessage = e.message;
+    errorMessage = error.message;
   }
 
   const durationMs = Date.now() - startTime;
@@ -5697,25 +5714,25 @@ export async function runHealthChecks() {
     const start = Date.now();
     try {
       const result = await checkFn();
-      const ms = Date.now() - start;
+      const durationMs = Date.now() - start;
       const status = result.ok ? "healthy" : "degraded";
-      results.push({ component: name, status, response_time_ms: ms, message: result.message || null, details: result.details || {} });
-    } catch (e) {
-      const ms = Date.now() - start;
-      results.push({ component: name, status: "unhealthy", response_time_ms: ms, message: e.message, details: {} });
+      results.push({ component: name, status, response_time_ms: durationMs, message: result.message || null, details: result.details || {} });
+    } catch (error) {
+      const durationMs = Date.now() - start;
+      results.push({ component: name, status: "unhealthy", response_time_ms: durationMs, message: error.message, details: {} });
     }
   }
 
   await Promise.all([
     checkComponent("app", async () => ({ ok: true, message: "Application running" })),
     checkComponent("database", async () => {
-      const r = await db.execute({ sql: "SELECT 1 as ping" });
-      return { ok: r.rows.length > 0, message: "Database connected" };
+      const result = await db.execute({ sql: "SELECT 1 as ping" });
+      return { ok: result.rows.length > 0, message: "Database connected" };
     }),
     checkComponent("cache", async () => ({ ok: true, message: "In-memory cache available" })),
     checkComponent("queue", async () => {
-      const r = await db.execute({ sql: "SELECT COUNT(*) as c FROM queue_statistics" }).catch(() => ({ rows: [{ c: 0 }] }));
-      const size = parseInt(r.rows[0]?.c || 0);
+      const result = await db.execute({ sql: "SELECT COUNT(*) as c FROM queue_statistics" }).catch(() => ({ rows: [{ c: 0 }] }));
+      const size = parseInt(result.rows[0]?.c || 0);
       return { ok: size < 10000, message: `Queue size: ${size}`, details: { queue_size: size } };
     }),
     checkComponent("email", async () => {
@@ -5723,32 +5740,32 @@ export async function runHealthChecks() {
       return { ok: !!apiKey, message: apiKey ? "Email service configured" : "Email service not configured" };
     }),
     checkComponent("storage", async () => {
-      const r = await db.execute({ sql: "SELECT COUNT(*) as c FROM ventures" }).catch(() => ({ rows: [{ c: 0 }] }));
-      return { ok: true, message: "Storage operational", details: { venture_count: parseInt(r.rows[0]?.c || 0) } };
+      const result = await db.execute({ sql: "SELECT COUNT(*) as c FROM ventures" }).catch(() => ({ rows: [{ c: 0 }] }));
+      return { ok: true, message: "Storage operational", details: { venture_count: parseInt(result.rows[0]?.c || 0) } };
     }),
     checkComponent("search", async () => ({ ok: true, message: "Search available" })),
     checkComponent("notifications", async () => {
-      const r = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_notifications" }).catch(() => ({ rows: [{ c: 0 }] }));
-      return { ok: true, message: `Notifications: ${r.rows[0]?.c || 0} total`, details: { total: parseInt(r.rows[0]?.c || 0) } };
+      const result = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_notifications" }).catch(() => ({ rows: [{ c: 0 }] }));
+      return { ok: true, message: `Notifications: ${result.rows[0]?.c || 0} total`, details: { total: parseInt(result.rows[0]?.c || 0) } };
     }),
     checkComponent("integrations", async () => {
-      const r = await db.execute({ sql: "SELECT COUNT(*) as c FROM integration_configs WHERE status='connected'" }).catch(() => ({ rows: [{ c: 0 }] }));
-      return { ok: true, message: `${r.rows[0]?.c || 0} integrations connected`, details: { connected: parseInt(r.rows[0]?.c || 0) } };
+      const result = await db.execute({ sql: "SELECT COUNT(*) as c FROM integration_configs WHERE status='connected'" }).catch(() => ({ rows: [{ c: 0 }] }));
+      return { ok: true, message: `${result.rows[0]?.c || 0} integrations connected`, details: { connected: parseInt(result.rows[0]?.c || 0) } };
     }),
   ]);
 
   // Store results
-  for (const r of results) {
+  for (const result of results) {
     await db.execute({
       sql: `INSERT INTO system_health_checks (component, status, response_time_ms, message, details) VALUES (?, ?, ?, ?, ?::jsonb)`,
-      args: [r.component, r.status, r.response_time_ms, r.message, JSON.stringify(r.details)],
+      args: [result.component, result.status, result.response_time_ms, result.message, JSON.stringify(result.details)],
     }).catch(() => {});
   }
 
   await logAuditEvent({
     eventType: "HEALTH_CHECK_EXECUTED", actorCid: "system",
-    description: `Health check completed: ${results.filter(r => r.status === "healthy").length} healthy, ${results.filter(r => r.status !== "healthy").length} issues`,
-    severity: results.some(r => r.status === "unhealthy") ? "warning" : "info",
+    description: `Health check completed: ${results.filter(result => result.status === "healthy").length} healthy, ${results.filter(result => result.status !== "healthy").length} issues`,
+    severity: results.some(result => result.status === "unhealthy") ? "warning" : "info",
   });
 
   return results;
@@ -5760,11 +5777,11 @@ export async function runHealthChecks() {
 export async function getLatestHealthChecks() {
   const results = [];
   for (const component of HEALTH_COMPONENTS) {
-    const r = await db.execute({
+    const result = await db.execute({
       sql: "SELECT * FROM system_health_checks WHERE component=? ORDER BY checked_at DESC LIMIT 1",
       args: [component],
     }).catch(() => ({ rows: [] }));
-    if (r.rows.length > 0) results.push(r.rows[0]);
+    if (result.rows.length > 0) results.push(result.rows[0]);
   }
   return results;
 }
@@ -5779,13 +5796,13 @@ export async function getHealthCheckHistory(component, limit = 50) {
 
 export async function getOverallHealth() {
   const checks = await getLatestHealthChecks();
-  const unhealthy = checks.filter(c => c.status !== "healthy");
+  const unhealthy = checks.filter(check => check.status !== "healthy");
   return {
-    status: unhealthy.length === 0 ? "healthy" : unhealthy.some(c => c.status === "unhealthy") ? "unhealthy" : "degraded",
+    status: unhealthy.length === 0 ? "healthy" : unhealthy.some(check => check.status === "unhealthy") ? "unhealthy" : "degraded",
     total_components: checks.length,
-    healthy: checks.filter(c => c.status === "healthy").length,
-    degraded: checks.filter(c => c.status === "degraded").length,
-    unhealthy: checks.filter(c => c.status === "unhealthy").length,
+    healthy: checks.filter(check => check.status === "healthy").length,
+    degraded: checks.filter(check => check.status === "degraded").length,
+    unhealthy: checks.filter(check => check.status === "unhealthy").length,
     components: checks,
   };
 }
@@ -5813,8 +5830,8 @@ export async function getMetrics(metricName, { hoursAgo=1, limit=100, aggregate 
   const rows = (await db.execute({ sql, args }).catch(() => ({ rows: [] }))).rows || [];
 
   if (aggregate === "avg") {
-    const avg = rows.reduce((s, r) => s + parseFloat(r.metric_value), 0) / (rows.length || 1);
-    return { metric_name: metricName, average: Math.round(avg * 100) / 100, count: rows.length, unit: rows[0]?.unit };
+    const average = rows.reduce((sum, row) => sum + parseFloat(row.metric_value), 0) / (rows.length || 1);
+    return { metric_name: metricName, average: Math.round(average * 100) / 100, count: rows.length, unit: rows[0]?.unit };
   }
 
   return rows.reverse();

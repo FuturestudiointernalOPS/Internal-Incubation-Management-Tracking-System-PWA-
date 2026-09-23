@@ -24,8 +24,8 @@ import AppModal from "@/components/ui/AppModal";
 // `success: false` rather than as a failed request, so it is shaped to null:
 // the panel can then tell a refusal apart from a genuinely empty list instead
 // of showing "no notes yet" for both.
-const pickScopedNotes = (d) =>
-  d?.success ? { notes: d.notes || [], canPost: Boolean(d.can_post) } : null;
+const pickScopedNotes = (payload) =>
+  payload?.success ? { notes: payload.notes || [], canPost: Boolean(payload.can_post) } : null;
 
 export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
   const { t } = useI18n();
@@ -55,8 +55,8 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
   const error =
     open && !data && !loading ? t("venture.manager.notes.loadFailed") : null;
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const submit = async (event) => {
+    event.preventDefault();
     if (!form.title.trim() || !form.body.trim()) return;
     setPosting(true);
     setActionError(null);
@@ -76,12 +76,12 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
           attachments,
         }),
       });
-      const d = await res.json();
-      if (d.success) {
+      const payload = await res.json();
+      if (payload.success) {
         setForm({ title: "", body: "", url: "", urlName: "" });
         await refreshNotes();
       } else {
-        setActionError(d.error || t("venture.manager.notes.postFailed"));
+        setActionError(payload.error || t("venture.manager.notes.postFailed"));
       }
     } catch {
       setActionError(t("venture.manager.notes.postFailed"));
@@ -98,12 +98,12 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ note_id: note.id }),
       });
-      const d = await res.json();
-      if (d.success) {
+      const payload = await res.json();
+      if (payload.success) {
         setConfirmNote(null);
         await refreshNotes();
       } else {
-        setActionError(d.error || t("venture.manager.notes.deleteFailed"));
+        setActionError(payload.error || t("venture.manager.notes.deleteFailed"));
       }
     } catch {
       setActionError(t("venture.manager.notes.deleteFailed"));
@@ -145,27 +145,27 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
             <p className="text-[10px] text-slate-500">{t("venture.manager.notes.empty")}</p>
           ) : (
             <ul className="space-y-1.5">
-              {notes.map((n) => (
-                <li key={n.id} className="rounded-lg bg-tertiary/60 border border-[var(--border-primary)] px-2.5 py-2 text-xs">
+              {notes.map((note) => (
+                <li key={note.id} className="rounded-lg bg-tertiary/60 border border-[var(--border-primary)] px-2.5 py-2 text-xs">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="font-bold text-[var(--text-primary)]">{n.title}</p>
-                    <button onClick={() => setConfirmNote(n)} className="p-0.5 text-slate-500 hover:text-rose-400" title={t("venture.manager.notes.delete")}>
+                    <p className="font-bold text-[var(--text-primary)]">{note.title}</p>
+                    <button onClick={() => setConfirmNote(note)} className="p-0.5 text-slate-500 hover:text-rose-400" title={t("venture.manager.notes.delete")}>
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
-                  <p className="text-[var(--text-secondary)] whitespace-pre-line mt-0.5">{n.body}</p>
-                  {parseAttachments(n).length > 0 && (
+                  <p className="text-[var(--text-secondary)] whitespace-pre-line mt-0.5">{note.body}</p>
+                  {parseAttachments(note).length > 0 && (
                     <div className="flex flex-col gap-0.5 mt-1">
-                      {parseAttachments(n).map((a, i) => (
-                        <a key={i} href={a.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[10px] text-sky-400 hover:underline">
-                          <Paperclip className="w-2.5 h-2.5" /> {a.name || a.url}
-                          {a.url.startsWith("http") && <ExternalLink className="w-2 h-2" />}
+                      {parseAttachments(note).map((attachment, index) => (
+                        <a key={index} href={attachment.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[10px] text-sky-400 hover:underline">
+                          <Paperclip className="w-2.5 h-2.5" /> {attachment.name || attachment.url}
+                          {attachment.url.startsWith("http") && <ExternalLink className="w-2 h-2" />}
                         </a>
                       ))}
                     </div>
                   )}
                   <p className="text-[9px] text-slate-500 mt-1">
-                    {n.author_name || ""}{n.author_name && " · "}{n.created_at ? new Date(n.created_at).toLocaleString() : ""}
+                    {note.author_name || ""}{note.author_name && " · "}{note.created_at ? new Date(note.created_at).toLocaleString() : ""}
                   </p>
                 </li>
               ))}
@@ -176,7 +176,7 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
             <form onSubmit={submit} className="space-y-1.5">
               <input
                 value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                onChange={(event) => setForm({ ...form, title: event.target.value })}
                 placeholder={t("venture.manager.notes.titlePlaceholder")}
                 required
                 className="w-full px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
@@ -184,7 +184,7 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
               <textarea
                 rows={2}
                 value={form.body}
-                onChange={(e) => setForm({ ...form, body: e.target.value })}
+                onChange={(event) => setForm({ ...form, body: event.target.value })}
                 placeholder={t("venture.manager.notes.bodyPlaceholder")}
                 required
                 className="w-full px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
@@ -192,13 +192,13 @@ export default function ScopedNotes({ ventureId, scopeType, scopeId }) {
               <div className="flex gap-1.5">
                 <input
                   value={form.url}
-                  onChange={(e) => setForm({ ...form, url: e.target.value })}
+                  onChange={(event) => setForm({ ...form, url: event.target.value })}
                   placeholder={t("venture.manager.notes.urlPlaceholder")}
                   className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-[10px] text-[var(--text-primary)]"
                 />
                 <input
                   value={form.urlName}
-                  onChange={(e) => setForm({ ...form, urlName: e.target.value })}
+                  onChange={(event) => setForm({ ...form, urlName: event.target.value })}
                   placeholder={t("venture.manager.notes.urlNamePlaceholder")}
                   className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-[10px] text-[var(--text-primary)]"
                 />

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { notify } from "@/lib/notify";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -25,9 +26,9 @@ import { useI18n } from "@/lib/i18n";
 const EMPTY_SUBMISSIONS = { submissions: [], programs: [] };
 
 /** One read answers with both the submissions and the programmes they belong to. */
-const pickSubmissions = (d) =>
-  d?.success
-    ? { submissions: d.submissions || [], programs: d.programs || [] }
+const pickSubmissions = (payload) =>
+  payload?.success
+    ? { submissions: payload.submissions || [], programs: payload.programs || [] }
     : EMPTY_SUBMISSIONS;
 
 function StatusBadge({ status }) {
@@ -44,12 +45,12 @@ function StatusBadge({ status }) {
     rejected: t("pmMisc.submissions.statusRejected"),
     revision_requested: t("pmMisc.submissions.statusRevisionRequested"),
   };
-  const c =
+  const statusClasses =
     config[status?.toLowerCase()] ||
     "bg-slate-500/10 text-slate-400 border-slate-500/20";
   return (
     <span
-      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${c}`}
+      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${statusClasses}`}
     >
       {status
         ? labels[status.toLowerCase()] || status.replace(/_/g, " ")
@@ -100,12 +101,12 @@ export default function PMSubmissions() {
   // scheduled. Done where the dialog is opened rather than in an effect watching
   // it: the prefill is an event, not a consequence to be synchronised, and in an
   // effect the dialog appeared empty for a frame first.
-  const openSchedule = (row) => {
-    setScheduleModal(row);
+  const openSchedule = (submission) => {
+    setScheduleModal(submission);
     setEventTitle(
       t("pmMisc.submissions.eventTitlePrefill", {
-        deliverable: row.deliverable_title,
-        participant: row.participant_name,
+        deliverable: submission.deliverable_title,
+        participant: submission.participant_name,
       }),
     );
     setStartTime("");
@@ -116,7 +117,7 @@ export default function PMSubmissions() {
     setActionLoading(true);
     try {
       const trimmedFeedback = feedback.trim() || null;
-      const res = await fetch("/api/submissions", {
+      const response = await fetch("/api/submissions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -128,36 +129,36 @@ export default function PMSubmissions() {
             newStatus === "rejected" ? trimmedFeedback : null,
         }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok && !data.success) {
-        alert(data.error || t("pmMisc.submissions.reviewFailed"));
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok && !data.success) {
+        notify("error", data.error || t("pmMisc.submissions.reviewFailed"));
         return;
       }
       setReviewModal(null);
       setFeedback("");
       refreshSubmissions();
-    } catch (e) {
-      console.error("Review failed", e);
-      alert(t("pmMisc.submissions.reviewFailed"));
+    } catch (error) {
+      console.error("Review failed", error);
+      notify("error", t("pmMisc.submissions.reviewFailed"));
     }
     setActionLoading(false);
   };
 
-  const filtered = submissions.filter((s) => {
-    if (filterStatus !== "all" && s.status !== filterStatus) return false;
-    if (filterProgram !== "all" && s.program_id !== filterProgram) return false;
+  const filtered = submissions.filter((submission) => {
+    if (filterStatus !== "all" && submission.status !== filterStatus) return false;
+    if (filterProgram !== "all" && submission.program_id !== filterProgram) return false;
     if (search) {
-      const q = search.toLowerCase();
+      const query = search.toLowerCase();
       const match =
-        s.deliverable_title?.toLowerCase().includes(q) ||
-        s.participant_name?.toLowerCase().includes(q) ||
-        s.participant_id?.toLowerCase().includes(q);
+        submission.deliverable_title?.toLowerCase().includes(query) ||
+        submission.participant_name?.toLowerCase().includes(query) ||
+        submission.participant_id?.toLowerCase().includes(query);
       if (!match) return false;
     }
     return true;
   });
 
-  const pendingCount = submissions.filter((s) => s.status === "pending").length;
+  const pendingCount = submissions.filter((submission) => submission.status === "pending").length;
 
   return (
     <>
@@ -195,14 +196,14 @@ export default function PMSubmissions() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder={t("pmMisc.submissions.searchPlaceholder")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
             />
           </div>
           <select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            onChange={(event) => setFilterStatus(event.target.value)}
             className="px-3 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
           >
             <option value="all">{t("pmMisc.submissions.allStatus")}</option>
@@ -218,13 +219,13 @@ export default function PMSubmissions() {
           </select>
           <select
             value={filterProgram}
-            onChange={(e) => setFilterProgram(e.target.value)}
+            onChange={(event) => setFilterProgram(event.target.value)}
             className="px-3 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
           >
             <option value="all">{t("pmMisc.submissions.allPrograms")}</option>
-            {programs.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
+            {programs.map((program) => (
+              <option key={program.id} value={program.id}>
+                {program.name}
               </option>
             ))}
           </select>
@@ -257,11 +258,11 @@ export default function PMSubmissions() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map((sub) => (
+            {filtered.map((submission) => (
               <div
-                key={sub.id}
+                key={submission.id}
                 className={`ios-card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all ${
-                  sub.status === "pending"
+                  submission.status === "pending"
                     ? "border-l-4 border-l-amber-500"
                     : ""
                 }`}
@@ -273,32 +274,32 @@ export default function PMSubmissions() {
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-10 h-10 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-sm font-black uppercase">
                           {(
-                            sub.participant_name ||
-                            sub.participant_id ||
+                            submission.participant_name ||
+                            submission.participant_id ||
                             "?"
                           ).charAt(0)}
                         </div>
                         <div>
                           <p className="text-xs font-bold text-[var(--text-primary)] truncate">
-                            {sub.participant_name ||
-                              sub.participant_id ||
+                            {submission.participant_name ||
+                              submission.participant_id ||
                               t("pmMisc.submissions.unknown")}
                           </p>
                           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                            {sub.participant_group || sub.participant_id
+                            {submission.participant_group || submission.participant_id
                               ? t("pmMisc.submissions.groupWithName", {
-                                  group: sub.participant_group || "—",
+                                  group: submission.participant_group || "—",
                                 })
                               : ""}
                           </p>
                         </div>
                       </div>
-                      <StatusBadge status={sub.status} />
+                      <StatusBadge status={submission.status} />
                     </div>
                     <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-3">
                       {t("pmMisc.submissions.submitted")}{" "}
-                      {sub.created_at
-                        ? new Date(sub.created_at).toLocaleDateString()
+                      {submission.created_at
+                        ? new Date(submission.created_at).toLocaleDateString()
                         : ""}
                     </p>
                   </div>
@@ -307,33 +308,33 @@ export default function PMSubmissions() {
                   <div className="flex-1 p-5 flex flex-col justify-between">
                     <div>
                       <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                        {sub.deliverable_title ||
+                        {submission.deliverable_title ||
                           t("pmMisc.submissions.deliverableWithId", {
-                            id: sub.deliverable_id,
+                            id: submission.deliverable_id,
                           })}
                       </h3>
                       <div className="flex flex-wrap items-center gap-3 mt-2">
                         <span className="text-[10px] font-medium text-[var(--text-secondary)] flex items-center gap-1">
                           <Briefcase className="w-3 h-3" />{" "}
-                          {sub.program_name ||
+                          {submission.program_name ||
                             t("pmMisc.submissions.programWithId", {
-                              id: sub.program_id,
+                              id: submission.program_id,
                             })}
                         </span>
-                        {sub.deliverable_week && (
+                        {submission.deliverable_week && (
                           <span className="text-[10px] font-medium text-[var(--text-secondary)] flex items-center gap-1">
                             <Calendar className="w-3 h-3" />{" "}
                             {t("pmMisc.submissions.week", {
-                              week: sub.deliverable_week,
+                              week: submission.deliverable_week,
                             })}
                           </span>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-3 mt-4 pt-3 border-t border-[var(--border-primary)]">
-                      {sub.file_url && (
+                      {submission.file_url && (
                         <a
-                          href={sub.file_url}
+                          href={submission.file_url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-blue-500/20 transition-all"
@@ -342,19 +343,19 @@ export default function PMSubmissions() {
                           {t("pmMisc.submissions.viewFile")}
                         </a>
                       )}
-                      {sub.status === "pending" && (
+                      {submission.status === "pending" && (
                         <>
                           <button
-                            onClick={() => setReviewModal(sub)}
+                            onClick={() => setReviewModal(submission)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                           >
                             <Shield className="w-3 h-3" />{" "}
-                            {sub.grading_mode === "graded"
+                            {submission.grading_mode === "graded"
                               ? t("pmMisc.submissions.review")
                               : t("pmMisc.submissions.feedback")}
                           </button>
                           <button
-                            onClick={() => openSchedule(sub)}
+                            onClick={() => openSchedule(submission)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500 text-black rounded-lg text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                           >
                             <Calendar className="w-3 h-3" />{" "}
@@ -362,11 +363,11 @@ export default function PMSubmissions() {
                           </button>
                         </>
                       )}
-                      {sub.status !== "pending" && (
+                      {submission.status !== "pending" && (
                         <span className="text-[10px] font-medium text-[var(--text-secondary)] ml-auto">
                           {t("pmMisc.submissions.reviewed")}{" "}
-                          {sub.reviewed_at
-                            ? new Date(sub.reviewed_at).toLocaleDateString()
+                          {submission.reviewed_at
+                            ? new Date(submission.reviewed_at).toLocaleDateString()
                             : ""}
                         </span>
                       )}
@@ -387,7 +388,7 @@ export default function PMSubmissions() {
         >
           <div
             className="card w-full max-w-lg space-y-5"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -439,7 +440,7 @@ export default function PMSubmissions() {
                 </label>
                 <textarea
                   value={feedback}
-                  onChange={(e) => setFeedback(e.target.value)}
+                  onChange={(event) => setFeedback(event.target.value)}
                   rows={3}
                   placeholder={t("pmMisc.submissions.feedbackPlaceholder")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
@@ -498,7 +499,7 @@ export default function PMSubmissions() {
         >
           <div
             className="card w-full max-w-lg space-y-5"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -539,7 +540,7 @@ export default function PMSubmissions() {
                 <input
                   type="text"
                   value={eventTitle}
-                  onChange={(e) => setEventTitle(e.target.value)}
+                  onChange={(event) => setEventTitle(event.target.value)}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
               </div>
@@ -550,7 +551,7 @@ export default function PMSubmissions() {
                 <input
                   type="datetime-local"
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  onChange={(event) => setStartTime(event.target.value)}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
               </div>
@@ -561,7 +562,7 @@ export default function PMSubmissions() {
                 <input
                   type="text"
                   value={eventLocation}
-                  onChange={(e) => setEventLocation(e.target.value)}
+                  onChange={(event) => setEventLocation(event.target.value)}
                   placeholder={t("pmMisc.submissions.locationPlaceholder")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
@@ -586,12 +587,12 @@ export default function PMSubmissions() {
                     created_by: cid,
                   };
                   try {
-                    const res = await fetch("/api/events", {
+                    const response = await fetch("/api/events", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify(payload),
                     });
-                    if (res.ok) {
+                    if (response.ok) {
                       setScheduleModal(null);
                     }
                   } catch (err) {

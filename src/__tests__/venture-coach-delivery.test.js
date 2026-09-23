@@ -19,10 +19,10 @@ const executed = [];
 
 function makeFakeDb() {
   const flags = { contactByCid: true, contactByEmail: true, catalogEmail: "sarah@future.studio", assignments: ["VNT-X"], coachSessions: [], inviteContact: null, inviteActivated: false, alreadyAssigned: false, leadManagers: [] };
-  const execute = jest.fn(async (arg) => {
+  const execute = jest.fn(async (query) => {
     // Calendar makes one plain-string execute (ALTER TABLE …); normalize.
-    const sql = typeof arg === "string" ? arg : arg?.sql;
-    const args = typeof arg === "string" ? [] : arg?.args || [];
+    const sql = typeof query === "string" ? query : query?.sql;
+    const args = typeof query === "string" ? [] : query?.args || [];
     executed.push({ sql, args });
     // inviteCoachByEmail — existing contact lookup
     if (sql.includes("SELECT cid, name, email, password FROM contacts WHERE email = ?")) {
@@ -39,16 +39,16 @@ function makeFakeDb() {
     }
     // notifyVentureLeadManagers — active lead_manager assignments (code-keyed)
     if (sql.includes("FROM venture_staff_assignments") && sql.includes("responsibility_code = 'lead_manager'")) {
-      return { rows: (flags.leadManagers || []).map((m) => ({ staff_contact_id: m.cid })) };
+      return { rows: (flags.leadManagers || []).map((manager) => ({ staff_contact_id: manager.cid })) };
     }
     // notifyVentureLeadManagers — Venture code fallback from the internal id
     if (sql.includes("SELECT venture_id FROM ventures WHERE id = ?") && String(args[0] || "").includes("11111111-1111-4111-8111-111111111111")) {
       return { rows: [{ venture_id: "VNT-X" }] };
     }
     // notifyVentureLeadManagers — lead manager contact lookup
-    if (sql.includes("SELECT cid, name, email FROM contacts WHERE cid = ?") && (flags.leadManagers || []).some((m) => m.cid === String(args[0]))) {
-      const m = (flags.leadManagers || []).find((x) => x.cid === String(args[0]));
-      return { rows: [{ cid: m.cid, name: m.name || null, email: m.email ?? null }] };
+    if (sql.includes("SELECT cid, name, email FROM contacts WHERE cid = ?") && (flags.leadManagers || []).some((manager) => manager.cid === String(args[0]))) {
+      const leadManager = (flags.leadManagers || []).find((manager) => manager.cid === String(args[0]));
+      return { rows: [{ cid: leadManager.cid, name: leadManager.name || null, email: leadManager.email ?? null }] };
     }
     // resolveCoachContact — direct contact
     if (sql.includes("SELECT cid, name, email FROM contacts WHERE cid = ?")) {
@@ -67,13 +67,13 @@ function makeFakeDb() {
       return { rows: [{ venture_id: "VNT-X" }] };
     }
     if (sql.includes("FROM venture_staff_assignments") && sql.includes("staff_contact_id = ?")) {
-      return { rows: (flags.assignments || []).map((v) => ({ venture_id: v })) };
+      return { rows: (flags.assignments || []).map((ventureId) => ({ venture_id: ventureId })) };
     }
     if (sql.includes("SELECT DISTINCT venture_id FROM venture_sessions WHERE coach_contact_id = ?")) {
-      return { rows: (flags.coachSessions || []).map((v) => ({ venture_id: v })) };
+      return { rows: (flags.coachSessions || []).map((ventureId) => ({ venture_id: ventureId })) };
     }
     if (sql.includes("SELECT id, venture_id FROM ventures WHERE venture_id IN")) {
-      return { rows: (args || []).filter((a) => a === "VNT-X").map(() => ({ id: "11111111-1111-4111-8111-111111111111", venture_id: "VNT-X" })) };
+      return { rows: (args || []).filter((ventureId) => ventureId === "VNT-X").map(() => ({ id: "11111111-1111-4111-8111-111111111111", venture_id: "VNT-X" })) };
     }
     if (sql.includes("FROM venture_sessions") && sql.includes("start_time IS NOT NULL")) {
       return {
@@ -101,7 +101,7 @@ jest.mock("@/lib/db", () => ({
 }));
 
 jest.mock("@/lib/email", () => ({
-  sendEmail: jest.fn().mockResolvedValue({ success: true }),
+  sendStandaloneEmail: jest.fn().mockResolvedValue({ success: true }),
   sendInviteEmail: jest.fn().mockResolvedValue({ success: true }),
   sendLoginEmail: jest.fn().mockResolvedValue({ success: true }),
 }));
@@ -116,7 +116,7 @@ const mockAuth = require("@/lib/auth");
 const { resolveCoachContact, inviteCoachByEmail } = require("@/lib/ventureCoach");
 const { notifyVentureCoach, notifyVentureLeadManagers } = require("@/lib/ventureNotify");
 const { GET: calendarGET } = require("@/app/api/calendar/route");
-const { sendEmail, sendInviteEmail, sendLoginEmail } = require("@/lib/email");
+const { sendStandaloneEmail, sendInviteEmail, sendLoginEmail } = require("@/lib/email");
 const readJson = async (res) => res.json();
 
 beforeEach(() => {
@@ -137,25 +137,25 @@ beforeEach(() => {
 
 describe("resolveCoachContact — coach is a platform user (Future Studio staff or invited)", () => {
   test("explicit contact id wins", async () => {
-    const c = await resolveCoachContact(mockDb, { coachContactId: "c-sarah" });
-    expect(c).toEqual({ cid: "c-sarah", name: "Sarah", email: "sarah@future.studio" });
+    const contact = await resolveCoachContact(mockDb, { coachContactId: "c-sarah" });
+    expect(contact).toEqual({ cid: "c-sarah", name: "Sarah", email: "sarah@future.studio" });
   });
 
   test("legacy catalog coach resolves to a contact by email", async () => {
-    const c = await resolveCoachContact(mockDb, { coachId: 12 });
-    expect(c.cid).toBe("c-sarah");
+    const contact = await resolveCoachContact(mockDb, { coachId: 12 });
+    expect(contact.cid).toBe("c-sarah");
   });
 
   test("unmatched catalog coach degrades to null (catalog fallback preserved)", async () => {
     mockDb.flags.contactByEmail = false;
-    const c = await resolveCoachContact(mockDb, { coachId: 12 });
-    expect(c).toBeNull();
+    const contact = await resolveCoachContact(mockDb, { coachId: 12 });
+    expect(contact).toBeNull();
   });
 
   test("unknown explicit contact degrades to null", async () => {
     mockDb.flags.contactByCid = false;
-    const c = await resolveCoachContact(mockDb, { coachContactId: "ghost" });
-    expect(c).toBeNull();
+    const contact = await resolveCoachContact(mockDb, { coachContactId: "ghost" });
+    expect(contact).toBeNull();
   });
 });
 
@@ -175,11 +175,11 @@ describe("notifyVentureCoach — automatic coach delivery (in-app + email)", () 
     });
     expect(out.sent).toBe(1);
 
-    const notifInsert = executed.find((q) => q.sql.includes("INSERT INTO v2_notifications"));
+    const notifInsert = executed.find((query) => query.sql.includes("INSERT INTO v2_notifications"));
     expect(notifInsert).toBeDefined();
     expect(notifInsert.args).toEqual(expect.arrayContaining(["c-sarah", "venture.notif.sessionScheduled", "session-scheduled:9:coach"]));
 
-    expect(sendEmail).toHaveBeenCalledWith(
+    expect(sendStandaloneEmail).toHaveBeenCalledWith(
       expect.objectContaining({ to: "sarah@future.studio", subject: "You have been added to a Venture session" }),
     );
   });
@@ -188,8 +188,8 @@ describe("notifyVentureCoach — automatic coach delivery (in-app + email)", () 
     mockDb.flags.contactByCid = false;
     const out = await notifyVentureCoach(mockDb, { dbId: "x", coachContactId: "ghost", title: "t", message: "m", emailSubject: "s" });
     expect(out.skipped).toBe(true);
-    expect(sendEmail).not.toHaveBeenCalled();
-    const notifInsert = executed.find((q) => q.sql.includes("INSERT INTO v2_notifications"));
+    expect(sendStandaloneEmail).not.toHaveBeenCalled();
+    const notifInsert = executed.find((query) => query.sql.includes("INSERT INTO v2_notifications"));
     expect(notifInsert).toBeUndefined();
   });
 
@@ -200,12 +200,12 @@ describe("notifyVentureCoach — automatic coach delivery (in-app + email)", () 
 });
 
 describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)", () => {
-  const VC = "11111111-1111-4111-8111-111111111111";
+  const VENTURE_UUID = "11111111-1111-4111-8111-111111111111";
 
   test("writes context notification with dedupe and emails every active lead manager", async () => {
     mockDb.flags.leadManagers = [{ cid: "lm-1", name: "Lena", email: "lena@future.studio" }];
     const out = await notifyVentureLeadManagers(mockDb, {
-      dbId: VC,
+      dbId: VENTURE_UUID,
       ventureCode: "VNT-X",
       title: "Session scheduled",
       message: "You have been added to a Venture session.",
@@ -219,15 +219,15 @@ describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)",
     expect(out.sent).toBe(1);
 
     // Assignments are resolved by Venture code — never by the internal UUID.
-    const lmQuery = executed.find((q) => q.sql.includes("FROM venture_staff_assignments") && q.sql.includes("responsibility_code = 'lead_manager'"));
+    const lmQuery = executed.find((query) => query.sql.includes("FROM venture_staff_assignments") && query.sql.includes("responsibility_code = 'lead_manager'"));
     expect(lmQuery).toBeDefined();
     expect(lmQuery.args).toEqual(["VNT-X"]);
 
-    const notifInsert = executed.find((q) => q.sql.includes("INSERT INTO v2_notifications"));
+    const notifInsert = executed.find((query) => query.sql.includes("INSERT INTO v2_notifications"));
     expect(notifInsert).toBeDefined();
     expect(notifInsert.args).toEqual(expect.arrayContaining(["lm-1", "venture.notif.sessionScheduled", "session-scheduled:9:lm"]));
 
-    expect(sendEmail).toHaveBeenCalledWith(
+    expect(sendStandaloneEmail).toHaveBeenCalledWith(
       expect.objectContaining({ to: "lena@future.studio", subject: "You have been added to a Venture session" }),
     );
   });
@@ -235,44 +235,44 @@ describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)",
   test("excluded lead managers (creator / coach) get nothing", async () => {
     mockDb.flags.leadManagers = [{ cid: "lm-1", name: "Lena", email: "lena@future.studio" }];
     const out = await notifyVentureLeadManagers(mockDb, {
-      dbId: VC, ventureCode: "VNT-X", title: "t", message: "m", emailSubject: "s",
+      dbId: VENTURE_UUID, ventureCode: "VNT-X", title: "t", message: "m", emailSubject: "s",
       dedupeKey: "session-scheduled:9", excludeCids: ["lm-1"],
     });
     expect(out.sent).toBe(0);
-    expect(executed.find((q) => q.sql.includes("INSERT INTO v2_notifications"))).toBeUndefined();
-    expect(sendEmail).not.toHaveBeenCalled();
+    expect(executed.find((query) => query.sql.includes("INSERT INTO v2_notifications"))).toBeUndefined();
+    expect(sendStandaloneEmail).not.toHaveBeenCalled();
   });
 
   test("no active lead-manager assignment → nothing written, no throw", async () => {
     const out = await notifyVentureLeadManagers(mockDb, {
-      dbId: VC, ventureCode: "VNT-X", title: "t", message: "m", emailSubject: "s",
+      dbId: VENTURE_UUID, ventureCode: "VNT-X", title: "t", message: "m", emailSubject: "s",
     });
     expect(out.sent).toBe(0);
-    expect(executed.find((q) => q.sql.includes("INSERT INTO v2_notifications"))).toBeUndefined();
-    expect(sendEmail).not.toHaveBeenCalled();
+    expect(executed.find((query) => query.sql.includes("INSERT INTO v2_notifications"))).toBeUndefined();
+    expect(sendStandaloneEmail).not.toHaveBeenCalled();
   });
 
   test("lead manager without an email still gets the in-app notification", async () => {
     mockDb.flags.leadManagers = [{ cid: "lm-1", name: "Lena", email: null }];
     const out = await notifyVentureLeadManagers(mockDb, {
-      dbId: VC, ventureCode: "VNT-X", title: "t", message: "m", emailSubject: "s",
+      dbId: VENTURE_UUID, ventureCode: "VNT-X", title: "t", message: "m", emailSubject: "s",
     });
     expect(out.sent).toBe(0);
-    const notifInsert = executed.find((q) => q.sql.includes("INSERT INTO v2_notifications"));
+    const notifInsert = executed.find((query) => query.sql.includes("INSERT INTO v2_notifications"));
     expect(notifInsert).toBeDefined();
     expect(notifInsert.args).toContain("lm-1");
-    expect(sendEmail).not.toHaveBeenCalled();
+    expect(sendStandaloneEmail).not.toHaveBeenCalled();
   });
 
   test("missing venture code is resolved from the internal id", async () => {
     mockDb.flags.leadManagers = [{ cid: "lm-1", name: "Lena", email: null }];
     const out = await notifyVentureLeadManagers(mockDb, {
-      dbId: VC, title: "t", message: "m", emailSubject: "s",
+      dbId: VENTURE_UUID, title: "t", message: "m", emailSubject: "s",
     });
     expect(out.sent).toBe(0);
-    const lmQuery = executed.find((q) => q.sql.includes("FROM venture_staff_assignments") && q.sql.includes("responsibility_code = 'lead_manager'"));
+    const lmQuery = executed.find((query) => query.sql.includes("FROM venture_staff_assignments") && query.sql.includes("responsibility_code = 'lead_manager'"));
     expect(lmQuery.args).toEqual(["VNT-X"]);
-    expect(executed.find((q) => q.sql.includes("INSERT INTO v2_notifications"))).toBeDefined();
+    expect(executed.find((query) => query.sql.includes("INSERT INTO v2_notifications"))).toBeDefined();
   });
 });
 
@@ -282,15 +282,15 @@ describe("inviteCoachByEmail — Venture coach invite (program blueprint)", () =
       code: "VNT-X", ventureName: "AgriNova", email: "new.coach@example.com", name: "New Coach", actorCid: "manager-1", preview: false,
     });
     expect(out.results[0].status).toBe("activation_sent");
-    const contactInsert = executed.find((q) => q.sql.startsWith("INSERT INTO contacts"));
+    const contactInsert = executed.find((query) => query.sql.startsWith("INSERT INTO contacts"));
     expect(contactInsert).toBeDefined();
     expect(contactInsert.args[2]).toBe("new.coach@example.com");
     expect(contactInsert.sql).toContain("'facilitator'"); // narrow role — NOT staff
     expect(contactInsert.sql).toContain("'pending'");
-    const assignmentInsert = executed.find((q) => q.sql.includes("INSERT INTO venture_staff_assignments"));
+    const assignmentInsert = executed.find((query) => query.sql.includes("INSERT INTO venture_staff_assignments"));
     expect(assignmentInsert).toBeDefined();
     expect(assignmentInsert.args).toEqual(expect.arrayContaining(["VNT-X", "facilitator", "venture_wide"]));
-    const tokenInsert = executed.find((q) => q.sql.includes("INSERT INTO password_setup_tokens"));
+    const tokenInsert = executed.find((query) => query.sql.includes("INSERT INTO password_setup_tokens"));
     expect(tokenInsert).toBeDefined();
     expect(sendInviteEmail).toHaveBeenCalledWith(expect.objectContaining({ to: "new.coach@example.com", role: "facilitator" }));
     expect(sendLoginEmail).not.toHaveBeenCalled();
@@ -304,9 +304,9 @@ describe("inviteCoachByEmail — Venture coach invite (program blueprint)", () =
     });
     expect(out.results[0].status).toBe("invited");
     expect(out.results[0].responsibility_code).toBe("lead_manager");
-    const contactInsert = executed.find((q) => q.sql.startsWith("INSERT INTO contacts"));
+    const contactInsert = executed.find((query) => query.sql.startsWith("INSERT INTO contacts"));
     expect(contactInsert).toBeUndefined();
-    const assignmentInsert = executed.find((q) => q.sql.includes("INSERT INTO venture_staff_assignments"));
+    const assignmentInsert = executed.find((query) => query.sql.includes("INSERT INTO venture_staff_assignments"));
     expect(assignmentInsert.args).toEqual(expect.arrayContaining(["c-staff", "lead_manager"]));
     expect(sendLoginEmail).toHaveBeenCalled();
   });
@@ -317,15 +317,15 @@ describe("inviteCoachByEmail — Venture coach invite (program blueprint)", () =
     mockDb.flags.alreadyAssigned = true;
     const out = await inviteCoachByEmail(mockDb, { code: "VNT-X", email: "david@future.studio" });
     expect(out.results[0].status).toBe("already_assigned");
-    expect(executed.some((q) => q.sql.includes("INSERT INTO venture_staff_assignments"))).toBe(false);
+    expect(executed.some((query) => query.sql.includes("INSERT INTO venture_staff_assignments"))).toBe(false);
     expect(sendLoginEmail).not.toHaveBeenCalled();
   });
 
   test("preview reports without writing", async () => {
     const out = await inviteCoachByEmail(mockDb, { code: "VNT-X", email: "fresh@example.com", preview: true });
     expect(out.results[0].status).toBe("new_contact");
-    expect(executed.some((q) => q.sql.startsWith("INSERT INTO contacts"))).toBe(false);
-    expect(executed.some((q) => q.sql.includes("INSERT INTO venture_staff_assignments"))).toBe(false);
+    expect(executed.some((query) => query.sql.startsWith("INSERT INTO contacts"))).toBe(false);
+    expect(executed.some((query) => query.sql.includes("INSERT INTO venture_staff_assignments"))).toBe(false);
     expect(sendInviteEmail).not.toHaveBeenCalled();
   });
 
@@ -344,20 +344,20 @@ describe("GET /api/calendar — personal mode", () => {
     const data = await readJson(res);
 
     // Scope query ran for a privileged role in personal mode (assignment + coach session venture).
-    const scopeQuery = executed.find((q) => q.sql.includes("SELECT id, venture_id FROM ventures WHERE venture_id IN"));
+    const scopeQuery = executed.find((query) => query.sql.includes("SELECT id, venture_id FROM ventures WHERE venture_id IN"));
     expect(scopeQuery).toBeDefined();
     // Personal session filter present (coach sees her own even non-facing).
-    const sessionQuery = executed.find((q) => q.sql.includes("FROM venture_sessions") && q.sql.includes("start_time IS NOT NULL"));
+    const sessionQuery = executed.find((query) => query.sql.includes("FROM venture_sessions") && query.sql.includes("start_time IS NOT NULL"));
     expect(sessionQuery.sql).toContain("coach_contact_id = ?");
     // Only Sarah's venture events survive scoping (fixture has 1 assigned venture).
-    expect(data.events.every((e) => e.source && String(e.source).startsWith("venture"))).toBe(true);
+    expect(data.events.every((event) => event.source && String(event.source).startsWith("venture"))).toBe(true);
   });
 
   test("default mode for privileged roles stays unrestricted (no scope query)", async () => {
     await calendarGET(new Request("http://localhost/api/calendar?month=1&year=2099"));
-    const scopeQuery = executed.find((q) => q.sql.includes("SELECT id, venture_id FROM ventures WHERE venture_id IN"));
+    const scopeQuery = executed.find((query) => query.sql.includes("SELECT id, venture_id FROM ventures WHERE venture_id IN"));
     expect(scopeQuery).toBeUndefined();
-    const sessionQuery = executed.find((q) => q.sql.includes("FROM venture_sessions") && q.sql.includes("start_time IS NOT NULL"));
+    const sessionQuery = executed.find((query) => query.sql.includes("FROM venture_sessions") && query.sql.includes("start_time IS NOT NULL"));
     expect(sessionQuery.sql).not.toContain("coach_contact_id = ?");
   });
 });

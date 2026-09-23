@@ -38,8 +38,8 @@ export async function GET(req, { params }) {
     let result;
     try {
       result = await getProjectApprovalRequests(id);
-    } catch (e) {
-      console.error("GET project approvals query failed:", e.message);
+    } catch (error) {
+      console.error("GET project approvals query failed:", error.message);
       return NextResponse.json({ success: true, requests: [] });
     }
 
@@ -93,16 +93,16 @@ export async function POST(req, { params }) {
     }
 
     // Fetch the request
-    const requestRes = await getProjectApprovalRequestById(request_id);
+    const requestResult = await getProjectApprovalRequestById(request_id);
 
-    if (requestRes.rows.length === 0) {
+    if (requestResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Approval request not found" },
         { status: 404 },
       );
     }
 
-    const approvalRequest = requestRes.rows[0];
+    const approvalRequest = requestResult.rows[0];
 
     // Update the request status
     try {
@@ -112,8 +112,8 @@ export async function POST(req, { params }) {
         rejection_reason,
         request_id,
       );
-    } catch (e) {
-      console.error("Failed to update project_approval_request:", e.message);
+    } catch (error) {
+      console.error("Failed to update project_approval_request:", error.message);
       return NextResponse.json(
         { success: false, error: "Approval workflow not available in this schema" },
         { status: 200 },
@@ -135,8 +135,8 @@ export async function POST(req, { params }) {
           `Your contribution to link "${taskTitle}" was approved by ${reviewer_name || reviewer_id}.`,
           "approval",
         );
-      } catch (notifErr) {
-        console.error("Approval notification failed:", notifErr.message);
+      } catch (notificationError) {
+        console.error("Approval notification failed:", notificationError.message);
       }
     } else {
       // Rejected — notify the requester with reason
@@ -150,8 +150,8 @@ export async function POST(req, { params }) {
           `Your request to link "${taskTitle}" was declined. Reason: ${rejection_reason}`,
           "approval",
         );
-      } catch (notifErr) {
-        console.error("Rejection notification failed:", notifErr.message);
+      } catch (notificationError) {
+        console.error("Rejection notification failed:", notificationError.message);
       }
     }
 

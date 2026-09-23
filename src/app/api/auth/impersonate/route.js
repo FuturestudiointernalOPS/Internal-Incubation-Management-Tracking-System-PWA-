@@ -143,8 +143,8 @@ export async function POST(req) {
     let ventureMemberships = [];
     if (landingNeedsRelationships(finalRole)) {
       try {
-        const vm = await getVentureMembershipsForContact(userCid);
-        ventureMemberships = vm.rows || [];
+        const ventureMembershipsResult = await getVentureMembershipsForContact(userCid);
+        ventureMemberships = ventureMembershipsResult.rows || [];
       } catch (_) {}
     }
     const home = resolveLanding({ role: finalRole, ventures: ventureMemberships });
@@ -195,7 +195,7 @@ export async function GET() {
 
     console.log("[impersonate:GET] Found", result.rows.length, "active contacts");
 
-    const byRole = {};
+    const usersByRole = {};
     for (const user of result.rows) {
       let displayRole = user.role || "participant";
       if (user.role === "super_admin") displayRole = "super_admin";
@@ -211,11 +211,11 @@ export async function GET() {
         displayRole = "staff";
       }
 
-      if (!byRole[displayRole]) byRole[displayRole] = [];
-      byRole[displayRole].push({ cid: user.cid, name: user.name, email: user.email, group_name: user.group_name });
+      if (!usersByRole[displayRole]) usersByRole[displayRole] = [];
+      usersByRole[displayRole].push({ cid: user.cid, name: user.name, email: user.email, group_name: user.group_name });
     }
 
-    return NextResponse.json({ success: true, users: byRole });
+    return NextResponse.json({ success: true, users: usersByRole });
   } catch (error) {
     console.error("[impersonate:GET] ERROR:", error.message);
     return NextResponse.json({ success: false, error: "Failed to list users: " + error.message }, { status: 500 });

@@ -85,11 +85,11 @@ export function defaultAllowedRoles(responsibilityKey) {
 export function eligibleRolesForFeature(rows, featureKey, allRoles = ALL_FEATURE_ROLES) {
   if (!featureKey) return [...allRoles];
   const scoped = (rows || []).filter(
-    (r) => r.identity_type === "role" && r.feature_key === featureKey,
+    (row) => row.identity_type === "role" && row.feature_key === featureKey,
   );
   if (scoped.length === 0) return [...allRoles]; // no ceiling to apply
   const eligible = new Set(
-    scoped.filter((r) => Number(r.eligible) === 1).map((r) => r.identity_value),
+    scoped.filter((row) => Number(row.eligible) === 1).map((row) => row.identity_value),
   );
   return allRoles.filter((role) => eligible.has(role));
 }

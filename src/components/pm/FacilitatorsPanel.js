@@ -43,18 +43,18 @@ const FACILITATOR_CAPS = [
   { key: "groups.manage", label: "pmMisc.facilitators.caps.manageGroups" },
 ];
 
-const FULL_FACILITATOR_PERMISSIONS = FACILITATOR_CAPS.reduce((acc, cap) => {
-  acc[cap.key] = cap.key.startsWith("view") ? 1 : 2;
-  return acc;
+const FULL_FACILITATOR_PERMISSIONS = FACILITATOR_CAPS.reduce((permissions, cap) => {
+  permissions[cap.key] = cap.key.startsWith("view") ? 1 : 2;
+  return permissions;
 }, {});
 
 // Stable read shapes: one shaper per answer, made once here rather than rebuilt
 // on every render.
-const pickProgram = (d) => (d?.success ? d.program ?? null : null);
-const pickGroups = (d) => (d?.success ? d.groups || [] : []);
-const pickReviews = (d) => (d?.success ? d.reviews || [] : []);
-const pickContacts = (d) => (d?.success ? d.contacts || [] : []);
-const pickParticipants = (d) => (d?.success ? d.participants || [] : []);
+const pickProgram = (payload) => (payload?.success ? payload.program ?? null : null);
+const pickGroups = (payload) => (payload?.success ? payload.groups || [] : []);
+const pickReviews = (payload) => (payload?.success ? payload.reviews || [] : []);
+const pickContacts = (payload) => (payload?.success ? payload.contacts || [] : []);
+const pickParticipants = (payload) => (payload?.success ? payload.participants || [] : []);
 
 export function FacilitatorsPanel({ programId }) {
   const id = programId;
@@ -124,7 +124,7 @@ export function FacilitatorsPanel({ programId }) {
       });
       const data = await res.json();
       if (data.success) {
-        setProgram((p) => ({ ...p, ...patch }));
+        setProgram((previousProgram) => ({ ...previousProgram, ...patch }));
         notify("success", t("pmMisc.facilitators.saved"));
       } else {
         notify("error", data.error || t("pmMisc.facilitators.saveFailed"));
@@ -175,7 +175,7 @@ export function FacilitatorsPanel({ programId }) {
       new Set(
         inviteEmails
           .split(/[\n,;]+/)
-          .map((s) => s.trim())
+          .map((email) => email.trim())
           .filter(Boolean),
       ),
     );
@@ -240,36 +240,36 @@ export function FacilitatorsPanel({ programId }) {
     }
   };
 
-  const removeFacilitator = async (f) => {
+  const removeFacilitator = async (facilitator) => {
     const res = await fetch("/api/v2/program-staff", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: f.id }),
+      body: JSON.stringify({ id: facilitator.id }),
     });
     if ((await res.json()).success) {
-      setProgram((p) => ({
-        ...p,
-        facilitators: (p.facilitators || []).filter((x) => x.id !== f.id),
+      setProgram((previousProgram) => ({
+        ...previousProgram,
+        facilitators: (previousProgram.facilitators || []).filter((candidate) => candidate.id !== facilitator.id),
       }));
       notify("success", t("pmMisc.facilitators.removedFromProgram"));
     }
   };
 
-  const toggleOverride = async (f, capKey) => {
-    const current = f.permissions || {};
+  const toggleOverride = async (facilitator, capKey) => {
+    const current = facilitator.permissions || {};
     const next = { ...current };
     if (next[capKey]) delete next[capKey];
     else next[capKey] = capKey.startsWith("view") ? 1 : 2;
     const res = await fetch("/api/v2/program-staff", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: f.id, permissions: next }),
+      body: JSON.stringify({ id: facilitator.id, permissions: next }),
     });
     if ((await res.json()).success) {
-      setProgram((p) => ({
-        ...p,
-        facilitators: (p.facilitators || []).map((x) =>
-          x.id === f.id ? { ...x, permissions: next } : x,
+      setProgram((previousProgram) => ({
+        ...previousProgram,
+        facilitators: (previousProgram.facilitators || []).map((candidate) =>
+          candidate.id === facilitator.id ? { ...candidate, permissions: next } : candidate,
         ),
       }));
     }
@@ -287,18 +287,18 @@ export function FacilitatorsPanel({ programId }) {
     saveProgramConfig({ facilitator_default_permissions: next });
   };
 
-  const setLead = async (groupId, cid) => {
+  const setLead = async (groupId, facilitatorCid) => {
     const res = await fetch("/api/families", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: groupId, lead_facilitator_id: cid || null }),
+      body: JSON.stringify({ id: groupId, lead_facilitator_id: facilitatorCid || null }),
     });
     if ((await res.json()).success) {
       setGroups((prev) =>
-        prev.map((g) =>
-          String(g.id) === String(groupId)
-            ? { ...g, lead_facilitator_id: cid || null }
-            : g,
+        prev.map((group) =>
+          String(group.id) === String(groupId)
+            ? { ...group, lead_facilitator_id: facilitatorCid || null }
+            : group,
         ),
       );
       notify("success", t("pmMisc.facilitators.leadUpdated"));
@@ -322,26 +322,26 @@ export function FacilitatorsPanel({ programId }) {
     }
   };
 
-  const reviewStatusLabel = (r) => {
-    if (r?.pm_decision === "changes_requested")
+  const reviewStatusLabel = (review) => {
+    if (review?.pm_decision === "changes_requested")
       return t("pmMisc.facilitators.weeklyReview.status_changes_requested");
-    if (r?.status === "decided")
+    if (review?.status === "decided")
       return t("pmMisc.facilitators.weeklyReview.status_decided");
     return t("pmMisc.facilitators.weeklyReview.status_submitted");
   };
 
-  const reviewRatingLabel = (v) =>
-    FACILITATOR_REVIEW_OPTIONS.ratings.includes(v)
-      ? t(`pmMisc.facilitators.weeklyReview.rating_${v}`)
-      : v || "";
-  const reviewEngagementLabel = (v) =>
-    FACILITATOR_REVIEW_OPTIONS.engagement.includes(v)
-      ? t(`pmMisc.facilitators.weeklyReview.engagement_${v}`)
-      : v || "";
-  const reviewAttentionLabel = (v) =>
-    FACILITATOR_REVIEW_OPTIONS.attention.includes(v)
-      ? t(`pmMisc.facilitators.weeklyReview.attention_${v}`)
-      : v || "";
+  const reviewRatingLabel = (value) =>
+    FACILITATOR_REVIEW_OPTIONS.ratings.includes(value)
+      ? t(`pmMisc.facilitators.weeklyReview.rating_${value}`)
+      : value || "";
+  const reviewEngagementLabel = (value) =>
+    FACILITATOR_REVIEW_OPTIONS.engagement.includes(value)
+      ? t(`pmMisc.facilitators.weeklyReview.engagement_${value}`)
+      : value || "";
+  const reviewAttentionLabel = (value) =>
+    FACILITATOR_REVIEW_OPTIONS.attention.includes(value)
+      ? t(`pmMisc.facilitators.weeklyReview.attention_${value}`)
+      : value || "";
 
   if (!program) {
     return (
@@ -356,18 +356,18 @@ export function FacilitatorsPanel({ programId }) {
     Object.keys(program.facilitator_default_permissions).length > 0
       ? program.facilitator_default_permissions
       : FULL_FACILITATOR_PERMISSIONS;
-  const families = groups.filter((g) => g.source === "family");
-  const assignedCids = (program.facilitators || []).map((f) => f.cid);
-  const participantKeys = new Set((participants || []).flatMap((p) => [p.cid, p.email].filter(Boolean)));
+  const families = groups.filter((group) => group.source === "family");
+  const assignedCids = (program.facilitators || []).map((facilitator) => facilitator.cid);
+  const participantKeys = new Set((participants || []).flatMap((participant) => [participant.cid, participant.email].filter(Boolean)));
 
   const filteredPool = pool
-    .filter((c) => !assignedCids.includes(c.cid))
-    .filter((c) => !participantKeys.has(c.cid) && !participantKeys.has(c.email))
+    .filter((contact) => !assignedCids.includes(contact.cid))
+    .filter((contact) => !participantKeys.has(contact.cid) && !participantKeys.has(contact.email))
     .filter(
-      (c) =>
+      (contact) =>
         !search ||
-        (c.name || "").toLowerCase().includes(search.toLowerCase()) ||
-        (c.email || "").toLowerCase().includes(search.toLowerCase()),
+        (contact.name || "").toLowerCase().includes(search.toLowerCase()) ||
+        (contact.email || "").toLowerCase().includes(search.toLowerCase()),
     );
 
   return (
@@ -437,21 +437,21 @@ export function FacilitatorsPanel({ programId }) {
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder={t("pmMisc.facilitators.searchPlaceholder")}
               className="w-full bg-primary border border-[var(--border-primary)] rounded-xl pl-10 pr-3 py-3 text-[11px] font-bold outline-none focus:border-[var(--brand-orange)]"
             />
           </div>
           <div className="max-h-48 overflow-y-auto space-y-1.5">
-            {filteredPool.map((c) => (
+            {filteredPool.map((contact) => (
               <button
-                key={c.cid}
+                key={contact.cid}
                 disabled={busy}
-                onClick={() => addFacilitator(c)}
+                onClick={() => addFacilitator(contact)}
                 className="w-full flex items-center justify-between gap-2 p-3 rounded-xl border border-dashed border-[var(--border-primary)] hover:border-[var(--brand-orange)] text-left transition-all"
               >
-                <span className="text-[10px] font-bold uppercase truncate">{c.name}</span>
-                <span className="text-[10px] font-medium text-[var(--text-secondary)] truncate">{c.email}</span>
+                <span className="text-[10px] font-bold uppercase truncate">{contact.name}</span>
+                <span className="text-[10px] font-medium text-[var(--text-secondary)] truncate">{contact.email}</span>
                 <Plus className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
               </button>
             ))}
@@ -500,15 +500,15 @@ export function FacilitatorsPanel({ programId }) {
             {t("pmMisc.facilitators.defaultPermissions")}
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {FACILITATOR_CAPS.map((cap) => {
-              const active = !!defaultPerms[cap.key];
+            {FACILITATOR_CAPS.map((capability) => {
+              const active = !!defaultPerms[capability.key];
               return (
                 <button
-                  key={cap.key}
-                  onClick={() => toggleDefault(cap.key)}
+                  key={capability.key}
+                  onClick={() => toggleDefault(capability.key)}
                   className={`p-3 rounded-xl border text-left text-[10px] font-bold uppercase transition-all ${active ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
                 >
-                  {t(cap.label)}
+                  {t(capability.label)}
                   {active ? " ✓" : ""}
                 </button>
               );
@@ -522,15 +522,15 @@ export function FacilitatorsPanel({ programId }) {
             {t("pmMisc.facilitators.assignedFacilitators")}
           </h2>
           <div className="space-y-3">
-            {(program.facilitators || []).map((f) => (
-              <div key={f.id} className="rounded-2xl border border-[var(--border-primary)] p-4 bg-secondary space-y-3">
+            {(program.facilitators || []).map((facilitator) => (
+              <div key={facilitator.id} className="rounded-2xl border border-[var(--border-primary)] p-4 bg-secondary space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase truncate">{f.name || f.email || f.cid}</p>
-                    <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">{f.email && f.email !== f.name ? f.email : ""}</p>
+                    <p className="text-[11px] font-bold uppercase truncate">{facilitator.name || facilitator.email || facilitator.cid}</p>
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">{facilitator.email && facilitator.email !== facilitator.name ? facilitator.email : ""}</p>
                   </div>
                   <button
-                    onClick={() => removeFacilitator(f)}
+                    onClick={() => removeFacilitator(facilitator)}
                     className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-rose-400 hover:underline shrink-0"
                   >
                     <Trash2 className="w-3 h-3" /> {t("pmMisc.facilitators.remove")}
@@ -541,15 +541,15 @@ export function FacilitatorsPanel({ programId }) {
                     {t("pmMisc.facilitators.individualOverrides")}
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                    {FACILITATOR_CAPS.map((cap) => {
-                      const active = !!(f.permissions || {})[cap.key];
+                    {FACILITATOR_CAPS.map((capability) => {
+                      const active = !!(facilitator.permissions || {})[capability.key];
                       return (
                         <button
-                          key={cap.key}
-                          onClick={() => toggleOverride(f, cap.key)}
+                          key={capability.key}
+                          onClick={() => toggleOverride(facilitator, capability.key)}
                           className={`p-2 rounded-lg border text-left text-[10px] font-bold uppercase truncate transition-all ${active ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400" : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
                         >
-                          {t(cap.label)}
+                          {t(capability.label)}
                           {active ? " ✓" : ""}
                         </button>
                       );
@@ -572,17 +572,17 @@ export function FacilitatorsPanel({ programId }) {
             {t("pmMisc.facilitators.leadPerGroup")}
           </h2>
           <div className="space-y-2">
-            {families.map((g) => (
-              <div key={g.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--border-primary)] bg-secondary">
-                <span className="text-[10px] font-black uppercase truncate">{g.name}</span>
+            {families.map((group) => (
+              <div key={group.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--border-primary)] bg-secondary">
+                <span className="text-[10px] font-black uppercase truncate">{group.name}</span>
                 <select
-                  value={g.lead_facilitator_id || ""}
-                  onChange={(e) => setLead(g.id, e.target.value || null)}
+                  value={group.lead_facilitator_id || ""}
+                  onChange={(event) => setLead(group.id, event.target.value || null)}
                   className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none cursor-pointer max-w-[45%]"
                 >
                   <option value="">{t("pmMisc.facilitators.noneOption")}</option>
-                  {(program.facilitators || []).map((f) => (
-                    <option key={f.cid} value={f.cid}>{f.name}</option>
+                  {(program.facilitators || []).map((facilitator) => (
+                    <option key={facilitator.cid} value={facilitator.cid}>{facilitator.name}</option>
                   ))}
                 </select>
               </div>
@@ -606,52 +606,52 @@ export function FacilitatorsPanel({ programId }) {
                 {t("pmMisc.facilitators.noReviews")}
               </p>
             )}
-            {reviews.map((r) => (
-              <div key={r.id} className="rounded-2xl border border-[var(--border-primary)] p-4 bg-secondary space-y-3">
+            {reviews.map((review) => (
+              <div key={review.id} className="rounded-2xl border border-[var(--border-primary)] p-4 bg-secondary space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <ClipboardList className="w-4 h-4 text-[var(--brand-orange)]" />
                     <p className="text-[11px] font-bold uppercase tracking-wide">
-                      {r.facilitator_name || r.facilitator_id}
+                      {review.facilitator_name || review.facilitator_id}
                     </p>
                   </div>
                   <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                    r.pm_decision === "changes_requested"
+                    review.pm_decision === "changes_requested"
                       ? "bg-rose-500/15 text-rose-400"
-                      : r.status === "decided"
+                      : review.status === "decided"
                         ? "bg-emerald-500/15 text-emerald-400"
                         : "bg-amber-500/15 text-amber-400"
                   }`}>
-                    {reviewStatusLabel(r)}
+                    {reviewStatusLabel(review)}
                   </span>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-2 text-[10px]">
-                  {(r.overall_rating || r.participant_progress) && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.overall")}</strong> {reviewRatingLabel(r.overall_rating) || r.participant_progress}</p>}
-                  {r.engagement && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.engagement")}</strong> {reviewEngagementLabel(r.engagement)}</p>}
-                  {(r.went_well || r.completed_work) && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.wentWell")}</strong> {r.went_well || r.completed_work}</p>}
-                  {(r.struggles || r.challenges) && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.struggles")}</strong> {r.struggles || r.challenges}</p>}
-                  {(r.needs_attention_type || r.needs_attention || r.needs_attention_note) && <div className="text-[var(--text-secondary)]"><p><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.needsAttention")}</strong> {reviewAttentionLabel(r.needs_attention_type) || r.needs_attention}</p>{r.needs_attention_note && <p className="mt-0.5 pl-1">{r.needs_attention_note}</p>}</div>}
-                  {(r.focus_next_week || r.recommendations) && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.focusNextWeek")}</strong> {r.focus_next_week || r.recommendations}</p>}
-                  {r.additional_notes && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.additionalNotes")}</strong> {r.additional_notes}</p>}
+                  {(review.overall_rating || review.participant_progress) && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.overall")}</strong> {reviewRatingLabel(review.overall_rating) || review.participant_progress}</p>}
+                  {review.engagement && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.engagement")}</strong> {reviewEngagementLabel(review.engagement)}</p>}
+                  {(review.went_well || review.completed_work) && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.wentWell")}</strong> {review.went_well || review.completed_work}</p>}
+                  {(review.struggles || review.challenges) && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.struggles")}</strong> {review.struggles || review.challenges}</p>}
+                  {(review.needs_attention_type || review.needs_attention || review.needs_attention_note) && <div className="text-[var(--text-secondary)]"><p><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.needsAttention")}</strong> {reviewAttentionLabel(review.needs_attention_type) || review.needs_attention}</p>{review.needs_attention_note && <p className="mt-0.5 pl-1">{review.needs_attention_note}</p>}</div>}
+                  {(review.focus_next_week || review.recommendations) && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.focusNextWeek")}</strong> {review.focus_next_week || review.recommendations}</p>}
+                  {review.additional_notes && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.additionalNotes")}</strong> {review.additional_notes}</p>}
                 </div>
-                {r.pm_decision ? (
+                {review.pm_decision ? (
                   <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 mb-1">
-                      {t("pmMisc.facilitators.pmDecision", { pm: r.pm_decision_by || t("pmMisc.facilitators.pmShort") })}
+                      {t("pmMisc.facilitators.pmDecision", { pm: review.pm_decision_by || t("pmMisc.facilitators.pmShort") })}
                     </p>
-                    <p className="text-[10px] font-bold text-[var(--text-primary)]">{r.pm_decision}</p>
-                    {r.pm_decision_note && (
-                      <p className="text-sm text-[var(--text-secondary)] mt-1">{r.pm_decision_note}</p>
+                    <p className="text-[10px] font-bold text-[var(--text-primary)]">{review.pm_decision}</p>
+                    {review.pm_decision_note && (
+                      <p className="text-sm text-[var(--text-secondary)] mt-1">{review.pm_decision_note}</p>
                     )}
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <textarea
-                      value={decisionInputs[r.id]?.note || ""}
-                      onChange={(e) =>
+                      value={decisionInputs[review.id]?.note || ""}
+                      onChange={(event) =>
                         setDecisionInputs({
                           ...decisionInputs,
-                          [r.id]: { ...decisionInputs[r.id], note: e.target.value },
+                          [review.id]: { ...decisionInputs[review.id], note: event.target.value },
                         })
                       }
                       placeholder={t("pmMisc.facilitators.pmActionNote")}
@@ -660,13 +660,13 @@ export function FacilitatorsPanel({ programId }) {
                     />
                     <div className="flex gap-2">
                       <button
-                        onClick={() => recordDecision(r.id, "acknowledged")}
+                        onClick={() => recordDecision(review.id, "acknowledged")}
                         className="flex items-center gap-1.5 text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
                       >
                         <Check className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.weeklyReview.acknowledge")}
                       </button>
                       <button
-                        onClick={() => recordDecision(r.id, "changes_requested")}
+                        onClick={() => recordDecision(review.id, "changes_requested")}
                         className="flex items-center gap-1.5 text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25"
                       >
                         <RotateCcw className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.weeklyReview.requestChanges")}
@@ -690,7 +690,7 @@ export function FacilitatorsPanel({ programId }) {
               <p className="text-[10px] text-[var(--text-secondary)]">{t("pmMisc.facilitators.inviteModalDescription")}</p>
               <textarea
                 value={inviteEmails}
-                onChange={(e) => setInviteEmails(e.target.value)}
+                onChange={(event) => setInviteEmails(event.target.value)}
                 placeholder={t("pmMisc.facilitators.inviteEmailsPlaceholder")}
                 rows={5}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-3 text-[11px] font-bold outline-none focus:border-[var(--brand-orange)] resize-y"
@@ -710,14 +710,14 @@ export function FacilitatorsPanel({ programId }) {
 
               {invitePreview.length > 0 && !inviteResults && (
                 <div className="space-y-2">
-                  {invitePreview.map((r) => (
-                    <div key={r.email} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--border-primary)] bg-primary">
+                  {invitePreview.map((result) => (
+                    <div key={result.email} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--border-primary)] bg-primary">
                       <div className="min-w-0">
-                        <p className="text-[10px] font-bold truncate">{r.email}</p>
-                        {r.name && <p className="text-[10px] font-medium text-[var(--text-secondary)]">{r.name}</p>}
+                        <p className="text-[10px] font-bold truncate">{result.email}</p>
+                        {result.name && <p className="text-[10px] font-medium text-[var(--text-secondary)]">{result.name}</p>}
                       </div>
-                      <span className={`shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded ${r.status === "conflict" || r.status === "invalid" || r.status === "already_facilitator" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}>
-                        {t(`pmMisc.facilitators.inviteStatus_${r.status}`) || r.status}
+                      <span className={`shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded ${result.status === "conflict" || result.status === "invalid" || result.status === "already_facilitator" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}>
+                        {t(`pmMisc.facilitators.inviteStatus_${result.status}`) || result.status}
                       </span>
                     </div>
                   ))}
@@ -726,14 +726,14 @@ export function FacilitatorsPanel({ programId }) {
 
               {inviteResults && (
                 <div className="space-y-2">
-                  {inviteResults.map((r) => (
-                    <div key={r.email} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--border-primary)] bg-primary">
+                  {inviteResults.map((result) => (
+                    <div key={result.email} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--border-primary)] bg-primary">
                       <div className="min-w-0">
-                        <p className="text-[10px] font-bold truncate">{r.name || r.email}</p>
-                        <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">{r.email}</p>
+                        <p className="text-[10px] font-bold truncate">{result.name || result.email}</p>
+                        <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">{result.email}</p>
                       </div>
-                      <span className={`shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded ${r.status === "invited" || r.status === "activation_sent" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
-                        {t(`pmMisc.facilitators.inviteStatus_${r.status}`) || r.status}
+                      <span className={`shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded ${result.status === "invited" || result.status === "activation_sent" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
+                        {t(`pmMisc.facilitators.inviteStatus_${result.status}`) || result.status}
                       </span>
                     </div>
                   ))}

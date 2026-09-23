@@ -28,21 +28,21 @@ const INK = [15, 23, 42]; // --text-primary (light)
 const MUTED = [100, 116, 139]; // slate-500
 
 function truncate(text, maxChars) {
-  const s = String(text || "");
-  return s.length <= maxChars ? s : `${s.slice(0, maxChars - 1)}…`;
+  const value = String(text || "");
+  return value.length <= maxChars ? value : `${value.slice(0, maxChars - 1)}…`;
 }
 
 function formatIssueDate(value, lang) {
-  const d = value ? new Date(value) : null;
-  if (!d || Number.isNaN(d.getTime())) return "";
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "";
   try {
     return new Intl.DateTimeFormat(lang || "en", {
       year: "numeric",
       month: "long",
       day: "numeric",
-    }).format(d);
+    }).format(date);
   } catch {
-    return d.toISOString().slice(0, 10);
+    return date.toISOString().slice(0, 10);
   }
 }
 
@@ -55,60 +55,60 @@ function formatIssueDate(value, lang) {
  * @returns {Uint8Array} PDF bytes
  */
 export function buildCertificatePdf(cert, { labels = {}, lang = "en" } = {}) {
-  const L = { ...DEFAULT_LABELS, ...labels };
+  const mergedLabels = { ...DEFAULT_LABELS, ...labels };
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
-  const W = doc.internal.pageSize.getWidth(); // 841.89
-  const H = doc.internal.pageSize.getHeight(); // 595.28
-  const cx = W / 2;
+  const pageWidth = doc.internal.pageSize.getWidth(); // 841.89
+  const pageHeight = doc.internal.pageSize.getHeight(); // 595.28
+  const centerX = pageWidth / 2;
 
   // Frame
   doc.setDrawColor(...BRAND_ORANGE);
   doc.setLineWidth(2.5);
-  doc.rect(28, 28, W - 56, H - 56);
+  doc.rect(28, 28, pageWidth - 56, pageHeight - 56);
   doc.setLineWidth(0.75);
-  doc.rect(36, 36, W - 72, H - 72);
+  doc.rect(36, 36, pageWidth - 72, pageHeight - 72);
 
   // Title
   doc.setTextColor(...BRAND_ORANGE);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(30);
-  doc.text(truncate(L.title, 60), cx, 150, { align: "center" });
+  doc.text(truncate(mergedLabels.title, 60), centerX, 150, { align: "center" });
 
   // Statement
   doc.setTextColor(...MUTED);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(12);
-  doc.text(L.certifiesThat, cx, 205, { align: "center" });
+  doc.text(mergedLabels.certifiesThat, centerX, 205, { align: "center" });
 
   // Learner name
   doc.setTextColor(...INK);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(34);
-  doc.text(truncate(cert.learner_name, 42), cx, 262, { align: "center" });
+  doc.text(truncate(cert.learner_name, 42), centerX, 262, { align: "center" });
 
   doc.setTextColor(...MUTED);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(12);
-  doc.text(L.hasCompleted, cx, 302, { align: "center" });
+  doc.text(mergedLabels.hasCompleted, centerX, 302, { align: "center" });
 
   // Course title
   doc.setTextColor(...INK);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
-  doc.text(truncate(cert.course_title, 64), cx, 352, { align: "center" });
+  doc.text(truncate(cert.course_title, 64), centerX, 352, { align: "center" });
 
   // Issuer
   doc.setTextColor(...MUTED);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
-  doc.text(L.issuedBy, cx, 402, { align: "center" });
+  doc.text(mergedLabels.issuedBy, centerX, 402, { align: "center" });
 
   // Meta
   doc.setFontSize(10);
-  doc.text(`${L.issued}: ${formatIssueDate(cert.issued_at, lang)}`, cx, 468, {
+  doc.text(`${mergedLabels.issued}: ${formatIssueDate(cert.issued_at, lang)}`, centerX, 468, {
     align: "center",
   });
-  doc.text(`${L.certificateId}: ${cert.certificate_number}`, cx, 488, {
+  doc.text(`${mergedLabels.certificateId}: ${cert.certificate_number}`, centerX, 488, {
     align: "center",
   });
 

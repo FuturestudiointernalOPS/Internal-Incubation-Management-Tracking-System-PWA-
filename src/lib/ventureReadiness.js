@@ -36,7 +36,7 @@ export async function computeRoadmapReadiness(db, { dbId, code }) {
   const ownersSql = owners.length ? OWNERS_IN(owners) : "IN (NULL)";
   const args = owners;
 
-  const [stageRes, msRes, taskRes, subRes] = await Promise.all([
+  const [stageResult, milestoneResult, taskResult, submissionResult] = await Promise.all([
     // Archived journeys (soft-deleted) are excluded from the defined
     // progression. Guarded: a pre-migration database without the archive
     // column falls back to the plain stage read.
@@ -66,27 +66,27 @@ export async function computeRoadmapReadiness(db, { dbId, code }) {
     }).catch(() => ({ rows: [] })),
   ]);
 
-  const stages = stageRes.rows || [];
-  const milestones = msRes.rows || [];
-  const tasks = taskRes.rows || [];
-  const submissions = subRes.rows || [];
+  const stages = stageResult.rows || [];
+  const milestones = milestoneResult.rows || [];
+  const tasks = taskResult.rows || [];
+  const submissions = submissionResult.rows || [];
 
   const totalJourneys = stages.length;
-  const completedJourneys = stages.filter((s) => isJourneyStageComplete(s.status)).length;
+  const completedJourneys = stages.filter((stage) => isJourneyStageComplete(stage.status)).length;
   const totalMilestones = milestones.length;
-  const completedMilestones = milestones.filter((m) => isMilestoneComplete(m.status)).length;
+  const completedMilestones = milestones.filter((milestone) => isMilestoneComplete(milestone.status)).length;
   const totalTasks = tasks.length;
-  const completedTasks = tasks.filter((t) => isTaskComplete(t.status)).length;
+  const completedTasks = tasks.filter((task) => isTaskComplete(task.status)).length;
   const totalReviewed = submissions.length;
-  const approvedDeliverables = submissions.filter((s) => isSubmissionApproved(s)).length;
+  const approvedDeliverables = submissions.filter((submission) => isSubmissionApproved(submission)).length;
 
-  const pct = (done, total) => (total > 0 ? Math.round((done / total) * 100) : null);
+  const percent = (done, total) => (total > 0 ? Math.round((done / total) * 100) : null);
 
   const components = {
-    journeys: pct(completedJourneys, totalJourneys),
-    milestones: pct(completedMilestones, totalMilestones),
-    tasks: pct(completedTasks, totalTasks),
-    deliverables: totalReviewed > 0 ? pct(approvedDeliverables, totalReviewed) : null,
+    journeys: percent(completedJourneys, totalJourneys),
+    milestones: percent(completedMilestones, totalMilestones),
+    tasks: percent(completedTasks, totalTasks),
+    deliverables: totalReviewed > 0 ? percent(approvedDeliverables, totalReviewed) : null,
   };
 
   // Weighted average over defined components, renormalized.

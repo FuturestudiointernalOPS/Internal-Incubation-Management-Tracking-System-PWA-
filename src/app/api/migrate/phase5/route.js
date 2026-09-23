@@ -28,19 +28,19 @@ export async function POST(_req) {
     // Split into individual statements, handling INSERT...SELECT with subqueries
     const statements = sql
       .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith("--"));
+      .map((statement) => statement.trim())
+      .filter((statement) => statement.length > 0 && !statement.startsWith("--"));
 
     const results = [];
     let migratedCount = 0;
 
-    for (const stmt of statements) {
+    for (const statement of statements) {
       try {
-        const result = await runPhase5MigrationStatement(stmt);
+        const result = await runPhase5MigrationStatement(statement);
         const inserted = result.rowsAffected || 0;
         migratedCount += inserted;
 
-        const preview = stmt.substring(0, 100).replace(/\n/g, " ").trim();
+        const preview = statement.substring(0, 100).replace(/\n/g, " ").trim();
         results.push({
           statement: preview + "...",
           rowsInserted: inserted,
@@ -53,14 +53,14 @@ export async function POST(_req) {
           err.message.includes("violates unique")
         ) {
           results.push({
-            statement: stmt.substring(0, 80).replace(/\n/g, " ") + "...",
+            statement: statement.substring(0, 80).replace(/\n/g, " ") + "...",
             rowsInserted: 0,
             success: true,
             note: "No new rows (already migrated)",
           });
         } else {
           results.push({
-            statement: stmt.substring(0, 80).replace(/\n/g, " ") + "...",
+            statement: statement.substring(0, 80).replace(/\n/g, " ") + "...",
             success: false,
             error: err.message,
           });
@@ -68,7 +68,7 @@ export async function POST(_req) {
       }
     }
 
-    const failures = results.filter((r) => !r.success);
+    const failures = results.filter((result) => !result.success);
 
     return NextResponse.json({
       success: failures.length === 0,

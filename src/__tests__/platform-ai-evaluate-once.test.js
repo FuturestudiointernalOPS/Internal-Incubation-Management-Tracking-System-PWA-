@@ -96,8 +96,8 @@ describe("the two questions are different questions", () => {
     mockEvaluationRows = [{ 1: 1 }];
     expect(await submissionHasEvaluation(77)).toBe(true);
     // It must ask about the submission, not the form.
-    const q = mockQueries.find((x) => x.text.includes("platform_submission_evaluations"));
-    expect(q.args).toEqual([77]);
+    const query = mockQueries.find((entry) => entry.text.includes("platform_submission_evaluations"));
+    expect(query.args).toEqual([77]);
   });
 
   test('"has THIS SUBMISSION been evaluated?" — no', async () => {
@@ -109,14 +109,14 @@ describe("the two questions are different questions", () => {
     mockFrameworkRows = HAS_FRAMEWORK;
     mockFormRows = SWITCH_ON;
     await formHasAiEvaluation(5);
-    expect(mockQueries.some((x) => x.text.includes("platform_submission_evaluations"))).toBe(false);
+    expect(mockQueries.some((entry) => entry.text.includes("platform_submission_evaluations"))).toBe(false);
 
     mockQueries.length = 0;
     mockEvaluationRows = [{ 1: 1 }];
     await submissionHasEvaluation(77);
     // The submission question is answerable without knowing the form at all —
     // which is exactly why confusing the two produced duplicate evaluations.
-    expect(mockQueries.some((x) => x.text.includes("platform_evaluation_frameworks"))).toBe(false);
+    expect(mockQueries.some((entry) => entry.text.includes("platform_evaluation_frameworks"))).toBe(false);
   });
 });
 
@@ -139,7 +139,7 @@ describe("a re-saved response is never re-evaluated", () => {
   test("the submit path asks the per-submission question before spending a call", () => {
     const src = read(FORM_RUNS);
     // The update branch must verify against THIS submission...
-    expect(src).toContain("submissionHasEvaluation(subId)");
+    expect(src).toMatch(/submissionHasEvaluation\(newSubmissionId\)/);
     // ...and the old name must be gone from every call site.
     expect(src).not.toMatch(/\bhasEvaluation\(/);
     expect(src).not.toContain("shouldEvaluate");

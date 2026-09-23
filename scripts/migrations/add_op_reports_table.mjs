@@ -81,15 +81,15 @@ async function migrate() {
       ["needs_support", "BOOLEAN DEFAULT NULL"],
       ["support_note", "TEXT DEFAULT NULL"],
     ];
-    for (const [col, def] of retroColumns) {
+    for (const [columnName, columnDefinition] of retroColumns) {
       try {
         await db.execute({
-          sql: `ALTER TABLE IF EXISTS v2_op_reports ADD COLUMN IF NOT EXISTS ${col} ${def}`,
+          sql: `ALTER TABLE IF EXISTS v2_op_reports ADD COLUMN IF NOT EXISTS ${columnName} ${columnDefinition}`,
           args: [],
         });
-        console.log(`  ✅ Column ${col} added`);
-      } catch (colErr) {
-        console.log(`  ⚠️  Column ${col}: ${colErr.message}`);
+        console.log(`  ✅ Column ${columnName} added`);
+      } catch (columnError) {
+        console.log(`  ⚠️  Column ${columnName}: ${columnError.message}`);
       }
     }
   }

@@ -31,12 +31,12 @@ async function run() {
       "investment_history"
     ];
 
-    for (const t of tables) {
-      const res = await client.query(
+    for (const tableName of tables) {
+      const queryResult = await client.query(
         `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1)`,
-        [t]
+        [tableName]
       );
-      console.log(`   ${res.rows[0].exists ? '✅' : '❌'} ${t}`);
+      console.log(`   ${queryResult.rows[0].exists ? '✅' : '❌'} ${tableName}`);
     }
   } catch (err) {
     console.error(`❌ Error: ${err.message}`);

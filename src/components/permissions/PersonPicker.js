@@ -35,10 +35,10 @@ export default function PersonPicker({ selectedCid = null, onSelect }) {
     async (bypassCache = false) => {
       const url = "/api/contacts";
       const apply = (data) => {
-        const sorted = (data.contacts || []).slice().sort((a, b) => {
-          if (a.status === "active" && b.status !== "active") return -1;
-          if (a.status !== "active" && b.status === "active") return 1;
-          return (a.name || "").localeCompare(b.name || "");
+        const sorted = (data.contacts || []).slice().sort((first, second) => {
+          if (first.status === "active" && second.status !== "active") return -1;
+          if (first.status !== "active" && second.status === "active") return 1;
+          return (first.name || "").localeCompare(second.name || "");
         });
         setUsers(sorted);
       };
@@ -55,8 +55,8 @@ export default function PersonPicker({ selectedCid = null, onSelect }) {
         cacheSet(url, data);
         apply(data);
         setErr("");
-      } catch (e) {
-        setErr(e?.message || t("engineering.permissions.peopleListFailed"));
+      } catch (error) {
+        setErr(error?.message || t("engineering.permissions.peopleListFailed"));
       } finally {
         setLoading(false);
       }
@@ -78,23 +78,23 @@ export default function PersonPicker({ selectedCid = null, onSelect }) {
       cid = "";
     }
     if (!cid) return;
-    const hit = users.find((u) => String(u.cid) === String(cid));
+    const hit = users.find((user) => String(user.cid) === String(cid));
     if (hit) defer(() => onSelect(hit));
   }, [users, onSelect]);
 
   // The select shows a person only once the list can name them: a ?cid= deep
   // link paints before the directory arrives.
   const selectedInList = users.some(
-    (u) => String(u.cid) === String(selectedCid),
+    (user) => String(user.cid) === String(selectedCid),
   );
 
   // Status is data, not copy: translate it when a label exists, otherwise show
   // the stored value. Active people say nothing (they are the norm).
-  const statusLabel = (u) => {
-    if (!u.status || u.status === "active") return "";
-    const key = `status.${u.status}`;
+  const statusLabel = (user) => {
+    if (!user.status || user.status === "active") return "";
+    const key = `status.${user.status}`;
     const value = t(key);
-    return value === key ? u.status : value;
+    return value === key ? user.status : value;
   };
 
   return (
@@ -141,8 +141,8 @@ export default function PersonPicker({ selectedCid = null, onSelect }) {
         <select
           id="permission-person-picker"
           value={selectedInList ? String(selectedCid) : ""}
-          onChange={(e) => {
-            const hit = users.find((u) => String(u.cid) === e.target.value);
+          onChange={(event) => {
+            const hit = users.find((user) => String(user.cid) === event.target.value);
             if (hit && onSelect) onSelect(hit);
           }}
           className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
@@ -150,11 +150,11 @@ export default function PersonPicker({ selectedCid = null, onSelect }) {
           <option value="">
             {t("engineering.permissions.personPickerPlaceholder")}
           </option>
-          {users.map((u) => (
-            <option key={u.cid} value={u.cid}>
-              {u.name || u.cid}
-              {u.email ? ` — ${u.email}` : ""}
-              {statusLabel(u) ? ` · ${statusLabel(u)}` : ""}
+          {users.map((user) => (
+            <option key={user.cid} value={user.cid}>
+              {user.name || user.cid}
+              {user.email ? ` — ${user.email}` : ""}
+              {statusLabel(user) ? ` · ${statusLabel(user)}` : ""}
             </option>
           ))}
         </select>

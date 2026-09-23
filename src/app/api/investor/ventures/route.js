@@ -36,15 +36,15 @@ export async function GET(req) {
     const offset = parseInt(searchParams.get("offset") || "0");
 
     // Count total
-    const countRes = await countInvestorVentureSearch({ search, industry, country, stage, fundingMin, fundingMax });
-    const total = parseInt(countRes.rows[0]?.total || 0);
+    const countResult = await countInvestorVentureSearch({ search, industry, country, stage, fundingMin, fundingMax });
+    const total = parseInt(countResult.rows[0]?.total || 0);
 
     // Final query
     const result = await searchInvestorVentures({ search, industry, country, stage, fundingMin, fundingMax, limit, offset });
 
     // For each venture, get KPIs if available
-    const ventures = result.rows.map(v => ({
-      ...v,
+    const ventures = result.rows.map(venture => ({
+      ...venture,
       kpis: null, // Will be populated if KPI data exists
     }));
 

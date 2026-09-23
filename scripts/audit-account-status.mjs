@@ -46,34 +46,34 @@ const result = await db.execute({
 
 const rows = result.rows;
 
-function derivedAccountState(r) {
-  if (Number(r.deleted) === 1 || r.deleted_at) return "Deleted";
-  if (r.archived_at) return "Archived";
-  const st = String(r.status || "").toLowerCase();
-  if (st === "inactive") return "Inactive";
-  if (st === "active") return "Active";
-  if (st === "approved") return "Approved (activation pending)";
-  if (st === "pending") return "Pending approval";
+function derivedAccountState(contact) {
+  if (Number(contact.deleted) === 1 || contact.deleted_at) return "Deleted";
+  if (contact.archived_at) return "Archived";
+  const normalizedStatus = String(contact.status || "").toLowerCase();
+  if (normalizedStatus === "inactive") return "Inactive";
+  if (normalizedStatus === "active") return "Active";
+  if (normalizedStatus === "approved") return "Approved (activation pending)";
+  if (normalizedStatus === "pending") return "Pending approval";
   return "Pending approval";
 }
 
-function derivedLoginState(r) {
-  if (r.last_login_at) return `Last login ${new Date(r.last_login_at).toLocaleString()}`;
-  if (Number(r.login_count) > 0) return `Logged in ${r.login_count}x (no timestamp)`;
+function derivedLoginState(contact) {
+  if (contact.last_login_at) return `Last login ${new Date(contact.last_login_at).toLocaleString()}`;
+  if (Number(contact.login_count) > 0) return `Logged in ${contact.login_count}x (no timestamp)`;
   return "Never logged in";
 }
 
 // ── Summary by raw status ──
 const byStatus = {};
-for (const r of rows) {
-  const key = String(r.status || "(null)").toLowerCase();
+for (const contact of rows) {
+  const key = String(contact.status || "(null)").toLowerCase();
   byStatus[key] = (byStatus[key] || 0) + 1;
 }
 
 console.log("\n===== ACCOUNT STATUS AUDIT (read-only) =====\n");
 console.log("Summary by raw contacts.status:");
-for (const [k, v] of Object.entries(byStatus).sort()) {
-  console.log(`  ${k.padEnd(16)} ${v}`);
+for (const [statusKey, countValue] of Object.entries(byStatus).sort()) {
+  console.log(`  ${statusKey.padEnd(16)} ${countValue}`);
 }
 console.log(`  ${"TOTAL".padEnd(16)} ${rows.length}`);
 
@@ -95,21 +95,21 @@ console.log(
   ].join("\t")
 );
 
-for (const r of rows) {
+for (const contact of rows) {
   console.log(
     [
-      r.cid || "",
-      (r.name || "").replace(/\t/g, " "),
-      r.email || "",
-      r.status || "",
-      r.has_password ? "yes" : "no",
-      r.token_count ?? 0,
-      r.tokens_used ?? 0,
-      r.activated_at ? new Date(r.activated_at).toISOString() : "",
-      r.last_login_at ? new Date(r.last_login_at).toISOString() : "",
-      r.login_count ?? 0,
-      derivedAccountState(r),
-      derivedLoginState(r),
+      contact.cid || "",
+      (contact.name || "").replace(/\t/g, " "),
+      contact.email || "",
+      contact.status || "",
+      contact.has_password ? "yes" : "no",
+      contact.token_count ?? 0,
+      contact.tokens_used ?? 0,
+      contact.activated_at ? new Date(contact.activated_at).toISOString() : "",
+      contact.last_login_at ? new Date(contact.last_login_at).toISOString() : "",
+      contact.login_count ?? 0,
+      derivedAccountState(contact),
+      derivedLoginState(contact),
     ].join("\t")
   );
 }

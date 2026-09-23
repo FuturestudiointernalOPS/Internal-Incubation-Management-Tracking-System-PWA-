@@ -38,8 +38,8 @@ async function notionFetch(path, options = {}) {
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Notion API error: ${err}`);
+    const errorText = await res.text();
+    throw new Error(`Notion API error: ${errorText}`);
   }
 
   return res.json();

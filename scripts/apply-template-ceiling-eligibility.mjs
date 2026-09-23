@@ -36,7 +36,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import pg from "pg";
 
 const APPLY = process.argv.includes("--apply");
-const ENV_KEY = (process.argv.find((a) => a.startsWith("--env=")) || "").split("=")[1] || "staging";
+const ENV_KEY = (process.argv.find((arg) => arg.startsWith("--env=")) || "").split("=")[1] || "staging";
 const ENV_FILE = ENV_KEY === "local" ? ".env.local" : ".env.audit-staging";
 
 // Mirrors TEMPLATE_CEILING_ROWS in src/models/authorization/eligibility.js
@@ -46,10 +46,10 @@ const TEMPLATE_CEILING_ROWS = {
   programs: ["mentor", "investor"],
 };
 
-const readUrl = (f) =>
-  readFileSync(f, "utf-8")
+const readUrl = (file) =>
+  readFileSync(file, "utf-8")
     .split("\n")
-    .find((l) => l.startsWith("DATABASE_URL="))
+    .find((line) => line.startsWith("DATABASE_URL="))
     ?.substring("DATABASE_URL=".length)
     .trim();
 
@@ -59,14 +59,14 @@ const pool = new pg.Pool({
   connectionTimeoutMillis: 15000,
 });
 
-const q = (sql, args = []) => pool.query(sql, args);
+const runQuery = (sql, args = []) => pool.query(sql, args);
 
 console.log(`[template-ceiling] env=${ENV_KEY} (${ENV_FILE}) mode=${APPLY ? "APPLY" : "DRY RUN"}\n`);
 
 // ── 1. Before-image ──────────────────────────────────────────────────────────
 const featureKeys = Object.keys(TEMPLATE_CEILING_ROWS);
 const existing = (
-  await q(
+  await runQuery(
     `SELECT feature_key, identity_type, identity_value, eligible
        FROM feature_eligibility
       WHERE identity_type = 'role' AND feature_key = ANY($1::text[])`,
@@ -77,23 +77,23 @@ const existing = (
 const toInsert = [];
 for (const [featureKey, roles] of Object.entries(TEMPLATE_CEILING_ROWS)) {
   for (const role of roles) {
-    const has = existing.some(
-      (r) => r.feature_key === featureKey && r.identity_value === role,
+    const alreadyPresent = existing.some(
+      (existingRow) => existingRow.feature_key === featureKey && existingRow.identity_value === role,
     );
-    if (!has) toInsert.push({ feature_key: featureKey, identity_value: role });
+    if (!alreadyPresent) toInsert.push({ feature_key: featureKey, identity_value: role });
   }
 }
 
 const adminFallback = (
-  await q(`SELECT role, module, capability FROM role_capabilities WHERE role = 'admin'`)
+  await runQuery(`SELECT role, module, capability FROM role_capabilities WHERE role = 'admin'`)
 ).rows;
 
 console.log("feature_eligibility rows to ADD:", toInsert.length);
-for (const r of toInsert) console.log(`  + ${r.feature_key} → role:${r.identity_value}`);
+for (const rowToInsert of toInsert) console.log(`  + ${rowToInsert.feature_key} → role:${rowToInsert.identity_value}`);
 console.log(
   `\nlegacy role_capabilities for 'admin' to DELETE: ${adminFallback.length}`,
 );
-for (const r of adminFallback) console.log(`  - ${r.role}.${r.module}.${r.capability}`);
+for (const fallbackRow of adminFallback) console.log(`  - ${fallbackRow.role}.${fallbackRow.module}.${fallbackRow.capability}`);
 
 if (!APPLY) {
   console.log("\n[dry run] nothing written. Re-run with --apply to execute.");
@@ -113,47 +113,47 @@ try {
   const path = `scratch/template-ceiling-before-image-${ENV_KEY}.json`;
   writeFileSync(path, JSON.stringify(beforeImage, null, 2));
   console.log(`\nbefore-image → ${path}`);
-} catch (e) {
-  console.log(`\nbefore-image file failed (${e.message}) — printed above instead`);
+} catch (error) {
+  console.log(`\nbefore-image file failed (${error.message}) — printed above instead`);
 }
 
 // ── 3. Apply ─────────────────────────────────────────────────────────────────
-await q("BEGIN");
+await runQuery("BEGIN");
 try {
   let inserted = 0;
-  for (const r of toInsert) {
-    const res = await q(
+  for (const rowToInsert of toInsert) {
+    const insertResult = await runQuery(
       `INSERT INTO feature_eligibility (feature_key, identity_type, identity_value, eligible)
        VALUES ($1, 'role', $2, 1)
        ON CONFLICT (feature_key, identity_type, identity_value) DO NOTHING`,
-      [r.feature_key, r.identity_value],
+      [rowToInsert.feature_key, rowToInsert.identity_value],
     );
-    inserted += res.rowCount;
+    inserted += insertResult.rowCount;
   }
-  const deleted = await q(`DELETE FROM role_capabilities WHERE role = 'admin'`);
+  const deleted = await runQuery(`DELETE FROM role_capabilities WHERE role = 'admin'`);
 
-  await q(
+  await runQuery(
     `INSERT INTO permission_audit_log (actor_cid, actor_name, target_cid, target_name, action, details)
      VALUES ('system','system','system','system','eligibility_changed',$1)`,
     [
       `Template ceiling reconciliation (${ENV_KEY}): added ${inserted} feature_eligibility row(s) ` +
-        `for the seeded default templates (${toInsert.map((r) => `${r.feature_key}→${r.identity_value}`).join(", ") || "none"}); ` +
+        `for the seeded default templates (${toInsert.map((rowToInsert) => `${rowToInsert.feature_key}→${rowToInsert.identity_value}`).join(", ") || "none"}); ` +
         `removed ${deleted.rowCount} legacy role_capabilities row(s) for the retired 'admin' role.`,
     ],
   );
 
-  await q("COMMIT");
+  await runQuery("COMMIT");
   console.log(`\napplied: ${inserted} eligibility row(s) inserted, ${deleted.rowCount} admin fallback row(s) deleted.`);
-} catch (e) {
-  await q("ROLLBACK");
-  console.error(`\nFAILED (rolled back): ${e.message}`);
+} catch (error) {
+  await runQuery("ROLLBACK");
+  console.error(`\nFAILED (rolled back): ${error.message}`);
   await pool.end();
   process.exit(1);
 }
 
 // ── 4. After-state ───────────────────────────────────────────────────────────
 const after = (
-  await q(
+  await runQuery(
     `SELECT feature_key, identity_value FROM feature_eligibility
       WHERE identity_type = 'role' AND feature_key = ANY($1::text[])
       ORDER BY feature_key, identity_value`,
@@ -163,11 +163,11 @@ const after = (
 console.log("\nfeature_eligibility now:");
 for (const key of featureKeys) {
   console.log(
-    `  ${key}: ${after.filter((r) => r.feature_key === key).map((r) => r.identity_value).join(", ")}`,
+    `  ${key}: ${after.filter((eligibilityRow) => eligibilityRow.feature_key === key).map((eligibilityRow) => eligibilityRow.identity_value).join(", ")}`,
   );
 }
 console.log(
-  `  admin fallback rows left: ${(await q(`SELECT COUNT(*)::int AS n FROM role_capabilities WHERE role = 'admin'`)).rows[0].n}`,
+  `  admin fallback rows left: ${(await runQuery(`SELECT COUNT(*)::int AS n FROM role_capabilities WHERE role = 'admin'`)).rows[0].n}`,
 );
 
 await pool.end();

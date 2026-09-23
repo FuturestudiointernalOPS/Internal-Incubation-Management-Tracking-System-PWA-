@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import pg from "pg";
 
-const readUrl = (file) => {
+const readDatabaseUrl = (file) => {
   try {
     for (const line of readFileSync(resolve(process.cwd(), file), "utf-8").split("\n")) {
       if (line.startsWith("DATABASE_URL=")) {
@@ -16,38 +16,38 @@ const readUrl = (file) => {
 };
 
 const probe = async (label, file) => {
-  const url = readUrl(file);
-  if (!url) {
+  const databaseUrl = readDatabaseUrl(file);
+  if (!databaseUrl) {
     console.log(`${label} (${file}): no DATABASE_URL`);
     return;
   }
   const pool = new pg.Pool({
-    connectionString: url,
+    connectionString: databaseUrl,
     ssl: { rejectUnauthorized: false },
     connectionTimeoutMillis: 12000,
   });
   try {
     await pool.query("SELECT 1");
-  } catch (e) {
-    console.log(`${label} (${file}): CONNECT FAILED -> ${e.message}`);
+  } catch (error) {
+    console.log(`${label} (${file}): CONNECT FAILED -> ${error.message}`);
     return;
   }
-  const q = async (sql) => {
+  const queryRows = async (sql) => {
     try {
       return (await pool.query(sql)).rows;
-    } catch (e) {
-      return [{ error: e.message.split("\n")[0] }];
+    } catch (error) {
+      return [{ error: error.message.split("\n")[0] }];
     }
   };
   console.log(`\n=== ${label} (${file}) — CONNECTED ===`);
-  const admins = await q("SELECT cid, name, email, status FROM contacts WHERE role = 'super_admin' AND deleted_at IS NULL ORDER BY created_at");
+  const admins = await queryRows("SELECT cid, name, email, status FROM contacts WHERE role = 'super_admin' AND deleted_at IS NULL ORDER BY created_at");
   console.log(`super_admin count: ${admins.length}`);
-  for (const a of admins) console.log(`  ${a.cid} | ${a.name || "(no name)"} | ${a.email || "(no email)"} | status=${a.status}`);
-  const users = await q("SELECT COUNT(*)::int AS n FROM contacts WHERE deleted_at IS NULL");
-  const staff = await q("SELECT COUNT(*)::int AS n FROM contacts WHERE role = 'staff' AND deleted_at IS NULL");
-  const profiles = await q("SELECT COUNT(*)::int AS n FROM access_profiles");
-  const elig = await q("SELECT COUNT(*)::int AS n FROM feature_eligibility");
-  console.log(`active users: ${users[0].n} | staff: ${staff[0].n} | access_profiles: ${profiles[0].n} | eligibility rows: ${elig[0].n}`);
+  for (const admin of admins) console.log(`  ${admin.cid} | ${admin.name || "(no name)"} | ${admin.email || "(no email)"} | status=${admin.status}`);
+  const users = await queryRows("SELECT COUNT(*)::int AS n FROM contacts WHERE deleted_at IS NULL");
+  const staff = await queryRows("SELECT COUNT(*)::int AS n FROM contacts WHERE role = 'staff' AND deleted_at IS NULL");
+  const profiles = await queryRows("SELECT COUNT(*)::int AS n FROM access_profiles");
+  const eligibility = await queryRows("SELECT COUNT(*)::int AS n FROM feature_eligibility");
+  console.log(`active users: ${users[0].n} | staff: ${staff[0].n} | access_profiles: ${profiles[0].n} | eligibility rows: ${eligibility[0].n}`);
   await pool.end();
 };
 

@@ -11,8 +11,8 @@ import {
 const READ_ROLES = ["super_admin"];
 const WRITE_ROLES = ["super_admin"];
 
-const validArea = (a) => VENTURE_PERMISSION_AREAS.includes(a);
-const validAction = (a) => VENTURE_PERMISSION_ACTIONS.includes(a);
+const validArea = (area) => VENTURE_PERMISSION_AREAS.includes(area);
+const validAction = (action) => VENTURE_PERMISSION_ACTIONS.includes(action);
 
 /**
  * GLOBAL Venture permission matrix — configured ONCE, applies to every
@@ -33,8 +33,8 @@ export async function GET(req) {
     }
     const matrix = await getGlobalMatrix(db, { responsibilityCode });
     return NextResponse.json({ success: true, matrix });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -56,7 +56,7 @@ export async function POST(req) {
       actorCid: session?.cid || null,
     });
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

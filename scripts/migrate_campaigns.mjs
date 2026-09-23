@@ -10,15 +10,15 @@ const envPath = resolve(projectRoot, ".env.local");
 try {
   const envContent = readFileSync(envPath, "utf-8");
   for (const line of envContent.split("\n")) {
-    const eqIdx = line.indexOf("=");
-    if (eqIdx > 0 && !line.startsWith("#")) {
-      const key = line.substring(0, eqIdx).trim();
-      const value = line.substring(eqIdx + 1).trim();
+    const equalsIndex = line.indexOf("=");
+    if (equalsIndex > 0 && !line.startsWith("#")) {
+      const key = line.substring(0, equalsIndex).trim();
+      const value = line.substring(equalsIndex + 1).trim();
       if (!process.env[key]) process.env[key] = value;
     }
   }
   console.log("✅ .env.local loaded");
-} catch (e) { console.error("env load err:", e.message); }
+} catch (error) { console.error("env load err:", error.message); }
 
 import { initDb } from "../src/lib/db.js";
 

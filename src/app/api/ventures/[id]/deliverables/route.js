@@ -27,21 +27,21 @@ import { listDeliverables, createDeliverable, updateDeliverable, getDeliverable 
  */
 
 async function resolveDbId(id) {
-  const r = await db
+  const ventureResult = await db
     .execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] })
     .catch(() => ({ rows: [] }));
-  return r.rows?.[0]?.id || null;
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 /** Milestone + its journey stage, verified to belong to this Venture. */
 async function loadMilestoneForVenture(dbId, milestoneId) {
-  const r = await db
+  const milestoneResult = await db
     .execute({
       sql: "SELECT id, journey_stage_id FROM venture_milestones WHERE id::text = ? AND venture_id = ?",
       args: [String(milestoneId), dbId],
     })
     .catch(() => ({ rows: [] }));
-  return r.rows?.[0] || null;
+  return milestoneResult.rows?.[0] || null;
 }
 
 export const GET = createHandler(async (req, { params }) => {

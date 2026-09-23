@@ -77,21 +77,21 @@ import {
  */
 
 function getWeekNumber(date) {
-  const d = new Date(
+  const targetDate = new Date(
     Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
   );
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  const dayNum = targetDate.getUTCDay() || 7;
+  targetDate.setUTCDate(targetDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(targetDate.getUTCFullYear(), 0, 1));
+  return Math.ceil(((targetDate - yearStart) / 86400000 + 1) / 7);
 }
 
 // ── Date validation helpers ──
-function isValidDateStr(v) {
+function isValidDateStr(value) {
   return (
-    typeof v === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(v) &&
-    !isNaN(new Date(v + "T00:00:00Z").getTime())
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    !isNaN(new Date(value + "T00:00:00Z").getTime())
   );
 }
 
@@ -99,9 +99,9 @@ function todayStr() {
   return new Date().toISOString().split("T")[0];
 }
 
-function isCurrentWeek(w, y) {
+function isCurrentWeek(weekNumber, yearNumber) {
   const now = new Date();
-  return Number(w) === getWeekNumber(now) && Number(y) === now.getFullYear();
+  return Number(weekNumber) === getWeekNumber(now) && Number(yearNumber) === now.getFullYear();
 }
 
 export async function GET(req) {
@@ -185,15 +185,15 @@ export async function GET(req) {
       }
 
       // Fetch blockers + subtasks for this single task
-      const blockerRes = await getBlockersForTask(parseInt(id));
-      const subtaskRes = await getSubtasksForTask(parseInt(id));
+      const blockersResult = await getBlockersForTask(parseInt(id));
+      const subtasksResult = await getSubtasksForTask(parseInt(id));
       return NextResponse.json({
         success: true,
         tasks: [
           {
             ...task,
-            blockers: blockerRes.rows || [],
-            subtasks: subtaskRes.rows || [],
+            blockers: blockersResult.rows || [],
+            subtasks: subtasksResult.rows || [],
           },
         ],
       });
@@ -243,7 +243,7 @@ export async function GET(req) {
     }
 
     // Batch fetch blockers for all tasks (2 queries total instead of N+1)
-    const taskIds = result.rows.map((t) => t.id);
+    const taskIds = result.rows.map((task) => task.id);
     let blockersByTask = {};
     let subtasksByTask = {};
     let resourcesByTask = {};
@@ -252,29 +252,29 @@ export async function GET(req) {
 
     if (taskIds.length > 0) {
       // Single batch query for all blockers
-      const blockerRes = await getBlockersForTasks(taskIds);
-      for (const b of blockerRes.rows || []) {
-        const tid = b.task_id;
-        if (!blockersByTask[tid]) blockersByTask[tid] = [];
-        blockersByTask[tid].push({
-          id: b.id,
-          title: b.title,
-          status: b.status,
-          severity: b.severity,
-          description: b.description,
-          reference_url: b.reference_url,
-          notes: b.notes,
+      const blockersResult = await getBlockersForTasks(taskIds);
+      for (const blocker of blockersResult.rows || []) {
+        const taskId = blocker.task_id;
+        if (!blockersByTask[taskId]) blockersByTask[taskId] = [];
+        blockersByTask[taskId].push({
+          id: blocker.id,
+          title: blocker.title,
+          status: blocker.status,
+          severity: blocker.severity,
+          description: blocker.description,
+          reference_url: blocker.reference_url,
+          notes: blocker.notes,
         });
       }
 
       // Single batch query for all subtasks — include full field set (Ticket 1.3)
       try {
-        const subtaskRes = await getSubtasksForTasks(taskIds);
-        for (const s of subtaskRes.rows || []) {
-          const pid = s.parent_task_id;
-          if (!subtasksByTask[pid]) subtasksByTask[pid] = [];
-          subtasksByTask[pid].push(s);
-          allTaskIds.push(s.id);
+        const subtasksResult = await getSubtasksForTasks(taskIds);
+        for (const subtask of subtasksResult.rows || []) {
+          const parentTaskId = subtask.parent_task_id;
+          if (!subtasksByTask[parentTaskId]) subtasksByTask[parentTaskId] = [];
+          subtasksByTask[parentTaskId].push(subtask);
+          allTaskIds.push(subtask.id);
         }
       } catch {
         // parent_task_id column may not exist yet
@@ -282,18 +282,18 @@ export async function GET(req) {
 
       // Single batch query for all resources (tasks + subtasks)
       try {
-        const resourceRes = await getResourcesForTasks(allTaskIds);
-        for (const r of resourceRes.rows || []) {
-          const tid = r.task_id;
-          if (!resourcesByTask[tid]) resourcesByTask[tid] = [];
-          resourcesByTask[tid].push({
-            id: r.id,
-            name: r.name,
-            url: r.url,
-            type: r.type,
-            file_name: r.file_name,
-            file_size: r.file_size,
-            uploaded_by: r.uploaded_by,
+        const resourcesResult = await getResourcesForTasks(allTaskIds);
+        for (const resource of resourcesResult.rows || []) {
+          const taskId = resource.task_id;
+          if (!resourcesByTask[taskId]) resourcesByTask[taskId] = [];
+          resourcesByTask[taskId].push({
+            id: resource.id,
+            name: resource.name,
+            url: resource.url,
+            type: resource.type,
+            file_name: resource.file_name,
+            file_size: resource.file_size,
+            uploaded_by: resource.uploaded_by,
           });
         }
       } catch {
@@ -302,9 +302,9 @@ export async function GET(req) {
 
       // Comment counts (tasks + subtasks) — full thread fetched on-demand per task
       try {
-        const commentRes = await getCommentCountsForTasks(allTaskIds);
-        for (const c of commentRes.rows || []) {
-          commentCountByTask[c.task_id] = parseInt(c.cnt) || 0;
+        const commentCountsResult = await getCommentCountsForTasks(allTaskIds);
+        for (const commentRow of commentCountsResult.rows || []) {
+          commentCountByTask[commentRow.task_id] = parseInt(commentRow.cnt) || 0;
         }
       } catch {
         // v2_task_comments table may not exist yet in some environments
@@ -312,11 +312,11 @@ export async function GET(req) {
     }
 
     // Attach resources/comment counts onto subtasks now that we have them
-    for (const pid of Object.keys(subtasksByTask)) {
-      subtasksByTask[pid] = subtasksByTask[pid].map((s) => ({
-        ...s,
-        resources: resourcesByTask[s.id] || [],
-        commentCount: commentCountByTask[s.id] || 0,
+    for (const parentTaskId of Object.keys(subtasksByTask)) {
+      subtasksByTask[parentTaskId] = subtasksByTask[parentTaskId].map((subtask) => ({
+        ...subtask,
+        resources: resourcesByTask[subtask.id] || [],
+        commentCount: commentCountByTask[subtask.id] || 0,
       }));
     }
 
@@ -397,12 +397,12 @@ export async function POST(req) {
     let finalCategory = category;
     if (parent_task_id && !finalProjectId && !finalCategory) {
       try {
-        const parentRes = await getParentProjectCategory(parseInt(parent_task_id));
-        if (parentRes.rows.length > 0) {
-          const p = parentRes.rows[0];
-          if (!finalProjectId && p.project_id)
-            finalProjectId = String(p.project_id);
-          if (!finalCategory && p.category) finalCategory = p.category;
+        const parentResult = await getParentProjectCategory(parseInt(parent_task_id));
+        if (parentResult.rows.length > 0) {
+          const parentTask = parentResult.rows[0];
+          if (!finalProjectId && parentTask.project_id)
+            finalProjectId = String(parentTask.project_id);
+          if (!finalCategory && parentTask.category) finalCategory = parentTask.category;
         }
       } catch (_) {}
     }
@@ -415,11 +415,11 @@ export async function POST(req) {
     // Prevent task creation on closed projects
     if (finalProjectId) {
       try {
-        const projCheck = await getProjectStatus(finalProjectId);
+        const projectCheck = await getProjectStatus(finalProjectId);
         if (
-          projCheck.rows.length > 0 &&
-          (projCheck.rows[0].status === "Closed" ||
-            projCheck.rows[0].status === "Archived")
+          projectCheck.rows.length > 0 &&
+          (projectCheck.rows[0].status === "Closed" ||
+            projectCheck.rows[0].status === "Archived")
         ) {
           return NextResponse.json(
             {
@@ -476,9 +476,9 @@ export async function POST(req) {
     // If task has a project but no assignee, default to project owner
     if (!finalAssignedTo && finalProjectId) {
       try {
-        const ownerRes = await getProjectOwnerId(finalProjectId);
-        if (ownerRes.rows.length > 0 && ownerRes.rows[0].owner_id) {
-          finalAssignedTo = ownerRes.rows[0].owner_id;
+        const ownerResult = await getProjectOwnerId(finalProjectId);
+        if (ownerResult.rows.length > 0 && ownerResult.rows[0].owner_id) {
+          finalAssignedTo = ownerResult.rows[0].owner_id;
         }
       } catch (_) {}
     }
@@ -486,8 +486,8 @@ export async function POST(req) {
     // Prevent assigning to super_admin (unless the creator IS the super admin assigning to themselves)
     if (finalAssignedTo) {
       try {
-        const saCheck = await getSuperAdminContact(finalAssignedTo);
-        if (saCheck.rows.length > 0 && finalAssignedTo !== user_id) {
+        const superAdminCheck = await getSuperAdminContact(finalAssignedTo);
+        if (superAdminCheck.rows.length > 0 && finalAssignedTo !== user_id) {
           return NextResponse.json(
             {
               success: false,
@@ -563,10 +563,10 @@ export async function POST(req) {
     //   - Any incomplete subtask exists → completed parent reopens to in_progress
     if (parent_task_id) {
       try {
-        const incompleteSubs = await countIncompleteSubtasks(parseInt(parent_task_id));
-        if ((Number(incompleteSubs.rows[0]?.total) || 0) === 0) {
-          const parentBlockerRes = await getActiveBlockersForTask(parseInt(parent_task_id));
-          if (parentBlockerRes.rows.length === 0) {
+        const incompleteSubtasks = await countIncompleteSubtasks(parseInt(parent_task_id));
+        if ((Number(incompleteSubtasks.rows[0]?.total) || 0) === 0) {
+          const parentBlockersResult = await getActiveBlockersForTask(parseInt(parent_task_id));
+          if (parentBlockersResult.rows.length === 0) {
             await markTaskCompleted(parseInt(parent_task_id));
           }
         } else {
@@ -619,11 +619,11 @@ export async function POST(req) {
           (await getTaskTitleById(parent_task_id)) || "Unknown";
 
         // Fetch all super admins
-        const saRes = await getActiveSuperAdmins();
+        const superAdminsResult = await getActiveSuperAdmins();
 
-        for (const sa of saRes.rows) {
+        for (const superAdmin of superAdminsResult.rows) {
           await insertNotificationWithCreatedAt(
-            sa.cid,
+            superAdmin.cid,
             "New Sub-task Created",
             `${user_name || user_id} added sub-task "${title}" under "${parentTitle}"`,
             "subtask",
@@ -634,8 +634,8 @@ export async function POST(req) {
 
     // ─── Auto-upsert weekly standup (unified task→standup sync) ───
     try {
-      const userRes = await getContactRoleByCid(user_id);
-      const userRole = userRes.rows[0]?.role || "staff";
+      const userResult = await getContactRoleByCid(user_id);
+      const userRole = userResult.rows[0]?.role || "staff";
 
       await standupUpsert({
         user_id,
@@ -645,8 +645,8 @@ export async function POST(req) {
         year: created_year,
         taskContext: { title, status: finalStatus },
       });
-    } catch (e) {
-      console.error("Standup upsert failed (non-blocking):", e.message);
+    } catch (error) {
+      console.error("Standup upsert failed (non-blocking):", error.message);
     }
 
     // ─── Task Assignment Workflow ───
@@ -659,8 +659,8 @@ export async function POST(req) {
         let notifyName = user_name;
         if (!notifyName) {
           try {
-            const nameRes = await getContactNameByCid(user_id);
-            if (nameRes.rows.length > 0) notifyName = nameRes.rows[0].name;
+            const nameResult = await getContactNameByCid(user_id);
+            if (nameResult.rows.length > 0) notifyName = nameResult.rows[0].name;
           } catch (_) {}
         }
         await insertNotification(
@@ -669,8 +669,8 @@ export async function POST(req) {
           `${notifyName || user_id} assigned you task "${taskRef}"`,
           "task_assignment",
         );
-      } catch (e) {
-        console.error("Task assignment creation failed:", e.message);
+      } catch (error) {
+        console.error("Task assignment creation failed:", error.message);
       }
     }
 
@@ -679,9 +679,9 @@ export async function POST(req) {
       try {
         const parentEndStr = await getTaskEndDateById(parseInt(parent_task_id));
         if (parentEndStr) {
-          const parentEnd = new Date(parentEndStr);
-          const subEnd = new Date(finalEndDate);
-          if (subEnd > parentEnd) {
+          const parentEndDate = new Date(parentEndStr);
+          const subtaskEndDate = new Date(finalEndDate);
+          if (subtaskEndDate > parentEndDate) {
             await updateTaskEndDate(finalEndDate, parseInt(parent_task_id));
           }
         }
@@ -841,8 +841,8 @@ export async function PUT(req) {
       const subtaskBlockers = await getActiveBlockersOnSubtasks(parseInt(id));
 
       const allBlockers = [
-        ...activeBlockers.rows.map((b) => ({ ...b, source: "task" })),
-        ...subtaskBlockers.rows.map((b) => ({ ...b, source: "subtask" })),
+        ...activeBlockers.rows.map((blocker) => ({ ...blocker, source: "task" })),
+        ...subtaskBlockers.rows.map((blocker) => ({ ...blocker, source: "subtask" })),
       ];
 
       if (allBlockers.length > 0) {
@@ -921,7 +921,15 @@ export async function PUT(req) {
         const memberCheck = await getProjectMembership(project_id, user_id || task.user_id);
 
         if (memberCheck.rows.length === 0) {
-          // Staff not assigned — reset to pending approval
+          // Staff not assigned — reset to pending approval. The reset REPLACES a
+          // status the caller sent: a SET list naming the same column twice is
+          // refused by Postgres ("multiple assignments to same column"), which
+          // lost the whole save, and the reset is the point of this branch.
+          const statusAt = updateFields.findIndex((field) => field.startsWith("status ="));
+          if (statusAt >= 0) {
+            updateFields.splice(statusAt, 1);
+            updateArgs.splice(statusAt, 1);
+          }
           updateFields.push("status = 'pending_project_approval'");
           // Create new approval request
           try {
@@ -931,10 +939,10 @@ export async function PUT(req) {
               user_name || task.user_name || "",
               project_id,
             );
-          } catch (e) {
+          } catch (error) {
             console.error(
               "Failed to insert project_approval_request:",
-              e.message,
+              error.message,
             );
           }
           changes.push("project reassignment requires approval");
@@ -965,10 +973,10 @@ export async function PUT(req) {
       // Auto-populate supervisor from intent if not explicitly set
       if (intent_id && !supervisor_id && !task.supervisor_id) {
         try {
-          const intentRes = await getIntentResponsibleId(intent_id);
-          if (intentRes.rows.length > 0 && intentRes.rows[0].responsible_id) {
+          const intentResult = await getIntentResponsibleId(intent_id);
+          if (intentResult.rows.length > 0 && intentResult.rows[0].responsible_id) {
             updateFields.push("supervisor_id = ?");
-            updateArgs.push(intentRes.rows[0].responsible_id);
+            updateArgs.push(intentResult.rows[0].responsible_id);
             changes.push("supervisor inherited from intent");
           }
         } catch (_) {}
@@ -1030,9 +1038,9 @@ export async function PUT(req) {
         auditDetails = `Task "${task.title}" pending assignment to user ${assigned_to}`;
 
         // Guard against duplicate pending rows
-        const dupCheck = await getPendingAssignmentId(parseInt(id), assigned_to);
+        const duplicateCheck = await getPendingAssignmentId(parseInt(id), assigned_to);
 
-        if (dupCheck.rows.length === 0) {
+        if (duplicateCheck.rows.length === 0) {
           await insertTaskAssignment(parseInt(id), effectiveUserId, assigned_to);
         }
 
@@ -1040,8 +1048,8 @@ export async function PUT(req) {
         let notifyName = user_name || session.name;
         if (!notifyName) {
           try {
-            const nameRes = await getContactNameByCid(effectiveUserId);
-            if (nameRes.rows.length > 0) notifyName = nameRes.rows[0].name;
+            const nameResult = await getContactNameByCid(effectiveUserId);
+            if (nameResult.rows.length > 0) notifyName = nameResult.rows[0].name;
           } catch (_) {}
         }
         try {
@@ -1157,17 +1165,17 @@ export async function PUT(req) {
     // ─── Sync parent end_date if subtask extends further ───
     if (task.parent_task_id && end_date !== undefined) {
       try {
-        const parentEndRes = await getTaskEndDateRowById(parseInt(task.parent_task_id));
-        if (parentEndRes.rows.length > 0) {
-          const subEnd = new Date(end_date || task.end_date);
-          const currentParentEndStr = parentEndRes.rows[0].end_date;
+        const parentEndResult = await getTaskEndDateRowById(parseInt(task.parent_task_id));
+        if (parentEndResult.rows.length > 0) {
+          const subtaskEndDate = new Date(end_date || task.end_date);
+          const currentParentEndStr = parentEndResult.rows[0].end_date;
           let shouldUpdateParent = false;
 
           if (!currentParentEndStr) {
             shouldUpdateParent = true;
           } else {
-            const parentEnd = new Date(currentParentEndStr);
-            if (subEnd > parentEnd) {
+            const parentEndDate = new Date(currentParentEndStr);
+            if (subtaskEndDate > parentEndDate) {
               shouldUpdateParent = true;
             }
           }
@@ -1182,14 +1190,14 @@ export async function PUT(req) {
     // ─── Auto-complete sub-tasks when parent is completed ───
     if (status === "completed" && status !== task.status) {
       try {
-        const updatedSubs = await completeSubtasks(parseInt(id));
+        const updatedSubtasks = await completeSubtasks(parseInt(id));
 
         // Notify super admins when sub-tasks are auto-completed
-        if (updatedSubs.rowsAffected > 0) {
-          const saRes = await getActiveSuperAdminCids();
-          for (const sa of saRes.rows) {
+        if (updatedSubtasks.rowsAffected > 0) {
+          const superAdminsResult = await getActiveSuperAdminCids();
+          for (const superAdmin of superAdminsResult.rows) {
             await insertNotificationWithCreatedAt(
-              sa.cid,
+              superAdmin.cid,
               "Sub-tasks Auto-completed",
               `Sub-tasks for task "${task.title}" were auto-completed by completing the parent task.`,
               "subtask_auto_complete",
@@ -1210,15 +1218,15 @@ export async function PUT(req) {
     //   - Any incomplete subtask exists → completed parent reopens to in_progress
     if (task.parent_task_id) {
       try {
-        const incompleteSubs = await countIncompleteSubtasks(parseInt(task.parent_task_id));
-        if ((Number(incompleteSubs.rows[0]?.total) || 0) === 0) {
+        const incompleteSubtasks = await countIncompleteSubtasks(parseInt(task.parent_task_id));
+        if ((Number(incompleteSubtasks.rows[0]?.total) || 0) === 0) {
           // All subtasks complete → auto-complete the parent (unless it has active blockers)
-          const parentBlockerRes = await getActiveBlockersForTask(parseInt(task.parent_task_id));
-          if (parentBlockerRes.rows.length === 0) {
-            const parentRes = await markTaskCompleted(parseInt(task.parent_task_id));
-            if (parentRes.rowsAffected > 0) {
+          const parentBlockersResult = await getActiveBlockersForTask(parseInt(task.parent_task_id));
+          if (parentBlockersResult.rows.length === 0) {
+            const parentResult = await markTaskCompleted(parseInt(task.parent_task_id));
+            if (parentResult.rowsAffected > 0) {
               try {
-                const pTitle =
+                const parentTitle =
                   (await getTaskTitleById(task.parent_task_id)) ||
                   `Task #${task.parent_task_id}`;
                 await logAuditEvent({
@@ -1227,7 +1235,7 @@ export async function PUT(req) {
                   user_id: user_id || task.user_id,
                   user_name: user_name || task.user_name,
                   action: "completed",
-                  details: `Parent task "${pTitle}" auto-completed (all subtasks completed)`,
+                  details: `Parent task "${parentTitle}" auto-completed (all subtasks completed)`,
                   metadata: { status: "completed", auto: true },
                 });
               } catch (_) {}
@@ -1292,7 +1300,7 @@ export async function PUT(req) {
       task.assigned_to && String(task.assigned_to) === String(session.cid);
     const isOnlyStatusChange =
       Object.keys(body).filter(
-        (k) => k !== "id" && k !== "status" && k !== "force_complete",
+        (key) => key !== "id" && key !== "status" && key !== "force_complete",
       ).length === 0;
     if (
       session.role !== "super_admin" &&
@@ -1374,8 +1382,8 @@ export async function PUT(req) {
           task.created_week,
           task.created_year,
         );
-      } catch (e) {
-        console.error("Standup rebuild failed (non-blocking):", e.message);
+      } catch (error) {
+        console.error("Standup rebuild failed (non-blocking):", error.message);
       }
     }
 
@@ -1385,14 +1393,14 @@ export async function PUT(req) {
       (end_date !== undefined || start_date !== undefined)
     ) {
       try {
-        const effEnd = end_date || task.end_date;
-        if (effEnd) {
-          const pEndStr = await getTaskEndDateById(task.parent_task_id);
-          if (pEndStr) {
-            const pEnd = new Date(pEndStr);
-            const sEnd = new Date(effEnd);
-            if (sEnd > pEnd) {
-              await updateTaskEndDate(effEnd, task.parent_task_id);
+        const effectiveEnd = end_date || task.end_date;
+        if (effectiveEnd) {
+          const parentEndStr = await getTaskEndDateById(task.parent_task_id);
+          if (parentEndStr) {
+            const parentEndDate = new Date(parentEndStr);
+            const subtaskEndDate = new Date(effectiveEnd);
+            if (subtaskEndDate > parentEndDate) {
+              await updateTaskEndDate(effectiveEnd, task.parent_task_id);
             }
           }
         }
@@ -1438,9 +1446,9 @@ export async function DELETE(req) {
     }
 
     // SECURITY (Phase 0/6): Only the task owner, assignee, supervisor, or SA can delete
-    const taskCheck = await getTaskDeleteInfo(parseInt(id));
-    if (taskCheck.rows.length > 0) {
-      const taskRow = taskCheck.rows[0];
+    const taskCheckResult = await getTaskDeleteInfo(parseInt(id));
+    if (taskCheckResult.rows.length > 0) {
+      const taskRow = taskCheckResult.rows[0];
       if (
         session.role !== "super_admin" &&
         String(taskRow.user_id) !== String(session.cid) &&
@@ -1469,8 +1477,8 @@ export async function DELETE(req) {
 
     // Carry-over tasks cannot be deleted (standup commitment rule)
     if (
-      taskCheck.rows.length > 0 &&
-      taskCheck.rows[0].status === "carried_over"
+      taskCheckResult.rows.length > 0 &&
+      taskCheckResult.rows[0].status === "carried_over"
     ) {
       return NextResponse.json(
         {
@@ -1514,8 +1522,8 @@ export async function DELETE(req) {
           task.created_week,
           task.created_year,
         );
-      } catch (e) {
-        console.error("Standup rebuild failed (non-blocking):", e.message);
+      } catch (error) {
+        console.error("Standup rebuild failed (non-blocking):", error.message);
       }
     }
 
@@ -1618,9 +1626,9 @@ export async function PATCH(req) {
     // Fetch task title for notifications and audit
     let taskTitle = `Task #${assignment.task_id}`;
     try {
-      const taskRes = await getTaskTitleRowById(assignment.task_id);
-      if (taskRes.rows.length > 0) {
-        taskTitle = taskRes.rows[0].title;
+      const taskResult = await getTaskTitleRowById(assignment.task_id);
+      if (taskResult.rows.length > 0) {
+        taskTitle = taskResult.rows[0].title;
       }
     } catch (_) {}
 

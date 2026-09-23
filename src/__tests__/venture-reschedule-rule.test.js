@@ -40,7 +40,7 @@ const LEAD_MESSAGE = "A session must start at least 30 minutes from now.";
 const VALID_START = new Date(Date.UTC(2099, 0, 1, 12, 0, 0));
 const VALID_END = new Date(VALID_START.getTime() + HOUR);
 
-const updateQuery = () => executed.find((e) => e.sql.includes("UPDATE venture_sessions SET start_time"));
+const updateQuery = () => executed.find((entry) => entry.sql.includes("UPDATE venture_sessions SET start_time"));
 
 beforeEach(() => {
   executed.length = 0;

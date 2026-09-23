@@ -11,13 +11,24 @@
 
 import {
   audit,
-  sendSubmissionConfirmation,
   notifyUser,
 } from "@/lib/platform/integrations";
 import { resolveDefaultRole } from "@/lib/platform/roles";
 import { resolveAutomationFlag } from "@/lib/platform/automationSettings";
 import { stopRoleMutationEnabled } from "@/lib/identity";
-import { resolveSubmissionEmail } from "@/lib/email";
+import {
+  resolveSubmissionEmail,
+  resolvePersonName,
+  getTemplate,
+  sendTrackedEmail,
+  sendConfirmationEmail,
+} from "@/lib/email";
+import {
+  getDecisionEmailSubmissionById,
+  getFieldLabelsByRunId,
+  getContactNameEmailByCid,
+  getRunTemplateSettingsForDecisionById,
+} from "@/models/formRuns";
 import { hashToken } from "@/lib/token-hashing";
 
 // ─── Module-level DDL caches (avoid running ALTER/CREATE on every request) ───
@@ -42,7 +53,7 @@ async function syncCrmContact(submission) {
   try {
     const { default: db, initDb } = await import("@/lib/db");
     await initDb();
-    const subData = submission.data || {};
+    const submissionData = submission.data || {};
 
     // Resolve the real applicant email with the same label-aware, placeholder-safe
     // logic used everywhere else (Run view, evaluations, decision emails) instead
@@ -54,19 +65,19 @@ async function syncCrmContact(submission) {
         args: [submission.run_id],
       });
       if (runRes.rows.length > 0) {
-        const fRes = await db.execute({
+        const fieldRes = await db.execute({
           sql: "SELECT id, label FROM platform_form_fields WHERE form_id = ?",
           args: [runRes.rows[0].form_id],
         });
-        for (const f of fRes.rows) fieldLabels[String(f.id)] = f.label;
+        for (const field of fieldRes.rows) fieldLabels[String(field.id)] = field.label;
       }
     } catch (_) {}
 
-    const email = resolveSubmissionEmail({ submissionData: subData, fieldLabels, contactEmail: "" });
+    const email = resolveSubmissionEmail({ submissionData, fieldLabels, contactEmail: "" });
     if (!email) return null;
-    const vals = Object.values(subData);
-    const name = vals.find(v => typeof v === "string" && v.length > 1 && !v.includes("@") && !v.startsWith("{"));
-    const phone = vals.find(v => typeof v === "string" && /^[\d\s+\-()]{7,}$/.test(v));
+    const values = Object.values(submissionData);
+    const name = values.find(value => typeof value === "string" && value.length > 1 && !value.includes("@") && !value.startsWith("{"));
+    const phone = values.find(value => typeof value === "string" && /^[\d\s+\-()]{7,}$/.test(value));
     const cid = submission.submitter_id || "USR_" + Math.random().toString(36).substring(2, 10).toUpperCase();
     await db.execute({
       sql: `INSERT INTO contacts (cid, name, email, phone, role, status)
@@ -80,16 +91,93 @@ async function syncCrmContact(submission) {
   } catch { return null; }
 }
 
-async function writeCrmTimeline(cid, type, desc, module, ctxId, actor, meta) {
+async function writeCrmTimeline(cid, type, description, module, ctxId, actor, meta) {
   try {
     const { default: db, initDb } = await import("@/lib/db");
     await initDb();
     await db.execute({
       sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
             VALUES (?, ?, ?, ?, ?, ?, ?::jsonb)`,
-      args: [cid, type, desc, module, String(ctxId), actor || "system", JSON.stringify(meta || {})],
+      args: [cid, type, description, module, String(ctxId), actor || "system", JSON.stringify(meta || {})],
     });
   } catch {}
+}
+
+// ─── SUBMISSION CONFIRMATION (acknowledgement) ─────────────────────
+
+/**
+ * Send (or re-send) the tracked submission-confirmation email for a submission.
+ *
+ * Uses the SAME resolution chain as the decision and activation emails: the
+ * real recipient address from the submission data, a deterministic name with
+ * the form's actual field labels, and the run → form → platform-default
+ * template. Tracked under email_type "acknowledgement" so it appears in the
+ * run's email log, ships through the shared transport, and can be retried when
+ * it fails — none of which the old fire-and-forget sender did.
+ *
+ * Returns { status: "sent"|"already_sent"|"failed"|"not_found", error?, to? }.
+ */
+export async function sendAcknowledgementForSubmission({ submission_id }) {
+  const submissionResult = await getDecisionEmailSubmissionById(submission_id);
+  if (submissionResult.rows.length === 0) return { status: "not_found", error: "Submission not found" };
+  const row = submissionResult.rows[0];
+
+  try {
+    const subData = row.data || {};
+
+    // Field labels (submission data is keyed by field id) + the CRM contact,
+    // read once so the recipient and the name come from the same sources the
+    // run overview uses.
+    let labels = {};
+    let crmName = "";
+    let crmEmail = "";
+    try {
+      const fieldLabelsResult = await getFieldLabelsByRunId(row.run_id);
+      for (const fieldRow of fieldLabelsResult.rows) labels[String(fieldRow.id)] = fieldRow.label;
+      const contactRes = await getContactNameEmailByCid(row.submitter_id);
+      if (contactRes.rows[0]) {
+        crmName = contactRes.rows[0].name || "";
+        crmEmail = contactRes.rows[0].email || "";
+      }
+    } catch (_) {}
+
+    const recipient = resolveSubmissionEmail({ submissionData: subData, fieldLabels: labels, contactEmail: crmEmail });
+    if (!recipient) return { status: "failed", error: "No real email address found in the submission data" };
+
+    const applicantName = resolvePersonName({
+      contactName: crmName,
+      submitterName: row.submitter_name || "",
+      submissionData: subData,
+      fieldLabels: labels,
+    }) || "there";
+
+    // The RUN decides the template; the form is only its default. (Same
+    // run+form settings read the decision emails use.)
+    const contextResult = await getRunTemplateSettingsForDecisionById(row.run_id);
+    const context = contextResult.rows[0] || null;
+    const template = getTemplate(context?.settings || {}, "acknowledgement", context?.run_settings || {});
+
+    const tracked = await sendTrackedEmail({
+      submission_id: parseInt(submission_id),
+      contact_cid: row.submitter_id || null,
+      email_type: "acknowledgement",
+      to: recipient,
+      sendFn: () =>
+        sendConfirmationEmail({
+          to: recipient,
+          applicantName,
+          formName: context?.name || "application",
+          organization: "ImpactOS",
+          template,
+        }),
+    });
+
+    if (tracked.success) return { status: "sent", to: recipient };
+    if (tracked.skipped) return { status: "already_sent", to: recipient };
+    return { status: "failed", error: tracked.error || "Email send failed", to: recipient };
+  } catch (error) {
+    return { status: "failed", error: error?.message || "Confirmation email error" };
+  }
 }
 
 // ─── AUTOMATION RULES ──────────────────────────────────────────────
@@ -122,23 +210,19 @@ const RULES = [
         meta: { run_id: submission.run_id, form_id: run?.form_id },
       });
 
-      try {
-        const { default: db, initDb } = await import("@/lib/db");
-        await initDb();
-        const contact = await db.execute({
-          sql: "SELECT name, email FROM contacts WHERE cid = ?",
-          args: [submission.submitter_id],
-        });
-        if (shouldAcknowledge && contact.rows.length > 0 && contact.rows[0].email) {
-          await sendSubmissionConfirmation({
-            to: contact.rows[0].email,
-            participantName: contact.rows[0].name || submission.submitter_id,
-            runName: run?.name || "Form Run",
-            submittedAt: new Date(submission.submitted_at).toLocaleString(),
-          });
+      // The confirmation goes through the same tracked path as every other
+      // workflow email (run → form → default template, shared transport, logged
+      // under "acknowledgement") so a designed template actually reaches the
+      // applicant and a failed send is visible and retryable.
+      if (shouldAcknowledge && submission?.id) {
+        try {
+          const ack = await sendAcknowledgementForSubmission({ submission_id: submission.id });
+          if (ack.status === "failed") {
+            console.error("[Automation] Confirmation email failed:", ack.error);
+          }
+        } catch (error) {
+          console.error("[Automation] Confirmation email failed:", error.message);
         }
-      } catch (e) {
-        console.error("[Automation] Confirmation email failed:", e.message);
       }
 
       if (run?.owner_id) {
@@ -260,11 +344,11 @@ const RULES = [
             sql: "SELECT target_id FROM platform_form_run_assignments WHERE run_id = ? AND target_type = 'group'",
             args: [ctx.run.id],
           });
-          for (const a of assignments.rows) {
+          for (const assignment of assignments.rows) {
             // Add participant to group via the families table
             const group = await db.execute({
               sql: "SELECT id, name FROM families WHERE registration_id = ? OR id = ?",
-              args: [a.target_id, a.target_id],
+              args: [assignment.target_id, assignment.target_id],
             });
             if (group.rows.length > 0) {
               // Idempotent: only assign + log timeline if the contact has no group yet
@@ -287,7 +371,7 @@ const RULES = [
                 });
                 // Timeline event only on actual assignment (not on re-runs)
                 await writeCrmTimeline(ctx.submission.submitter_id, "assigned_to_group",
-                  `Assigned to group "${group.rows[0].name}"`, "groups", group.rows[0].id, "system", { group_id: a.target_id });
+                  `Assigned to group "${group.rows[0].name}"`, "groups", group.rows[0].id, "system", { group_id: assignment.target_id });
               }
             }
           }
@@ -662,8 +746,8 @@ const RULES = [
           await writeCrmTimeline(contact.cid, "activation_email_failed",
             "Activation email failed to send", "forms", ctx.submission?.id || null, "system", {});
         }
-      } catch (e) {
-        console.error("[Automation] Activation email failed:", e.message);
+      } catch (error) {
+        console.error("[Automation] Activation email failed:", error.message);
         try {
           const { recordEmailFailure, getEmailLogRow } = await import("@/lib/email");
           const existing = ctx.submission?.id ? await getEmailLogRow(ctx.submission.id, "activation") : null;
@@ -676,7 +760,7 @@ const RULES = [
               submission_id: ctx.submission?.id || null,
               contact_cid: ctx.submission?.submitter_id || null,
               email_type: "activation",
-              error: `Failed — Activation flow error: ${String(e?.message || "unknown").substring(0, 300)}`,
+              error: `Failed — Activation flow error: ${String(error?.message || "unknown").substring(0, 300)}`,
             });
           }
         } catch (_) {}
@@ -747,8 +831,8 @@ const RULES = [
       try {
         const { syncRunDeadlines } = await import("@/lib/integrations/calendar/sync");
         await syncRunDeadlines(run.id);
-      } catch (e) {
-        console.error("[Automation] Calendar sync failed:", e.message);
+      } catch (error) {
+        console.error("[Automation] Calendar sync failed:", error.message);
       }
     },
   },
@@ -763,8 +847,8 @@ const RULES = [
       try {
         const { syncSubmission } = await import("@/lib/integrations/notion/sync");
         await syncSubmission(submission.id);
-      } catch (e) {
-        console.error("[Automation] Notion sync failed:", e.message);
+      } catch (error) {
+        console.error("[Automation] Notion sync failed:", error.message);
       }
     },
   },
@@ -798,7 +882,7 @@ export function fireEvent(event, ctx = {}) {
   if (!event) return Promise.resolve();
   console.log(`[Automation] Firing event: ${event}`, Object.keys(ctx));
 
-  const matching = RULES.filter((r) => r.event === event);
+  const matching = RULES.filter((rule) => rule.event === event);
 
   // Run all matching rules in parallel and return a promise
   return Promise.all(matching.map((rule) =>
@@ -808,8 +892,8 @@ export function fireEvent(event, ctx = {}) {
         if (!ok) return;
       }
       await rule.action(ctx);
-    }).catch((err) => {
-      console.error(`[Automation] Rule "${rule.description}" failed for event "${event}":`, err.message);
+    }).catch((error) => {
+      console.error(`[Automation] Rule "${rule.description}" failed for event "${event}":`, error.message);
     })
   ));
 }

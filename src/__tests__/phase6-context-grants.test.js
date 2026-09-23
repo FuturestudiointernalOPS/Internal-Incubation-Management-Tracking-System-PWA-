@@ -24,12 +24,12 @@ const mockState = {
 };
 
 function mockExecute(query) {
-  const q = typeof query === "string" ? query : query.sql || "";
+  const sqlText = typeof query === "string" ? query : query.sql || "";
   const args = typeof query === "string" ? [] : query.args || [];
 
-  if (q.includes("CREATE TABLE") || q.includes("CREATE INDEX")) return { rows: [] };
+  if (sqlText.includes("CREATE TABLE") || sqlText.includes("CREATE INDEX")) return { rows: [] };
 
-  if (q.includes("FROM context_role_profiles")) {
+  if (sqlText.includes("FROM context_role_profiles")) {
     if (mockState.registryMissing) return { rows: [] };
     return {
       rows: [
@@ -45,11 +45,11 @@ function mockExecute(query) {
     };
   }
 
-  if (q.includes("FROM access_profile_capabilities")) {
+  if (sqlText.includes("FROM access_profile_capabilities")) {
     return { rows: mockState.profileCaps };
   }
 
-  if (q.includes("FROM venture_members")) {
+  if (sqlText.includes("FROM venture_members")) {
     if (args.length === 0) {
       return { rows: [...mockState.founderCids].map((cid) => ({ cid })) };
     }
@@ -58,82 +58,82 @@ function mockExecute(query) {
     };
   }
 
-  if (q.includes("DISTINCT user_cid AS cid FROM context_applied_grants")) {
-    const ids = [...new Set(mockState.applied.map((r) => r.user_cid))];
+  if (sqlText.includes("DISTINCT user_cid AS cid FROM context_applied_grants")) {
+    const ids = [...new Set(mockState.applied.map((row) => row.user_cid))];
     return { rows: ids.map((cid) => ({ cid })) };
   }
 
-  if (q.includes("FROM user_capabilities WHERE user_cid") && !q.includes("DELETE")) {
-    return { rows: mockState.userCaps.filter((r) => r.user_cid === String(args[0])) };
+  if (sqlText.includes("FROM user_capabilities WHERE user_cid") && !sqlText.includes("DELETE")) {
+    return { rows: mockState.userCaps.filter((row) => row.user_cid === String(args[0])) };
   }
 
-  if (q.includes("INSERT INTO user_capabilities")) {
+  if (sqlText.includes("INSERT INTO user_capabilities")) {
     const [user_cid, module, capability, access_level, granted_by] = args;
     mockState.userCaps = mockState.userCaps.filter(
-      (r) => !(r.user_cid === user_cid && r.module === module && r.capability === capability),
+      (row) => !(row.user_cid === user_cid && row.module === module && row.capability === capability),
     );
     mockState.userCaps.push({ user_cid, module, capability, access_level, granted_by });
     return { rows: [] };
   }
 
-  if (q.includes("DELETE FROM user_capabilities")) {
+  if (sqlText.includes("DELETE FROM user_capabilities")) {
     const [user_cid, module, capability, granted_by] = args;
     mockState.userCaps = mockState.userCaps.filter(
-      (r) =>
+      (row) =>
         !(
-          r.user_cid === user_cid &&
-          r.module === module &&
-          r.capability === capability &&
-          r.granted_by === granted_by
+          row.user_cid === user_cid &&
+          row.module === module &&
+          row.capability === capability &&
+          row.granted_by === granted_by
         ),
     );
     return { rows: [] };
   }
 
-  if (q.includes("FROM context_applied_grants WHERE user_cid") && !q.includes("DELETE")) {
+  if (sqlText.includes("FROM context_applied_grants WHERE user_cid") && !sqlText.includes("DELETE")) {
     return {
       rows: mockState.applied.filter(
-        (r) => r.user_cid === String(args[0]) && r.context === args[1] && r.role_key === args[2],
+        (row) => row.user_cid === String(args[0]) && row.context === args[1] && row.role_key === args[2],
       ),
     };
   }
 
-  if (q.includes("INSERT INTO context_applied_grants")) {
+  if (sqlText.includes("INSERT INTO context_applied_grants")) {
     const [user_cid, context, role_key, source_ref, module, capability, access_level] = args;
     mockState.applied = mockState.applied.filter(
-      (r) =>
+      (row) =>
         !(
-          r.user_cid === user_cid &&
-          r.context === context &&
-          r.role_key === role_key &&
-          r.module === module &&
-          r.capability === capability
+          row.user_cid === user_cid &&
+          row.context === context &&
+          row.role_key === role_key &&
+          row.module === module &&
+          row.capability === capability
         ),
     );
     mockState.applied.push({ user_cid, context, role_key, source_ref, module, capability, access_level });
     return { rows: [] };
   }
 
-  if (q.includes("DELETE FROM context_applied_grants WHERE user_cid")) {
+  if (sqlText.includes("DELETE FROM context_applied_grants WHERE user_cid")) {
     const [user_cid, context, role_key, module, capability] = args;
     mockState.applied = mockState.applied.filter(
-      (r) =>
+      (row) =>
         !(
-          r.user_cid === user_cid &&
-          r.context === context &&
-          r.role_key === role_key &&
-          r.module === module &&
-          r.capability === capability
+          row.user_cid === user_cid &&
+          row.context === context &&
+          row.role_key === role_key &&
+          row.module === module &&
+          row.capability === capability
         ),
     );
     return { rows: [] };
   }
 
-  if (q.includes("UPDATE context_applied_grants SET source_ref")) {
+  if (sqlText.includes("UPDATE context_applied_grants SET source_ref")) {
     const [source_ref, user_cid, context, role_key] = args;
-    for (const r of mockState.applied) {
-      if (r.user_cid === user_cid && r.context === context && r.role_key === role_key) {
-        r.source_ref = source_ref;
+    for (const applied of mockState.applied) {
+      if (applied.user_cid === user_cid && applied.context === context && applied.role_key === role_key) {
+        applied.source_ref = source_ref;
       }
     }
     return { rows: [] };
@@ -165,7 +165,7 @@ const SENTINEL = contextGrantSentinel("venture", "founder");
 
 function ours(cid, module, capability) {
   return mockState.userCaps.filter(
-    (r) => r.user_cid === cid && r.module === module && r.capability === capability && r.granted_by === SENTINEL,
+    (row) => row.user_cid === cid && row.module === module && row.capability === capability && row.granted_by === SENTINEL,
   );
 }
 
@@ -186,7 +186,7 @@ describe("planContextGrantChanges (pure)", () => {
 
   test("applies every desired capability when nothing exists yet", () => {
     const { toApply, toRevoke } = planContextGrantChanges({ desired, sentinel: SENTINEL });
-    expect(toApply.map((i) => `${i.module}.${i.capability}`)).toEqual(["ventures.view", "ventures.edit"]);
+    expect(toApply.map((change) => `${change.module}.${change.capability}`)).toEqual(["ventures.view", "ventures.edit"]);
     expect(toRevoke).toEqual([]);
   });
 
@@ -196,7 +196,7 @@ describe("planContextGrantChanges (pure)", () => {
       existing: [{ module: "ventures", capability: "view", access_level: 1, granted_by: "USER_SA" }],
       sentinel: SENTINEL,
     });
-    expect(toApply.map((i) => i.capability)).toEqual(["edit"]);
+    expect(toApply.map((change) => change.capability)).toEqual(["edit"]);
   });
 
   test("does not rewrite a row this mechanism already applied at the same level", () => {
@@ -205,7 +205,7 @@ describe("planContextGrantChanges (pure)", () => {
       existing: [{ module: "ventures", capability: "view", access_level: 1, granted_by: SENTINEL }],
       sentinel: SENTINEL,
     });
-    expect(toApply.map((i) => i.capability)).toEqual(["edit"]);
+    expect(toApply.map((change) => change.capability)).toEqual(["edit"]);
   });
 
   test("updates an applied row whose level changed (profile edited)", () => {
@@ -214,7 +214,7 @@ describe("planContextGrantChanges (pure)", () => {
       existing: [{ module: "ventures", capability: "view", access_level: 0, granted_by: SENTINEL }],
       sentinel: SENTINEL,
     });
-    expect(toApply.map((i) => i.capability)).toEqual(["view", "edit"]);
+    expect(toApply.map((change) => change.capability)).toEqual(["view", "edit"]);
     expect(toApply[0].level).toBe(1);
   });
 
@@ -299,7 +299,7 @@ describe("syncContextGrantsForUser (apply / revoke)", () => {
     const result = await syncContextGrantsForUser(CID);
 
     expect(result.applied).toEqual(["ventures.edit"]); // view belonged to the admin
-    const viewRow = mockState.userCaps.find((r) => r.capability === "view");
+    const viewRow = mockState.userCaps.find((row) => row.capability === "view");
     expect(viewRow.access_level).toBe(5);
     expect(viewRow.granted_by).toBe("USER_SA");
   });

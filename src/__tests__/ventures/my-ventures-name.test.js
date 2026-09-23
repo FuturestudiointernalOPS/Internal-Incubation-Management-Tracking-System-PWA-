@@ -18,14 +18,14 @@
 const fs = require("fs");
 const path = require("path");
 
-const read = (p) => fs.readFileSync(path.join(process.cwd(), p), "utf8");
+const read = (relativePath) => fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 
 describe("My Ventures shows the company name", () => {
   test("the card resolves the name company_name-first", () => {
     const src = read("src/app/participant/ventures/page.js");
-    expect(src).toMatch(/\{v\.company_name \|\| v\.name\}/);
+    expect(src).toMatch(/\{venture\.company_name \|\| venture\.name\}/);
     // The bare legacy column is never the card's title on its own.
-    expect(src).not.toMatch(/<h3[^>]*>\{v\.name\}<\/h3>/);
+    expect(src).not.toMatch(/<h3[^>]*>\{venture\.name\}<\/h3>/);
   });
 
   test("a rename keeps the legacy name column in step with company_name", () => {

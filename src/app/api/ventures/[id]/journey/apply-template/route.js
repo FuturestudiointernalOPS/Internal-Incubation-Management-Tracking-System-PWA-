@@ -41,18 +41,18 @@ export const POST = createHandler(
       return NextResponse.json({ success: false, error: "template_id is required." }, { status: 400 });
     }
 
-    const templateRes = await db.execute({
+    const templateResult = await db.execute({
       sql: "SELECT id, name FROM venture_plan_templates WHERE id = ? AND is_active = TRUE",
       args: [body.template_id],
     });
-    const template = templateRes.rows?.[0];
+    const template = templateResult.rows?.[0];
     if (!template) return NextResponse.json({ success: false, error: "Template not found or inactive." }, { status: 400 });
 
-    const sectionRes = await db.execute({
+    const sectionsResult = await db.execute({
       sql: "SELECT title, objective FROM venture_plan_template_sections WHERE template_id = ? ORDER BY sort_order, id",
       args: [template.id],
     });
-    const sections = sectionRes.rows || [];
+    const sections = sectionsResult.rows || [];
     if (sections.length === 0) return NextResponse.json({ success: false, error: "Template has no sections to generate a journey from." }, { status: 400 });
 
     const dbId = await resolveVentureInternalId(db, id);

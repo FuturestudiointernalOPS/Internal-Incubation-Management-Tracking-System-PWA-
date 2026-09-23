@@ -23,10 +23,10 @@ export default function CrmWorkspace() {
 
   useEffect(() => {
     fetch("/api/auth/session")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.authenticated && d.user) {
-          const role = d.user.role;
+      .then((response) => response.json())
+      .then((sessionData) => {
+        if (sessionData.authenticated && sessionData.user) {
+          const role = sessionData.user.role;
           const href =
             role === "program_manager"
               ? "/pm/messages"
@@ -42,9 +42,9 @@ export default function CrmWorkspace() {
   useEffect(() => {
     let alive = true;
     fetch("/api/me/permissions")
-      .then((r) => r.json())
-      .then((d) => {
-        if (alive && d.success) setEffective(d.effective || null);
+      .then((response) => response.json())
+      .then((permissionData) => {
+        if (alive && permissionData.success) setEffective(permissionData.effective || null);
       })
       .catch(() => {});
     return () => {
@@ -52,8 +52,8 @@ export default function CrmWorkspace() {
     };
   }, []);
 
-  const has = (module, capability) =>
-    Number(effective?.[module]?.[capability] ?? 0) >= 1;
+  const has = (moduleKey, capability) =>
+    Number(effective?.[moduleKey]?.[capability] ?? 0) >= 1;
 
   const cards = [
     {

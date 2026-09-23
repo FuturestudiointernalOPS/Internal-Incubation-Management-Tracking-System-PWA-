@@ -43,17 +43,17 @@ export async function resolveCoachContact(db, { coachContactId = null, coachId =
         : null;
     }
     if (coachId) {
-      const catRes = await db.execute({
+      const catalogResult = await db.execute({
         sql: "SELECT email FROM venture_coaches WHERE id = ?",
         args: [coachId],
       }).catch(() => ({ rows: [] }));
-      const coachEmail = rowsOf(catRes)[0]?.email;
+      const coachEmail = rowsOf(catalogResult)[0]?.email;
       if (!coachEmail) return null;
-      const matchRes = await db.execute({
+      const matchResult = await db.execute({
         sql: "SELECT cid, name, email FROM contacts WHERE LOWER(email) = LOWER(?) AND (deleted = 0 OR deleted IS NULL) LIMIT 1",
         args: [coachEmail],
       });
-      const contact = rowsOf(matchRes)[0];
+      const contact = rowsOf(matchResult)[0];
       return contact
         ? { cid: contact.cid, name: contact.name || null, email: contact.email || null }
         : null;
@@ -78,26 +78,26 @@ export async function resolveCoachContact(db, { coachContactId = null, coachId =
  * Returns per-email status; `preview: true` reports without writing.
  */
 export async function inviteCoachByEmail(db, { code, ventureName, email, name = null, responsibilityCode = "facilitator", scopeType = "venture_wide", actorCid = null, preview = false }) {
-  const clean = String(email || "").trim().toLowerCase();
-  if (!clean || !EMAIL_RE.test(clean)) {
-    return { success: true, results: [{ email: clean, status: "invalid" }], count: 1 };
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  if (!cleanEmail || !EMAIL_RE.test(cleanEmail)) {
+    return { success: true, results: [{ email: cleanEmail, status: "invalid" }], count: 1 };
   }
 
   const existing = await db.execute({
     sql: "SELECT cid, name, email, password FROM contacts WHERE email = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-    args: [clean],
+    args: [cleanEmail],
   }).catch(() => ({ rows: [] }));
   const row = existing.rows[0];
   const contactCid = row?.cid || null;
   const accountActivated = !!(row && String(row.password || "").trim());
 
   if (contactCid) {
-    const dup = await db.execute({
+    const duplicateResult = await db.execute({
       sql: "SELECT 1 FROM venture_staff_assignments WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active' LIMIT 1",
       args: [code, contactCid],
     }).catch(() => ({ rows: [] }));
-    if (dup.rows.length > 0) {
-      return { success: true, results: [{ email: clean, status: "already_assigned", contactCid, name: row.name || "" }], count: 1 };
+    if (duplicateResult.rows.length > 0) {
+      return { success: true, results: [{ email: cleanEmail, status: "already_assigned", contactCid, name: row.name || "" }], count: 1 };
     }
   }
 
@@ -106,7 +106,7 @@ export async function inviteCoachByEmail(db, { code, ventureName, email, name = 
       success: true,
       results: [
         {
-          email: clean,
+          email: cleanEmail,
           status: contactCid ? "existing_contact" : "new_contact",
           contactCid,
           name: row?.name || name || "",
@@ -122,21 +122,21 @@ export async function inviteCoachByEmail(db, { code, ventureName, email, name = 
     cid = "USR_" + uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12);
     await db.execute({
       sql: "INSERT INTO contacts (cid, name, email, role, status) VALUES (?, ?, ?, 'facilitator', 'pending')",
-      args: [cid, name ? String(name).slice(0, 120) : "", clean],
+      args: [cid, name ? String(name).slice(0, 120) : "", cleanEmail],
     });
   }
 
   // Venture assignment (contact-native; scope/authority live here).
-  const dupRow = await db.execute({
+  const duplicateResult = await db.execute({
     sql: "SELECT id FROM venture_staff_assignments WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active' LIMIT 1",
     args: [code, cid],
   }).catch(() => ({ rows: [] }));
-  if (dupRow.rows.length > 0) {
+  if (duplicateResult.rows.length > 0) {
     await db.execute({
       sql: `UPDATE venture_staff_assignments
             SET responsibility_code = ?, scope_type = ?, assigned_by = ?, notes = COALESCE(notes, ?)
             WHERE id = ?`,
-      args: [responsibilityCode, scopeType, actorCid || "system", `Invited as ${responsibilityCode} (${ventureName || code})`, dupRow.rows[0].id],
+      args: [responsibilityCode, scopeType, actorCid || "system", `Invited as ${responsibilityCode} (${ventureName || code})`, duplicateResult.rows[0].id],
     });
   } else {
     await db.execute({
@@ -156,9 +156,9 @@ export async function inviteCoachByEmail(db, { code, ventureName, email, name = 
       args: [token, hashToken(token), cid],
     });
     if (accountActivated) {
-      await sendLoginEmail({ to: clean, name: row?.name || name || "", role: "facilitator", programName: ventureName || code });
+      await sendLoginEmail({ to: cleanEmail, name: row?.name || name || "", role: "facilitator", programName: ventureName || code, contact_cid: cid });
     } else {
-      await sendInviteEmail({ to: clean, name: row?.name || name || "", role: "facilitator", token, programName: ventureName || code });
+      await sendInviteEmail({ to: cleanEmail, name: row?.name || name || "", role: "facilitator", token, programName: ventureName || code, contact_cid: cid });
     }
   } catch (_) {}
 
@@ -175,7 +175,7 @@ export async function inviteCoachByEmail(db, { code, ventureName, email, name = 
     success: true,
     results: [
       {
-        email: clean,
+        email: cleanEmail,
         status: accountActivated ? "invited" : "activation_sent",
         cid,
         name: row?.name || name || "",

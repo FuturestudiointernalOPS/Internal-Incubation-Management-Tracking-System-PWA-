@@ -10,6 +10,7 @@ import RichTextEditor from "@/components/ui/RichTextEditor";
 import QuestionModal from "./QuestionModal";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import { analyzePassMark } from "@/lib/lms/scoring";
 
 /**
@@ -26,6 +27,7 @@ export default function AssessmentModal({
   assessment,
 }) {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const [title, setTitle] = useState(assessment?.title || "");
   const [description, setDescription] = useState(assessment?.description || "");
   const [passMark, setPassMark] = useState(
@@ -55,7 +57,7 @@ export default function AssessmentModal({
       const data = await res.json();
       if (!data.success) return;
       const fresh = data.course.courseAssessments.find(
-        (a) => String(a.id) === String(assessment?.id),
+        (courseAssessment) => String(courseAssessment.id) === String(assessment?.id),
       );
       if (fresh) setQuestions(fresh.questions || []);
     } catch (_) {
@@ -74,23 +76,23 @@ export default function AssessmentModal({
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", successKey);
       refreshQuestions();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     }
   };
 
-  const moveQuestion = (q, direction) =>
+  const moveQuestion = (question, direction) =>
     runQuestionAction(
       "move",
-      `/api/lms/questions/${q.id}`,
+      `/api/lms/questions/${question.id}`,
       "PUT",
       { action: "move", direction },
       "lms.courses.saved",
     );
 
-  const deleteQuestion = (q) => {
-    if (!window.confirm(t("lms.confirm.deleteQuestion"))) return;
-    runQuestionAction("delete", `/api/lms/questions/${q.id}`, "DELETE", null, "lms.courses.saved");
+  const deleteQuestion = async (question) => {
+    if (!(await confirm({ message: t("lms.confirm.deleteQuestion"), tone: "danger" }))) return;
+    runQuestionAction("delete", `/api/lms/questions/${question.id}`, "DELETE", null, "lms.courses.saved");
   };
 
   const save = async () => {
@@ -127,8 +129,8 @@ export default function AssessmentModal({
       notify("success", "lms.courses.saved");
       onSaved();
       onClose();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     } finally {
       setSaving(false);
     }
@@ -145,7 +147,7 @@ export default function AssessmentModal({
         <AppInput
           label={t("lms.assessments.name")}
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(event) => setTitle(event.target.value)}
           placeholder={t("lms.assessments.namePlaceholder")}
           error={errors.title ? t(errors.title) : undefined}
         />
@@ -172,7 +174,7 @@ export default function AssessmentModal({
             min="0"
             max="100"
             value={passMark}
-            onChange={(e) => setPassMark(e.target.value)}
+            onChange={(event) => setPassMark(event.target.value)}
             placeholder={t("lms.assessments.passMarkPlaceholder")}
             error={
               errors.passMark || (pmTrim !== "" && !pmValid)
@@ -232,7 +234,7 @@ export default function AssessmentModal({
             <input
               type="checkbox"
               checked={isRequired}
-              onChange={(e) => setIsRequired(e.target.checked)}
+              onChange={(event) => setIsRequired(event.target.checked)}
               className="w-4 h-4"
               style={{ accentColor: "var(--brand-orange)" }}
             />
@@ -253,7 +255,7 @@ export default function AssessmentModal({
           <AppSelect
             value={typeChoice}
             disabled={mode === "edit" && questions.length > 0}
-            onChange={(e) => setTypeChoice(e.target.value)}
+            onChange={(event) => setTypeChoice(event.target.value)}
             options={[
               { value: "multiple_choice", label: t("lms.questions.typeMc") },
               { value: "true_false", label: t("lms.questions.typeTf") },
@@ -294,26 +296,26 @@ export default function AssessmentModal({
             </p>
           ) : (
             <div className="space-y-2">
-              {questions.map((q, index) => (
+              {questions.map((question, index) => (
                 <div
-                  key={q.id}
+                  key={question.id}
                   className="flex items-center gap-3 p-3 rounded-lg border flex-wrap"
                   style={{ background: "var(--surface-2)", borderColor: "var(--border-primary)" }}
                 >
                   <HelpCircle className="w-4 h-4 shrink-0" style={{ color: "var(--text-tertiary)" }} />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold truncate" style={{ color: "var(--text-primary)" }}>
-                      {index + 1}. {q.question}
+                      {index + 1}. {question.question}
                     </p>
                     <p className="text-[9px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-tertiary)" }}>
-                      {q.question_type === "multiple_choice" ? t("lms.questions.typeMc") : t("lms.questions.typeTf")} · {q.points || 1}{" "}
+                      {question.question_type === "multiple_choice" ? t("lms.questions.typeMc") : t("lms.questions.typeTf")} · {question.points || 1}{" "}
                       {t("lms.questions.points")}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       type="button"
-                      onClick={() => moveQuestion(q, "up")}
+                      onClick={() => moveQuestion(question, "up")}
                       className="p-1.5 rounded-lg transition-colors"
                       style={{ color: "var(--text-tertiary)" }}
                       title={t("lms.questions.moveUp")}
@@ -322,7 +324,7 @@ export default function AssessmentModal({
                     </button>
                     <button
                       type="button"
-                      onClick={() => moveQuestion(q, "down")}
+                      onClick={() => moveQuestion(question, "down")}
                       className="p-1.5 rounded-lg transition-colors"
                       style={{ color: "var(--text-tertiary)" }}
                       title={t("lms.questions.moveDown")}
@@ -331,7 +333,7 @@ export default function AssessmentModal({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setQuestionModal({ mode: "edit", question: q })}
+                      onClick={() => setQuestionModal({ mode: "edit", question: question })}
                       className="p-1.5 rounded-lg transition-colors"
                       style={{ color: "var(--text-tertiary)" }}
                       title={t("lms.questions.edit")}
@@ -340,7 +342,7 @@ export default function AssessmentModal({
                     </button>
                     <button
                       type="button"
-                      onClick={() => deleteQuestion(q)}
+                      onClick={() => deleteQuestion(question)}
                       className="p-1.5 rounded-lg transition-colors"
                       style={{ color: "var(--text-tertiary)" }}
                       title={t("lms.questions.delete")}

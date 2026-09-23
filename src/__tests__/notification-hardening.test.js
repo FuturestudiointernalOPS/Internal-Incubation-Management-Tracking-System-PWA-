@@ -18,7 +18,7 @@ const mockDb = {
   execute: jest.fn(async ({ sql, args = [] }) => {
     executed.push({ sql, args });
     if (sql.includes("SELECT 1 FROM v2_notifications WHERE recipient_id = ? AND dedupe_key = ?")) {
-      return { rows: executed.filter((q) => q.sql.includes("INSERT INTO v2_notifications") && q.args[0] === args[0] && q.args[q.args.length - 1] === args[1]).length ? [{ 1: 1 }] : [] };
+      return { rows: executed.filter((query) => query.sql.includes("INSERT INTO v2_notifications") && query.args[0] === args[0] && query.args[query.args.length - 1] === args[1]).length ? [{ 1: 1 }] : [] };
     }
     if (sql.includes("SELECT venture_id FROM ventures WHERE id = ?")) {
       return { rows: [{ venture_id: "VNT-TEST" }] };
@@ -59,7 +59,7 @@ beforeEach(() => {
 
 describe("createVentureNotification — idempotency + template storage", () => {
   test("same dedupe_key never creates a second notification for the same recipient", async () => {
-    const opts = {
+    const notificationOptions = {
       recipient_id: "founder-1",
       title: "Submission approved",
       message: "Your submission for X was approved.",
@@ -67,10 +67,10 @@ describe("createVentureNotification — idempotency + template storage", () => {
       params: { taskTitle: "X" },
       dedupeKey: "submission-review:42:approved",
     };
-    await createVentureNotification(opts);
-    const first = await createVentureNotification(opts);
+    await createVentureNotification(notificationOptions);
+    const first = await createVentureNotification(notificationOptions);
     expect(first.skipped).toBe(true);
-    const inserts = executed.filter((q) => q.sql.includes("INSERT INTO v2_notifications"));
+    const inserts = executed.filter((query) => query.sql.includes("INSERT INTO v2_notifications"));
     expect(inserts.length).toBe(1);
   });
 
@@ -84,7 +84,7 @@ describe("createVentureNotification — idempotency + template storage", () => {
       dedupeKey: "k1",
       context: { venture_id: "v1", task_id: "t1" },
     });
-    const insert = executed.find((q) => q.sql.includes("INSERT INTO v2_notifications"));
+    const insert = executed.find((query) => query.sql.includes("INSERT INTO v2_notifications"));
     expect(insert).toBeDefined();
     expect(insert.sql).toContain("template_key");
     expect(insert.sql).toContain("params");
@@ -100,7 +100,7 @@ describe("createVentureNotification — idempotency + template storage", () => {
       params: { stageName: "GTM" },
       dedupeKey: "journey-stage-complete:s1",
     });
-    const inserts = executed.filter((q) => q.sql.includes("INSERT INTO v2_notifications"));
+    const inserts = executed.filter((query) => query.sql.includes("INSERT INTO v2_notifications"));
     // founder-1 + "sa" overview row
     expect(inserts.length).toBe(2);
     expect(inserts[0].args).toEqual(expect.arrayContaining(["founder-1", "venture.notif.stageCompleted", "journey-stage-complete:s1"]));
@@ -136,11 +136,11 @@ describe("GET /api/notifications — seen lifecycle", () => {
     expect(res.status).toBe(200);
     const data = await readJson(res);
     expect(data.notifications.length).toBe(2);
-    const seenUpdate = executed.find((q) => q.sql.includes("SET seen_at = COALESCE(seen_at, NOW())"));
+    const seenUpdate = executed.find((query) => query.sql.includes("SET seen_at = COALESCE(seen_at, NOW())"));
     expect(seenUpdate).toBeDefined();
     expect(seenUpdate.sql).toContain("seen_at IS NULL");
     expect(seenUpdate.args).toEqual([1, 2]);
     // No read_at write on GET — read stays a separate user action.
-    expect(executed.some((q) => q.sql.includes("is_read = 1"))).toBe(false);
+    expect(executed.some((query) => query.sql.includes("is_read = 1"))).toBe(false);
   });
 });

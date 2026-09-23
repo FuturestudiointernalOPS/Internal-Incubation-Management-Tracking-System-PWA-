@@ -52,8 +52,8 @@ export class MicrosoftCalendarProvider extends CalendarProvider {
     });
 
     if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Microsoft Graph auth failed: ${err}`);
+      const errorText = await res.text();
+      throw new Error(`Microsoft Graph auth failed: ${errorText}`);
     }
 
     const data = await res.json();
@@ -115,8 +115,8 @@ export class MicrosoftCalendarProvider extends CalendarProvider {
     });
 
     if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Microsoft Graph createEvent failed: ${err}`);
+      const errorText = await res.text();
+      throw new Error(`Microsoft Graph createEvent failed: ${errorText}`);
     }
 
     const data = await res.json();
@@ -157,8 +157,8 @@ export class MicrosoftCalendarProvider extends CalendarProvider {
     );
 
     if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Microsoft Graph updateEvent failed: ${err}`);
+      const errorText = await res.text();
+      throw new Error(`Microsoft Graph updateEvent failed: ${errorText}`);
     }
 
     return { success: true };
@@ -177,8 +177,8 @@ export class MicrosoftCalendarProvider extends CalendarProvider {
     );
 
     if (!res.ok && res.status !== 404) {
-      const err = await res.text();
-      throw new Error(`Microsoft Graph deleteEvent failed: ${err}`);
+      const errorText = await res.text();
+      throw new Error(`Microsoft Graph deleteEvent failed: ${errorText}`);
     }
 
     return { success: true };
@@ -194,8 +194,8 @@ export class MicrosoftCalendarProvider extends CalendarProvider {
         headers: { Authorization: `Bearer ${token}` },
       });
       return { healthy: res.ok, status: res.status };
-    } catch (e) {
-      return { healthy: false, error: e.message };
+    } catch (error) {
+      return { healthy: false, error: error.message };
     }
   }
 }

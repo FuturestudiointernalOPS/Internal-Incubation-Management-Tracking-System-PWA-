@@ -49,18 +49,18 @@ const RITUAL_TYPES = [
 // endpoint under the type name with an "s" (standups) or an "ions" (checkins) -
 // the two shapes the API has always used. Built at module scope so the list has
 // one identity for the life of the page, which is what the multi-read needs.
-const RITUAL_ENDPOINTS = RITUAL_TYPES.map((rt) => ({
-  key: rt.id,
-  url: `/api/participant/rituals/${rt.id}`,
-  transform: (d) =>
-    d && d.success ? d[`${rt.id}s`] || d[`${rt.id}ions`] || [] : [],
+const RITUAL_ENDPOINTS = RITUAL_TYPES.map((ritualType) => ({
+  key: ritualType.id,
+  url: `/api/participant/rituals/${ritualType.id}`,
+  transform: (payload) =>
+    payload && payload.success ? payload[`${ritualType.id}s`] || payload[`${ritualType.id}ions`] || [] : [],
 }));
 
-const pickPrograms = (d) => (d?.success ? d.programs || [] : []);
+const pickPrograms = (payload) => (payload?.success ? payload.programs || [] : []);
 
 function RitualForm({ type, programs, onSubmit, onClose }) {
   const { t } = useI18n();
-  const config = RITUAL_TYPES.find((r) => r.id === type);
+  const config = RITUAL_TYPES.find((ritualType) => ritualType.id === type);
   const [programId, setProgramId] = useState(programs[0]?.id || "");
   const [weekNumber, setWeekNumber] = useState(1);
   const [fields, setFields] = useState({});
@@ -155,12 +155,12 @@ function RitualForm({ type, programs, onSubmit, onClose }) {
       <div className="grid grid-cols-2 gap-3">
         <select
           value={programId}
-          onChange={(e) => setProgramId(e.target.value)}
+          onChange={(event) => setProgramId(event.target.value)}
           className="px-3 py-2 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[10px] font-bold outline-none"
         >
-          {programs.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
+          {programs.map((program) => (
+            <option key={program.id} value={program.id}>
+              {program.name}
             </option>
           ))}
         </select>
@@ -168,7 +168,7 @@ function RitualForm({ type, programs, onSubmit, onClose }) {
           type="number"
           min={1}
           value={weekNumber}
-          onChange={(e) => setWeekNumber(parseInt(e.target.value) || 1)}
+          onChange={(event) => setWeekNumber(parseInt(event.target.value) || 1)}
           className="px-3 py-2 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[10px] font-bold outline-none"
           placeholder={t("participantMisc.rituals.week")}
         />
@@ -183,22 +183,22 @@ function RitualForm({ type, programs, onSubmit, onClose }) {
             {field.type === "select" ? (
               <select
                 value={fields[field.key] || field.options[0]}
-                onChange={(e) =>
-                  setFields({ ...fields, [field.key]: e.target.value })
+                onChange={(event) =>
+                  setFields({ ...fields, [field.key]: event.target.value })
                 }
                 className="w-full px-3 py-2 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[10px] font-bold outline-none"
               >
-                {field.options.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
+                {field.options.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
                   </option>
                 ))}
               </select>
             ) : (
               <textarea
                 value={fields[field.key] || ""}
-                onChange={(e) =>
-                  setFields({ ...fields, [field.key]: e.target.value })
+                onChange={(event) =>
+                  setFields({ ...fields, [field.key]: event.target.value })
                 }
                 rows={2}
                 className="w-full px-3 py-2 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[10px] font-bold outline-none resize-none"
@@ -281,27 +281,27 @@ export default function RitualsView() {
 
       {/* Ritual type buttons */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {RITUAL_TYPES.map((rt) => (
+        {RITUAL_TYPES.map((ritualType) => (
           <button
-            key={rt.id}
-            onClick={() => setActiveForm(activeForm === rt.id ? null : rt.id)}
+            key={ritualType.id}
+            onClick={() => setActiveForm(activeForm === ritualType.id ? null : ritualType.id)}
             className={`p-4 rounded-xl border transition-all text-left ${
-              activeForm === rt.id
+              activeForm === ritualType.id
                 ? "border-[var(--brand-orange)] bg-[var(--brand-orange)]/5"
                 : "border-[var(--border-primary)] bg-[var(--bg-tertiary)] hover:border-[var(--brand-orange)]/30"
             }`}
           >
             <div
-              className={`w-10 h-10 rounded-lg flex items-center justify-center ${rt.bg} mb-2`}
+              className={`w-10 h-10 rounded-lg flex items-center justify-center ${ritualType.bg} mb-2`}
             >
-              <rt.icon className={`w-5 h-5 ${rt.color}`} />
+              <ritualType.icon className={`w-5 h-5 ${ritualType.color}`} />
             </div>
             <p className="text-[11px] font-bold text-[var(--text-primary)]">
-              {t("participantMisc.rituals." + rt.id)}
+              {t("participantMisc.rituals." + ritualType.id)}
             </p>
             <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
               {t("participantMisc.rituals.submittedCount", {
-                count: history[rt.id]?.length || 0,
+                count: history[ritualType.id]?.length || 0,
               })}
             </p>
           </button>
@@ -325,9 +325,9 @@ export default function RitualsView() {
         </h2>
         {loading ? (
           <div className="space-y-2 animate-pulse">
-            {[...Array(3)].map((_, i) => (
+            {[...Array(3)].map((_, index) => (
               <div
-                key={i}
+                key={index}
                 className="h-12 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]"
               />
             ))}
@@ -344,18 +344,18 @@ export default function RitualsView() {
           </div>
         ) : (
           <div className="space-y-2">
-            {allHistory.slice(0, 10).map((item, idx) => {
-              const rt = RITUAL_TYPES.find((r) => r.id === item.ritualType);
+            {allHistory.slice(0, 10).map((item, index) => {
+              const ritualType = RITUAL_TYPES.find((candidate) => candidate.id === item.ritualType);
               return (
                 <div
-                  key={`${item.ritualType}-${item.id || idx}`}
+                  key={`${item.ritualType}-${item.id || index}`}
                   className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)]"
                 >
-                  {rt && (
+                  {ritualType && (
                     <div
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center ${rt.bg} shrink-0`}
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center ${ritualType.bg} shrink-0`}
                     >
-                      <rt.icon className={`w-4 h-4 ${rt.color}`} />
+                      <ritualType.icon className={`w-4 h-4 ${ritualType.color}`} />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">

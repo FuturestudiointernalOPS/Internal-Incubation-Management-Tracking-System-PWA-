@@ -28,16 +28,16 @@ export async function GET() {
     }
 
     await initDb();
-    const res = await getContactProfileFields(session.cid);
+    const profileResult = await getContactProfileFields(session.cid);
 
-    if (res.rows.length === 0) {
+    if (profileResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "User not found" },
         { status: 404 },
       );
     }
 
-    const user = res.rows[0];
+    const user = profileResult.rows[0];
 
     // Optional / recently-added columns. These may not exist yet in every
     // environment, so each read is best-effort and never fatal.

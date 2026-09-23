@@ -8,8 +8,8 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 
-const p = "src/lib/auth.js";
-const lines = readFileSync(p, "utf-8").split("\n");
+const filePath = "src/lib/auth.js";
+const lines = readFileSync(filePath, "utf-8").split("\n");
 
 const ranges = [
   [1174, 1259],
@@ -19,23 +19,23 @@ const ranges = [
 ];
 
 // Sanity check: each range must start with "/**" and end with "}"
-for (const [a, b] of ranges) {
-  if (!lines[a - 1].includes("/**")) throw new Error(`range ${a} does not start with /**`);
-  if (!lines[b - 1].trim().startsWith("}")) throw new Error(`range ${b} does not end with }`);
+for (const [startLine, endLine] of ranges) {
+  if (!lines[startLine - 1].includes("/**")) throw new Error(`range ${startLine} does not start with /**`);
+  if (!lines[endLine - 1].trim().startsWith("}")) throw new Error(`range ${endLine} does not end with }`);
 }
 console.log("sanity checks passed");
 
 // Remove bottom-up so earlier line numbers stay valid.
-for (const [a, b] of ranges.slice().reverse()) {
-  lines.splice(a - 1, b - a + 1);
+for (const [startLine, endLine] of ranges.slice().reverse()) {
+  lines.splice(startLine - 1, endLine - startLine + 1);
 }
 
 // Verify the removed names no longer appear as definitions.
-const out = lines.join("\n");
+const updatedSource = lines.join("\n");
 for (const name of ["getUserEffectiveCapabilitiesV2", "getUserFullPermissionMatrixV2", "hasCapabilityV2", "requireCapabilityV2"]) {
-  if (out.includes(name)) throw new Error(`${name} still present`);
+  if (updatedSource.includes(name)) throw new Error(`${name} still present`);
 }
 console.log("all four legacy functions removed");
 
-writeFileSync(p, out);
+writeFileSync(filePath, updatedSource);
 console.log("auth.js updated");

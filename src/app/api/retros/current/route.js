@@ -54,35 +54,35 @@ export async function GET(req) {
       );
     }
 
-    const w = week_number ? parseInt(week_number) : null;
-    const y = year ? parseInt(year) : null;
+    const weekNumber = week_number ? parseInt(week_number) : null;
+    const yearNumber = year ? parseInt(year) : null;
 
     let report = null;
-    if (w && y) {
-      const reportRes = await getRetroReportByWeek(
+    if (weekNumber && yearNumber) {
+      const reportResult = await getRetroReportByWeek(
         user_id,
-        w,
-        y,
+        weekNumber,
+        yearNumber,
         context_id,
         context_type,
       );
-      if (reportRes.rows.length > 0) report = reportRes.rows[0];
+      if (reportResult.rows.length > 0) report = reportResult.rows[0];
     }
 
-    const taskRes = await getRetroActiveTasks(user_id);
+    const taskResult = await getRetroActiveTasks(user_id);
 
     // Batch fetch blockers (2 queries instead of N+1)
-    const taskIds = taskRes.rows.map((t) => t.id);
+    const taskIds = taskResult.rows.map((task) => task.id);
     let blockersByTask = {};
     if (taskIds.length > 0) {
-      const blockerRes = await getBlockersByTaskIds(taskIds);
-      for (const b of blockerRes.rows || []) {
-        if (!blockersByTask[b.task_id]) blockersByTask[b.task_id] = [];
-        blockersByTask[b.task_id].push({ id: b.id, title: b.title, status: b.status, severity: b.severity });
+      const blockersResult = await getBlockersByTaskIds(taskIds);
+      for (const blocker of blockersResult.rows || []) {
+        if (!blockersByTask[blocker.task_id]) blockersByTask[blocker.task_id] = [];
+        blockersByTask[blocker.task_id].push({ id: blocker.id, title: blocker.title, status: blocker.status, severity: blocker.severity });
       }
     }
 
-    const tasks = taskRes.rows.map((task) => ({
+    const tasks = taskResult.rows.map((task) => ({
       ...task,
       blockers: blockersByTask[task.id] || [],
     }));

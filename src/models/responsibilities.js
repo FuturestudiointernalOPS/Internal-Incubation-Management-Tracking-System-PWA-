@@ -137,9 +137,9 @@ function responsibilityViewModules(responsibilityKey) {
     .filter(([, feature]) => feature === responsibilityKey)
     .map(([module]) => module)
     .filter(
-      (mod) =>
-        !CAPABILITY_CATALOG[mod]?.locked &&
-        Boolean(CAPABILITY_CATALOG[mod]?.capabilities?.view),
+      (moduleName) =>
+        !CAPABILITY_CATALOG[moduleName]?.locked &&
+        Boolean(CAPABILITY_CATALOG[moduleName]?.capabilities?.view),
     );
 }
 
@@ -164,25 +164,25 @@ export async function grantResponsibilityBaseAccess({ userCid, responsibilityKey
   const granted = [];
   if (!userCid || !responsibilityKey) return granted;
 
-  for (const mod of responsibilityViewModules(responsibilityKey)) {
+  for (const moduleName of responsibilityViewModules(responsibilityKey)) {
     // RETURNING tells us whether THIS call created the grant. A capability the
     // user already held (manual grant, another responsibility) returns no row,
     // so it is neither reported nor tracked — and never revoked later.
-    const res = await db.execute({
+    const grantResult = await db.execute({
       sql: `INSERT INTO user_capabilities (user_cid, module, capability, access_level, granted_by)
             VALUES (?, ?, 'view', 1, ?)
             ON CONFLICT (user_cid, module, capability) DO NOTHING
             RETURNING module`,
-      args: [userCid, mod, grantedBy],
+      args: [userCid, moduleName, grantedBy],
     });
-    if (!(res.rows || []).length) continue;
+    if (!(grantResult.rows || []).length) continue;
     await trackResponsibilityGrant({
       userCid,
       responsibilityKey,
-      module: mod,
+      module: moduleName,
       capability: "view",
     });
-    granted.push(`${mod}.view`);
+    granted.push(`${moduleName}.view`);
   }
   return granted;
 }
@@ -222,7 +222,7 @@ export async function revokeResponsibilityBaseAccess({ userCid, responsibilityKe
   if (!userCid || !responsibilityKey) return revoked;
 
   const tracked = await listResponsibilityGrants(userCid, responsibilityKey);
-  const mine = tracked.rows || [];
+  const trackedGrants = tracked.rows || [];
 
   // Drop this responsibility's ledger FIRST, so the guard below only sees OTHER
   // responsibilities that still hold the same capability.
@@ -232,8 +232,8 @@ export async function revokeResponsibilityBaseAccess({ userCid, responsibilityKe
     args: [userCid, responsibilityKey],
   });
 
-  for (const row of mine) {
-    const res = await db.execute({
+  for (const row of trackedGrants) {
+    const revokeResult = await db.execute({
       sql: `DELETE FROM user_capabilities
             WHERE user_cid = ? AND module = ? AND capability = ? AND access_level = 1
               AND NOT EXISTS (
@@ -249,7 +249,7 @@ export async function revokeResponsibilityBaseAccess({ userCid, responsibilityKe
         row.capability,
       ],
     });
-    if (Number(res.rowsAffected ?? 0) > 0) {
+    if (Number(revokeResult.rowsAffected ?? 0) > 0) {
       revoked.push(`${row.module}.${row.capability}`);
     }
   }

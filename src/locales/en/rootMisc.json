@@ -163,6 +163,28 @@
       "createPassword": "Create Password",
       "completeRegistration": "Complete Registration"
     },
+    "ventureMemberInvite": {
+      "invalidInvite": "Invalid or expired invitation.",
+      "failedToValidate": "Failed to validate the invitation.",
+      "networkError": "Network error.",
+      "joinVenture": "Join Venture",
+      "theVenture": "the Venture",
+      "invitedAs": "Invited as",
+      "founder": "a founder",
+      "teamMember": "a team member",
+      "emailAddress": "Email Address",
+      "fullName": "Full Name",
+      "createPassword": "Create Password",
+      "passwordRequired": "Password must be at least 6 characters.",
+      "passwordHint": "Choose a password to access the platform.",
+      "passwordOptionalHint": "You already have an account — leave this empty to keep your current password.",
+      "alreadyRegistered": "You already have an ImpactOS account. Accept the invitation to join — nothing to create.",
+      "acceptInvitation": "Accept invitation",
+      "acceptFailed": "Could not accept the invitation.",
+      "accepted": "Invitation accepted",
+      "acceptedMessage": "You have joined",
+      "goToLogin": "Go to Login"
+    },
     "join": {
       "groupNotFound": "Group not found.",
       "failedToLoad": "Failed to load. Please try again.",

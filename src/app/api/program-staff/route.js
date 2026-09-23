@@ -39,8 +39,8 @@ export const GET = createHandler(ROLE, async (req) => {
   const staffId = searchParams.get("staff_id");
   const programId = searchParams.get("program_id");
 
-  const res = await listProgramStaffAssignments(staffId, programId);
-  return NextResponse.json({ success: true, assignments: res.rows });
+  const assignmentsResult = await listProgramStaffAssignments(staffId, programId);
+  return NextResponse.json({ success: true, assignments: assignmentsResult.rows });
 });
 
 export const POST = createHandler(ROLE, async (req) => {
@@ -52,7 +52,7 @@ export const POST = createHandler(ROLE, async (req) => {
       : roleLower === "facilitator"
         ? buildFullFacilitatorPermissions()
         : {};
-  const res = await upsertProgramStaffAssignment(
+  const assignmentResult = await upsertProgramStaffAssignment(
     program_id,
     staff_id,
     // Default to "staff", not a manager-type or facilitator role: this endpoint
@@ -75,7 +75,7 @@ export const POST = createHandler(ROLE, async (req) => {
   if (String(role || "").toLowerCase() === "facilitator") {
     await logFacilitatorTimeline(staff_id, program_id, "facilitator_assigned", "Assigned as facilitator to program", { role });
   }
-  return NextResponse.json({ success: true, id: res.rows[0]?.id ?? res.lastInsertRowid });
+  return NextResponse.json({ success: true, id: assignmentResult.rows[0]?.id ?? assignmentResult.lastInsertRowid });
 });
 
 export const PUT = createHandler(ROLE, async (req) => {

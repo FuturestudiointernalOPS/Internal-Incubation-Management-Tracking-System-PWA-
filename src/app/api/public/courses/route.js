@@ -16,7 +16,7 @@ export async function GET() {
     await initDb();
     const courses = await listPublicCourses();
     return NextResponse.json({ success: true, courses });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

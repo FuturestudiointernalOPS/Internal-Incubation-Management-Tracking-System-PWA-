@@ -22,22 +22,22 @@ async function run() {
     console.log("✅ Migration Tasks & Kanban terminée !");
 
     const tables = ['venture_tasks', 'venture_task_comments', 'venture_task_attachments', 'venture_task_activity'];
-    for (const t of tables) {
-      const res = await client.query(
+    for (const tableName of tables) {
+      const queryResult = await client.query(
         `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1)`,
-        [t]
+        [tableName]
       );
-      console.log(`   ${res.rows[0].exists ? '✅' : '❌'} ${t}`);
+      console.log(`   ${queryResult.rows[0].exists ? '✅' : '❌'} ${tableName}`);
     }
 
     // Show column counts
     console.log("\n📊 Détail des colonnes:");
-    for (const t of tables) {
-      const cols = await client.query(
+    for (const tableName of tables) {
+      const columnCount = await client.query(
         `SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1`,
-        [t]
+        [tableName]
       );
-      console.log(`   ${t}: ${cols.rows[0].count} colonnes`);
+      console.log(`   ${tableName}: ${columnCount.rows[0].count} colonnes`);
     }
   } catch (err) {
     console.error(`❌ Erreur: ${err.message}`);

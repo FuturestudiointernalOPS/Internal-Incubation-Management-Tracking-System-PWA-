@@ -1,7 +1,20 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { hasVentureCapability, hasAnyVentureAssignment } from "@/lib/venturePermissions";
+import { invalidateVentureAccess } from "@/lib/ventureAccessFacts";
+import { sendVentureMemberInvitationEmail } from "@/lib/email";
+import { resolveAppUrl } from "@/lib/appUrl";
+import {
+  createVentureMemberInvitation,
+  recordVentureMemberInvitationDelivery,
+} from "@/models/ventureMemberInvitations";
+import { createLinkedNotification } from "@/models/workspace";
+import {
+  resolveVentureCode,
+  getVentureFounderCount,
+  checkVentureMemberViewAccess as checkAccess,
+  checkVentureMemberMutateAccess as checkMutateAccess,
+} from "@/models/ventureMemberAccess";
 
 /**
  * Phase 6: reconcile a person's context grants after a membership write.
@@ -13,72 +26,6 @@ async function applyContextGrants(cid) {
     const { syncContextGrantsForUser } = await import("@/models/authorization/contextGrants");
     await syncContextGrantsForUser(cid);
   } catch (_) {}
-}
-
-// venture_members stores venture_id as the VNT code (TEXT), not the internal UUID.
-// Convert an internal UUID (if passed) back to the VNT code so membership queries match.
-async function resolveVentureCode(db, idOrCode) {
-  if (!idOrCode) return idOrCode;
-  if (typeof idOrCode === "string" && idOrCode.includes("-") && !idOrCode.startsWith("VNT-")) {
-    try {
-      const r = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [idOrCode] });
-      return r.rows?.[0]?.venture_id || idOrCode;
-    } catch { return idOrCode; }
-  }
-  return idOrCode;
-}
-
-async function getVentureFounderCount(db, ventureId) {
-  const code = await resolveVentureCode(db, ventureId);
-  const r = await db.execute({
-    sql: "SELECT COUNT(*) as cnt FROM venture_members WHERE venture_id = ? AND member_type = 'founder' AND removed_at IS NULL",
-    args: [code],
-  });
-  return parseInt(r.rows?.[0]?.cnt || 0);
-}
-
-async function isVentureMember(db, ventureId, cid) {
-  const code = await resolveVentureCode(db, ventureId);
-  const r = await db.execute({
-    sql: "SELECT id FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL LIMIT 1",
-    args: [code, cid],
-  });
-  return r.rows?.length > 0;
-}
-
-async function isVentureFounder(db, ventureId, cid) {
-  const code = await resolveVentureCode(db, ventureId);
-  const r = await db.execute({
-    sql: "SELECT id FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1",
-    args: [code, cid],
-  });
-  return r.rows?.length > 0;
-}
-
-// View access (Phase 2 — assignment-aware): GLOBAL roles see the roster;
-// otherwise an active member OR an active staff assignment is required.
-async function checkAccess(db, ventureId, userRole, userCid) {
-  if (["super_admin"].includes(userRole)) {
-    return true;
-  }
-  if (!userCid) return false;
-  if (await isVentureMember(db, ventureId, userCid)) return true;
-  const code = await resolveVentureCode(db, ventureId);
-  return hasAnyVentureAssignment(db, { ventureId: code, contactId: userCid });
-}
-
-// Mutation access (add/remove/edit members): founders manage the roster.
-// Staff mutate only when their assignment grants founders:manage — evaluated
-// at runtime from the configurable permission matrix (Lead Manager default:
-// manage = yes; Coach/Facilitator default: no).
-async function checkMutateAccess(db, ventureId, userRole, userCid) {
-  if (["super_admin"].includes(userRole)) {
-    return true;
-  }
-  if (!userCid) return false;
-  if (await isVentureFounder(db, ventureId, userCid)) return true;
-  const code = await resolveVentureCode(db, ventureId);
-  return hasVentureCapability(db, { ventureId: code, contactId: userCid, area: "founders", action: "manage" });
 }
 
 export async function GET(req, { params }) {
@@ -146,7 +93,7 @@ export async function POST(req, { params }) {
 
     const { id } = await params;
     const body = await req.json();
-    const { contact_id, member_type, role, permissions, email, name, phone } = body;
+    const { email, name, member_type } = body;
 
     const session = await getSession();
     const userCid = session?.cid || "";
@@ -173,100 +120,129 @@ export async function POST(req, { params }) {
       }
     } catch (_) {}
 
-    if (!member_type) {
+    const emailNorm = typeof email === "string" ? email.trim() : "";
+    if (!emailNorm || !emailNorm.includes("@")) {
       return NextResponse.json(
-        { success: false, error: "member_type is required" },
+        { success: false, error: "A valid email address is required." },
         { status: 400 },
       );
     }
-
-    if (!["founder", "team_member"].includes(member_type)) {
+    const memberType = member_type || "team_member";
+    if (!["founder", "team_member"].includes(memberType)) {
       return NextResponse.json(
         { success: false, error: "member_type must be 'founder' or 'team_member'" },
         { status: 400 },
       );
     }
 
-    // ── Identity resolution (Phase 2): add by existing contact_id OR by
-    //    email/phone. Primary email → alternative email → phone → create
-    //    pending contact. Conflicts go to CRM manual reconciliation — never
-    //    a silent duplicate.
-    let targetCid = contact_id;
-    if (!targetCid) {
-      if (!email || !email.includes("@")) {
-        return NextResponse.json(
-          { success: false, error: "contact_id or a valid email is required" },
-          { status: 400 },
-        );
-      }
-      const { resolvePersonIdentity, resolveOrCreateContactIdentity } = await import("@/lib/contactIdentity");
-      const identity = await resolvePersonIdentity({ email, phone: phone || null });
-      if (identity.status === "matched") {
-        targetCid = identity.contact_cid;
-      } else if (identity.status === "conflict") {
-        return NextResponse.json(
-          { success: false, error: "This person's identity is ambiguous (email/phone matched multiple contacts). Resolve the duplicate in CRM before adding them." },
-          { status: 409 },
-        );
-      } else {
-        targetCid = await resolveOrCreateContactIdentity({
-          email,
-          name,
-          role: member_type === "founder" ? "founder" : "member",
-        });
-      }
-      if (!targetCid) {
-        return NextResponse.json(
-          { success: false, error: "Could not resolve or create the member contact." },
-          { status: 400 },
-        );
-      }
-    } else {
-      const existingContact = await db.execute({
-        sql: "SELECT cid FROM contacts WHERE cid = ?",
-        args: [targetCid],
-      });
-      if (existingContact.rows.length === 0) {
-        return NextResponse.json(
-          { success: false, error: "Contact not found." },
-          { status: 404 },
-        );
-      }
+    const code = await resolveVentureCode(db, id);
+
+    // Someone already on the roster does not need an invitation.
+    const alreadyMember = await db.execute({
+      sql: `SELECT 1 FROM venture_members vm
+            JOIN contacts c ON c.cid = COALESCE(vm.contact_id, vm.user_cid)
+            WHERE vm.venture_id = ? AND vm.removed_at IS NULL AND LOWER(c.email) = LOWER(?)
+            LIMIT 1`,
+      args: [code, emailNorm],
+    });
+    if (alreadyMember.rows?.length) {
+      return NextResponse.json(
+        { success: false, error: "This person is already a member of this Venture." },
+        { status: 409 },
+      );
     }
 
-    try {
-      await db.execute({
-        sql: `INSERT INTO venture_members (venture_id, contact_id, member_type, role, permissions, invited_by)
-              VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [id, targetCid, member_type, role || null, permissions || "edit", userCid || null],
-      });
-    } catch (err) {
-      if (err.message?.includes("UNIQUE") || err.message?.includes("unique") || err.message?.includes("duplicate")) {
-        return NextResponse.json(
-          { success: false, error: "This contact is already a member of this venture" },
-          { status: 409 },
-        );
-      }
-      throw err;
-    }
+    // Invite ≠ member: the add creates a PENDING invitation and emails a link.
+    // The person joins (and gains access) only once they accept it.
+    const invitation = await createVentureMemberInvitation({
+      ventureId: code,
+      email: emailNorm,
+      name: typeof name === "string" ? name.trim() : null,
+      memberType,
+      invitedByCid: userCid || null,
+    });
 
-    // Append-only membership history (contact_roles mirror)
+    // The Venture's display name is needed by both the in-app notification and
+    // the email below — ask for it once.
+    let ventureName = "the Venture";
     try {
-      const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
-      await syncVentureRoleHistory({
-        contactCid: targetCid,
-        ventureId: id,
-        role: role || (member_type === "founder" ? "founder" : "member"),
-        active: true,
-        actorCid: userCid || null,
-        notes: "member added",
+      const ventureResult = await db.execute({
+        // company_name is the canonical label; the legacy `name` column can
+        // still hold the intake Run's name.
+        sql: "SELECT COALESCE(NULLIF(company_name, ''), name) AS venture_name FROM ventures WHERE venture_id = ? LIMIT 1",
+        args: [code],
       });
+      ventureName = ventureResult.rows?.[0]?.venture_name || ventureName;
     } catch (_) {}
 
-    // Phase 6: a founder relationship grants the mapped profile's capabilities.
-    if (member_type === "founder") await applyContextGrants(targetCid);
+    // Someone already on the platform is told IN THE APP too: they accept from
+    // their notifications, without waiting on (or hunting for) the email. Only
+    // on a first send — a re-send must not pile up duplicate notices.
+    if (invitation.contact_id && invitation.contact_has_account && !invitation.resent) {
+      try {
+        const seat = memberType === "founder" ? "a founder" : "a team member";
+        await createLinkedNotification(
+          invitation.contact_id,
+          `Invitation to join ${ventureName}`,
+          `${session?.name || "A founder of the Venture"} invited you to join ${ventureName} as ${seat}. Open this notification to accept.`,
+          "venture_invite",
+          `/venture-invite/${invitation.token}`,
+        );
+      } catch (error) {
+        console.warn("Venture invitation notification failed:", error.message);
+      }
+    }
 
-    return NextResponse.json({ success: true });
+    // Never block the answer on the mailer: a failed send is logged and the
+    // invitation stays pending, so the founder can send it again. The delivery
+    // outcome IS reported back, so the founder is told when no email actually
+    // left the system instead of reading a success that never happened.
+    let emailSent = false;
+    let emailError = null;
+    try {
+      const link = `${resolveAppUrl()}/venture-invite/${invitation.token}`;
+      // Same transport as every other Venture email (Google Workspace first,
+      // Resend fallback) — not a separate weaker sender.
+      const mailResult = await sendVentureMemberInvitationEmail({
+        to: invitation.email,
+        ventureName,
+        inviterName: session?.name || null,
+        memberType,
+        inviteUrl: link,
+        expiresAt: invitation.expires_at,
+      });
+      if (mailResult?.success) {
+        emailSent = true;
+      } else {
+        emailError = mailResult?.error || mailResult?.note || "The email provider is not configured.";
+        console.warn("[Venture Invitations] invitation email not delivered:", emailError);
+      }
+    } catch (error) {
+      emailError = error.message;
+      console.error("Venture member invitation email failed:", error.message);
+    }
+
+    // Persist the delivery outcome on the invitation so the pending list can
+    // warn about it later, not only in the moment. Never blocks the answer.
+    await recordVentureMemberInvitationDelivery({
+      id: invitation.id,
+      sent: emailSent,
+      error: emailError,
+    });
+
+    return NextResponse.json({
+      success: true,
+      // The invitation was created either way; `email_sent` lets the screen tell
+      // the founder apart "invited" from "saved, but the email did not go out".
+      email_sent: emailSent,
+      ...(emailError ? { email_error: emailError } : {}),
+      invitation: {
+        id: invitation.id,
+        email: invitation.email,
+        expires_at: invitation.expires_at,
+        resent: invitation.resent,
+      },
+    });
   } catch (error) {
     console.error("POST /api/ventures/[id]/members error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -315,16 +291,16 @@ export async function PATCH(req, { params }) {
     }
 
     if (action === "remove") {
-      const member = await db.execute({
+      const memberResult = await db.execute({
         sql: "SELECT member_type, contact_id, role FROM venture_members WHERE id = ? AND venture_id = ?",
         args: [member_id, id],
       });
 
-      if (!member.rows?.[0]) {
+      if (!memberResult.rows?.[0]) {
         return NextResponse.json({ success: false, error: "Member not found" }, { status: 404 });
       }
 
-      if (member.rows[0].member_type === "founder") {
+      if (memberResult.rows[0].member_type === "founder") {
         const founderCount = await getVentureFounderCount(db, id);
         if (founderCount <= 1) {
           return NextResponse.json(
@@ -339,13 +315,17 @@ export async function PATCH(req, { params }) {
         args: [member_id, id],
       });
 
+      // The access answers remembered for this Venture are dropped here: a
+      // removed member must lose access NOW, not when the window expires.
+      invalidateVentureAccess(id);
+
       // Close the append-only membership history row (account/contact intact).
       try {
         const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
-        const removedRole = member.rows[0].member_type === "founder" ? "founder" : member.rows[0].role || "member";
-        if (member.rows[0].contact_id) {
+        const removedRole = memberResult.rows[0].member_type === "founder" ? "founder" : memberResult.rows[0].role || "member";
+        if (memberResult.rows[0].contact_id) {
           await syncVentureRoleHistory({
-            contactCid: member.rows[0].contact_id,
+            contactCid: memberResult.rows[0].contact_id,
             ventureId: id,
             role: removedRole,
             active: false,
@@ -357,28 +337,31 @@ export async function PATCH(req, { params }) {
 
       // Phase 6: reconcile grants — if this was the last founder relationship,
       // the capability we applied is withdrawn (manual grants are untouched).
-      await applyContextGrants(member.rows[0].contact_id);
+      await applyContextGrants(memberResult.rows[0].contact_id);
     } else {
       let memberContactId = null;
       try {
-        const m = await db.execute({
+        const memberContactResult = await db.execute({
           sql: "SELECT contact_id FROM venture_members WHERE id = ? AND venture_id = ?",
           args: [member_id, id],
         });
-        memberContactId = m.rows?.[0]?.contact_id || null;
+        memberContactId = memberContactResult.rows?.[0]?.contact_id || null;
       } catch (_) {}
       const updates = [];
-      const upArgs = [];
-      if (role !== undefined) { updates.push("role = ?"); upArgs.push(role); }
-      if (permissions !== undefined) { updates.push("permissions = ?"); upArgs.push(permissions); }
+      const updateArgs = [];
+      if (role !== undefined) { updates.push("role = ?"); updateArgs.push(role); }
+      if (permissions !== undefined) { updates.push("permissions = ?"); updateArgs.push(permissions); }
       if (updates.length === 0) {
         return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
       }
-      upArgs.push(member_id, id);
+      updateArgs.push(member_id, id);
       await db.execute({
         sql: `UPDATE venture_members SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`,
-        args: upArgs,
+        args: updateArgs,
       });
+      // A changed role or permission set means the remembered answers for this
+      // Venture are no longer the whole truth.
+      invalidateVentureAccess(id);
       try {
         const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
         if (memberContactId && role !== undefined) {

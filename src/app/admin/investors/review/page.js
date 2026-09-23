@@ -15,7 +15,7 @@ import { useApi } from "@/lib/hooks/useApi";
 // Module scope on purpose: the hook keys its internal callback on this function,
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop.
-const pickPendingInvestors = (d) => (d?.success ? d.investors || [] : []);
+const pickPendingInvestors = (payload) => (payload?.success ? payload.investors || [] : []);
 
 export default function InvestorReviewPage() {
   const goBack = useSafeBack("/admin/investors");
@@ -32,9 +32,9 @@ export default function InvestorReviewPage() {
     { defaultValue: [], transform: pickPendingInvestors },
   );
 
-  const fetchDetail = async (inv) => {
-    setSelected(inv);
-    setReviewNotes(inv.review_notes || "");
+  const fetchDetail = async (investor) => {
+    setSelected(investor);
+    setReviewNotes(investor.review_notes || "");
   };
 
   const handleReview = async (action) => {
@@ -88,10 +88,10 @@ export default function InvestorReviewPage() {
                 { label: t("investorAdmin.review.linkedin"), value: selected.linkedin || "—", icon: Link },
                 { label: t("investorAdmin.review.investmentExperience"), value: selected.investment_experience || "—", icon: FileText },
                 { label: t("investorAdmin.review.completion"), value: `${selected.profile_completion || 0}%`, icon: Target },
-              ].map((m, i) => (
+              ].map((metric, i) => (
                 <div key={i} className="p-3 rounded-xl bg-[var(--surface-3)]">
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest flex items-center gap-1"><m.icon className="w-3 h-3"/>{m.label}</p>
-                  <p className="text-xs font-bold text-[var(--text-primary)] mt-1 line-clamp-2">{m.value}</p>
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest flex items-center gap-1"><metric.icon className="w-3 h-3"/>{metric.label}</p>
+                  <p className="text-xs font-bold text-[var(--text-primary)] mt-1 line-clamp-2">{metric.value}</p>
                 </div>
               ))}
             </div>
@@ -105,7 +105,7 @@ export default function InvestorReviewPage() {
 
             <div>
               <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-2 flex items-center gap-1"><MessageSquare className="w-3 h-3"/>{t("investorAdmin.review.reviewNotes")}</p>
-              <textarea value={reviewNotes} onChange={e => setReviewNotes(e.target.value)}
+              <textarea value={reviewNotes} onChange={event => setReviewNotes(event.target.value)}
                 rows={3} placeholder={t("investorAdmin.review.reviewNotesPlaceholder")}
                 className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/>
             </div>
@@ -142,16 +142,16 @@ export default function InvestorReviewPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {investors.map(inv => (
-              <AppCard key={inv.id} padding="md" hover onClick={() => fetchDetail(inv)}>
+            {investors.map(investor => (
+              <AppCard key={investor.id} padding="md" hover onClick={() => fetchDetail(investor)}>
                 <div className="flex items-center justify-between cursor-pointer">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
                       <Building2 className="w-5 h-5 text-amber-400"/>
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-[var(--text-primary)]">{inv.organization_name || inv.name}</p>
-                      <p className="text-[10px] text-[var(--text-secondary)]">{inv.email} · {inv.profile_completion || 0}% {t("investorAdmin.review.complete")}</p>
+                      <p className="text-sm font-bold text-[var(--text-primary)]">{investor.organization_name || investor.name}</p>
+                      <p className="text-[10px] text-[var(--text-secondary)]">{investor.email} · {investor.profile_completion || 0}% {t("investorAdmin.review.complete")}</p>
                     </div>
                   </div>
                   <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400">{t("investorAdmin.review.pendingReview")}</span>

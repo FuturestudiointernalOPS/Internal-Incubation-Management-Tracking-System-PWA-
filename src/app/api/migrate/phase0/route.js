@@ -30,31 +30,31 @@ export async function GET() {
     try {
       await addTasksPriorityColumn();
       results.push({ step: "Add priority column", status: "ok" });
-    } catch (e) {
-      results.push({ step: "Add priority column", status: e.message.includes("already exists") ? "already exists" : e.message });
+    } catch (error) {
+      results.push({ step: "Add priority column", status: error.message.includes("already exists") ? "already exists" : error.message });
     }
 
     // 2. Add priority check constraint
     try {
       await addTasksPriorityCheckConstraint();
       results.push({ step: "Add priority check", status: "ok" });
-    } catch (e) {
-      results.push({ step: "Add priority check", status: e.message.includes("already exists") ? "already exists" : e.message.substring(0, 80) });
+    } catch (error) {
+      results.push({ step: "Add priority check", status: error.message.includes("already exists") ? "already exists" : error.message.substring(0, 80) });
     }
 
     // 3. Create indexes
     try {
       await createTasksPriorityIndex();
       results.push({ step: "Create priority index", status: "ok" });
-    } catch (e) {
-      results.push({ step: "Create priority index", status: e.message.substring(0, 80) });
+    } catch (error) {
+      results.push({ step: "Create priority index", status: error.message.substring(0, 80) });
     }
 
     try {
       await createTasksAssignedPriorityIndex();
       results.push({ step: "Create assigned_priority index", status: "ok" });
-    } catch (e) {
-      results.push({ step: "Create assigned_priority index", status: e.message.substring(0, 80) });
+    } catch (error) {
+      results.push({ step: "Create assigned_priority index", status: error.message.substring(0, 80) });
     }
 
     // 4. Enhance error_logs table
@@ -65,12 +65,12 @@ export async function GET() {
       { name: "task_id", type: "INTEGER" },
     ];
 
-    for (const col of errorColumns) {
+    for (const column of errorColumns) {
       try {
-        await addErrorLogColumn(col.name, col.type);
-        results.push({ step: `Add error_logs.${col.name}`, status: "ok" });
-      } catch (e) {
-        results.push({ step: `Add error_logs.${col.name}`, status: e.message.includes("already exists") ? "already exists" : e.message.substring(0, 80) });
+        await addErrorLogColumn(column.name, column.type);
+        results.push({ step: `Add error_logs.${column.name}`, status: "ok" });
+      } catch (error) {
+        results.push({ step: `Add error_logs.${column.name}`, status: error.message.includes("already exists") ? "already exists" : error.message.substring(0, 80) });
       }
     }
 
@@ -78,8 +78,8 @@ export async function GET() {
     try {
       await createErrorLogsTaskIdIndex();
       results.push({ step: "Create error_logs task_id index", status: "ok" });
-    } catch (e) {
-      results.push({ step: "Create error_logs task_id index", status: e.message.substring(0, 80) });
+    } catch (error) {
+      results.push({ step: "Create error_logs task_id index", status: error.message.substring(0, 80) });
     }
 
     // 6. Update severity check constraint
@@ -87,8 +87,8 @@ export async function GET() {
       await dropErrorLogsSeverityCheck();
       await addErrorLogsSeverityCheck();
       results.push({ step: "Update severity check", status: "ok" });
-    } catch (e) {
-      results.push({ step: "Update severity check", status: e.message.substring(0, 80) });
+    } catch (error) {
+      results.push({ step: "Update severity check", status: error.message.substring(0, 80) });
     }
 
     return NextResponse.json({

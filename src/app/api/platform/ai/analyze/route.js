@@ -36,21 +36,21 @@ export async function POST(req) {
     }
 
     // Fetch submission
-    const sub = await getSubmissionForAiAnalysis(submission_id);
-    if (sub.rows.length === 0) {
+    const submissionResult = await getSubmissionForAiAnalysis(submission_id);
+    if (submissionResult.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Submission not found" }, { status: 404 });
     }
 
-    const submission = sub.rows[0];
+    const submission = submissionResult.rows[0];
 
     // Fetch run and form for context
-    const runRes = await getRunForAiAnalysis(submission.run_id);
-    const run = runRes.rows[0] || null;
+    const runResult = await getRunForAiAnalysis(submission.run_id);
+    const run = runResult.rows[0] || null;
 
     let form = null;
     if (run?.form_id) {
-      const formRes = await getFormForAiAnalysis(run.form_id);
-      form = formRes.rows[0] || null;
+      const formResult = await getFormForAiAnalysis(run.form_id);
+      form = formResult.rows[0] || null;
     }
 
     const analysisMode = mode || "analyze";

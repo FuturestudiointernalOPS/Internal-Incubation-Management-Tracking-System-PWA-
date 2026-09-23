@@ -26,20 +26,20 @@ import { useApi } from "@/lib/hooks/useApi";
 // refetch in a loop. The assignable-staff list is filtered here rather than in
 // the loader, so the rule is stated once and a failed read cannot return
 // unfiltered contacts.
-const pickProgramName = (d) =>
-  d?.success && d.program ? d.program.name || "" : "";
-const pickTeams = (d) => (d?.success && Array.isArray(d.teams) ? d.teams : []);
-const pickParticipants = (d) =>
-  d?.success && Array.isArray(d.participants) ? d.participants : [];
-const pickStaff = (d) =>
-  d?.success && Array.isArray(d.contacts)
-    ? d.contacts.filter(
-        (c) =>
-          c &&
-          (c.role === "super_admin" ||
-            c.role === "program_manager" ||
-            c.role === "admin" ||
-            c.role === "staff"),
+const pickProgramName = (payload) =>
+  payload?.success && payload.program ? payload.program.name || "" : "";
+const pickTeams = (payload) => (payload?.success && Array.isArray(payload.teams) ? payload.teams : []);
+const pickParticipants = (payload) =>
+  payload?.success && Array.isArray(payload.participants) ? payload.participants : [];
+const pickStaff = (payload) =>
+  payload?.success && Array.isArray(payload.contacts)
+    ? payload.contacts.filter(
+        (contact) =>
+          contact &&
+          (contact.role === "super_admin" ||
+            contact.role === "program_manager" ||
+            contact.role === "admin" ||
+            contact.role === "staff"),
       )
     : [];
 
@@ -119,8 +119,8 @@ export default function TeamManagementPage({ params }) {
 
     // Pre-select members whose team_id matches this team
     const memberIds = participants
-      .filter((p) => p.v2_team_id === team.id || p.team_id === team.id)
-      .map((p) => p.id?.toString() || p.cid);
+      .filter((participant) => participant.v2_team_id === team.id || participant.team_id === team.id)
+      .map((participant) => participant.id?.toString() || participant.cid);
     setSelectedMembers(memberIds);
     setShowModal(true);
   };
@@ -137,14 +137,14 @@ export default function TeamManagementPage({ params }) {
 
   // ---- CRUD handlers ----
 
-  const handleSave = async (e) => {
-    e.preventDefault();
+  const handleSave = async (event) => {
+    event.preventDefault();
     if (!teamName.trim()) {
       setFormError(t("adminMisc.programTeams.teamNameRequired"));
       return;
     }
 
-    const handler = staff.find((s) => (s.cid || s.id) === handlerId);
+    const handler = staff.find((staffMember) => (staffMember.cid || staffMember.id) === handlerId);
     setSaving(true);
     setFormError("");
 
@@ -166,14 +166,14 @@ export default function TeamManagementPage({ params }) {
         body.program_id = programId;
       }
 
-      const res = await fetch(url, {
+      const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         notify(
           "success",
           isEdit
@@ -183,7 +183,7 @@ export default function TeamManagementPage({ params }) {
         closeModal();
         refresh();
       } else {
-        setFormError(t((data.error || t("adminMisc.programTeams.operationFailed")) || "") || (data.error || t("adminMisc.programTeams.operationFailed")));
+        setFormError(t((payload.error || t("adminMisc.programTeams.operationFailed")) || "") || (payload.error || t("adminMisc.programTeams.operationFailed")));
       }
     } catch {
       setFormError(t("adminMisc.programTeams.networkError"));
@@ -196,13 +196,13 @@ export default function TeamManagementPage({ params }) {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await fetch("/api/teams", {
+      const response = await fetch("/api/teams", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: deleteTarget.id }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         notify("success", t("admin.teams.deleteSuccess"));
         setDeleteTarget(null);
         refresh();
@@ -217,7 +217,7 @@ export default function TeamManagementPage({ params }) {
   // ---- Venture Ready toggle ----
   const toggleVentureReady = async (team) => {
     try {
-      const res = await fetch("/api/teams", {
+      const response = await fetch("/api/teams", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -226,8 +226,8 @@ export default function TeamManagementPage({ params }) {
           is_venture_ready: !team.is_venture_ready,
         }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         notify(
           "success",
           team.is_venture_ready
@@ -252,12 +252,12 @@ export default function TeamManagementPage({ params }) {
     );
   };
 
-  const filteredParticipants = participants.filter((p) => {
+  const filteredParticipants = participants.filter((participant) => {
     if (!memberSearch) return true;
     const search = memberSearch.toLowerCase();
     return (
-      (p.name || "").toLowerCase().includes(search) ||
-      (p.email || "").toLowerCase().includes(search)
+      (participant.name || "").toLowerCase().includes(search) ||
+      (participant.email || "").toLowerCase().includes(search)
     );
   });
 
@@ -266,8 +266,8 @@ export default function TeamManagementPage({ params }) {
   const getHandlerDisplay = (team) => {
     if (team.handler_name) return team.handler_name;
     if (team.handler_id) {
-      const h = staff.find((s) => (s.cid || s.id) === team.handler_id);
-      return h ? h.name || h.email || team.handler_id : team.handler_id;
+      const handler = staff.find((staffMember) => (staffMember.cid || staffMember.id) === team.handler_id);
+      return handler ? handler.name || handler.email || team.handler_id : team.handler_id;
     }
     return t("admin.unassigned");
   };
@@ -278,7 +278,7 @@ export default function TeamManagementPage({ params }) {
     }
     // Fallback: count from participants
     return participants.filter(
-      (p) => p.v2_team_id === team.id || p.team_id === team.id,
+      (participant) => participant.v2_team_id === team.id || participant.team_id === team.id,
     ).length;
   };
 
@@ -498,7 +498,7 @@ export default function TeamManagementPage({ params }) {
                 <input
                   type="text"
                   value={teamName}
-                  onChange={(e) => setTeamName(e.target.value)}
+                  onChange={(event) => setTeamName(event.target.value)}
                   placeholder={t("admin.teams.teamNamePlaceholder")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors"
                   autoFocus
@@ -512,7 +512,7 @@ export default function TeamManagementPage({ params }) {
                 </label>
                 <select
                   value={handlerId}
-                  onChange={(e) => setHandlerId(e.target.value)}
+                  onChange={(event) => setHandlerId(event.target.value)}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors appearance-none cursor-pointer"
                   style={{
                     backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E")`,
@@ -524,9 +524,9 @@ export default function TeamManagementPage({ params }) {
                   <option value="">
                     {t("admin.teams.handlerPlaceholder")}
                   </option>
-                  {staff.map((s) => (
-                    <option key={s.cid || s.id} value={s.cid || s.id}>
-                      {s.name || s.email || s.cid} ({s.role || "staff"})
+                  {staff.map((staffMember) => (
+                    <option key={staffMember.cid || staffMember.id} value={staffMember.cid || staffMember.id}>
+                      {staffMember.name || staffMember.email || staffMember.cid} ({staffMember.role || "staff"})
                     </option>
                   ))}
                 </select>
@@ -549,7 +549,7 @@ export default function TeamManagementPage({ params }) {
                   <input
                     type="text"
                     value={memberSearch}
-                    onChange={(e) => setMemberSearch(e.target.value)}
+                    onChange={(event) => setMemberSearch(event.target.value)}
                     placeholder={t("admin.teams.selectMembers")}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl pl-9 pr-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors"
                   />
@@ -566,24 +566,24 @@ export default function TeamManagementPage({ params }) {
                       </p>
                     </div>
                   ) : (
-                    filteredParticipants.map((p) => {
-                      const pId = p.id?.toString() || p.cid;
-                      const isSelected = selectedMembers.includes(pId);
+                    filteredParticipants.map((participant) => {
+                      const participantId = participant.id?.toString() || participant.cid;
+                      const isSelected = selectedMembers.includes(participantId);
                       return (
                         <button
-                          key={pId}
+                          key={participantId}
                           type="button"
-                          onClick={() => toggleMember(pId)}
+                          onClick={() => toggleMember(participantId)}
                           className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors hover:bg-secondary ${
                             isSelected ? "bg-[var(--brand-orange)]/5" : ""
                           }`}
                         >
                           <div className="flex flex-col min-w-0">
                             <span className="text-xs font-bold text-[var(--text-primary)] truncate">
-                              {p.name || t("adminMisc.programTeams.unnamed")}
+                              {participant.name || t("adminMisc.programTeams.unnamed")}
                             </span>
                             <span className="text-[10px] font-medium text-[var(--text-tertiary)] truncate">
-                              {p.email || ""}
+                              {participant.email || ""}
                             </span>
                           </div>
                           <div

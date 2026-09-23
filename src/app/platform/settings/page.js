@@ -65,31 +65,31 @@ export default function PlatformSettings() {
             {t("platformMisc.settings.registeredModules", { count: modules.length })}
           </p>
           <div className="grid grid-cols-1 gap-3">
-            {modules.map((mod) => (
+            {modules.map((moduleItem) => (
               <div
-                key={mod.id}
+                key={moduleItem.id}
                 className="p-4 rounded-2xl bg-secondary border border-[var(--border-primary)] flex items-center justify-between"
               >
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-[12px] font-black text-[var(--text-primary)] uppercase tracking-tight">
-                      {mod.name}
+                      {moduleItem.name}
                     </p>
-                    {mod.future && (
+                    {moduleItem.future && (
                       <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase">
                         {t("platformMisc.settings.futureBadge")}
                       </span>
                     )}
                   </div>
                   <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
-                    {mod.description}
+                    {moduleItem.description}
                   </p>
                   <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1 opacity-50">
                     {t("platformMisc.settings.moduleMeta", {
-                      id: mod.id,
-                      order: mod.order,
+                      id: moduleItem.id,
+                      order: moduleItem.order,
                       permissions:
-                        mod.permissions?.join(", ") ||
+                        moduleItem.permissions?.join(", ") ||
                         t("platformMisc.settings.none"),
                     })}
                   </p>
@@ -98,17 +98,17 @@ export default function PlatformSettings() {
                   <span
                     className={cn(
                       "flex items-center gap-1 text-[10px] font-bold uppercase",
-                      mod.enabled ? "text-emerald-500" : "text-rose-500",
+                      moduleItem.enabled ? "text-emerald-500" : "text-rose-500",
                     )}
                   >
-                    {mod.enabled ? (
+                    {moduleItem.enabled ? (
                       <ToggleRight className="w-4 h-4" />
                     ) : (
                       <ToggleLeft className="w-4 h-4" />
                     )}
-                    {mod.enabled ? t("platformMisc.settings.enabled") : t("platformMisc.settings.disabled")}
+                    {moduleItem.enabled ? t("platformMisc.settings.enabled") : t("platformMisc.settings.disabled")}
                   </span>
-                  {mod.visible ? (
+                  {moduleItem.visible ? (
                     <Eye className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
                   ) : (
                     <EyeOff className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
@@ -134,36 +134,36 @@ export default function PlatformSettings() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-primary)]">
-              {services.map((svc) => (
+              {services.map((service) => (
                 <tr
-                  key={svc.id}
+                  key={service.id}
                   className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50 transition-colors"
                 >
-                  <td className="px-4 py-3">{svc.name}</td>
+                  <td className="px-4 py-3">{service.name}</td>
                   <td className="px-4 py-3">
                     <span
                       className={cn(
                         "flex items-center gap-1.5 text-[10px] font-bold uppercase",
-                        svc.loaded ? "text-emerald-500" : "text-amber-500",
+                        service.loaded ? "text-emerald-500" : "text-amber-500",
                       )}
                     >
                       <span
                         className={cn(
                           "w-1.5 h-1.5 rounded-full",
-                          svc.loaded ? "bg-emerald-500" : "bg-amber-500",
+                          service.loaded ? "bg-emerald-500" : "bg-amber-500",
                         )}
                       />
-                      {svc.loaded ? t("platformMisc.settings.ready") : t("platformMisc.settings.pending")}
+                      {service.loaded ? t("platformMisc.settings.ready") : t("platformMisc.settings.pending")}
                     </span>
                   </td>
                   <td className="text-[10px] text-[var(--text-secondary)]">
-                    {svc.singleton ? t("platformMisc.settings.yes") : t("platformMisc.settings.no")}
+                    {service.singleton ? t("platformMisc.settings.yes") : t("platformMisc.settings.no")}
                   </td>
                   <td className="text-[10px] text-[var(--text-secondary)]">
-                    {svc.optional ? t("platformMisc.settings.yes") : t("platformMisc.settings.no")}
+                    {service.optional ? t("platformMisc.settings.yes") : t("platformMisc.settings.no")}
                   </td>
                   <td className="text-[10px] text-[var(--text-secondary)]">
-                    {svc.methods?.join(", ") || "—"}
+                    {service.methods?.join(", ") || "—"}
                   </td>
                 </tr>
               ))}

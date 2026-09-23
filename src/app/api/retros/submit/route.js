@@ -164,12 +164,12 @@ export async function POST(req) {
             status,
             success: true,
           });
-        } catch (e) {
+        } catch (error) {
           reconciledTasks.push({
             id: parseInt(task_id),
             status,
             success: false,
-            error: e.message,
+            error: error.message,
           });
         }
       }

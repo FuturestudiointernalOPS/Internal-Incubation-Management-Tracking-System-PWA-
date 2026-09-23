@@ -24,18 +24,18 @@ function isSafeUrl(url) {
 // payload still reaches the failure panel.
 const EMPTY_ASSIGNMENTS = { assignments: [], failure: null };
 
-const pickAssignments = (d) =>
-  d?.success
-    ? { assignments: d.assignments || [], failure: null }
-    : { assignments: [], failure: d?.error || null };
+const pickAssignments = (payload) =>
+  payload?.success
+    ? { assignments: payload.assignments || [], failure: null }
+    : { assignments: [], failure: payload?.error || null };
 
 /** The programmes a list of assignments mentions, in the order it mentions them. */
 function programsOf(assignments) {
-  const map = {};
-  for (const a of assignments) {
-    if (!map[a.programId]) map[a.programId] = a.programName;
+  const namesById = {};
+  for (const assignment of assignments) {
+    if (!namesById[assignment.programId]) namesById[assignment.programId] = assignment.programName;
   }
-  return Object.entries(map).map(([id, name]) => ({ id, name }));
+  return Object.entries(namesById).map(([id, name]) => ({ id, name }));
 }
 
 function StatusBadge({ status }) {
@@ -53,12 +53,12 @@ function StatusBadge({ status }) {
     revision_requested: t("participantMisc.assignments.statusRevisionRequested"),
     draft: t("participantMisc.assignments.statusDraft"),
   };
-  const c =
+  const classes =
     config[status?.toLowerCase()] ||
     "bg-white/5 text-[var(--text-tertiary)] border-white/10";
   return (
     <span
-      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${c}`}
+      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${classes}`}
     >
       {statusLabels[status?.toLowerCase()] || status || statusLabels.draft}
     </span>
@@ -173,16 +173,16 @@ export default function AssignmentsView() {
     }
   };
 
-  const filtered = assignments.filter((a) => {
+  const filtered = assignments.filter((assignment) => {
     if (filterStatus === "overdue")
-      return !a.submission && new Date(a.dueDate) < new Date();
-    if (filterStatus === "pending") return !a.submission;
+      return !assignment.submission && new Date(assignment.dueDate) < new Date();
+    if (filterStatus === "pending") return !assignment.submission;
     if (filterStatus === "submitted")
-      return a.submission && a.submission.status === "pending";
-    if (filterStatus === "approved") return a.submission?.status === "approved";
-    if (filterStatus === "rejected") return a.submission?.status === "rejected";
+      return assignment.submission && assignment.submission.status === "pending";
+    if (filterStatus === "approved") return assignment.submission?.status === "approved";
+    if (filterStatus === "rejected") return assignment.submission?.status === "rejected";
     if (filterStatus === "revision_requested")
-      return a.submission?.status === "revision_requested";
+      return assignment.submission?.status === "revision_requested";
     return true;
   });
 
@@ -191,13 +191,13 @@ export default function AssignmentsView() {
       <div className="space-y-4 animate-pulse">
         <div className="h-8 w-48 bg-white/10 rounded" />
         <div className="flex gap-2">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-8 w-24 bg-white/5 rounded" />
+          {[...Array(4)].map((_, index) => (
+            <div key={index} className="h-8 w-24 bg-white/5 rounded" />
           ))}
         </div>
-        {[...Array(5)].map((_, i) => (
+        {[...Array(5)].map((_, index) => (
           <div
-            key={i}
+            key={index}
             className="h-16 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]"
           />
         ))}
@@ -234,7 +234,7 @@ export default function AssignmentsView() {
         <p className="text-sm text-[var(--text-secondary)] mt-1">
           {t("participantMisc.assignments.summary", {
             total: assignments.length,
-            pending: assignments.filter((a) => !a.submission).length,
+            pending: assignments.filter((assignment) => !assignment.submission).length,
           })}
         </p>
       </div>
@@ -243,19 +243,19 @@ export default function AssignmentsView() {
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={filterProgram}
-          onChange={(e) => setFilterProgram(e.target.value)}
+          onChange={(event) => setFilterProgram(event.target.value)}
           className="px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
         >
           <option value="all">{t("participantMisc.assignments.filterAllPrograms")}</option>
-          {programs.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
+          {programs.map((program) => (
+            <option key={program.id} value={program.id}>
+              {program.name}
             </option>
           ))}
         </select>
         <select
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
+          onChange={(event) => setFilterStatus(event.target.value)}
           className="px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
         >
           <option value="all">{t("participantMisc.assignments.filterAllStatus")}</option>
@@ -278,15 +278,15 @@ export default function AssignmentsView() {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((a) => {
-            const isOverdue = !a.submission && new Date(a.dueDate) < new Date();
+          {filtered.map((assignment) => {
+            const isOverdue = !assignment.submission && new Date(assignment.dueDate) < new Date();
             return (
               <div
-                key={`${a.programId}-${a.id}`}
+                key={`${assignment.programId}-${assignment.id}`}
                 className={`flex items-center gap-4 p-4 rounded-xl border transition-all bg-[var(--bg-tertiary)] ${
                   isOverdue
                     ? "border-rose-500/20"
-                    : a.submission?.status === "approved"
+                    : assignment.submission?.status === "approved"
                       ? "border-emerald-500/20"
                       : "border-[var(--border-primary)]"
                 }`}
@@ -295,14 +295,14 @@ export default function AssignmentsView() {
                   className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
                     isOverdue
                       ? "bg-rose-500/10"
-                      : a.submission?.status === "approved"
+                      : assignment.submission?.status === "approved"
                         ? "bg-emerald-500/10"
                         : "bg-white/5"
                   }`}
                 >
                   {isOverdue ? (
                     <AlertCircle className="w-5 h-5 text-rose-400" />
-                  ) : a.submission?.status === "approved" ? (
+                  ) : assignment.submission?.status === "approved" ? (
                     <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                   ) : (
                     <FileText className="w-5 h-5 text-[var(--text-tertiary)]" />
@@ -311,10 +311,10 @@ export default function AssignmentsView() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                      {a.title}
+                      {assignment.title}
                     </p>
-                    {a.submission && (
-                      <StatusBadge status={a.submission.status} />
+                    {assignment.submission && (
+                      <StatusBadge status={assignment.submission.status} />
                     )}
                     {isOverdue && (
                       <span className="text-[10px] font-bold uppercase tracking-widest text-rose-400">
@@ -323,72 +323,72 @@ export default function AssignmentsView() {
                     )}
                   </div>
                   <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
-                    {a.programName}{" "}
-                    {a.dueDate
+                    {assignment.programName}{" "}
+                    {assignment.dueDate
                       ? t("participantMisc.assignments.due", {
-                          date: new Date(a.dueDate).toLocaleDateString(),
+                          date: new Date(assignment.dueDate).toLocaleDateString(),
                         })
                       : ""}
-                    {a.submission?.score > 0
+                    {assignment.submission?.score > 0
                       ? t("participantMisc.assignments.score", {
-                          score: a.submission.score,
+                          score: assignment.submission.score,
                         })
                       : ""}
                   </p>
-                  {a.description && (
+                  {assignment.description && (
                     <p className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-2">
-                      {a.description}
+                      {assignment.description}
                     </p>
                   )}
-                  {(a.submission?.status === "revision_requested" ||
-                    a.submission?.status === "rejected") &&
-                    (a.submission.feedback || a.submission.rejectionReason) && (
+                  {(assignment.submission?.status === "revision_requested" ||
+                    assignment.submission?.status === "rejected") &&
+                    (assignment.submission.feedback || assignment.submission.rejectionReason) && (
                       <div className="mt-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-blue-400">
                           {t("participantMisc.assignments.feedbackLabel")}
                         </p>
                         <p className="text-sm text-[var(--text-secondary)] mt-0.5">
-                          {a.submission.rejectionReason || a.submission.feedback}
+                          {assignment.submission.rejectionReason || assignment.submission.feedback}
                         </p>
                       </div>
                     )}
-                  {a.resourceUrl && isSafeUrl(a.resourceUrl) && (
+                  {assignment.resourceUrl && isSafeUrl(assignment.resourceUrl) && (
                     <a
-                      href={a.resourceUrl}
+                      href={assignment.resourceUrl}
                       target="_blank"
                       rel="noreferrer noopener"
                       className="inline-flex items-center gap-1 mt-2 px-3 py-1.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--brand-orange)]/30 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                     >
                       <ExternalLink className="w-3 h-3" />
-                      {a.resourceLabel || t("participantMisc.assignments.openResource")}
+                      {assignment.resourceLabel || t("participantMisc.assignments.openResource")}
                     </a>
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {a.submission?.fileUrl && (
+                  {assignment.submission?.fileUrl && (
                     <a
-                      href={a.submission.fileUrl}
+                      href={assignment.submission.fileUrl}
                       target="_blank"
                       className="p-2 rounded-lg hover:bg-white/5 transition-all" rel="noreferrer"
                     >
                       <ExternalLink className="w-4 h-4 text-[var(--text-tertiary)]" />
                     </a>
                   )}
-                  {(!a.submission ||
-                    a.submission?.status === "rejected" ||
-                    a.submission?.status === "revision_requested") && (
+                  {(!assignment.submission ||
+                    assignment.submission?.status === "rejected" ||
+                    assignment.submission?.status === "revision_requested") && (
                     <button
                       onClick={() => {
-                        setShowSubmitModal(a);
+                        setShowSubmitModal(assignment);
                         setSubmitUrl("");
                         setSubmitFile(null);
                         setFeedback(null);
                       }}
                       className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                     >
-                      {a.submission?.status === "revision_requested"
+                      {assignment.submission?.status === "revision_requested"
                         ? t("participantMisc.assignments.resubmit")
-                        : a.submission?.status === "rejected"
+                        : assignment.submission?.status === "rejected"
                           ? t("participantMisc.assignments.redo")
                           : t("participantMisc.assignments.submit")}
                     </button>
@@ -412,7 +412,7 @@ export default function AssignmentsView() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 max-h-[85vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-black text-[var(--text-primary)] tracking-tight">
@@ -452,7 +452,7 @@ export default function AssignmentsView() {
                 type="text"
                 placeholder={t("participantMisc.assignments.urlPlaceholder")}
                 value={submitUrl}
-                onChange={(e) => setSubmitUrl(e.target.value)}
+                onChange={(event) => setSubmitUrl(event.target.value)}
                 className="w-full px-4 py-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold outline-none focus:border-[var(--brand-orange)]"
               />
               <div className="text-[10px] font-medium text-[var(--text-secondary)] text-center">
@@ -460,7 +460,7 @@ export default function AssignmentsView() {
               </div>
               <input
                 type="file"
-                onChange={(e) => { setSubmitFile(e.target.files[0] || null); setSubmitUrl(""); }}
+                onChange={(event) => { setSubmitFile(event.target.files[0] || null); setSubmitUrl(""); }}
                 className="w-full px-4 py-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-secondary)] file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[var(--brand-orange)] file:text-black hover:file:bg-white transition-all"
               />
               {submitFile && (

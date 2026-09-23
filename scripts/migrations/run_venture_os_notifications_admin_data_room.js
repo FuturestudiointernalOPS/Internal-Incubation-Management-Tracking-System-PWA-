@@ -32,19 +32,19 @@ async function run() {
     ];
 
     let count = 0;
-    for (const t of tables) {
+    for (const tableName of tables) {
       try {
-        const res = await client.query(
+        const queryResult = await client.query(
           `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1)`,
-          [t]
+          [tableName]
         );
-        if (res.rows[0]?.exists) {
-          console.log(`   ✅ ${t}`);
+        if (queryResult.rows[0]?.exists) {
+          console.log(`   ✅ ${tableName}`);
           count++;
         } else {
-          console.log(`   ❌ ${t} — MISSING`);
+          console.log(`   ❌ ${tableName} — MISSING`);
         }
-      } catch { console.log(`   ⚠️  ${t} — error checking`); }
+      } catch { console.log(`   ⚠️  ${tableName} — error checking`); }
     }
 
     // Check seeded data

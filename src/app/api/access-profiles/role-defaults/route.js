@@ -74,8 +74,8 @@ export async function PUT(req) {
       success: true,
       message: `Role "${role_name}" default set to "${profile.rows[0].name}"`,
     });
-  } catch (e) {
-    console.error("API Error:", e.message);
+  } catch (error) {
+    console.error("API Error:", error.message);
     return NextResponse.json(
       { success: false, error: "errors.somethingWrong" },
       { status: 500 },
@@ -100,8 +100,8 @@ export async function GET() {
       success: true,
       mappings: mappings.rows,
     });
-  } catch (e) {
-    console.error("API Error:", e.message);
+  } catch (error) {
+    console.error("API Error:", error.message);
     return NextResponse.json(
       { success: false, error: "errors.somethingWrong" },
       { status: 500 },
@@ -150,8 +150,8 @@ export async function DELETE(req) {
     }
 
     return NextResponse.json({ success: true, removed });
-  } catch (e) {
-    console.error("API Error:", e.message);
+  } catch (error) {
+    console.error("API Error:", error.message);
     return NextResponse.json(
       { success: false, error: "errors.somethingWrong" },
       { status: 500 },

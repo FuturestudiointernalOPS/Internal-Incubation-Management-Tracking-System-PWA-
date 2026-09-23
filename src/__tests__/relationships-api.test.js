@@ -89,8 +89,8 @@ describe("GET /api/me/relationships", () => {
 
     // Ventures query scoped to the session cid (user_cid OR contact_id),
     // excludes removed memberships
-    const ventureQuery = executedQueries.find((q) =>
-      q.sql.includes("FROM venture_members vm"),
+    const ventureQuery = executedQueries.find((query) =>
+      query.sql.includes("FROM venture_members vm"),
     );
     expect(ventureQuery.sql).toContain("vm.user_cid = ? OR vm.contact_id = ?");
     expect(ventureQuery.sql).toContain("vm.removed_at IS NULL");

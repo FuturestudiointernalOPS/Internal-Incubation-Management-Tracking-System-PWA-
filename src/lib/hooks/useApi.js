@@ -13,7 +13,15 @@ import { useState, useEffect, useCallback, useRef } from "react";
  * @param {object} [options]
  * @param {boolean} [options.immediate=true] - Fetch on mount
  * @param {any} [options.defaultValue=null]  - Default data value
- * @param {Array} [options.deps=[]]          - Re-fetch when these change
+ * @param {Array} [options.deps=[]]          - Re-fetch when these change.
+ *                                             The LENGTH of this array must not
+ *                                             vary between renders: it is spread
+ *                                             into the read's effect dependency
+ *                                             list, and React refuses a list whose
+ *                                             size changed since the last render.
+ *                                             The values may be anything React
+ *                                             compares by identity (a primitive,
+ *                                             or a memoised object).
  * @param {Function} [options.transform]     - Transform raw response data
  * @param {object}   [options.fetchOptions]  - Passed to the request itself
  *                                             (`{ cache: "no-store" }` for an
@@ -139,9 +147,9 @@ export function revalidateJson(url, apply) {
  * background, so shells and pages paint instantly on return visits.
  */
 export function fetchSwrJson(url, apply) {
-  const hit = cacheGet(url);
-  if (hit !== null && hit.success) {
-    if (typeof apply === "function") apply(hit);
+  const cachedPayload = cacheGet(url);
+  if (cachedPayload !== null && cachedPayload.success) {
+    if (typeof apply === "function") apply(cachedPayload);
     return revalidateJson(url, apply);
   }
   return revalidateJson(url, apply);
@@ -188,6 +196,24 @@ export function useApi(url, options = {}) {
   const fetchIdRef = useRef(0);
   const activeRef = useRef(true);
 
+  // The caller's `deps` are spread into the read's effect below, so the SIZE of
+  // that list is part of the hook's contract: React refuses a list whose size
+  // changed between renders, with a message that does not name the screen. In
+  // development the same check is mirrored here, where the error can name the
+  // hook and the address - and says what to change. Out of production on purpose:
+  // a length change is a caller bug to fix, not a condition to handle at runtime.
+  const [expectedDepsLength] = useState(deps.length);
+  if (
+    process.env.NODE_ENV === "development" &&
+    deps.length !== expectedDepsLength
+  ) {
+    throw new Error(
+      `useApi: the deps array for ${url} changed length between renders ` +
+        `(${expectedDepsLength} -> ${deps.length}). Its size must stay fixed: ` +
+        `change a value, or drop the option, but never the number of entries.`,
+    );
+  }
+
   // `transform` shapes the answer; it is not part of WHAT is being read. Callers
   // naturally write it inline, which is a new identity on every render - and
   // while that identity was a dependency of the read, every render started
@@ -218,8 +244,8 @@ export function useApi(url, options = {}) {
     // Stale-while-revalidate: show cached data instantly, refresh in background.
     const cached = bypassCache ? null : cacheGet(url);
     if (cached !== null) {
-      const shape = transformRef.current;
-      setData(shape ? shape(cached) : cached);
+      const transformFn = transformRef.current;
+      setData(transformFn ? transformFn(cached) : cached);
       setLoading(false);
     } else {
       setLoading(true);
@@ -244,10 +270,10 @@ export function useApi(url, options = {}) {
       );
       cacheSet(url, json);
 
-      const shape = transformRef.current;
-      const result = shape ? shape(json) : json;
+      const transformFn = transformRef.current;
+      const result = transformFn ? transformFn(json) : json;
       setData(result);
-    } catch (err) {
+    } catch (fetchError) {
       if (fetchId !== fetchIdRef.current || !activeRef.current) return;
       // A request that threw never produced a response, so there is no status to
       // report: the screen reads this as "no answer", not as "the server said X".
@@ -256,8 +282,8 @@ export function useApi(url, options = {}) {
           ? previous
           : { url, status: null },
       );
-      setError(err.message || "Failed to fetch data");
-      console.error(`[useApi] Error fetching ${url}:`, err);
+      setError(fetchError.message || "Failed to fetch data");
+      console.error(`[useApi] Error fetching ${url}:`, fetchError);
     } finally {
       if (fetchId === fetchIdRef.current) {
         setLoading(false);
@@ -265,7 +291,11 @@ export function useApi(url, options = {}) {
     }
   }, [url]);
 
-  // Fetch on mount / dependency change
+  // Fetch on mount / dependency change. The caller's `deps` are spread into the
+  // list, so the read is re-issued when any of them changes. The two reports this
+  // line carries (a spread the rule cannot verify, and the state written by
+  // `fetchData`) are the hook BEING the conversion every screen went through -
+  // recorded, not silenced: see docs/DATA_HOOK_MIGRATION.md section 3.7.
   useEffect(() => {
     if (!immediate) return;
     fetchData();
@@ -345,10 +375,10 @@ export function useApiMulti(endpoints, options = {}) {
         merged[key] = value;
       });
       setData(merged);
-    } catch (err) {
+    } catch (fetchError) {
       if (fetchId !== fetchIdRef.current) return;
-      setError(err.message || "Failed to fetch");
-      console.error("[useApiMulti] Error:", err);
+      setError(fetchError.message || "Failed to fetch");
+      console.error("[useApiMulti] Error:", fetchError);
     } finally {
       if (fetchId === fetchIdRef.current) {
         setLoading(false);
@@ -356,6 +386,7 @@ export function useApiMulti(endpoints, options = {}) {
     }
   }, [endpoints]);
 
+  // Same contract as `useApi`: the caller's `deps` are spread here on purpose.
   useEffect(() => {
     if (!immediate) return;
     fetchAll();

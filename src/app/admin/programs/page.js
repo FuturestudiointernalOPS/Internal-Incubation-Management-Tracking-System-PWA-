@@ -27,6 +27,7 @@ import { uploadFile } from "@/lib/storage";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { useDialogs } from "@/components/ui/DialogProvider";
 
 const FACILITATOR_CAPS = [
   { key: "participants.view", labelKey: "capParticipantsView" },
@@ -47,11 +48,11 @@ const FACILITATOR_CAPS = [
 // YYYY-MM-DD value for <input type="date">, without UTC day shifts.
 const toDateInputValue = (value) => {
   if (!value) return "";
-  const s = String(value);
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
+  const dateString = String(value);
+  const dateMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (dateMatch) return `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
+  const parsed = new Date(dateString);
+  return isNaN(parsed.getTime()) ? "" : parsed.toISOString().split("T")[0];
 };
 
 // ─── Read shapers (module scope: built once, never per render) ──────────────
@@ -62,26 +63,28 @@ const toDateInputValue = (value) => {
 // so it is made once rather than on every render.
 const EMPTY_GROUP_REG_LINKS = {};
 
-const pickPrograms = (d) =>
-  d?.success && Array.isArray(d.programs) ? d.programs : [];
+const pickPrograms = (payload) =>
+  payload?.success && Array.isArray(payload.programs) ? payload.programs : [];
 
-const pickTeams = (d) => {
-  const contacts = d?.success && Array.isArray(d.contacts) ? d.contacts : [];
+const pickTeams = (payload) => {
+  const contacts =
+    payload?.success && Array.isArray(payload.contacts) ? payload.contacts : [];
   return contacts.filter(
-    (c) => c && c.group_name?.toUpperCase() === "FUTURE STUDIO",
+    (contact) => contact && contact.group_name?.toUpperCase() === "FUTURE STUDIO",
   );
 };
 
-const pickFamilies = (d) =>
-  d?.success && Array.isArray(d.families) ? d.families : [];
+const pickFamilies = (payload) =>
+  payload?.success && Array.isArray(payload.families) ? payload.families : [];
 
-const pickKnowledgeItems = (d) => {
-  if (!d?.success) return [];
-  const items = d.conceptNotes || d.knowledgeItems || d.notes || [];
+const pickKnowledgeItems = (payload) => {
+  if (!payload?.success) return [];
+  const items =
+    payload.conceptNotes || payload.knowledgeItems || payload.notes || [];
   return Array.isArray(items) ? items : [];
 };
 
-const pickEditingKpis = (d) => (d?.success ? d.kpis || [] : []);
+const pickEditingKpis = (payload) => (payload?.success ? payload.kpis || [] : []);
 
 /**
  * The Form Run assigned directly to a programme (target_type = "program"), which
@@ -91,9 +94,9 @@ const pickEditingKpis = (d) => (d?.success ? d.kpis || [] : []);
  * made of the browser's own origin, and a render also happens on the server,
  * where no origin exists. A transformation runs in the browser, after the answer.
  */
-const pickProgramRegLink = (d) => {
-  const run = (d?.success ? d.runs || [] : []).find(
-    (x) => x.status === "active" && x.public_slug,
+const pickProgramRegLink = (payload) => {
+  const run = (payload?.success ? payload.runs || [] : []).find(
+    (formRun) => formRun.status === "active" && formRun.public_slug,
   );
   if (!run) return null;
   return {
@@ -104,6 +107,7 @@ const pickProgramRegLink = (d) => {
 
 export default function ProgramManagement() {
   const { t } = useI18n();
+  const { confirm, prompt } = useDialogs();
   const [search, setSearch] = useState("");
   const [activeTab, setTab] = useState("all");
   const [editingProgram, setEditingProgram] = useState(null);
@@ -117,16 +121,16 @@ export default function ProgramManagement() {
   // span between the two dates. Returns an error message or "" when valid.
   const validateEditDates = (start, end, durationWeeks) => {
     if (!start || !end) return ""; // dates are optional when editing
-    const s = new Date(start);
-    const e = new Date(end);
-    if (isNaN(s.getTime()) || isNaN(e.getTime())) return "";
-    if (e.getTime() < s.getTime()) {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "";
+    if (endDate.getTime() < startDate.getTime()) {
       return t("adminMisc.programs.dateErrorOrder");
     }
-    if (e.getTime() === s.getTime()) {
+    if (endDate.getTime() === startDate.getTime()) {
       return t("adminMisc.programs.dateErrorSameDay");
     }
-    const diffDays = Math.round((e - s) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24));
     const computedWeeks = Math.max(1, Math.ceil(diffDays / 7));
     const inputWeeks = parseInt(durationWeeks, 10);
     if (inputWeeks && inputWeeks !== computedWeeks) {
@@ -168,8 +172,10 @@ export default function ProgramManagement() {
   useEffect(() => {
     if (!editingProgram?.id) return;
     fetch(`/api/contacts`)
-      .then((r) => r.json())
-      .then((d) => setFacilitatorPool(d.success ? d.contacts || [] : []))
+      .then((response) => response.json())
+      .then((payload) =>
+        setFacilitatorPool(payload.success ? payload.contacts || [] : []),
+      )
       .catch(() => setFacilitatorPool([]));
   }, [editingProgram?.id]);
 
@@ -177,7 +183,7 @@ export default function ProgramManagement() {
     if (!editingProgram?.id || !contact?.cid) return;
     setFacBusy(true);
     try {
-      const res = await fetch("/api/program-staff", {
+      const response = await fetch("/api/program-staff", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -186,14 +192,14 @@ export default function ProgramManagement() {
           role: "facilitator",
         }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         setEditingProgram({
           ...editingProgram,
           facilitators: [
             ...(editingProgram.facilitators || []),
             {
-              id: data.id,
+              id: payload.id,
               cid: contact.cid,
               role: "facilitator",
               permissions: {},
@@ -234,20 +240,20 @@ export default function ProgramManagement() {
     }
   };
 
-  const removeFacilitator = async (f) => {
-    if (!f?.id) return;
+  const removeFacilitator = async (facilitator) => {
+    if (!facilitator?.id) return;
     try {
-      const res = await fetch("/api/program-staff", {
+      const response = await fetch("/api/program-staff", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: f.id }),
+        body: JSON.stringify({ id: facilitator.id }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         setEditingProgram({
           ...editingProgram,
           facilitators: (editingProgram.facilitators || []).filter(
-            (x) => x.id !== f.id,
+            (existing) => existing.id !== facilitator.id,
           ),
         });
       } else {
@@ -272,23 +278,23 @@ export default function ProgramManagement() {
     }
   };
 
-  const toggleFacOverride = async (f, capKey) => {
-    const current = f.permissions || {};
+  const toggleFacOverride = async (facilitator, capKey) => {
+    const current = facilitator.permissions || {};
     const next = { ...current };
     if (next[capKey]) delete next[capKey];
     else next[capKey] = capKey.startsWith("view") ? 1 : 2;
     try {
-      const res = await fetch("/api/program-staff", {
+      const response = await fetch("/api/program-staff", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: f.id, permissions: next }),
+        body: JSON.stringify({ id: facilitator.id, permissions: next }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         setEditingProgram({
           ...editingProgram,
-          facilitators: (editingProgram.facilitators || []).map((x) =>
-            x.id === f.id ? { ...x, permissions: next } : x,
+          facilitators: (editingProgram.facilitators || []).map((entry) =>
+            entry.id === facilitator.id ? { ...entry, permissions: next } : entry,
           ),
         });
       } else {
@@ -340,7 +346,7 @@ export default function ProgramManagement() {
     }
     setFacBusy(true);
     try {
-      const res = await fetch("/api/auth/invite", {
+      const response = await fetch("/api/auth/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -349,11 +355,11 @@ export default function ProgramManagement() {
           role: "facilitator",
         }),
       });
-      const data = await res.json();
-      if (data.success) {
-        if (data.cid) {
+      const payload = await response.json();
+      if (payload.success) {
+        if (payload.cid) {
           await addFacilitator({
-            cid: data.cid,
+            cid: payload.cid,
             name: inviteForm.name.trim(),
             email: inviteForm.email.trim(),
           });
@@ -372,7 +378,7 @@ export default function ProgramManagement() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: data.error || t("adminMisc.programs.inviteFailed"),
+              message: payload.error || t("adminMisc.programs.inviteFailed"),
             },
           }),
         );
@@ -393,16 +399,18 @@ export default function ProgramManagement() {
 
   const setLeadFacilitator = async (familyId, cid) => {
     try {
-      const res = await fetch("/api/families", {
+      const response = await fetch("/api/families", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: familyId, lead_facilitator_id: cid || null }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         setNotes((prev) =>
-          (prev || []).map((n) =>
-            n.id === familyId ? { ...n, lead_facilitator_id: cid || null } : n,
+          (prev || []).map((note) =>
+            note.id === familyId
+              ? { ...note, lead_facilitator_id: cid || null }
+              : note,
           ),
         );
         window.dispatchEvent(
@@ -451,36 +459,36 @@ export default function ProgramManagement() {
     ? groupRegLinksBySegment
     : EMPTY_GROUP_REG_LINKS;
   useEffect(() => {
-    const gids = assignedSegmentKey ? assignedSegmentKey.split("|") : [];
-    if (gids.length === 0) return;
+    const groupIds = assignedSegmentKey ? assignedSegmentKey.split("|") : [];
+    if (groupIds.length === 0) return;
     let cancelled = false;
     Promise.all(
-      gids.map(async (gid) => {
+      groupIds.map(async (groupId) => {
         try {
-          const res = await fetch(
-            `/api/platform/form-runs?group_id=${encodeURIComponent(gid)}`,
+          const response = await fetch(
+            `/api/platform/form-runs?group_id=${encodeURIComponent(groupId)}`,
           );
-          const d = await res.json();
+          const payload = await response.json();
           const run =
-            d.success && d.runs
-              ? d.runs.find((x) => x.status === "active" && x.public_slug)
+            payload.success && payload.runs
+              ? payload.runs.find((activeRun) => activeRun.status === "active" && activeRun.public_slug)
               : null;
           return {
-            gid,
+            gid: groupId,
             ok: true,
             url: run ? `${window.location.origin}/s/${run.public_slug}` : null,
           };
         } catch (_) {
-          return { gid, ok: false, url: null };
+          return { gid: groupId, ok: false, url: null };
         }
       }),
     ).then((results) => {
       if (cancelled) return;
       setGroupRegLinks((prev) => {
         const next = {};
-        for (const { gid, ok, url } of results) {
-          if (url) next[gid] = url;
-          else if (!ok && prev[gid]) next[gid] = prev[gid];
+        for (const { gid: groupId, ok, url } of results) {
+          if (url) next[groupId] = url;
+          else if (!ok && prev[groupId]) next[groupId] = prev[groupId];
         }
         return next;
       });
@@ -513,7 +521,7 @@ export default function ProgramManagement() {
     if (!editKpiInput.title.trim() || !editingProgram?.id) return;
     setIsKpiSubmitting(true);
     try {
-      const res = await fetch("/api/v2/kpis", {
+      const response = await fetch("/api/v2/kpis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -522,13 +530,13 @@ export default function ProgramManagement() {
           target_value: editKpiInput.target_value,
         }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         setEditKpiInput({ title: "", target_value: 80 });
         refreshEditingKpis();
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsKpiSubmitting(false);
     }
@@ -536,17 +544,17 @@ export default function ProgramManagement() {
 
   const handleDeleteEditKpi = async (kpiId) => {
     try {
-      const res = await fetch("/api/v2/kpis", {
+      const response = await fetch("/api/v2/kpis", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: kpiId }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         refreshEditingKpis();
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -609,32 +617,32 @@ export default function ProgramManagement() {
     refreshKnowledge();
   };
 
-  const handleUpdate = async (e) => {
-    e.preventDefault();
+  const handleUpdate = async (event) => {
+    event.preventDefault();
     if (!editingProgram?.id) return;
-    const vErr = validateEditDates(
+    const validationError = validateEditDates(
       editingProgram?.start_date,
       editingProgram?.end_date,
       editingProgram?.duration_weeks,
     );
-    if (vErr) {
-      setProgramDateError(vErr);
+    if (validationError) {
+      setProgramDateError(validationError);
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
-          detail: { type: "error", message: vErr },
+          detail: { type: "error", message: validationError },
         }),
       );
       return;
     }
     setIsUpdating(true);
     try {
-      const res = await fetch("/api/pm/programs", {
+      const response = await fetch("/api/pm/programs", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editingProgram),
       });
-      const json = await res.json();
-      if (json.success) {
+      const payload = await response.json();
+      if (payload.success) {
         setEditingProgram(null);
         setIsCreatingGroup(false);
         reload();
@@ -652,18 +660,18 @@ export default function ProgramManagement() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: json.error || t("adminMisc.programs.saveFailed"),
+              message: payload.error || t("adminMisc.programs.saveFailed"),
             },
           }),
         );
       }
-    } catch (e) {
-      console.error("Update Failure:", e);
+    } catch (error) {
+      console.error("Update Failure:", error);
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
           detail: {
             type: "error",
-            message: e.message || t("adminMisc.programs.saveFailed"),
+            message: error.message || t("adminMisc.programs.saveFailed"),
           },
         }),
       );
@@ -672,26 +680,27 @@ export default function ProgramManagement() {
     }
   };
 
-  const handleArchiveAction = async (id, isArchiving, e, name) => {
+  const handleArchiveAction = async (id, isArchiving, event, name) => {
     if (!id) return;
-    e.stopPropagation();
+    event.stopPropagation();
     const progName = name || "";
     if (
       isArchiving &&
-      !window.confirm(
-        t("adminMisc.programs.confirmArchive", { name: progName }),
-      )
+      !(await confirm({
+        message: t("adminMisc.programs.confirmArchive", { name: progName }),
+        tone: "danger",
+      }))
     )
       return;
     if (
       !isArchiving &&
-      !window.confirm(
-        t("adminMisc.programs.confirmRestore", { name: progName }),
-      )
+      !(await confirm({
+        message: t("adminMisc.programs.confirmRestore", { name: progName }),
+      }))
     )
       return;
     try {
-      const res = await fetch("/api/pm/programs", {
+      const response = await fetch("/api/pm/programs", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -699,8 +708,8 @@ export default function ProgramManagement() {
           is_archived: isArchiving ? 1 : 0,
         }),
       });
-      const data = await res.json();
-      if (data.success) reload();
+      const payload = await response.json();
+      if (payload.success) reload();
       else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
@@ -711,8 +720,8 @@ export default function ProgramManagement() {
           }),
         );
       }
-    } catch (e) {
-      console.error("Archive Failure:", e);
+    } catch (error) {
+      console.error("Archive Failure:", error);
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
           detail: {
@@ -729,7 +738,7 @@ export default function ProgramManagement() {
       newGroup.name.trim() || (editingProgram?.name || "New Group").trim();
     if (!groupName) return;
     try {
-      const res = await fetch("/api/families", {
+      const response = await fetch("/api/families", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -740,10 +749,10 @@ export default function ProgramManagement() {
           default_role: newGroup.default_role || null,
         }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         const newSegment =
-          data.group || data.family || { id: data.id, name: groupName };
+          payload.group || payload.family || { id: payload.id, name: groupName };
         const current = Array.isArray(editingProgram?.assigned_segments)
           ? editingProgram.assigned_segments
           : [];
@@ -774,13 +783,13 @@ export default function ProgramManagement() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: data.error || t("adminMisc.programs.groupCreationFailed"),
+              message: payload.error || t("adminMisc.programs.groupCreationFailed"),
             },
           }),
         );
       }
-    } catch (e) {
-      console.error("Group creation failed:", e);
+    } catch (error) {
+      console.error("Group creation failed:", error);
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
           detail: {
@@ -792,23 +801,24 @@ export default function ProgramManagement() {
     }
   };
 
-  const handlePermanentDelete = async (id, e, name) => {
+  const handlePermanentDelete = async (id, event, name) => {
     if (!id) return;
-    e.stopPropagation();
+    event.stopPropagation();
     if (
-      !window.confirm(
-        t("adminMisc.programs.confirmDelete", { name: name || "" }),
-      )
+      !(await confirm({
+        message: t("adminMisc.programs.confirmDelete", { name: name || "" }),
+        tone: "danger",
+      }))
     )
       return;
     try {
-      const res = await fetch("/api/pm/programs", {
+      const response = await fetch("/api/pm/programs", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      const data = await res.json();
-      if (data.success) reload();
+      const payload = await response.json();
+      if (payload.success) reload();
       else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
@@ -819,8 +829,8 @@ export default function ProgramManagement() {
           }),
         );
       }
-    } catch (e) {
-      console.error("Delete Failure:", e);
+    } catch (error) {
+      console.error("Delete Failure:", error);
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
           detail: {
@@ -832,19 +842,19 @@ export default function ProgramManagement() {
     }
   };
 
-  const handleEditFileUpload = async (e) => {
-    const file = e.target.files?.[0];
+  const handleEditFileUpload = async (event) => {
+    const file = event.target.files?.[0];
     if (!file || !editingProgram) return;
 
     setIsUploading(true);
     try {
       const path = `curriculum/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
-      const res = await uploadFile("knowledge", path, file);
+      const result = await uploadFile("knowledge", path, file);
 
-      if (res?.success) {
+      if (result?.success) {
         const newMaterial = {
           name: file.name,
-          url: res.url,
+          url: result.url,
           size: file.size,
           type: file.type,
           uploadedAt: new Date().toISOString(),
@@ -858,8 +868,8 @@ export default function ProgramManagement() {
           materials: [...currentMaterials, newMaterial],
         });
       }
-    } catch (e) {
-      console.error("Upload failed:", e);
+    } catch (error) {
+      console.error("Upload failed:", error);
     } finally {
       setIsUploading(false);
     }
@@ -869,14 +879,14 @@ export default function ProgramManagement() {
     if (!newNoteTitle.trim() || !editingProgram?.id) return;
     setCreatingNote(true);
     try {
-      const res = await fetch("/api/knowledge", {
+      const response = await fetch("/api/knowledge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: newNoteTitle.trim(), description: "" }),
       });
-      const data = await res.json();
-      if (data.success) {
-        const createdId = data.id || data.note?.id;
+      const payload = await response.json();
+      if (payload.success) {
+        const createdId = payload.id || payload.note?.id;
         if (createdId) {
           // Assign the new note to the program
           setEditingProgram({ ...editingProgram, note_id: createdId });
@@ -899,13 +909,13 @@ export default function ProgramManagement() {
             detail: {
               type: "error",
               message:
-                data.error || t("adminMisc.programs.conceptNoteCreateFailed"),
+                payload.error || t("adminMisc.programs.conceptNoteCreateFailed"),
             },
           }),
         );
       }
-    } catch (e) {
-      console.error("Create concept note failed:", e);
+    } catch (error) {
+      console.error("Create concept note failed:", error);
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
           detail: {
@@ -921,8 +931,9 @@ export default function ProgramManagement() {
 
   const safePrograms = Array.isArray(programs) ? programs : [];
   const filtered = safePrograms.filter(
-    (p) =>
-      p?.name && p.name.toLowerCase().includes((search || "").toLowerCase()),
+    (program) =>
+      program?.name &&
+      program.name.toLowerCase().includes((search || "").toLowerCase()),
   );
 
   return (
@@ -995,7 +1006,7 @@ export default function ProgramManagement() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder={t("admin.search")}
               className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-3 pl-10 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
             />
@@ -1017,12 +1028,12 @@ export default function ProgramManagement() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((p, idx) => (
+                {filtered.map((program, index) => (
                   <tr
-                    key={p?.id || idx}
+                    key={program?.id || index}
                     className="group cursor-pointer hover:bg-secondary"
                     onClick={() =>
-                      p?.id && router.push(`/admin/programs/${p.id}`)
+                      program?.id && router.push(`/admin/programs/${program.id}`)
                     }
                   >
                     <td>
@@ -1032,10 +1043,12 @@ export default function ProgramManagement() {
                         </div>
                         <div className="flex flex-col">
                           <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
-                            {p?.name || t("adminMisc.programs.unnamedMission")}
+                            {program?.name ||
+                              t("adminMisc.programs.unnamedMission")}
                           </span>
                           <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-0.5 line-clamp-1 max-w-xs">
-                            {p?.description || t("adminMisc.programs.noDirective")}
+                            {program?.description ||
+                              t("adminMisc.programs.noDirective")}
                           </span>
                         </div>
                       </div>
@@ -1043,41 +1056,42 @@ export default function ProgramManagement() {
                     <td>
                       <span
                         className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
-                          p?.status === "active"
+                          program?.status === "active"
                             ? "bg-emerald-500/10 text-emerald-500"
-                            : p?.status === "in_progress"
+                            : program?.status === "in_progress"
                               ? "bg-blue-500/10 text-blue-500"
-                              : p?.status === "planned"
+                              : program?.status === "planned"
                                 ? "bg-sky-500/10 text-sky-500"
-                                : p?.status === "pending"
+                                : program?.status === "pending"
                                   ? "bg-amber-500/10 text-amber-500"
-                                  : p?.status === "completed"
+                                  : program?.status === "completed"
                                     ? "bg-purple-500/10 text-purple-500"
-                                    : p?.status === "archived"
+                                    : program?.status === "archived"
                                       ? "bg-rose-500/10 text-rose-500"
                                       : "bg-slate-500/10 text-[var(--text-secondary)]"
                         }`}
                       >
-                        {p?.status === "active"
+                        {program?.status === "active"
                           ? t("adminMisc.programs.statusInProgress")
-                          : p?.status === "in_progress"
+                          : program?.status === "in_progress"
                             ? t("adminMisc.programs.statusInProgress")
-                            : p?.status === "planned"
+                            : program?.status === "planned"
                               ? t("adminMisc.programs.statusPlanned")
-                              : p?.status === "pending"
+                              : program?.status === "pending"
                                 ? t("adminMisc.programs.statusPending")
-                                : p?.status === "completed"
+                                : program?.status === "completed"
                                   ? t("adminMisc.programs.statusCompleted")
-                                  : p?.status === "archived"
+                                  : program?.status === "archived"
                                     ? t("adminMisc.programs.statusArchived")
-                                    : p?.status || t("adminMisc.programs.unknown")}
+                                    : program?.status ||
+                                      t("adminMisc.programs.unknown")}
                       </span>
                     </td>
                     <td>
                       <div className="flex items-center gap-2">
                         <User className="w-3 h-3 text-[var(--brand-orange)]" />
                         <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase">
-                          {p?.pm_name || t("admin.unassigned")}
+                          {program?.pm_name || t("admin.unassigned")}
                         </span>
                       </div>
                     </td>
@@ -1085,17 +1099,20 @@ export default function ProgramManagement() {
                       <div className="flex items-center gap-3">
                         <div className="flex flex-col">
                           <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase">
-                            {p?.participants_count || 0} {t("adminMisc.programs.members")}
+                            {program?.participants_count || 0}{" "}
+                            {t("adminMisc.programs.members")}
                           </span>
                           <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase mt-0.5">
-                            {Math.round(p?.completion_index || 0) || 0}%
+                            {Math.round(program?.completion_index || 0) || 0}%
                             {t("adminMisc.programs.progress")}
                           </span>
                         </div>
                         <div className="w-16 h-1 bg-secondary rounded-full overflow-hidden">
                           <div
                             className="h-full bg-[var(--brand-orange)]"
-                            style={{ width: `${p?.completion_index || 0}%` }}
+                            style={{
+                              width: `${program?.completion_index || 0}%`,
+                            }}
                           />
                         </div>
                       </div>
@@ -1105,8 +1122,13 @@ export default function ProgramManagement() {
                         {activeTab === "archived" ? (
                           <>
                             <button
-                              onClick={(e) =>
-                                handleArchiveAction(p?.id, false, e, p?.name)
+                              onClick={(event) =>
+                                handleArchiveAction(
+                                  program?.id,
+                                  false,
+                                  event,
+                                  program?.name,
+                                )
                               }
                               title={t("adminMisc.programs.restore")}
                               className="p-2 hover:text-emerald-500"
@@ -1114,8 +1136,12 @@ export default function ProgramManagement() {
                               <RotateCcw className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={(e) =>
-                                handlePermanentDelete(p?.id, e, p?.name)
+                              onClick={(event) =>
+                                handlePermanentDelete(
+                                  program?.id,
+                                  event,
+                                  program?.name,
+                                )
                               }
                               title={t("adminMisc.programs.delete")}
                               className="p-2 hover:text-rose-500"
@@ -1126,9 +1152,9 @@ export default function ProgramManagement() {
                         ) : (
                           <>
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                router.push(`/admin/programs/${p?.id}`);
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                router.push(`/admin/programs/${program?.id}`);
                               }}
                               title={t("adminMisc.programs.launchExecutiveDashboard")}
                               className="p-2 hover:text-[var(--brand-orange)]"
@@ -1136,15 +1162,15 @@ export default function ProgramManagement() {
                               <ChevronRight className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              onClick={(event) => {
+                                event.stopPropagation();
                                 // Format dates for <input type="date"> (YYYY-MM-DD)
-                                const formatted = { ...p };
+                                const formatted = { ...program };
                                 formatted.start_date = toDateInputValue(
-                                  p.start_date,
+                                  program.start_date,
                                 );
                                 formatted.end_date = toDateInputValue(
-                                  p.end_date,
+                                  program.end_date,
                                 );
                                 setEditingProgram(formatted);
                                 setProgramDateError("");
@@ -1155,9 +1181,11 @@ export default function ProgramManagement() {
                               <Edit3 className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                router.push(`/admin/programs/${p?.id}/teams`);
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                router.push(
+                                  `/admin/programs/${program?.id}/teams`,
+                                );
                               }}
                               title={t("adminMisc.programs.manageTeams")}
                               className="p-2 hover:text-[var(--brand-orange)]"
@@ -1165,8 +1193,13 @@ export default function ProgramManagement() {
                               <Users className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={(e) =>
-                                handleArchiveAction(p?.id, true, e, p?.name)
+                              onClick={(event) =>
+                                handleArchiveAction(
+                                  program?.id,
+                                  true,
+                                  event,
+                                  program?.name,
+                                )
                               }
                               title={t("adminMisc.programs.archive")}
                               className="p-2 hover:text-orange-500"
@@ -1216,10 +1249,10 @@ export default function ProgramManagement() {
                 <input
                   type="text"
                   value={editingProgram?.name || ""}
-                  onChange={(e) =>
+                  onChange={(event) =>
                     setEditingProgram({
                       ...editingProgram,
-                      name: e.target.value,
+                      name: event.target.value,
                     })
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] focus:ring-1 focus:ring-[var(--brand-orange)] transition-all"
@@ -1234,12 +1267,12 @@ export default function ProgramManagement() {
                   <input
                     type="date"
                     value={editingProgram?.start_date || ""}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setEditingProgram({ ...editingProgram, start_date: v });
+                    onChange={(event) => {
+                      const startDate = event.target.value;
+                      setEditingProgram({ ...editingProgram, start_date: startDate });
                       setProgramDateError(
                         validateEditDates(
-                          v,
+                          startDate,
                           editingProgram?.end_date,
                           editingProgram?.duration_weeks,
                         ),
@@ -1255,13 +1288,13 @@ export default function ProgramManagement() {
                   <input
                     type="date"
                     value={editingProgram?.end_date || ""}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setEditingProgram({ ...editingProgram, end_date: v });
+                    onChange={(event) => {
+                      const endDate = event.target.value;
+                      setEditingProgram({ ...editingProgram, end_date: endDate });
                       setProgramDateError(
                         validateEditDates(
                           editingProgram?.start_date,
-                          v,
+                          endDate,
                           editingProgram?.duration_weeks,
                         ),
                       );
@@ -1284,10 +1317,10 @@ export default function ProgramManagement() {
                   </label>
                   <select
                     value={editingProgram?.visibility || "private"}
-                    onChange={(e) =>
+                    onChange={(event) =>
                       setEditingProgram({
                         ...editingProgram,
-                        visibility: e.target.value,
+                        visibility: event.target.value,
                       })
                     }
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
@@ -1303,10 +1336,10 @@ export default function ProgramManagement() {
                   </label>
                   <select
                     value={editingProgram?.language || "en"}
-                    onChange={(e) =>
+                    onChange={(event) =>
                       setEditingProgram({
                         ...editingProgram,
-                        language: e.target.value,
+                        language: event.target.value,
                       })
                     }
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
@@ -1325,10 +1358,10 @@ export default function ProgramManagement() {
                   <textarea
                     rows={2}
                     value={editingProgram?.vision || ""}
-                    onChange={(e) =>
+                    onChange={(event) =>
                       setEditingProgram({
                         ...editingProgram,
-                        vision: e.target.value,
+                        vision: event.target.value,
                       })
                     }
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none transition-all"
@@ -1341,10 +1374,10 @@ export default function ProgramManagement() {
                   <textarea
                     rows={2}
                     value={editingProgram?.objectives || ""}
-                    onChange={(e) =>
+                    onChange={(event) =>
                       setEditingProgram({
                         ...editingProgram,
-                        objectives: e.target.value,
+                        objectives: event.target.value,
                       })
                     }
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none transition-all"
@@ -1361,10 +1394,10 @@ export default function ProgramManagement() {
                   <textarea
                     rows={2}
                     value={editingProgram?.expected_outcomes || ""}
-                    onChange={(e) =>
+                    onChange={(event) =>
                       setEditingProgram({
                         ...editingProgram,
-                        expected_outcomes: e.target.value,
+                        expected_outcomes: event.target.value,
                       })
                     }
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none transition-all"
@@ -1377,10 +1410,10 @@ export default function ProgramManagement() {
                   <textarea
                     rows={2}
                     value={editingProgram?.success_metrics || ""}
-                    onChange={(e) =>
+                    onChange={(event) =>
                       setEditingProgram({
                         ...editingProgram,
-                        success_metrics: e.target.value,
+                        success_metrics: event.target.value,
                       })
                     }
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none transition-all"
@@ -1451,20 +1484,20 @@ export default function ProgramManagement() {
                 </label>
                 <select
                   value={editingProgram?.assigned_pm_id || ""}
-                  onChange={(e) =>
+                  onChange={(event) =>
                     setEditingProgram({
                       ...editingProgram,
-                      assigned_pm_id: e.target.value,
+                      assigned_pm_id: event.target.value,
                     })
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
                 >
                   <option value="">{t?.("admin.unassigned") || "Unassigned"}</option>
                   {(Array.isArray(teams) ? teams : []).map(
-                    (m) =>
-                      m && (
-                        <option key={m.cid || m.id} value={m.cid || m.id}>
-                          {m.name?.toUpperCase()}
+                    (member) =>
+                      member && (
+                        <option key={member.cid || member.id} value={member.cid || member.id}>
+                          {member.name?.toUpperCase()}
                         </option>
                       ),
                   )}
@@ -1483,12 +1516,14 @@ export default function ProgramManagement() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 bg-primary rounded-2xl border border-[var(--border-primary)]">
                   {(Array.isArray(teams) ? teams : [])
                     .filter(
-                      (t) =>
-                        t && (t.cid || t.id) !== editingProgram?.assigned_pm_id,
+                      (teamMember) =>
+                        teamMember &&
+                        (teamMember.cid || teamMember.id) !==
+                          editingProgram?.assigned_pm_id,
                     )
                     .map((member) => {
                       if (!member) return null;
-                      const mId = member.cid || member.id;
+                      const memberId = member.cid || member.id;
                       let assistantIds = [];
                       if (
                         typeof editingProgram?.assigned_assistant_id ===
@@ -1514,18 +1549,20 @@ export default function ProgramManagement() {
                         assistantIds = editingProgram.assigned_assistant_id;
                       }
 
-                      const isActive = assistantIds.includes(mId);
+                      const isActive = assistantIds.includes(memberId);
 
                       return (
                         <button
-                          key={mId}
+                          key={memberId}
                           type="button"
                           onClick={() => {
                             let next;
                             if (isActive) {
-                              next = assistantIds.filter((id) => id !== mId);
+                              next = assistantIds.filter(
+                                (assistantId) => assistantId !== memberId,
+                              );
                             } else {
-                              next = [...assistantIds, mId];
+                              next = [...assistantIds, memberId];
                             }
                             setEditingProgram({
                               ...editingProgram,
@@ -1559,10 +1596,10 @@ export default function ProgramManagement() {
                 <div className="flex gap-2">
                   <select
                     value={editingProgram?.note_id || ""}
-                    onChange={(e) =>
+                    onChange={(event) =>
                       setEditingProgram({
                         ...editingProgram,
-                        note_id: e.target.value,
+                        note_id: event.target.value,
                       })
                     }
                     className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
@@ -1596,7 +1633,7 @@ export default function ProgramManagement() {
                     <input
                       type="text"
                       value={newNoteTitle}
-                      onChange={(e) => setNewNoteTitle(e.target.value)}
+                      onChange={(event) => setNewNoteTitle(event.target.value)}
                       placeholder={t("adminMisc.programs.conceptNoteTitlePlaceholder")}
                       className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg p-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                     />
@@ -1631,14 +1668,14 @@ export default function ProgramManagement() {
                 <input
                   type="number"
                   value={editingProgram?.duration_weeks || 4}
-                  onChange={(e) => {
-                    const v = parseInt(e.target.value) || 4;
-                    setEditingProgram({ ...editingProgram, duration_weeks: v });
+                  onChange={(event) => {
+                    const durationWeeks = parseInt(event.target.value) || 4;
+                    setEditingProgram({ ...editingProgram, duration_weeks: durationWeeks });
                     setProgramDateError(
                       validateEditDates(
                         editingProgram?.start_date,
                         editingProgram?.end_date,
-                        v,
+                        durationWeeks,
                       ),
                     );
                   }}
@@ -1652,10 +1689,10 @@ export default function ProgramManagement() {
                 </label>
                 <select
                   value={editingProgram?.status || "active"}
-                  onChange={(e) =>
+                  onChange={(event) =>
                     setEditingProgram({
                       ...editingProgram,
-                      status: e.target.value,
+                      status: event.target.value,
                     })
                   }
                   className={`w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer ${
@@ -1697,48 +1734,48 @@ export default function ProgramManagement() {
                 <div className="grid grid-cols-1 gap-2">
                   {(() => {
                     if (!editingProgram) return null;
-                    let mats = [];
+                    let materials = [];
                     try {
                       const raw = Array.isArray(editingProgram.materials)
                         ? editingProgram.materials
                         : typeof editingProgram.materials === "string"
                           ? JSON.parse(editingProgram.materials || "[]")
                           : [];
-                      mats = Array.isArray(raw) ? raw : [];
-                    } catch (e) {
-                      console.error("Materials parse failure:", e);
-                      mats = [];
+                      materials = Array.isArray(raw) ? raw : [];
+                    } catch (error) {
+                      console.error("Materials parse failure:", error);
+                      materials = [];
                     }
 
-                    if (mats.length === 0)
+                    if (materials.length === 0)
                       return (
                         <p className="text-[10px] font-medium opacity-40 ml-2">
                           {t?.("admin.noProgramPdfs") || "No program-specific PDFs uploaded."}
                         </p>
                       );
 
-                    return mats.map(
-                      (f, i) =>
-                        f && (
+                    return materials.map(
+                      (file, index) =>
+                        file && (
                           <div
-                            key={i}
+                            key={index}
                             className="flex items-center justify-between p-3 bg-tertiary border border-[var(--border-primary)] rounded-xl"
                           >
                             <div className="flex items-center gap-3">
                               <FileText className="w-4 h-4 text-blue-500" />
                               <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase truncate max-w-[200px]">
-                                {f.name || t("adminMisc.programs.untitledPdf")}
+                                {file.name || t("adminMisc.programs.untitledPdf")}
                               </span>
                             </div>
                             <button
                               type="button"
                               onClick={() => {
-                                const newMats = mats.filter(
-                                  (_, idx) => idx !== i,
+                                const remainingMaterials = materials.filter(
+                                  (_, materialIndex) => materialIndex !== index,
                                 );
                                 setEditingProgram({
                                   ...editingProgram,
-                                  materials: newMats,
+                                  materials: remainingMaterials,
                                 });
                               }}
                               className="text-rose-500 hover:bg-rose-500/10 p-1 rounded transition-all"
@@ -1787,20 +1824,20 @@ export default function ProgramManagement() {
                   {t?.("admin.assignProgramToGroups") || "Assign this program to specific student cohorts or families."}
                 </p>
                 <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 bg-primary rounded-2xl border border-[var(--border-primary)]">
-                  {(Array.isArray(notes) ? notes : []).map((s) => {
-                    if (!s) return null;
+                  {(Array.isArray(notes) ? notes : []).map((family) => {
+                    if (!family) return null;
                     const assignedSegments = Array.isArray(
                       editingProgram?.assigned_segments,
                     )
                       ? editingProgram.assigned_segments
                       : [];
                     const isActive = assignedSegments.some(
-                      (id) => String(id) === String(s.id),
+                      (segmentId) => String(segmentId) === String(family.id),
                     );
                     const canEditRole = userRole === "super_admin";
                     return (
                       <div
-                        key={s.id}
+                        key={family.id}
                         className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
                           isActive
                             ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]"
@@ -1812,9 +1849,10 @@ export default function ProgramManagement() {
                           onClick={() => {
                             const next = isActive
                               ? assignedSegments.filter(
-                                  (id) => String(id) !== String(s.id),
+                                  (segmentId) =>
+                                    String(segmentId) !== String(family.id),
                                 )
-                              : [...assignedSegments, s.id];
+                              : [...assignedSegments, family.id];
                             setEditingProgram({
                               ...editingProgram,
                               assigned_segments: next,
@@ -1828,11 +1866,11 @@ export default function ProgramManagement() {
                         <div className="flex flex-col overflow-hidden">
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] font-bold uppercase truncate">
-                              {s.name || t("adminMisc.programs.unnamed")}
+                              {family.name || t("adminMisc.programs.unnamed")}
                             </span>
-                            {isActive && s.default_role && !canEditRole && (
+                            {isActive && family.default_role && !canEditRole && (
                               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase shrink-0">
-                                {s.default_role}
+                                {family.default_role}
                               </span>
                             )}
                           </div>
@@ -1840,13 +1878,13 @@ export default function ProgramManagement() {
                             <span 
                               className="text-[10px] font-medium text-emerald-400/80 hover:text-emerald-400 truncate mt-0.5"
                               title={t("adminMisc.programs.clickToCopyRegistrationLink")}
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                const regId = s.registration_id || s.id;
+                              onClick={async (event) => {
+                                event.stopPropagation();
+                                const registrationId = family.registration_id || family.id;
                                 try {
-                                  const frRes = await fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(regId)}`);
-                                  const frData = await frRes.json();
-                                  const run = (frData.success ? frData.runs || [] : []).find((x) => x.status === "active" && x.public_slug);
+                                  const formRunsResponse = await fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(registrationId)}`);
+                                  const formRunsPayload = await formRunsResponse.json();
+                                  const run = (formRunsPayload.success ? formRunsPayload.runs || [] : []).find((formRun) => formRun.status === "active" && formRun.public_slug);
                                   if (run) {
                                     navigator.clipboard.writeText(`${window.location.origin}/s/${run.public_slug}`);
                                     window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t("admin.copied") } }));
@@ -1863,29 +1901,29 @@ export default function ProgramManagement() {
                           )}
                         </div>
                         </button>
-                        {isActive && s.default_role && canEditRole && (
+                        {isActive && family.default_role && canEditRole && (
                           <select
-                            value={s.default_role}
-                            onChange={async (e) => {
-                              const newRole = e.target.value || null;
+                            value={family.default_role}
+                            onChange={async (event) => {
+                              const newRole = event.target.value || null;
                               try {
-                                const res = await fetch("/api/families", {
+                                const response = await fetch("/api/families", {
                                   method: "PUT",
                                   headers: { "Content-Type": "application/json" },
                                   body: JSON.stringify({
-                                    id: s.id,
+                                    id: family.id,
                                     default_role: newRole,
                                   }),
                                 });
-                                const data = await res.json();
-                                if (data.success) {
+                                const payload = await response.json();
+                                if (payload.success) {
                                   const updated = (Array.isArray(notes)
                                     ? notes
                                     : []
-                                  ).map((n) =>
-                                    String(n.id) === String(s.id)
-                                      ? { ...n, default_role: newRole }
-                                      : n,
+                                  ).map((note) =>
+                                    String(note.id) === String(family.id)
+                                      ? { ...note, default_role: newRole }
+                                      : note,
                                   );
                                   setNotes(updated);
                                   window.dispatchEvent(
@@ -1925,8 +1963,8 @@ export default function ProgramManagement() {
                             }}
                             className="text-[10px] font-bold px-1 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase outline-none border-none cursor-pointer hover:bg-purple-500/30 shrink-0"
                           >
-                            <option value={s.default_role}>
-                              {s.default_role}
+                            <option value={family.default_role}>
+                              {family.default_role}
                             </option>
                             <option value="">
                               {t("adminMisc.programs.roleNone")}
@@ -2028,16 +2066,16 @@ export default function ProgramManagement() {
                     {(editingProgram?.facilitators || []).length === 0 && (
                       <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("adminMisc.programs.noFacilitatorsAssigned")}</p>
                     )}
-                    {(editingProgram?.facilitators || []).map((f) => (
-                      <div key={f.id} className="rounded-xl border border-[var(--border-primary)] p-2.5 space-y-2 bg-secondary">
+                    {(editingProgram?.facilitators || []).map((facilitator) => (
+                      <div key={facilitator.id} className="rounded-xl border border-[var(--border-primary)] p-2.5 space-y-2 bg-secondary">
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-[10px] font-bold uppercase truncate">{f.name || f.email || f.cid}</p>
-                            <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">{f.email && f.email !== f.name ? f.email : ""}</p>
+                            <p className="text-[10px] font-bold uppercase truncate">{facilitator.name || facilitator.email || facilitator.cid}</p>
+                            <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">{facilitator.email && facilitator.email !== facilitator.name ? facilitator.email : ""}</p>
                           </div>
                           <button
                             type="button"
-                            onClick={() => removeFacilitator(f)}
+                            onClick={() => removeFacilitator(facilitator)}
                             className="text-[10px] font-bold uppercase text-rose-400 hover:underline shrink-0"
                           >
                             {t("adminMisc.programs.remove")}
@@ -2046,12 +2084,12 @@ export default function ProgramManagement() {
                         <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.programs.individualOverridesTitle")}</p>
                         <div className="grid grid-cols-2 gap-1">
                           {FACILITATOR_CAPS.map((cap) => {
-                            const active = !!(f.permissions || {})[cap.key];
+                            const active = !!(facilitator.permissions || {})[cap.key];
                             return (
                               <button
                                 key={cap.key}
                                 type="button"
-                                onClick={() => toggleFacOverride(f, cap.key)}
+                                onClick={() => toggleFacOverride(facilitator, cap.key)}
                                 className={`text-[10px] font-bold uppercase px-1.5 py-1 rounded-lg border text-left truncate transition-all ${active ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400" : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
                               >
                                 {t(`adminMisc.programs.${cap.labelKey}`)}{active ? " ✓" : ""}
@@ -2068,13 +2106,13 @@ export default function ProgramManagement() {
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         value={inviteForm.name}
-                        onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
+                        onChange={(event) => setInviteForm({ ...inviteForm, name: event.target.value })}
                         placeholder={t("adminMisc.programs.newFacilitatorNamePlaceholder")}
                         className="bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
                       />
                       <input
                         value={inviteForm.email}
-                        onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                        onChange={(event) => setInviteForm({ ...inviteForm, email: event.target.value })}
                         placeholder={t("adminMisc.programs.newFacilitatorEmailPlaceholder")}
                         className="bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
                       />
@@ -2094,26 +2132,26 @@ export default function ProgramManagement() {
                       <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
                       <input
                         value={facilitatorSearch}
-                        onChange={(e) => setFacilitatorSearch(e.target.value)}
+                        onChange={(event) => setFacilitatorSearch(event.target.value)}
                         placeholder={t("adminMisc.programs.searchFacilitatorPlaceholder")}
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-xl pl-9 pr-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
                       />
                     </div>
                     <div className="max-h-36 overflow-y-auto space-y-1">
                       {facilitatorPool
-                        .filter((c) => !(editingProgram?.facilitators || []).some((f) => f.cid === c.cid))
-                        .filter((c) => c.role !== "participant" && c.role !== "applicant" && c.role !== "student")
-                        .filter((c) => !facilitatorSearch || (c.name || "").toLowerCase().includes(facilitatorSearch.toLowerCase()) || (c.email || "").toLowerCase().includes(facilitatorSearch.toLowerCase()))
-                        .map((c) => (
+                        .filter((contact) => !(editingProgram?.facilitators || []).some((facilitator) => facilitator.cid === contact.cid))
+                        .filter((contact) => contact.role !== "participant" && contact.role !== "applicant" && contact.role !== "student")
+                        .filter((contact) => !facilitatorSearch || (contact.name || "").toLowerCase().includes(facilitatorSearch.toLowerCase()) || (contact.email || "").toLowerCase().includes(facilitatorSearch.toLowerCase()))
+                        .map((contact) => (
                           <button
-                            key={c.cid}
+                            key={contact.cid}
                             type="button"
                             disabled={facBusy}
-                            onClick={() => addFacilitator(c)}
+                            onClick={() => addFacilitator(contact)}
                             className="w-full flex items-center justify-between gap-2 p-2 rounded-lg border border-dashed border-[var(--border-primary)] hover:border-[var(--brand-orange)] text-left transition-all"
                           >
-                            <span className="text-[10px] font-bold uppercase truncate">{c.name || c.email}</span>
-                            <span className="text-[10px] font-medium text-[var(--text-secondary)] truncate">{c.email && c.email !== c.name ? c.email : ""}</span>
+                            <span className="text-[10px] font-bold uppercase truncate">{contact.name || contact.email}</span>
+                            <span className="text-[10px] font-medium text-[var(--text-secondary)] truncate">{contact.email && contact.email !== contact.name ? contact.email : ""}</span>
                             <Plus className="w-3 h-3 shrink-0 text-emerald-400" />
                           </button>
                         ))}
@@ -2127,20 +2165,20 @@ export default function ProgramManagement() {
 
                   <div className="p-3 bg-primary rounded-2xl border border-[var(--border-primary)] space-y-2">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.programs.leadFacilitatorPerGroupTitle")}</p>
-                    {(editingProgram?.assigned_segments || []).map((segId) => {
-                      const family = (Array.isArray(notes) ? notes : []).find((n) => String(n.id) === String(segId));
+                    {(editingProgram?.assigned_segments || []).map((segmentId) => {
+                      const family = (Array.isArray(notes) ? notes : []).find((note) => String(note.id) === String(segmentId));
                       if (!family) return null;
                       return (
-                        <div key={segId} className="flex items-center justify-between gap-2">
+                        <div key={segmentId} className="flex items-center justify-between gap-2">
                           <span className="text-[10px] font-bold uppercase truncate">{family.name}</span>
                           <select
                             value={family.lead_facilitator_id || ""}
-                            onChange={(e) => setLeadFacilitator(family.id, e.target.value || null)}
+                            onChange={(event) => setLeadFacilitator(family.id, event.target.value || null)}
                             className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none cursor-pointer max-w-[45%]"
                           >
                             <option value="">{t("adminMisc.programs.noneOption")}</option>
-                            {(editingProgram?.facilitators || []).map((f) => (
-                              <option key={f.cid} value={f.cid}>{f.name}</option>
+                            {(editingProgram?.facilitators || []).map((facilitator) => (
+                              <option key={facilitator.cid} value={facilitator.cid}>{facilitator.name}</option>
                             ))}
                           </select>
                         </div>
@@ -2156,18 +2194,18 @@ export default function ProgramManagement() {
                   <div className="space-y-3 p-4 bg-primary border border-blue-500/20 rounded-xl animate-in fade-in mt-2">
                     <input
                       value={newGroup.name}
-                      onChange={(e) =>
-                        setNewGroup({ ...newGroup, name: e.target.value })
+                      onChange={(event) =>
+                        setNewGroup({ ...newGroup, name: event.target.value })
                       }
                       placeholder={t("adminMisc.programs.groupNamePlaceholder")}
                       className="w-full bg-transparent border-b border-[var(--border-primary)] py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-blue-400"
                     />
                     <textarea
                       value={newGroup.description}
-                      onChange={(e) =>
+                      onChange={(event) =>
                         setNewGroup({
                           ...newGroup,
-                          description: e.target.value,
+                          description: event.target.value,
                         })
                       }
                       placeholder={t("adminMisc.programs.groupDescriptionPlaceholder")}
@@ -2176,8 +2214,8 @@ export default function ProgramManagement() {
                     />
                     <select
                       value={newGroup.default_role || ""}
-                      onChange={(e) =>
-                        setNewGroup({ ...newGroup, default_role: e.target.value })
+                      onChange={(event) =>
+                        setNewGroup({ ...newGroup, default_role: event.target.value })
                       }
                       className="w-full bg-transparent border border-[var(--border-primary)] p-2 rounded text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-blue-400"
                     >
@@ -2207,10 +2245,10 @@ export default function ProgramManagement() {
                 <textarea
                   rows={3}
                   value={editingProgram?.description || ""}
-                  onChange={(e) =>
+                  onChange={(event) =>
                     setEditingProgram({
                       ...editingProgram,
-                      description: e.target.value,
+                      description: event.target.value,
                     })
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none transition-all"
@@ -2269,10 +2307,10 @@ export default function ProgramManagement() {
                         })}
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] text-xs font-bold"
                         value={editKpiInput.title}
-                        onChange={(e) =>
+                        onChange={(event) =>
                           setEditKpiInput({
                             ...editKpiInput,
-                            title: e.target.value,
+                            title: event.target.value,
                           })
                         }
                       />
@@ -2284,10 +2322,10 @@ export default function ProgramManagement() {
                           placeholder={t("adminMisc.programs.targetPercentSample")}
                           className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] text-xs font-bold"
                           value={editKpiInput.target_value}
-                          onChange={(e) =>
+                          onChange={(event) =>
                             setEditKpiInput({
                               ...editKpiInput,
-                              target_value: parseInt(e.target.value) || 0,
+                              target_value: parseInt(event.target.value) || 0,
                             })
                           }
                         />
@@ -2324,9 +2362,11 @@ export default function ProgramManagement() {
               <button
                 type="button"
                 onClick={async () => {
-                  const name = prompt(t("adminMisc.programs.templateNamePrompt"));
+                  const name = await prompt({
+                    message: t("adminMisc.programs.templateNamePrompt"),
+                  });
                   if (!name || !editingProgram?.id) return;
-                  const res = await fetch(
+                  const response = await fetch(
                     "/api/pm/programs/templates?action=save",
                     {
                       method: "POST",
@@ -2337,8 +2377,8 @@ export default function ProgramManagement() {
                       }),
                     },
                   );
-                  const data = await res.json();
-                  if (data.success) {
+                  const payload = await response.json();
+                  if (payload.success) {
                     window.dispatchEvent(
                       new CustomEvent("impactos:notify", {
                         detail: {

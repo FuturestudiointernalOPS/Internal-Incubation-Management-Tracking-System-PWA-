@@ -24,13 +24,13 @@ export async function GET(req, { params }) {
     const dbId = (await getVentureIdByCodeForReviews(id)).rows?.[0]?.id;
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const doc = await getDocumentForReviews(docId, dbId);
-    if (!doc.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const document = await getDocumentForReviews(docId, dbId);
+    if (!document.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
-    const r = await listDocumentReviews(docId);
-    return NextResponse.json({ success: true, reviews: r.rows || [] });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+    const reviewsResult = await listDocumentReviews(docId);
+    return NextResponse.json({ success: true, reviews: reviewsResult.rows || [] });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -45,8 +45,8 @@ export async function POST(req, { params }) {
     const dbId = (await getVentureIdByCodeForReviewsSubmit(id)).rows?.[0]?.id;
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const doc = await getDocumentForReviewsSubmit(docId, dbId);
-    if (!doc.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const document = await getDocumentForReviewsSubmit(docId, dbId);
+    if (!document.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     const { comment, decision } = await req.json();
     if (!["comment", "approved", "revision_requested"].includes(decision)) {
@@ -58,7 +58,7 @@ export async function POST(req, { params }) {
     notifyVentureFounders(dbId, labels[decision] || 'Document Reviewed', `A document review has been ${decision === 'approved' ? 'approved' : decision === 'revision_requested' ? 'requested for revision' : 'commented on'}.`);
 
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

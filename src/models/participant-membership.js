@@ -18,12 +18,12 @@ const LEGACY_FALLBACK_DISABLED =
 
 async function queryParticipantProgramIds(cid) {
   try {
-    const res = await db.execute({
+    const result = await db.execute({
       sql: "SELECT program_id FROM participant_programs WHERE participant_id = ?",
       args: [cid],
     });
-    return res.rows
-      .map((r) => String(r.program_id).trim())
+    return result.rows
+      .map((row) => String(row.program_id).trim())
       .filter(Boolean);
   } catch (_) {
     // participant_programs may not exist in older environments
@@ -35,7 +35,7 @@ function splitLegacyProgramIds(field) {
   if (!field) return [];
   return String(field)
     .split(",")
-    .map((s) => s.trim())
+    .map((segment) => segment.trim())
     .filter(Boolean);
 }
 
@@ -90,35 +90,35 @@ export async function getParticipantProgramIds({ cid, email, contact = {} }) {
       : null,
   ]);
 
-  const ids = new Set(splitLegacyProgramIds(contact.program_id));
+  const legacyProgramIds = new Set(splitLegacyProgramIds(contact.program_id));
 
-  (familyRes?.rows || []).forEach((r) => {
-    if (r.program_id) ids.add(String(r.program_id).trim());
+  (familyRes?.rows || []).forEach((row) => {
+    if (row.program_id) legacyProgramIds.add(String(row.program_id).trim());
   });
-  (programNameRes?.rows || []).forEach((r) => {
-    if (r.id) ids.add(String(r.id).trim());
+  (programNameRes?.rows || []).forEach((row) => {
+    if (row.id) legacyProgramIds.add(String(row.id).trim());
   });
-  (intakeRes?.rows || []).forEach((r) => {
-    if (r.program_id) ids.add(String(r.program_id).trim());
+  (intakeRes?.rows || []).forEach((row) => {
+    if (row.program_id) legacyProgramIds.add(String(row.program_id).trim());
   });
 
   // Warn only when the legacy sources actually produced a program: a caller
   // with no legacy program at all is not an un-reconciled participant (staff,
   // Program Managers and mentors resolve their program scope here too), so
   // warning for them turned a reconciliation signal into per-request noise.
-  if (ids.size > 0) {
+  if (legacyProgramIds.size > 0) {
     console.warn(
       `[participant-membership] legacy fallback used for ${cid || email || "unknown"}`,
     );
   }
 
-  return Array.from(ids);
+  return Array.from(legacyProgramIds);
 }
 
 /**
  * Returns true when the participant belongs to the given program.
  */
 export async function isParticipantInProgram({ cid, email, programId, contact = {} }) {
-  const ids = await getParticipantProgramIds({ cid, email, contact });
-  return ids.includes(String(programId));
+  const programIds = await getParticipantProgramIds({ cid, email, contact });
+  return programIds.includes(String(programId));
 }

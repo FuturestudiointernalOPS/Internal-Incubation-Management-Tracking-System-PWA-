@@ -48,28 +48,28 @@ export async function GET(req) {
 
     // Workspace
     let workspace = null;
-    const wsRes = await getDiligenceWorkspaceByPipelineId(pipelineId);
-    if (wsRes.rows.length > 0) workspace = wsRes.rows[0];
+    const workspaceResult = await getDiligenceWorkspaceByPipelineId(pipelineId);
+    if (workspaceResult.rows.length > 0) workspace = workspaceResult.rows[0];
 
     // Information requests
     let requests = [];
     if (workspace) {
-      const reqRes = await listDdInformationRequestsByWorkspaceId(workspace.id);
-      requests = reqRes.rows;
+      const requestsResult = await listDdInformationRequestsByWorkspaceId(workspace.id);
+      requests = requestsResult.rows;
     }
 
     // Notes
-    const notesRes = await listInvestorNotesByPipelineId(pipelineId);
+    const notesResult = await listInvestorNotesByPipelineId(pipelineId);
 
     // Pipeline info
-    const pipeRes = await getPipelineWithVentureById(pipelineId);
+    const pipelineResult = await getPipelineWithVentureById(pipelineId);
 
     return NextResponse.json({
       success: true,
       workspace,
       requests,
-      notes: notesRes.rows,
-      pipeline: pipeRes.rows[0] || null,
+      notes: notesResult.rows,
+      pipeline: pipelineResult.rows[0] || null,
     });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -83,7 +83,7 @@ export async function POST(req) {
     const capError = await requireInvestorSelfServiceAuthorization("create");
     if (capError) return capError;
 
-    const { pipeline_id, action, ...data } = await req.json();
+    const { pipeline_id, action, ...payload } = await req.json();
 
     if (!pipeline_id) {
       return NextResponse.json({ success: false, error: "pipeline_id required" }, { status: 400 });
@@ -91,56 +91,56 @@ export async function POST(req) {
 
     if (action === "create_workspace") {
       // Create workspace
-      const res = await upsertDiligenceWorkspace(pipeline_id);
+      const workspaceResult = await upsertDiligenceWorkspace(pipeline_id);
 
       // Update pipeline stage
       await updatePipelineStageToDueDiligence(pipeline_id);
 
-      return NextResponse.json({ success: true, workspace: res.rows[0] });
+      return NextResponse.json({ success: true, workspace: workspaceResult.rows[0] });
     }
 
     if (action === "add_request") {
-      const { title, description, category, priority, due_date, owner_id } = data;
+      const { title, description, category, priority, due_date, owner_id } = payload;
       if (!title) return NextResponse.json({ success: false, error: "title required" }, { status: 400 });
 
       // Get workspace
-      const ws = await getDiligenceWorkspaceIdByPipelineId(pipeline_id);
-      if (ws.rows.length === 0) {
+      const workspaceLookup = await getDiligenceWorkspaceIdByPipelineId(pipeline_id);
+      if (workspaceLookup.rows.length === 0) {
         return NextResponse.json({ success: false, error: "Workspace not found. Create it first." }, { status: 404 });
       }
 
-      const res = await insertDdInformationRequest({ workspace_id: ws.rows[0].id, title, description, category, priority, due_date, owner_id });
+      const requestResult = await insertDdInformationRequest({ workspace_id: workspaceLookup.rows[0].id, title, description, category, priority, due_date, owner_id });
 
       // Timeline entry in relationship workspace
       try {
-        const relWs = await getRelationshipWorkspaceIdByPipelineId(pipeline_id);
-        if (relWs.rows.length > 0) {
-          await insertDdRequestAddedTimeline({ workspace_id: relWs.rows[0].id, title, category });
+        const relationshipWorkspaceResult = await getRelationshipWorkspaceIdByPipelineId(pipeline_id);
+        if (relationshipWorkspaceResult.rows.length > 0) {
+          await insertDdRequestAddedTimeline({ workspace_id: relationshipWorkspaceResult.rows[0].id, title, category });
         }
       } catch (_) {}
 
-      return NextResponse.json({ success: true, request: res.rows[0] });
+      return NextResponse.json({ success: true, request: requestResult.rows[0] });
     }
 
     if (action === "update_request") {
-      const { request_id, status, response_text, response_file_url } = data;
+      const { request_id, status, response_text, response_file_url } = payload;
       const session = await getSession();
       const userCid = session?.cid || session?.id;
       const userRole = session?.role;
 
       // Get the pipeline_id and relationship workspace assignments for this request
-      const reqInfo = await getDdRequestInfoByRequestId(request_id);
-      if (reqInfo.rows.length === 0) {
+      const requestInfo = await getDdRequestInfoByRequestId(request_id);
+      if (requestInfo.rows.length === 0) {
         return NextResponse.json({ success: false, error: "Request not found" }, { status: 404 });
       }
 
-      const pipelineId = reqInfo.rows[0].pipeline_id;
+      const pipelineId = requestInfo.rows[0].pipeline_id;
 
       // Get relationship workspace assignments (RM, IM)
-      const relWs = await getRelationshipWorkspaceAssigneesByPipelineId(pipelineId);
-      const rw = relWs.rows[0] || {};
-      const isRM = rw.relationship_manager_id === userCid;
-      const isIM = rw.investment_manager_id === userCid;
+      const relationshipWorkspaceResult = await getRelationshipWorkspaceAssigneesByPipelineId(pipelineId);
+      const relationshipWorkspace = relationshipWorkspaceResult.rows[0] || {};
+      const isRM = relationshipWorkspace.relationship_manager_id === userCid;
+      const isIM = relationshipWorkspace.investment_manager_id === userCid;
       const isAdmin = userRole === "super_admin";
 
       // Get investor profile to exclude from founder actions
@@ -167,14 +167,14 @@ export async function POST(req) {
       }
 
       // Get current version history
-      const current = await getDdRequestVersionHistoryByRequestId(request_id);
+      const versionHistoryResult = await getDdRequestVersionHistoryByRequestId(request_id);
 
       // Append to version history
-      let newHistory = current.rows[0]?.version_history || [];
+      let newHistory = versionHistoryResult.rows[0]?.version_history || [];
       if (typeof newHistory === "string") newHistory = JSON.parse(newHistory);
       if (!Array.isArray(newHistory)) newHistory = [];
       newHistory.push({
-        from_status: current.rows[0]?.status,
+        from_status: versionHistoryResult.rows[0]?.status,
         to_status: status,
         changed_at: new Date().toISOString(),
         changed_by: session?.cid || session?.id || "system",
@@ -185,11 +185,11 @@ export async function POST(req) {
 
       // Timeline entry in relationship workspace
       try {
-        const reqInfo = await getDdRequestInfoForTimeline(request_id);
-        if (reqInfo.rows.length > 0) {
-          const relWs = await getRelationshipWorkspaceIdForStatusTimeline(reqInfo.rows[0].pipeline_id);
-          if (relWs.rows.length > 0) {
-            await insertDdStatusChangedTimeline({ workspace_id: relWs.rows[0].id, title: reqInfo.rows[0].title, status });
+        const requestInfo = await getDdRequestInfoForTimeline(request_id);
+        if (requestInfo.rows.length > 0) {
+          const relationshipWorkspaceResult = await getRelationshipWorkspaceIdForStatusTimeline(requestInfo.rows[0].pipeline_id);
+          if (relationshipWorkspaceResult.rows.length > 0) {
+            await insertDdStatusChangedTimeline({ workspace_id: relationshipWorkspaceResult.rows[0].id, title: requestInfo.rows[0].title, status });
           }
         }
       } catch (_) {}
@@ -198,16 +198,16 @@ export async function POST(req) {
     }
 
     if (action === "add_note") {
-      const { content, note_type } = data;
+      const { content, note_type } = payload;
       if (!content) return NextResponse.json({ success: false, error: "content required" }, { status: 400 });
 
       const session = await getSession();
       // Get investor profile
-      const prof = await getInvestorProfileIdByUserIdForNotes(session.cid || session.id);
+      const profileResult = await getInvestorProfileIdByUserIdForNotes(session.cid || session.id);
 
-      const res = await insertInvestorNote({ investor_id: prof.rows[0]?.id, pipeline_id, note_type, content });
+      const noteResult = await insertInvestorNote({ investor_id: profileResult.rows[0]?.id, pipeline_id, note_type, content });
 
-      return NextResponse.json({ success: true, note: res.rows[0] });
+      return NextResponse.json({ success: true, note: noteResult.rows[0] });
     }
 
     if (action === "complete") {
@@ -216,13 +216,13 @@ export async function POST(req) {
     }
 
     if (action === "add_followup") {
-      const { request_id, question } = data;
+      const { request_id, question } = payload;
       if (!question) return NextResponse.json({ success: false, error: "question required" }, { status: 400 });
 
       const session = await getSession();
-      const current = await getDdRequestFollowUpQuestionsByRequestId(request_id);
+      const followUpQuestionsResult = await getDdRequestFollowUpQuestionsByRequestId(request_id);
 
-      let questions = current.rows[0]?.follow_up_questions || [];
+      let questions = followUpQuestionsResult.rows[0]?.follow_up_questions || [];
       if (typeof questions === "string") questions = JSON.parse(questions);
       if (!Array.isArray(questions)) questions = [];
       questions.push({
@@ -238,10 +238,10 @@ export async function POST(req) {
     }
 
     if (action === "respond_followup") {
-      const { request_id, question_index, response } = data;
-      const current = await getDdRequestFollowUpQuestionsForRespond(request_id);
+      const { request_id, question_index, response } = payload;
+      const followUpQuestionsResult = await getDdRequestFollowUpQuestionsForRespond(request_id);
 
-      let questions = current.rows[0]?.follow_up_questions || [];
+      let questions = followUpQuestionsResult.rows[0]?.follow_up_questions || [];
       if (typeof questions === "string") questions = JSON.parse(questions);
       if (!Array.isArray(questions)) questions = [];
       if (questions[question_index]) {

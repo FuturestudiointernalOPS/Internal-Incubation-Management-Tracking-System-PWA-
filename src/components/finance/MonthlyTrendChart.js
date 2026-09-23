@@ -26,7 +26,7 @@ import { useI18n } from "@/lib/i18n";
  * library, so its content would remount mid-hover. The tooltip reads the
  * language itself, which is what lets it be defined outside the chart.
  */
-const formatPct = (val) => `${val}%`;
+const formatPct = (value) => `${value}%`;
 
 const CustomTooltip = ({ active, payload, label }) => {
   const { t } = useI18n();
@@ -68,12 +68,12 @@ export default function MonthlyTrendChart({ monthlyData = [], totalBudget = 0 })
     let cumPlanned = 0;
     let cumActual = 0;
 
-    return monthlyData.map((m) => {
-      cumPlanned += m.plannedSpending || 0;
-      cumActual += m.actualSpending || 0;
+    return monthlyData.map((month) => {
+      cumPlanned += month.plannedSpending || 0;
+      cumActual += month.actualSpending || 0;
 
       return {
-        month: m.monthLabel,
+        month: month.monthLabel,
         plannedPct: Math.round((cumPlanned / totalBudget) * 100 * 100) / 100,
         actualPct: Math.round((cumActual / totalBudget) * 100 * 100) / 100,
         variance: Math.round(((cumActual - cumPlanned) / totalBudget) * 100 * 100) / 100,

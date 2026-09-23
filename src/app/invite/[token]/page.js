@@ -11,7 +11,7 @@ import { useApi } from "@/lib/hooks/useApi";
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop. The read is kept raw because the rejection reason and the invitation
 // behind it are read separately below.
-const pickInvitation = (d) => d;
+const pickInvitation = (payload) => payload;
 
 export default function InviteAcceptPage({ params }) {
   const { t } = useI18n();
@@ -41,21 +41,21 @@ export default function InviteAcceptPage({ params }) {
       : '';
   const error = submitError || linkError;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     if (!form.name || !form.email || !form.password) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/invites/${token}`, {
+      const response = await fetch(`/api/invites/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
-      if (data.user) {
+      const payload = await response.json();
+      if (payload.user) {
         setSuccess(true);
       } else {
-        setSubmitError(t((data.error || t("rootMisc.invite.registrationFailed")) || "") || (data.error || t("rootMisc.invite.registrationFailed")));
+        setSubmitError(t((payload.error || t("rootMisc.invite.registrationFailed")) || "") || (payload.error || t("rootMisc.invite.registrationFailed")));
       }
     } catch {
       setSubmitError(t("rootMisc.invite.networkError"));
@@ -109,10 +109,10 @@ export default function InviteAcceptPage({ params }) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input required type="text" placeholder={t("rootMisc.invite.fullName")} name="name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
-          <input required type="email" placeholder={t("rootMisc.invite.emailAddress")} name="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
-          <input type="text" placeholder={t("rootMisc.invite.phoneOptional")} name="phone" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
-          <input required type="password" placeholder={t("rootMisc.invite.createPassword")} name="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input required type="text" placeholder={t("rootMisc.invite.fullName")} name="name" value={form.name} onChange={event => setForm({...form, name: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input required type="email" placeholder={t("rootMisc.invite.emailAddress")} name="email" value={form.email} onChange={event => setForm({...form, email: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input type="text" placeholder={t("rootMisc.invite.phoneOptional")} name="phone" value={form.phone} onChange={event => setForm({...form, phone: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input required type="password" placeholder={t("rootMisc.invite.createPassword")} name="password" value={form.password} onChange={event => setForm({...form, password: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
 
           {error && <p className="text-rose-500 text-xs font-bold">{error}</p>}
 

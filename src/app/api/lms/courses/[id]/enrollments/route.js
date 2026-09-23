@@ -20,7 +20,7 @@ export async function GET(req, { params }) {
     const { id } = await params;
     const enrollments = await listEnrollments(id);
     return NextResponse.json({ success: true, enrollments });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

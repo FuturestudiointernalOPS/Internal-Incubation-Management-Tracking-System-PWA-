@@ -32,8 +32,8 @@ export async function POST(req) {
     // Resolve slug to run_id
     let run_id = null;
     try {
-      const runRes = await getDraftRunIdByPublicSlug(slug);
-      if (runRes.rows.length > 0) run_id = runRes.rows[0].id;
+      const runResult = await getDraftRunIdByPublicSlug(slug);
+      if (runResult.rows.length > 0) run_id = runResult.rows[0].id;
     } catch (_) {}
 
     if (!run_id) {
@@ -72,8 +72,8 @@ export async function GET(req) {
 
     let run_id = null;
     try {
-      const runRes = await getRunIdByPublicSlug(slug);
-      if (runRes.rows.length > 0) run_id = runRes.rows[0].id;
+      const runResult = await getRunIdByPublicSlug(slug);
+      if (runResult.rows.length > 0) run_id = runResult.rows[0].id;
     } catch (_) {}
 
     if (!run_id) {

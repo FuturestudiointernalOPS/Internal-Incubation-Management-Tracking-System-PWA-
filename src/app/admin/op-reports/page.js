@@ -39,20 +39,20 @@ import { useSessionUser } from "@/lib/hooks/useSessionUser";
  * - PDF export via browser print
  */
 
-function formatLabel(val) {
-  if (!val || val === "—") return "—";
-  if (typeof val !== "string") return String(val);
-  return val.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+function formatLabel(value) {
+  if (!value || value === "—") return "—";
+  if (typeof value !== "string") return String(value);
+  return value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function getWeekNumber(date) {
-  const d = new Date(
+  const utcDate = new Date(
     Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
   );
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  const dayNum = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  return Math.ceil(((utcDate - yearStart) / 86400000 + 1) / 7);
 }
 
 // Note: InfoBlock and parseJsonArray have been removed (unused after task-table refactor)
@@ -75,10 +75,10 @@ const MONTHS = [
 // ─── Read shapers (module scope: built once, never per render) ──────────────
 // Each one returns the value the screen shows, and the empty shape when the
 // server refuses: the shared hook reports a refusal as a value, not an event.
-const pickReports = (d) => (d?.success ? d.reports || [] : []);
-const pickProjects = (d) => (d?.success ? d.projects || [] : []);
-const pickBlockers = (d) => (d?.success ? d.blockers || [] : []);
-const pickTasks = (d) => (d?.success ? d.tasks || [] : []);
+const pickReports = (payload) => (payload?.success ? payload.reports || [] : []);
+const pickProjects = (payload) => (payload?.success ? payload.projects || [] : []);
+const pickBlockers = (payload) => (payload?.success ? payload.blockers || [] : []);
+const pickTasks = (payload) => (payload?.success ? payload.tasks || [] : []);
 
 export default function AdminOpReports() {
   const router = useRouter();
@@ -183,12 +183,12 @@ export default function AdminOpReports() {
   // authors, derived during render from the read's value.
   const users = useMemo(() => {
     const userMap = {};
-    reports.forEach((r) => {
-      if (r.user_id && !userMap[r.user_id]) {
-        userMap[r.user_id] = {
-          id: r.user_id,
-          name: r.user_name,
-          role: r.user_role,
+    reports.forEach((report) => {
+      if (report.user_id && !userMap[report.user_id]) {
+        userMap[report.user_id] = {
+          id: report.user_id,
+          name: report.user_name,
+          role: report.user_role,
         };
       }
     });
@@ -197,59 +197,59 @@ export default function AdminOpReports() {
 
   const filteredReports = useMemo(() => {
     return reports
-      .filter((r) => {
+      .filter((report) => {
         const matchesSearch =
-          r.user_name?.toLowerCase().includes(search.toLowerCase()) ||
-          String(r.week_number).includes(search) ||
-          String(r.year).includes(search);
+          report.user_name?.toLowerCase().includes(search.toLowerCase()) ||
+          String(report.week_number).includes(search) ||
+          String(report.year).includes(search);
         const matchesUser =
-          filterUser === "All Users" || r.user_id === filterUser;
+          filterUser === "All Users" || report.user_id === filterUser;
         const matchesType =
-          filterType === "all" || r.report_type === filterType;
+          filterType === "all" || report.report_type === filterType;
 
         let matchesMonth = true;
         if (filterMonth !== "all") {
-          const created = new Date(r.created_at);
+          const created = new Date(report.created_at);
           const monthIndex = created.getMonth();
           matchesMonth = MONTHS[monthIndex] === filterMonth;
         }
 
         return matchesSearch && matchesUser && matchesType && matchesMonth;
       })
-      .sort((a, b) => {
+      .sort((reportA, reportB) => {
         // Sort by year desc, then week desc, then created_at desc
-        if (b.year !== a.year) return b.year - a.year;
-        if (b.week_number !== a.week_number)
-          return b.week_number - a.week_number;
-        return new Date(b.created_at) - new Date(a.created_at);
+        if (reportB.year !== reportA.year) return reportB.year - reportA.year;
+        if (reportB.week_number !== reportA.week_number)
+          return reportB.week_number - reportA.week_number;
+        return new Date(reportB.created_at) - new Date(reportA.created_at);
       });
   }, [reports, search, filterUser, filterType, filterMonth]);
 
   // Compute per-user stats
   const userStats = useMemo(() => {
     const stats = {};
-    reports.forEach((r) => {
-      if (!stats[r.user_id]) {
-        stats[r.user_id] = {
-          id: r.user_id,
-          name: r.user_name,
-          role: r.user_role,
+    reports.forEach((report) => {
+      if (!stats[report.user_id]) {
+        stats[report.user_id] = {
+          id: report.user_id,
+          name: report.user_name,
+          role: report.user_role,
           standups: 0,
           retros: 0,
           latest: null,
           blockers: [],
         };
       }
-      if (r.report_type === "standup") stats[r.user_id].standups++;
-      else stats[r.user_id].retros++;
+      if (report.report_type === "standup") stats[report.user_id].standups++;
+      else stats[report.user_id].retros++;
       if (
-        !stats[r.user_id].latest ||
-        new Date(r.created_at) > new Date(stats[r.user_id].latest)
+        !stats[report.user_id].latest ||
+        new Date(report.created_at) > new Date(stats[report.user_id].latest)
       ) {
-        stats[r.user_id].latest = r.created_at;
+        stats[report.user_id].latest = report.created_at;
       }
       // Track blockers from stand-ups
-      if (r.has_blockers) stats[r.user_id].blockers.push(r);
+      if (report.has_blockers) stats[report.user_id].blockers.push(report);
     });
     return Object.values(stats);
   }, [reports]);
@@ -257,40 +257,45 @@ export default function AdminOpReports() {
   // Aggregated blocker data (from both op-reports AND dedicated blockers table)
   const _blockerData = useMemo(() => {
     // From op-reports (old format)
-    const reportBlockers = reports.filter((r) => r.has_blockers);
+    const reportBlockers = reports.filter((report) => report.has_blockers);
     const byUser = {};
-    reportBlockers.forEach((r) => {
-      if (!byUser[r.user_id])
-        byUser[r.user_id] = {
-          name: r.user_name,
+    reportBlockers.forEach((report) => {
+      if (!byUser[report.user_id])
+        byUser[report.user_id] = {
+          name: report.user_name,
           count: 0,
           reports: [],
           taskBlockers: 0,
         };
-      byUser[r.user_id].count++;
-      byUser[r.user_id].reports.push(r);
+      byUser[report.user_id].count++;
+      byUser[report.user_id].reports.push(report);
     });
     // From dedicated blockers table (new format)
-    blockersList.forEach((b) => {
-      if (!byUser[b.user_id])
-        byUser[b.user_id] = {
-          name: b.user_name || b.user_id,
+    blockersList.forEach((blocker) => {
+      if (!byUser[blocker.user_id])
+        byUser[blocker.user_id] = {
+          name: blocker.user_name || blocker.user_id,
           count: 0,
           reports: [],
           taskBlockers: 0,
         };
-      byUser[b.user_id].taskBlockers++;
+      byUser[blocker.user_id].taskBlockers++;
     });
     return Object.values(byUser).sort(
-      (a, b) => b.count + b.taskBlockers - (a.count + a.taskBlockers),
+      (userA, userB) =>
+        userB.count + userB.taskBlockers - (userA.count + userA.taskBlockers),
     );
   }, [reports, blockersList]);
 
   const userReports = useMemo(() => {
     if (!viewingUser) return [];
     return reports
-      .filter((r) => r.user_id === viewingUser.id)
-      .sort((a, b) => b.year - a.year || b.week_number - a.week_number);
+      .filter((report) => report.user_id === viewingUser.id)
+      .sort(
+        (reportA, reportB) =>
+          reportB.year - reportA.year ||
+          reportB.week_number - reportA.week_number,
+      );
   }, [reports, viewingUser]);
 
   return (
@@ -377,7 +382,7 @@ export default function AdminOpReports() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(event) => setSearch(event.target.value)}
                 placeholder={t("common.search")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
               />
@@ -386,13 +391,13 @@ export default function AdminOpReports() {
               <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <select
                 value={filterUser}
-                onChange={(e) => setFilterUser(e.target.value)}
+                onChange={(event) => setFilterUser(event.target.value)}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
               >
                 <option value="All Users">{t("common.allUsers")}</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
                   </option>
                 ))}
               </select>
@@ -401,7 +406,7 @@ export default function AdminOpReports() {
               <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <select
                 value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
+                onChange={(event) => setFilterType(event.target.value)}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
               >
                 <option value="all">{t("reports.filter.allTypes")}</option>
@@ -413,12 +418,12 @@ export default function AdminOpReports() {
               <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <select
                 value={filterMonth}
-                onChange={(e) => setFilterMonth(e.target.value)}
+                onChange={(event) => setFilterMonth(event.target.value)}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
               >
                 <option value="all">{t("reports.filter.allMonths")}</option>
-                {MONTHS.map((m) => (
-                  <option key={m}>{m}</option>
+                {MONTHS.map((month) => (
+                  <option key={month}>{month}</option>
                 ))}
               </select>
             </div>
@@ -426,13 +431,13 @@ export default function AdminOpReports() {
               <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <select
                 value={filterProject}
-                onChange={(e) => setFilterProject(e.target.value)}
+                onChange={(event) => setFilterProject(event.target.value)}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
               >
                 <option value="all">{t("reports.filter.allProjects")}</option>
-                {allProjects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
+                {allProjects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
                   </option>
                 ))}
               </select>
@@ -441,7 +446,7 @@ export default function AdminOpReports() {
           <div className="flex flex-wrap gap-2">
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(event) => setFilterStatus(event.target.value)}
               className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
             >
               <option value="all">{t("reports.filter.allStatuses")}</option>
@@ -453,7 +458,7 @@ export default function AdminOpReports() {
             </select>
             <select
               value={filterBlocker}
-              onChange={(e) => setFilterBlocker(e.target.value)}
+              onChange={(event) => setFilterBlocker(event.target.value)}
               className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
             >
               <option value="all">{t("reports.filter.allBlockers")}</option>
@@ -466,7 +471,7 @@ export default function AdminOpReports() {
             </select>
             <select
               value={filterCarryOver}
-              onChange={(e) => setFilterCarryOver(e.target.value)}
+              onChange={(event) => setFilterCarryOver(event.target.value)}
               className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
             >
               <option value="all">{t("reports.filter.allCarryOvers")}</option>
@@ -480,7 +485,7 @@ export default function AdminOpReports() {
             </select>
             <select
               value={filterWorkspace}
-              onChange={(e) => setFilterWorkspace(e.target.value)}
+              onChange={(event) => setFilterWorkspace(event.target.value)}
               className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
             >
               <option value="main">
@@ -499,7 +504,12 @@ export default function AdminOpReports() {
             {/* TEAM OVERVIEW CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {userStats
-                .sort((a, b) => b.standups + b.retros - (a.standups + a.retros))
+                .sort(
+                  (statA, statB) =>
+                    statB.standups +
+                    statB.retros -
+                    (statA.standups + statA.retros),
+                )
                 .map((stat) => (
                   <button
                     key={stat.id}
@@ -582,7 +592,7 @@ export default function AdminOpReports() {
               {filteredReports.length > reportsPage * PAGE_SIZE && (
                 <div className="flex justify-center pt-2">
                   <button
-                    onClick={() => setReportsPage((p) => p + 1)}
+                    onClick={() => setReportsPage((page) => page + 1)}
                     className="px-6 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[10px] font-bold uppercase tracking-wide hover:border-[var(--brand-orange)]/30 transition-all"
                   >
                     {t("reports.loadMore", {
@@ -612,27 +622,28 @@ export default function AdminOpReports() {
                 },
                 {
                   label: t("reports.inProgress"),
-                  value: allTasks.filter((t) => t.status === "in_progress")
+                  value: allTasks.filter((task) => task.status === "in_progress")
                     .length,
                   color: "text-blue-500",
                   bg: "bg-blue-500/10",
                 },
                 {
                   label: t("status.blocked"),
-                  value: allTasks.filter((t) => t.status === "blocked").length,
+                  value: allTasks.filter((task) => task.status === "blocked")
+                    .length,
                   color: "text-rose-500",
                   bg: "bg-rose-500/10",
                 },
                 {
                   label: t("reports.completed"),
-                  value: allTasks.filter((t) => t.status === "completed")
+                  value: allTasks.filter((task) => task.status === "completed")
                     .length,
                   color: "text-emerald-500",
                   bg: "bg-emerald-500/10",
                 },
                 {
                   label: t("reports.carriedOver"),
-                  value: allTasks.filter((t) => t.status === "carried_over")
+                  value: allTasks.filter((task) => task.status === "carried_over")
                     .length,
                   color: "text-amber-500",
                   bg: "bg-amber-500/10",
@@ -789,34 +800,34 @@ export default function AdminOpReports() {
                 </span>
                 <select
                   value={blockerFilterWeek}
-                  onChange={(e) => setBlockerFilterWeek(e.target.value)}
+                  onChange={(event) => setBlockerFilterWeek(event.target.value)}
                   className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
                 >
                   <option value="all">{t("reports.filter.allWeeks")}</option>
                   {(() => {
                     const weeks = new Set();
-                    blockersList.forEach((b) => {
-                      if (b.created_at) {
-                        const d = new Date(b.created_at);
-                        const wk = getWeekNumber(d);
+                    blockersList.forEach((blocker) => {
+                      if (blocker.created_at) {
+                        const createdDate = new Date(blocker.created_at);
+                        const weekNumber = getWeekNumber(createdDate);
                         weeks.add(
-                          `${d.getFullYear()}-W${String(wk).padStart(2, "0")}`,
+                          `${createdDate.getFullYear()}-W${String(weekNumber).padStart(2, "0")}`,
                         );
                       }
                     });
                     return Array.from(weeks)
                       .sort()
                       .reverse()
-                      .map((w) => (
-                        <option key={w} value={w}>
-                          {w}
+                      .map((week) => (
+                        <option key={week} value={week}>
+                          {week}
                         </option>
                       ));
                   })()}
                 </select>
                 <select
                   value={blockerFilterStatus}
-                  onChange={(e) => setBlockerFilterStatus(e.target.value)}
+                  onChange={(event) => setBlockerFilterStatus(event.target.value)}
                   className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
                 >
                   <option value="all">{t("reports.filter.allStatuses")}</option>
@@ -830,44 +841,48 @@ export default function AdminOpReports() {
             {(() => {
               // Build task lookup
               const taskMap = {};
-              allTasks.forEach((t) => {
-                taskMap[t.id] = t;
+              allTasks.forEach((taskItem) => {
+                taskMap[taskItem.id] = taskItem;
               });
 
               // Filter blockers
               let filtered = [...blockersList];
               if (blockerFilterWeek !== "all") {
-                const [y, w] = blockerFilterWeek.split("-W");
-                filtered = filtered.filter((b) => {
-                  if (!b.created_at) return false;
-                  const d = new Date(b.created_at);
-                  const wk = getWeekNumber(d);
-                  return String(wk) === w && String(d.getFullYear()) === y;
+                const [filterYear, filterWeek] =
+                  blockerFilterWeek.split("-W");
+                filtered = filtered.filter((blocker) => {
+                  if (!blocker.created_at) return false;
+                  const createdDate = new Date(blocker.created_at);
+                  const weekNumber = getWeekNumber(createdDate);
+                  return (
+                    String(weekNumber) === filterWeek &&
+                    String(createdDate.getFullYear()) === filterYear
+                  );
                 });
               }
               if (blockerFilterStatus !== "all") {
                 filtered = filtered.filter(
-                  (b) => b.status === blockerFilterStatus,
+                  (blocker) => blocker.status === blockerFilterStatus,
                 );
               }
 
-              const computeDuration = (b) => {
-                const start = new Date(b.created_at).getTime();
+              const computeDuration = (blocker) => {
+                const start = new Date(blocker.created_at).getTime();
                 const end =
-                  b.status === "resolved" && b.resolved_at
-                    ? new Date(b.resolved_at).getTime()
+                  blocker.status === "resolved" && blocker.resolved_at
+                    ? new Date(blocker.resolved_at).getTime()
                     : Date.now();
-                const ms = end - start;
-                const days = Math.floor(ms / 86400000);
-                const hours = Math.floor((ms % 86400000) / 3600000);
+                const elapsedMs = end - start;
+                const days = Math.floor(elapsedMs / 86400000);
+                const hours = Math.floor((elapsedMs % 86400000) / 3600000);
                 if (days > 0) return `${days}d ${hours}h`;
                 return `${hours}h`;
               };
 
-              const formatDateTime = (d) => {
-                if (!d) return "—";
+              const formatDateTime = (date) => {
+                if (!date) return "—";
                 try {
-                  return formatLocaleDate(d, {
+                  return formatLocaleDate(date, {
                     weekday: "short",
                     month: "short",
                     day: "numeric",
@@ -875,7 +890,7 @@ export default function AdminOpReports() {
                     minute: "2-digit",
                   }, lang);
                 } catch {
-                  return d;
+                  return date;
                 }
               };
 
@@ -892,38 +907,43 @@ export default function AdminOpReports() {
 
               // Group by user for effort analysis
               const byUser = {};
-              filtered.forEach((b) => {
-                const key = b.user_id || "unknown";
+              filtered.forEach((blocker) => {
+                const key = blocker.user_id || "unknown";
                 if (!byUser[key])
                   byUser[key] = {
-                    name: b.user_name || key,
+                    name: blocker.user_name || key,
                     blockers: [],
                     totalDuration: 0,
                     resolvedCount: 0,
                   };
-                byUser[key].blockers.push(b);
-                if (b.status === "resolved" && b.resolved_at) {
-                  const d = new Date(b.resolved_at) - new Date(b.created_at);
-                  byUser[key].totalDuration += d;
+                byUser[key].blockers.push(blocker);
+                if (blocker.status === "resolved" && blocker.resolved_at) {
+                  const durationMs =
+                    new Date(blocker.resolved_at) -
+                    new Date(blocker.created_at);
+                  byUser[key].totalDuration += durationMs;
                   byUser[key].resolvedCount++;
                 }
               });
 
               const userAvgData = Object.values(byUser)
-                .map((u) => ({
-                  name: u.name,
+                .map((user) => ({
+                  name: user.name,
                   avgHours:
-                    u.resolvedCount > 0
-                      ? (u.totalDuration / u.resolvedCount / 3600000).toFixed(1)
+                    user.resolvedCount > 0
+                      ? (user.totalDuration / user.resolvedCount / 3600000).toFixed(
+                          1,
+                        )
                       : "—",
-                  totalBlockers: u.blockers.length,
-                  activeCount: u.blockers.filter((b) => b.status === "active")
-                    .length,
+                  totalBlockers: user.blockers.length,
+                  activeCount: user.blockers.filter(
+                    (blocker) => blocker.status === "active",
+                  ).length,
                 }))
-                .sort((a, b) => {
-                  if (a.avgHours === "—") return 1;
-                  if (b.avgHours === "—") return -1;
-                  return parseFloat(b.avgHours) - parseFloat(a.avgHours);
+                .sort((userA, userB) => {
+                  if (userA.avgHours === "—") return 1;
+                  if (userB.avgHours === "—") return -1;
+                  return parseFloat(userB.avgHours) - parseFloat(userA.avgHours);
                 });
 
               return (
@@ -935,32 +955,36 @@ export default function AdminOpReports() {
                         {t("reports.effortAnalysis")}
                       </p>
                       <div className="space-y-2">
-                        {userAvgData.map((u) => (
+                        {userAvgData.map((userAvg) => (
                           <div
-                            key={u.name}
+                            key={userAvg.name}
                             className="flex items-center gap-3 text-[10px]"
                           >
                             <span className="w-32 font-bold truncate">
-                              {u.name}
+                              {userAvg.name}
                             </span>
                             <div className="flex-1 h-4 rounded bg-tertiary overflow-hidden">
                               <div
-                                className={`h-full rounded ${parseFloat(u.avgHours) > 48 ? "bg-rose-500" : parseFloat(u.avgHours) > 24 ? "bg-amber-500" : "bg-emerald-500"}`}
+                                className={`h-full rounded ${parseFloat(userAvg.avgHours) > 48 ? "bg-rose-500" : parseFloat(userAvg.avgHours) > 24 ? "bg-amber-500" : "bg-emerald-500"}`}
                                 style={{
-                                  width: `${Math.min(((parseFloat(u.avgHours) || 0) / 120) * 100, 100)}%`,
+                                  width: `${Math.min(((parseFloat(userAvg.avgHours) || 0) / 120) * 100, 100)}%`,
                                 }}
                               />
                             </div>
                             <span className="w-24 text-right font-bold">
-                              {u.avgHours === "—"
+                              {userAvg.avgHours === "—"
                                 ? t("common.noData")
-                                : t("reports.hoursAvg", { hours: u.avgHours })}
+                                : t("reports.hoursAvg", {
+                                    hours: userAvg.avgHours,
+                                  })}
                             </span>
                             <span className="w-16 text-right text-[var(--text-secondary)]">
-                              {u.activeCount > 0
-                                ? t("reports.nActive", { count: u.activeCount })
+                              {userAvg.activeCount > 0
+                                ? t("reports.nActive", {
+                                    count: userAvg.activeCount,
+                                  })
                                 : t("reports.nTotal", {
-                                    count: u.totalBlockers,
+                                    count: userAvg.totalBlockers,
                                   })}
                             </span>
                           </div>
@@ -1004,59 +1028,62 @@ export default function AdminOpReports() {
                         <tbody>
                           {filtered
                             .slice(0, blockersPage * PAGE_SIZE)
-                            .map((b) => {
-                              const task = taskMap[b.task_id];
+                            .map((blocker) => {
+                              const task = taskMap[blocker.task_id];
                               const projectName = task?.project_id
                                 ? allProjects.find(
-                                    (p) =>
-                                      String(p.id) === String(task.project_id),
+                                    (project) =>
+                                      String(project.id) ===
+                                      String(task.project_id),
                                   )?.name || null
                                 : null;
-                              const duration = computeDuration(b);
+                              const duration = computeDuration(blocker);
                               return (
                                 <tr
-                                  key={b.id}
-                                  className={`border-b border-[var(--border-primary)]/40 ${b.status === "active" ? "bg-rose-500/[0.02]" : ""}`}
+                                  key={blocker.id}
+                                  className={`border-b border-[var(--border-primary)]/40 ${blocker.status === "active" ? "bg-rose-500/[0.02]" : ""}`}
                                 >
                                   <td className="px-3 py-2.5 text-xs font-bold text-[var(--text-primary)]">
-                                    {b.title}
+                                    {blocker.title}
                                   </td>
                                   <td className="px-3 py-2.5 text-[10px]">
                                     <div className="flex items-center gap-1.5">
                                       <div className="w-5 h-5 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
-                                        {b.user_name?.charAt(0) || "?"}
+                                        {blocker.user_name?.charAt(0) || "?"}
                                       </div>
                                       <span>
-                                        {b.user_name || b.user_id || "—"}
+                                        {blocker.user_name ||
+                                          blocker.user_id ||
+                                          "—"}
                                       </span>
                                     </div>
                                   </td>
                                   <td className="px-3 py-2.5 text-[10px] font-medium text-[var(--text-secondary)]">
-                                    {task?.title || `#${b.task_id}`}
+                                    {task?.title || `#${blocker.task_id}`}
                                   </td>
                                   <td className="px-3 py-2.5 text-[10px] font-medium text-[var(--text-secondary)]">
                                     {projectName || task?.category || "—"}
                                   </td>
                                   <td className="px-3 py-2.5 text-[10px] font-medium text-[var(--text-secondary)]">
-                                    {formatDateTime(b.created_at)}
+                                    {formatDateTime(blocker.created_at)}
                                   </td>
                                   <td className="px-3 py-2.5 text-[10px] font-medium text-[var(--text-secondary)]">
-                                    {b.status === "resolved"
-                                      ? formatDateTime(b.resolved_at)
+                                    {blocker.status === "resolved"
+                                      ? formatDateTime(blocker.resolved_at)
                                       : "—"}
                                   </td>
                                   <td className="px-3 py-2.5">
                                     <span
-                                      className={`text-[10px] font-bold ${b.status === "active" ? "text-rose-400" : "text-emerald-400"}`}
+                                      className={`text-[10px] font-bold ${blocker.status === "active" ? "text-rose-400" : "text-emerald-400"}`}
                                     >
                                       {duration}
                                     </span>
                                   </td>
                                   <td className="px-3 py-2.5">
                                     <span
-                                      className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${b.status === "active" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}
+                                      className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${blocker.status === "active" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}
                                     >
-                                      {b.status}
+                                      {blocker.status}
                                     </span>
                                   </td>
                                 </tr>
@@ -1071,7 +1098,7 @@ export default function AdminOpReports() {
                   {filtered.length > blockersPage * PAGE_SIZE && (
                     <div className="flex justify-center px-4 pb-4">
                       <button
-                        onClick={() => setBlockersPage((p) => p + 1)}
+                        onClick={() => setBlockersPage((page) => page + 1)}
                         className="px-6 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[10px] font-bold uppercase tracking-wide hover:border-[var(--brand-orange)]/30 transition-all"
                       >
                         {t("reports.loadMore", {
@@ -1085,7 +1112,8 @@ export default function AdminOpReports() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="card p-3">
                       <p className="text-2xl font-black tracking-tight text-rose-400">
-                        {filtered.filter((b) => b.status === "active").length}
+                        {filtered.filter((blocker) => blocker.status === "active")
+                          .length}
                       </p>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         {t("status.active")}
@@ -1093,7 +1121,8 @@ export default function AdminOpReports() {
                     </div>
                     <div className="card p-3">
                       <p className="text-2xl font-black tracking-tight text-emerald-400">
-                        {filtered.filter((b) => b.status === "resolved").length}
+                        {filtered.filter((blocker) => blocker.status === "resolved")
+                          .length}
                       </p>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         {t("status.resolved")}
@@ -1109,19 +1138,21 @@ export default function AdminOpReports() {
                       <p className="text-2xl font-black tracking-tight">
                         {(() => {
                           const resolved = filtered.filter(
-                            (b) => b.status === "resolved" && b.resolved_at,
+                            (blocker) =>
+                              blocker.status === "resolved" &&
+                              blocker.resolved_at,
                           );
                           if (resolved.length === 0) return "—";
-                          const avg =
+                          const averageMs =
                             resolved.reduce(
-                              (s, b) =>
-                                s +
-                                (new Date(b.resolved_at) -
-                                  new Date(b.created_at)),
+                              (total, blocker) =>
+                                total +
+                                (new Date(blocker.resolved_at) -
+                                  new Date(blocker.created_at)),
                               0,
                             ) / resolved.length;
-                          const h = Math.floor(avg / 3600000);
-                          return `${h}h`;
+                          const hours = Math.floor(averageMs / 3600000);
+                          return `${hours}h`;
                         })()}
                       </p>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
@@ -1152,7 +1183,7 @@ export default function AdminOpReports() {
         >
           <div
             className="card w-full max-w-2xl max-h-[85vh] overflow-y-auto space-y-6"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex justify-between items-start">
               <div>
@@ -1186,15 +1217,17 @@ export default function AdminOpReports() {
                 {t("reports.totalReports")}: {userReports.length}
               </span>
               <span className="text-[var(--brand-orange)]">
-                {userReports.filter((r) => r.report_type === "standup").length}{" "}
+                {userReports.filter((report) => report.report_type === "standup")
+                  .length}{" "}
                 {t("reports.standups")}
               </span>
               <span className="text-emerald-500">
-                {userReports.filter((r) => r.report_type === "retro").length}{" "}
+                {userReports.filter((report) => report.report_type === "retro")
+                  .length}{" "}
                 {t("reports.retros")}
               </span>
               <span className="text-rose-500">
-                {userReports.filter((r) => r.has_blockers).length}{" "}
+                {userReports.filter((report) => report.has_blockers).length}{" "}
                 {t("reports.blockers")}
               </span>
             </div>
@@ -1204,10 +1237,10 @@ export default function AdminOpReports() {
               const total = userReports.length;
               const weeks = new Set(
                 userReports.map(
-                  (r) =>
-                    String(r.year) +
+                  (report) =>
+                    String(report.year) +
                     "-W" +
-                    String(r.week_number).padStart(2, "0"),
+                    String(report.week_number).padStart(2, "0"),
                 ),
               );
               const uniqueWeeks = weeks.size;
@@ -1217,20 +1250,22 @@ export default function AdminOpReports() {
 
               // Calculate current streak (consecutive weeks with at least one report)
               const sorted = [...userReports].sort(
-                (a, b) => b.year - a.year || b.week_number - a.week_number,
+                (reportA, reportB) =>
+                  reportB.year - reportA.year ||
+                  reportB.week_number - reportA.week_number,
               );
               const weekSet = new Set(
                 sorted.map(
-                  (r) =>
-                    String(r.year) +
+                  (report) =>
+                    String(report.year) +
                     "-W" +
-                    String(r.week_number).padStart(2, "0"),
+                    String(report.week_number).padStart(2, "0"),
                 ),
               );
               let _streak = 0;
               const weekList = [...weekSet].sort().reverse();
-              for (let i = 0; i < weekList.length; i++) {
-                if (i === 0) {
+              for (let weekIndex = 0; weekIndex < weekList.length; weekIndex++) {
+                if (weekIndex === 0) {
                   _streak = 1;
                   continue;
                 }
@@ -1270,11 +1305,11 @@ export default function AdminOpReports() {
             })()}
 
             <div className="space-y-2">
-              {userReports.map((r) => (
+              {userReports.map((report) => (
                 <button
-                  key={r.id}
+                  key={report.id}
                   onClick={() => {
-                    setViewingReport(r);
+                    setViewingReport(report);
                     setViewingUser(null);
                   }}
                   className="w-full flex items-center justify-between p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left"
@@ -1283,30 +1318,30 @@ export default function AdminOpReports() {
                     <div
                       className={
                         "w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black " +
-                        (r.report_type === "standup"
+                        (report.report_type === "standup"
                           ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
                           : "bg-emerald-500/10 text-emerald-500")
                       }
                     >
-                      {r.report_type === "standup" ? "M" : "F"}
+                      {report.report_type === "standup" ? "M" : "F"}
                     </div>
                     <div>
                       <p className="text-[10px] font-black uppercase">
-                        W{r.week_number} · {r.year}
+                        W{report.week_number} · {report.year}
                       </p>
                       <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                        {new Date(r.created_at).toLocaleDateString()}
+                        {new Date(report.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {r.has_blockers && (
+                    {report.has_blockers && (
                       <AlertTriangle className="w-3 h-3 text-rose-500" />
                     )}
                     <span
                       className={
                         "text-[10px] font-bold uppercase px-2 py-0.5 rounded " +
-                        (r.status === "submitted"
+                        (report.status === "submitted"
                           ? "bg-emerald-500/10 text-emerald-500"
                           : "bg-amber-500/10 text-amber-500")
                       }
@@ -1314,7 +1349,7 @@ export default function AdminOpReports() {
                       {{
                         submitted: t("status.submitted"),
                         draft: t("status.draft"),
-                      }[r.status] || r.status}
+                      }[report.status] || report.status}
                     </span>
                   </div>
                 </button>
@@ -1423,10 +1458,10 @@ function MonthlyBreakdown({ reports }) {
   const { t } = useI18n();
   // Group reports by month+year
   const groups = {};
-  reports.forEach((r) => {
-    const d = new Date(r.created_at);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  reports.forEach((report) => {
+    const createdDate = new Date(report.created_at);
+    const key = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, "0")}`;
+    const label = `${MONTHS[createdDate.getMonth()]} ${createdDate.getFullYear()}`;
     if (!groups[key])
       groups[key] = {
         label,
@@ -1436,14 +1471,14 @@ function MonthlyBreakdown({ reports }) {
         users: new Set(),
         reports: [],
       };
-    if (r.report_type === "standup") groups[key].standups++;
+    if (report.report_type === "standup") groups[key].standups++;
     else groups[key].retros++;
-    groups[key].users.add(r.user_name);
-    groups[key].reports.push(r);
+    groups[key].users.add(report.user_name);
+    groups[key].reports.push(report);
   });
 
-  const sorted = Object.values(groups).sort((a, b) =>
-    b.key.localeCompare(a.key),
+  const sorted = Object.values(groups).sort((groupA, groupB) =>
+    groupB.key.localeCompare(groupA.key),
   );
 
   return (
@@ -1507,50 +1542,57 @@ function TrendsDashboard({ allReports }) {
   // Monthly report volume
   const monthlyData = useMemo(() => {
     const groups = {};
-    allReports.forEach((r) => {
-      const d = new Date(r.created_at);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const label = `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    allReports.forEach((report) => {
+      const createdDate = new Date(report.created_at);
+      const key = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, "0")}`;
+      const label = `${MONTHS[createdDate.getMonth()]} ${createdDate.getFullYear()}`;
       if (!groups[key])
         groups[key] = { label, key, standups: 0, retros: 0, blockers: 0 };
-      if (r.report_type === "standup") groups[key].standups++;
+      if (report.report_type === "standup") groups[key].standups++;
       else groups[key].retros++;
-      if (r.has_blockers) groups[key].blockers++;
+      if (report.has_blockers) groups[key].blockers++;
     });
-    return Object.values(groups).sort((a, b) => a.key.localeCompare(b.key));
+    return Object.values(groups).sort((groupA, groupB) =>
+      groupA.key.localeCompare(groupB.key),
+    );
   }, [allReports]);
 
   const maxMonthly = Math.max(
-    ...monthlyData.map((m) => m.standups + m.retros),
+    ...monthlyData.map((month) => month.standups + month.retros),
     1,
   );
 
   // Blocker trend
-  const blockerTrend = monthlyData.filter((m) => m.blockers > 0).slice(-6);
-  const maxBlockers = Math.max(...blockerTrend.map((m) => m.blockers), 1);
+  const blockerTrend = monthlyData
+    .filter((month) => month.blockers > 0)
+    .slice(-6);
+  const maxBlockers = Math.max(
+    ...blockerTrend.map((month) => month.blockers),
+    1,
+  );
 
   // Recent staff activity
   const recentStaff = useMemo(() => {
     const userMap = {};
-    allReports.forEach((r) => {
-      if (!userMap[r.user_id])
-        userMap[r.user_id] = {
-          id: r.user_id,
-          name: r.user_name,
-          role: r.user_role,
+    allReports.forEach((report) => {
+      if (!userMap[report.user_id])
+        userMap[report.user_id] = {
+          id: report.user_id,
+          name: report.user_name,
+          role: report.user_role,
           latest: null,
           total: 0,
         };
-      userMap[r.user_id].total++;
+      userMap[report.user_id].total++;
       if (
-        !userMap[r.user_id].latest ||
-        new Date(r.created_at) > new Date(userMap[r.user_id].latest)
+        !userMap[report.user_id].latest ||
+        new Date(report.created_at) > new Date(userMap[report.user_id].latest)
       ) {
-        userMap[r.user_id].latest = r.created_at;
+        userMap[report.user_id].latest = report.created_at;
       }
     });
     return Object.values(userMap)
-      .sort((a, b) => new Date(b.latest) - new Date(a.latest))
+      .sort((staffA, staffB) => new Date(staffB.latest) - new Date(staffA.latest))
       .slice(0, 8);
   }, [allReports]);
 
@@ -1562,12 +1604,12 @@ function TrendsDashboard({ allReports }) {
           {t("reports.monthlyReportVolume")}
         </h3>
         <div className="space-y-3">
-          {monthlyData.slice(-6).map((m) => {
-            const total = m.standups + m.retros;
+          {monthlyData.slice(-6).map((month) => {
+            const total = month.standups + month.retros;
             return (
-              <div key={m.key}>
+              <div key={month.key}>
                 <div className="flex items-center justify-between text-[10px] font-bold text-[var(--text-secondary)] mb-1">
-                  <span>{m.label}</span>
+                  <span>{month.label}</span>
                   <span className="font-black text-[var(--text-primary)]">
                     {t("reports.nReports", { count: total })}
                   </span>
@@ -1575,26 +1617,26 @@ function TrendsDashboard({ allReports }) {
                 <div className="w-full h-5 bg-primary rounded-lg overflow-hidden flex">
                   <div
                     className="h-full bg-[var(--brand-orange)] transition-all"
-                    style={{ width: `${(m.standups / maxMonthly) * 100}%` }}
+                    style={{ width: `${(month.standups / maxMonthly) * 100}%` }}
                   />
                   <div
                     className="h-full bg-emerald-500 transition-all"
-                    style={{ width: `${(m.retros / maxMonthly) * 100}%` }}
+                    style={{ width: `${(month.retros / maxMonthly) * 100}%` }}
                   />
                 </div>
                 <div className="flex items-center gap-3 mt-1 text-[10px] font-medium text-[var(--text-secondary)]">
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />{" "}
-                    {t("reports.nStandups", { count: m.standups })}
+                    {t("reports.nStandups", { count: month.standups })}
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{" "}
-                    {t("reports.nRetros", { count: m.retros })}
+                    {t("reports.nRetros", { count: month.retros })}
                   </span>
-                  {m.blockers > 0 && (
+                  {month.blockers > 0 && (
                     <span className="flex items-center gap-1 text-rose-500">
                       <AlertTriangle className="w-2.5 h-2.5" />{" "}
-                      {t("reports.nBlockers", { count: m.blockers })}
+                      {t("reports.nBlockers", { count: month.blockers })}
                     </span>
                   )}
                 </div>
@@ -1612,18 +1654,20 @@ function TrendsDashboard({ allReports }) {
           </h3>
           {blockerTrend.length > 0 ? (
             <div className="space-y-2.5">
-              {blockerTrend.map((m) => (
-                <div key={m.key}>
+              {blockerTrend.map((month) => (
+                <div key={month.key}>
                   <div className="flex items-center justify-between text-[10px] font-bold mb-1">
-                    <span className="text-[var(--text-secondary)]">{m.label}</span>
+                    <span className="text-[var(--text-secondary)]">
+                      {month.label}
+                    </span>
                     <span className="text-rose-500 font-black">
-                      {t("reports.nBlockers", { count: m.blockers })}
+                      {t("reports.nBlockers", { count: month.blockers })}
                     </span>
                   </div>
                   <div className="w-full h-2 bg-primary rounded-full overflow-hidden">
                     <div
                       className="h-full bg-rose-500 rounded-full transition-all"
-                      style={{ width: `${(m.blockers / maxBlockers) * 100}%` }}
+                      style={{ width: `${(month.blockers / maxBlockers) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -1645,27 +1689,27 @@ function TrendsDashboard({ allReports }) {
             {t("reports.recentlyActive")}
           </h3>
           <div className="space-y-2">
-            {recentStaff.map((s) => (
+            {recentStaff.map((staff) => (
               <div
-                key={s.id}
+                key={staff.id}
                 className="flex items-center justify-between p-3 rounded-lg bg-primary border border-[var(--border-primary)]"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-7 h-7 rounded-full bg-tertiary flex items-center justify-center text-[10px] font-bold uppercase">
-                    {s.name?.charAt(0)}
+                    {staff.name?.charAt(0)}
                   </div>
                   <div>
                     <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
-                      {s.name}
+                      {staff.name}
                     </p>
                     <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                      {t("reports.nReports", { count: s.total })} ·{" "}
-                      {new Date(s.latest).toLocaleDateString()}
+                      {t("reports.nReports", { count: staff.total })} ·{" "}
+                      {new Date(staff.latest).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
                 <span
-                  className={`w-2 h-2 rounded-full ${new Date(s.latest) > new Date(now - 7 * 86400000) ? "bg-emerald-500" : "bg-amber-500"}`}
+                  className={`w-2 h-2 rounded-full ${new Date(staff.latest) > new Date(now - 7 * 86400000) ? "bg-emerald-500" : "bg-amber-500"}`}
                 />
               </div>
             ))}
@@ -1700,12 +1744,12 @@ function ReportDetailModal({ report, onClose }) {
   const pdfContentRef = useRef(null);
 
   const projectMap = {};
-  projects.forEach((p) => {
-    projectMap[p.id] = p;
+  projects.forEach((project) => {
+    projectMap[project.id] = project;
   });
 
   const renderStatusBadge = (status) => {
-    const cfg = {
+    const config = {
       pending: {
         label: t("status.pending"),
         color: "text-slate-400",
@@ -1732,12 +1776,12 @@ function ReportDetailModal({ report, onClose }) {
         bg: "bg-indigo-500/10",
       },
     };
-    const c = cfg[status] || cfg.pending;
+    const badge = config[status] || config.pending;
     return (
       <span
-        className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${c.bg} ${c.color}`}
+        className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${badge.bg} ${badge.color}`}
       >
-        {c.label}
+        {badge.label}
       </span>
     );
   };
@@ -1745,21 +1789,21 @@ function ReportDetailModal({ report, onClose }) {
   const _fetchTaskLogs = async (taskId) => {
     if (taskLogs[taskId]) return;
     try {
-      const res = await fetch(`/api/tasks/logs?task_id=${taskId}`);
-      const data = await res.json();
-      if (data.success)
-        setTaskLogs((prev) => ({ ...prev, [taskId]: data.logs || [] }));
+      const response = await fetch(`/api/tasks/logs?task_id=${taskId}`);
+      const payload = await response.json();
+      if (payload.success)
+        setTaskLogs((prev) => ({ ...prev, [taskId]: payload.logs || [] }));
     } catch {
       /* silent */
     }
   };
 
-  const formatDate = (d) => {
-    if (!d) return "—";
+  const formatDate = (date) => {
+    if (!date) return "—";
     try {
-      return formatLocaleDate(d, { month: "short", day: "numeric" }, lang);
+      return formatLocaleDate(date, { month: "short", day: "numeric" }, lang);
     } catch {
-      return d;
+      return date;
     }
   };
 
@@ -1787,10 +1831,10 @@ function ReportDetailModal({ report, onClose }) {
           <div className="flex items-center gap-2">
             <button
               onClick={async () => {
-                const btn = document.getElementById("pdf-export-btn");
-                if (btn) {
-                  btn.disabled = true;
-                  btn.textContent = t("adminMisc.opReports.generating");
+                const exportButton = document.getElementById("pdf-export-btn");
+                if (exportButton) {
+                  exportButton.disabled = true;
+                  exportButton.textContent = t("adminMisc.opReports.generating");
                 }
                 try {
                   // Method 1: Try html2canvas + jsPDF for a clean PDF file
@@ -1852,10 +1896,10 @@ function ReportDetailModal({ report, onClose }) {
                     );
                     return; // Success — exit
                   }
-                } catch (e) {
+                } catch (error) {
                   console.warn(
                     "html2canvas failed, falling back to browser print:",
-                    e.message || e,
+                    error.message || error,
                   );
                 }
 
@@ -1887,9 +1931,9 @@ function ReportDetailModal({ report, onClose }) {
                     }),
                   );
                 } finally {
-                  if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = `<svg class="w-4 h-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ${t("reports.exportPdf")}`;
+                  if (exportButton) {
+                    exportButton.disabled = false;
+                    exportButton.innerHTML = `<svg class="w-4 h-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ${t("reports.exportPdf")}`;
                   }
                 }
               }}
@@ -2026,7 +2070,7 @@ function ReportDetailModal({ report, onClose }) {
                 <tbody>
                   {weekTasks.map((task) => {
                     const activeBlockers = (task.blockers || []).filter(
-                      (b) => b.status === "active",
+                      (blocker) => blocker.status === "active",
                     ).length;
                     return (
                       <React.Fragment key={task.id}>
@@ -2158,9 +2202,9 @@ function ReportDetailModal({ report, onClose }) {
                                     <div className="space-y-0.5 max-h-24 overflow-y-auto">
                                       {taskLogs[task.id]
                                         .slice(0, 5)
-                                        .map((log, i) => (
+                                        .map((log, index) => (
                                           <div
-                                            key={i}
+                                            key={index}
                                             className="flex items-center gap-2 text-[8px]"
                                           >
                                             <span
@@ -2205,26 +2249,26 @@ function ReportDetailModal({ report, onClose }) {
           )}
 
           {/* Blockers detail section */}
-          {weekTasks.some((t) => (t.blockers || []).length > 0) && (
+          {weekTasks.some((task) => (task.blockers || []).length > 0) && (
             <div className="space-y-2">
               <p className="text-[9px] font-bold text-red-500 uppercase tracking-widest">
                 {t("reports.blockers")}
               </p>
               {weekTasks
-                .filter((t) => (t.blockers || []).length > 0)
+                .filter((task) => (task.blockers || []).length > 0)
                 .map((task) => (
                   <div key={task.id} className="space-y-1">
                     <p className="text-[10px] font-bold text-black">
                       {task.title}
                     </p>
-                    {task.blockers.map((b) => (
+                    {task.blockers.map((blocker) => (
                       <div
-                        key={b.id}
+                        key={blocker.id}
                         className="flex items-center gap-2 pl-4 text-[9px]"
                       >
                         <span
                           className={
-                            b.status === "active"
+                            blocker.status === "active"
                               ? "text-red-500"
                               : "text-green-500"
                           }
@@ -2232,12 +2276,12 @@ function ReportDetailModal({ report, onClose }) {
                           ◆
                         </span>
                         <span className="font-medium text-black">
-                          {b.title}
+                          {blocker.title}
                         </span>
                         <span
-                          className={`text-[7px] font-bold px-1 py-0.5 rounded ${b.status === "active" ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}
+                          className={`text-[7px] font-bold px-1 py-0.5 rounded ${blocker.status === "active" ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}
                         >
-                          {b.status}
+                          {blocker.status}
                         </span>
                       </div>
                     ))}
@@ -2248,7 +2292,9 @@ function ReportDetailModal({ report, onClose }) {
 
           {/* Carry-Over Trace */}
           {weekTasks.filter(
-            (t) => t.status === "carried_over" || (t.reschedule_count || 0) > 0,
+            (task) =>
+              task.status === "carried_over" ||
+              (task.reschedule_count || 0) > 0,
           ).length > 0 && (
             <div className="space-y-2">
               <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
@@ -2256,19 +2302,19 @@ function ReportDetailModal({ report, onClose }) {
               </p>
               {weekTasks
                 .filter(
-                  (t) =>
-                    t.status === "carried_over" ||
-                    (t.reschedule_count || 0) > 0,
+                  (task) =>
+                    task.status === "carried_over" ||
+                    (task.reschedule_count || 0) > 0,
                 )
                 .map((task) => {
                   const weeks = task.reschedule_count || 0;
                   const trace = [];
-                  for (let i = weeks; i >= 0; i--) {
-                    let w = report.week_number - i;
-                    if (w < 1) {
-                      w += 52;
+                  for (let weekOffset = weeks; weekOffset >= 0; weekOffset--) {
+                    let weekNumber = report.week_number - weekOffset;
+                    if (weekNumber < 1) {
+                      weekNumber += 52;
                     }
-                    trace.push(`W${w}`);
+                    trace.push(`W${weekNumber}`);
                   }
                   return (
                     <div
@@ -2286,14 +2332,14 @@ function ReportDetailModal({ report, onClose }) {
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-1.5">
-                        {trace.map((w, i) => (
-                          <React.Fragment key={w}>
+                        {trace.map((week, index) => (
+                          <React.Fragment key={week}>
                             <span
-                              className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${i === trace.length - 1 ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-500"}`}
+                              className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${index === trace.length - 1 ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-500"}`}
                             >
-                              {w}
+                              {week}
                             </span>
-                            {i < trace.length - 1 && (
+                            {index < trace.length - 1 && (
                               <span className="text-gray-400 text-[9px]">
                                 →
                               </span>
@@ -2308,7 +2354,7 @@ function ReportDetailModal({ report, onClose }) {
           )}
 
           {/* Task Action Logs */}
-          {weekTasks.filter((t) => expandedTaskMeta === t.id).length > 0 &&
+          {weekTasks.filter((task) => expandedTaskMeta === task.id).length > 0 &&
             taskLogs[expandedTaskMeta] &&
             taskLogs[expandedTaskMeta].length > 0 && (
               <div className="space-y-2">
@@ -2316,9 +2362,9 @@ function ReportDetailModal({ report, onClose }) {
                   {t("reports.assignmentHistory")}
                 </p>
                 <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {taskLogs[expandedTaskMeta].map((log, i) => (
+                  {taskLogs[expandedTaskMeta].map((log, index) => (
                     <div
-                      key={i}
+                      key={index}
                       className="flex items-center justify-between text-[9px] py-1 px-2 rounded bg-gray-100"
                     >
                       <div className="flex items-center gap-2">

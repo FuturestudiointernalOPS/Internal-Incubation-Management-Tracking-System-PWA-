@@ -33,14 +33,14 @@ for (const file of [".env.local", ".env.audit-staging"]) {
   const url = readUrlFrom(file);
   if (!url) continue;
   try {
-    const probe = await import("pg");
-    const pool = new probe.default.Pool({
+    const pgModule = await import("pg");
+    const probePool = new pgModule.default.Pool({
       connectionString: url,
       ssl: { rejectUnauthorized: false },
       connectionTimeoutMillis: 8000,
     });
-    await pool.query("SELECT 1");
-    await pool.end();
+    await probePool.query("SELECT 1");
+    await probePool.end();
     process.env.DATABASE_URL = url;
     console.log(`[audit] connected via ${file}`);
     break;
@@ -61,64 +61,64 @@ const PROPOSED_TEMPLATE = {
 };
 
 const db = await initDb();
-const q = async (sql, args = []) => (await db.execute({ sql, args })).rows;
+const runQuery = async (sql, args = []) => (await db.execute({ sql, args })).rows;
 
 const [, staffUsers, grants, restrictions, profiles, roleDefaults, profileCaps, eligRows] =
   await Promise.all([
-    q("SELECT cid, access_profile_id, group_name, role FROM contacts"),
-    q("SELECT cid, name, email, role, group_name FROM contacts WHERE role = 'staff' AND deleted_at IS NULL ORDER BY name"),
-    q("SELECT user_cid, module, capability, access_level FROM user_capabilities WHERE (expires_at IS NULL OR expires_at > NOW())"),
-    q("SELECT user_cid, module, capability FROM user_capability_restrictions WHERE (expires_at IS NULL OR expires_at > NOW())"),
-    q("SELECT id, name, is_active FROM access_profiles ORDER BY id"),
-    q("SELECT rpd.role_name, rpd.access_profile_id, ap.name FROM role_access_profile_defaults rpd JOIN access_profiles ap ON ap.id = rpd.access_profile_id"),
-    q("SELECT profile_id, module, capability, access_level FROM access_profile_capabilities ORDER BY profile_id, module, capability"),
-    q("SELECT feature_key, identity_type, identity_value, eligible FROM feature_eligibility"),
+    runQuery("SELECT cid, access_profile_id, group_name, role FROM contacts"),
+    runQuery("SELECT cid, name, email, role, group_name FROM contacts WHERE role = 'staff' AND deleted_at IS NULL ORDER BY name"),
+    runQuery("SELECT user_cid, module, capability, access_level FROM user_capabilities WHERE (expires_at IS NULL OR expires_at > NOW())"),
+    runQuery("SELECT user_cid, module, capability FROM user_capability_restrictions WHERE (expires_at IS NULL OR expires_at > NOW())"),
+    runQuery("SELECT id, name, is_active FROM access_profiles ORDER BY id"),
+    runQuery("SELECT rpd.role_name, rpd.access_profile_id, ap.name FROM role_access_profile_defaults rpd JOIN access_profiles ap ON ap.id = rpd.access_profile_id"),
+    runQuery("SELECT profile_id, module, capability, access_level FROM access_profile_capabilities ORDER BY profile_id, module, capability"),
+    runQuery("SELECT feature_key, identity_type, identity_value, eligible FROM feature_eligibility"),
   ]);
 
-const grantsBy = (cid) => grants.filter((g) => g.user_cid === cid);
-const restrictsBy = (cid) => restrictions.filter((r) => r.user_cid === cid);
-const profileById = (id) => profiles.find((p) => p.id === id);
-const staffProfileId = roleDefaults.find((r) => r.role_name === "staff")?.access_profile_id;
+const grantsBy = (cid) => grants.filter((grant) => grant.user_cid === cid);
+const restrictsBy = (cid) => restrictions.filter((restriction) => restriction.user_cid === cid);
+const profileById = (id) => profiles.find((profile) => profile.id === id);
+const staffProfileId = roleDefaults.find((roleDefault) => roleDefault.role_name === "staff")?.access_profile_id;
 const staffProfile = profileById(staffProfileId);
 
 console.log("=".repeat(78));
 console.log("1. STAFF ELIGIBILITY BY FEATURE (feature_eligibility, role=staff)");
 console.log("=".repeat(78));
-const staffElig = eligRows.filter((r) => r.identity_type === "role" && r.identity_value === "staff");
-for (const r of staffElig) console.log(`  ${r.feature_key} = ${Number(r.eligible) === 1 ? "ELIGIBLE" : "DENIED"}`);
+const staffElig = eligRows.filter((eligibilityRow) => eligibilityRow.identity_type === "role" && eligibilityRow.identity_value === "staff");
+for (const eligibilityRow of staffElig) console.log(`  ${eligibilityRow.feature_key} = ${Number(eligibilityRow.eligible) === 1 ? "ELIGIBLE" : "DENIED"}`);
 console.log(`  (${staffElig.length} rows)`);
 
 console.log("\n" + "=".repeat(78));
 console.log("2. STAFF DEFAULT PROFILE (every capability inside it)");
 console.log("=".repeat(78));
 console.log(`  Profile: ${staffProfile?.name} (id=${staffProfileId}, active=${staffProfile?.is_active})`);
-const staffProfileCaps = profileCaps.filter((c) => c.profile_id === staffProfileId);
-for (const c of staffProfileCaps) console.log(`  ${c.module}.${c.capability} = level ${c.access_level}`);
+const staffProfileCaps = profileCaps.filter((capability) => capability.profile_id === staffProfileId);
+for (const capability of staffProfileCaps) console.log(`  ${capability.module}.${capability.capability} = level ${capability.access_level}`);
 console.log(`  TOTAL: ${staffProfileCaps.length} capabilities`);
 
 console.log("\n" + "=".repeat(78));
 console.log("3+4. INDIVIDUAL GRANTS / RESTRICTIONS PER STAFF USER");
 console.log("=".repeat(78));
-for (const u of staffUsers) {
-  const g = grantsBy(u.cid);
-  const r = restrictsBy(u.cid);
-  console.log(`\n  ${u.name} <${u.email}> (${u.cid}) — group="${u.group_name || ""}"`);
-  console.log(`    grants: ${g.length ? g.map((x) => `${x.module}.${x.capability}=${x.access_level}`).join(", ") : "(none)"}`);
-  console.log(`    restrictions: ${r.length ? r.map((x) => `${x.module}.${x.capability}`).join(", ") : "(none)"}`);
+for (const staffUser of staffUsers) {
+  const userGrants = grantsBy(staffUser.cid);
+  const userRestrictions = restrictsBy(staffUser.cid);
+  console.log(`\n  ${staffUser.name} <${staffUser.email}> (${staffUser.cid}) — group="${staffUser.group_name || ""}"`);
+  console.log(`    grants: ${userGrants.length ? userGrants.map((grant) => `${grant.module}.${grant.capability}=${grant.access_level}`).join(", ") : "(none)"}`);
+  console.log(`    restrictions: ${userRestrictions.length ? userRestrictions.map((restriction) => `${restriction.module}.${restriction.capability}`).join(", ") : "(none)"}`);
 }
 
 console.log("\n" + "=".repeat(78));
 console.log("5. EFFECTIVE PERMISSIONS PER STAFF USER (profile base + grants − restrictions)");
 console.log("=".repeat(78));
-for (const u of staffUsers) {
+for (const staffUser of staffUsers) {
   const base = rowsToCaps(staffProfileCaps);
-  const g = rowsToCaps(grantsBy(u.cid));
-  const r = rowsToRestrictions(restrictsBy(u.cid));
-  const effective = mergeEffectiveCapabilities(base, {}, g, r);
-  console.log(`\n  ${u.name} <${u.email}>`);
-  for (const [mod, caps] of Object.entries(effective)) {
-    if (Object.keys(caps).length === 0) continue;
-    console.log(`    ${mod}: ${Object.entries(caps).map(([c, l]) => `${c}=${l}`).join(", ")}`);
+  const userGrants = rowsToCaps(grantsBy(staffUser.cid));
+  const userRestrictions = rowsToRestrictions(restrictsBy(staffUser.cid));
+  const effective = mergeEffectiveCapabilities(base, {}, userGrants, userRestrictions);
+  console.log(`\n  ${staffUser.name} <${staffUser.email}>`);
+  for (const [module, capabilities] of Object.entries(effective)) {
+    if (Object.keys(capabilities).length === 0) continue;
+    console.log(`    ${module}: ${Object.entries(capabilities).map(([capability, level]) => `${capability}=${level}`).join(", ")}`);
   }
 }
 
@@ -126,25 +126,25 @@ console.log("\n" + "=".repeat(78));
 console.log("6. CAPABILITIES GRANTED AS DEFAULT THAT SHOULD NOT BE (per new model)");
 console.log("=".repeat(78));
 const extraCaps = staffProfileCaps.filter(
-  (c) => !(PROPOSED_TEMPLATE[c.module] && PROPOSED_TEMPLATE[c.module][c.capability] !== undefined),
+  (capability) => !(PROPOSED_TEMPLATE[capability.module] && PROPOSED_TEMPLATE[capability.module][capability.capability] !== undefined),
 );
-for (const c of extraCaps) console.log(`  ${c.module}.${c.capability} (level ${c.access_level})`);
+for (const capability of extraCaps) console.log(`  ${capability.module}.${capability.capability} (level ${capability.access_level})`);
 console.log(`  TOTAL: ${extraCaps.length} (would be removed from the template under the minimal model)`);
 
 console.log("\n" + "=".repeat(78));
 console.log("7. ELIGIBLE BUT NOT RECEIVED BY DEFAULT");
 console.log("=".repeat(78));
-const eligibleFeatures = new Set(staffElig.filter((r) => Number(r.eligible) === 1).map((r) => r.feature_key));
-const profileCapsSet = new Set(staffProfileCaps.map((c) => `${c.module}.${c.capability}`));
+const eligibleFeatures = new Set(staffElig.filter((eligibilityRow) => Number(eligibilityRow.eligible) === 1).map((eligibilityRow) => eligibilityRow.feature_key));
+const profileCapsSet = new Set(staffProfileCaps.map((capability) => `${capability.module}.${capability.capability}`));
 const missing = [];
-for (const [mod, def] of Object.entries(PERMISSION_MODULES)) {
-  const feature = MODULE_TO_FEATURE[mod];
+for (const [module, moduleDef] of Object.entries(PERMISSION_MODULES)) {
+  const feature = MODULE_TO_FEATURE[module];
   if (!feature || !eligibleFeatures.has(feature)) continue;
-  for (const cap of def.capabilities) {
-    if (!profileCapsSet.has(`${mod}.${cap}`)) missing.push(`${mod}.${cap} (feature: ${feature})`);
+  for (const capability of moduleDef.capabilities) {
+    if (!profileCapsSet.has(`${module}.${capability}`)) missing.push(`${module}.${capability} (feature: ${feature})`);
   }
 }
-for (const m of missing) console.log(`  ${m}`);
+for (const missingCapability of missing) console.log(`  ${missingCapability}`);
 console.log(`  TOTAL: ${missing.length} capabilities (assignable via Individual Access, not default)`);
 
 console.log("\n" + "=".repeat(78));

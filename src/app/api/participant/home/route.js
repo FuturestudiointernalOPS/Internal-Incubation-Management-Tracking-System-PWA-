@@ -54,25 +54,25 @@ export async function GET(_req) {
     const programIdList = Array.from(programIds);
     const programsData = [];
 
-    for (const pid of programIdList) {
-      const [progRes, sesRes, delRes, subRes, attRes, kpiRes] =
+    for (const programId of programIdList) {
+      const [programResult, sessionsResult, deliverablesResult, submissionsResult, attendanceResult, kpisResult] =
         await Promise.all([
-          getHomeProgramById(pid),
-          getHomeSessionsByProgramId(pid),
-          getHomeDeliverablesByProgramId(pid),
-          getHomeSubmissionsByParticipantProgram(cid, pid),
-          getHomeAttendanceByProgram(cid, pid),
-          getHomeKpisByProgramId(pid),
+          getHomeProgramById(programId),
+          getHomeSessionsByProgramId(programId),
+          getHomeDeliverablesByProgramId(programId),
+          getHomeSubmissionsByParticipantProgram(cid, programId),
+          getHomeAttendanceByProgram(cid, programId),
+          getHomeKpisByProgramId(programId),
         ]);
 
-      const program = progRes.rows[0];
+      const program = programResult.rows[0];
       if (!program) continue;
 
-      const sessions = sesRes.rows || [];
-      const submissions = subRes.rows || [];
-      const deliverables = delRes.rows || [];
-      const attendance = attRes.rows || [];
-      const kpis = kpiRes.rows || [];
+      const sessions = sessionsResult.rows || [];
+      const submissions = submissionsResult.rows || [];
+      const deliverables = deliverablesResult.rows || [];
+      const attendance = attendanceResult.rows || [];
+      const kpis = kpisResult.rows || [];
 
       // ─── Determine unlocked sessions: a session unlocks once its status is
       // active/in progress/completed (PM marks the current week), its
@@ -81,54 +81,54 @@ export async function GET(_req) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const checkUnlocked = (s) => {
-        const st = String(s.status || "").toLowerCase();
-        if (["active", "in progress", "completed"].includes(st)) return true;
-        if (!s.scheduled_date) return true;
-        const sched = new Date(s.scheduled_date);
-        sched.setHours(0, 0, 0, 0);
-        return sched <= today;
+      const checkUnlocked = (session) => {
+        const status = String(session.status || "").toLowerCase();
+        if (["active", "in progress", "completed"].includes(status)) return true;
+        if (!session.scheduled_date) return true;
+        const scheduledDate = new Date(session.scheduled_date);
+        scheduledDate.setHours(0, 0, 0, 0);
+        return scheduledDate <= today;
       };
 
       const unlockedSessions = sessions.filter(checkUnlocked);
 
       const unlockedSessionWeekNumbers = new Set(
-        unlockedSessions.map((s) => s.week_number || 1),
+        unlockedSessions.map((session) => session.week_number || 1),
       );
       // Resolve a deliverable's week from its session (type-safe string
       // comparison), falling back to its own week_number, then to 1.
-      const deliverableWeek = (d) => {
-        if (d.session_id != null) {
-          const s = sessions.find((x) => String(x.id) === String(d.session_id));
-          if (s?.week_number != null) return s.week_number;
+      const deliverableWeek = (deliverable) => {
+        if (deliverable.session_id != null) {
+          const matchingSession = sessions.find((session) => String(session.id) === String(deliverable.session_id));
+          if (matchingSession?.week_number != null) return matchingSession.week_number;
         }
-        return d.week_number ?? 1;
+        return deliverable.week_number ?? 1;
       };
-      const unlockedDeliverables = deliverables.filter((d) =>
-        unlockedSessionWeekNumbers.has(deliverableWeek(d)),
+      const unlockedDeliverables = deliverables.filter((deliverable) =>
+        unlockedSessionWeekNumbers.has(deliverableWeek(deliverable)),
       );
 
       const currentWeek =
         unlockedSessions.length > 0
-          ? Math.max(...unlockedSessions.map((s) => s.week_number || 1))
+          ? Math.max(...unlockedSessions.map((session) => session.week_number || 1))
           : 1;
       // System-generated attendance deliverables are recorded by staff, not
       // submitted by participants — exclude them from completion.
       const nonAttendanceDeliverables = unlockedDeliverables.filter(
-        (d) => !d.title?.toLowerCase().includes("attendance"),
+        (deliverable) => !deliverable.title?.toLowerCase().includes("attendance"),
       );
       const totalDeliverables = nonAttendanceDeliverables.length || 1;
-      const completedDeliverables = nonAttendanceDeliverables.filter((d) => {
-        const sub = submissions.find((s) => String(s.deliverable_id || s.document_id) === String(d.id));
-        return sub && sub.status === "approved";
+      const completedDeliverables = nonAttendanceDeliverables.filter((deliverable) => {
+        const matchingSubmission = submissions.find((submission) => String(submission.deliverable_id || submission.document_id) === String(deliverable.id));
+        return matchingSubmission && matchingSubmission.status === "approved";
       }).length;
       let programCompletion = Math.round(
         (completedDeliverables / totalDeliverables) * 100,
       );
 
       // A program "tracks" attendance only when attendance records actually exist.
-      const attMetaRes = await countHomeAttendanceByProgramId(program.id);
-      const attendanceTracked = parseInt(attMetaRes.rows[0]?.total || 0) > 0;
+      const attendanceMetaResult = await countHomeAttendanceByProgramId(program.id);
+      const attendanceTracked = parseInt(attendanceMetaResult.rows[0]?.total || 0) > 0;
       // Expected attendance = sessions unlocked so far (future sessions don't count).
       const totalExpectedDays = unlockedSessions.length || 1;
 
@@ -136,16 +136,16 @@ export async function GET(_req) {
       // sessions, so duplicate attendance rows (same session recorded on
       // multiple dates) can never push the rate above 100%.
       const unlockedSessionIds = new Set(
-        unlockedSessions.map((s) => String(s.id)),
+        unlockedSessions.map((session) => String(session.id)),
       );
       const attendedSessions = new Set(
         attendance
           .filter(
-            (a) =>
-              a.status === "present" &&
-              unlockedSessionIds.has(String(a.session_id)),
+            (record) =>
+              record.status === "present" &&
+              unlockedSessionIds.has(String(record.session_id)),
           )
-          .map((a) => String(a.session_id)),
+          .map((record) => String(record.session_id)),
       ).size;
       const attendanceRate = Math.round(
         (attendedSessions / totalExpectedDays) * 100,
@@ -153,12 +153,12 @@ export async function GET(_req) {
       // KPI attendance factor only considers the days where presence was actually
       // marked for this participant (unmarked sessions don't penalize it).
       const markedAttendanceDays = new Set(
-        attendance.map((a) => a.date).filter(Boolean),
+        attendance.map((record) => record.date).filter(Boolean),
       ).size;
       const presentAttendanceDays = new Set(
         attendance
-          .filter((a) => a.status === "present")
-          .map((a) => a.date)
+          .filter((record) => record.status === "present")
+          .map((record) => record.date)
           .filter(Boolean),
       ).size;
       const markedAttendanceRate =
@@ -168,7 +168,7 @@ export async function GET(_req) {
 
       const totalAssignments = submissions.length || 1;
       const approvedAssignments = submissions.filter(
-        (s) => s.status === "approved",
+        (submission) => submission.status === "approved",
       ).length;
       const assignmentCompletion = Math.round(
         (approvedAssignments / totalAssignments) * 100,
@@ -185,42 +185,42 @@ export async function GET(_req) {
       // where each KPI counts as "achieved" only if they have an APPROVED
       // submission on a deliverable linked to that KPI.
       let kpiCompletion = 0;
-      const approvedSubs = submissions.filter((s) => s.status === "approved");
+      const approvedSubmissions = submissions.filter((submission) => submission.status === "approved");
       const deliverableIdsByKpi = new Map();
-      for (const d of deliverables) {
+      for (const deliverable of deliverables) {
         let linkedKpiIds = [];
         try {
           linkedKpiIds =
-            typeof d.kpi_ids === "string"
-              ? JSON.parse(d.kpi_ids || "[]")
-              : d.kpi_ids || [];
+            typeof deliverable.kpi_ids === "string"
+              ? JSON.parse(deliverable.kpi_ids || "[]")
+              : deliverable.kpi_ids || [];
         } catch (_) {
           linkedKpiIds = [];
         }
-        for (const kid of linkedKpiIds) {
-          const key = String(kid);
-          if (!deliverableIdsByKpi.has(key)) {
-            deliverableIdsByKpi.set(key, new Set());
+        for (const kpiId of linkedKpiIds) {
+          const kpiKey = String(kpiId);
+          if (!deliverableIdsByKpi.has(kpiKey)) {
+            deliverableIdsByKpi.set(kpiKey, new Set());
           }
-          deliverableIdsByKpi.get(key).add(String(d.id));
+          deliverableIdsByKpi.get(kpiKey).add(String(deliverable.id));
         }
       }
       // Attendance counts as an extra factor in KPI achievement when the
       // program actually tracks attendance (at least one record exists).
       const kpiFactors = kpis.map((kpi) => {
-        const linked = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
-        const achieved = approvedSubs.some(
-          (s) =>
-            linked.has(String(s.deliverable_id)) ||
-            linked.has(String(s.document_id)),
+        const linkedDeliverableIds = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
+        const isAchieved = approvedSubmissions.some(
+          (submission) =>
+            linkedDeliverableIds.has(String(submission.deliverable_id)) ||
+            linkedDeliverableIds.has(String(submission.document_id)),
         );
-        return achieved ? 100 : 0;
+        return isAchieved ? 100 : 0;
       });
       if (attendanceTracked) kpiFactors.push(markedAttendanceRate);
       kpiCompletion =
         kpiFactors.length > 0
           ? Math.round(
-              kpiFactors.reduce((sum, v) => sum + v, 0) / kpiFactors.length,
+              kpiFactors.reduce((sum, factor) => sum + factor, 0) / kpiFactors.length,
             )
           : 0;
 
@@ -251,7 +251,7 @@ export async function GET(_req) {
     const primaryProgram = programsData[0] || null;
     const primarySubmissions = primaryProgram ? primaryProgram.submissions : [];
     const pendingSubmissions = primarySubmissions.filter(
-      (s) => s.status === "pending",
+      (submission) => submission.status === "pending",
     );
 
     let overdueItems = [];
@@ -260,25 +260,25 @@ export async function GET(_req) {
     today.setHours(0, 0, 0, 0);
 
     if (primaryProgram) {
-      for (const d of primaryProgram.deliverables) {
+      for (const deliverable of primaryProgram.deliverables) {
         // System-generated attendance tasks are recorded by staff, not submitted
         // by participants — they must never appear as overdue or due soon.
-        if (d.title?.toLowerCase().includes("attendance")) continue;
-        if (!d.due_date && !d.created_at) continue;
-        const dueDate = new Date(d.due_date || d.created_at);
+        if (deliverable.title?.toLowerCase().includes("attendance")) continue;
+        if (!deliverable.due_date && !deliverable.created_at) continue;
+        const dueDate = new Date(deliverable.due_date || deliverable.created_at);
         dueDate.setHours(0, 0, 0, 0);
-        const existingSub = primaryProgram.submissions.find(
-          (s) =>
-            String(s.document_id) === String(d.id) ||
-            String(s.deliverable_id) === String(d.id),
+        const existingSubmission = primaryProgram.submissions.find(
+          (submission) =>
+            String(submission.document_id) === String(deliverable.id) ||
+            String(submission.deliverable_id) === String(deliverable.id),
         );
-        const isApproved = existingSub?.status === "approved";
+        const isApproved = existingSubmission?.status === "approved";
         if (!isApproved && dueDate < today) {
           overdueItems.push({
-            id: d.id,
-            title: d.title,
+            id: deliverable.id,
+            title: deliverable.title,
             type: "deliverable",
-            dueDate: d.due_date || d.created_at,
+            dueDate: deliverable.due_date || deliverable.created_at,
             daysOverdue: Math.floor((today - dueDate) / (1000 * 60 * 60 * 24)),
             programId: primaryProgram.id,
             programName: primaryProgram.name,
@@ -287,10 +287,10 @@ export async function GET(_req) {
           const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
           if (diffDays <= 7)
             dueSoonItems.push({
-              id: d.id,
-              title: d.title,
+              id: deliverable.id,
+              title: deliverable.title,
               type: "deliverable",
-              dueDate: d.due_date || d.created_at,
+              dueDate: deliverable.due_date || deliverable.created_at,
               daysLeft: diffDays,
               programId: primaryProgram.id,
               programName: primaryProgram.name,
@@ -301,75 +301,75 @@ export async function GET(_req) {
 
     const upcomingSessions = primaryProgram
       ? primaryProgram.sessions
-          .filter((s) => {
-            if (!s.start_at && !s.scheduled_date) return false;
-            return new Date(s.start_at || s.scheduled_date) >= today;
+          .filter((session) => {
+            if (!session.start_at && !session.scheduled_date) return false;
+            return new Date(session.start_at || session.scheduled_date) >= today;
           })
           .slice(0, 5)
       : [];
 
-    const notifRes = await getHomeNotifications(cid, email);
-    const announcements = (notifRes.rows || []).map((n) => ({
-      id: n.id,
-      title: n.title,
-      message: n.message,
-      type: n.type || "announcement",
-      isRead: n.is_read,
-      createdAt: n.created_at,
+    const notificationsResult = await getHomeNotifications(cid, email);
+    const announcements = (notificationsResult.rows || []).map((notification) => ({
+      id: notification.id,
+      title: notification.title,
+      message: notification.message,
+      type: notification.type || "announcement",
+      isRead: notification.is_read,
+      createdAt: notification.created_at,
     }));
 
     // ─── Build calendar events from ALL enrolled programs ───
     let calendarEvents = [];
     const seenEventKeys = new Set();
 
-    for (const prog of programsData) {
-      for (const s of prog.sessions || []) {
-        const sessionDate = s.start_at || s.scheduled_date;
+    for (const program of programsData) {
+      for (const session of program.sessions || []) {
+        const sessionDate = session.start_at || session.scheduled_date;
         if (!sessionDate) continue;
-        const d = new Date(sessionDate);
-        const dateStr = d.toISOString().split("T")[0];
-        const key = `session-${s.id}`;
-        if (seenEventKeys.has(key)) continue;
-        seenEventKeys.add(key);
+        const date = new Date(sessionDate);
+        const dateStr = date.toISOString().split("T")[0];
+        const eventKey = `session-${session.id}`;
+        if (seenEventKeys.has(eventKey)) continue;
+        seenEventKeys.add(eventKey);
         calendarEvents.push({
-          id: key,
-          title: s.title,
+          id: eventKey,
+          title: session.title,
           date: dateStr,
-          time: s.start_time || null,
+          time: session.start_time || null,
           type: "session",
           source: "v2_sessions",
-          relatedId: s.id,
-          programId: prog.id,
-          description: prog.name,
+          relatedId: session.id,
+          programId: program.id,
+          description: program.name,
         });
       }
-      for (const d of prog.deliverables || []) {
+      for (const deliverable of program.deliverables || []) {
         // Attendance tasks are recorded by staff, not submitted by participants.
-        if (d.title?.toLowerCase().includes("attendance")) continue;
-        if (!d.due_date && !d.created_at) continue;
+        if (deliverable.title?.toLowerCase().includes("attendance")) continue;
+        if (!deliverable.due_date && !deliverable.created_at) continue;
         // Check if participant already submitted
-        const existingSub = (prog.submissions || []).find(
-          (s) =>
-            String(s.document_id) === String(d.id) ||
-            String(s.deliverable_id) === String(d.id),
+        const existingSubmission = (program.submissions || []).find(
+          (submission) =>
+            String(submission.document_id) === String(deliverable.id) ||
+            String(submission.deliverable_id) === String(deliverable.id),
         );
-        const dd = new Date(d.due_date || d.created_at);
-        const dateStr = dd.toISOString().split("T")[0];
-        const key = `deliverable-${d.id}`;
-        if (seenEventKeys.has(key)) continue;
-        seenEventKeys.add(key);
+        const dueDate = new Date(deliverable.due_date || deliverable.created_at);
+        const dateStr = dueDate.toISOString().split("T")[0];
+        const eventKey = `deliverable-${deliverable.id}`;
+        if (seenEventKeys.has(eventKey)) continue;
+        seenEventKeys.add(eventKey);
         calendarEvents.push({
-          id: key,
-          title: existingSub ? `${d.title} (submitted)` : `${d.title} (due)`,
+          id: eventKey,
+          title: existingSubmission ? `${deliverable.title} (submitted)` : `${deliverable.title} (due)`,
           date: dateStr,
           time: null,
-          type: existingSub ? "submission" : "deadline",
+          type: existingSubmission ? "submission" : "deadline",
           source: "v2_document_requirements",
-          relatedId: d.id,
-          programId: prog.id,
-          description: existingSub
-            ? `Status: ${existingSub.status}`
-            : prog.name,
+          relatedId: deliverable.id,
+          programId: program.id,
+          description: existingSubmission
+            ? `Status: ${existingSubmission.status}`
+            : program.name,
         });
       }
     }
@@ -377,27 +377,27 @@ export async function GET(_req) {
     // Fetch events from v2_events for all enrolled programs
     try {
       if (programIdList.length > 0) {
-        const eventRes = await getHomeEventsByProgramIds(programIdList);
-        for (const ev of eventRes.rows || []) {
-          const d = new Date(ev.start_time);
-          const dateStr = d.toISOString().split("T")[0];
-          const timeStr = d.toLocaleTimeString([], {
+        const eventsResult = await getHomeEventsByProgramIds(programIdList);
+        for (const event of eventsResult.rows || []) {
+          const eventDate = new Date(event.start_time);
+          const dateStr = eventDate.toISOString().split("T")[0];
+          const timeStr = eventDate.toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
           });
-          const key = `event-${ev.id}`;
-          if (seenEventKeys.has(key)) continue;
-          seenEventKeys.add(key);
+          const eventKey = `event-${event.id}`;
+          if (seenEventKeys.has(eventKey)) continue;
+          seenEventKeys.add(eventKey);
           calendarEvents.push({
-            id: key,
-            title: ev.title || "Meeting",
+            id: eventKey,
+            title: event.title || "Meeting",
             date: dateStr,
             time: timeStr,
             type: "event",
             source: "v2_events",
-            relatedId: ev.id,
-            programId: ev.program_id,
-            description: ev.description || ev.event_type || "Review",
+            relatedId: event.id,
+            programId: event.program_id,
+            description: event.description || event.event_type || "Review",
           });
         }
       }
@@ -407,26 +407,26 @@ export async function GET(_req) {
     // person belongs to. The model returns venture-facing sessions only —
     // internal staff sessions are never exposed to a founder.
     try {
-      const vsRes = await getCalendarVentureSessions(cid);
-      for (const s of vsRes.rows || []) {
-        const key = `vsess-${s.id}`;
-        if (seenEventKeys.has(key)) continue;
-        seenEventKeys.add(key);
-        const d = new Date(s.start_time);
+      const ventureSessionsResult = await getCalendarVentureSessions(cid);
+      for (const session of ventureSessionsResult.rows || []) {
+        const eventKey = `vsess-${session.id}`;
+        if (seenEventKeys.has(eventKey)) continue;
+        seenEventKeys.add(eventKey);
+        const sessionStart = new Date(session.start_time);
         calendarEvents.push({
-          id: key,
-          title: s.title,
-          date: d.toISOString().split("T")[0],
-          time: d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          id: eventKey,
+          title: session.title,
+          date: sessionStart.toISOString().split("T")[0],
+          time: sessionStart.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           type: "venture_session",
           source: "session",
-          relatedId: s.id,
-          description: s.coach_name ? `Coach: ${s.coach_name}` : null,
+          relatedId: session.id,
+          description: session.coach_name ? `Coach: ${session.coach_name}` : null,
         });
       }
     } catch (_) {}
 
-    calendarEvents.sort((a, b) => a.date.localeCompare(b.date));
+    calendarEvents.sort((first, second) => first.date.localeCompare(second.date));
 
     return NextResponse.json({
       success: true,
@@ -452,35 +452,35 @@ export async function GET(_req) {
             deliverableCount: primaryProgram.deliverables.length,
           }
         : null,
-      programs: programsData.map((p) => ({
-        id: p.id,
-        name: p.name,
-        status: p.status,
-        startDate: p.startDate,
-        endDate: p.endDate,
-        currentWeek: p.currentWeek,
-        durationWeeks: p.durationWeeks,
-        cohort: p.cohort,
-        metrics: p.metrics,
+      programs: programsData.map((program) => ({
+        id: program.id,
+        name: program.name,
+        status: program.status,
+        startDate: program.startDate,
+        endDate: program.endDate,
+        currentWeek: program.currentWeek,
+        durationWeeks: program.durationWeeks,
+        cohort: program.cohort,
+        metrics: program.metrics,
       })),
       actionCenter: {
         overdue: overdueItems,
         dueSoon: dueSoonItems,
-        pendingSubmissions: pendingSubmissions.map((s) => ({
-          id: s.id,
-          deliverableId: s.document_id,
-          status: s.status,
-          submittedAt: s.created_at,
-          programId: s.program_id,
+        pendingSubmissions: pendingSubmissions.map((submission) => ({
+          id: submission.id,
+          deliverableId: submission.document_id,
+          status: submission.status,
+          submittedAt: submission.created_at,
+          programId: submission.program_id,
         })),
-        upcomingSessions: upcomingSessions.map((s) => ({
-          id: s.id,
-          title: s.title,
-          type: s.type,
-          date: s.start_at || s.scheduled_date,
-          time: s.start_time,
-          weekNumber: s.week_number,
-          programId: s.program_id,
+        upcomingSessions: upcomingSessions.map((session) => ({
+          id: session.id,
+          title: session.title,
+          type: session.type,
+          date: session.start_at || session.scheduled_date,
+          time: session.start_time,
+          weekNumber: session.week_number,
+          programId: session.program_id,
         })),
       },
       calendarEvents,

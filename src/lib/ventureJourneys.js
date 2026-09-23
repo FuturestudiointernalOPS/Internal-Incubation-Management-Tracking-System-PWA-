@@ -61,15 +61,15 @@ export async function ensureJourneyTable(db) {
 export async function resolveVentureInternalId(db, ventureId) {
   if (typeof ventureId === "string" && ventureId.includes("-") && !ventureId.startsWith("VNT-")) {
     try {
-      const byId = await db.execute({ sql: "SELECT id FROM ventures WHERE id::text = ?", args: [ventureId] });
-      if (byId.rows?.[0]) return byId.rows[0].id;
+      const byIdResult = await db.execute({ sql: "SELECT id FROM ventures WHERE id::text = ?", args: [ventureId] });
+      if (byIdResult.rows?.[0]) return byIdResult.rows[0].id;
       return ventureId;
     } catch (_) {
       return ventureId;
     }
   }
-  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
-  return r.rows?.[0]?.id || null;
+  const result = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  return result.rows?.[0]?.id || null;
 }
 
 /** Ordered stages for a Venture — only Venture-facing columns.
@@ -134,18 +134,18 @@ export async function moveJourneyStage(db, { dbId, stageId, direction }) {
       [dbId],
     );
     const list = rows.rows || [];
-    const idx = list.findIndex((r) => r.id === stageId);
-    if (idx === -1) return { error: "Stage not found." };
-    const targetIdx = direction === "up" ? idx - 1 : direction === "down" ? idx + 1 : -1;
-    if (targetIdx < 0 || targetIdx >= list.length) return { error: "Already at the edge." };
+    const currentIndex = list.findIndex((stage) => stage.id === stageId);
+    if (currentIndex === -1) return { error: "Stage not found." };
+    const targetIndex = direction === "up" ? currentIndex - 1 : direction === "down" ? currentIndex + 1 : -1;
+    if (targetIndex < 0 || targetIndex >= list.length) return { error: "Already at the edge." };
 
-    const a = list[idx];
-    const b = list[targetIdx];
+    const currentStage = list[currentIndex];
+    const targetStage = list[targetIndex];
     // Park one order at a negative sentinel (orders are positive 1..n), then
     // swap — unique constraint is satisfied after every statement.
-    await query("UPDATE venture_journey_stages SET stage_order = -1 WHERE id = ?", [a.id]);
-    await query("UPDATE venture_journey_stages SET stage_order = ? WHERE id = ?", [a.stage_order, b.id]);
-    await query("UPDATE venture_journey_stages SET stage_order = ? WHERE id = ?", [b.stage_order, a.id]);
+    await query("UPDATE venture_journey_stages SET stage_order = -1 WHERE id = ?", [currentStage.id]);
+    await query("UPDATE venture_journey_stages SET stage_order = ? WHERE id = ?", [currentStage.stage_order, targetStage.id]);
+    await query("UPDATE venture_journey_stages SET stage_order = ? WHERE id = ?", [targetStage.stage_order, currentStage.id]);
     return { success: true };
   });
 }

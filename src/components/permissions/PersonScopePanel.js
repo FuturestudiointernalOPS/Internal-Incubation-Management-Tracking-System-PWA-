@@ -67,10 +67,10 @@ export default function PersonScopePanel({
       // painting a verdict the engine never returned.
       if (!result) throw new Error(t("engineering.permissions.scopeVerifyFailed"));
       setProbe(policy, { result, busy: false });
-    } catch (e) {
+    } catch (error) {
       setProbe(policy, {
         result: null,
-        error: e?.message || t("engineering.permissions.scopeVerifyFailed"),
+        error: error?.message || t("engineering.permissions.scopeVerifyFailed"),
         busy: false,
       });
     }
@@ -193,8 +193,8 @@ export default function PersonScopePanel({
 
                     {/* 2. Test one record, here, for THIS person. */}
                     <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
+                      onSubmit={(event) => {
+                        event.preventDefault();
                         if (probe.resourceId?.trim()) {
                           runCheck(entry.policy, probe.resourceId.trim());
                         }
@@ -207,9 +207,9 @@ export default function PersonScopePanel({
                         </span>
                         <input
                           value={probe.resourceId || ""}
-                          onChange={(e) =>
+                          onChange={(event) =>
                             setProbe(entry.policy, {
-                              resourceId: e.target.value,
+                              resourceId: event.target.value,
                               error: "",
                             })
                           }

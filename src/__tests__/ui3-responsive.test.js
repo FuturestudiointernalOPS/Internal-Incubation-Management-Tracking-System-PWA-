@@ -20,7 +20,7 @@ const count = (src, needle) => src.split(needle).length - 1;
 
 const componentFiles = fs
   .readdirSync(DIR)
-  .filter((f) => f.endsWith(".js"));
+  .filter((file) => file.endsWith(".js"));
 
 describe("UI-3d — small-screen parity", () => {
   test("every table hidden below md has a card companion", () => {

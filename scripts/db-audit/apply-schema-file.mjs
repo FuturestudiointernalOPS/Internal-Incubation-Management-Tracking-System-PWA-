@@ -40,7 +40,7 @@ const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
 const argv = process.argv.slice(2);
 const APPLY = argv.includes("--apply");
 const ALLOW_DESTRUCTIVE = argv.includes("--allow-destructive");
-const positional = argv.filter((a) => !a.startsWith("--"));
+const positional = argv.filter((arg) => !arg.startsWith("--"));
 
 const FILE_ARG = positional[0];
 if (!FILE_ARG) {
@@ -113,13 +113,13 @@ function readDatabaseUrl(envFile) {
   let contents;
   try {
     contents = readFileSync(envFile, "utf8");
-  } catch (e) {
-    console.error(`  Could not read the env file: ${path.basename(envFile)} (${redact(e.code || e.message)})`);
+  } catch (error) {
+    console.error(`  Could not read the env file: ${path.basename(envFile)} (${redact(error.code || error.message)})`);
     return null;
   }
   for (const line of contents.split(/\r?\n/)) {
-    const m = line.match(/^DATABASE_URL=(.*)$/);
-    if (m) return m[1].trim().replace(/^["']|["']$/g, "");
+    const match = line.match(/^DATABASE_URL=(.*)$/);
+    if (match) return match[1].trim().replace(/^["']|["']$/g, "");
   }
   return null;
 }
@@ -138,9 +138,9 @@ console.log(`  statements: ${statements.length} executable`);
 
 if (problems.length > 0) {
   console.error(`\n  REFUSING TO RUN — ${problems.length} line(s) break the one-statement-per-line contract:`);
-  for (const p of problems) {
-    console.error(`    line ${p.lineNo}: ${p.reason}`);
-    console.error(`      ${p.text.slice(0, 120)}`);
+  for (const problem of problems) {
+    console.error(`    line ${problem.lineNo}: ${problem.reason}`);
+    console.error(`      ${problem.text.slice(0, 120)}`);
   }
   console.error(`\n  Fix the .sql file (one statement per line, each ending in ';') and re-run.`);
   process.exit(1);
@@ -148,13 +148,13 @@ if (problems.length > 0) {
 
 // ── Destructive-statement guard ─────────────────────────────────────────────
 const destructive = statements.filter(({ sql: statement }) =>
-  DESTRUCTIVE_PATTERNS.some((re) => re.test(statement)),
+  DESTRUCTIVE_PATTERNS.some((pattern) => pattern.test(statement)),
 );
 if (destructive.length > 0 && !ALLOW_DESTRUCTIVE) {
   console.error(`\n  REFUSING TO RUN — ${destructive.length} destructive statement(s) found.`);
   console.error(`  This runner exists to ADD things. Each statement below would remove or overwrite data or structure:`);
-  for (const d of destructive) {
-    console.error(`    line ${d.lineNo}: ${d.sql.slice(0, 120)}`);
+  for (const destructiveStatement of destructive) {
+    console.error(`    line ${destructiveStatement.lineNo}: ${destructiveStatement.sql.slice(0, 120)}`);
   }
   console.error(`\n  If you have read the file and mean it, re-run with --allow-destructive.`);
   process.exit(1);
@@ -192,8 +192,8 @@ const client = new pg.Client({
 
 try {
   await client.connect();
-} catch (e) {
-  console.error(`\n  Could not connect: ${redact(e.message)}`);
+} catch (error) {
+  console.error(`\n  Could not connect: ${redact(error.message)}`);
   console.error(`  Check the DATABASE_URL in ${path.basename(ENV_FILE)} (value not printed).`);
   process.exit(1);
 }
@@ -215,11 +215,11 @@ for (const { lineNo, sql: statement } of statements) {
     await client.query(statement);
     succeeded.push(statement);
     console.log(`  OK  [${String(lineNo).padStart(4)}] ${statement.slice(0, 96)}`);
-  } catch (e) {
+  } catch (error) {
     // Collected, never fatal — the remaining statements still run.
-    failed.push({ lineNo, statement, error: redact(e.message) });
+    failed.push({ lineNo, statement, error: redact(error.message) });
     console.log(`  ERR [${String(lineNo).padStart(4)}] ${statement.slice(0, 96)}`);
-    console.log(`           -> ${redact(e.message)}`);
+    console.log(`           -> ${redact(error.message)}`);
   }
 }
 

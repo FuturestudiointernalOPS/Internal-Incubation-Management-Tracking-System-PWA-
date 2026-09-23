@@ -11,11 +11,11 @@ import { getCountryOptions } from "@/lib/countries";
 export default function AppCountrySelect({ value, onChange, locale = "en", ...props }) {
   const options = useMemo(
     () =>
-      getCountryOptions().map((c) => ({
-        value: c.iso,
-        label: locale === "fr" ? c.nameFr : c.nameEn,
-        search: `${c.nameEn} ${c.nameFr} ${c.iso} ${c.dial}`,
-        flag: c.flag,
+      getCountryOptions().map((country) => ({
+        value: country.iso,
+        label: locale === "fr" ? country.nameFr : country.nameEn,
+        search: `${country.nameEn} ${country.nameFr} ${country.iso} ${country.dial}`,
+        flag: country.flag,
       })),
     [locale],
   );

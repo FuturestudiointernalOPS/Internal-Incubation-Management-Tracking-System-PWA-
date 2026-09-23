@@ -15,9 +15,9 @@ import { useApi } from "@/lib/hooks/useApi";
 
 const EMPTY_LIST = [];
 
-const pickVenture = (d) => (d?.success ? d.venture || null : null);
-const pickSessions = (d) => (d?.success ? d.sessions || [] : []);
-const pickCoaches = (d) => (d?.success ? d.coaches || [] : []);
+const pickVenture = (payload) => (payload?.success ? payload.venture || null : null);
+const pickSessions = (payload) => (payload?.success ? payload.sessions || [] : []);
+const pickCoaches = (payload) => (payload?.success ? payload.coaches || [] : []);
 import { stageStatusWord, statusLabel } from "@/lib/ventureStatuses";
 
 const SESSION_TYPE_CFG = {
@@ -95,12 +95,12 @@ export default function VentureSessionsPage() {
 
   const loadSessionDetail = async (sessionId) => {
     try {
-      const res = await fetch(`/api/ventures/${id}/sessions`, {
+      const response = await fetch(`/api/ventures/${id}/sessions`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "get_session", session_id: sessionId }),
       });
-      const d = await res.json();
-      if (d.success) { setSelectedSession(d.session); setShowDetail(true); }
+      const payload = await response.json();
+      if (payload.success) { setSelectedSession(payload.session); setShowDetail(true); }
     } catch {}
   };
 
@@ -109,15 +109,17 @@ export default function VentureSessionsPage() {
   // locked ones — the staff authoring view).
   const loadJourneyContext = async () => {
     try {
-      const [jRes, mRes, tRes] = await Promise.all([
+      const [journeyResponse, milestonesResponse, tasksResponse] = await Promise.all([
         fetch(`/api/ventures/${id}/journey`),
         fetch(`/api/ventures/${id}/milestones`),
         fetch(`/api/ventures/${id}/tasks`),
       ]);
-      const j = await jRes.json(); const m = await mRes.json(); const t = await tRes.json();
-      if (j.success) setJourneyStages(j.stages || []);
-      if (m.success) setMilestoneOptions(m.milestones || []);
-      if (t.success) setTaskOptions(t.tasks || []);
+      const journeyData = await journeyResponse.json();
+      const milestonesData = await milestonesResponse.json();
+      const tasksData = await tasksResponse.json();
+      if (journeyData.success) setJourneyStages(journeyData.stages || []);
+      if (milestonesData.success) setMilestoneOptions(milestonesData.milestones || []);
+      if (tasksData.success) setTaskOptions(tasksData.tasks || []);
     } catch {}
   };
 
@@ -127,7 +129,7 @@ export default function VentureSessionsPage() {
 
   const openCreateModal = () => {
     // Fresh journey context each time (options may have changed since last open).
-    setSForm((p) => ({ ...p, journey_stage_id: "", milestone_ref: "", task_id: "" }));
+    setSForm((previous) => ({ ...previous, journey_stage_id: "", milestone_ref: "", task_id: "" }));
     setShowCreateModal(true);
     loadJourneyContext();
   };
@@ -136,10 +138,10 @@ export default function VentureSessionsPage() {
   // skipped), then tasks bound to the selected milestone (milestone_id may be
   // TEXT — always compare stringified).
   const stageMilestones = sForm.journey_stage_id
-    ? milestoneOptions.filter((m) => String(m.journey_stage_id) === String(sForm.journey_stage_id))
+    ? milestoneOptions.filter((milestone) => String(milestone.journey_stage_id) === String(sForm.journey_stage_id))
     : [];
   const milestoneTasks = sForm.milestone_ref
-    ? taskOptions.filter((tk) => String(tk.milestone_id) === String(sForm.milestone_ref))
+    ? taskOptions.filter((task) => String(task.milestone_id) === String(sForm.milestone_ref))
     : [];
 
   const RESET_SFORM = { title: "", session_type: "coaching", coach_id: "", start_time: "", end_time: "", meeting_link: "", description: "", venture_facing: false, journey_stage_id: "", milestone_ref: "", task_id: "" };
@@ -152,7 +154,7 @@ export default function VentureSessionsPage() {
     if (!sForm.journey_stage_id || !sForm.milestone_ref) { notify(t("vadmin.sessions.milestoneRequired"), "error"); return; }
     setSaving(true);
     try {
-      const res = await fetch(`/api/ventures/${id}/sessions`, {
+      const response = await fetch(`/api/ventures/${id}/sessions`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "create_session", ...sForm,
@@ -162,9 +164,9 @@ export default function VentureSessionsPage() {
           coach_id: sForm.coach_id ? parseInt(sForm.coach_id) : null,
         }),
       });
-      const d = await res.json();
-      if (d.success) { notify(t("vadmin.sessions.sessionCreated")); setShowCreateModal(false); setSForm({ ...RESET_SFORM }); reload(); }
-      else notify(t((d.error || t("vadmin.sessions.failed")) || "") || (d.error || t("vadmin.sessions.failed")), "error");
+      const payload = await response.json();
+      if (payload.success) { notify(t("vadmin.sessions.sessionCreated")); setShowCreateModal(false); setSForm({ ...RESET_SFORM }); reload(); }
+      else notify(t((payload.error || t("vadmin.sessions.failed")) || "") || (payload.error || t("vadmin.sessions.failed")), "error");
     } catch { notify(t("vadmin.sessions.networkError"), "error"); }
     setSaving(false);
   };
@@ -194,8 +196,8 @@ export default function VentureSessionsPage() {
     <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
-  const upcoming = sessions.filter((s) => ["scheduled", "confirmed"].includes(s.status));
-  const past = sessions.filter((s) => ["completed", "cancelled", "no_show", "rescheduled"].includes(s.status));
+  const upcoming = sessions.filter((session) => ["scheduled", "confirmed"].includes(session.status));
+  const past = sessions.filter((session) => ["completed", "cancelled", "no_show", "rescheduled"].includes(session.status));
 
   return (
     <>
@@ -225,10 +227,10 @@ export default function VentureSessionsPage() {
 
         {/* Filter Tabs */}
         <div className="flex gap-4 border-b border-[var(--border-primary)] pb-2">
-          {["upcoming", "past", "all"].map((f) => (
-            <button key={f} onClick={()=>setFilter(f)}
-              className={`text-[9px] font-black uppercase tracking-wider pb-2 border-b-2 transition-all ${filter===f?"border-[var(--brand-orange)] text-[var(--brand-orange)]":"border-transparent text-slate-500"}`}>
-              {f==="upcoming"?t("vadmin.sessions.tabUpcoming",{count:upcoming.length}):f==="past"?t("vadmin.sessions.tabPast",{count:past.length}):t("vadmin.sessions.tabAll")}
+          {["upcoming", "past", "all"].map((filterTab) => (
+            <button key={filterTab} onClick={()=>setFilter(filterTab)}
+              className={`text-[9px] font-black uppercase tracking-wider pb-2 border-b-2 transition-all ${filter===filterTab?"border-[var(--brand-orange)] text-[var(--brand-orange)]":"border-transparent text-slate-500"}`}>
+              {filterTab==="upcoming"?t("vadmin.sessions.tabUpcoming",{count:upcoming.length}):filterTab==="past"?t("vadmin.sessions.tabPast",{count:past.length}):t("vadmin.sessions.tabAll")}
             </button>
           ))}
         </div>
@@ -238,34 +240,34 @@ export default function VentureSessionsPage() {
           <div className="text-center py-16"><Calendar className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">{t("vadmin.sessions.noSessionsFound")}</p></div>
         ) : (
           <div className="space-y-3">
-            {(filter==="upcoming"?upcoming:filter==="past"?past:sessions).map((s) => {
-              const tc = SESSION_TYPE_CFG[s.session_type] || SESSION_TYPE_CFG.coaching;
-              const sc = STATUS_CFG[s.status] || STATUS_CFG.scheduled;
+            {(filter==="upcoming"?upcoming:filter==="past"?past:sessions).map((session) => {
+              const typeConfig = SESSION_TYPE_CFG[session.session_type] || SESSION_TYPE_CFG.coaching;
+              const statusConfig = STATUS_CFG[session.status] || STATUS_CFG.scheduled;
               return (
-                <div key={s.id} onClick={()=>loadSessionDetail(s.id)}
+                <div key={session.id} onClick={()=>loadSessionDetail(session.id)}
                   className="p-5 rounded-2xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-4 min-w-0">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${tc.color}`}>
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${typeConfig.color}`}>
                         <Calendar className="w-5 h-5" />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-bold text-[var(--text-primary)]">{s.title}</p>
-                          <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${tc.color}`}>{t(tc.label)}</span>
-                          <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${sc.color}`}>{t(sc.label)}</span>
+                          <p className="text-sm font-bold text-[var(--text-primary)]">{session.title}</p>
+                          <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${typeConfig.color}`}>{t(typeConfig.label)}</span>
+                          <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${statusConfig.color}`}>{t(statusConfig.label)}</span>
                         </div>
                         <div className="flex items-center gap-3 mt-1.5 text-[9px] text-slate-500 flex-wrap">
-                          <span className="flex items-center gap-1"><Clock className="w-3 h-3"/>{new Date(s.start_time).toLocaleString()}</span>
-                          {s.coach_name && <span className="flex items-center gap-1"><User className="w-3 h-3"/>{s.coach_name}</span>}
-                          {s.meeting_link && <span className="flex items-center gap-1"><Video className="w-3 h-3"/>{t("vadmin.sessions.online")}</span>}
-                          {s.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3"/>{s.location}</span>}
+                          <span className="flex items-center gap-1"><Clock className="w-3 h-3"/>{new Date(session.start_time).toLocaleString()}</span>
+                          {session.coach_name && <span className="flex items-center gap-1"><User className="w-3 h-3"/>{session.coach_name}</span>}
+                          {session.meeting_link && <span className="flex items-center gap-1"><Video className="w-3 h-3"/>{t("vadmin.sessions.online")}</span>}
+                          {session.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3"/>{session.location}</span>}
                         </div>
                       </div>
                     </div>
                     <div className="flex gap-2 shrink-0">
-                      {s.status==="scheduled" && (
-                        <button onClick={(e)=>{e.stopPropagation(); cancelSession(s.id);}} className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg"><X className="w-4 h-4"/></button>
+                      {session.status==="scheduled" && (
+                        <button onClick={(event)=>{event.stopPropagation(); cancelSession(session.id);}} className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg"><X className="w-4 h-4"/></button>
                       )}
                     </div>
                   </div>
@@ -287,22 +289,22 @@ export default function VentureSessionsPage() {
             <div className="space-y-4">
               <div>
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.titleRequired")}</label>
-                <input value={sForm.title} onChange={(e)=>setSForm((p)=>({...p,title:e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                <input value={sForm.title} onChange={(event)=>setSForm((previous)=>({...previous,title:event.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.type")}</label>
-                  <select value={sForm.session_type} onChange={(e)=>setSForm((p)=>({...p,session_type:e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
+                  <select value={sForm.session_type} onChange={(event)=>setSForm((previous)=>({...previous,session_type:event.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
                     <option value="coaching">{t("vadmin.sessions.coaching")}</option><option value="mentoring">{t("vadmin.sessions.mentoring")}</option><option value="advisory">{t("vadmin.sessions.advisory")}</option>
                     <option value="office_hours">{t("vadmin.sessions.officeHours")}</option><option value="review_meeting">{t("vadmin.sessions.reviewMeeting")}</option><option value="pitch_review">{t("vadmin.sessions.pitchReview")}</option>
                   </select>
                 </div>
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.coach")}</label>
-                  <select value={sForm.coach_id} onChange={(e)=>setSForm((p)=>({...p,coach_id:e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
+                  <select value={sForm.coach_id} onChange={(event)=>setSForm((previous)=>({...previous,coach_id:event.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
                     <option value="">{t("vadmin.sessions.selectPlaceholder")}</option>
-                    {(coaches||[]).filter((c)=>c.coach_type==="coach").map((c)=>(
-                      <option key={c.id} value={c.id}>{c.full_name}</option>
+                    {(coaches||[]).filter((coach)=>coach.coach_type==="coach").map((coach)=>(
+                      <option key={coach.id} value={coach.id}>{coach.full_name}</option>
                     ))}
                   </select>
                 </div>
@@ -310,22 +312,22 @@ export default function VentureSessionsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.startRequired")}</label>
-                  <input type="datetime-local" value={sForm.start_time} onChange={(e)=>setSForm((p)=>({...p,start_time:e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                  <input type="datetime-local" value={sForm.start_time} onChange={(event)=>setSForm((previous)=>({...previous,start_time:event.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.endRequired")}</label>
-                  <input type="datetime-local" value={sForm.end_time} onChange={(e)=>setSForm((p)=>({...p,end_time:e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                  <input type="datetime-local" value={sForm.end_time} onChange={(event)=>setSForm((previous)=>({...previous,end_time:event.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
               </div>
               <div>
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.meetingLink")}</label>
-                <input value={sForm.meeting_link} onChange={(e)=>setSForm((p)=>({...p,meeting_link:e.target.value}))} placeholder="https://meet.google.com/..." className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                <input value={sForm.meeting_link} onChange={(event)=>setSForm((previous)=>({...previous,meeting_link:event.target.value}))} placeholder="https://meet.google.com/..." className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
               </div>
               <div>
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.descriptionRequired")}</label>
                 <textarea
                   value={sForm.description}
-                  onChange={(e) => { setSForm((p) => ({ ...p, description: e.target.value })); const el = e.target; el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; }}
+                  onChange={(event) => { setSForm((previous) => ({ ...previous, description: event.target.value })); const element = event.target; element.style.height = "auto"; element.style.height = `${element.scrollHeight}px`; }}
                   rows={3}
                   required
                   placeholder={t("vadmin.sessions.description")}
@@ -340,11 +342,11 @@ export default function VentureSessionsPage() {
                   {journeyStages.length === 0 ? (
                     <p className="text-[9px] text-slate-500">{t("vadmin.sessions.noJourneyStages")}</p>
                   ) : (
-                    <select value={sForm.journey_stage_id} onChange={(e)=>{ setSForm((p)=>({ ...p, journey_stage_id: e.target.value, milestone_ref: "", task_id: "" })); }}
+                    <select value={sForm.journey_stage_id} onChange={(event)=>{ setSForm((previous)=>({ ...previous, journey_stage_id: event.target.value, milestone_ref: "", task_id: "" })); }}
                       className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
                       <option value="">{t("vadmin.sessions.selectPlaceholder")}</option>
-                      {journeyStages.map((s)=>(
-                        <option key={s.id} value={s.id}>{s.name} ({stageStatusLabel(s.status)})</option>
+                      {journeyStages.map((stage)=>(
+                        <option key={stage.id} value={stage.id}>{stage.name} ({stageStatusLabel(stage.status)})</option>
                       ))}
                     </select>
                   )}
@@ -354,27 +356,27 @@ export default function VentureSessionsPage() {
                 )}
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.milestone")}</label>
-                  <select value={sForm.milestone_ref} disabled={!sForm.journey_stage_id} onChange={(e)=>{ setSForm((p)=>({ ...p, milestone_ref: e.target.value, task_id: "" })); }}
+                  <select value={sForm.milestone_ref} disabled={!sForm.journey_stage_id} onChange={(event)=>{ setSForm((previous)=>({ ...previous, milestone_ref: event.target.value, task_id: "" })); }}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none disabled:opacity-40">
                     <option value="">{t("vadmin.sessions.selectPlaceholder")}</option>
-                    {stageMilestones.map((m)=>(
-                      <option key={m.id} value={String(m.id)}>{m.title}</option>
+                    {stageMilestones.map((milestone)=>(
+                      <option key={milestone.id} value={String(milestone.id)}>{milestone.title}</option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.task")}</label>
-                  <select value={sForm.task_id} disabled={!sForm.milestone_ref} onChange={(e)=>setSForm((p)=>({...p,task_id:e.target.value}))}
+                  <select value={sForm.task_id} disabled={!sForm.milestone_ref} onChange={(event)=>setSForm((previous)=>({...previous,task_id:event.target.value}))}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none disabled:opacity-40">
                     <option value="">{t("vadmin.sessions.selectPlaceholder")}</option>
-                    {milestoneTasks.map((tk)=>(
-                      <option key={tk.id} value={tk.id}>{tk.title}</option>
+                    {milestoneTasks.map((task)=>(
+                      <option key={task.id} value={task.id}>{task.title}</option>
                     ))}
                   </select>
                 </div>
               </div>
               <label className="flex items-start gap-2.5 cursor-pointer select-none rounded-xl border border-[var(--border-primary)] bg-primary px-4 py-3">
-                <input type="checkbox" checked={!!sForm.venture_facing} onChange={(e)=>setSForm((p)=>({...p,venture_facing:e.target.checked}))} className="mt-0.5" />
+                <input type="checkbox" checked={!!sForm.venture_facing} onChange={(event)=>setSForm((previous)=>({...previous,venture_facing:event.target.checked}))} className="mt-0.5" />
                 <span>
                   <span className="block text-[9px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.sessions.ventureFacing")}</span>
                   <span className="block text-[9px] text-slate-500 mt-0.5">{t("vadmin.sessions.ventureFacingHint")}</span>
@@ -419,14 +421,14 @@ export default function VentureSessionsPage() {
               <div>
                 <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2 flex items-center gap-1.5"><BookOpen className="w-3 h-3"/> {t("vadmin.sessions.notesCount", { count: selectedSession.notes?.length||0 })}</p>
                 {(selectedSession.notes||[]).length===0 && <p className="text-sm text-[var(--text-secondary)]">{t("vadmin.sessions.noNotesYet")}</p>}
-                {(selectedSession.notes||[]).map((n)=>(
-                  <div key={n.id} className="p-3 bg-primary rounded-xl mb-2 border border-[var(--border-primary)]">
-                    <p className="text-[10px] text-[var(--text-secondary)]">{n.content}</p>
-                    <p className="text-[10px] text-[var(--text-secondary)] mt-1">{n.author_name} · {new Date(n.created_at).toLocaleString()}</p>
+                {(selectedSession.notes||[]).map((note)=>(
+                  <div key={note.id} className="p-3 bg-primary rounded-xl mb-2 border border-[var(--border-primary)]">
+                    <p className="text-[10px] text-[var(--text-secondary)]">{note.content}</p>
+                    <p className="text-[10px] text-[var(--text-secondary)] mt-1">{note.author_name} · {new Date(note.created_at).toLocaleString()}</p>
                   </div>
                 ))}
                 <div className="flex gap-2 mt-2">
-                  <input value={noteText} onChange={(e)=>setNoteText(e.target.value)} placeholder={t("vadmin.sessions.addNotePlaceholder")} className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none" />
+                  <input value={noteText} onChange={(event)=>setNoteText(event.target.value)} placeholder={t("vadmin.sessions.addNotePlaceholder")} className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none" />
                   <button onClick={addNote} disabled={!noteText.trim()} className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase disabled:opacity-30">{t("vadmin.sessions.add")}</button>
                 </div>
               </div>
@@ -435,16 +437,16 @@ export default function VentureSessionsPage() {
               <div>
                 <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2 flex items-center gap-1.5"><Target className="w-3 h-3"/> {t("vadmin.sessions.actionItemsCount", { count: selectedSession.action_items?.length||0 })}</p>
                 {(selectedSession.action_items||[]).length===0 && <p className="text-sm text-[var(--text-secondary)]">{t("vadmin.sessions.noActionItems")}</p>}
-                {(selectedSession.action_items||[]).map((a)=>(
-                  <div key={a.id} className="flex items-center gap-2 p-2 bg-primary rounded-lg mb-1">
-                    <span className={`w-1.5 h-1.5 rounded-full ${a.status==="completed"?"bg-emerald-500":"bg-amber-500"}`} />
-                    <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1">{a.title}</span>
-                    {a.owner_name && <span className="text-[10px] text-[var(--text-secondary)]">{a.owner_name}</span>}
-                    {a.due_date && <span className="text-[10px] text-[var(--text-secondary)]">{new Date(a.due_date).toLocaleDateString()}</span>}
+                {(selectedSession.action_items||[]).map((actionItem)=>(
+                  <div key={actionItem.id} className="flex items-center gap-2 p-2 bg-primary rounded-lg mb-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${actionItem.status==="completed"?"bg-emerald-500":"bg-amber-500"}`} />
+                    <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1">{actionItem.title}</span>
+                    {actionItem.owner_name && <span className="text-[10px] text-[var(--text-secondary)]">{actionItem.owner_name}</span>}
+                    {actionItem.due_date && <span className="text-[10px] text-[var(--text-secondary)]">{new Date(actionItem.due_date).toLocaleDateString()}</span>}
                   </div>
                 ))}
                 <div className="flex gap-2 mt-2">
-                  <input value={aiTitle} onChange={(e)=>setAiTitle(e.target.value)} placeholder={t("vadmin.sessions.newActionItemPlaceholder")} className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none" />
+                  <input value={aiTitle} onChange={(event)=>setAiTitle(event.target.value)} placeholder={t("vadmin.sessions.newActionItemPlaceholder")} className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none" />
                   <button onClick={addActionItem} disabled={!aiTitle.trim()} className="px-3 py-2 bg-amber-500/10 text-amber-400 rounded-lg text-[8px] font-black uppercase disabled:opacity-30"><Plus className="w-3 h-3"/></button>
                 </div>
               </div>

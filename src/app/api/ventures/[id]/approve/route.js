@@ -27,8 +27,8 @@ export async function POST(req, { params }) {
 
     const { id } = await params;
 
-    const vRes = await getVentureForApproval(id);
-    const venture = vRes.rows?.[0];
+    const ventureResult = await getVentureForApproval(id);
+    const venture = ventureResult.rows?.[0];
     if (!venture) {
       return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     }
@@ -63,40 +63,43 @@ export async function POST(req, { params }) {
             return "";
           }
         })();
-      for (const f of founders.rows || []) {
-        if (!f.email) continue;
+      for (const founder of founders.rows || []) {
+        if (!founder.email) continue;
         try {
           // Create a password-setup token so the founder can set their password
           // and access their dashboard (reuses the /activate flow).
           let setupUrl = null;
+          let founderCid = null;
           try {
-            const contact = await getContactCidByLowerEmail(f.email);
+            const contact = await getContactCidByLowerEmail(founder.email);
             if (contact.rows?.[0]?.cid) {
+              founderCid = contact.rows[0].cid;
               const token = uuidv4();
               const tokenHash = hashToken(token);
-              await createApprovalPasswordSetupToken(token, tokenHash, contact.rows[0].cid, f.email);
+              await createApprovalPasswordSetupToken(token, tokenHash, contact.rows[0].cid, founder.email);
               setupUrl = `${appBase}/activate?token=${token}`;
             }
-          } catch (e) {
-            console.warn("Setup token creation failed for", f.email, ":", e.message);
+          } catch (error) {
+            console.warn("Setup token creation failed for", founder.email, ":", error.message);
           }
           const emailResult = await sendVentureApprovalEmail({
-            to: f.email,
-            name: f.name || "there",
+            to: founder.email,
+            name: founder.name || "there",
             ventureName: venture.company_name || venture.name || id,
             setupUrl,
+            contact_cid: founderCid,
           });
           if (emailResult?.success) {
             emailed++;
           } else {
-            emailErrors.push({ to: f.email, error: emailResult?.error?.message || emailResult?.error || emailResult?.note || "unknown" });
+            emailErrors.push({ to: founder.email, error: emailResult?.error?.message || emailResult?.error || emailResult?.note || "unknown" });
           }
-        } catch (e) {
-          emailErrors.push({ to: f.email, error: e.message });
+        } catch (error) {
+          emailErrors.push({ to: founder.email, error: error.message });
         }
       }
-    } catch (e) {
-      console.warn("Failed to load founders for approval email:", e.message);
+    } catch (error) {
+      console.warn("Failed to load founders for approval email:", error.message);
     }
 
     // Notify super admin feed
@@ -109,8 +112,8 @@ export async function POST(req, { params }) {
     } catch {}
 
     return NextResponse.json({ success: true, emailed, email_errors: emailErrors });
-  } catch (e) {
-    console.error("POST /api/ventures/[id]/approve error:", e);
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    console.error("POST /api/ventures/[id]/approve error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

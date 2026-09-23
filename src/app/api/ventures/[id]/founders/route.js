@@ -114,8 +114,8 @@ export const POST = createHandler(
           is_resend: result.isResend,
         },
       });
-    } catch (e) {
-      return NextResponse.json({ success: false, error: e.message }, { status: 400 });
+    } catch (error) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
   },
 );

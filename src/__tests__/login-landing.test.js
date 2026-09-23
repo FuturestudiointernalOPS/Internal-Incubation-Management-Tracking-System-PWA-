@@ -25,15 +25,15 @@ const {
   isFounderMembership,
 } = require("@/models/platform/roles");
 
-const src = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+const src = (relativePath) => fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 
 /** One Venture membership, as the reads hand them over. */
-const venture = (over = {}) => ({
+const venture = (overrides = {}) => ({
   venture_id: "VNT-1",
   status: "active",
   member_type: "founder",
   is_owner: true,
-  ...over,
+  ...overrides,
 });
 
 describe("global identities keep the section their badge owns", () => {

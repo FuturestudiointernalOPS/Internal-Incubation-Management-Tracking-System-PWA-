@@ -10,8 +10,8 @@ function getCalendarDays(year, month) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const days = [];
-  for (let i = 0; i < firstDay.getDay(); i++) days.push(null);
-  for (let d = 1; d <= lastDay.getDate(); d++) days.push(d);
+  for (let index = 0; index < firstDay.getDay(); index++) days.push(null);
+  for (let day = 1; day <= lastDay.getDate(); day++) days.push(day);
   return days;
 }
 
@@ -118,7 +118,7 @@ export default function CalendarPanel({
   };
 
   const getEventsForDate = (dateStr) => {
-    return events.filter((e) => e.date === dateStr);
+    return events.filter((event) => event.date === dateStr);
   };
 
   const closePopup = () => setSelectedDay(null);
@@ -172,16 +172,16 @@ export default function CalendarPanel({
         <div
           className={`grid grid-cols-7 ${gap} text-center ${headerSize} font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5`}
         >
-          {DAY_KEYS.map((k) => (
-            <div key={k}>{t("time.days." + k)}</div>
+          {DAY_KEYS.map((dayKey) => (
+            <div key={dayKey}>{t("time.days." + dayKey)}</div>
           ))}
         </div>
 
         {/* Calendar grid */}
         <div className={`grid grid-cols-7 ${gap}`}>
-          {calendarDays.map((day, idx) => {
+          {calendarDays.map((day, index) => {
             if (day === null) {
-              return <div key={`empty-${idx}`} className={daySize} />;
+              return <div key={`empty-${index}`} className={daySize} />;
             }
             const dateStr = formatDate(year, month, day);
             const dayEvents = getEventsForDate(dateStr);
@@ -217,24 +217,24 @@ export default function CalendarPanel({
         {/* Compact event list below calendar */}
         {!compact && events.length > 0 && (
           <div className="mt-3 pt-3 border-t border-[var(--border-primary)] space-y-1.5">
-            {events.slice(0, 3).map((ev) => (
+            {events.slice(0, 3).map((event) => (
               <div
-                key={ev.id}
-                onClick={() => onEventClick?.(ev)}
+                key={event.id}
+                onClick={() => onEventClick?.(event)}
                 className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white/5 transition-all cursor-pointer group"
               >
                 <div
-                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${EVENT_DOTS[ev.source] || "bg-slate-400"}`}
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${EVENT_DOTS[event.source] || "bg-slate-400"}`}
                 />
                 <span
                   className={`text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate`}
                 >
-                  {ev.title}
+                  {event.title}
                 </span>
-                {ev.time && (
+                {event.time && (
                   <span className="text-[10px] font-medium text-[var(--text-secondary)] flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
                     <Clock className="w-2.5 h-2.5" />
-                    {ev.time}
+                    {event.time}
                   </span>
                 )}
               </div>
@@ -256,7 +256,7 @@ export default function CalendarPanel({
         >
           <div
             className="bg-secondary border border-[var(--border-primary)] rounded-2xl w-full max-w-sm space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center justify-between p-5 pb-0">
@@ -288,45 +288,45 @@ export default function CalendarPanel({
                   {t("common.noEvents")}
                 </p>
               ) : (
-                selectedDay.events.map((ev) => (
+                selectedDay.events.map((event) => (
                   <div
-                    key={ev.id}
+                    key={event.id}
                     onClick={() => {
-                      onEventClick?.(ev);
+                      onEventClick?.(event);
                       closePopup();
                     }}
                     className={cn(
                       "p-3 rounded-xl border cursor-pointer hover:brightness-110 transition-all",
-                      EVENT_COLORS[ev.source] ||
+                      EVENT_COLORS[event.source] ||
                         "bg-[var(--surface-3)] text-[var(--text-tertiary)] border-[var(--border-primary)]",
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-[11px] font-bold leading-tight flex-1">
-                        {ev.title}
+                        {event.title}
                       </p>
-                      {ev.source && (
+                      {event.source && (
                         <span className="text-[10px] font-bold uppercase tracking-wider opacity-60 shrink-0">
-                          {ev.source}
+                          {event.source}
                         </span>
                       )}
                     </div>
-                    {(ev.time || ev.type) && (
+                    {(event.time || event.type) && (
                       <div className="flex items-center gap-3 mt-1.5">
-                        {ev.time && (
+                        {event.time && (
                           <span className="text-[10px] font-medium text-[var(--text-secondary)] flex items-center gap-1">
                             <Clock className="w-2.5 h-2.5" />
-                            {ev.time}
+                            {event.time}
                           </span>
                         )}
-                        {ev.type && (
+                        {event.type && (
                           <span className="text-[10px] font-medium text-[var(--text-secondary)] capitalize">
-                            {ev.type.replace(/_/g, " ")}
+                            {event.type.replace(/_/g, " ")}
                           </span>
                         )}
-                        {ev.status && (
+                        {event.status && (
                           <span className="text-[10px] font-medium text-[var(--text-secondary)] capitalize">
-                            {ev.status}
+                            {event.status}
                           </span>
                         )}
                       </div>

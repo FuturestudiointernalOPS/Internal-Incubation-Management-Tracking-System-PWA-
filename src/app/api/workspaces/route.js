@@ -39,9 +39,9 @@ export const dynamic = "force-dynamic";
  */
 
 function assignmentHref(role, programId) {
-  const r = String(role || "").toLowerCase();
-  if (r === "facilitator") return `/facilitator/program/${programId}`;
-  return roleHomeHref(r);
+  const normalizedRole = String(role || "").toLowerCase();
+  if (normalizedRole === "facilitator") return `/facilitator/program/${programId}`;
+  return roleHomeHref(normalizedRole);
 }
 
 /** Rows of a settled read, or an empty list when it failed. */
@@ -105,36 +105,36 @@ async function buildNavigation(session, contextsOnly) {
   // copies before `sort`, so the membership order below is untouched.
   const partRows = memberships
     .filter(
-      (r) => r.program_exists && (r.status == null || r.status === "active"),
+      (row) => row.program_exists && (row.status == null || row.status === "active"),
     )
-    .sort((a, b) =>
-      String(a.program_name || "").localeCompare(String(b.program_name || "")),
+    .sort((first, second) =>
+      String(first.program_name || "").localeCompare(String(second.program_name || "")),
     );
 
   // 1. Program staff assignments (facilitator / staff / ...)
   // 2. Participant enrollments (excluded when already a staff member there)
-  const staffProgramIds = new Set(staffRows.map((r) => r.program_id));
+  const staffProgramIds = new Set(staffRows.map((row) => row.program_id));
 
   const workspaces = [];
 
-  for (const r of staffRows) {
-    const role = String(r.role || "staff").toLowerCase();
+  for (const row of staffRows) {
+    const role = String(row.role || "staff").toLowerCase();
     workspaces.push({
       type: "program",
       title: role,
-      program_id: r.program_id,
-      program_name: r.program_name || r.program_id,
-      href: assignmentHref(role, r.program_id) || "/workspaces",
+      program_id: row.program_id,
+      program_name: row.program_name || row.program_id,
+      href: assignmentHref(role, row.program_id) || "/workspaces",
     });
   }
 
-  for (const r of partRows) {
-    if (staffProgramIds.has(r.program_id_text)) continue;
+  for (const row of partRows) {
+    if (staffProgramIds.has(row.program_id_text)) continue;
     workspaces.push({
       type: "program",
       title: "participant",
-      program_id: r.program_id_text,
-      program_name: r.program_name || r.program_id_text,
+      program_id: row.program_id_text,
+      program_name: row.program_name || row.program_id_text,
       href: "/participant",
     });
   }
@@ -156,45 +156,45 @@ async function buildNavigation(session, contextsOnly) {
   //    have no current contact_roles mirror (deduplicated, no duplication).
   try {
     const crRows = rowsOf(contactRolesSettled);
-    contexts.program_assignments = crRows.map((r) => {
-      const roleKey = String(r.role || "staff").toLowerCase();
+    contexts.program_assignments = crRows.map((row) => {
+      const roleKey = String(row.role || "staff").toLowerCase();
       return {
-        ...r,
+        ...row,
         source: "contact_roles",
         completed: false,
         href:
           roleKey === "facilitator"
-            ? `/facilitator/program/${r.program_id}`
+            ? `/facilitator/program/${row.program_id}`
             : roleHomeHref(roleKey) || "/workspaces",
       };
     });
     const mirroredKeys = new Set(
       crRows
-        .filter((r) => r.is_current)
-        .map((r) => `${r.program_id}|${String(r.role).toLowerCase()}`),
+        .filter((row) => row.is_current)
+        .map((row) => `${row.program_id}|${String(row.role).toLowerCase()}`),
     );
     const legacyOnly = staffRows.filter(
-      (r) =>
-        !mirroredKeys.has(`${r.program_id}|${String(r.role).toLowerCase()}`),
+      (row) =>
+        !mirroredKeys.has(`${row.program_id}|${String(row.role).toLowerCase()}`),
     );
-    for (const r of legacyOnly) {
-      const roleKey = String(r.role || "staff").toLowerCase();
+    for (const row of legacyOnly) {
+      const roleKey = String(row.role || "staff").toLowerCase();
       contexts.program_assignments.push({
         contact_cid: session.cid,
-        role: r.role,
-        title: r.role,
-        program_id: r.program_id,
+        role: row.role,
+        title: row.role,
+        program_id: row.program_id,
         is_current: true,
         status: "active",
         scope: null,
         started_at: null,
         ended_at: null,
-        program_name: r.program_name || r.program_id,
+        program_name: row.program_name || row.program_id,
         source: "v2_program_staff",
         completed: false,
         href:
           roleKey === "facilitator"
-            ? `/facilitator/program/${r.program_id}`
+            ? `/facilitator/program/${row.program_id}`
             : roleHomeHref(roleKey) || "/workspaces",
       });
     }
@@ -205,16 +205,16 @@ async function buildNavigation(session, contextsOnly) {
     // The two columns the active-enrollment list is derived from are internal
     // to this endpoint and are not part of a context's shape.
     contexts.program_participations = memberships.map(
-      ({ program_exists: _pe, program_id_text: _pit, ...r }) => {
+      ({ program_exists: _pe, program_id_text: _pit, ...row }) => {
         const completed =
-          String(r.status || "").toLowerCase() === "completed" ||
-          !!r.completed_at ||
-          String(r.program_status || "").toLowerCase() === "completed";
+          String(row.status || "").toLowerCase() === "completed" ||
+          !!row.completed_at ||
+          String(row.program_status || "").toLowerCase() === "completed";
         return {
-          ...r,
+          ...row,
           completed,
           readonly: completed,
-          href: `/participant/${r.program_id}`,
+          href: `/participant/${row.program_id}`,
         };
       },
     );
@@ -246,11 +246,11 @@ async function buildNavigation(session, contextsOnly) {
 
   // 4. Responsibilities.
   try {
-    contexts.responsibilities = rowsOf(responsibilitiesSettled).map((r) => ({
-      ...r,
-      href: String(r.key || "").toLowerCase().includes("finance")
+    contexts.responsibilities = rowsOf(responsibilitiesSettled).map((row) => ({
+      ...row,
+      href: String(row.key || "").toLowerCase().includes("finance")
         ? "/finance"
-        : String(r.key || "").toLowerCase().includes("crm")
+        : String(row.key || "").toLowerCase().includes("crm")
           ? "/crm"
           : "/workspaces",
     }));
@@ -258,9 +258,9 @@ async function buildNavigation(session, contextsOnly) {
 
   // 5. Venture memberships.
   try {
-    contexts.venture_memberships = rowsOf(venturesSettled).map((r) => ({
-      ...r,
-      href: `/participant/ventures/${r.venture_id}`,
+    contexts.venture_memberships = rowsOf(venturesSettled).map((row) => ({
+      ...row,
+      href: `/participant/ventures/${row.venture_id}`,
     }));
   } catch (_) {}
 
@@ -312,17 +312,17 @@ export async function GET(request) {
     const [navigation, [storedRoleSettled]] = await Promise.all([
       cachedNavigation
         ? cachedNavigation
-        : buildNavigation(session, contextsOnly).then((nav) => {
-            writeWorkspaceContext(session.cid, scope, nav);
-            return nav;
+        : buildNavigation(session, contextsOnly).then((builtNavigation) => {
+            writeWorkspaceContext(session.cid, scope, builtNavigation);
+            return builtNavigation;
           }),
       Promise.allSettled([getContactStoredRole(session.cid)]),
     ]);
 
     let baselineRole = session.role;
     const storedRows = rowsOf(storedRoleSettled);
-    const raw = storedRows[0]?.role;
-    if (raw) baselineRole = String(raw).toLowerCase();
+    const storedRole = storedRows[0]?.role;
+    if (storedRole) baselineRole = String(storedRole).toLowerCase();
     const derivedRole =
       isBaselineIdentity(baselineRole) &&
       baselineRole === "member" &&
@@ -350,8 +350,8 @@ export async function GET(request) {
       workspaces: navigation.workspaces,
       contexts: navigation.contexts,
     });
-  } catch (e) {
-    console.error("[workspaces] error:", e.message);
+  } catch (error) {
+    console.error("[workspaces] error:", error.message);
     return NextResponse.json(
       { success: false, error: "errors.somethingWrong" },
       { status: 500 },

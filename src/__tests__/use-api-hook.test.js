@@ -118,7 +118,7 @@ describe("useApi — the status of the last response", () => {
 });
 
 describe("how many times it reads", () => {
-  const listTransform = (d) => (d?.success ? d.things || [] : []);
+  const listTransform = (payload) => (payload?.success ? payload.things || [] : []);
 
   // Both of these are the natural thing to write, and both of them gave the
   // default a new identity on every render. While that identity was a dependency
@@ -185,7 +185,7 @@ describe("how many times it reads", () => {
         // A fresh function identity on every render, which is what a caller gets
         // by writing the transform at the call site. This is the third way to put
         // the read back on the wire once per render.
-        transform: (d) => (d?.success ? d.things || [] : []),
+        transform: (payload) => (payload?.success ? payload.things || [] : []),
       }),
     );
 
@@ -195,6 +195,58 @@ describe("how many times it reads", () => {
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(result.current.data).toEqual([1]);
+  });
+});
+
+describe("the caller's deps", () => {
+  const pickThings = (payload) => (payload?.success ? payload.things || [] : []);
+
+  // `deps` is spread into the read's dependency list, so the read is re-issued
+  // exactly when one of the values changes. Both halves of that contract matter:
+  // a value that changes must re-read, and a fresh array carrying the SAME values
+  // - the natural thing to write inline - must not. Pinning them here is what
+  // keeps a future change to the spread (a JSON key, a memoised list) honest.
+  it("reads again when a dependency's value changes", async () => {
+    global.fetch.mockImplementation(() =>
+      jsonResponse({ success: true, things: [1] }),
+    );
+
+    const { result, rerender } = renderHook(
+      ({ dep }) =>
+        useApi("/api/deps-change", { deps: [dep], transform: pickThings }),
+      { initialProps: { dep: "a" } },
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const before = global.fetch.mock.calls.length;
+
+    rerender({ dep: "b" });
+
+    await waitFor(() =>
+      expect(global.fetch.mock.calls.length).toBeGreaterThan(before),
+    );
+  });
+
+  it("does not read again when a new array carries the same values", async () => {
+    global.fetch.mockImplementation(() =>
+      jsonResponse({ success: true, things: [1] }),
+    );
+
+    const { result, rerender } = renderHook(
+      ({ dep }) =>
+        useApi("/api/deps-stable", { deps: [dep], transform: pickThings }),
+      { initialProps: { dep: "a" } },
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const before = global.fetch.mock.calls.length;
+
+    // A NEW array, same contents: React compares the contents of the spread
+    // list, so this must not put another request on the wire.
+    rerender({ dep: "a" });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    expect(global.fetch.mock.calls.length).toBe(before);
   });
 });
 

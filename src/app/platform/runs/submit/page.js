@@ -78,12 +78,12 @@ export default function MySubmissionsPage() {
             <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runSubmit.noSubmissionsHint")}</p>
           </div>
         ) : (
-          submissions.map((sub) => {
-            const sc = SUB_STATUS[sub.status] || SUB_STATUS.draft;
+          submissions.map((submission) => {
+            const statusConfig = SUB_STATUS[submission.status] || SUB_STATUS.draft;
             return (
               <div
-                key={sub.id}
-                onClick={() => router.push(`/platform/runs/submit/${sub.run_id}`)}
+                key={submission.id}
+                onClick={() => router.push(`/platform/runs/submit/${submission.run_id}`)}
                 className="p-4 rounded-2xl bg-secondary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all cursor-pointer space-y-2"
               >
                 <div className="flex items-start justify-between">
@@ -92,31 +92,31 @@ export default function MySubmissionsPage() {
                       <Play className="w-4 h-4 text-[var(--brand-orange)]" />
                     </div>
                     <div>
-                      <h3 className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">{sub.run_name || t("platformMisc.runSubmit.formRunNumber", { id: sub.run_id })}</h3>
-                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runSubmit.id", { id: sub.run_id })}</p>
+                      <h3 className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">{submission.run_name || t("platformMisc.runSubmit.formRunNumber", { id: submission.run_id })}</h3>
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runSubmit.id", { id: submission.run_id })}</p>
                     </div>
                   </div>
-                  <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", sc.color, sc.bg)}>{t(STATUS_KEYS[sub.status] || STATUS_KEYS.draft)}</span>
+                  <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", statusConfig.color, statusConfig.bg)}>{t(STATUS_KEYS[submission.status] || STATUS_KEYS.draft)}</span>
                 </div>
                 <div className="flex items-center gap-3 text-[10px] font-medium text-[var(--text-secondary)]">
-                  {sub.submitted_at && (
+                  {submission.submitted_at && (
                     <span className="flex items-center gap-1">
                       <Send className="w-2.5 h-2.5" />
-                      {t("platformMisc.runSubmit.submittedOn", { date: new Date(sub.submitted_at).toLocaleDateString() })}
+                      {t("platformMisc.runSubmit.submittedOn", { date: new Date(submission.submitted_at).toLocaleDateString() })}
                     </span>
                   )}
                   <span className="flex items-center gap-1">
                     <Clock className="w-2.5 h-2.5" />
-                    {t("platformMisc.runSubmit.updatedOn", { date: new Date(sub.updated_at).toLocaleDateString() })}
+                    {t("platformMisc.runSubmit.updatedOn", { date: new Date(submission.updated_at).toLocaleDateString() })}
                   </span>
                 </div>
-                {sub.status === "draft" && (
+                {submission.status === "draft" && (
                   <p className="text-[10px] font-bold text-amber-500 flex items-center gap-1">
                     <AlertTriangle className="w-2.5 h-2.5" />
                     {t("platformMisc.runSubmit.incomplete")}
                   </p>
                 )}
-                {sub.status === "revision_requested" && (
+                {submission.status === "revision_requested" && (
                   <p className="text-[10px] font-bold text-amber-500 flex items-center gap-1">
                     <RotateCcw className="w-2.5 h-2.5" />
                     {t("platformMisc.runSubmit.revisionRequested")}

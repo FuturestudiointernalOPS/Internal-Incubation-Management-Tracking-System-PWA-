@@ -34,7 +34,7 @@ describe("ensureJourneyTable", () => {
     await ensureJourneyTable(db);
 
     expect(db.execute).toHaveBeenCalledTimes(8); // CREATE + 7 ALTERs (objective, target_date, archive ×3, template provenance ×2)
-    const [create, alterObjective, alterDate, alterArchived, alterArchivedAt, alterArchivedBy, alterSourceType, alterSourceId] = db.execute.mock.calls.map((c) => c[0].sql);
+    const [create, alterObjective, alterDate, alterArchived, alterArchivedAt, alterArchivedBy, alterSourceType, alterSourceId] = db.execute.mock.calls.map((call) => call[0].sql);
     expect(create).toContain("CREATE TABLE IF NOT EXISTS venture_journey_stages");
     expect(alterObjective).toContain("ADD COLUMN IF NOT EXISTS objective");
     expect(alterDate).toContain("ADD COLUMN IF NOT EXISTS target_date");
@@ -91,7 +91,7 @@ describe("nextJourneyStageOrder", () => {
 describe("moveJourneyStage", () => {
   it("swaps adjacent stages transactionally using a parking order", async () => {
     const executed = [];
-    db.transaction.mockImplementation(async (cb) => {
+    db.transaction.mockImplementation(async (transactionBody) => {
       const query = async (sql, args = []) => {
         executed.push({ sql, args });
         if (sql.includes("FROM venture_journey_stages WHERE venture_id = ? ORDER BY stage_order ASC")) {
@@ -102,13 +102,13 @@ describe("moveJourneyStage", () => {
         }
         return { rows: [] };
       };
-      return cb(query);
+      return transactionBody(query);
     });
 
     const result = await moveJourneyStage(db, { dbId: "v-uuid", stageId: "b", direction: "up" });
     expect(result.success).toBe(true);
 
-    const sqls = executed.map((e) => e.sql);
+    const sqls = executed.map((entry) => entry.sql);
     expect(sqls[0]).toContain("ORDER BY stage_order ASC");
     // Park the moving stage (b) at -1, then neighbour a takes b's old order,
     // then b takes a's old order — unique order preserved per statement.
@@ -119,7 +119,7 @@ describe("moveJourneyStage", () => {
   });
 
   it("rejects an edge move", async () => {
-    db.transaction.mockImplementation(async (cb) => {
+    db.transaction.mockImplementation(async (transactionBody) => {
       const query = async (sql) => {
         if (sql.includes("ORDER BY stage_order ASC")) {
           return { rows: [
@@ -129,7 +129,7 @@ describe("moveJourneyStage", () => {
         }
         return { rows: [] };
       };
-      return cb(query);
+      return transactionBody(query);
     });
     const result = await moveJourneyStage(db, { dbId: "v-uuid", stageId: "a", direction: "up" });
     expect(result.error).toBe("Already at the edge.");
@@ -139,7 +139,7 @@ describe("moveJourneyStage", () => {
 describe("deleteJourneyStage", () => {
   it("deletes the stage and re-serializes the remaining order 1..n", async () => {
     const executed = [];
-    db.transaction.mockImplementation(async (cb) => {
+    db.transaction.mockImplementation(async (transactionBody) => {
       const query = async (sql, args = []) => {
         executed.push({ sql, args });
         if (sql.includes("FROM venture_journey_stages WHERE venture_id = ? ORDER BY stage_order ASC")) {
@@ -150,17 +150,17 @@ describe("deleteJourneyStage", () => {
         }
         return { rows: [] };
       };
-      return cb(query);
+      return transactionBody(query);
     });
 
     const result = await deleteJourneyStage(db, { dbId: "v-uuid", stageId: "a" });
     expect(result.success).toBe(true);
 
-    const sqls = executed.map((e) => e.sql);
+    const sqls = executed.map((entry) => entry.sql);
     expect(sqls[0]).toContain("DELETE FROM venture_journey_stages");
     expect(sqls[1]).toContain("ORDER BY stage_order ASC");
     // Renumber b -> 1, c -> 2.
-    const updates = executed.filter((e) => e.sql.includes("UPDATE venture_journey_stages SET stage_order"));
+    const updates = executed.filter((entry) => entry.sql.includes("UPDATE venture_journey_stages SET stage_order"));
     expect(updates[0].args).toEqual([1, "b"]);
     expect(updates[1].args).toEqual([2, "c"]);
   });

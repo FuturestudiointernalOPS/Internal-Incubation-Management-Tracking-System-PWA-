@@ -134,30 +134,30 @@ describe("scoreAssessment — percentages against pass marks", () => {
   const questions = [Q_MC, Q_TF];
 
   test("100%", () => {
-    const r = scoreAssessment(questions, correctAnswers);
-    expect(r.valid).toBe(true);
-    expect(r.percent).toBe(100);
-    expect(r.correctCount).toBe(2);
+    const score = scoreAssessment(questions, correctAnswers);
+    expect(score.valid).toBe(true);
+    expect(score.percent).toBe(100);
+    expect(score.correctCount).toBe(2);
   });
 
   test("50% (1 of 2)", () => {
-    const r = scoreAssessment(questions, [
+    const score = scoreAssessment(questions, [
       { questionId: "Q-1", answer: "A" }, // wrong
       { questionId: "Q-2", answer: "true" },
     ]);
-    expect(r.percent).toBe(50);
+    expect(score.percent).toBe(50);
   });
 
   test("0%", () => {
-    const r = scoreAssessment(questions, [
+    const score = scoreAssessment(questions, [
       { questionId: "Q-1", answer: "A" },
       { questionId: "Q-2", answer: "false" },
     ]);
-    expect(r.percent).toBe(0);
+    expect(score.percent).toBe(0);
   });
 
   test("90% (9 of 10) and 69% boundaries via a 10-question set", () => {
-    const ten = Array.from({ length: 10 }, (_, i) => ({
+    const tenQuestions = Array.from({ length: 10 }, (_, i) => ({
       id: `Q${i}`,
       question_type: "multiple_choice",
       options: [
@@ -166,21 +166,21 @@ describe("scoreAssessment — percentages against pass marks", () => {
       ],
       correct_answer: ["A"],
     }));
-    const answered = ten.map((q, i) => ({ questionId: q.id, answer: i < 9 ? "A" : "B" }));
-    expect(scoreAssessment(ten, answered).percent).toBe(90);
+    const answersWithNineCorrect = tenQuestions.map((question, i) => ({ questionId: question.id, answer: i < 9 ? "A" : "B" }));
+    expect(scoreAssessment(tenQuestions, answersWithNineCorrect).percent).toBe(90);
 
-    const answered69 = ten.map((q, i) => ({ questionId: q.id, answer: i < 7 ? "A" : "B" }));
-    expect(scoreAssessment(ten, answered69).percent).toBe(70); // round(6.9→7 of 10)? 7/10
+    const answersWithSevenCorrect = tenQuestions.map((question, i) => ({ questionId: question.id, answer: i < 7 ? "A" : "B" }));
+    expect(scoreAssessment(tenQuestions, answersWithSevenCorrect).percent).toBe(70); // round(6.9→7 of 10)? 7/10
   });
 
   test("rounding is Math.round", () => {
-    const three = [Q_MC, Q_TF, { ...Q_MC, id: "Q-3", correct_answer: ["A"] }];
-    const r = scoreAssessment(three, [
+    const threeQuestions = [Q_MC, Q_TF, { ...Q_MC, id: "Q-3", correct_answer: ["A"] }];
+    const score = scoreAssessment(threeQuestions, [
       { questionId: "Q-1", answer: "B" },
       { questionId: "Q-2", answer: "false" },
       { questionId: "Q-3", answer: "A" },
     ]);
-    expect(r.percent).toBe(67); // round(2/3 × 100) = 67
+    expect(score.percent).toBe(67); // round(2/3 × 100) = 67
   });
 });
 
@@ -193,41 +193,41 @@ describe("scoreAssessment — validation (ticket §25)", () => {
   });
 
   test("rejects unknown question IDs", () => {
-    const r = scoreAssessment(questions, [
+    const score = scoreAssessment(questions, [
       { questionId: "Q-X", answer: "A" },
       { questionId: "Q-2", answer: "true" },
     ]);
-    expect(r.valid).toBe(false);
+    expect(score.valid).toBe(false);
   });
 
   test("rejects duplicate question IDs", () => {
-    const r = scoreAssessment(questions, [
+    const score = scoreAssessment(questions, [
       { questionId: "Q-1", answer: "B" },
       { questionId: "Q-1", answer: "A" },
       { questionId: "Q-2", answer: "true" },
     ]);
-    expect(r.valid).toBe(false);
+    expect(score.valid).toBe(false);
   });
 
   test("rejects MC answers that are not configured options", () => {
-    const r = scoreAssessment(questions, [
+    const score = scoreAssessment(questions, [
       { questionId: "Q-1", answer: "Z" }, // not an option key
       { questionId: "Q-2", answer: "true" },
     ]);
-    expect(r.valid).toBe(false);
+    expect(score.valid).toBe(false);
   });
 
   test("rejects invalid true/false values", () => {
-    const r = scoreAssessment(questions, [
+    const score = scoreAssessment(questions, [
       { questionId: "Q-1", answer: "B" },
       { questionId: "Q-2", answer: "yes" },
     ]);
-    expect(r.valid).toBe(false);
+    expect(score.valid).toBe(false);
   });
 
   test("requires every question to be answered", () => {
-    const r = scoreAssessment(questions, [{ questionId: "Q-1", answer: "B" }]);
-    expect(r.valid).toBe(false);
+    const score = scoreAssessment(questions, [{ questionId: "Q-1", answer: "B" }]);
+    expect(score.valid).toBe(false);
   });
 });
 
@@ -314,40 +314,40 @@ describe("submitAssessment", () => {
     seedCourseWithAssessment();
     seedEnrollment();
 
-    const fail1 = await submitAssessment("A-1", "U-LEARNER", [
+    const firstFailure = await submitAssessment("A-1", "U-LEARNER", [
       { questionId: "Q-1", answer: "A" },
       { questionId: "Q-2", answer: "true" },
     ]);
-    expect(fail1.attempt.attempt_number).toBe(1);
-    expect(fail1.attempt.passed).toBe(false);
+    expect(firstFailure.attempt.attempt_number).toBe(1);
+    expect(firstFailure.attempt.passed).toBe(false);
 
-    const fail2 = await submitAssessment("A-1", "U-LEARNER", [
+    const secondFailure = await submitAssessment("A-1", "U-LEARNER", [
       { questionId: "Q-1", answer: "B" },
       { questionId: "Q-2", answer: "false" },
     ]);
-    expect(fail2.attempt.attempt_number).toBe(2);
-    expect(fail2.attempt.passed).toBe(false);
+    expect(secondFailure.attempt.attempt_number).toBe(2);
+    expect(secondFailure.attempt.passed).toBe(false);
 
-    const pass3 = await submitAssessment("A-1", "U-LEARNER", correctAnswers);
-    expect(pass3.attempt.attempt_number).toBe(3);
-    expect(pass3.attempt.passed).toBe(true);
+    const passingAttempt = await submitAssessment("A-1", "U-LEARNER", correctAnswers);
+    expect(passingAttempt.attempt.attempt_number).toBe(3);
+    expect(passingAttempt.attempt.passed).toBe(true);
 
     // All three attempts remain recorded, in order, with no gaps.
     const attempts = mockFake.state.lms_assessment_attempts
-      .filter((a) => String(a.assessment_id) === "A-1" && String(a.user_cid) === "U-LEARNER")
-      .sort((a, b) => a.attempt_number - b.attempt_number);
-    expect(attempts.map((a) => a.attempt_number)).toEqual([1, 2, 3]);
-    expect(attempts.map((a) => a.passed)).toEqual([false, false, true]);
+      .filter((attempt) => String(attempt.assessment_id) === "A-1" && String(attempt.user_cid) === "U-LEARNER")
+      .sort((left, right) => left.attempt_number - right.attempt_number);
+    expect(attempts.map((attempt) => attempt.attempt_number)).toEqual([1, 2, 3]);
+    expect(attempts.map((attempt) => attempt.passed)).toEqual([false, false, true]);
   });
 
   test("sequential double submission creates attempts 1 and 2 (never the same number)", async () => {
     seedCourseWithAssessment();
     seedEnrollment();
-    const first = await submitAssessment("A-1", "U-LEARNER", correctAnswers);
-    const second = await submitAssessment("A-1", "U-LEARNER", correctAnswers);
-    expect(first.attempt.attempt_number).toBe(1);
-    expect(second.attempt.attempt_number).toBe(2);
-    const numbers = mockFake.state.lms_assessment_attempts.map((a) => a.attempt_number);
+    const firstAttempt = await submitAssessment("A-1", "U-LEARNER", correctAnswers);
+    const secondAttempt = await submitAssessment("A-1", "U-LEARNER", correctAnswers);
+    expect(firstAttempt.attempt.attempt_number).toBe(1);
+    expect(secondAttempt.attempt.attempt_number).toBe(2);
+    const numbers = mockFake.state.lms_assessment_attempts.map((attempt) => attempt.attempt_number);
     expect(new Set(numbers).size).toBe(numbers.length);
   });
 
@@ -372,26 +372,26 @@ describe("course progress with required/optional assessments", () => {
   const sections = [{ id: "S-1", lessons: [LESSON] }];
 
   test("required assessment passed + lessons done → course complete", () => {
-    const p = computeCourseProgress(sections, { "L-1": "completed" }, [
+    const progress = computeCourseProgress(sections, { "L-1": "completed" }, [
       { id: "A-1", is_required: true, passed: true },
     ]);
-    expect(p.complete).toBe(true);
-    expect(p.percent).toBe(100);
+    expect(progress.complete).toBe(true);
+    expect(progress.percent).toBe(100);
   });
 
   test("required assessment NOT passed blocks completion", () => {
-    const p = computeCourseProgress(sections, { "L-1": "completed" }, [
+    const progress = computeCourseProgress(sections, { "L-1": "completed" }, [
       { id: "A-1", is_required: true, passed: false },
     ]);
-    expect(p.complete).toBe(false);
-    expect(p.percent).toBe(50); // 1 of 2 required components
+    expect(progress.complete).toBe(false);
+    expect(progress.percent).toBe(50); // 1 of 2 required components
   });
 
   test("optional assessment failure does not block completion", () => {
-    const p = computeCourseProgress(sections, { "L-1": "completed" }, [
+    const progress = computeCourseProgress(sections, { "L-1": "completed" }, [
       { id: "A-1", is_required: false, passed: false },
     ]);
-    expect(p.complete).toBe(true);
+    expect(progress.complete).toBe(true);
   });
 
   test("passing an assessment never completes lessons", async () => {
@@ -419,19 +419,19 @@ describe("course progress with required/optional assessments", () => {
 describe("Assessment API routes", () => {
   test("unauthenticated users get 401 from take and submit", async () => {
     requireAuth.mockResolvedValueOnce({ status: 401 });
-    const take = await takeGET(new Request("http://localhost/x"), { params: { id: "A-1" } });
-    expect(take.status).toBe(401);
+    const takeResponse = await takeGET(new Request("http://localhost/x"), { params: { id: "A-1" } });
+    expect(takeResponse.status).toBe(401);
 
     requireAuth.mockResolvedValueOnce({ status: 401 });
-    const submit = await submitPOST(jsonReq({ answers: correctAnswers }), { params: { id: "A-1" } });
-    expect(submit.status).toBe(401);
+    const submitResponse = await submitPOST(jsonReq({ answers: correctAnswers }), { params: { id: "A-1" } });
+    expect(submitResponse.status).toBe(401);
   });
 
   test("take returns 200 for an enrolled learner and 403 otherwise", async () => {
     seedCourseWithAssessment();
     seedEnrollment();
-    const ok = await takeGET(new Request("http://localhost/x"), { params: { id: "A-1" } });
-    expect(ok.status).toBe(200);
+    const allowedResponse = await takeGET(new Request("http://localhost/x"), { params: { id: "A-1" } });
+    expect(allowedResponse.status).toBe(200);
 
     mockFake.reset();
     seedCourseWithAssessment();
@@ -464,12 +464,12 @@ describe("Assessment API routes", () => {
 
 describe("analyzePassMark — pass-mark feasibility for authoring", () => {
   test("no questions → unreachable, no minimum", () => {
-    const a = analyzePassMark(70, []);
-    expect(a.reachable).toBe(false);
-    expect(a.count).toBe(0);
-    expect(a.totalPoints).toBe(0);
-    expect(a.minCorrect).toBeNull();
-    expect(a.perfectScoreRequired).toBe(false);
+    const analysis = analyzePassMark(70, []);
+    expect(analysis.reachable).toBe(false);
+    expect(analysis.count).toBe(0);
+    expect(analysis.totalPoints).toBe(0);
+    expect(analysis.minCorrect).toBeNull();
+    expect(analysis.perfectScoreRequired).toBe(false);
   });
 
   test("null/empty pass mark uses the shared default (70)", () => {
@@ -481,48 +481,48 @@ describe("analyzePassMark — pass-mark feasibility for authoring", () => {
   });
 
   test("2 questions at the default 70% pass mark need a perfect score", () => {
-    const a = analyzePassMark(null, [Q_MC, Q_TF]);
-    expect(a.minCorrect).toBe(2); // 1/2 → 50%, below 70
-    expect(a.percentAtMinCorrect).toBe(100);
-    expect(a.perfectScoreRequired).toBe(true);
-    expect(a.reachable).toBe(true);
+    const analysis = analyzePassMark(null, [Q_MC, Q_TF]);
+    expect(analysis.minCorrect).toBe(2); // 1/2 → 50%, below 70
+    expect(analysis.percentAtMinCorrect).toBe(100);
+    expect(analysis.perfectScoreRequired).toBe(true);
+    expect(analysis.reachable).toBe(true);
   });
 
   test("10 questions at 70% need 7 correct — not a perfect score", () => {
-    const ten = Array.from({ length: 10 }, (_, i) => ({ ...Q_MC, id: `Q-${i}` }));
-    const a = analyzePassMark(70, ten);
-    expect(a.minCorrect).toBe(7);
-    expect(a.percentAtMinCorrect).toBe(70);
-    expect(a.perfectScoreRequired).toBe(false);
+    const tenQuestions = Array.from({ length: 10 }, (_, i) => ({ ...Q_MC, id: `Q-${i}` }));
+    const analysis = analyzePassMark(70, tenQuestions);
+    expect(analysis.minCorrect).toBe(7);
+    expect(analysis.percentAtMinCorrect).toBe(70);
+    expect(analysis.perfectScoreRequired).toBe(false);
   });
 
   test("3 questions at 60% pass with 2 correct (rounds to 67%)", () => {
-    const three = [Q_MC, Q_TF, { ...Q_MC, id: "Q-3" }];
-    const a = analyzePassMark(60, three);
-    expect(a.minCorrect).toBe(2);
-    expect(a.percentAtMinCorrect).toBe(67);
-    expect(a.perfectScoreRequired).toBe(false);
+    const threeQuestions = [Q_MC, Q_TF, { ...Q_MC, id: "Q-3" }];
+    const analysis = analyzePassMark(60, threeQuestions);
+    expect(analysis.minCorrect).toBe(2);
+    expect(analysis.percentAtMinCorrect).toBe(67);
+    expect(analysis.perfectScoreRequired).toBe(false);
   });
 
   test("3 questions at 70% again require a perfect score (rounding trap)", () => {
-    const three = [Q_MC, Q_TF, { ...Q_MC, id: "Q-3" }];
-    const a = analyzePassMark(70, three);
-    expect(a.minCorrect).toBe(3);
-    expect(a.percentAtMinCorrect).toBe(100);
-    expect(a.perfectScoreRequired).toBe(true);
+    const threeQuestions = [Q_MC, Q_TF, { ...Q_MC, id: "Q-3" }];
+    const analysis = analyzePassMark(70, threeQuestions);
+    expect(analysis.minCorrect).toBe(3);
+    expect(analysis.percentAtMinCorrect).toBe(100);
+    expect(analysis.perfectScoreRequired).toBe(true);
   });
 
   test("0% pass mark is met from zero correct answers", () => {
-    const a = analyzePassMark(0, [Q_MC, Q_TF]);
-    expect(a.reachable).toBe(true);
-    expect(a.minCorrect).toBe(0);
-    expect(a.perfectScoreRequired).toBe(false);
+    const analysis = analyzePassMark(0, [Q_MC, Q_TF]);
+    expect(analysis.reachable).toBe(true);
+    expect(analysis.minCorrect).toBe(0);
+    expect(analysis.perfectScoreRequired).toBe(false);
   });
 
   test("sums question points for display (each clamped to at least 1)", () => {
     const mixed = [Q_MC, { ...Q_TF, points: 3 }, { ...Q_MC, id: "Q-3", points: 0 }];
-    const a = analyzePassMark(70, mixed);
-    expect(a.count).toBe(3);
-    expect(a.totalPoints).toBe(5); // 1 + 3 + 1 (0 is clamped up)
+    const analysis = analyzePassMark(70, mixed);
+    expect(analysis.count).toBe(3);
+    expect(analysis.totalPoints).toBe(5); // 1 + 3 + 1 (0 is clamped up)
   });
 });

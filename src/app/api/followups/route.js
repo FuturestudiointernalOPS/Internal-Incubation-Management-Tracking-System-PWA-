@@ -179,8 +179,8 @@ export const PATCH = createHandler(
     }
 
     // Facilitators may only update follow-ups for participants in their teams.
-    const followupRes = await getFollowupById(id);
-    const followup = followupRes.rows[0];
+    const followupResult = await getFollowupById(id);
+    const followup = followupResult.rows[0];
     if (followup) {
       const scopeGuard = await getFacilitatorScopeGuard(req, followup.program_id);
       if (scopeGuard?.deny) return scopeGuard.response;

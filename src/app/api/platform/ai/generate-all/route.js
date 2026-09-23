@@ -64,14 +64,14 @@ ${text.substring(0, 12000)}`;
     }
 
     // Normalize fields
-    for (const s of parsed.sections) {
-      if (!Array.isArray(s.fields)) s.fields = [];
-      for (const f of s.fields) {
-        if (!f.field_type) f.field_type = "text";
-        if (f.required === undefined) f.required = false;
+    for (const section of parsed.sections) {
+      if (!Array.isArray(section.fields)) section.fields = [];
+      for (const field of section.fields) {
+        if (!field.field_type) field.field_type = "text";
+        if (field.required === undefined) field.required = false;
         // Ensure rating fields have proper options
-        if (f.field_type === "rating" && (!f.options || !Array.isArray(f.options) || f.options.length === 0)) {
-          f.options = [
+        if (field.field_type === "rating" && (!field.options || !Array.isArray(field.options) || field.options.length === 0)) {
+          field.options = [
             { label: "1 - Strongly Disagree", value: "1" },
             { label: "2 - Disagree", value: "2" },
             { label: "3 - Neutral", value: "3" },
@@ -84,10 +84,10 @@ ${text.substring(0, 12000)}`;
 
     // Add sequential numbering to field labels across ALL sections
     let qNumber = 1;
-    for (const s of parsed.sections) {
-      for (const f of s.fields) {
-        if (!/^\d+[.)]\s/.test(f.label)) {
-          f.label = `${qNumber}. ${f.label}`;
+    for (const section of parsed.sections) {
+      for (const field of section.fields) {
+        if (!/^\d+[.)]\s/.test(field.label)) {
+          field.label = `${qNumber}. ${field.label}`;
         }
         qNumber++;
       }
@@ -96,7 +96,7 @@ ${text.substring(0, 12000)}`;
     // Normalize evaluation weights
     if (parsed.evaluation?.dimensions) {
       const dims = parsed.evaluation.dimensions;
-      const total = dims.reduce((s, d) => s + (d.weight || 0), 0);
+      const total = dims.reduce((sum, dimension) => sum + (dimension.weight || 0), 0);
       if (total > 0 && total !== 100) dims[dims.length - 1].weight += (100 - total);
       if (!parsed.evaluation.rankings) parsed.evaluation.rankings = [
         { min: 90, max: 100, label: "Outstanding", color: "#10b981" },
@@ -109,27 +109,27 @@ ${text.substring(0, 12000)}`;
 
     // ── Step 1: Create the form ───────────────────────────────────────────────
     console.log("[AI GenerateAll] Creating form...");
-    const formRes = await createAiGeneratedForm(parsed.title, parsed.description, collection_id);
-    formId = formRes.rows[0].id;
-    const formRecord = formRes.rows[0];
+    const formResult = await createAiGeneratedForm(parsed.title, parsed.description, collection_id);
+    formId = formResult.rows[0].id;
+    const formRecord = formResult.rows[0];
     console.log(`[AI GenerateAll] ✓ Form created — id=${formId}`);
 
     // ── Step 2: Create sections and fields ───────────────────────────────────
     let sectionCount = 0;
     let fieldCount = 0;
-    for (let si = 0; si < parsed.sections.length; si++) {
-      const sec = parsed.sections[si];
-      const secRes = await insertAiGeneratedSection(formId, sec.title, sec.description, si);
-      const sectionId = secRes.rows[0].id;
+    for (let sectionIndex = 0; sectionIndex < parsed.sections.length; sectionIndex++) {
+      const section = parsed.sections[sectionIndex];
+      const sectionResult = await insertAiGeneratedSection(formId, section.title, section.description, sectionIndex);
+      const sectionId = sectionResult.rows[0].id;
       sectionCount++;
-      console.log(`[AI GenerateAll] ✓ Section "${sec.title}" (id=${sectionId})`);
+      console.log(`[AI GenerateAll] ✓ Section "${section.title}" (id=${sectionId})`);
 
-      for (let fi = 0; fi < sec.fields.length; fi++) {
-        const f = sec.fields[fi];
-        await insertAiGeneratedField(formId, sectionId, f, fi);
+      for (let fieldIndex = 0; fieldIndex < section.fields.length; fieldIndex++) {
+        const field = section.fields[fieldIndex];
+        await insertAiGeneratedField(formId, sectionId, field, fieldIndex);
         fieldCount++;
       }
-      console.log(`[AI GenerateAll] ✓ ${sec.fields.length} fields for "${sec.title}"`);
+      console.log(`[AI GenerateAll] ✓ ${section.fields.length} fields for "${section.title}"`);
     }
 
     // ── Step 3: Save evaluation framework if generated ────────────────────────

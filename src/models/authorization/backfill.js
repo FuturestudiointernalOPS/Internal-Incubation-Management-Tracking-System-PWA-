@@ -905,7 +905,7 @@ async function ensureInvestorBackfill() {
 // evaluated again. Super Admin keeps working through the bypass.
 async function ensureLmsCapabilityRetirement() {
   const retired = ["publish", "enroll", "assign"];
-  const ph = retired.map(() => "?").join(",");
+  const placeholders = retired.map(() => "?").join(",");
   for (const table of [
     "access_profile_capabilities",
     "role_capabilities",
@@ -914,7 +914,7 @@ async function ensureLmsCapabilityRetirement() {
     "user_capability_restrictions",
   ]) {
     await db.execute({
-      sql: `DELETE FROM ${table} WHERE module = ? AND capability IN (${ph})`,
+      sql: `DELETE FROM ${table} WHERE module = ? AND capability IN (${placeholders})`,
       args: ["lms", ...retired],
     });
   }
@@ -1136,19 +1136,19 @@ export async function ensureFeatureKeyAlignment() {
   // 2. responsibilities — rename/merge, preserving every user assignment.
   for (const [newKey, oldKeys] of Object.entries(RESPONSIBILITY_MERGES)) {
     const keys = [newKey, ...oldKeys];
-    const ph = keys.map(() => "?").join(",");
+    const placeholders = keys.map(() => "?").join(",");
     const rows = (
       await db.execute({
-        sql: `SELECT id, key FROM responsibilities WHERE key IN (${ph})`,
+        sql: `SELECT id, key FROM responsibilities WHERE key IN (${placeholders})`,
         args: keys,
       })
     ).rows;
     if (rows.length === 0) continue;
 
     // Survivor: the row already carrying the target key, else the lowest id.
-    const sorted = [...rows].sort((a, b) => {
-      if ((a.key === newKey) !== (b.key === newKey)) return a.key === newKey ? -1 : 1;
-      return Number(a.id) - Number(b.id);
+    const sorted = [...rows].sort((first, second) => {
+      if ((first.key === newKey) !== (second.key === newKey)) return first.key === newKey ? -1 : 1;
+      return Number(first.id) - Number(second.id);
     });
     const survivor = sorted[0];
     const dupes = sorted.slice(1);
@@ -1211,7 +1211,7 @@ const CAPABILITY_TABLES = [
   "responsibility_capability_grants",
 ];
 
-const sqlList = (values) => values.map((v) => `'${v}'`).join(", ");
+const sqlList = (values) => values.map((value) => `'${value}'`).join(", ");
 
 export async function ensureRetiredRoleCleanup() {
   await ensurePermissionsSchema();
@@ -1270,10 +1270,10 @@ export async function ensureRetiredRoleCleanup() {
           "`engineering.manage_developers` capability).",
       ],
     });
-  } catch (e) {
+  } catch (error) {
     console.warn(
       "[Authz] retired-role cleanup audit write skipped:",
-      e.message,
+      error.message,
     );
   }
 }

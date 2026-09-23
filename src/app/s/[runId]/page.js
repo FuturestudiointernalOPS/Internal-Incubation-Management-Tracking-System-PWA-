@@ -14,9 +14,9 @@ async function translateText(text, sourceLang, targetLang) {
   if (sourceLang === targetLang) return text;
   try {
     const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    return data?.responseData?.translatedText || text;
+    const response = await fetch(url);
+    const payload = await response.json();
+    return payload?.responseData?.translatedText || text;
   } catch (_) { return text; }
 }
 
@@ -54,19 +54,19 @@ function detectFormLanguage(strings) {
  * second effect because it is a fact about the browser, and the answer is the only
  * moment the browser is the one asking.
  */
-const pickPublicRun = (slug) => (d) => {
+const pickPublicRun = (slug) => (payload) => {
   // A run that is not there is the same answer as a refusal, and the screen shows
   // the server's own message for it - which is what the loader did by throwing.
-  if (!d?.success || !d.run) {
-    return { ...EMPTY_RUN, failure: d?.error || "Run not found" };
+  if (!payload?.success || !payload.run) {
+    return { ...EMPTY_RUN, failure: payload?.error || "Run not found" };
   }
 
   const form = {
-    name: d.run.form_name || d.run.name,
-    description: d.run.form_description || d.run.description,
+    name: payload.run.form_name || payload.run.name,
+    description: payload.run.form_description || payload.run.description,
   };
-  const sections = d.sections || [];
-  const fields = d.fields || [];
+  const sections = payload.sections || [];
+  const fields = payload.fields || [];
 
   let draftData = {};
   let draftSection = 0;
@@ -86,15 +86,15 @@ const pickPublicRun = (slug) => (d) => {
   }
 
   return {
-    run: d.run,
+    run: payload.run,
     form,
     sections,
     fields,
     originalLang: detectFormLanguage([
       form.name,
       form.description,
-      ...sections.map((s) => s.title || ""),
-      ...fields.flatMap((f) => [f.label, f.help_text, f.placeholder].filter(Boolean)),
+      ...sections.map((section) => section.title || ""),
+      ...fields.flatMap((field) => [field.label, field.help_text, field.placeholder].filter(Boolean)),
     ]),
     draftData,
     draftSection,
@@ -177,24 +177,24 @@ export default function PublicSubmitPage() {
       try {
         const [tForm, tSections, tLabels, tHelp, tPlaceholders] = await Promise.all([
           translateBatch([raw.form?.name || "", raw.form?.description || ""], srcLang, lang),
-          translateBatch(raw.sections.map(s => s.title || ""), srcLang, lang),
-          translateBatch(raw.fields.map(f => f.label || ""), srcLang, lang),
-          translateBatch(raw.fields.map(f => f.help_text || ""), srcLang, lang),
-          translateBatch(raw.fields.map(f => f.placeholder || ""), srcLang, lang),
+          translateBatch(raw.sections.map(section => section.title || ""), srcLang, lang),
+          translateBatch(raw.fields.map(field => field.label || ""), srcLang, lang),
+          translateBatch(raw.fields.map(field => field.help_text || ""), srcLang, lang),
+          translateBatch(raw.fields.map(field => field.placeholder || ""), srcLang, lang),
         ]);
         if (cancelled) return;
         setTranslated({
           lang,
           form: { name: tForm[0], description: tForm[1] },
-          sections: raw.sections.map((s, i) => ({ ...s, title: tSections[i] || s.title })),
-          fields: raw.fields.map((f, i) => ({
-            ...f,
-            label: tLabels[i] || f.label,
-            help_text: tHelp[i] || f.help_text,
-            placeholder: tPlaceholders[i] || f.placeholder,
+          sections: raw.sections.map((section, i) => ({ ...section, title: tSections[i] || section.title })),
+          fields: raw.fields.map((field, i) => ({
+            ...field,
+            label: tLabels[i] || field.label,
+            help_text: tHelp[i] || field.help_text,
+            placeholder: tPlaceholders[i] || field.placeholder,
           })),
         });
-      } catch (e) { console.error("Translation failed:", e); }
+      } catch (error) { console.error("Translation failed:", error); }
     })();
     return () => { cancelled = true; };
   }, [raw, lang, translated]);
@@ -224,9 +224,9 @@ export default function PublicSubmitPage() {
 
   const validate = () => {
     const newErrors = {};
-    for (const f of fields) {
-      if (f.required && (!formData[f.id] || (typeof formData[f.id] === "string" && !formData[f.id].trim()))) {
-        newErrors[f.id] = t("forms.fieldRequired");
+    for (const field of fields) {
+      if (field.required && (!formData[field.id] || (typeof formData[field.id] === "string" && !formData[field.id].trim()))) {
+        newErrors[field.id] = t("forms.fieldRequired");
       }
     }
     setErrors(newErrors);
@@ -237,7 +237,7 @@ export default function PublicSubmitPage() {
     if (!validate()) { notify(t("forms.requiredFields")); return; }
     setSaving(true);
     try {
-      const res = await fetch("/api/s/public-submit", {
+      const response = await fetch("/api/s/public-submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -246,16 +246,16 @@ export default function PublicSubmitPage() {
           invitation_token: new URLSearchParams(window.location.search).get("invitation") || undefined,
         }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         localStorage.removeItem(`form_draft_${runId}`);
         setSuccess(true);
-        if (data.success_message) {
-          setSuccessConfig({ message: data.success_message, redirect_url: data.redirect_url });
+        if (payload.success_message) {
+          setSuccessConfig({ message: payload.success_message, redirect_url: payload.redirect_url });
         }
         notify(t("forms.submissionReceived"));
       } else {
-        notify(t((data.error || t("forms.submitFailed")) || "") || (data.error || t("forms.submitFailed")));
+        notify(t((payload.error || t("forms.submitFailed")) || "") || (payload.error || t("forms.submitFailed")));
       }
     } catch (_) {
       // Network/parse failure — the submission may still have been saved.
@@ -275,9 +275,9 @@ export default function PublicSubmitPage() {
 
     switch (field.field_type) {
       case "textarea":
-        return <textarea value={value} onChange={(e) => updateField(field.id, e.target.value)} placeholder={field.placeholder || ""} disabled={isDisabled} rows={3} className={`${inputClass} resize-none`} />;
+        return <textarea value={value} onChange={(event) => updateField(field.id, event.target.value)} placeholder={field.placeholder || ""} disabled={isDisabled} rows={3} className={`${inputClass} resize-none`} />;
       case "email":
-        return <input type="email" value={value} onChange={(e) => updateField(field.id, e.target.value)} placeholder={field.placeholder || "email@example.com"} disabled={isDisabled} className={inputClass} />;
+        return <input type="email" value={value} onChange={(event) => updateField(field.id, event.target.value)} placeholder={field.placeholder || "email@example.com"} disabled={isDisabled} className={inputClass} />;
       case "phone":
         return (
           <AppPhoneInput
@@ -290,9 +290,9 @@ export default function PublicSubmitPage() {
         );
       case "select": case "radio":
         return (
-          <select value={value} onChange={(e) => updateField(field.id, e.target.value)} disabled={isDisabled} className={`${inputClass} [&>option]:bg-slate-800 [&>option]:text-slate-100 appearance-none`}>
+          <select value={value} onChange={(event) => updateField(field.id, event.target.value)} disabled={isDisabled} className={`${inputClass} [&>option]:bg-slate-800 [&>option]:text-slate-100 appearance-none`}>
             <option value="">{t("forms.selectOption")}</option>
-            {(field.options || []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {(field.options || []).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         );
       case "rating": {
@@ -301,25 +301,25 @@ export default function PublicSubmitPage() {
           <div className="space-y-2">
             <p className="text-xs text-slate-500">{t("forms.selectRating")}</p>
             <div className="flex gap-3 flex-wrap">
-              {opts.map(o => (
-                <button key={o.value} type="button" onClick={() => updateField(field.id, o.value)} disabled={isDisabled}
+              {opts.map(option => (
+                <button key={option.value} type="button" onClick={() => updateField(field.id, option.value)} disabled={isDisabled}
                   className={`min-w-[56px] px-4 py-3 rounded-xl text-base font-bold border-2 transition-all ${
-                    value === o.value
+                    value === option.value
                       ? "bg-orange-500 text-white border-orange-500 scale-110 shadow-lg shadow-orange-500/30"
                       : "bg-slate-700 text-slate-200 border-slate-500 hover:border-orange-400 hover:text-orange-400 hover:bg-slate-600"
                   }`}
-                >{o.label}</button>
+                >{option.label}</button>
               ))}
             </div>
           </div>
         );
       }
       case "number": case "currency":
-        return <input type="number" value={value} onChange={(e) => updateField(field.id, e.target.value)} placeholder={field.placeholder || "0"} disabled={isDisabled} className={inputClass} />;
-      case "date": return <input type="date" value={value} onChange={(e) => updateField(field.id, e.target.value)} disabled={isDisabled} className={inputClass} />;
-      case "url": return <input type="url" value={value} onChange={(e) => updateField(field.id, e.target.value)} placeholder={field.placeholder || "https://"} disabled={isDisabled} className={inputClass} />;
+        return <input type="number" value={value} onChange={(event) => updateField(field.id, event.target.value)} placeholder={field.placeholder || "0"} disabled={isDisabled} className={inputClass} />;
+      case "date": return <input type="date" value={value} onChange={(event) => updateField(field.id, event.target.value)} disabled={isDisabled} className={inputClass} />;
+      case "url": return <input type="url" value={value} onChange={(event) => updateField(field.id, event.target.value)} placeholder={field.placeholder || "https://"} disabled={isDisabled} className={inputClass} />;
       default:
-        return <input type="text" value={value} onChange={(e) => updateField(field.id, e.target.value)} placeholder={field.placeholder || ""} disabled={isDisabled} className={inputClass} />;
+        return <input type="text" value={value} onChange={(event) => updateField(field.id, event.target.value)} placeholder={field.placeholder || ""} disabled={isDisabled} className={inputClass} />;
     }
   };
 
@@ -339,16 +339,16 @@ export default function PublicSubmitPage() {
     if (!template) return null;
     let result = template;
     // Resolve by field label placeholders (values are user input — escape them)
-    for (const f of fields) {
-      const rawLabel = (f.label || "").toLowerCase();
+    for (const field of fields) {
+      const rawLabel = (field.label || "").toLowerCase();
       const safeKey = rawLabel.replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-      const value = formData[f.id] != null ? escapeHtml(String(formData[f.id])) : "";
+      const value = formData[field.id] != null ? escapeHtml(String(formData[field.id])) : "";
       result = result.replace(new RegExp(`\\{\\{${safeKey}\\}\\}`, "gi"), value);
-      result = result.replace(new RegExp(`\\{\\{field_${f.id}\\}\\}`, "gi"), value);
+      result = result.replace(new RegExp(`\\{\\{field_${field.id}\\}\\}`, "gi"), value);
     }
     // Common special placeholders (all dynamic values escaped)
-    const nameField = fields.find(f => (f.label || "").toLowerCase().includes("name"));
-    const emailField = fields.find(f => (f.label || "").toLowerCase().includes("email"));
+    const nameField = fields.find(field => (field.label || "").toLowerCase().includes("name"));
+    const emailField = fields.find(field => (field.label || "").toLowerCase().includes("email"));
     if (nameField) {
       const nameVal = escapeHtml(String(formData[nameField.id] || ""));
       result = result.replace(/\{\{submitter_name\}\}/gi, nameVal);
@@ -432,7 +432,7 @@ export default function PublicSubmitPage() {
             </span>
             <select
               value={lang}
-              onChange={(e) => switchLang(e.target.value)}
+              onChange={(event) => switchLang(event.target.value)}
               disabled={translating}
               className="bg-slate-700 text-[10px] font-black text-white uppercase outline-none cursor-pointer px-2 py-1 rounded border border-slate-500 disabled:opacity-50"
             >
@@ -451,19 +451,19 @@ export default function PublicSubmitPage() {
 
         {/* Sections — step-by-step navigation */}
         {(() => {
-          const validSections = sections.filter(sec => fields.some(f => String(f.section_id) === String(sec.id)));
+          const validSections = sections.filter(sec => fields.some(field => String(field.section_id) === String(sec.id)));
           if (validSections.length <= 1) {
             // Single section — render all fields directly
             return (
               <div className="space-y-4">
-                {fields.filter(f => !f.section_id || sections.some(s => String(s.id) === String(f.section_id))).map(f => (
-                  <div key={f.id} className="space-y-1.5">
+                {fields.filter(field => !field.section_id || sections.some(section => String(section.id) === String(field.section_id))).map(field => (
+                  <div key={field.id} className="space-y-1.5">
                     <label className="text-sm font-bold text-slate-200 flex items-center gap-1">
-                      {f.label} {f.required && <span className="text-red-400">*</span>}
+                      {field.label} {field.required && <span className="text-red-400">*</span>}
                     </label>
-                    {f.help_text && <p className="text-xs text-slate-500">{f.help_text}</p>}
-                    {renderField(f)}
-                    {errors[f.id] && <p className="text-xs text-red-400 font-bold">{errors[f.id]}</p>}
+                    {field.help_text && <p className="text-xs text-slate-500">{field.help_text}</p>}
+                    {renderField(field)}
+                    {errors[field.id] && <p className="text-xs text-red-400 font-bold">{errors[field.id]}</p>}
                   </div>
                 ))}
               </div>
@@ -475,9 +475,9 @@ export default function PublicSubmitPage() {
           if (!sec) return null;
           // Include fields with no section in the FIRST step so they are never
           // dropped or rendered twice (single-section path already covers them).
-          const secFields = fields.filter(f => {
-            if (currentSection === 0 && !f.section_id) return true;
-            return String(f.section_id) === String(sec.id);
+          const secFields = fields.filter(field => {
+            if (currentSection === 0 && !field.section_id) return true;
+            return String(field.section_id) === String(sec.id);
           });
           const isLast = currentSection >= validSections.length - 1;
           const isFirst = currentSection === 0;
@@ -500,14 +500,14 @@ export default function PublicSubmitPage() {
 
               {/* Fields */}
               <div className="space-y-4">
-                {secFields.map(f => (
-                  <div key={f.id} className="space-y-1.5">
+                {secFields.map(field => (
+                  <div key={field.id} className="space-y-1.5">
                     <label className="text-sm font-bold text-slate-200 flex items-center gap-1">
-                      {f.label} {f.required && <span className="text-red-400">*</span>}
+                      {field.label} {field.required && <span className="text-red-400">*</span>}
                     </label>
-                    {f.help_text && <p className="text-xs text-slate-500">{f.help_text}</p>}
-                    {renderField(f)}
-                    {errors[f.id] && <p className="text-xs text-red-400 font-bold">{errors[f.id]}</p>}
+                    {field.help_text && <p className="text-xs text-slate-500">{field.help_text}</p>}
+                    {renderField(field)}
+                    {errors[field.id] && <p className="text-xs text-red-400 font-bold">{errors[field.id]}</p>}
                   </div>
                 ))}
               </div>
@@ -544,7 +544,7 @@ export default function PublicSubmitPage() {
         })()}
 
         {/* Submit — only for forms with no sections (single-page layout) */}
-        {!success && run?.status === "active" && sections.filter(sec => fields.some(f => String(f.section_id) === String(sec.id))).length <= 1 && (
+        {!success && run?.status === "active" && sections.filter(sec => fields.some(field => String(field.section_id) === String(sec.id))).length <= 1 && (
           <div className="pt-4">
             <button onClick={handleSubmit} disabled={saving} className="w-full px-6 py-4 rounded-xl bg-orange-500 text-white text-sm font-black uppercase hover:bg-orange-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
               <Send className="w-4 h-4" /> {saving ? t("forms.submitting") : t("forms.submit")}

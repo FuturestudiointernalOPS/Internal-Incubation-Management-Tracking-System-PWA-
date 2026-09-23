@@ -34,19 +34,19 @@ export default function SearchableSelect({
   const inputRef = useRef(null);
 
   const selected = useMemo(
-    () => options.find((o) => o.value === value),
+    () => options.find((option) => option.value === value),
     [options, value],
   );
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter((o) => o.label.toLowerCase().includes(q));
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return options;
+    return options.filter((option) => option.label.toLowerCase().includes(normalizedQuery));
   }, [options, query]);
 
   useEffect(() => {
-    function onPointerDown(e) {
-      if (rootRef.current && !rootRef.current.contains(e.target)) {
+    function onPointerDown(event) {
+      if (rootRef.current && !rootRef.current.contains(event.target)) {
         setOpen(false);
       }
     }
@@ -80,23 +80,23 @@ export default function SearchableSelect({
     return () => clearTimeout(id);
   }, [open]);
 
-  const selectOption = (v) => {
-    onChange(v);
+  const selectOption = (optionValue) => {
+    onChange(optionValue);
     setOpen(false);
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (event) => {
     if (!open) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setHighlight((h) => Math.min(h + 1, filtered.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHighlight((h) => Math.max(h - 1, 0));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setHighlight((currentHighlight) => Math.min(currentHighlight + 1, filtered.length - 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setHighlight((currentHighlight) => Math.max(currentHighlight - 1, 0));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
       if (filtered[highlight]) selectOption(filtered[highlight].value);
-    } else if (e.key === "Escape") {
+    } else if (event.key === "Escape") {
       setOpen(false);
     }
   };
@@ -130,8 +130,8 @@ export default function SearchableSelect({
               <input
                 ref={inputRef}
                 value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
+                onChange={(event) => {
+                  setQuery(event.target.value);
                   setHighlight(0);
                 }}
                 onKeyDown={handleKeyDown}
@@ -146,21 +146,21 @@ export default function SearchableSelect({
                   {emptyText}
                 </li>
               ) : (
-                filtered.map((o, i) => (
-                  <li key={o.value} role="option" aria-selected={o.value === value}>
+                filtered.map((option, index) => (
+                  <li key={option.value} role="option" aria-selected={option.value === value}>
                     <button
                       type="button"
-                      onClick={() => selectOption(o.value)}
-                      onMouseEnter={() => setHighlight(i)}
+                      onClick={() => selectOption(option.value)}
+                      onMouseEnter={() => setHighlight(index)}
                       className={`w-full text-left px-3 py-2 text-[11px] font-bold transition-colors ${
-                        o.value === value
+                        option.value === value
                           ? "text-[var(--brand-orange)]"
-                          : i === highlight
+                          : index === highlight
                             ? "bg-[var(--surface-2)] text-[var(--text-primary)]"
                             : "text-[var(--text-primary)]"
                       }`}
                     >
-                      {o.label}
+                      {option.label}
                     </button>
                   </li>
                 ))

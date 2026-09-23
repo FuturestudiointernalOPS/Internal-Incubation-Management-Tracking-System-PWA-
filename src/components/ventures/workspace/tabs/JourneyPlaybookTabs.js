@@ -48,30 +48,30 @@ export function JourneyTab() {
   const loadVentureSessions = async () => {
     try {
       const res = await fetch(`/api/ventures/${params.id}/sessions`);
-      const d = await res.json();
-      if (!d.success) return;
+      const payload = await res.json();
+      if (!payload.success) return;
       const grouped = {};
-      for (const s of d.sessions || []) {
-        if (s.status === "cancelled") continue;
-        const key = String(s.milestone_ref || "");
+      for (const session of payload.sessions || []) {
+        if (session.status === "cancelled") continue;
+        const key = String(session.milestone_ref || "");
         if (!key) continue;
         if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(s);
+        grouped[key].push(session);
       }
       setSessionsByMilestone(grouped);
     } catch (_) {}
   };
 
-  const openBooking = (m) => {
-    setBookFor(m.id);
+  const openBooking = (milestone) => {
+    setBookFor(milestone.id);
     // Same floor as every other booking form: now + 30 minutes, rounded up to a
     // whole minute, so the prefilled slot can never be rejected by the server.
     const min = minSessionStartInput();
     setBookForm({ date: toDateInput(min), time: toTimeInput(min), min_time: toTimeInput(min), duration: "45", note: "", files: [] });
   };
 
-  const bookSession = async (e, stage, m) => {
-    e.preventDefault();
+  const bookSession = async (event, stage, milestone) => {
+    event.preventDefault();
     if (!bookForm.date || !bookForm.time) return;
     if (!bookForm.note.trim()) {
       notifyMsg(t("venture.manager.memoRequired"));
@@ -80,7 +80,7 @@ export function JourneyTab() {
     const start = new Date(`${bookForm.date}T${bookForm.time}:00`);
     if (!isValidSessionStart(start)) {
       const next = minSessionStartInput();
-      setBookForm((f) => ({ ...f, date: toDateInput(next), time: toTimeInput(next), min_time: toTimeInput(next) }));
+      setBookForm((prev) => ({ ...prev, date: toDateInput(next), time: toTimeInput(next), min_time: toTimeInput(next) }));
       notifyMsg(t("venture.manager.sessionTooSoon"));
       return;
     }
@@ -90,16 +90,16 @@ export function JourneyTab() {
       // session-material store and only its path travels with the booking.
       const materials = [];
       for (const file of bookForm.files || []) {
-        const fd = new FormData();
-        fd.append("file", file);
-        fd.append("milestone_id", String(m.id));
-        const upRes = await fetch(`/api/ventures/${params.id}/sessions/upload`, { method: "POST", body: fd });
-        const up = await upRes.json().catch(() => ({}));
-        if (!up.success) {
-          notifyMsg(up.error || t("venture.manager.sessionBookFailed"));
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("milestone_id", String(milestone.id));
+        const uploadResponse = await fetch(`/api/ventures/${params.id}/sessions/upload`, { method: "POST", body: formData });
+        const uploadPayload = await uploadResponse.json().catch(() => ({}));
+        if (!uploadPayload.success) {
+          notifyMsg(uploadPayload.error || t("venture.manager.sessionBookFailed"));
           return;
         }
-        materials.push({ path: up.path, name: up.name, size: up.size });
+        materials.push({ path: uploadPayload.path, name: uploadPayload.name, size: uploadPayload.size });
       }
       const minutes = Number(bookForm.duration) || 45;
       const end = new Date(start.getTime() + minutes * 60000);
@@ -108,7 +108,7 @@ export function JourneyTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "create_session",
-          title: m.title,
+          title: milestone.title,
           description: bookForm.note.trim(),
           session_type: "coaching",
           start_time: start.toISOString(),
@@ -116,19 +116,19 @@ export function JourneyTab() {
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           venture_facing: true,
           journey_stage_id: stage.id,
-          milestone_ref: String(m.id),
+          milestone_ref: String(milestone.id),
           materials,
         }),
       });
-      const d = await res.json();
-      if (d.success) {
+      const payload = await res.json();
+      if (payload.success) {
         notifyMsg(t("venture.manager.sessionBooked"));
         setBookFor(null);
         await loadVentureSessions();
       } else {
         // The server refuses a booking against a milestone that is not the one
         // currently open, and says WHY — show that reason verbatim.
-        notifyMsg(d.error || t("venture.manager.sessionBookFailed"));
+        notifyMsg(payload.error || t("venture.manager.sessionBookFailed"));
       }
     } catch (_) {
       notifyMsg(t("venture.manager.sessionBookFailed"));
@@ -138,14 +138,14 @@ export function JourneyTab() {
   };
 
   const TASK_LABEL_KEYS = { review: "pendingReview", accepted: "approved", revision_requested: "revisionRequested" };
-  const label = (s, map) => t(`venture.${map && map[s] ? map[s] : s}`);
+  const label = (statusValue, map) => t(`venture.${map && map[statusValue] ? map[statusValue] : statusValue}`);
 
-  const loadMilestoneTasks = async (mid) => {
-    if (tasksByMilestone[mid]) return;
+  const loadMilestoneTasks = async (milestoneId) => {
+    if (tasksByMilestone[milestoneId]) return;
     try {
-      const res = await fetch(`/api/ventures/${params.id}/tasks?milestone_id=${encodeURIComponent(mid)}`);
-      const d = await res.json();
-      if (d.success) setTasksByMilestone((p) => ({ ...p, [mid]: d.tasks || [] }));
+      const res = await fetch(`/api/ventures/${params.id}/tasks?milestone_id=${encodeURIComponent(milestoneId)}`);
+      const payload = await res.json();
+      if (payload.success) setTasksByMilestone((prev) => ({ ...prev, [milestoneId]: payload.tasks || [] }));
     } catch (_) {}
   };
 
@@ -161,14 +161,14 @@ export function JourneyTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "update_session_note", session_id: sessionId, note }),
       });
-      const d = await res.json();
-      if (d.success) {
+      const payload = await res.json();
+      if (payload.success) {
         notifyMsg(t("venture.manager.memoSaved"));
         setNoteEditFor(null);
         setNoteDraft("");
         await loadVentureSessions();
       } else {
-        notifyMsg(d.error || t("venture.manager.actionFailed"));
+        notifyMsg(payload.error || t("venture.manager.actionFailed"));
       }
     } catch (_) {
       notifyMsg(t("venture.manager.actionFailed"));
@@ -182,7 +182,7 @@ export function JourneyTab() {
     setOpenId(next);
     setOpenTaskId(null);
     if (next && stage.status !== "locked" && stage.milestones) {
-      stage.milestones.forEach((m) => loadMilestoneTasks(m.id));
+      stage.milestones.forEach((milestone) => loadMilestoneTasks(milestone.id));
       loadVentureSessions();
     }
   };
@@ -191,10 +191,10 @@ export function JourneyTab() {
     if (subsByTask[taskId] !== undefined) return;
     try {
       const res = await fetch(`/api/ventures/${params.id}/tasks/${taskId}/submissions`);
-      const d = await res.json();
-      setSubsByTask((p) => ({ ...p, [taskId]: d.success ? (d.latest || null) : null }));
+      const payload = await res.json();
+      setSubsByTask((prev) => ({ ...prev, [taskId]: payload.success ? (payload.latest || null) : null }));
     } catch (_) {
-      setSubsByTask((p) => ({ ...p, [taskId]: null }));
+      setSubsByTask((prev) => ({ ...prev, [taskId]: null }));
     }
   };
 
@@ -204,7 +204,7 @@ export function JourneyTab() {
     if (next) loadTaskSubmission(taskId);
   };
 
-  const submitTask = async (taskId, mid) => {
+  const submitTask = async (taskId, milestoneId) => {
     const draft = drafts[taskId] || {};
     const url = (draft.url || "").trim();
     const notes = (draft.notes || "").trim();
@@ -215,14 +215,14 @@ export function JourneyTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "submit", file_url: url || null, notes: notes || null }),
       });
-      const d = await res.json();
-      if (d.success) {
+      const payload = await res.json();
+      if (payload.success) {
         notifyMsg(t("venture.submissionSent"));
-        setDrafts((p) => ({ ...p, [taskId]: { url: "", notes: "" } }));
-        setSubsByTask((p) => ({ ...p, [taskId]: d.latest || null }));
-        if (mid) loadMilestoneTasks(mid);
+        setDrafts((prev) => ({ ...prev, [taskId]: { url: "", notes: "" } }));
+        setSubsByTask((prev) => ({ ...prev, [taskId]: payload.latest || null }));
+        if (milestoneId) loadMilestoneTasks(milestoneId);
       } else {
-        notifyMsg(d.error || t("venture.submitFailed"));
+        notifyMsg(payload.error || t("venture.submitFailed"));
       }
     } catch (_) {
       notifyMsg(t("venture.submitFailed"));
@@ -240,30 +240,30 @@ export function JourneyTab() {
       let evidenceUrl = url;
       let evidenceName = null;
       if (file) {
-        const fd = new FormData();
-        fd.append("file", file);
-        fd.append("deliverable_id", String(deliverableId));
-        const upRes = await fetch(`/api/ventures/${params.id}/deliverables/upload`, { method: "POST", body: fd });
-        const up = await upRes.json().catch(() => ({}));
-        if (!up.success) {
-          notifyMsg(up.error || t("venture.submitFailed"));
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("deliverable_id", String(deliverableId));
+        const uploadResponse = await fetch(`/api/ventures/${params.id}/deliverables/upload`, { method: "POST", body: formData });
+        const uploadPayload = await uploadResponse.json().catch(() => ({}));
+        if (!uploadPayload.success) {
+          notifyMsg(uploadPayload.error || t("venture.submitFailed"));
           return;
         }
-        evidenceUrl = up.path;
-        evidenceName = up.name || file.name || null;
+        evidenceUrl = uploadPayload.path;
+        evidenceName = uploadPayload.name || file.name || null;
       }
       const res = await fetch(`/api/ventures/${params.id}/deliverables`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: deliverableId, action: "submit", attachment_url: evidenceUrl, attachment_name: evidenceName }),
       });
-      const d = await res.json();
-      if (d.success) {
+      const payload = await res.json();
+      if (payload.success) {
         notifyMsg(t("venture.manager.deliverableSubmitted"));
-        setDvDrafts((p) => ({ ...p, [deliverableId]: { url: "", file: null } }));
+        setDvDrafts((prev) => ({ ...prev, [deliverableId]: { url: "", file: null } }));
         fetchJourney(true);
       } else {
-        notifyMsg(d.error || t("venture.submitFailed"));
+        notifyMsg(payload.error || t("venture.submitFailed"));
       }
     } catch (_) {
       notifyMsg(t("venture.submitFailed"));
@@ -275,15 +275,15 @@ export function JourneyTab() {
     if (latest === undefined || latest === null) return null;
     // Review outcomes speak the same words as deliverables (Approved /
     // Changes Requested / Awaiting Review) — one vocabulary per idea.
-    const w =
+    const normalizedReviewStatus =
       latest.review_decision === "approved"
         ? statusWord("approved")
         : latest.review_decision === "changes_requested"
           ? statusWord("changes_requested")
           : statusWord("awaiting_review");
     return (
-      <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${statusChipClass(w)}`}>
-        {statusLabel(w, t)}
+      <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${statusChipClass(normalizedReviewStatus)}`}>
+        {statusLabel(normalizedReviewStatus, t)}
       </span>
     );
   };
@@ -346,57 +346,57 @@ export function JourneyTab() {
                     {/* Milestones bound to this stage (canonical spine) */}
                     {stage.milestones && stage.milestones.length > 0 && (
                       <div className="pt-2 space-y-3">
-                        {stage.milestones.map((m) => {
-                          const tasks = tasksByMilestone[m.id] || [];
-                          const mWord = milestoneStatusWord(m.status);
+                        {stage.milestones.map((milestone) => {
+                          const tasks = tasksByMilestone[milestone.id] || [];
+                          const normalizedMilestoneStatus = milestoneStatusWord(milestone.status);
                           // STRICTLY the one milestone the Venture may book against:
                           // the first unfinished milestone of the Journey that is
                           // actually current. Locked milestones are already filtered
                           // out by the journey API, so this is the only open one.
-                          const firstOpenId = (stage.milestones || []).find((x) => x.status !== "completed")?.id;
+                          const firstOpenId = (stage.milestones || []).find((candidateMilestone) => candidateMilestone.status !== "completed")?.id;
                           const isCurrent =
                             stage.status === "active" &&
-                            String(m.status) !== "completed" &&
-                            String(firstOpenId) === String(m.id);
+                            String(milestone.status) !== "completed" &&
+                            String(firstOpenId) === String(milestone.id);
                           return (
-                            <div key={m.id} className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'rgb(255 255 255 / 0.1)' }}>
+                            <div key={milestone.id} className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'rgb(255 255 255 / 0.1)' }}>
                               <div className="flex items-center justify-between gap-2 flex-wrap">
-                                <p className="text-sm font-bold">{m.title}</p>
+                                <p className="text-sm font-bold">{milestone.title}</p>
                                 <div className="flex items-center gap-2">
-                                  {m.status && <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${statusChipClass(mWord)}`}>{statusLabel(mWord, t)}</span>}
-                                  {m.progress > 0 && <span className="text-[10px] font-bold" style={{ color: 'var(--brand-orange)' }}>{m.progress}%</span>}
+                                  {milestone.status && <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${statusChipClass(normalizedMilestoneStatus)}`}>{statusLabel(normalizedMilestoneStatus, t)}</span>}
+                                  {milestone.progress > 0 && <span className="text-[10px] font-bold" style={{ color: 'var(--brand-orange)' }}>{milestone.progress}%</span>}
                                 </div>
                               </div>
-                              {m.target_date && <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.targetDate') || 'Target Date'}: {new Date(`${m.target_date}T00:00:00`).toLocaleDateString()}</p>}
+                              {milestone.target_date && <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.targetDate') || 'Target Date'}: {new Date(`${milestone.target_date}T00:00:00`).toLocaleDateString()}</p>}
 
                               {/* Deliverables: evidence the Venture must submit for review */}
-                              {(m.deliverables || []).length > 0 && (
+                              {(milestone.deliverables || []).length > 0 && (
                                 <div className="space-y-1.5 pt-1">
                                   <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>
                                     {t('venture.manager.deliverables')}
                                   </p>
-                                  {(m.deliverables || []).map((dv) => {
+                                  {(milestone.deliverables || []).map((deliverable) => {
                                     // ONE vocabulary, shared with the Venture Manager
                                     // and Super Admin views (lib/ventureStatuses).
-                                    const st = deliverableStatusWord(dv);
-                                    const canSubmit = stage.status === 'active' && st.id !== 'approved';
+                                    const deliverableStatus = deliverableStatusWord(deliverable);
+                                    const canSubmit = stage.status === 'active' && deliverableStatus.id !== 'approved';
                                     return (
-                                      <div key={dv.id} className="rounded-lg border p-2.5 space-y-1.5" style={{ borderColor: 'rgb(255 255 255 / 0.08)' }}>
+                                      <div key={deliverable.id} className="rounded-lg border p-2.5 space-y-1.5" style={{ borderColor: 'rgb(255 255 255 / 0.08)' }}>
                                         <div className="flex items-center gap-2 flex-wrap">
-                                          <span className="flex-1 min-w-0 text-xs font-medium truncate">{dv.title}</span>
-                                          {dv.due_date && <span className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{new Date(dv.due_date).toLocaleDateString()}</span>}
-                                          <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded ${statusChipClass(st)}`}>
-                                            {statusLabel(st, t)}
+                                          <span className="flex-1 min-w-0 text-xs font-medium truncate">{deliverable.title}</span>
+                                          {deliverable.due_date && <span className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{new Date(deliverable.due_date).toLocaleDateString()}</span>}
+                                          <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded ${statusChipClass(deliverableStatus)}`}>
+                                            {statusLabel(deliverableStatus, t)}
                                           </span>
                                         </div>
-                                        {dv.description && <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{dv.description}</p>}
-                                        {dv.attachment_url && (
-                                          <a href={dv.evidence_download_url || dv.attachment_url} target="_blank" rel="noreferrer" className="text-[10px] font-bold" style={{ color: 'var(--brand-orange)' }}>
-                                            {dv.attachment_name || t('venture.manager.viewEvidence')}
+                                        {deliverable.description && <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{deliverable.description}</p>}
+                                        {deliverable.attachment_url && (
+                                          <a href={deliverable.evidence_download_url || deliverable.attachment_url} target="_blank" rel="noreferrer" className="text-[10px] font-bold" style={{ color: 'var(--brand-orange)' }}>
+                                            {deliverable.attachment_name || t('venture.manager.viewEvidence')}
                                           </a>
                                         )}
-                                        {dv.approval_status === 'rejected' && dv.rejection_reason && (
-                                          <p className="text-[10px] text-rose-400">{t('venture.manager.changesRequestedReason', { reason: dv.rejection_reason })}</p>
+                                        {deliverable.approval_status === 'rejected' && deliverable.rejection_reason && (
+                                          <p className="text-[10px] text-rose-400">{t('venture.manager.changesRequestedReason', { reason: deliverable.rejection_reason })}</p>
                                         )}
                                         {canSubmit && (
                                           <div className="space-y-1.5">
@@ -405,18 +405,18 @@ export function JourneyTab() {
                                             </p>
                                             <input
                                               type="file"
-                                              onChange={(e) => setDvDrafts((p) => ({ ...p, [dv.id]: { ...(p[dv.id] || {}), file: e.target.files?.[0] || null } }))}
+                                              onChange={(event) => setDvDrafts((prev) => ({ ...prev, [deliverable.id]: { ...(prev[deliverable.id] || {}), file: event.target.files?.[0] || null } }))}
                                               className="w-full text-[10px]"
                                               style={{ color: 'var(--text-secondary)' }}
                                             />
                                             <div className="flex flex-wrap items-center gap-1.5">
                                               <input
-                                                value={(dvDrafts[dv.id] || {}).url || ''}
-                                                onChange={(e) => setDvDrafts((p) => ({ ...p, [dv.id]: { ...(p[dv.id] || {}), url: e.target.value } }))}
+                                                value={(dvDrafts[deliverable.id] || {}).url || ''}
+                                                onChange={(event) => setDvDrafts((prev) => ({ ...prev, [deliverable.id]: { ...(prev[deliverable.id] || {}), url: event.target.value } }))}
                                                 placeholder={t('venture.urlPlaceholder')}
                                                 className="flex-1 min-w-[140px] px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                                               />
-                                              <button type="button" onClick={() => submitDeliverable(dv.id)} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-black" style={{ backgroundColor: 'var(--brand-orange)' }}>
+                                              <button type="button" onClick={() => submitDeliverable(deliverable.id)} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-black" style={{ backgroundColor: 'var(--brand-orange)' }}>
                                                 {t('venture.submitForReview')}
                                               </button>
                                             </div>
@@ -431,25 +431,25 @@ export function JourneyTab() {
                                   the milestone that is currently open. */}
                               {isCurrent && (
                                 <div className="space-y-1.5 pt-1">
-                                  {bookFor === m.id ? (
-                                    <form onSubmit={(e) => bookSession(e, stage, m)} className="rounded-lg border p-2.5 space-y-2" style={{ borderColor: 'rgb(255 255 255 / 0.08)' }}>
+                                  {bookFor === milestone.id ? (
+                                    <form onSubmit={(event) => bookSession(event, stage, milestone)} className="rounded-lg border p-2.5 space-y-2" style={{ borderColor: 'rgb(255 255 255 / 0.08)' }}>
                                       <p className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5" style={{ color: 'var(--brand-orange)' }}>
                                         <CalendarPlus size={13} /> {t('venture.manager.bookSession')}
                                       </p>
                                       <textarea
                                         value={bookForm.note}
-                                        onChange={(e) => setBookForm({ ...bookForm, note: e.target.value })}
+                                        onChange={(event) => setBookForm({ ...bookForm, note: event.target.value })}
                                         rows={3}
                                         required
                                         placeholder={t('venture.manager.memoPlaceholder')}
                                         className="w-full px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                                       />
                                       <div className="flex flex-wrap items-center gap-2">
-                                        <input type="date" required min={toDateInput(new Date())} value={bookForm.date} onChange={(e) => setBookForm({ ...bookForm, date: e.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
-                                        <input type="time" required min={bookForm.min_time || undefined} value={bookForm.time} onChange={(e) => setBookForm({ ...bookForm, time: e.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
-                                        <select value={bookForm.duration} onChange={(e) => setBookForm({ ...bookForm, duration: e.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]">
-                                          {["30", "45", "60", "90"].map((min) => (
-                                            <option key={min} value={min}>{t('venture.manager.minutes', { n: min })}</option>
+                                        <input type="date" required min={toDateInput(new Date())} value={bookForm.date} onChange={(event) => setBookForm({ ...bookForm, date: event.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
+                                        <input type="time" required min={bookForm.min_time || undefined} value={bookForm.time} onChange={(event) => setBookForm({ ...bookForm, time: event.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
+                                        <select value={bookForm.duration} onChange={(event) => setBookForm({ ...bookForm, duration: event.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]">
+                                          {["30", "45", "60", "90"].map((durationOption) => (
+                                            <option key={durationOption} value={durationOption}>{t('venture.manager.minutes', { n: durationOption })}</option>
                                           ))}
                                         </select>
                                       </div>
@@ -459,16 +459,16 @@ export function JourneyTab() {
                                           type="file"
                                           multiple
                                           accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                                          onChange={(e) => setBookForm({ ...bookForm, files: Array.from(e.target.files || []).slice(0, SESSION_MATERIALS_MAX) })}
+                                          onChange={(event) => setBookForm({ ...bookForm, files: Array.from(event.target.files || []).slice(0, SESSION_MATERIALS_MAX) })}
                                           className="w-full text-[10px]"
                                           style={{ color: 'var(--text-secondary)' }}
                                         />
                                         {(bookForm.files || []).length > 0 && (
                                           <ul className="space-y-0.5">
-                                            {bookForm.files.map((f, i) => (
-                                              <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 text-[10px]" style={{ color: 'var(--text-secondary)' }}>
-                                                <span className="truncate">{f.name}</span>
-                                                <button type="button" aria-label={t('venture.manager.sessionMaterialsRemove')} onClick={() => setBookForm({ ...bookForm, files: bookForm.files.filter((_, j) => j !== i) })} className="shrink-0">
+                                            {bookForm.files.map((file, index) => (
+                                              <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-2 text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+                                                <span className="truncate">{file.name}</span>
+                                                <button type="button" aria-label={t('venture.manager.sessionMaterialsRemove')} onClick={() => setBookForm({ ...bookForm, files: bookForm.files.filter((_, fileIndex) => fileIndex !== index) })} className="shrink-0">
                                                   <X size={12} />
                                                 </button>
                                               </li>
@@ -486,7 +486,7 @@ export function JourneyTab() {
                                       </div>
                                     </form>
                                   ) : (
-                                    <button type="button" onClick={() => openBooking(m)} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-orange)' }}>
+                                    <button type="button" onClick={() => openBooking(milestone)} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-orange)' }}>
                                       <CalendarPlus size={12} /> {t('venture.manager.bookSession')}
                                     </button>
                                   )}
@@ -495,47 +495,47 @@ export function JourneyTab() {
 
                               {/* Sessions already booked on this milestone, with the
                                   documents they were booked with. */}
-                              {(sessionsByMilestone[String(m.id)] || []).length > 0 && (
+                              {(sessionsByMilestone[String(milestone.id)] || []).length > 0 && (
                                 <div className="space-y-1 pt-1">
-                                  <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.milestoneSessions', { n: (sessionsByMilestone[String(m.id)] || []).length })}</p>
-                                  {(sessionsByMilestone[String(m.id)] || []).map((s) => (
-                                    <div key={s.id} className="space-y-0.5">
+                                  <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.milestoneSessions', { n: (sessionsByMilestone[String(milestone.id)] || []).length })}</p>
+                                  {(sessionsByMilestone[String(milestone.id)] || []).map((session) => (
+                                    <div key={session.id} className="space-y-0.5">
                                       <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                                        <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{new Date(s.start_time).toLocaleString(lang || undefined)}</span>
-                                        {' · '}{s.title}
-                                        {s.coach_name ? ` · ${s.coach_name}` : ''}
-                                        {(s.materials || []).map((mat, i) =>
-                                          mat.url ? (
-                                            <a key={`${mat.name}-${i}`} href={mat.url} target="_blank" rel="noreferrer" className="ml-2 font-bold" style={{ color: 'var(--brand-orange)' }}>{mat.name}</a>
+                                        <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{new Date(session.start_time).toLocaleString(lang || undefined)}</span>
+                                        {' · '}{session.title}
+                                        {session.coach_name ? ` · ${session.coach_name}` : ''}
+                                        {(session.materials || []).map((material, index) =>
+                                          material.url ? (
+                                            <a key={`${material.name}-${index}`} href={material.url} target="_blank" rel="noreferrer" className="ml-2 font-bold" style={{ color: 'var(--brand-orange)' }}>{material.name}</a>
                                           ) : (
-                                            <span key={`${mat.name}-${i}`} className="ml-2">{mat.name}</span>
+                                            <span key={`${material.name}-${index}`} className="ml-2">{material.name}</span>
                                           ),
                                         )}
                                       </div>
                                       {/* The session's ONE note — shown here and edited in
                                           place, never appended to. */}
-                                      {noteEditFor === s.id ? (
+                                      {noteEditFor === session.id ? (
                                         <div className="space-y-1">
                                           <textarea
                                             value={noteDraft}
-                                            onChange={(e) => setNoteDraft(e.target.value)}
+                                            onChange={(event) => setNoteDraft(event.target.value)}
                                             rows={2}
                                             className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-[11px] text-[var(--text-primary)]"
                                           />
                                           <div className="flex justify-end gap-2">
                                             <button type="button" onClick={() => { setNoteEditFor(null); setNoteDraft(""); }} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border" style={{ borderColor: 'rgb(255 255 255 / 0.15)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
-                                            <button type="button" disabled={noteSaving || !noteDraft.trim()} onClick={() => saveSessionNote(s.id)} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg text-black disabled:opacity-50" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('common.save')}</button>
+                                            <button type="button" disabled={noteSaving || !noteDraft.trim()} onClick={() => saveSessionNote(session.id)} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg text-black disabled:opacity-50" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('common.save')}</button>
                                           </div>
                                         </div>
                                       ) : (
                                         <div className="flex items-start gap-2">
-                                          {s.description && (
+                                          {session.description && (
                                             <p className="flex-1 min-w-0 text-[10px]" style={{ color: 'var(--text-secondary)' }}>
                                               <span className="font-black uppercase tracking-widest mr-1.5">{t('venture.manager.memoLabel')}</span>
-                                              <span className="whitespace-pre-wrap">{s.description}</span>
+                                              <span className="whitespace-pre-wrap">{session.description}</span>
                                             </p>
                                           )}
-                                          <button type="button" onClick={() => { setNoteEditFor(s.id); setNoteDraft(s.description || ""); }} className="shrink-0 text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-orange)' }}>
+                                          <button type="button" onClick={() => { setNoteEditFor(session.id); setNoteDraft(session.description || ""); }} className="shrink-0 text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-orange)' }}>
                                             {t('venture.manager.editMemo')}
                                           </button>
                                         </div>
@@ -544,10 +544,10 @@ export function JourneyTab() {
                                   ))}
                                 </div>
                               )}
-                              {stage.status === 'locked' ? null : tasks.length === 0 && tasksByMilestone[m.id] !== undefined ? (
+                              {stage.status === 'locked' ? null : tasks.length === 0 && tasksByMilestone[milestone.id] !== undefined ? (
                                 <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t('venture.noTasksYet')}</p>
                               ) : null}
-                              {stage.status !== 'locked' && (tasksByMilestone[m.id] === undefined ? (
+                              {stage.status !== 'locked' && (tasksByMilestone[milestone.id] === undefined ? (
                                 <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.loading') || 'Loading...'}</p>
                               ) : tasks.length > 0 ? (
                                 <div className="space-y-1.5">
@@ -574,9 +574,9 @@ export function JourneyTab() {
                                             )}
                                             {canSubmit ? (
                                               <div className="space-y-1.5">
-                                                <input value={(drafts[task.id] || {}).url || ''} onChange={(e) => setDrafts((p) => ({ ...p, [task.id]: { ...(p[task.id] || {}), url: e.target.value } }))} placeholder={t('venture.urlPlaceholder')} className="w-full px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
-                                                <textarea value={(drafts[task.id] || {}).notes || ''} onChange={(e) => setDrafts((p) => ({ ...p, [task.id]: { ...(p[task.id] || {}), notes: e.target.value } }))} rows={2} placeholder={t('venture.notesOptional')} className="w-full px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
-                                                <button type="button" onClick={() => submitTask(task.id, m.id)} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-black" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('venture.submitForReview')}</button>
+                                                <input value={(drafts[task.id] || {}).url || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [task.id]: { ...(prev[task.id] || {}), url: event.target.value } }))} placeholder={t('venture.urlPlaceholder')} className="w-full px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
+                                                <textarea value={(drafts[task.id] || {}).notes || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [task.id]: { ...(prev[task.id] || {}), notes: event.target.value } }))} rows={2} placeholder={t('venture.notesOptional')} className="w-full px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
+                                                <button type="button" onClick={() => submitTask(task.id, milestone.id)} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-black" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('venture.submitForReview')}</button>
                                               </div>
                                             ) : (
                                               <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.taskLocked') || 'This task is closed.'}</p>
@@ -638,17 +638,17 @@ export function BusinessModelTab() {
   const { bmData, setBmData, params, notifyMsg, fetchBm, inputStyle, cardStyle } = useVenture();
   return (
     <div className="space-y-4">
-      <form onSubmit={async (e) => { e.preventDefault(); await fetch(`/api/ventures/${params.id}/business-model`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bmData || {}) }); notifyMsg('Saved'); fetchBm(); }} className="space-y-4">
+      <form onSubmit={async (event) => { event.preventDefault(); await fetch(`/api/ventures/${params.id}/business-model`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bmData || {}) }); notifyMsg('Saved'); fetchBm(); }} className="space-y-4">
         <div className="rounded-xl p-6 space-y-4 border" style={cardStyle}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {['keyPartners', 'keyActivities', 'keyResources', 'valuePropositions', 'customerRelationships', 'channels', 'customerSegments', 'costStructure', 'revenueStreams'].map(f => (
-              <div key={f}>
-                <label className="block text-sm font-medium mb-1">{t(`venture.${f}`)}</label>
+            {['keyPartners', 'keyActivities', 'keyResources', 'valuePropositions', 'customerRelationships', 'channels', 'customerSegments', 'costStructure', 'revenueStreams'].map(field => (
+              <div key={field}>
+                <label className="block text-sm font-medium mb-1">{t(`venture.${field}`)}</label>
                 <textarea className="w-full px-3 py-2 rounded-lg outline-none border text-sm" style={inputStyle} rows={3}
-                  value={bmData?.business_model_canvas?.[f] || ''}
-                  onChange={(e) => {
-                    const c = { ...(bmData?.business_model_canvas || {}), [f]: e.target.value };
-                    setBmData({ ...bmData, business_model_canvas: c, venture_id: params.id });
+                  value={bmData?.business_model_canvas?.[field] || ''}
+                  onChange={(event) => {
+                    const canvas = { ...(bmData?.business_model_canvas || {}), [field]: event.target.value };
+                    setBmData({ ...bmData, business_model_canvas: canvas, venture_id: params.id });
                   }} />
               </div>
             ))}

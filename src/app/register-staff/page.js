@@ -35,8 +35,8 @@ export default function PublicApplicationRegistration() {
 
   const [status, setStatus] = useState({ state: "idle", message: "" });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setStatus({ state: "loading", message: "" });
 
     try {
@@ -46,7 +46,7 @@ export default function PublicApplicationRegistration() {
 
       // ENFORCEMENT: Ensure all public registrations are set to pending for Super Admin approval
 
-      const res = await fetch("/api/contacts", {
+      const response = await fetch("/api/contacts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -57,9 +57,9 @@ export default function PublicApplicationRegistration() {
         }),
       });
 
-      const data = await res.json();
+      const payload = await response.json();
 
-      if (data.success) {
+      if (payload.success) {
         setStatus({
           state: "success",
           message: "",
@@ -67,7 +67,7 @@ export default function PublicApplicationRegistration() {
       } else {
         setStatus({
           state: "error",
-          message: t((data.error || t("rootMisc.registerStaff.errorSubmitFailed")) || "") || (data.error || t("rootMisc.registerStaff.errorSubmitFailed")),
+          message: t((payload.error || t("rootMisc.registerStaff.errorSubmitFailed")) || "") || (payload.error || t("rootMisc.registerStaff.errorSubmitFailed")),
         });
       }
     } catch (err) {
@@ -163,7 +163,7 @@ export default function PublicApplicationRegistration() {
                 icon={Users}
                 placeholder={t("rootMisc.registerStaff.fullNamePlaceholder")}
                 value={formData.fullName}
-                onChange={(v) => setFormData({ ...formData, fullName: v })}
+                onChange={(value) => setFormData({ ...formData, fullName: value })}
                 required
               />
               <InputGroup
@@ -172,7 +172,7 @@ export default function PublicApplicationRegistration() {
                 placeholder={t("rootMisc.registerStaff.emailPlaceholder")}
                 type="email"
                 value={formData.email}
-                onChange={(v) => setFormData({ ...formData, email: v })}
+                onChange={(value) => setFormData({ ...formData, email: value })}
                 required
               />
               <InputGroup
@@ -180,7 +180,7 @@ export default function PublicApplicationRegistration() {
                 icon={Phone}
                 placeholder={t("rootMisc.registerStaff.phonePlaceholder")}
                 value={formData.phone}
-                onChange={(v) => setFormData({ ...formData, phone: v })}
+                onChange={(value) => setFormData({ ...formData, phone: value })}
                 required
               />
 
@@ -199,8 +199,8 @@ export default function PublicApplicationRegistration() {
                   <select
                     required
                     value={formData.gender}
-                    onChange={(e) =>
-                      setFormData({ ...formData, gender: e.target.value })
+                    onChange={(event) =>
+                      setFormData({ ...formData, gender: event.target.value })
                     }
                     className="w-full rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-[var(--brand-orange)] appearance-none font-bold text-xs"
                     style={{
@@ -237,14 +237,14 @@ export default function PublicApplicationRegistration() {
                 icon={MapPin}
                 placeholder={t("rootMisc.registerStaff.addressPlaceholder")}
                 value={formData.homeAddress}
-                onChange={(v) => setFormData({ ...formData, homeAddress: v })}
+                onChange={(value) => setFormData({ ...formData, homeAddress: value })}
               />
               <InputGroup
                 label={t("rootMisc.registerStaff.jobTitle")}
                 icon={Briefcase}
                 placeholder={t("rootMisc.registerStaff.jobTitlePlaceholder")}
                 value={formData.jobTitle}
-                onChange={(v) => setFormData({ ...formData, jobTitle: v })}
+                onChange={(value) => setFormData({ ...formData, jobTitle: value })}
               />
             </div>
           </div>
@@ -316,7 +316,7 @@ function InputGroup({
           placeholder={placeholder}
           required={required}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(event) => onChange(event.target.value)}
           className="w-full rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-[var(--brand-orange)] font-bold text-xs uppercase tracking-tighter"
           style={{
             background: "var(--bg-primary)",

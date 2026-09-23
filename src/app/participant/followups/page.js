@@ -7,7 +7,7 @@ import { useApi } from "@/lib/hooks/useApi";
 // Module scope on purpose: the hook keys its internal callback on this function,
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop.
-const pickFollowups = (d) => (d?.success ? d.followups || [] : []);
+const pickFollowups = (payload) => (payload?.success ? payload.followups || [] : []);
 
 export default function ParticipantFollowupsPage() {
   const { t } = useI18n();
@@ -53,42 +53,42 @@ export default function ParticipantFollowupsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {followups.map((f) => (
+            {followups.map((followup) => (
               <div
-                key={f.id}
+                key={followup.id}
                 className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl p-4 space-y-3"
               >
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-[12px] font-bold text-[var(--text-primary)]">
-                      {f.comment || t("participantMisc.followups.followUpMeeting")}
+                      {followup.comment || t("participantMisc.followups.followUpMeeting")}
                     </p>
                     <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
-                      {f.program_name || ""}
-                      {f.deliverable_title ? ` · ${f.deliverable_title}` : ""}
+                      {followup.program_name || ""}
+                      {followup.deliverable_title ? ` · ${followup.deliverable_title}` : ""}
                     </p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${statusStyles[f.status] || statusStyles.scheduled}`}>
-                    {f.status || t("participantMisc.followups.statusScheduled")}
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${statusStyles[followup.status] || statusStyles.scheduled}`}>
+                    {followup.status || t("participantMisc.followups.statusScheduled")}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-4 text-[10px] font-medium text-[var(--text-tertiary)]">
-                  {f.scheduled_at && (
+                  {followup.scheduled_at && (
                     <div className="flex items-center gap-1.5">
                       <Clock className="w-3 h-3" />
-                      {new Date(f.scheduled_at).toLocaleDateString()} {" "}
-                      {new Date(f.scheduled_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {new Date(followup.scheduled_at).toLocaleDateString()} {" "}
+                      {new Date(followup.scheduled_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </div>
                   )}
-                  {f.duration_minutes && (
-                    <span>{t("participantMisc.followups.duration", { minutes: f.duration_minutes })}</span>
+                  {followup.duration_minutes && (
+                    <span>{t("participantMisc.followups.duration", { minutes: followup.duration_minutes })}</span>
                   )}
                 </div>
 
-                {f.meeting_link && (
+                {followup.meeting_link && (
                   <a
-                    href={f.meeting_link}
+                    href={followup.meeting_link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:brightness-110 transition-all"
@@ -99,13 +99,13 @@ export default function ParticipantFollowupsPage() {
                   </a>
                 )}
 
-                {f.notes && (
+                {followup.notes && (
                   <div className="p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/10">
                     <div className="flex items-center gap-1.5 mb-1">
                       <MessageSquare className="w-3 h-3 text-blue-400" />
                       <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">{t("participantMisc.followups.notes")}</span>
                     </div>
-                    <p className="text-[10px] text-[var(--text-primary)]">{f.notes}</p>
+                    <p className="text-[10px] text-[var(--text-primary)]">{followup.notes}</p>
                   </div>
                 )}
               </div>

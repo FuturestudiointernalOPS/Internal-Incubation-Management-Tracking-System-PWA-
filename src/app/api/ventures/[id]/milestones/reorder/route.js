@@ -38,10 +38,10 @@ export const POST = createHandler(async (req, { params }) => {
     );
   }
 
-  const ventureRes = await db
+  const ventureResult = await db
     .execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] })
     .catch(() => ({ rows: [] }));
-  const dbId = ventureRes.rows?.[0]?.id;
+  const dbId = ventureResult.rows?.[0]?.id;
   if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
   const result = await moveStageMilestone(db, { dbId, stageId, milestoneId, direction });

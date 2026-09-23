@@ -63,7 +63,7 @@ export async function PUT(req) {
         );
       }
       // Deduplicate, keep non-empty strings only.
-      const cleaned = [...new Set(rawRoles.filter((r) => typeof r === "string" && r.trim()))];
+      const cleaned = [...new Set(rawRoles.filter((role) => typeof role === "string" && role.trim()))];
       nextValue = JSON.stringify(cleaned);
     }
 

@@ -32,8 +32,8 @@ const CONFIGURABLE_FEATURES = [
  * nothing is ever hidden.
  */
 export const FEATURE_KEYS = [
-  ...FEATURE_ORDER.filter((f) => CONFIGURABLE_FEATURES.includes(f)),
-  ...CONFIGURABLE_FEATURES.filter((f) => !FEATURE_ORDER.includes(f)).sort(),
+  ...FEATURE_ORDER.filter((feature) => CONFIGURABLE_FEATURES.includes(feature)),
+  ...CONFIGURABLE_FEATURES.filter((feature) => !FEATURE_ORDER.includes(feature)).sort(),
 ];
 
 export const IDENTITY_TYPES = ["role", "group"];
@@ -151,11 +151,11 @@ export function validateEligibilityChanges(changes) {
   if (!Array.isArray(changes) || changes.length === 0) {
     return { valid: false, errors: ["no changes"], normalized: [] };
   }
-  for (const c of changes) {
-    const featureKey = String(c?.feature_key || "");
-    const identityType = String(c?.identity_type || "");
-    const identityValue = String(c?.identity_value ?? "").trim();
-    const eligible = c?.eligible;
+  for (const change of changes) {
+    const featureKey = String(change?.feature_key || "");
+    const identityType = String(change?.identity_type || "");
+    const identityValue = String(change?.identity_value ?? "").trim();
+    const eligible = change?.eligible;
 
     if (!FEATURE_KEYS.includes(featureKey)) {
       errors.push(`unknown feature_key: ${featureKey}`);
@@ -195,19 +195,19 @@ export async function assertTemplateCapsEligible({ role, groups = [], profileId 
     args: [profileId],
   });
   const caps = {};
-  for (const r of capsRes.rows) {
-    caps[r.module] ??= {};
-    if (Number(r.access_level) > (caps[r.module][r.capability] ?? 0)) {
-      caps[r.module][r.capability] = Number(r.access_level);
+  for (const row of capsRes.rows) {
+    caps[row.module] ??= {};
+    if (Number(row.access_level) > (caps[row.module][row.capability] ?? 0)) {
+      caps[row.module][row.capability] = Number(row.access_level);
     }
   }
 
-  const ph = groups.length ? groups.map(() => "?").join(",") : "NULL";
+  const placeholders = groups.length ? groups.map(() => "?").join(",") : "NULL";
   const eligRes = await db.execute({
     sql: `SELECT feature_key, identity_type, identity_value, eligible
           FROM feature_eligibility
           WHERE (identity_type = 'role' AND identity_value = ?)
-             OR (identity_type = 'group' AND identity_value IN (${ph}))`,
+             OR (identity_type = 'group' AND identity_value IN (${placeholders}))`,
     args: [role, ...groups],
   });
   const eligibility = {};

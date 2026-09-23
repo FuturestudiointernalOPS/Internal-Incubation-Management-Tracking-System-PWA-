@@ -9,8 +9,8 @@ function cn(...classes) { return classes.filter(Boolean).join(" "); }
 // Module scope on purpose: the hook keys its internal callback on this array and
 // on the transforms it carries, so inline values would give them a new identity
 // on every render and refetch in a loop.
-const pickPlatformStats = (d) => (d?.success ? d.stats : null);
-const pickPlatformActivity = (d) => (d?.success ? d.activity || [] : []);
+const pickPlatformStats = (response) => (response?.success ? response.stats : null);
+const pickPlatformActivity = (response) => (response?.success ? response.activity || [] : []);
 const PLATFORM_DASHBOARD_ENDPOINTS = [
   { key: "stats", url: "/api/platform/form-runs?dashboard=true", transform: pickPlatformStats },
   { key: "activity", url: "/api/platform/form-runs?activity=true", transform: pickPlatformActivity },
@@ -53,12 +53,12 @@ export default function PlatformDashboard() {
             { label: "platformMisc.dashboard.pending", value: operationalStats?.pending_reviews ?? 0, icon: Clock, color: "text-amber-500" },
             { label: "platformMisc.dashboard.approval", value: (operationalStats?.approval_rate != null ? Math.round(operationalStats.approval_rate) + "%" : "\u2014"), icon: BarChart3, color: (operationalStats?.approval_rate || 0) > 50 ? "text-emerald-500" : "text-rose-500" },
             { label: "platformMisc.dashboard.overdue", value: operationalStats?.overdue ?? 0, icon: Clock, color: (operationalStats?.overdue ?? 0) > 0 ? "text-rose-500" : "text-slate-500" },
-          ].map((s) => (
-            <div key={s.label} className="p-4 rounded-2xl bg-secondary border border-[var(--border-primary)] text-center">
-              <p className={cn("text-xl font-black", s.color)}>{s.value}</p>
+          ].map((stat) => (
+            <div key={stat.label} className="p-4 rounded-2xl bg-secondary border border-[var(--border-primary)] text-center">
+              <p className={cn("text-xl font-black", stat.color)}>{stat.value}</p>
               <div className="flex items-center justify-center gap-1 mt-1">
-                <s.icon className={cn("w-2.5 h-2.5", s.color)} />
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t(s.label)}</p>
+                <stat.icon className={cn("w-2.5 h-2.5", stat.color)} />
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t(stat.label)}</p>
               </div>
             </div>
           ))}
@@ -71,8 +71,8 @@ export default function PlatformDashboard() {
         </h2>
         {recentActivity.length > 0 ? (
           <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl overflow-hidden">
-            {recentActivity.slice(0, 10).map((entry, idx) => (
-              <div key={idx} className="flex items-center gap-3 px-5 py-3 border-b border-[var(--border-primary)] last:border-0 text-[11px]">
+            {recentActivity.slice(0, 10).map((entry, index) => (
+              <div key={index} className="flex items-center gap-3 px-5 py-3 border-b border-[var(--border-primary)] last:border-0 text-[11px]">
                 <div className={cn("w-1.5 h-1.5 rounded-full shrink-0",
                   entry.action === "submitted" ? "bg-blue-500" :
                   entry.action === "approved" ? "bg-emerald-500" :

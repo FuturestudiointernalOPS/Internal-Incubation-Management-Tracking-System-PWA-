@@ -28,9 +28,9 @@ export async function GET(req) {
 
     const impact = await getProfileImpactCounts(profileId);
     return NextResponse.json({ success: true, impact });
-  } catch (e) {
+  } catch (error) {
     return NextResponse.json(
-      { success: false, error: e.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

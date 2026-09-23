@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
+import { useDialogs } from "@/components/ui/DialogProvider";
 
 const VENTURE_STAGES = {
   idea: { label: "vadmin.list.stageIdea", color: "text-blue-400 bg-blue-500/10" },
@@ -30,10 +31,11 @@ const STATUS_CONFIG = {
 // Module scope on purpose: the hook keys its internal callback on this function,
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop.
-const pickVentures = (d) => (d?.success ? d.ventures || [] : []);
+const pickVentures = (payload) => (payload?.success ? payload.ventures || [] : []);
 
 export default function VenturesPage() {
   const { t } = useI18n();
+  const { prompt } = useDialogs();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   // The loader's work — painting from the cache first, discarding a stale
@@ -45,13 +47,13 @@ export default function VenturesPage() {
     transform: pickVentures,
   });
 
-  const filteredVentures = ventures.filter((v) => {
+  const filteredVentures = ventures.filter((venture) => {
     if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
+    const normalizedQuery = searchQuery.toLowerCase();
     return (
-      v.company_name?.toLowerCase().includes(q) ||
-      v.venture_id?.toLowerCase().includes(q) ||
-      v.industry?.toLowerCase().includes(q)
+      venture.company_name?.toLowerCase().includes(normalizedQuery) ||
+      venture.venture_id?.toLowerCase().includes(normalizedQuery) ||
+      venture.industry?.toLowerCase().includes(normalizedQuery)
     );
   });
 
@@ -60,18 +62,18 @@ export default function VenturesPage() {
 
   const approveVenture = async (venture) => {
     try {
-      const res = await fetch(`/api/ventures/${venture.venture_id}/approve`, { method: "POST" });
-      const d = await res.json();
+      const response = await fetch(`/api/ventures/${venture.venture_id}/approve`, { method: "POST" });
+      const payload = await response.json();
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
           detail: {
-            type: d.success ? "success" : "error",
-            message: d.success ? t("vadmin.list.approveSuccess") : (t((d.error || t("vadmin.list.approveFailed")) || "") || (d.error || t("vadmin.list.approveFailed"))),
+            type: payload.success ? "success" : "error",
+            message: payload.success ? t("vadmin.list.approveSuccess") : (t((payload.error || t("vadmin.list.approveFailed")) || "") || (payload.error || t("vadmin.list.approveFailed"))),
             duration: 4000,
           },
         })
       );
-      if (d.success) refresh();
+      if (payload.success) refresh();
     } catch {
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
@@ -102,7 +104,7 @@ export default function VenturesPage() {
             <button
               onClick={async () => {
                 try {
-                  const email = window.prompt(t("vadmin.list.inviteEmailPrompt"));
+                  const email = await prompt({ message: t("vadmin.list.inviteEmailPrompt") });
                   if (!email) return;
                   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
                     window.dispatchEvent(
@@ -116,14 +118,14 @@ export default function VenturesPage() {
                     );
                     return;
                   }
-                  const res = await fetch("/api/platform/venture-invitations", {
+                  const response = await fetch("/api/platform/venture-invitations", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ email: email.trim(), source_type: "external" }),
                   });
-                  const d = await res.json();
-                  if (d.success && d.run?.url) {
-                    await navigator.clipboard.writeText(d.run.url);
+                  const payload = await response.json();
+                  if (payload.success && payload.run?.url) {
+                    await navigator.clipboard.writeText(payload.run.url);
                     window.dispatchEvent(
                       new CustomEvent("impactos:notify", {
                         detail: {
@@ -138,7 +140,7 @@ export default function VenturesPage() {
                       new CustomEvent("impactos:notify", {
                         detail: {
                           type: "error",
-                          message: d.error || t("vadmin.list.inviteFailed"),
+                          message: payload.error || t("vadmin.list.inviteFailed"),
                           duration: 5000,
                         },
                       })
@@ -163,16 +165,16 @@ export default function VenturesPage() {
             <button
               onClick={async () => {
                 try {
-                  const res = await fetch("/api/platform/venture-run");
-                  const d = await res.json();
-                  if (d.success && d.url) {
-                    window.open(d.url, "_blank", "noopener,noreferrer");
+                  const response = await fetch("/api/platform/venture-run");
+                  const payload = await response.json();
+                  if (payload.success && payload.url) {
+                    window.open(payload.url, "_blank", "noopener,noreferrer");
                   } else {
                     window.dispatchEvent(
                       new CustomEvent("impactos:notify", {
                         detail: {
                           type: "error",
-                          message: d.error || t("vadmin.list.noActiveVentureForm"),
+                          message: payload.error || t("vadmin.list.noActiveVentureForm"),
                           duration: 5000,
                         },
                       })
@@ -204,7 +206,7 @@ export default function VenturesPage() {
             type="text"
             placeholder={t("vadmin.list.searchPlaceholder")}
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(event) => setSearchQuery(event.target.value)}
             className="w-full pl-12 pr-4 py-3 bg-secondary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-500 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
           />
         </div>
@@ -289,7 +291,7 @@ export default function VenturesPage() {
                         <td className="px-5 py-3 text-right whitespace-nowrap">
                           {venture.status === "pending" && (
                             <button
-                              onClick={(e) => { e.stopPropagation(); approveVenture(venture); }}
+                              onClick={(event) => { event.stopPropagation(); approveVenture(venture); }}
                               className="mr-3 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
                             >
                               {t("vadmin.list.approve")}

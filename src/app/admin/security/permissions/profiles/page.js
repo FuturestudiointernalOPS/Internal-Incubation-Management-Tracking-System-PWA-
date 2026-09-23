@@ -34,8 +34,8 @@ export default function PermissionTemplatesPage() {
     // state write.
     defer(() => {
       try {
-        const pid = new URLSearchParams(window.location.search).get("profile");
-        if (pid) setProfileId(pid);
+        const profileIdParam = new URLSearchParams(window.location.search).get("profile");
+        if (profileIdParam) setProfileId(profileIdParam);
       } catch {
         /* no deep link — keep the default state */
       }
@@ -45,8 +45,8 @@ export default function PermissionTemplatesPage() {
   useEffect(() => {
     defer(() => {
       try {
-        const sub = new URLSearchParams(window.location.search).get("sub");
-        if (sub === "catalog") {
+        const subTab = new URLSearchParams(window.location.search).get("sub");
+        if (subTab === "catalog") {
           router.replace(`${PERMISSION_BASE}/eligibility?sub=ceilings`);
         }
       } catch {

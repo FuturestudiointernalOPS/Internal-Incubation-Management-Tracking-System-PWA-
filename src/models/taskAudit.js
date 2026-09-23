@@ -47,8 +47,8 @@ async function logTaskEvent({
         description || null,
       ],
     });
-  } catch (e) {
-    console.error("Task audit log error:", e.message);
+  } catch (error) {
+    console.error("Task audit log error:", error.message);
   }
 }
 

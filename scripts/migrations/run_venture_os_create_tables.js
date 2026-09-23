@@ -23,18 +23,18 @@ async function run() {
   try {
     const statements = sql
       .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith("--") && !s.startsWith("/*"));
+      .map((statement) => statement.trim())
+      .filter((statement) => statement.length > 0 && !statement.startsWith("--") && !statement.startsWith("/*"));
 
     let success = 0, errors = 0;
-    for (const stmt of statements) {
+    for (const statement of statements) {
       try {
-        await client.query(stmt);
-        console.log(`✅ ${stmt.substring(0, 100).replace(/\n/g, " ")}`);
+        await client.query(statement);
+        console.log(`✅ ${statement.substring(0, 100).replace(/\n/g, " ")}`);
         success++;
       } catch (err) {
         if (err.message.includes("already exists")) {
-          console.log(`⏭️  ${stmt.substring(0, 80).replace(/\n/g, " ")}`);
+          console.log(`⏭️  ${statement.substring(0, 80).replace(/\n/g, " ")}`);
           success++;
         } else {
           console.error(`❌ ${err.message.substring(0, 150)}`);

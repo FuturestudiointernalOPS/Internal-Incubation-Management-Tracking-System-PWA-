@@ -36,11 +36,11 @@ export async function POST(req) {
 
     // Timeline
     try {
-      const reqInfo = await getDdRequestInfoForDocumentUpload(request_id);
-      if (reqInfo.rows.length > 0) {
-        const relWs = await getRelationshipWorkspaceIdForDocumentUpload(reqInfo.rows[0].pipeline_id);
-        if (relWs.rows.length > 0) {
-          await insertDocumentUploadedTimeline({ workspace_id: relWs.rows[0].id, file_name, title: reqInfo.rows[0].title });
+      const requestInfo = await getDdRequestInfoForDocumentUpload(request_id);
+      if (requestInfo.rows.length > 0) {
+        const relationshipWorkspace = await getRelationshipWorkspaceIdForDocumentUpload(requestInfo.rows[0].pipeline_id);
+        if (relationshipWorkspace.rows.length > 0) {
+          await insertDocumentUploadedTimeline({ workspace_id: relationshipWorkspace.rows[0].id, file_name, title: requestInfo.rows[0].title });
         }
       }
     } catch (_) {}

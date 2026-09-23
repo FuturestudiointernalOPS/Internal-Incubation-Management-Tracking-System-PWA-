@@ -62,13 +62,13 @@ export async function POST(req) {
 
     // ── PM scope: must be assigned to the program (unless super_admin) ──
     if (session.role === "program_manager" && program_id) {
-      const prog = (
+      const programRow = (
         await getProgramAssignedPmId(program_id)
       ).rows[0];
-      if (!prog) {
+      if (!programRow) {
         return NextResponse.json({ success: false, error: "Program not found." }, { status: 404 });
       }
-      if (prog.assigned_pm_id !== session.cid) {
+      if (programRow.assigned_pm_id !== session.cid) {
         return NextResponse.json(
           { success: false, error: "You are not the Program Manager for this program." },
           { status: 403 },
@@ -96,10 +96,10 @@ export async function POST(req) {
       inviteEmail = contact.email;
       inviteContactCid = contact.cid;
       if (!inviteProgram) {
-        const pp = (
+        const participantProgram = (
           await getParticipantProgramByContactId(contact_id)
         ).rows[0];
-        if (pp) inviteProgram = pp.program_id ? String(pp.program_id) : null;
+        if (participantProgram) inviteProgram = participantProgram.program_id ? String(participantProgram.program_id) : null;
       }
     }
 
@@ -151,9 +151,9 @@ export async function POST(req) {
     const url = `${ventureRunUrl(run)}?invitation=${invitation.token}`;
     try {
       const { sendVentureInvitationEmail } = await import("@/lib/email");
-      await sendVentureInvitationEmail({ to: inviteEmail, name: null, runUrl: url, runName: run.name });
-    } catch (e) {
-      console.error("[Venture Invitations] email send failed:", e.message);
+      await sendVentureInvitationEmail({ to: inviteEmail, name: null, runUrl: url, runName: run.name, contact_cid: inviteContactCid });
+    } catch (error) {
+      console.error("[Venture Invitations] email send failed:", error.message);
     }
 
     return NextResponse.json({

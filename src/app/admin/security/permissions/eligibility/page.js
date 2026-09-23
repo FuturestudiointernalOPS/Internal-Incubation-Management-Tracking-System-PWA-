@@ -28,19 +28,19 @@ const TAB_BY_SUB = {
 
 export default function PermissionRulesPage() {
   const { t } = useI18n();
-  const [sub, setSub] = useSubTab("ceilings");
+  const [subTab, setSubTab] = useSubTab("ceilings");
   const [showCatalog, setShowCatalog] = useState(false);
-  const tab = TAB_BY_SUB[sub] || "eligibility";
+  const tab = TAB_BY_SUB[subTab] || "eligibility";
 
   return (
-    <PermissionShell active="rules" sub={sub} onSubChange={setSub}>
+    <PermissionShell active="rules" sub={subTab} onSubChange={setSubTab}>
       <p className="mb-4 text-xs font-medium text-[var(--text-secondary)]">
         {t("engineering.permissions.questionRules")}
       </p>
 
-      <PermissionManager key={sub} initialTab={tab} />
+      <PermissionManager key={subTab} initialTab={tab} />
 
-      {sub === "ceilings" && (
+      {subTab === "ceilings" && (
         <div className="mt-6 space-y-3">
           <button
             onClick={() => setShowCatalog((open) => !open)}

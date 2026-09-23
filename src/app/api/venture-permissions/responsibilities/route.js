@@ -8,8 +8,8 @@ import { listResponsibilities, getResponsibility } from "@/lib/venturePermission
 const READ_ROLES = ["super_admin"];
 const WRITE_ROLES = ["super_admin"];
 
-const slugify = (s) =>
-  String(s || "")
+const slugify = (value) =>
+  String(value || "")
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, "_")
@@ -24,8 +24,8 @@ export async function GET(req) {
     const includeInactive = new URL(req.url).searchParams.get("include_inactive") === "1";
     const responsibilities = await listResponsibilities(db, { includeInactive });
     return NextResponse.json({ success: true, responsibilities });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -52,8 +52,8 @@ export async function POST(req) {
       args: [finalCode, String(name).trim(), description || null, session?.cid || null],
     });
     return NextResponse.json({ success: true, responsibility: await getResponsibility(db, finalCode) });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -72,7 +72,7 @@ export async function PATCH(req) {
       args: [name ? String(name).trim() : null, description ?? null, typeof is_active === "boolean" ? (is_active ? 1 : 0) : null, code],
     });
     return NextResponse.json({ success: true, responsibility: await getResponsibility(db, code) });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

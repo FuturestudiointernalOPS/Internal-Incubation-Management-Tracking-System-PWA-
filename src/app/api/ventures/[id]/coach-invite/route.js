@@ -37,11 +37,11 @@ export async function POST(req, { params }) {
     const code = await resolveVentureCode(db, id);
     if (!code) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const ventureRes = await db.execute({
+    const ventureResult = await db.execute({
       sql: "SELECT company_name, name FROM ventures WHERE venture_id = ? OR id::text = ?",
       args: [id, id],
     }).catch(() => ({ rows: [] }));
-    const ventureName = ventureRes.rows?.[0]?.company_name || ventureRes.rows?.[0]?.name || code;
+    const ventureName = ventureResult.rows?.[0]?.company_name || ventureResult.rows?.[0]?.name || code;
 
     const result = await inviteCoachByEmail(db, {
       code,
@@ -65,7 +65,7 @@ export async function POST(req, { params }) {
     } catch (_) {}
 
     return NextResponse.json({ success: true, ...result });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

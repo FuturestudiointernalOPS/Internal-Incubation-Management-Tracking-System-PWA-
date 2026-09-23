@@ -21,7 +21,7 @@ export async function GET() {
     const session = await getSession();
     const certificates = await getCertificatesForLearner(session.cid);
     return NextResponse.json({ success: true, certificates });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

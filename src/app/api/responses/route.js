@@ -38,13 +38,13 @@ export const GET = createHandler({ roles: ["staff", "super_admin"] }, async () =
     flaggedResult = { rows: [] };
   }
 
-  const responsesParsed = responsesResult.rows.map((r) => ({
-    ...r,
-    answers: JSON.parse(r.answers),
+  const responsesParsed = responsesResult.rows.map((row) => ({
+    ...row,
+    answers: JSON.parse(row.answers),
   }));
-  const flaggedParsed = flaggedResult.rows.map((r) => ({
-    ...r,
-    answers: JSON.parse(r.answers),
+  const flaggedParsed = flaggedResult.rows.map((row) => ({
+    ...row,
+    answers: JSON.parse(row.answers),
   }));
 
   return NextResponse.json({

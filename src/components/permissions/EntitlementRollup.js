@@ -71,10 +71,10 @@ export default function EntitlementRollup() {
   // three for nothing.
   const people = useMemo(() => directory?.users || [], [directory]);
   const holderCount = value
-    ? people.filter((u) =>
+    ? people.filter((user) =>
         kind === "role"
-          ? u.role === value
-          : (u.groups || []).includes(value),
+          ? user.role === value
+          : (user.groups || []).includes(value),
       ).length
     : 0;
 
@@ -97,7 +97,7 @@ export default function EntitlementRollup() {
     const set = new Set();
     for (const row of defaults?.groupDefaults || []) set.add(row.group_name);
     for (const group of eligibility?.groups || []) set.add(group);
-    for (const user of people) for (const g of user.groups || []) set.add(g);
+    for (const user of people) for (const group of user.groups || []) set.add(group);
     return [...set].filter(Boolean).sort();
   }, [defaults, eligibility, people]);
 
@@ -116,15 +116,15 @@ export default function EntitlementRollup() {
     return [...byModule.entries()]
       .map(([module, caps]) => ({
         module,
-        caps: caps.sort((a, b) => a.capability.localeCompare(b.capability)),
+        caps: caps.sort((first, second) => first.capability.localeCompare(second.capability)),
       }))
-      .sort((a, b) => a.module.localeCompare(b.module));
+      .sort((first, second) => first.module.localeCompare(second.module));
   };
 
   const legacyRows =
     kind === "role"
-      ? (defaults?.roleDefaults || []).filter((r) => r.role === value)
-      : (defaults?.groupDefaults || []).filter((r) => r.group_name === value);
+      ? (defaults?.roleDefaults || []).filter((roleDefault) => roleDefault.role === value)
+      : (defaults?.groupDefaults || []).filter((groupDefault) => groupDefault.group_name === value);
   const payloadRows =
     kind === "role" && templateRef
       ? templateData?.success
@@ -136,10 +136,10 @@ export default function EntitlementRollup() {
   /** The feature ceiling rows for the selected identity (fail-closed). */
   const ceiling = (featureKey) => {
     const row = (eligibility?.rows || []).find(
-      (r) =>
-        r.feature_key === featureKey &&
-        r.identity_type === kind &&
-        r.identity_value === value,
+      (eligibilityRow) =>
+        eligibilityRow.feature_key === featureKey &&
+        eligibilityRow.identity_type === kind &&
+        eligibilityRow.identity_value === value,
     );
     if (!row) return "unset";
     return Number(row.eligible) === 1 ? "allowed" : "denied";
@@ -174,7 +174,7 @@ export default function EntitlementRollup() {
       <button
         type="button"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen((prev) => !prev)}
         className="inline-flex items-center gap-2 rounded-lg border border-[var(--border-primary)] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
       >
         {open ? (
@@ -200,22 +200,22 @@ export default function EntitlementRollup() {
 
           <div className="flex flex-wrap items-end gap-2">
             <div className="flex items-center gap-1 rounded-lg border border-[var(--border-primary)] p-1">
-              {["role", "group"].map((k) => (
+              {["role", "group"].map((identityKind) => (
                 <button
-                  key={k}
+                  key={identityKind}
                   type="button"
-                  aria-pressed={kind === k}
+                  aria-pressed={kind === identityKind}
                   onClick={() => {
-                    setKind(k);
+                    setKind(identityKind);
                     setValue("");
                   }}
                   className={`rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 ${
-                    kind === k
+                    kind === identityKind
                       ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
-                  {k === "role"
+                  {identityKind === "role"
                     ? t("engineering.permissions.rollupKindRole")
                     : t("engineering.permissions.rollupKindGroup")}
                 </button>
@@ -230,7 +230,7 @@ export default function EntitlementRollup() {
               </span>
               <select
                 value={value}
-                onChange={(e) => setValue(e.target.value)}
+                onChange={(event) => setValue(event.target.value)}
                 className="rounded-xl border border-[var(--border-primary)] bg-secondary px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
               >
                 <option value="">—</option>

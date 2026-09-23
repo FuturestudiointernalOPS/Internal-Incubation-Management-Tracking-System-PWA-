@@ -48,43 +48,43 @@ const EMPTY_MAP = {};
 const NO_DELIVERABLES = { list: [], upcoming: [] };
 
 /** Every team the endpoint returns; the one on screen is picked from them. */
-const pickTeams = (d) => (d?.success && d.teams ? d.teams : []);
-const pickFirstProgram = (d) =>
-  d?.success && d.programs ? d.programs[0] || null : null;
+const pickTeams = (payload) => (payload?.success && payload.teams ? payload.teams : []);
+const pickFirstProgram = (payload) =>
+  payload?.success && payload.programs ? payload.programs[0] || null : null;
 
 /**
  * The programme's deliverables, and the ones still ahead of us as a calendar.
  * The clock is read here rather than during the render because a transform runs
  * outside it; the loader this replaced read it in the same place.
  */
-const pickDeliverables = (d) => {
-  const list = d?.success && d.deliverables ? d.deliverables : [];
+const pickDeliverables = (payload) => {
+  const list = payload?.success && payload.deliverables ? payload.deliverables : [];
   const now = new Date();
   const upcoming = list
-    .filter((x) => x.due_date || x.created_at)
-    .map((x) => ({
-      ...x,
-      _date: x.due_date ? new Date(x.due_date) : new Date(x.created_at),
+    .filter((deliverable) => deliverable.due_date || deliverable.created_at)
+    .map((deliverable) => ({
+      ...deliverable,
+      _date: deliverable.due_date ? new Date(deliverable.due_date) : new Date(deliverable.created_at),
     }))
-    .filter((x) => x._date >= now)
-    .sort((a, b) => a._date - b._date);
+    .filter((deliverable) => deliverable._date >= now)
+    .sort((first, second) => first._date - second._date);
   return { list, upcoming };
 };
 
 /** This team's submissions, gathered under the deliverable they answer. */
-const pickSubmissionsByDeliverable = (d) => {
+const pickSubmissionsByDeliverable = (payload) => {
   const byDeliverable = {};
-  if (!d?.success || !d.submissions) return byDeliverable;
-  for (const s of d.submissions) {
-    const key = s.deliverable_id || s.requirement_id;
+  if (!payload?.success || !payload.submissions) return byDeliverable;
+  for (const submission of payload.submissions) {
+    const key = submission.deliverable_id || submission.requirement_id;
     if (!key) continue;
     if (!byDeliverable[key]) byDeliverable[key] = [];
-    byDeliverable[key].push(s);
+    byDeliverable[key].push(submission);
   }
   return byDeliverable;
 };
 
-const pickTasks = (d) => (d?.success ? d.tasks || [] : []);
+const pickTasks = (payload) => (payload?.success ? payload.tasks || [] : []);
 
 export default function TeamDashboardPage({ params }) {
   const unwrappedParams = use(params);
@@ -143,7 +143,7 @@ export default function TeamDashboardPage({ params }) {
   });
 
   const team =
-    teams.find((x) => x.id === teamId || String(x.id) === String(teamId)) ||
+    teams.find((candidate) => candidate.id === teamId || String(candidate.id) === String(teamId)) ||
     null;
   const members = team?.members || [];
   const programId = team?.program_id || null;
@@ -213,18 +213,18 @@ export default function TeamDashboardPage({ params }) {
   }, [refreshTeams, refreshProgram, refreshDeliverables, refreshSubmissions]);
 
   // — File upload handler —
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
     if (!file) return;
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/upload", {
+      const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.url) {
         setSubmitFileUrl(data.url);
       } else if (data.blob?.url) {
@@ -253,7 +253,7 @@ export default function TeamDashboardPage({ params }) {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/submissions", {
+      const response = await fetch("/api/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -264,7 +264,7 @@ export default function TeamDashboardPage({ params }) {
           status: "pending",
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setToast({ type: "success", message: t("rootMisc.team.submissionSuccess") });
         setShowSubmitModal(false);
@@ -295,10 +295,10 @@ export default function TeamDashboardPage({ params }) {
 
   // — Coaching review handler —
   const openReviewModal = (deliverable) => {
-    const sub = getSubmissionStatus(deliverable.id);
-    if (!sub) return;
-    setReviewSubData({ ...sub, _deliverable: deliverable });
-    setReviewFeedback(sub.feedback || "");
+    const submission = getSubmissionStatus(deliverable.id);
+    if (!submission) return;
+    setReviewSubData({ ...submission, _deliverable: deliverable });
+    setReviewFeedback(submission.feedback || "");
     setShowReviewModal(true);
   };
 
@@ -313,12 +313,12 @@ export default function TeamDashboardPage({ params }) {
           comment: reviewFeedback,
         };
       }
-      const res = await fetch("/api/submissions", {
+      const response = await fetch("/api/submissions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setToast({
           type: "success",
@@ -332,8 +332,8 @@ export default function TeamDashboardPage({ params }) {
       } else {
         setToast({ type: "error", message: t((data.error || t("rootMisc.team.reviewFailed")) || "") || (data.error || t("rootMisc.team.reviewFailed")) });
       }
-    } catch (e) {
-      setToast({ type: "error", message: t(e.message || "") || e.message });
+    } catch (error) {
+      setToast({ type: "error", message: t(error.message || "") || error.message });
     }
     setReviewing(false);
   };
@@ -343,12 +343,12 @@ export default function TeamDashboardPage({ params }) {
     if (!taskForm.title.trim()) return;
     setSavingTask(true);
     try {
-      const res = await fetch("/api/team-tasks", {
+      const response = await fetch("/api/team-tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...taskForm, team_id: teamId }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setToast({ type: "success", message: t("rootMisc.team.taskCreated") });
         setShowTaskModal(false);
@@ -360,45 +360,45 @@ export default function TeamDashboardPage({ params }) {
         });
         refreshTasks();
       }
-    } catch (e) {
-      setToast({ type: "error", message: t(e.message || "") || e.message });
+    } catch (error) {
+      setToast({ type: "error", message: t(error.message || "") || error.message });
     }
     setSavingTask(false);
   };
 
   const handleUpdateTaskStatus = async (taskId, status) => {
     try {
-      const res = await fetch("/api/team-tasks", {
+      const response = await fetch("/api/team-tasks", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: taskId, status }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) refreshTasks();
     } catch (_) {}
   };
 
   const handleDeleteTask = async (taskId) => {
     try {
-      const res = await fetch("/api/team-tasks", {
+      const response = await fetch("/api/team-tasks", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: taskId }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setToast({ type: "success", message: t("rootMisc.team.taskDeleted") });
         refreshTasks();
       }
-    } catch (e) {
-      setToast({ type: "error", message: t(e.message || "") || e.message });
+    } catch (error) {
+      setToast({ type: "error", message: t(error.message || "") || error.message });
     }
   };
 
   const getSubmissionStatus = (deliverableId) => {
-    const subs = submissions[deliverableId];
-    if (!subs || subs.length === 0) return null;
-    const latest = subs[0];
+    const submissionList = submissions[deliverableId];
+    if (!submissionList || submissionList.length === 0) return null;
+    const latest = submissionList[0];
     return latest;
   };
 
@@ -406,9 +406,9 @@ export default function TeamDashboardPage({ params }) {
   const progressPct = (() => {
     if (deliverables.length === 0) return 0;
     let completed = 0;
-    for (const d of deliverables) {
-      const sub = getSubmissionStatus(d.id);
-      if (sub && (sub.status === "approved" || sub.status === "completed")) {
+    for (const deliverable of deliverables) {
+      const submission = getSubmissionStatus(deliverable.id);
+      if (submission && (submission.status === "approved" || submission.status === "completed")) {
         completed++;
       }
     }
@@ -425,7 +425,7 @@ export default function TeamDashboardPage({ params }) {
   ];
 
   // — Empty state renderer —
-  const renderEmpty = (icon, title, desc) => (
+  const renderEmpty = (icon, title, description) => (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="w-16 h-16 rounded-2xl bg-[var(--surface-3)] flex items-center justify-center mb-4">
         {icon}
@@ -433,7 +433,7 @@ export default function TeamDashboardPage({ params }) {
       <p className="text-sm font-bold text-[var(--text-primary)] mb-1">
         {title}
       </p>
-      <p className="text-xs text-[var(--text-secondary)] max-w-xs">{desc}</p>
+      <p className="text-xs text-[var(--text-secondary)] max-w-xs">{description}</p>
     </div>
   );
 
@@ -467,9 +467,9 @@ export default function TeamDashboardPage({ params }) {
   };
 
   // — Format date helper —
-  const fmtDate = (d) => {
-    if (!d) return "—";
-    return new Date(d).toLocaleDateString("en-US", {
+  const fmtDate = (value) => {
+    if (!value) return "—";
+    return new Date(value).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -608,11 +608,11 @@ export default function TeamDashboardPage({ params }) {
                     </p>
                     <p className="text-lg font-black text-[var(--text-primary)]">
                       {
-                        deliverables.filter((d) => {
-                          const sub = getSubmissionStatus(d.id);
+                        deliverables.filter((deliverable) => {
+                          const submission = getSubmissionStatus(deliverable.id);
                           return (
-                            sub &&
-                            ["approved", "completed"].includes(sub.status)
+                            submission &&
+                            ["approved", "completed"].includes(submission.status)
                           );
                         }).length
                       }{" "}
@@ -633,9 +633,9 @@ export default function TeamDashboardPage({ params }) {
                     </p>
                     <p className="text-lg font-black text-[var(--text-primary)]">
                       {
-                        deliverables.filter((d) => {
-                          const sub = getSubmissionStatus(d.id);
-                          return !sub || sub.status === "pending";
+                        deliverables.filter((deliverable) => {
+                          const submission = getSubmissionStatus(deliverable.id);
+                          return !submission || submission.status === "pending";
                         }).length
                       }
                     </p>
@@ -736,7 +736,7 @@ export default function TeamDashboardPage({ params }) {
                         icon={Star}
                         onClick={async () => {
                           try {
-                            const res = await fetch("/api/teams", {
+                            const response = await fetch("/api/teams", {
                               method: "PUT",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
@@ -745,7 +745,7 @@ export default function TeamDashboardPage({ params }) {
                                 is_venture_ready: !team.is_venture_ready,
                               }),
                             });
-                            if ((await res.json()).success) reloadTeam();
+                            if ((await response.json()).success) reloadTeam();
                           } catch (_) {}
                         }}
                       >
@@ -769,20 +769,20 @@ export default function TeamDashboardPage({ params }) {
                   </p>
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {members.map((m, i) => (
+                    {members.map((member, index) => (
                       <div
-                        key={m.cid || m.id || i}
+                        key={member.cid || member.id || index}
                         className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--surface-3)] transition-colors"
                       >
                         <div className="w-8 h-8 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-black text-[var(--brand-orange)]">
-                          {(m.name || "?")[0].toUpperCase()}
+                          {(member.name || "?")[0].toUpperCase()}
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs font-bold text-[var(--text-primary)] truncate">
-                            {m.name || t("rootMisc.team.unnamed")}
+                            {member.name || t("rootMisc.team.unnamed")}
                           </p>
                           <p className="text-[10px] font-medium text-[var(--text-tertiary)] truncate">
-                            {m.email || ""}
+                            {member.email || ""}
                           </p>
                         </div>
                       </div>
@@ -800,21 +800,21 @@ export default function TeamDashboardPage({ params }) {
                   {t("rootMisc.team.upcomingDeadlines")}
                 </h3>
                 <div className="space-y-2">
-                  {upcomingDeadlines.slice(0, 5).map((d) => (
+                  {upcomingDeadlines.slice(0, 5).map((deliverable) => (
                     <div
-                      key={d.id}
+                      key={deliverable.id}
                       className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface-3)]"
                     >
                       <div>
                         <p className="text-xs font-bold text-[var(--text-primary)]">
-                          {d.title}
+                          {deliverable.title}
                         </p>
                         <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
-                          {t("rootMisc.team.week")} {d.week_number || "?"}
+                          {t("rootMisc.team.week")} {deliverable.week_number || "?"}
                         </p>
                       </div>
                       <span className="text-[10px] font-black text-amber-500 uppercase">
-                        {fmtDate(d.due_date || d._date)}
+                        {fmtDate(deliverable.due_date || deliverable._date)}
                       </span>
                     </div>
                   ))}
@@ -835,21 +835,21 @@ export default function TeamDashboardPage({ params }) {
                   t("rootMisc.team.noDeliverables"),
                   t("rootMisc.team.noDeliverablesDesc"),
                 )
-              : deliverables.map((d) => {
-                  const sub = getSubmissionStatus(d.id);
-                  const statusKey = sub?.status || "pending";
+              : deliverables.map((deliverable) => {
+                  const submission = getSubmissionStatus(deliverable.id);
+                  const statusKey = submission?.status || "pending";
                   const _colors =
                     statusColors[statusKey] || statusColors.pending;
                   const isOverdue =
-                    !sub && d.due_date && new Date(d.due_date) < new Date();
+                    !submission && deliverable.due_date && new Date(deliverable.due_date) < new Date();
 
                   return (
-                    <AppCard key={d.id} padding="lg" hover>
+                    <AppCard key={deliverable.id} padding="lg" hover>
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <h4 className="text-sm font-black text-[var(--text-primary)]">
-                              {d.title}
+                              {deliverable.title}
                             </h4>
                             {isOverdue && (
                               <span className="px-2 py-0.5 rounded-md bg-rose-500/10 text-[10px] font-bold uppercase text-rose-500">
@@ -857,31 +857,31 @@ export default function TeamDashboardPage({ params }) {
                               </span>
                             )}
                           </div>
-                          {d.description && (
+                          {deliverable.description && (
                             <p className="text-xs text-[var(--text-secondary)] mt-1 line-clamp-2">
-                              {d.description}
+                              {deliverable.description}
                             </p>
                           )}
                           <div className="flex items-center gap-4 mt-3">
                             <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase">
-                              {t("rootMisc.team.week")} {d.week_number || "?"}
+                              {t("rootMisc.team.week")} {deliverable.week_number || "?"}
                             </span>
-                            {d.due_date && (
+                            {deliverable.due_date && (
                               <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase">
-                                {t("rootMisc.team.dueDate")}: {fmtDate(d.due_date)}
+                                {t("rootMisc.team.dueDate")}: {fmtDate(deliverable.due_date)}
                               </span>
                             )}
                           </div>
 
                           {/* Submission status */}
-                          {sub && (
+                          {submission && (
                             <div className="mt-3">
                               <AppStatusBadge
-                                status={sub.status || "pending"}
+                                status={submission.status || "pending"}
                               />
-                              {sub.file_url && (
+                              {submission.file_url && (
                                 <a
-                                  href={sub.file_url}
+                                  href={submission.file_url}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 ml-3 text-[10px] font-bold text-[var(--brand-blue)] hover:underline"
@@ -890,35 +890,35 @@ export default function TeamDashboardPage({ params }) {
                                   {t("rootMisc.team.viewSubmission")}
                                 </a>
                               )}
-                              {sub.feedback && (
+                              {submission.feedback && (
                                 <p className="text-[10px] text-[var(--text-secondary)] mt-2">
-                                  {t("rootMisc.team.feedback")}: {sub.feedback}
+                                  {t("rootMisc.team.feedback")}: {submission.feedback}
                                 </p>
                               )}
                             </div>
                           )}
 
                           {/* Version history */}
-                          {submissions[d.id] &&
-                            submissions[d.id].length > 1 && (
+                          {submissions[deliverable.id] &&
+                            submissions[deliverable.id].length > 1 && (
                               <details className="mt-3">
                                 <summary className="text-[10px] font-bold text-[var(--text-tertiary)] cursor-pointer hover:text-[var(--brand-orange)] transition-colors uppercase tracking-wider flex items-center gap-1">
                                   <History className="w-3 h-3" />
-                                  {t("rootMisc.team.versionHistory")} ({submissions[d.id].length})
+                                  {t("rootMisc.team.versionHistory")} ({submissions[deliverable.id].length})
                                 </summary>
                                 <div className="mt-2 space-y-1.5 pl-2 border-l-2 border-[var(--border-primary)]">
-                                  {submissions[d.id].map((v, vi) => (
+                                  {submissions[deliverable.id].map((version, versionIndex) => (
                                     <div
-                                      key={vi}
+                                      key={versionIndex}
                                       className="text-[10px] text-[var(--text-secondary)] flex items-center gap-2"
                                     >
                                       <span className="text-[var(--text-tertiary)]">
-                                        v{submissions[d.id].length - vi}
+                                        v{submissions[deliverable.id].length - versionIndex}
                                       </span>
-                                      <span>{fmtDate(v.created_at)}</span>
-                                      {v.file_url && (
+                                      <span>{fmtDate(version.created_at)}</span>
+                                      {version.file_url && (
                                         <a
-                                          href={v.file_url}
+                                          href={version.file_url}
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           className="text-[var(--brand-blue)] hover:underline"
@@ -941,22 +941,22 @@ export default function TeamDashboardPage({ params }) {
                             "super_admin",
                             "program_manager",
                           ].includes(userRole) &&
-                            sub && (
+                            submission && (
                               <AppButton
                                 variant="secondary"
                                 size="sm"
-                                onClick={() => openReviewModal(d)}
+                                onClick={() => openReviewModal(deliverable)}
                                 title={t("rootMisc.team.reviewSubmissionTitle")}
                               >
                                 <ClipboardCheck className="w-3.5 h-3.5" />
                               </AppButton>
                             )}
                           <AppButton
-                            variant={sub ? "secondary" : "primary"}
+                            variant={submission ? "secondary" : "primary"}
                             size="sm"
-                            onClick={() => openSubmitModal(d)}
+                            onClick={() => openSubmitModal(deliverable)}
                           >
-                            {sub ? t("rootMisc.team.resubmit") : t("rootMisc.team.submit")}
+                            {submission ? t("rootMisc.team.resubmit") : t("rootMisc.team.submit")}
                           </AppButton>
                         </div>
                       </div>
@@ -1001,13 +1001,13 @@ export default function TeamDashboardPage({ params }) {
               <AppCard padding="md">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                    {t("rootMisc.team.progress")} ({tasks.filter((t) => t.status === "done").length}/
+                    {t("rootMisc.team.progress")} ({tasks.filter((task) => task.status === "done").length}/
                     {tasks.length})
                   </span>
                   <span className="text-[10px] font-black text-[var(--brand-orange)]">
                     {tasks.length > 0
                       ? Math.round(
-                          (tasks.filter((t) => t.status === "done").length /
+                          (tasks.filter((task) => task.status === "done").length /
                             tasks.length) *
                             100,
                         )
@@ -1019,7 +1019,7 @@ export default function TeamDashboardPage({ params }) {
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{
-                      width: `${tasks.length > 0 ? Math.round((tasks.filter((t) => t.status === "done").length / tasks.length) * 100) : 0}%`,
+                      width: `${tasks.length > 0 ? Math.round((tasks.filter((task) => task.status === "done").length / tasks.length) * 100) : 0}%`,
                       background: "var(--brand-orange)",
                     }}
                   />
@@ -1060,7 +1060,7 @@ export default function TeamDashboardPage({ params }) {
                     accent: "emerald",
                   },
                 ].map((col) => {
-                  const colTasks = tasks.filter((t) => t.status === col.status);
+                  const colTasks = tasks.filter((task) => task.status === col.status);
                   return (
                     <div key={col.status}>
                       <div className="flex items-center gap-2 mb-3">
@@ -1094,7 +1094,7 @@ export default function TeamDashboardPage({ params }) {
                               text: "text-slate-500",
                             },
                           };
-                          const pc =
+                          const priorityStyle =
                             priorityColors[task.priority] ||
                             priorityColors.medium;
                           return (
@@ -1142,7 +1142,7 @@ export default function TeamDashboardPage({ params }) {
                                 )}
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span
-                                    className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${pc.bg} ${pc.text}`}
+                                    className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${priorityStyle.bg} ${priorityStyle.text}`}
                                   >
                                     {task.priority}
                                   </span>
@@ -1267,34 +1267,34 @@ export default function TeamDashboardPage({ params }) {
             {/* Submission files list */}
             {Object.values(submissions)
               .flat()
-              .some((s) => s.file_url) && (
+              .some((submission) => submission.file_url) && (
               <div className="mt-6">
                 <h4 className="text-xs font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3">
                   {t("rootMisc.team.submittedFiles")}
                 </h4>
                 <div className="space-y-2">
-                  {Object.entries(submissions).map(([delId, subs]) =>
-                    subs
-                      .filter((s) => s.file_url)
-                      .map((s, i) => (
+                  {Object.entries(submissions).map(([deliverableId, submissionList]) =>
+                    submissionList
+                      .filter((submission) => submission.file_url)
+                      .map((submission, index) => (
                         <div
-                          key={`${delId}-${i}`}
+                          key={`${deliverableId}-${index}`}
                           className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface-3)]"
                         >
                           <div className="flex items-center gap-3">
                             <FileText className="w-4 h-4 text-[var(--text-tertiary)]" />
                             <div>
                               <p className="text-xs font-bold text-[var(--text-primary)]">
-                                {deliverables.find((d) => d.id === delId)
+                                {deliverables.find((deliverable) => deliverable.id === deliverableId)
                                   ?.title || t("rootMisc.team.file")}
                               </p>
                               <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
-                                {fmtDate(s.created_at)}
+                                {fmtDate(submission.created_at)}
                               </p>
                             </div>
                           </div>
                           <a
-                            href={s.file_url}
+                            href={submission.file_url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1 text-[10px] font-bold text-[var(--brand-blue)] hover:underline"
@@ -1328,14 +1328,14 @@ export default function TeamDashboardPage({ params }) {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {upcomingDeadlines.map((d) => {
-                    const sub = getSubmissionStatus(d.id);
+                  {upcomingDeadlines.map((deliverable) => {
+                    const submission = getSubmissionStatus(deliverable.id);
                     const isUrgent =
-                      d._date &&
-                      new Date(d._date) - new Date() < 3 * 24 * 60 * 60 * 1000;
+                      deliverable._date &&
+                      new Date(deliverable._date) - new Date() < 3 * 24 * 60 * 60 * 1000;
                     return (
                       <div
-                        key={d.id}
+                        key={deliverable.id}
                         className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface-3)]"
                       >
                         <div className="flex items-center gap-3">
@@ -1346,18 +1346,18 @@ export default function TeamDashboardPage({ params }) {
                           />
                           <div>
                             <p className="text-xs font-bold text-[var(--text-primary)]">
-                              {d.title}
+                              {deliverable.title}
                             </p>
                             <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
-                              {t("rootMisc.team.week")} {d.week_number || "?"}
-                              {d.description ? ` — ${d.description}` : ""}
+                              {t("rootMisc.team.week")} {deliverable.week_number || "?"}
+                              {deliverable.description ? ` — ${deliverable.description}` : ""}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          {sub ? (
+                          {submission ? (
                             <AppStatusBadge
-                              status={sub.status}
+                              status={submission.status}
                               variant="minimal"
                             />
                           ) : (
@@ -1366,7 +1366,7 @@ export default function TeamDashboardPage({ params }) {
                             </span>
                           )}
                           <span className="text-[10px] font-black text-[var(--text-primary)]">
-                            {fmtDate(d._date)}
+                            {fmtDate(deliverable._date)}
                           </span>
                         </div>
                       </div>
@@ -1389,32 +1389,32 @@ export default function TeamDashboardPage({ params }) {
               ) : (
                 <div className="space-y-2">
                   {Object.entries(submissions)
-                    .flatMap(([delId, subs]) =>
-                      subs.map((s) => ({ ...s, _delId: delId })),
+                    .flatMap(([deliverableId, submissionList]) =>
+                      submissionList.map((submission) => ({ ...submission, _delId: deliverableId })),
                     )
                     .sort(
-                      (a, b) => new Date(b.created_at) - new Date(a.created_at),
+                      (first, second) => new Date(second.created_at) - new Date(first.created_at),
                     )
                     .slice(0, 10)
-                    .map((s, i) => (
+                    .map((submission, index) => (
                       <div
-                        key={i}
+                        key={index}
                         className="flex items-center justify-between p-3 rounded-lg border border-[var(--border-primary)]"
                       >
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-4 h-4 text-[var(--text-tertiary)]" />
                           <div>
                             <p className="text-xs font-bold text-[var(--text-primary)]">
-                              {deliverables.find((d) => d.id === s._delId)
+                              {deliverables.find((deliverable) => deliverable.id === submission._delId)
                                 ?.title || t("rootMisc.team.submission")}
                             </p>
                             <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
-                              {fmtDate(s.created_at)}
+                              {fmtDate(submission.created_at)}
                             </p>
                           </div>
                         </div>
                         <AppStatusBadge
-                          status={s.status || "pending"}
+                          status={submission.status || "pending"}
                           variant="minimal"
                         />
                       </div>
@@ -1508,7 +1508,7 @@ export default function TeamDashboardPage({ params }) {
                   <input
                     type="url"
                     value={submitLink}
-                    onChange={(e) => setSubmitLink(e.target.value)}
+                    onChange={(event) => setSubmitLink(event.target.value)}
                     placeholder="https://drive.google.com/..."
                     className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors"
                   />
@@ -1601,7 +1601,7 @@ export default function TeamDashboardPage({ params }) {
                   </label>
                   <textarea
                     value={reviewFeedback}
-                    onChange={(e) => setReviewFeedback(e.target.value)}
+                    onChange={(event) => setReviewFeedback(event.target.value)}
                     placeholder={t("rootMisc.team.feedbackPlaceholder")}
                     rows={3}
                     className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors resize-none"
@@ -1616,7 +1616,7 @@ export default function TeamDashboardPage({ params }) {
                     <input
                       type="datetime-local"
                       value={followUpDate}
-                      onChange={(e) => setFollowUpDate(e.target.value)}
+                      onChange={(event) => setFollowUpDate(event.target.value)}
                       className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors"
                     />
                   </div>
@@ -1712,8 +1712,8 @@ export default function TeamDashboardPage({ params }) {
                   </label>
                   <input
                     value={taskForm.title}
-                    onChange={(e) =>
-                      setTaskForm({ ...taskForm, title: e.target.value })
+                    onChange={(event) =>
+                      setTaskForm({ ...taskForm, title: event.target.value })
                     }
                     placeholder={t("rootMisc.team.taskTitlePlaceholder")}
                     className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors"
@@ -1725,8 +1725,8 @@ export default function TeamDashboardPage({ params }) {
                   </label>
                   <textarea
                     value={taskForm.description}
-                    onChange={(e) =>
-                      setTaskForm({ ...taskForm, description: e.target.value })
+                    onChange={(event) =>
+                      setTaskForm({ ...taskForm, description: event.target.value })
                     }
                     placeholder={t("rootMisc.team.descriptionPlaceholder")}
                     rows={2}
@@ -1740,8 +1740,8 @@ export default function TeamDashboardPage({ params }) {
                     </label>
                     <select
                       value={taskForm.priority}
-                      onChange={(e) =>
-                        setTaskForm({ ...taskForm, priority: e.target.value })
+                      onChange={(event) =>
+                        setTaskForm({ ...taskForm, priority: event.target.value })
                       }
                       className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors appearance-none cursor-pointer"
                     >
@@ -1757,18 +1757,18 @@ export default function TeamDashboardPage({ params }) {
                     </label>
                     <select
                       value={taskForm.assigned_to}
-                      onChange={(e) =>
+                      onChange={(event) =>
                         setTaskForm({
                           ...taskForm,
-                          assigned_to: e.target.value,
+                          assigned_to: event.target.value,
                         })
                       }
                       className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors appearance-none cursor-pointer"
                     >
                       <option value="">{t("rootMisc.team.anyone")}</option>
-                      {members.map((m) => (
-                        <option key={m.cid || m.id} value={m.cid || m.id}>
-                          {m.name || m.email}
+                      {members.map((member) => (
+                        <option key={member.cid || member.id} value={member.cid || member.id}>
+                          {member.name || member.email}
                         </option>
                       ))}
                     </select>

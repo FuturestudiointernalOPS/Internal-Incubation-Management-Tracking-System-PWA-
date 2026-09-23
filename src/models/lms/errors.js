@@ -17,12 +17,12 @@ export class LmsError extends Error {
  * Standard error response for LMS route handlers.
  * Never leaks raw database errors — the message is always an i18n key.
  */
-export function lmsErrorResponse(e) {
-  const status = e && e.status ? e.status : 500;
+export function lmsErrorResponse(error) {
+  const status = error && error.status ? error.status : 500;
   const body = {
     success: false,
-    error: e && e.message ? e.message : "errors.somethingWrong",
+    error: error && error.message ? error.message : "errors.somethingWrong",
   };
-  if (e && e.details) body.details = e.details;
+  if (error && error.details) body.details = error.details;
   return NextResponse.json(body, { status });
 }

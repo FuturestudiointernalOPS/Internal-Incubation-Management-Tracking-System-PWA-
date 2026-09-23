@@ -20,19 +20,19 @@ export async function GET(_req) {
     if (capError) return capError;
 
     const session = await getSession();
-    const prof = await getInvestorProfileIdForDecisions(session.cid || session.id);
-    if (prof.rows.length === 0) {
+    const profileResult = await getInvestorProfileIdForDecisions(session.cid || session.id);
+    if (profileResult.rows.length === 0) {
       return NextResponse.json({ success: true, decisions: [], history: [] });
     }
 
     // All decisions with venture info
-    const decisions = await listInvestorDecisions(prof.rows[0].id);
+    const decisions = await listInvestorDecisions(profileResult.rows[0].id);
 
     // Investment history timeline (all pipeline activity)
-    const history = await listInvestorHistoryTimeline(prof.rows[0].id);
+    const history = await listInvestorHistoryTimeline(profileResult.rows[0].id);
 
     // Stats
-    const stats = await getInvestorDecisionStats(prof.rows[0].id);
+    const stats = await getInvestorDecisionStats(profileResult.rows[0].id);
 
     return NextResponse.json({
       success: true,

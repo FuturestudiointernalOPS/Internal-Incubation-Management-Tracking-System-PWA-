@@ -12,10 +12,10 @@ import { useI18n } from "@/lib/i18n";
 // Module scope on purpose: the hook keys its internal callback on these
 // functions, so inline arrows would give them a new identity on every render and
 // refetch in a loop.
-const pickVenture = (d) => (d?.success ? d.venture : null);
-const pickInvestment = (d) => (d?.success ? d : null);
-const pickRoadmapReadiness = (d) =>
-  d?.success && d.roadmap_readiness ? d.roadmap_readiness : null;
+const pickVenture = (payload) => (payload?.success ? payload.venture : null);
+const pickInvestment = (payload) => (payload?.success ? payload : null);
+const pickRoadmapReadiness = (payload) =>
+  payload?.success && payload.roadmap_readiness ? payload.roadmap_readiness : null;
 
 const CATEGORY_ICONS = {
   startup_profile: Briefcase, legal: Shield, financial: DollarSign, product: Rocket,
@@ -64,9 +64,9 @@ export default function VentureInvestmentPage() {
   const handleEvaluate = async () => {
     setEvaluating(true);
     try {
-      const res = await fetch(`/api/ventures/${id}/investment`, { method: "POST" });
-      const d = await res.json();
-      if (d.success) { refresh(); refreshRoadmap(); }
+      const response = await fetch(`/api/ventures/${id}/investment`, { method: "POST" });
+      const payload = await response.json();
+      if (payload.success) { refresh(); refreshRoadmap(); }
     } catch {} finally { setEvaluating(false); }
   };
 
@@ -206,10 +206,10 @@ export default function VentureInvestmentPage() {
                   { min: 26, max: 50, label: "Early Ready", color: "text-amber-400" },
                   { min: 51, max: 75, label: "Investment Ready", color: "text-emerald-400" },
                   { min: 76, max: 100, label: "Fundraising Ready", color: "text-[var(--brand-orange)]" },
-                ].map((l) => (
-                  <div key={l.label} className={`p-2 rounded-lg ${overallScore >= l.min && overallScore <= l.max ? "bg-[var(--brand-orange)]/10" : "bg-tertiary"}`}>
-                    <p className={`text-[10px] font-bold uppercase ${overallScore >= l.min && overallScore <= l.max ? l.color : "text-slate-500"}`}>{l.min}-{l.max}</p>
-                    <p className={`text-[10px] font-bold ${overallScore >= l.min && overallScore <= l.max ? l.color : "text-slate-500"}`}>{l.label}</p>
+                ].map((level) => (
+                  <div key={level.label} className={`p-2 rounded-lg ${overallScore >= level.min && overallScore <= level.max ? "bg-[var(--brand-orange)]/10" : "bg-tertiary"}`}>
+                    <p className={`text-[10px] font-bold uppercase ${overallScore >= level.min && overallScore <= level.max ? level.color : "text-slate-500"}`}>{level.min}-{level.max}</p>
+                    <p className={`text-[10px] font-bold ${overallScore >= level.min && overallScore <= level.max ? level.color : "text-slate-500"}`}>{level.label}</p>
                   </div>
                 ))}
               </div>
@@ -222,11 +222,11 @@ export default function VentureInvestmentPage() {
           <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">Category Breakdown</h3>
           <div className="space-y-3">
             {categories.length === 0 && <p className="text-sm text-[var(--text-secondary)] text-center py-4">Run an assessment to see category scores</p>}
-            {categories.map((cat) => {
-              const Icon = CATEGORY_ICONS[cat.category] || Target;
-              const score = cat.score || 0;
+            {categories.map((category) => {
+              const Icon = CATEGORY_ICONS[category.category] || Target;
+              const score = category.score || 0;
               return (
-                <div key={cat.category} className="flex items-center gap-4 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                <div key={category.category} className="flex items-center gap-4 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                     score >= 75 ? "bg-emerald-500/10" : score >= 50 ? "bg-amber-500/10" : "bg-slate-500/10"
                   }`}>
@@ -234,7 +234,7 @@ export default function VentureInvestmentPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-bold text-[var(--text-primary)]">{CATEGORY_LABELS[cat.category] || cat.category}</span>
+                      <span className="text-[10px] font-bold text-[var(--text-primary)]">{CATEGORY_LABELS[category.category] || category.category}</span>
                       <span className="text-[11px] font-black">{score}</span>
                     </div>
                     {progressBar(score, score >= 75 ? "bg-emerald-500" : score >= 50 ? "bg-amber-500" : "bg-rose-500")}
@@ -254,23 +254,23 @@ export default function VentureInvestmentPage() {
             <p className="text-sm text-[var(--text-secondary)] text-center py-4">No recommendations yet. Run an assessment to generate them.</p>
           ) : (
             <div className="space-y-3">
-              {recommendations.map((r) => (
-                <div key={r.id} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+              {recommendations.map((recommendation) => (
+                <div key={recommendation.id} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                          r.priority === "high" ? "bg-rose-500/10 text-rose-400" :
-                          r.priority === "medium" ? "bg-amber-500/10 text-amber-400" :
+                          recommendation.priority === "high" ? "bg-rose-500/10 text-rose-400" :
+                          recommendation.priority === "medium" ? "bg-amber-500/10 text-amber-400" :
                           "bg-slate-500/10 text-slate-400"
-                        }`}>{r.priority}</span>
-                        <p className="text-[11px] font-bold text-[var(--text-primary)]">{r.title}</p>
+                        }`}>{recommendation.priority}</span>
+                        <p className="text-[11px] font-bold text-[var(--text-primary)]">{recommendation.title}</p>
                       </div>
-                      <p className="text-[10px] text-[var(--text-secondary)] mt-1">{r.description}</p>
+                      <p className="text-[10px] text-[var(--text-secondary)] mt-1">{recommendation.description}</p>
                       <div className="flex items-center gap-3 mt-2 text-[10px] text-[var(--text-secondary)]">
-                        <span>⏱ {r.estimated_effort || "2-4 weeks"}</span>
-                        <span>Impact: <span className={r.expected_impact === "high" ? "text-emerald-400" : r.expected_impact === "medium" ? "text-amber-400" : "text-slate-400"}>{r.expected_impact}</span></span>
-                        {r.resource_id && <span className="text-[var(--brand-orange)]">📚 Resource available</span>}
+                        <span>⏱ {recommendation.estimated_effort || "2-4 weeks"}</span>
+                        <span>Impact: <span className={recommendation.expected_impact === "high" ? "text-emerald-400" : recommendation.expected_impact === "medium" ? "text-amber-400" : "text-slate-400"}>{recommendation.expected_impact}</span></span>
+                        {recommendation.resource_id && <span className="text-[var(--brand-orange)]">📚 Resource available</span>}
                       </div>
                     </div>
                   </div>
@@ -285,23 +285,23 @@ export default function VentureInvestmentPage() {
           <div className="card">
             <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">Score History</h3>
             <div className="space-y-2">
-              {history.map((h, i) => (
-                <div key={h.id || i} className="flex items-center gap-4 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+              {history.map((entry, index) => (
+                <div key={entry.id || index} className="flex items-center gap-4 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                    h.new_score >= (h.previous_score || 0) ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+                    entry.new_score >= (entry.previous_score || 0) ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
                   }`}>
                     <TrendingUp className="w-4 h-4" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-[var(--text-primary)]">{h.new_score}</span>
-                      <span className="text-[10px] text-[var(--text-secondary)]">(was {h.previous_score})</span>
-                      <span className="text-[10px] text-[var(--text-secondary)] capitalize">{h.new_level?.replace(/_/g, " ")}</span>
+                      <span className="text-[10px] font-bold text-[var(--text-primary)]">{entry.new_score}</span>
+                      <span className="text-[10px] text-[var(--text-secondary)]">(was {entry.previous_score})</span>
+                      <span className="text-[10px] text-[var(--text-secondary)] capitalize">{entry.new_level?.replace(/_/g, " ")}</span>
                     </div>
-                    <p className="text-[10px] text-[var(--text-secondary)]">{new Date(h.created_at).toLocaleString()}</p>
+                    <p className="text-[10px] text-[var(--text-secondary)]">{new Date(entry.created_at).toLocaleString()}</p>
                   </div>
-                  <span className={`text-[10px] font-bold ${h.new_score >= (h.previous_score || 0) ? "text-emerald-400" : "text-rose-400"}`}>
-                    {h.previous_score ? `${h.new_score - h.previous_score > 0 ? "+" : ""}${h.new_score - (h.previous_score || 0)}` : "—"}
+                  <span className={`text-[10px] font-bold ${entry.new_score >= (entry.previous_score || 0) ? "text-emerald-400" : "text-rose-400"}`}>
+                    {entry.previous_score ? `${entry.new_score - entry.previous_score > 0 ? "+" : ""}${entry.new_score - (entry.previous_score || 0)}` : "—"}
                   </span>
                 </div>
               ))}

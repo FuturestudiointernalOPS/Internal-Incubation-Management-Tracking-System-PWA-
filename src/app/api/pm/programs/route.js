@@ -90,48 +90,48 @@ export async function GET(req) {
 
     // Map metrics for O(1) lookup
     const metrics = {
-      sessions: Object.fromEntries(sessions.rows.map((r) => [r.program_id, r])),
+      sessions: Object.fromEntries(sessions.rows.map((row) => [row.program_id, row])),
       participants: Object.fromEntries(
-        participants.rows.map((r) => [r.program_id, r.count]),
+        participants.rows.map((row) => [row.program_id, row.count]),
       ),
-      docs: Object.fromEntries(docs.rows.map((r) => [r.program_id, r])),
+      docs: Object.fromEntries(docs.rows.map((row) => [row.program_id, row])),
       reports: Object.fromEntries(
-        reports.rows.map((r) => [r.program_id, r.weeks]),
+        reports.rows.map((row) => [row.program_id, row.weeks]),
       ),
-      segments: segments.rows.reduce((acc, r) => {
-        if (!acc[r.program_id]) acc[r.program_id] = [];
-        acc[r.program_id].push(r.id);
-        return acc;
+      segments: segments.rows.reduce((accumulator, row) => {
+        if (!accumulator[row.program_id]) accumulator[row.program_id] = [];
+        accumulator[row.program_id].push(row.id);
+        return accumulator;
       }, {}),
       submissions: Object.fromEntries(
-        submissions.rows.map((r) => [r.program_id, r]),
+        submissions.rows.map((row) => [row.program_id, row]),
       ),
     };
 
     // 3. Assemble Final Data
     const enrichedPrograms = await Promise.all(
-      programs.map(async (p) => {
-      const s = metrics.sessions[p.id] || { count: 0, completed: 0 };
-      const d = metrics.docs[p.id] || { count: 0, completed: 0 };
-      const r_weeks = metrics.reports[p.id] || 0;
-      const sub = metrics.submissions[p.id] || { total: 0, approved: 0 };
+      programs.map(async (program) => {
+      const sessionMetrics = metrics.sessions[program.id] || { count: 0, completed: 0 };
+      const docMetrics = metrics.docs[program.id] || { count: 0, completed: 0 };
+      const reportWeeks = metrics.reports[program.id] || 0;
+      const submissionMetrics = metrics.submissions[program.id] || { total: 0, approved: 0 };
 
       // Calculate Completion Index in JS to offload DB
-      const sessionsWeight = s.completed * 5.0;
-      const docsWeight = d.completed * 2.0;
-      const reportsWeight = r_weeks * 10.0;
-      const submissionsWeight = sub.approved * 3.0;
+      const sessionsWeight = sessionMetrics.completed * 5.0;
+      const docsWeight = docMetrics.completed * 2.0;
+      const reportsWeight = reportWeeks * 10.0;
+      const submissionsWeight = submissionMetrics.approved * 3.0;
 
-      const duration = Number(p.duration_weeks) || 4;
+      const duration = Number(program.duration_weeks) || 4;
       // Expected submissions use the number of ACTIVE participants (the same
       // deduped, non-facilitator count shown on the card), not the stale
       // counter that may sit on the program row.
-      const participantCount = metrics.participants[p.id] || 0;
+      const participantCount = metrics.participants[program.id] || 0;
       const totalPossibleWeight =
-        s.count * 5.0 +
-        d.count * 2.0 +
+        sessionMetrics.count * 5.0 +
+        docMetrics.count * 2.0 +
         duration * 10.0 +
-        d.count * participantCount * 3.0;
+        docMetrics.count * participantCount * 3.0;
       const rawCompletion =
         totalPossibleWeight > 0
           ? ((sessionsWeight + docsWeight + reportsWeight + submissionsWeight) /
@@ -145,43 +145,43 @@ export async function GET(req) {
       // Program facilitators (external personnel, role='facilitator')
       let facilitators = [];
       try {
-        const facRes = await getProgramFacilitators(p.id);
-        facilitators = facRes.rows.map((r) => {
-          let perms = r.permissions || {};
-          if (typeof perms === "string") {
-            try { perms = JSON.parse(perms); } catch { perms = {}; }
+        const facilitatorsResult = await getProgramFacilitators(program.id);
+        facilitators = facilitatorsResult.rows.map((facilitator) => {
+          let permissions = facilitator.permissions || {};
+          if (typeof permissions === "string") {
+            try { permissions = JSON.parse(permissions); } catch { permissions = {}; }
           }
           return {
-            id: r.id,
-            cid: r.staff_id,
-            role: r.role || "facilitator",
-            permissions: perms,
-            name: r.name || r.email || r.staff_id,
-            email: r.email || r.staff_id,
+            id: facilitator.id,
+            cid: facilitator.staff_id,
+            role: facilitator.role || "facilitator",
+            permissions,
+            name: facilitator.name || facilitator.email || facilitator.staff_id,
+            email: facilitator.email || facilitator.staff_id,
           };
         });
       } catch (_) {}
 
       // Parse facilitator default permissions defensively
-      let fdp = p.facilitator_default_permissions || {};
-      if (typeof fdp === "string") {
-        try { fdp = JSON.parse(fdp); } catch { fdp = {}; }
+      let facilitatorDefaultPermissions = program.facilitator_default_permissions || {};
+      if (typeof facilitatorDefaultPermissions === "string") {
+        try { facilitatorDefaultPermissions = JSON.parse(facilitatorDefaultPermissions); } catch { facilitatorDefaultPermissions = {}; }
       }
 
       return {
-        ...p,
-        sessions_count: s.count,
-        participants_count: metrics.participants[p.id] || 0,
-        docs_total: d.count,
-        docs_completed: d.completed,
-        reports_count: r_weeks,
+        ...program,
+        sessions_count: sessionMetrics.count,
+        participants_count: metrics.participants[program.id] || 0,
+        docs_total: docMetrics.count,
+        docs_completed: docMetrics.completed,
+        reports_count: reportWeeks,
         completion_index: Math.round(completion_index),
-        assigned_segments: metrics.segments[p.id] || [],
-        submissions_total: sub.total,
-        submissions_approved: sub.approved,
+        assigned_segments: metrics.segments[program.id] || [],
+        submissions_total: submissionMetrics.total,
+        submissions_approved: submissionMetrics.approved,
         facilitators,
-        facilitator_default_permissions: fdp,
-        facilitator_scope: p.facilitator_scope || "assigned_groups",
+        facilitator_default_permissions: facilitatorDefaultPermissions,
+        facilitator_scope: program.facilitator_scope || "assigned_groups",
       };
     }),
     );
@@ -293,9 +293,9 @@ export async function POST(req) {
     if (Array.isArray(assigned_segments) && assigned_segments.length > 0) {
       for (const segmentId of assigned_segments) {
         if (!segmentId) continue;
-        const sid = !isNaN(segmentId) ? Number(segmentId) : null;
-        if (sid !== null) {
-          await assignSegmentById(id, sid);
+        const numericSegmentId = !isNaN(segmentId) ? Number(segmentId) : null;
+        if (numericSegmentId !== null) {
+          await assignSegmentById(id, numericSegmentId);
         } else {
           await assignSegmentByName(id, segmentId);
         }
@@ -503,27 +503,27 @@ export async function PUT(req) {
       // Guard: skip if program_id column has legacy non-UUID values
       try {
         await unlinkSegmentsFromProgram(id);
-      } catch (e) { console.warn("[programs] Could not unlink families segments:", e.message); }
+      } catch (error) { console.warn("[programs] Could not unlink families segments:", error.message); }
 
       // 2. Link the new set of segments
       if (assigned_segments.length > 0) {
         for (const segmentId of assigned_segments) {
           if (!segmentId) continue;
-          const sid = !isNaN(segmentId) ? Number(segmentId) : null;
+          const numericSegmentId = !isNaN(segmentId) ? Number(segmentId) : null;
           let familyName = "";
 
-          if (sid !== null) {
+          if (numericSegmentId !== null) {
             try {
-              await linkSegmentById(id, sid);
-            } catch (e) { console.warn("[programs] Could not link family by id:", e.message); }
-            const fRes = await getSegmentFamilyName(sid);
-            if (fRes.rows && fRes.rows.length > 0) {
-              familyName = fRes.rows[0].name;
+              await linkSegmentById(id, numericSegmentId);
+            } catch (error) { console.warn("[programs] Could not link family by id:", error.message); }
+            const familyNameResult = await getSegmentFamilyName(numericSegmentId);
+            if (familyNameResult.rows && familyNameResult.rows.length > 0) {
+              familyName = familyNameResult.rows[0].name;
             }
           } else {
             try {
               await linkSegmentByName(id, segmentId);
-            } catch (e) { console.warn("[programs] Could not link family by name:", e.message); }
+            } catch (error) { console.warn("[programs] Could not link family by name:", error.message); }
             familyName = segmentId;
           }
 

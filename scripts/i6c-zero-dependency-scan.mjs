@@ -31,22 +31,22 @@ const CONTEXTUAL = [
 ];
 
 function walk(dir, out = []) {
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    const p = join(dir, e.name);
-    if (e.isDirectory()) walk(p, out);
-    else if (e.name === "route.js") out.push(p);
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const entryPath = join(dir, entry.name);
+    if (entry.isDirectory()) walk(entryPath, out);
+    else if (entry.name === "route.js") out.push(entryPath);
   }
   return out;
 }
 
 function listRoles(file) {
   const src = readFileSync(file, "utf8");
-  const blocks = [...src.matchAll(/requireAuth\(\s*\[([^\]]*)\]\)/gs)].map((m) =>
-    m[1].replace(/\s+/g, " ").trim(),
+  const blocks = [...src.matchAll(/requireAuth\(\s*\[([^\]]*)\]\)/gs)].map((match) =>
+    match[1].replace(/\s+/g, " ").trim(),
   );
   const seen = new Set();
-  for (const b of blocks) {
-    for (const raw of b.split(",")) {
+  for (const block of blocks) {
+    for (const raw of block.split(",")) {
       const role = raw.trim().replace(/"/g, "");
       if (role && /^[a-z_]+$/.test(role)) seen.add(role);
     }
@@ -91,38 +91,38 @@ const WATCHLISTED = new Set([
   "submissions/route.js", // POST self-service + on-behalf list (PATCH/GET converted)
 ]);
 
-function rel(p) {
-  const norm = p.replace(/\\/g, "/");
+function rel(filePath) {
+  const normalizedPath = filePath.replace(/\\/g, "/");
   const marker = "/src/app/api/";
-  const idx = norm.indexOf(marker);
-  return idx >= 0 ? norm.slice(idx + marker.length) : norm;
+  const index = normalizedPath.indexOf(marker);
+  return index >= 0 ? normalizedPath.slice(index + marker.length) : normalizedPath;
 }
 
 const rows = [];
 const unclassified = [];
 for (const file of walk(API_ROOT)) {
-  const r = rel(file);
+  const relativePath = rel(file);
   const roles = listRoles(file);
-  const contextual = roles.filter((x) => CONTEXTUAL.includes(x));
+  const contextual = roles.filter((role) => CONTEXTUAL.includes(role));
   if (contextual.length === 0) continue; // no contextual-role gate at all
 
   let verdict;
-  if (WATCHLISTED.has(r)) {
+  if (WATCHLISTED.has(relativePath)) {
     // Documented deferral (partial or full). Converted+watchlisted files are
     // the expected partial-conversion state (e.g. submissions POST).
-    verdict = CONVERTED.has(r) ? "WATCHLISTED(partial — some handlers converted)" : "WATCHLISTED";
-  } else if (CONVERTED.has(r)) {
+    verdict = CONVERTED.has(relativePath) ? "WATCHLISTED(partial — some handlers converted)" : "WATCHLISTED";
+  } else if (CONVERTED.has(relativePath)) {
     verdict = "UNEXPECTED-CONTEXTUAL-IN-CONVERTED"; // contract test should have caught this
-  } else if (contextual.every((c) => c === "program_manager") || contextual.every((c) => c === "participant")) {
+  } else if (contextual.every((role) => role === "program_manager") || contextual.every((role) => role === "participant")) {
     // program_manager lists alongside staff = Staff-PM profile (D2A);
     // participant-only lists = self-service/derivable role lists handled by
     // login derivation; both EXPLAINED when staff/SA also present.
-    const hasStaffFamily = roles.some((x) => ["staff", "super_admin", "admin"].includes(x));
+    const hasStaffFamily = roles.some((role) => ["staff", "super_admin", "admin"].includes(role));
     verdict = hasStaffFamily ? "EXPLAINED(PM-as-staff or participant self-service)" : "EXPLAINED(no-staff PM legacy list — no holder on staging)";
   } else {
     verdict = "UNCLASSIFIED";
   }
-  rows.push({ file: r, roles: roles.join(","), contextual: contextual.join(","), verdict });
+  rows.push({ file: relativePath, roles: roles.join(","), contextual: contextual.join(","), verdict });
   if (verdict === "UNCLASSIFIED" || verdict.startsWith("UNEXPECTED")) unclassified.push(rows[rows.length - 1]);
 }
 
@@ -131,11 +131,11 @@ const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
 const outFile = `scratch/i6c-zero-dependency-scan-${stamp}.json`;
 writeFileSync(outFile, JSON.stringify({ scannedAt: new Date().toISOString(), rows }, null, 2));
 
-for (const r of rows) console.log(`[${r.verdict}] ${r.file}  (contextual: ${r.contextual || "—"})`);
+for (const row of rows) console.log(`[${row.verdict}] ${row.file}  (contextual: ${row.contextual || "—"})`);
 console.log(`\nfiles with contextual-role gates: ${rows.length} — unclassified: ${unclassified.length}`);
 console.log("scan report:", outFile);
 if (unclassified.length > 0) {
   console.error("\nUNCLASSIFIED contextual-role gates (need a documented reason):");
-  for (const u of unclassified) console.error(`  ${u.file}: [${u.roles}]`);
+  for (const unclassifiedRow of unclassified) console.error(`  ${unclassifiedRow.file}: [${unclassifiedRow.roles}]`);
   process.exit(1);
 }

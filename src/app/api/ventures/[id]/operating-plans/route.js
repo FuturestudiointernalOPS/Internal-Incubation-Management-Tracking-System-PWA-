@@ -17,7 +17,7 @@ export const GET = createHandler(
     if (!(await allowsPlanAction(db, access, "view"))) {
       return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
-    const r = await db.execute({
+    const plansResult = await db.execute({
       sql: `SELECT p.*,
         (SELECT COUNT(*) FROM venture_plan_sections s WHERE s.plan_id = p.id) AS section_count,
         (SELECT COUNT(*) FROM venture_plan_sections s WHERE s.plan_id = p.id AND s.status = 'completed') AS completed_sections
@@ -31,7 +31,7 @@ export const GET = createHandler(
     ]);
     return NextResponse.json({
       success: true,
-      plans: r.rows || [],
+      plans: plansResult.rows || [],
       access: { create: canCreate, edit: canEdit, manage: canManage },
     });
   },
@@ -49,11 +49,11 @@ export const POST = createHandler(
     const body = await req.json();
     const name = String(body.name || "").trim();
     if (!name) return NextResponse.json({ success: false, error: "name is required." }, { status: 400 });
-    const res = await db.execute({
+    const insertResult = await db.execute({
       sql: "INSERT INTO venture_operating_plans (venture_id, name, objective, created_by) VALUES (?,?,?,?) RETURNING id",
       args: [access.code, name, body.objective || null, session.cid || null],
     });
-    const planId = res.rows?.[0]?.id ?? null;
+    const planId = insertResult.rows?.[0]?.id ?? null;
     try {
       const { addVentureHistory } = await import("@/lib/ventures");
       await addVentureHistory({ venture_id: access.code, event_type: "OPERATING_PLAN_CREATED", description: `Operating plan "${name}" created` });

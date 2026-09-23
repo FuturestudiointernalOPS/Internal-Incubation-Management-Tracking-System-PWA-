@@ -3,12 +3,12 @@
 // Run: node scripts/run_kpi_progress_migration.mjs
 // Creates the kpi_progress table in Supabase/PostgreSQL
 // =============================================================================
-import pkg from "pg";
+import pgModule from "pg";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const { Pool } = pkg;
+const { Pool } = pgModule;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -50,23 +50,23 @@ async function runMigration() {
     // Split by semicolons and run each statement
     const statements = sql
       .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith("--"));
+      .map((statement) => statement.trim())
+      .filter((statement) => statement.length > 0 && !statement.startsWith("--"));
 
-    for (const stmt of statements) {
-      let fullStmt;
+    for (const statement of statements) {
+      let fullStatement;
       try {
-        fullStmt = stmt.endsWith(";") ? stmt : stmt + ";";
-        await pool.query(fullStmt);
-        console.log(`  ✅ ${fullStmt.substring(0, 100)}...`);
-      } catch (e) {
+        fullStatement = statement.endsWith(";") ? statement : statement + ";";
+        await pool.query(fullStatement);
+        console.log(`  ✅ ${fullStatement.substring(0, 100)}...`);
+      } catch (error) {
         // Ignore "already exists" errors
-        if (e.message.includes("already exists")) {
-          console.log(`  ⏭️  Already exists: ${fullStmt.substring(0, 80)}...`);
+        if (error.message.includes("already exists")) {
+          console.log(`  ⏭️  Already exists: ${fullStatement.substring(0, 80)}...`);
         } else {
-          console.error(`  ❌ ERROR: ${e.message}`);
+          console.error(`  ❌ ERROR: ${error.message}`);
           console.error(
-            `     Statement: ${fullStmt ? fullStmt.substring(0, 120) : "N/A"}`,
+            `     Statement: ${fullStatement ? fullStatement.substring(0, 120) : "N/A"}`,
           );
         }
       }
@@ -75,10 +75,10 @@ async function runMigration() {
     console.log("");
     console.log("📋 Verifying...");
 
-    const verify = await pool.query(
+    const verificationResult = await pool.query(
       "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'kpi_progress') as exists",
     );
-    const tableExists = verify.rows[0]?.exists;
+    const tableExists = verificationResult.rows[0]?.exists;
     if (tableExists) {
       console.log("✅ TABLE kpi_progress exists!");
     } else {
@@ -87,8 +87,8 @@ async function runMigration() {
 
     console.log("");
     console.log("🎉 Migration complete!");
-  } catch (e) {
-    console.error("Migration failed:", e);
+  } catch (error) {
+    console.error("Migration failed:", error);
     process.exit(1);
   } finally {
     await pool.end();

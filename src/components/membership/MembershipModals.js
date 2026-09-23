@@ -80,14 +80,14 @@ export async function runMembershipAction(member, action, t, extra = {}) {
       notify("error", data.error || t("membership.mutate.error"));
       return false;
     }
-    const msg = {
+    const successMessage = {
       joined: t("membership.add.success"),
       activated: t("membership.mutate.activateSuccess"),
       deactivated: t("membership.mutate.deactivateSuccess"),
       ended: t("membership.mutate.endSuccess"),
       renewed: t("membership.renew.success"),
     }[action];
-    notify("success", msg || t("membership.mutate.activateSuccess"));
+    notify("success", successMessage || t("membership.mutate.activateSuccess"));
     return true;
   } catch {
     notify("error", t("membership.mutate.error"));
@@ -108,9 +108,9 @@ export function AddMemberModal({ groups, defaultGroup, isProtected, existing, t,
   const [expires, setExpires] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const fmt = (v) =>
-    v
-      ? new Date(v).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", {
+  const fmt = (value) =>
+    value
+      ? new Date(value).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", {
           day: "2-digit",
           month: "short",
           year: "numeric",
@@ -118,11 +118,11 @@ export function AddMemberModal({ groups, defaultGroup, isProtected, existing, t,
       : "—";
 
   const runSearch = async () => {
-    const q = query.trim();
-    if (q.length < 2) return;
+    const searchText = query.trim();
+    if (searchText.length < 2) return;
     setSearching(true);
     try {
-      const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(searchText)}`);
       const data = await res.json();
       setResults(data.success ? data.contacts || [] : []);
     } catch {
@@ -132,26 +132,26 @@ export function AddMemberModal({ groups, defaultGroup, isProtected, existing, t,
     }
   };
 
-  const pick = async (c) => {
-    setSelected({ ...c, role: "", status: "", group_name: "" });
+  const pick = async (candidate) => {
+    setSelected({ ...candidate, role: "", status: "", group_name: "" });
     setContactGroups([]);
     try {
-      const [dRes, gRes] = await Promise.all([
-        fetch(`/api/contacts?cid=${encodeURIComponent(c.cid)}`),
-        fetch(`/api/user-groups?user_cid=${encodeURIComponent(c.cid)}`),
+      const [contactResponse, groupsResponse] = await Promise.all([
+        fetch(`/api/contacts?cid=${encodeURIComponent(candidate.cid)}`),
+        fetch(`/api/user-groups?user_cid=${encodeURIComponent(candidate.cid)}`),
       ]);
-      const d = await dRes.json();
-      const g = await gRes.json();
-      const contact = Array.isArray(d.contacts) ? d.contacts[0] : d.contact || d;
+      const contactData = await contactResponse.json();
+      const groupsData = await groupsResponse.json();
+      const contact = Array.isArray(contactData.contacts) ? contactData.contacts[0] : contactData.contact || contactData;
       setSelected({
-        cid: c.cid,
-        name: contact.name || c.name,
-        email: contact.email || c.email,
+        cid: candidate.cid,
+        name: contact.name || candidate.name,
+        email: contact.email || candidate.email,
         role: contact.role || "",
         status: contact.status || "",
         group_name: contact.group_name || "",
       });
-      setContactGroups((g.groups || []).filter((x) => x));
+      setContactGroups((groupsData.groups || []).filter((entry) => entry));
     } catch {
       /* keep minimal selection */
     }
@@ -160,7 +160,7 @@ export function AddMemberModal({ groups, defaultGroup, isProtected, existing, t,
   const alreadyMember = useMemo(
     () =>
       selected && group
-        ? existing.some((m) => m.user_cid === selected.cid && m.group_name === group)
+        ? existing.some((membership) => membership.user_cid === selected.cid && membership.group_name === group)
         : false,
     [selected, group, existing],
   );
@@ -193,8 +193,8 @@ export function AddMemberModal({ groups, defaultGroup, isProtected, existing, t,
               icon={Search}
               placeholder={t("membership.add.searchPlaceholder")}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && runSearch()}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && runSearch()}
             />
             <AppButton variant="secondary" size="md" loading={searching} onClick={runSearch}>
               {t("common.search")}
@@ -210,18 +210,18 @@ export function AddMemberModal({ groups, defaultGroup, isProtected, existing, t,
             className="max-h-40 overflow-y-auto rounded-xl divide-y"
             style={{ background: "var(--surface-2)", border: "1px solid var(--border-primary)" }}
           >
-            {results.map((c) => (
+            {results.map((contact) => (
               <button
-                key={c.cid}
-                onClick={() => pick(c)}
+                key={contact.cid}
+                onClick={() => pick(contact)}
                 className="w-full text-left px-4 py-2.5 hover:opacity-80 transition-all flex items-center justify-between"
               >
                 <span>
                   <span className="block text-xs font-bold" style={{ color: "var(--text-primary)" }}>
-                    {c.name}
+                    {contact.name}
                   </span>
                   <span className="block text-[10px]" style={{ color: "var(--text-tertiary)" }}>
-                    {c.email}
+                    {contact.email}
                   </span>
                 </span>
                 <UserPlus className="w-4 h-4" style={{ color: "var(--text-tertiary)" }} />
@@ -280,23 +280,23 @@ export function AddMemberModal({ groups, defaultGroup, isProtected, existing, t,
               <AppSelect
                 label={t("membership.add.groupLabel")}
                 value={group}
-                onChange={(e) => setGroup(e.target.value)}
-                options={groups.map((g) => ({
-                  value: g.name,
-                  label: g.isProtected ? `${g.name} (${t("membership.page.protected")})` : g.name,
+                onChange={(event) => setGroup(event.target.value)}
+                options={groups.map((groupOption) => ({
+                  value: groupOption.name,
+                  label: groupOption.isProtected ? `${groupOption.name} (${t("membership.page.protected")})` : groupOption.name,
                 }))}
               />
               <AppInput
                 label={t("membership.add.startLabel")}
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(event) => setStartDate(event.target.value)}
               />
               <AppInput
                 label={t("membership.add.expiresLabel")}
                 type="date"
                 value={expires}
-                onChange={(e) => setExpires(e.target.value)}
+                onChange={(event) => setExpires(event.target.value)}
               />
             </div>
             {isProtected(group) && (
@@ -405,7 +405,7 @@ export function RenewModal({ member, isReactivate, t, fmtDate, onClose, onConfir
               type="date"
               value={expires}
               disabled={noExpiry}
-              onChange={(e) => setExpires(e.target.value)}
+              onChange={(event) => setExpires(event.target.value)}
             />
           </div>
           <label
@@ -415,9 +415,9 @@ export function RenewModal({ member, isReactivate, t, fmtDate, onClose, onConfir
             <input
               type="checkbox"
               checked={noExpiry}
-              onChange={(e) => {
-                setNoExpiry(e.target.checked);
-                if (e.target.checked) setExpires("");
+              onChange={(event) => {
+                setNoExpiry(event.target.checked);
+                if (event.target.checked) setExpires("");
               }}
             />
             {t("membership.status.never")}
@@ -543,8 +543,8 @@ export function HistoryModal({ member, t, fmtDate, onClose }) {
           <AppEmptyState title={t("membership.detail.noHistory")} icon={History} />
         ) : !events ? (
           <div className="space-y-3">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="h-12 rounded-lg animate-pulse" style={{ background: "var(--surface-3)" }} />
+            {[0, 1, 2].map((index) => (
+              <div key={index} className="h-12 rounded-lg animate-pulse" style={{ background: "var(--surface-3)" }} />
             ))}
           </div>
         ) : events.length === 0 ? (
@@ -554,28 +554,28 @@ export function HistoryModal({ member, t, fmtDate, onClose }) {
             className="rounded-xl divide-y overflow-hidden"
             style={{ background: "var(--surface-2)", border: "1px solid var(--border-primary)" }}
           >
-            {events.map((ev, i) => {
-              const by = ev.actor_name || ev.actor_cid;
+            {events.map((event, index) => {
+              const actor = event.actor_name || event.actor_cid;
               return (
-                <div key={`${ev.created_at}-${i}`} className="px-4 py-3 flex items-start gap-3">
-                  <div className="mt-0.5">{eventIcon(ev.action)}</div>
+                <div key={`${event.created_at}-${index}`} className="px-4 py-3 flex items-start gap-3">
+                  <div className="mt-0.5">{eventIcon(event.action)}</div>
                   <div className="flex-1">
                     <p className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>
-                      {eventLabel(ev.action, t)}
+                      {eventLabel(event.action, t)}
                     </p>
-                    {ev.note && (
+                    {event.note && (
                       <p className="text-[10px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
-                        {ev.note}
+                        {event.note}
                       </p>
                     )}
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] font-medium" style={{ color: "var(--text-secondary)" }}>
-                      {fmtDate(ev.created_at)}
+                      {fmtDate(event.created_at)}
                     </p>
                     <p className="text-[10px] font-medium" style={{ color: "var(--text-secondary)" }}>
-                      {by && by !== "system" && by !== "admin"
-                        ? `${t("membership.detail.by")}: ${by}`
+                      {actor && actor !== "system" && actor !== "admin"
+                        ? `${t("membership.detail.by")}: ${actor}`
                         : t("membership.detail.bySystem")}
                     </p>
                   </div>

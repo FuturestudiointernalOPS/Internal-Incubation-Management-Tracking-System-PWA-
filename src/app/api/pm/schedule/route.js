@@ -34,8 +34,8 @@ export const GET = createHandler(
         success: true,
         schedule: sessions.rows,
       });
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
       return NextResponse.json(
         { success: false, error: "Curriculum feature not available in this schema" },
         { status: 501 },

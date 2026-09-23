@@ -22,9 +22,9 @@ export default function GroupWorkspaceV2({ params }) {
 
   const fetchGroup = useCallback(async (bypassCache = false) => {
     const url = `/api/v2/groups?program_id=${programId}`;
-    const apply = (data) => {
-      const match = data.groups.find(g => String(g.id) === String(groupId));
-      setGroup(match);
+    const apply = (payload) => {
+      const matchedGroup = payload.groups.find(candidate => String(candidate.id) === String(groupId));
+      setGroup(matchedGroup);
       setIsLoaded(true);
     };
     let painted = false;
@@ -38,12 +38,12 @@ export default function GroupWorkspaceV2({ params }) {
           painted = true;
         }
       }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) cacheSet(url, data);
-      apply(data);
-    } catch (e) {
-      if (!painted) console.error(e);
+      const response = await fetch(url);
+      const payload = await response.json();
+      if (payload.success) cacheSet(url, payload);
+      apply(payload);
+    } catch (error) {
+      if (!painted) console.error(error);
     }
   }, [programId, groupId]);
 
@@ -54,7 +54,7 @@ export default function GroupWorkspaceV2({ params }) {
   const handleUpdate = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/v2/groups', {
+      const response = await fetch('/api/v2/groups', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -66,11 +66,11 @@ export default function GroupWorkspaceV2({ params }) {
           pitch_deck_url: group.pitch_deck_url,
         }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: t('adminMisc.programGroups.anchorMetricsSuccess') } }));
       } else {
-        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || t('adminMisc.programGroups.updateFailed') } }));
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: payload.error || t('adminMisc.programGroups.updateFailed') } }));
       }
     } catch {
       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t('adminMisc.programGroups.updateFailed') } }));
@@ -128,7 +128,7 @@ export default function GroupWorkspaceV2({ params }) {
                     aria-label={t('adminMisc.programGroups.projectConceptDescription')}
                     rows={6}
                     value={group.project_description || ''}
-                    onChange={e => setGroup({...group, project_description: e.target.value})}
+                    onChange={event => setGroup({...group, project_description: event.target.value})}
                     placeholder={t('adminMisc.programGroups.projectConceptPlaceholder')}
                     className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white font-bold outline-none focus:border-[#FF6600]/80 transition-colors resize-none"
                  />
@@ -145,7 +145,7 @@ export default function GroupWorkspaceV2({ params }) {
                              name="pitch_deck_url"
                              type="text" 
                              value={group.pitch_deck_url || ''}
-                             onChange={e => setGroup({...group, pitch_deck_url: e.target.value})}
+                             onChange={event => setGroup({...group, pitch_deck_url: event.target.value})}
                              placeholder="https://slides..."
                              className="w-full bg-white/5 border border-white/5 rounded-xl py-3 px-4 text-xs font-bold text-white outline-none"
                           />
@@ -157,7 +157,7 @@ export default function GroupWorkspaceV2({ params }) {
                              name="demo_link"
                              type="text" 
                              value={group.demo_link || ''}
-                             onChange={e => setGroup({...group, demo_link: e.target.value})}
+                             onChange={event => setGroup({...group, demo_link: event.target.value})}
                              placeholder="https://app..."
                              className="w-full bg-white/5 border border-white/5 rounded-xl py-3 px-4 text-xs font-bold text-white outline-none"
                           />
@@ -196,8 +196,8 @@ export default function GroupWorkspaceV2({ params }) {
                     {[
                        { date: t('adminMisc.programGroups.logInitial'), event: t('adminMisc.programGroups.logTeamFormation') },
                        { date: t('adminMisc.programGroups.logCurrent'), event: t('adminMisc.programGroups.logWorkspaceSync') }
-                    ].map((log, i) => (
-                       <div key={i} className="flex gap-4 items-start relative">
+                    ].map((log, index) => (
+                       <div key={index} className="flex gap-4 items-start relative">
                           <div className="w-4 h-4 rounded-full bg-[#FF6600]/80 border-4 border-[#0d0d18] z-10" />
                           <div>
                              <p className="text-[10px] font-bold text-white uppercase tracking-tighter leading-none">{log.event}</p>

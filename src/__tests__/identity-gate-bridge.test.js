@@ -25,8 +25,8 @@ const ROOT = path.join(__dirname, "..", "..");
 /** All requireAuth([...]) blocks in a file (multiline). */
 function authBlocks(file) {
   const src = fs.readFileSync(path.join(ROOT, file), "utf8");
-  return [...src.matchAll(/requireAuth\(\s*\[([^\]]*)\]\)/gs)].map((m) =>
-    m[1].replace(/\s+/g, " ").trim(),
+  return [...src.matchAll(/requireAuth\(\s*\[([^\]]*)\]\)/gs)].map((match) =>
+    match[1].replace(/\s+/g, " ").trim(),
   );
 }
 
@@ -45,7 +45,7 @@ const CONTEXTUAL_ROLES = [
 ];
 
 const containsContextual = (list) =>
-  CONTEXTUAL_ROLES.some((r) => list.split(",").map((s) => s.trim().replace(/"/g, "")).includes(r));
+  CONTEXTUAL_ROLES.some((role) => list.split(",").map((part) => part.trim().replace(/"/g, "")).includes(role));
 
 describe("I5/I6B converted handlers — bare requireAuth + assignment machinery", () => {
   const converted = [
@@ -146,7 +146,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(bareAuthCount(file)).toBe(1); // GET
     const lists = authBlocks(file);
     expect(lists).toHaveLength(2); // POST + PUT [staff, super_admin] — global-only
-    for (const l of lists) expect(containsContextual(l)).toBe(false);
+    for (const list of lists) expect(containsContextual(list)).toBe(false);
     expect(src).toMatch(/requireAuthorization\("programs", "view"\)/);
     expect(src).toMatch(/requireAssignmentAccess/);
   });
@@ -155,7 +155,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     const file = "src/app/api/families/route.js";
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
     expect(bareAuthCount(file)).toBe(1);
-    for (const l of authBlocks(file)) expect(containsContextual(l)).toBe(false);
+    for (const list of authBlocks(file)) expect(containsContextual(list)).toBe(false);
     expect(src).toMatch(/requireAuthorization\("programs", "view"\)/);
     expect(src).toMatch(/hasProgramManagementAccess/);
   });
@@ -164,7 +164,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     const file = "src/app/api/participant-programs/route.js";
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
     expect(bareAuthCount(file)).toBe(1);
-    for (const l of authBlocks(file)) expect(containsContextual(l)).toBe(false);
+    for (const list of authBlocks(file)) expect(containsContextual(list)).toBe(false);
     expect(src).toMatch(/requireAssignmentAccess/);
   });
 
@@ -172,7 +172,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     const file = "src/app/api/teams/route.js";
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
     expect(bareAuthCount(file)).toBe(1);
-    for (const l of authBlocks(file)) expect(containsContextual(l)).toBe(false);
+    for (const list of authBlocks(file)) expect(containsContextual(list)).toBe(false);
     expect(src).toMatch(/requireAuthorization\("programs", "view"\)/);
     expect(src).toMatch(/requireAssignmentAccess/);
     // Team-entity own-scope binding preserved in front of the gates.
@@ -184,9 +184,9 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     const file = "src/app/api/investor/pipeline/route.js";
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
     expect(bareAuthCount(file)).toBe(1);
-    for (const l of authBlocks(file)) expect(containsContextual(l)).toBe(false);
+    for (const list of authBlocks(file)) expect(containsContextual(list)).toBe(false);
     expect(src).toMatch(/management = \["super_admin", "staff", "program_manager"\]/);
-    expect(src).toMatch(/investorId = profile\.rows\[0\]\.id/);
+    expect(src).toMatch(/investorId = profileResult\.rows\[0\]\.id/);
     // Model: venture reads are own-scoped when an investorId is bound.
     const model = fs.readFileSync(path.join(ROOT, "src/models/investor.js"), "utf8");
     expect(model).toMatch(/ventureId && investorId/);
@@ -197,7 +197,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     const file = "src/app/api/investor/campaigns/route.js";
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
     expect(bareAuthCount(file)).toBe(1);
-    for (const l of authBlocks(file)) expect(containsContextual(l)).toBe(false);
+    for (const list of authBlocks(file)) expect(containsContextual(list)).toBe(false);
     expect(src).toMatch(/getInvestorProfileIdByUserIdForPipelineList/);
     const model = fs.readFileSync(
       path.join(ROOT, "src/models/investorRelations.js"),
@@ -220,27 +220,27 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     ];
     for (const file of aiFiles) {
       const src = fs.readFileSync(path.join(ROOT, file), "utf8");
-      for (const l of authBlocks(file)) expect(containsContextual(l)).toBe(false);
+      for (const list of authBlocks(file)) expect(containsContextual(list)).toBe(false);
       expect(src).not.toMatch(/\["super_admin", "admin", "program_manager"\]\.includes/);
       expect(src).toMatch(/requireAuthorization\(\s*"runs"/);
     }
     // evaluate-submission separates READING from DECIDING: watching batch
     // progress is runs.view, evaluating (it can auto-approve and send the
     // decision email) is runs.review.
-    const es = fs.readFileSync(
+    const evaluateSubmissionSource = fs.readFileSync(
       path.join(ROOT, "src/app/api/platform/ai/evaluate-submission/route.js"),
       "utf8",
     );
-    expect(es).toMatch(/body\.action === "progress" \? "view" : "review"/);
+    expect(evaluateSubmissionSource).toMatch(/body\.action === "progress" \? "view" : "review"/);
     // form-runs: the two consequential actions (review + result emails) are now
     // governed by the `runs.edit` capability — the resolver replaces the inline
     // management role check, and the legacy list must be gone for good.
-    const fr = fs.readFileSync(path.join(ROOT, "src/app/api/platform/form-runs/route.js"), "utf8");
+    const formRunsSource = fs.readFileSync(path.join(ROOT, "src/app/api/platform/form-runs/route.js"), "utf8");
     expect(
-      (fr.match(/requireAuthorization\("runs", "edit"\)/g) || []).length,
+      (formRunsSource.match(/requireAuthorization\("runs", "edit"\)/g) || []).length,
     ).toBeGreaterThanOrEqual(2);
-    expect(fr).not.toMatch(/\["super_admin", "admin", "program_manager"\]\.includes/);
-    expect(fr).not.toMatch(/requireAuth\(\[\s*"super_admin", "admin", "program_manager", "teacher"/);
+    expect(formRunsSource).not.toMatch(/\["super_admin", "admin", "program_manager"\]\.includes/);
+    expect(formRunsSource).not.toMatch(/requireAuth\(\[\s*"super_admin", "admin", "program_manager", "teacher"/);
   });
 
   test("phase 1.6: upload POST — bare auth + session-context verification (no role list)", () => {
@@ -258,22 +258,22 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
 
   test("phase 1.6: END STATE — no contextual-role requireAuth list remains anywhere in src/app/api", () => {
     const walk = (dir, out = []) => {
-      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-        const p = path.join(dir, e.name);
-        if (e.isDirectory()) walk(p, out);
-        else if (e.name === "route.js") out.push(p);
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(fullPath, out);
+        else if (entry.name === "route.js") out.push(fullPath);
       }
       return out;
     };
     const CONTEXTUAL = ["facilitator", "participant", "founder", "investor", "team"];
     const offenders = [];
-    for (const f of walk(path.join(ROOT, "src/app/api"))) {
-      const src = fs.readFileSync(f, "utf8");
-      const lists = [...src.matchAll(/requireAuth\(\s*\[([^\]]*)\]\)/gs)].map((m) => m[1]);
-      for (const l of lists) {
-        const roles = l.split(",").map((s) => s.trim().replace(/"/g, ""));
-        if (roles.some((r) => CONTEXTUAL.includes(r))) {
-          offenders.push(f.replace(/\\/g, "/").split("/src/app/api/")[1] || f);
+    for (const file of walk(path.join(ROOT, "src/app/api"))) {
+      const src = fs.readFileSync(file, "utf8");
+      const lists = [...src.matchAll(/requireAuth\(\s*\[([^\]]*)\]\)/gs)].map((match) => match[1]);
+      for (const list of lists) {
+        const roles = list.split(",").map((part) => part.trim().replace(/"/g, ""));
+        if (roles.some((role) => CONTEXTUAL.includes(role))) {
+          offenders.push(file.replace(/\\/g, "/").split("/src/app/api/")[1] || file);
           break;
         }
       }

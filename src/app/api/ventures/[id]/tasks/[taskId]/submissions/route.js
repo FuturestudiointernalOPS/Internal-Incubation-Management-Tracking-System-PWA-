@@ -36,13 +36,13 @@ import {
 const REVIEWER_ROLES = ["staff", "program_manager", "super_admin"];
 
 async function resolveVentureDbId(ventureId) {
-  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 async function resolveTask(taskId, ventureParam, dbId) {
-  const res = await db.execute({ sql: "SELECT * FROM venture_tasks WHERE id = ?", args: [taskId] });
-  const task = res.rows?.[0];
+  const taskResult = await db.execute({ sql: "SELECT * FROM venture_tasks WHERE id = ?", args: [taskId] });
+  const task = taskResult.rows?.[0];
   if (!task) return null;
   const belongs =
     String(task.venture_id) === String(ventureParam) ||
@@ -51,7 +51,7 @@ async function resolveTask(taskId, ventureParam, dbId) {
 }
 
 async function listSubmissions(taskId) {
-  const res = await db.execute({
+  const queryResult = await db.execute({
     sql: `SELECT id, task_id, version, status, file_url, file_name, file_type, file_size,
                  notes, submitted_by, submitted_by_name, reviewed_by, review_decision,
                  review_comment, reviewed_at, created_at
@@ -59,7 +59,7 @@ async function listSubmissions(taskId) {
           ORDER BY version ASC`,
     args: [taskId],
   });
-  const rows = res.rows || [];
+  const rows = queryResult.rows || [];
   return {
     submissions: rows,
     latest: rows.length ? rows[rows.length - 1] : null,
@@ -73,8 +73,8 @@ export const GET = createHandler(async (req, { params }) => {
   const dbId = await resolveVentureDbId(id);
   const task = await resolveTask(parseInt(taskId), id, dbId);
   if (!task) return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });
-  const data = await listSubmissions(task.id);
-  return NextResponse.json({ success: true, ...data });
+  const submissionData = await listSubmissions(task.id);
+  return NextResponse.json({ success: true, ...submissionData });
 });
 
 export const POST = createHandler(async (req, { params }) => {
@@ -92,12 +92,12 @@ export const POST = createHandler(async (req, { params }) => {
     if (!fileUrl && !notes) {
       return NextResponse.json({ success: false, error: "Provide a file URL and/or notes for the submission." }, { status: 400 });
     }
-    const verRes = await db.execute({
+    const versionResult = await db.execute({
       sql: "SELECT COALESCE(MAX(version), 0) + 1 AS next_version FROM venture_task_submissions WHERE task_id = ?",
       args: [task.id],
     });
-    const version = Number(verRes.rows?.[0]?.next_version || 1);
-    const ins = await db.execute({
+    const version = Number(versionResult.rows?.[0]?.next_version || 1);
+    const insertResult = await db.execute({
       sql: `INSERT INTO venture_task_submissions
             (task_id, version, status, file_url, file_name, file_type, file_size, notes, submitted_by, submitted_by_name)
             VALUES (?,?,?,?,?,?,?,?,?,?) RETURNING id`,
@@ -113,8 +113,8 @@ export const POST = createHandler(async (req, { params }) => {
     if (["backlog", "todo", "not_started"].includes(task.status)) {
       await db.execute({ sql: "UPDATE venture_tasks SET status = 'in_progress' WHERE id = ?", args: [task.id] });
     }
-    const data = await listSubmissions(task.id);
-    return NextResponse.json({ success: true, submission_id: ins.rows?.[0]?.id || null, ...data });
+    const submissionData = await listSubmissions(task.id);
+    return NextResponse.json({ success: true, submission_id: insertResult.rows?.[0]?.id || null, ...submissionData });
   }
 
   if (body.action === "review") {
@@ -145,11 +145,11 @@ export const POST = createHandler(async (req, { params }) => {
     if (!["approved", "changes_requested"].includes(decision)) {
       return NextResponse.json({ success: false, error: "Decision must be approved or changes_requested." }, { status: 400 });
     }
-    const subRes = await db.execute({
+    const submissionResult = await db.execute({
       sql: "SELECT * FROM venture_task_submissions WHERE id = ? AND task_id = ?",
       args: [submissionId, task.id],
     });
-    const submission = subRes.rows?.[0];
+    const submission = submissionResult.rows?.[0];
     if (!submission) return NextResponse.json({ success: false, error: "Submission not found." }, { status: 404 });
 
     await db.execute({
@@ -172,11 +172,11 @@ export const POST = createHandler(async (req, { params }) => {
       let stageId = null;
       if (task.milestone_id) {
         try {
-          const stRes = await db.execute({
+          const stageResult = await db.execute({
             sql: "SELECT journey_stage_id FROM venture_milestones WHERE id = ? AND journey_stage_id IS NOT NULL",
             args: [task.milestone_id],
           });
-          stageId = stRes.rows?.[0]?.journey_stage_id || null;
+          stageId = stageResult.rows?.[0]?.journey_stage_id || null;
         } catch (_) {}
       }
       await notifyAndEmailVentureFounders(db, {
@@ -199,8 +199,8 @@ export const POST = createHandler(async (req, { params }) => {
         dedupeKey: `submission-review:${submissionId}:${decision}`,
       });
     } catch (_) {}
-    const data = await listSubmissions(task.id);
-    return NextResponse.json({ success: true, ...data });
+    const submissionData = await listSubmissions(task.id);
+    return NextResponse.json({ success: true, ...submissionData });
   }
 
   return NextResponse.json({ success: false, error: "Unknown action." }, { status: 400 });

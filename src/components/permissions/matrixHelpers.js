@@ -26,17 +26,17 @@ export function buildFeatureRows(features, moduleToFeature, catalog) {
   const rows = [];
   for (const feature of features || []) {
     const modules = Object.entries(moduleToFeature || {})
-      .filter(([, f]) => f === feature)
+      .filter(([, mappedFeature]) => mappedFeature === feature)
       .map(([module]) => module)
       .sort();
     rows.push({
       feature,
       modules: modules
-        .filter((m) => catalog?.[m])
-        .map((m) => ({
-          module: m,
-          locked: Boolean(catalog[m].locked),
-          caps: Object.keys(catalog[m].capabilities || {}).sort(),
+        .filter((moduleKey) => catalog?.[moduleKey])
+        .map((moduleKey) => ({
+          module: moduleKey,
+          locked: Boolean(catalog[moduleKey].locked),
+          caps: Object.keys(catalog[moduleKey].capabilities || {}).sort(),
         })),
     });
   }
@@ -67,7 +67,7 @@ export function groupModulesByFeature(modules, moduleToFeature, featureOrder) {
   const order =
     featureOrder && featureOrder.length
       ? featureOrder
-      : [...new Set(modKeys.map((m) => moduleToFeature?.[m]).filter(Boolean))];
+      : [...new Set(modKeys.map((moduleKey) => moduleToFeature?.[moduleKey]).filter(Boolean))];
 
   const sections = [];
   const seen = new Set();
@@ -75,15 +75,15 @@ export function groupModulesByFeature(modules, moduleToFeature, featureOrder) {
     if (seen.has(feature) || members.length === 0) return;
     seen.add(feature);
     const capSet = new Set();
-    for (const m of members) {
-      for (const c of modules[m]?.capabilities || []) capSet.add(c);
+    for (const moduleKey of members) {
+      for (const capability of modules[moduleKey]?.capabilities || []) capSet.add(capability);
     }
-    const capabilities = [...capSet].sort((a, b) => {
-      const ia = BASE_CAP_ORDER.indexOf(a);
-      const ib = BASE_CAP_ORDER.indexOf(b);
-      const ka = ia === -1 ? BASE_CAP_ORDER.length : ia;
-      const kb = ib === -1 ? BASE_CAP_ORDER.length : ib;
-      return ka - kb || a.localeCompare(b);
+    const capabilities = [...capSet].sort((first, second) => {
+      const firstIndex = BASE_CAP_ORDER.indexOf(first);
+      const secondIndex = BASE_CAP_ORDER.indexOf(second);
+      const firstOrder = firstIndex === -1 ? BASE_CAP_ORDER.length : firstIndex;
+      const secondOrder = secondIndex === -1 ? BASE_CAP_ORDER.length : secondIndex;
+      return firstOrder - secondOrder || first.localeCompare(second);
     });
     sections.push({ feature, modules: members, capabilities, unmapped });
   };
@@ -91,13 +91,13 @@ export function groupModulesByFeature(modules, moduleToFeature, featureOrder) {
   for (const feature of order) {
     push(
       feature,
-      modKeys.filter((m) => moduleToFeature?.[m] === feature).sort(),
+      modKeys.filter((moduleKey) => moduleToFeature?.[moduleKey] === feature).sort(),
       false,
     );
   }
 
   // Modules without a feature mapping are never hidden: each is its own section.
-  for (const modKey of modKeys.filter((m) => !moduleToFeature?.[m]).sort()) {
+  for (const modKey of modKeys.filter((moduleKey) => !moduleToFeature?.[moduleKey]).sort()) {
     push(modKey, [modKey], true);
   }
 
@@ -196,7 +196,7 @@ export function capabilityLevel(capability) {
 /** The module-specific capabilities of a section (everything outside CRUD). */
 export function extraCapabilities(section) {
   return (section?.capabilities || []).filter(
-    (c) => !MATRIX_LEVEL_ORDER.includes(c),
+    (capability) => !MATRIX_LEVEL_ORDER.includes(capability),
   );
 }
 
@@ -323,7 +323,7 @@ export function toggleFullCapabilities(caps, module, checked, moduleCapabilities
 export function isModuleFull(caps, module, moduleCapabilities = []) {
   if (moduleCapabilities.length === 0) return false;
   return moduleCapabilities.every(
-    (c) => Number((caps || {})[module]?.[c] ?? 0) === 5,
+    (capability) => Number((caps || {})[module]?.[capability] ?? 0) === 5,
   );
 }
 
@@ -507,7 +507,7 @@ export function collectHiddenStoredCaps(savedCaps, editableCaps) {
       .sort();
     if (held.length > 0) out.push({ module, capabilities: held });
   }
-  return out.sort((a, b) => a.module.localeCompare(b.module));
+  return out.sort((first, second) => first.module.localeCompare(second.module));
 }
 
 /**

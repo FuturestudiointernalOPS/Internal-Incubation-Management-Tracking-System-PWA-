@@ -93,19 +93,19 @@ export default function AuditLogsPage() {
 
   const handlePrevPage = () => {
     if (filters.offset > 0) {
-      setFilters((f) => ({ ...f, offset: Math.max(0, f.offset - f.limit) }));
+      setFilters((previous) => ({ ...previous, offset: Math.max(0, previous.offset - previous.limit) }));
     }
   };
 
   const handleNextPage = () => {
     if (logs.length === filters.limit) {
-      setFilters((f) => ({ ...f, offset: f.offset + f.limit }));
+      setFilters((previous) => ({ ...previous, offset: previous.offset + previous.limit }));
     }
   };
 
-  const formatDate = (d) => {
-    if (!d) return "";
-    return new Date(d).toLocaleString("fr-FR", {
+  const formatDate = (dateValue) => {
+    if (!dateValue) return "";
+    return new Date(dateValue).toLocaleString("fr-FR", {
       day: "2-digit", month: "short", year: "numeric",
       hour: "2-digit", minute: "2-digit",
     });
@@ -139,12 +139,12 @@ export default function AuditLogsPage() {
               <p className="text-2xl font-black tracking-tight">{stats.total || stats.audit_logs_24h || 0}</p>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.auditLogs.events24h")}</p>
             </div>
-            {(stats.by_severity || []).map((s) => (
-              <div key={s.severity} className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
-                <p className={`text-2xl font-black tracking-tight ${s.severity === "critical" ? "text-rose-400" : s.severity === "error" ? "text-red-400" : s.severity === "warning" ? "text-amber-400" : "text-blue-400"}`}>
-                  {s.c}
+            {(stats.by_severity || []).map((severityStat) => (
+              <div key={severityStat.severity} className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
+                <p className={`text-2xl font-black tracking-tight ${severityStat.severity === "critical" ? "text-rose-400" : severityStat.severity === "error" ? "text-red-400" : severityStat.severity === "warning" ? "text-amber-400" : "text-blue-400"}`}>
+                  {severityStat.c}
                 </p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{s.severity}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{severityStat.severity}</p>
               </div>
             ))}
           </div>
@@ -159,23 +159,23 @@ export default function AuditLogsPage() {
                 type="text"
                 placeholder={t("adminMisc.auditLogs.searchPlaceholder")}
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(event) => setSearchTerm(event.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm font-bold text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]"
               />
             </div>
             <select
               value={filters.event_type}
-              onChange={(e) => setFilters((f) => ({ ...f, event_type: e.target.value, offset: 0 }))}
+              onChange={(event) => setFilters((previous) => ({ ...previous, event_type: event.target.value, offset: 0 }))}
               className="px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm font-bold text-white focus:outline-none focus:border-[var(--brand-orange)]"
             >
               <option value="">{t("adminMisc.auditLogs.allEventTypes")}</option>
-              {EVENT_TYPE_OPTIONS.filter(Boolean).map((opt) => (
-                <option key={opt} value={opt}>{opt.replace(/_/g, " ")}</option>
+              {EVENT_TYPE_OPTIONS.filter(Boolean).map((eventType) => (
+                <option key={eventType} value={eventType}>{eventType.replace(/_/g, " ")}</option>
               ))}
             </select>
             <select
               value={filters.severity}
-              onChange={(e) => setFilters((f) => ({ ...f, severity: e.target.value, offset: 0 }))}
+              onChange={(event) => setFilters((previous) => ({ ...previous, severity: event.target.value, offset: 0 }))}
               className="px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm font-bold text-white focus:outline-none focus:border-[var(--brand-orange)]"
             >
               <option value="">{t("adminMisc.auditLogs.allSeverities")}</option>
@@ -252,7 +252,7 @@ export default function AuditLogsPage() {
                         </td>
                         <td className="p-4">
                           <button
-                            onClick={(e) => { e.stopPropagation(); setSelectedLog(log); }}
+                            onClick={(event) => { event.stopPropagation(); setSelectedLog(log); }}
                             className="p-2 hover:bg-white/5 rounded-lg transition-colors"
                           >
                             <Eye size={14} className="text-gray-400" />
@@ -293,7 +293,7 @@ export default function AuditLogsPage() {
         {/* Detail Modal */}
         {selectedLog && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setSelectedLog(null)}>
-            <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto m-4" onClick={(event) => event.stopPropagation()}>
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
                 <h2 className="text-lg font-black tracking-tight flex items-center gap-2">
                   <Shield size={18} className="text-[var(--brand-orange)]" />

@@ -66,9 +66,9 @@ export async function POST(req) {
           { status: 400 },
         );
       }
-      const ppCheck = await getParticipantProgramSubmissionStatus(session.cid, body.program_id);
-      const ppRow = ppCheck.rows?.[0];
-      if (!ppRow || String(ppRow.status || "").toLowerCase() === "completed") {
+      const participationCheck = await getParticipantProgramSubmissionStatus(session.cid, body.program_id);
+      const participationRow = participationCheck.rows?.[0];
+      if (!participationRow || String(participationRow.status || "").toLowerCase() === "completed") {
         return NextResponse.json(
           { success: false, error: "errors.insufficientPermissions" },
           { status: 403 },
@@ -140,9 +140,9 @@ export async function POST(req) {
     // is completed even when the program is still active (Phase 2 acceptance).
     if (session && ["participant", "team"].includes(session.role)) {
       try {
-        const progCheck = await getSubmissionProgramStatus(program_id);
-        const progStatus = progCheck.rows[0]?.status;
-        if (progStatus && String(progStatus).toLowerCase() !== "active") {
+        const programCheckResult = await getSubmissionProgramStatus(program_id);
+        const programStatus = programCheckResult.rows[0]?.status;
+        if (programStatus && String(programStatus).toLowerCase() !== "active") {
           return NextResponse.json(
             { success: false, error: "errors.programCompletedViewOnly" },
             { status: 403 },
@@ -151,9 +151,9 @@ export async function POST(req) {
         // Person-level completion: the participant's own membership is closed
         // even if the program itself is still active.
         if (session.role === "participant") {
-          const ppCheck = await getParticipantProgramSubmissionStatus(session.cid, program_id);
-          const ppStatus = String(ppCheck.rows[0]?.status || "").toLowerCase();
-          if (ppStatus === "completed") {
+          const participationCheck = await getParticipantProgramSubmissionStatus(session.cid, program_id);
+          const participationStatus = String(participationCheck.rows[0]?.status || "").toLowerCase();
+          if (participationStatus === "completed") {
             return NextResponse.json(
               { success: false, error: "errors.programCompletedViewOnly" },
               { status: 403 },
@@ -180,13 +180,13 @@ export async function POST(req) {
     // Determine version number: find the highest existing version for this participant+deliverable
     let nextVersion = 1;
     try {
-      const existingRes = await findMaxSubmissionVersion({
+      const existingVersionResult = await findMaxSubmissionVersion({
         participant_id,
         program_id,
         deliverable_id: finalDeliverableId,
         document_id: finalDocumentId,
       });
-      const existingVersion = existingRes.rows[0]?.max_ver;
+      const existingVersion = existingVersionResult.rows[0]?.max_ver;
       if (existingVersion) {
         nextVersion = Number(existingVersion) + 1;
       }
@@ -262,9 +262,9 @@ export async function PATCH(req) {
     // Ensure role-lock column exists before we read it below.
     try { await ensureSubmissionsRoleLockColumn(); } catch (_) {}
     if (session && !hasProgramManagementAccess(session.role)) {
-      const subRow = await getSubmissionProgramId(id);
-      const progId = subRow.rows[0]?.program_id;
-      if (!progId) {
+      const submissionProgramResult = await getSubmissionProgramId(id);
+      const programId = submissionProgramResult.rows[0]?.program_id;
+      if (!programId) {
         return NextResponse.json(
           { success: false, error: "Submission not found" },
           { status: 404 },
@@ -272,12 +272,12 @@ export async function PATCH(req) {
       }
       const facError = await requireAssignmentAccess({
         resource: "program",
-        contextId: progId,
+        contextId: programId,
         capability: "assignments.grade",
         minLevel: 1,
       });
       if (facError) return facError;
-      const scope = await getFacilitatorTeamScope(progId, session.cid);
+      const scope = await getFacilitatorTeamScope(programId, session.cid);
       if (scope.scope !== "all") {
         // Fail closed: a facilitator with NO assigned teams has no record scope
         // in this program. The previous guard only ran when teamIds was
@@ -290,8 +290,8 @@ export async function PATCH(req) {
             { status: 403 },
           );
         }
-        const inScope = await checkSubmissionInFacilitatorTeamScope(id, scope.teamIds);
-        if (inScope.rows.length === 0) {
+        const scopeCheckResult = await checkSubmissionInFacilitatorTeamScope(id, scope.teamIds);
+        if (scopeCheckResult.rows.length === 0) {
           return NextResponse.json(
             { success: false, error: "errors.insufficientPermissions" },
             { status: 403 },
@@ -319,9 +319,9 @@ export async function PATCH(req) {
     const statusLabel = { approved: "Approved", rejected: "Rejected", revision_requested: "Revision Requested", pending: "Pending", pending_followup: "Follow-up Scheduled" }[status] || status;
 
     // 1. Fetch current submission & participant details for notification
-    const subRes = await getSubmissionReviewDetails(id);
+    const reviewDetailsResult = await getSubmissionReviewDetails(id);
 
-    const sub = subRes.rows[0];
+    const submission = reviewDetailsResult.rows[0];
 
     // ─── Role Lock: a facilitator and program management cannot override
     //     each other's decisions. Once a final decision (approved/rejected)
@@ -336,9 +336,9 @@ export async function PATCH(req) {
       return null; // super_admin / staff → not locked
     };
     const FINAL_STATUSES = ["approved", "rejected"];
-    if (sub && FINAL_STATUSES.includes(sub.status) && sub.reviewed_by_role) {
+    if (submission && FINAL_STATUSES.includes(submission.status) && submission.reviewed_by_role) {
       const requesterCamp = roleCamp(session?.role);
-      const reviewerCamp = roleCamp(sub.reviewed_by_role);
+      const reviewerCamp = roleCamp(submission.reviewed_by_role);
       if (requesterCamp && reviewerCamp && requesterCamp !== reviewerCamp) {
         const actorLabel =
           reviewerCamp === "facilitator"
@@ -347,7 +347,7 @@ export async function PATCH(req) {
         return NextResponse.json(
           {
             success: false,
-            error: `This submission was already ${sub.status} by ${actorLabel}. Only that role can change the decision.`,
+            error: `This submission was already ${submission.status} by ${actorLabel}. Only that role can change the decision.`,
           },
           { status: 403 },
         );
@@ -377,31 +377,31 @@ export async function PATCH(req) {
     });
 
     // 3. Handle Follow-up Scheduling (creates calendar event)
-    if (status === "pending_followup" && followup_date && sub) {
+    if (status === "pending_followup" && followup_date && submission) {
       try {
         // Create event in v2_events for calendar sync
-        const eventTitle = `Follow-up: ${sub.deliverable_title || "Submission Review"}`;
+        const eventTitle = `Follow-up: ${submission.deliverable_title || "Submission Review"}`;
         const eventStart = followup_time
           ? new Date(`${followup_date}T${followup_time}`)
           : new Date(followup_date);
 
         await createSubmissionFollowupEvent({
-          program_id: sub.program_id,
+          program_id: submission.program_id,
           title: eventTitle,
           description: followup_notes || null,
           start_time: eventStart.toISOString(),
           end_time: new Date(eventStart.getTime() + (followup_duration || 30) * 60000).toISOString(),
           location: meeting_link || null,
-          participant_id: sub.participant_id,
+          participant_id: submission.participant_id,
           created_by: "instructor",
         });
 
         // Also create a followup record
         await createSubmissionFollowup({
-          program_id: sub.program_id,
-          participant_cid: sub.participant_cid || sub.participant_id,
+          program_id: submission.program_id,
+          participant_cid: submission.participant_cid || submission.participant_id,
           submission_id: id,
-          comment: followup_notes || `Follow-up meeting for ${sub.deliverable_title || "submission"}`,
+          comment: followup_notes || `Follow-up meeting for ${submission.deliverable_title || "submission"}`,
           scheduled_at: eventStart.toISOString(),
           duration_minutes: followup_duration || 30,
           meeting_link: meeting_link || null,
@@ -413,18 +413,18 @@ export async function PATCH(req) {
     }
 
     // 4. Dispatch In-App Notification to Participant (non-blocking)
-    if (sub && sub.participant_id) {
+    if (submission && submission.participant_id) {
       try {
-        let notifTitle = `Submission ${statusLabel}`;
-        let notifMessage = feedback
-          ? `Your deliverable "${sub.deliverable_title || ""}" for ${sub.program_name || ""} was ${statusLabel}. Feedback: ${feedback}`
-          : `Your deliverable "${sub.deliverable_title || ""}" for ${sub.program_name || ""} was ${statusLabel}.`;
+        let notificationTitle = `Submission ${statusLabel}`;
+        let notificationMessage = feedback
+          ? `Your deliverable "${submission.deliverable_title || ""}" for ${submission.program_name || ""} was ${statusLabel}. Feedback: ${feedback}`
+          : `Your deliverable "${submission.deliverable_title || ""}" for ${submission.program_name || ""} was ${statusLabel}.`;
 
         if (status === "rejected" && rejection_reason) {
-          notifMessage += ` Reason: ${rejection_reason}`;
+          notificationMessage += ` Reason: ${rejection_reason}`;
         }
 
-        await createSubmissionNotification(sub.participant_id, notifTitle, notifMessage);
+        await createSubmissionNotification(submission.participant_id, notificationTitle, notificationMessage);
       } catch (_) {}
 
       // NOTE: No email is sent for program-deliverable reviews. In-app
@@ -435,7 +435,7 @@ export async function PATCH(req) {
     //    propagate the same score/status to all team members for this deliverable.
     //    Never overwrite a sibling submission that was already decided by the
     //    other role camp (role lock).
-    if (sub?.team_id && (score != null || status === "approved")) {
+    if (submission?.team_id && (score != null || status === "approved")) {
       try {
         const requesterCampForProp = roleCamp(session?.role);
         await propagateSubmissionToTeamMembers({
@@ -447,9 +447,9 @@ export async function PATCH(req) {
           rejection_reason,
           role: session?.role,
           teacherId: session?.cid || session?.email || null,
-          teamId: sub.team_id,
-          deliverableId: sub.deliverable_id,
-          documentId: sub.document_id,
+          teamId: submission.team_id,
+          deliverableId: submission.deliverable_id,
+          documentId: submission.document_id,
           id,
           requesterCampForProp,
         });
@@ -457,10 +457,10 @@ export async function PATCH(req) {
     }
 
     // 6. Recalculate KPI progress if status changed to approved/rejected
-    if ((status === "approved" || status === "rejected") && sub?.program_id) {
+    if ((status === "approved" || status === "rejected") && submission?.program_id) {
       try {
         const { recalculateKpiProgress } = await import("@/lib/kpi-progress");
-        await recalculateKpiProgress(sub.program_id);
+        await recalculateKpiProgress(submission.program_id);
       } catch (_) {}
     }
 
@@ -502,8 +502,8 @@ export async function GET(req) {
     // program and hold assignments.view. Scope restricts to their assigned
     // groups. Participants/teams/staff read their own submissions directly.
     const session = await getSession();
-    let facScopeFilter = null;
-    let facScopeArgs = [];
+    let facilitatorScopeFilter = null;
+    let facilitatorScopeArgs = [];
 
     // Own-scope (Phase I6B): without a program context, non-management,
     // non-staff, non-team sessions (participants, members, …) may only list
@@ -537,11 +537,11 @@ export async function GET(req) {
         if (scope.teamIds.length === 0) {
           return NextResponse.json({ success: true, submissions: [] });
         }
-        facScopeFilter =
+        facilitatorScopeFilter =
           "s.participant_id IN (SELECT c.cid FROM contacts c WHERE c.v2_team_id IN (" +
           scope.teamIds.map(() => "?").join(",") +
           "))";
-        facScopeArgs = scope.teamIds;
+        facilitatorScopeArgs = scope.teamIds;
       }
     }
 
@@ -554,43 +554,43 @@ export async function GET(req) {
       document_id,
       status,
       latest_only,
-      facScopeFilter,
-      facScopeArgs,
+      facScopeFilter: facilitatorScopeFilter,
+      facScopeArgs: facilitatorScopeArgs,
     });
 
     // Format for UI
-    const submissions = rows.map((r) => ({
-      ...r,
+    const submissions = rows.map((row) => ({
+      ...row,
       v2_deliverables: {
-        title: r.deliverable_title,
-        week_number: r.deliverable_week,
-        due_date: r.deliverable_due_date,
+        title: row.deliverable_title,
+        week_number: row.deliverable_week,
+        due_date: row.deliverable_due_date,
       },
-      v2_participants: r.participant_name ? { name: r.participant_name } : null,
-      v2_groups: r.group_name ? { name: r.group_name } : null,
+      v2_participants: row.participant_name ? { name: row.participant_name } : null,
+      v2_groups: row.group_name ? { name: row.group_name } : null,
     }));
 
     // If include_versions, group and include version history
     if (include_versions && (participant_id || group_id)) {
       const grouped = {};
-      for (const sub of submissions) {
-        const groupId = sub.deliverable_id || sub.document_id || `doc-${sub.id}`;
-        const key = `${sub.program_id}-${groupId}`;
+      for (const submission of submissions) {
+        const groupId = submission.deliverable_id || submission.document_id || `doc-${submission.id}`;
+        const key = `${submission.program_id}-${groupId}`;
         if (!grouped[key]) {
           grouped[key] = {
-            deliverable_id: sub.deliverable_id,
-            program_id: sub.program_id,
-            deliverable_title: sub.deliverable_title,
-            deliverable_week: sub.deliverable_week,
-            deliverable_due_date: sub.deliverable_due_date,
-            latest: sub,
+            deliverable_id: submission.deliverable_id,
+            program_id: submission.program_id,
+            deliverable_title: submission.deliverable_title,
+            deliverable_week: submission.deliverable_week,
+            deliverable_due_date: submission.deliverable_due_date,
+            latest: submission,
             versions: [],
           };
         }
-        grouped[key].versions.push(sub);
+        grouped[key].versions.push(submission);
         // Sort versions by version_number
         grouped[key].versions.sort(
-          (a, b) => (b.version_number || 0) - (a.version_number || 0),
+          (first, second) => (second.version_number || 0) - (first.version_number || 0),
         );
       }
 

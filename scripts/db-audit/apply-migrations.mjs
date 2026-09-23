@@ -22,8 +22,8 @@ const ENV_FILE = path.join(PROJECT_ROOT, process.argv[2] || ".env.audit-readonly
 
 let dbUrl = null;
 for (const line of readFileSync(ENV_FILE, "utf8").split(/\r?\n/)) {
-  const m = line.match(/^DATABASE_URL=(.*)$/);
-  if (m) { dbUrl = m[1].trim().replace(/^["']|["']$/g, ""); break; }
+  const match = line.match(/^DATABASE_URL=(.*)$/);
+  if (match) { dbUrl = match[1].trim().replace(/^["']|["']$/g, ""); break; }
 }
 if (!dbUrl) { console.error("Missing DATABASE_URL in .env.audit-readonly"); process.exit(1); }
 
@@ -122,9 +122,9 @@ for (const sql of MIGRATION_STATEMENTS) {
     await client.query(sql);
     results.push(sql);
     console.log(`  OK  ${sql.slice(0, 90)}`);
-  } catch (e) {
-    errors.push({ sql, error: e.message });
-    console.log(`  ERR ${sql.slice(0, 90)}\n      -> ${e.message}`);
+  } catch (error) {
+    errors.push({ sql, error: error.message });
+    console.log(`  ERR ${sql.slice(0, 90)}\n      -> ${error.message}`);
   }
 }
 

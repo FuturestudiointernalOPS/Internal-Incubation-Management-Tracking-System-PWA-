@@ -10,24 +10,24 @@ import {
 export const GET = createHandler(
   { roles: ["super_admin", "security_officer"] },
   async (req) => {
-    const s = new URL(req.url).searchParams;
-    const type = s.get("type") || "list";
+    const searchParams = new URL(req.url).searchParams;
+    const type = searchParams.get("type") || "list";
 
     if (type === "stats") {
-      const hours = parseInt(s.get("hours")) || 24;
+      const hours = parseInt(searchParams.get("hours")) || 24;
       const stats = await getSecurityStats(hours);
       return NextResponse.json({ success: true, ...stats });
     }
 
     const filters = {
-      eventType: s.get("event_type") || undefined,
-      actorCid: s.get("actor_cid") || undefined,
-      severity: s.get("severity") || undefined,
-      isResolved: s.has("is_resolved") ? s.get("is_resolved") === "true" : undefined,
-      limit: parseInt(s.get("limit")) || 50,
-      offset: parseInt(s.get("offset")) || 0,
-      fromDate: s.get("from") || undefined,
-      toDate: s.get("to") || undefined,
+      eventType: searchParams.get("event_type") || undefined,
+      actorCid: searchParams.get("actor_cid") || undefined,
+      severity: searchParams.get("severity") || undefined,
+      isResolved: searchParams.has("is_resolved") ? searchParams.get("is_resolved") === "true" : undefined,
+      limit: parseInt(searchParams.get("limit")) || 50,
+      offset: parseInt(searchParams.get("offset")) || 0,
+      fromDate: searchParams.get("from") || undefined,
+      toDate: searchParams.get("to") || undefined,
     };
 
     const events = await querySecurityEvents(filters);

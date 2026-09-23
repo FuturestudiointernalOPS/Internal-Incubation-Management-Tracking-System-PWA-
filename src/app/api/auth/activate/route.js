@@ -35,13 +35,13 @@ export async function GET(req) {
     }
 
     const tokenHash = hashToken(token);
-    const tokenRes = await getActivationInviteByTokenHash(tokenHash, token);
+    const tokenResult = await getActivationInviteByTokenHash(tokenHash, token);
 
-    if (tokenRes.rows.length === 0) {
+    if (tokenResult.rows.length === 0) {
       // Check if token exists but expired
-      const expiredRes = await getActivationTokenExpiry(tokenHash, token);
+      const expiredTokenResult = await getActivationTokenExpiry(tokenHash, token);
 
-      if (expiredRes.rows.length > 0) {
+      if (expiredTokenResult.rows.length > 0) {
         return NextResponse.json(
           { success: false, error: "This link has expired. Contact your administrator.", expired: true },
           { status: 400 },
@@ -51,7 +51,7 @@ export async function GET(req) {
       return NextResponse.json({ success: false, error: "Invalid token" }, { status: 400 });
     }
 
-    const record = tokenRes.rows[0];
+    const record = tokenResult.rows[0];
 
     // Lazily backfill the hash for legacy rows stored before hashing was added.
     if (!record.token_hash) {
@@ -109,16 +109,16 @@ export async function POST(req) {
 
     // Validate token
     const tokenHash = hashToken(token);
-    const tokenRes = await getActivationInviteForPasswordSetup(tokenHash, token);
+    const tokenResult = await getActivationInviteForPasswordSetup(tokenHash, token);
 
-    if (tokenRes.rows.length === 0) {
+    if (tokenResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Invalid or expired token. Contact your administrator." },
         { status: 400 },
       );
     }
 
-    const record = tokenRes.rows[0];
+    const record = tokenResult.rows[0];
 
     // Lazily backfill the hash for legacy rows stored before hashing was added.
     if (!record.token_hash) {
@@ -141,8 +141,8 @@ export async function POST(req) {
     } catch (_) {}
 
     // Send welcome email (non-blocking)
-    sendWelcomeEmail({ to: record.email, name: record.name, role: record.role, language: record.language }).catch((e) =>
-      console.error("Welcome email failed:", e),
+    sendWelcomeEmail({ to: record.email, name: record.name, role: record.role, language: record.language, contact_cid: record.contact_cid }).catch((emailError) =>
+      console.error("Welcome email failed:", emailError),
     );
 
     return NextResponse.json({ success: true, message: "Account activated. You can now log in." });

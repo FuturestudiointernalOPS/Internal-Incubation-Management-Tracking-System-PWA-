@@ -60,8 +60,8 @@ export class GoogleCalendarProvider extends CalendarProvider {
     );
 
     if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Google Calendar createEvent failed: ${err}`);
+      const errorText = await res.text();
+      throw new Error(`Google Calendar createEvent failed: ${errorText}`);
     }
 
     const data = await res.json();
@@ -97,8 +97,8 @@ export class GoogleCalendarProvider extends CalendarProvider {
     );
 
     if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Google Calendar updateEvent failed: ${err}`);
+      const errorText = await res.text();
+      throw new Error(`Google Calendar updateEvent failed: ${errorText}`);
     }
 
     return { success: true };
@@ -114,8 +114,8 @@ export class GoogleCalendarProvider extends CalendarProvider {
     );
 
     if (!res.ok && res.status !== 404) {
-      const err = await res.text();
-      throw new Error(`Google Calendar deleteEvent failed: ${err}`);
+      const errorText = await res.text();
+      throw new Error(`Google Calendar deleteEvent failed: ${errorText}`);
     }
 
     return { success: true };

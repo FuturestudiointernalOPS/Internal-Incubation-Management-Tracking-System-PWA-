@@ -54,9 +54,9 @@ export async function POST(req) {
     const authError = await requireAuth();
     if (authError) return authError;
     const body = await req.json();
-    const { blocker_id, sender_id, sender_name, body: msgBody } = body;
+    const { blocker_id, sender_id, sender_name, body: messageBody } = body;
 
-    if (!blocker_id || !sender_id || !msgBody || !msgBody.trim()) {
+    if (!blocker_id || !sender_id || !messageBody || !messageBody.trim()) {
       return NextResponse.json(
         { success: false, error: "blocker_id, sender_id, and body are required" },
         { status: 400 },
@@ -76,7 +76,7 @@ export async function POST(req) {
     const result = await createBlockerDiscussion({
       blocker_id,
       sender_id,
-      body: msgBody,
+      body: messageBody,
     });
 
     // Notify the blocker creator (unless they're the one commenting)

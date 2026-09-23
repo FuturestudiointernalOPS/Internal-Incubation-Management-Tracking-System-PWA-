@@ -78,7 +78,7 @@ describe("Courses — create/list/update/delete", () => {
     expect(data.course.status).toBe("draft");
     expect(data.course.title).toBe("Customer Discovery");
 
-    const insert = mockFake.executed.find((q) => /insert into lms_courses/i.test(q.sql));
+    const insert = mockFake.executed.find((entry) => /insert into lms_courses/i.test(entry.sql));
     expect(insert).toBeDefined();
     expect(insert.args).toContain("U-ADMIN");
     expect(insert.args).toContain("public");
@@ -88,7 +88,7 @@ describe("Courses — create/list/update/delete", () => {
   test("POST without a title returns 400 and never inserts", async () => {
     const res = await coursesPOST(jsonReq({}));
     expect(res.status).toBe(400);
-    expect(mockFake.executed.some((q) => /insert into lms_courses/i.test(q.sql))).toBe(false);
+    expect(mockFake.executed.some((entry) => /insert into lms_courses/i.test(entry.sql))).toBe(false);
   });
 
   test("POST with a paid price persists price metadata", async () => {
@@ -98,7 +98,7 @@ describe("Courses — create/list/update/delete", () => {
     expect(res.status).toBe(200);
     const data = await readJson(res);
     expect(data.course.is_free).toBe(false);
-    const insert = mockFake.executed.find((q) => /insert into lms_courses/i.test(q.sql));
+    const insert = mockFake.executed.find((entry) => /insert into lms_courses/i.test(entry.sql));
     expect(insert.args).toContain(49.99);
   });
 
@@ -151,7 +151,7 @@ describe("Courses — create/list/update/delete", () => {
     ]);
     const res = await courseDELETE(jsonReq({}), { params: { id: "C-1" } });
     expect(res.status).toBe(200);
-    expect(mockFake.executed.some((q) => /delete from lms_courses/i.test(q.sql))).toBe(true);
+    expect(mockFake.executed.some((entry) => /delete from lms_courses/i.test(entry.sql))).toBe(true);
   });
 
   test("GET returns the full structure", async () => {
@@ -192,7 +192,7 @@ describe("Publishing", () => {
     mockFake.seed("lms_lessons", [validLesson]);
     const res = await publishPOST(jsonReq({}), { params: { id: "C-1" } });
     expect(res.status).toBe(200);
-    const update = mockFake.executed.find((q) => /update lms_courses.*status = 'published'/i.test(q.sql));
+    const update = mockFake.executed.find((entry) => /update lms_courses.*status = 'published'/i.test(entry.sql));
     expect(update).toBeDefined();
   });
 
@@ -202,7 +202,7 @@ describe("Publishing", () => {
     expect(res.status).toBe(422);
     const data = await readJson(res);
     expect(data.details).toBeDefined();
-    const keys = data.details.map((d) => d.key);
+    const keys = data.details.map((detail) => detail.key);
     expect(keys).toContain("lms.errors.noSections");
     expect(keys).toContain("lms.errors.noLessons");
   });
@@ -214,7 +214,7 @@ describe("Publishing", () => {
     const res = await publishPOST(jsonReq({}), { params: { id: "C-1" } });
     expect(res.status).toBe(422);
     const data = await readJson(res);
-    expect(data.details.map((d) => d.key)).toContain("lms.errors.lessonVideoRequired");
+    expect(data.details.map((detail) => detail.key)).toContain("lms.errors.lessonVideoRequired");
   });
 
   test("archived courses cannot be published", async () => {
@@ -225,12 +225,12 @@ describe("Publishing", () => {
 
   test("archiving a published course succeeds; archiving a draft is refused", async () => {
     mockFake.seed("lms_courses", [{ ...draftCourse, status: "published" }]);
-    const ok = await archivePOST(jsonReq({}), { params: { id: "C-1" } });
-    expect(ok.status).toBe(200);
+    const archiveResponse = await archivePOST(jsonReq({}), { params: { id: "C-1" } });
+    expect(archiveResponse.status).toBe(200);
 
     mockFake.seed("lms_courses", [{ ...draftCourse, id: "C-2" }]);
-    const refused = await archivePOST(jsonReq({}), { params: { id: "C-2" } });
-    expect(refused.status).toBe(409);
+    const refusedResponse = await archivePOST(jsonReq({}), { params: { id: "C-2" } });
+    expect(refusedResponse.status).toBe(409);
   });
 });
 
@@ -253,10 +253,10 @@ describe("Sections", () => {
     expect(res.status).toBe(200);
     const data = await readJson(res);
     expect(data.moved).toBe(true);
-    const s1 = mockFake.state.lms_course_sections.find((s) => s.id === "S-1");
-    const s2 = mockFake.state.lms_course_sections.find((s) => s.id === "S-2");
-    expect(s1.position).toBe(1);
-    expect(s2.position).toBe(0);
+    const firstSection = mockFake.state.lms_course_sections.find((section) => section.id === "S-1");
+    const secondSection = mockFake.state.lms_course_sections.find((section) => section.id === "S-2");
+    expect(firstSection.position).toBe(1);
+    expect(secondSection.position).toBe(0);
   });
 
   test("DELETE refuses when a lesson in the section has progress", async () => {
@@ -282,7 +282,7 @@ describe("Lessons & YouTube", () => {
       { params: { id: "S-1" } },
     );
     expect(res.status).toBe(200);
-    const insert = mockFake.executed.find((q) => /insert into lms_lessons/i.test(q.sql));
+    const insert = mockFake.executed.find((entry) => /insert into lms_lessons/i.test(entry.sql));
     expect(insert).toBeDefined();
     expect(insert.args).toContain("dQw4w9WgXcQ");
   });
@@ -294,7 +294,7 @@ describe("Lessons & YouTube", () => {
       { params: { id: "S-1" } },
     );
     expect(res.status).toBe(400);
-    expect(mockFake.executed.some((q) => /insert into lms_lessons/i.test(q.sql))).toBe(false);
+    expect(mockFake.executed.some((entry) => /insert into lms_lessons/i.test(entry.sql))).toBe(false);
   });
 
   test("POST requires a lesson title", async () => {
@@ -312,7 +312,7 @@ describe("Lessons & YouTube", () => {
       { params: { id: "L-1" } },
     );
     expect(res.status).toBe(200);
-    const lesson = mockFake.state.lms_lessons.find((l) => l.id === "L-1");
+    const lesson = mockFake.state.lms_lessons.find((stored) => stored.id === "L-1");
     expect(lesson.title).toBe("New");
     expect(lesson.is_required).toBe(false);
     expect(lesson.youtube_video_id).toBe("aaaaaaaaaaa");
@@ -329,7 +329,7 @@ describe("Lessons & YouTube", () => {
     mockFake.seed("lms_lessons", [{ id: "L-1", section_id: "S-1", title: "L", content_type: "video", position: 0 }]);
     const res = await lessonDELETE(jsonReq({}), { params: { id: "L-1" } });
     expect(res.status).toBe(200);
-    expect(mockFake.state.lms_lessons.find((l) => l.id === "L-1")).toBeUndefined();
+    expect(mockFake.state.lms_lessons.find((stored) => stored.id === "L-1")).toBeUndefined();
   });
 
   test("PUT action move swaps a lesson with its neighbour (transaction swap)", async () => {
@@ -344,10 +344,10 @@ describe("Lessons & YouTube", () => {
     expect(res.status).toBe(200);
     const data = await readJson(res);
     expect(data.moved).toBe(true);
-    const l1 = mockFake.state.lms_lessons.find((l) => l.id === "L-1");
-    const l2 = mockFake.state.lms_lessons.find((l) => l.id === "L-2");
-    expect(l1.position).toBe(1);
-    expect(l2.position).toBe(0);
+    const firstLesson = mockFake.state.lms_lessons.find((stored) => stored.id === "L-1");
+    const secondLesson = mockFake.state.lms_lessons.find((stored) => stored.id === "L-2");
+    expect(firstLesson.position).toBe(1);
+    expect(secondLesson.position).toBe(0);
   });
 
   test("PUT action move without a neighbour is a no-op (moved: false)", async () => {
@@ -416,7 +416,7 @@ describe("Assessments & questions", () => {
       { params: { id: "A-1" } },
     );
     expect(res.status).toBe(200);
-    const insert = mockFake.executed.find((q) => /insert into lms_assessment_questions/i.test(q.sql));
+    const insert = mockFake.executed.find((entry) => /insert into lms_assessment_questions/i.test(entry.sql));
     expect(insert).toBeDefined();
     expect(insert.args).toContain("multiple_choice");
   });
@@ -450,7 +450,7 @@ describe("Assessments & questions", () => {
       { params: { id: "A-1" } },
     );
     expect(res.status).toBe(200);
-    const insert = mockFake.executed.find((q) => /insert into lms_assessment_questions/i.test(q.sql));
+    const insert = mockFake.executed.find((entry) => /insert into lms_assessment_questions/i.test(entry.sql));
     expect(insert).toBeDefined();
     expect(insert.args).toContain("true_false");
   });
@@ -459,7 +459,7 @@ describe("Assessments & questions", () => {
     mockFake.seed("lms_assessments", [{ id: "A-1", course_id: "C-1", section_id: null, title: "Quiz", pass_mark: null, position: 0 }]);
     const res = await assessmentPUT(jsonReq({ passMark: 80 }), { params: { id: "A-1" } });
     expect(res.status).toBe(200);
-    const assessment = mockFake.state.lms_assessments.find((a) => a.id === "A-1");
+    const assessment = mockFake.state.lms_assessments.find((stored) => stored.id === "A-1");
     expect(assessment.pass_mark).toBe(80);
   });
 
@@ -467,7 +467,7 @@ describe("Assessments & questions", () => {
     mockFake.seed("lms_assessments", [{ id: "A-1", course_id: "C-1", section_id: null, title: "Quiz", question_type: "multiple_choice", position: 0 }]);
     const res = await assessmentPUT(jsonReq({ questionType: "true_false" }), { params: { id: "A-1" } });
     expect(res.status).toBe(200);
-    const assessment = mockFake.state.lms_assessments.find((a) => a.id === "A-1");
+    const assessment = mockFake.state.lms_assessments.find((stored) => stored.id === "A-1");
     expect(assessment.question_type).toBe("true_false");
   });
 
@@ -476,7 +476,7 @@ describe("Assessments & questions", () => {
     mockFake.seed("lms_assessment_questions", [{ id: "Q-1", assessment_id: "A-1", question: "Q?", question_type: "multiple_choice", position: 0 }]);
     const res = await assessmentPUT(jsonReq({ questionType: "true_false" }), { params: { id: "A-1" } });
     expect(res.status).toBe(400);
-    const assessment = mockFake.state.lms_assessments.find((a) => a.id === "A-1");
+    const assessment = mockFake.state.lms_assessments.find((stored) => stored.id === "A-1");
     expect(assessment.question_type).toBe("multiple_choice");
   });
 
@@ -485,8 +485,8 @@ describe("Assessments & questions", () => {
     mockFake.seed("lms_assessment_questions", [{ id: "Q-1", assessment_id: "A-1", question: "Q?", question_type: "multiple_choice", position: 0 }]);
     const res = await assessmentDELETE(jsonReq({}), { params: { id: "A-1" } });
     expect(res.status).toBe(200);
-    expect(mockFake.state.lms_assessments.find((a) => a.id === "A-1")).toBeUndefined();
-    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-1")).toBeUndefined();
+    expect(mockFake.state.lms_assessments.find((stored) => stored.id === "A-1")).toBeUndefined();
+    expect(mockFake.state.lms_assessment_questions.find((stored) => stored.id === "Q-1")).toBeUndefined();
   });
 
   test("DELETE refuses an assessment with learner attempts (409)", async () => {
@@ -538,15 +538,15 @@ describe("Assessments & questions", () => {
       { params: { id: "Q-1" } },
     );
     expect(res.status).toBe(200);
-    const q = mockFake.state.lms_assessment_questions.find((x) => x.id === "Q-1");
-    expect(q.question).toBe("New?");
-    expect(q.points).toBe(3);
-    expect(JSON.parse(q.options)).toEqual([
+    const storedQuestion = mockFake.state.lms_assessment_questions.find((row) => row.id === "Q-1");
+    expect(storedQuestion.question).toBe("New?");
+    expect(storedQuestion.points).toBe(3);
+    expect(JSON.parse(storedQuestion.options)).toEqual([
       { key: "A", text: "Alpha" },
       { key: "B", text: "Beta" },
       { key: "C", text: "Gamma" },
     ]);
-    expect(JSON.parse(q.correct_answer)).toEqual(["C"]);
+    expect(JSON.parse(storedQuestion.correct_answer)).toEqual(["C"]);
   });
 
   test("PUT rejects blank question text (400)", async () => {
@@ -569,8 +569,8 @@ describe("Assessments & questions", () => {
     expect(res.status).toBe(400);
     const data = await readJson(res);
     expect(data.error).toBe("lms.errors.questionTextRequired");
-    const q = mockFake.state.lms_assessment_questions.find((x) => x.id === "Q-1");
-    expect(q.question).toBe("Old?");
+    const storedQuestion = mockFake.state.lms_assessment_questions.find((row) => row.id === "Q-1");
+    expect(storedQuestion.question).toBe("Old?");
   });
 
   test("PUT rejects multiple-choice options with fewer than two choices (400)", async () => {
@@ -596,8 +596,8 @@ describe("Assessments & questions", () => {
     expect(res.status).toBe(400);
     const data = await readJson(res);
     expect(data.error).toBe("lms.errors.mcOptionsRequired");
-    const q = mockFake.state.lms_assessment_questions.find((x) => x.id === "Q-1");
-    expect(q.correct_answer).toEqual(["A"]); // untouched — the row is never mutated on a validation failure
+    const storedQuestion = mockFake.state.lms_assessment_questions.find((row) => row.id === "Q-1");
+    expect(storedQuestion.correct_answer).toEqual(["A"]); // untouched — the row is never mutated on a validation failure
   });
 
   test("PUT action move swaps a question with its up neighbour", async () => {
@@ -612,9 +612,9 @@ describe("Assessments & questions", () => {
     );
     expect(res.status).toBe(200);
     expect((await readJson(res)).moved).toBe(true);
-    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-1").position).toBe(1);
-    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-2").position).toBe(0);
-    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-3").position).toBe(2);
+    expect(mockFake.state.lms_assessment_questions.find((stored) => stored.id === "Q-1").position).toBe(1);
+    expect(mockFake.state.lms_assessment_questions.find((stored) => stored.id === "Q-2").position).toBe(0);
+    expect(mockFake.state.lms_assessment_questions.find((stored) => stored.id === "Q-3").position).toBe(2);
   });
 
   test("PUT action move swaps a question with its down neighbour", async () => {
@@ -629,9 +629,9 @@ describe("Assessments & questions", () => {
     );
     expect(res.status).toBe(200);
     expect((await readJson(res)).moved).toBe(true);
-    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-1").position).toBe(0);
-    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-2").position).toBe(2);
-    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-3").position).toBe(1);
+    expect(mockFake.state.lms_assessment_questions.find((stored) => stored.id === "Q-1").position).toBe(0);
+    expect(mockFake.state.lms_assessment_questions.find((stored) => stored.id === "Q-2").position).toBe(2);
+    expect(mockFake.state.lms_assessment_questions.find((stored) => stored.id === "Q-3").position).toBe(1);
   });
 
   test("PUT action move with no neighbour reports moved: false", async () => {
@@ -646,7 +646,7 @@ describe("Assessments & questions", () => {
     expect(res.status).toBe(200);
     const data = await readJson(res);
     expect(data.moved).toBe(false);
-    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-1").position).toBe(0);
+    expect(mockFake.state.lms_assessment_questions.find((stored) => stored.id === "Q-1").position).toBe(0);
   });
 
   test("PUT action move with an invalid direction returns 400", async () => {
@@ -675,7 +675,7 @@ describe("Assessments & questions", () => {
     ]);
     const res = await questionDELETE(jsonReq({}), { params: { id: "Q-1" } });
     expect(res.status).toBe(200);
-    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-1")).toBeUndefined();
+    expect(mockFake.state.lms_assessment_questions.find((stored) => stored.id === "Q-1")).toBeUndefined();
   });
 
   test("DELETE an unknown question returns 404", async () => {
@@ -690,12 +690,12 @@ describe("Assessments & questions", () => {
       { id: "Q-1", assessment_id: "A-1", question: "One", question_type: "multiple_choice", position: 0 },
     ]);
     requireAuthorization.mockResolvedValueOnce({ status: 403 });
-    const put = await questionPUT(jsonReq({ question: "New?" }), { params: { id: "Q-1" } });
-    expect(put.status).toBe(403);
+    const putResponse = await questionPUT(jsonReq({ question: "New?" }), { params: { id: "Q-1" } });
+    expect(putResponse.status).toBe(403);
 
     requireAuthorization.mockResolvedValueOnce({ status: 403 });
-    const del = await questionDELETE(jsonReq({}), { params: { id: "Q-1" } });
-    expect(del.status).toBe(403);
+    const deleteResponse = await questionDELETE(jsonReq({}), { params: { id: "Q-1" } });
+    expect(deleteResponse.status).toBe(403);
     expect(mockFake.executed.length).toBe(0);
   });
 });
@@ -713,8 +713,8 @@ describe("Sections — drag & drop reorder", () => {
   const positions = () =>
     mockFake.state.lms_course_sections
       .slice()
-      .sort((a, b) => a.position - b.position)
-      .map((s) => s.id);
+      .sort((left, right) => left.position - right.position)
+      .map((section) => section.id);
 
   test("POST persists an arbitrary drag-and-drop section order", async () => {
     seedCourseWithSections();
@@ -725,9 +725,9 @@ describe("Sections — drag & drop reorder", () => {
     expect(res.status).toBe(200);
     expect((await readJson(res)).moved).toBe(true);
     expect(positions()).toEqual(["S-3", "S-1", "S-2"]);
-    expect(mockFake.state.lms_course_sections.find((s) => s.id === "S-1").position).toBe(1);
-    expect(mockFake.state.lms_course_sections.find((s) => s.id === "S-2").position).toBe(2);
-    expect(mockFake.state.lms_course_sections.find((s) => s.id === "S-3").position).toBe(0);
+    expect(mockFake.state.lms_course_sections.find((section) => section.id === "S-1").position).toBe(1);
+    expect(mockFake.state.lms_course_sections.find((section) => section.id === "S-2").position).toBe(2);
+    expect(mockFake.state.lms_course_sections.find((section) => section.id === "S-3").position).toBe(0);
   });
 
   test("POST reports moved: false when the order is unchanged", async () => {
@@ -778,7 +778,7 @@ describe("Authorization (ticket §31)", () => {
     requireAuthorization.mockResolvedValueOnce({ status: 403 });
     const res = await coursesPOST(jsonReq({ title: "Nope" }));
     expect(res.status).toBe(403);
-    expect(mockFake.executed.some((q) => /insert into lms_courses/i.test(q.sql))).toBe(false);
+    expect(mockFake.executed.some((entry) => /insert into lms_courses/i.test(entry.sql))).toBe(false);
   });
 
   test("unauthorized users cannot publish (403)", async () => {

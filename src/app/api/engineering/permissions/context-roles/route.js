@@ -38,11 +38,11 @@ export async function GET() {
     if (capError) return capError;
 
     const seeded = await seedContextRoleProfiles();
-    const rolesRes = await listContextRoleProfiles();
-    const profilesRes = await listAccessProfiles();
+    const rolesResult = await listContextRoleProfiles();
+    const profilesResult = await listAccessProfiles();
 
     const roles = [];
-    for (const row of rolesRes.rows) {
+    for (const row of rolesResult.rows) {
       roles.push({
         ...row,
         holders: await countContextRoleHolders(row.context, row.role_key),
@@ -53,13 +53,13 @@ export async function GET() {
       success: true,
       contexts: CONTEXT_ROLE_CONTEXTS,
       roles,
-      profiles: profilesRes.rows,
+      profiles: profilesResult.rows,
       seeded,
     });
-  } catch (err) {
-    console.error("[Context Roles] GET error:", err);
+  } catch (error) {
+    console.error("[Context Roles] GET error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }
@@ -101,14 +101,14 @@ export async function PUT(req) {
 
     let profileName = null;
     if (rawProfileId !== null) {
-      const meta = await getAccessProfileMeta(rawProfileId);
-      if (meta.rows.length === 0) {
+      const profileResult = await getAccessProfileMeta(rawProfileId);
+      if (profileResult.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Profile not found" },
           { status: 400 },
         );
       }
-      profileName = meta.rows[0].name;
+      profileName = profileResult.rows[0].name;
     }
 
     const isActive = is_active === undefined ? true : Boolean(is_active);
@@ -154,10 +154,10 @@ export async function PUT(req) {
         notes: notesText,
       },
     });
-  } catch (err) {
-    console.error("[Context Roles] PUT error:", err);
+  } catch (error) {
+    console.error("[Context Roles] PUT error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

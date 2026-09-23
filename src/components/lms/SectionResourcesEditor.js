@@ -18,6 +18,7 @@ import {
 import AppModal from "@/components/ui/AppModal";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import {
   LMS_RESOURCE_ACCEPT,
   formatFileSize,
@@ -107,7 +108,7 @@ export default function SectionResourcesEditor({
   // (still unsaved) object from the persisted one.
   const savedPathRef = useRef(null);
 
-  const recommended = (resources || []).filter((r) => r.is_recommended);
+  const recommended = (resources || []).filter((resource) => resource.is_recommended);
   const isFile = form.mode === "file";
   const canSubmit =
     !!form.title.trim() && (isFile ? !!form.upload : !!form.url.trim());
@@ -218,8 +219,8 @@ export default function SectionResourcesEditor({
       if (isPendingUpload(form.upload) && form.upload.storage_path !== data.storage_path) {
         discardUpload(form.upload);
       }
-      setForm((f) => ({
-        ...f,
+      setForm((prev) => ({
+        ...prev,
         upload: {
           url: data.url,
           storage_path: data.storage_path,
@@ -229,7 +230,7 @@ export default function SectionResourcesEditor({
           kind: data.kind,
         },
         // Saving a minute of typing: the filename is a decent default title.
-        title: f.title.trim() ? f.title : String(data.file_name || "").replace(/\.[^.]+$/, ""),
+        title: prev.title.trim() ? prev.title : String(data.file_name || "").replace(/\.[^.]+$/, ""),
       }));
     } catch (err) {
       setUploadError(t(err.message) || t("lms.errors.fileUploadFailed"));
@@ -238,16 +239,16 @@ export default function SectionResourcesEditor({
     }
   };
 
-  const handleFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = ""; // allow re-selecting the same file
+  const handleFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = ""; // allow re-selecting the same file
     await uploadFile(file);
   };
 
-  const handleDrop = async (e) => {
-    e.preventDefault();
+  const handleDrop = async (event) => {
+    event.preventDefault();
     setDragActive(false);
-    await uploadFile(e.dataTransfer?.files?.[0]);
+    await uploadFile(event.dataTransfer?.files?.[0]);
   };
 
   /** Hand the form values to the host (create or update) and close on success. */
@@ -292,7 +293,7 @@ export default function SectionResourcesEditor({
               // would be inconsistent, so it is dropped (and cleaned up when it
               // was never saved).
               if (drop && isPendingUpload(form.upload)) discardUpload(form.upload);
-              setForm((f) => ({ ...f, kind, upload: drop ? null : f.upload }));
+              setForm((prev) => ({ ...prev, kind, upload: drop ? null : prev.upload }));
             }}
             className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border transition-all text-[10px] font-black uppercase tracking-widest"
             style={{
@@ -320,7 +321,7 @@ export default function SectionResourcesEditor({
           <button
             key={mode}
             type="button"
-            onClick={() => setForm((f) => ({ ...f, mode }))}
+            onClick={() => setForm((prev) => ({ ...prev, mode }))}
             className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border transition-all text-[9px] font-black uppercase tracking-widest"
             style={{
               borderColor: form.mode === mode ? "var(--brand-orange)" : "var(--border-primary)",
@@ -339,7 +340,7 @@ export default function SectionResourcesEditor({
           className={inputClassName}
           style={inputStyle}
           value={form.title}
-          onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+          onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
           placeholder={t("lms.sessionResources.fieldTitlePlaceholder")}
         />
       </Field>
@@ -351,7 +352,7 @@ export default function SectionResourcesEditor({
             style={inputStyle}
             type="url"
             value={form.url}
-            onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+            onChange={(event) => setForm((prev) => ({ ...prev, url: event.target.value }))}
             placeholder={t("lms.sessionResources.fieldUrlPlaceholder")}
           />
         </Field>
@@ -369,14 +370,14 @@ export default function SectionResourcesEditor({
           {/* Drop zone: the whole area accepts a drop, in both states (an
               existing file can be replaced by dropping a new one). */}
           <div
-            onDragOver={(e) => {
-              e.preventDefault();
+            onDragOver={(event) => {
+              event.preventDefault();
               if (!uploading) setDragActive(true);
             }}
-            onDragLeave={(e) => {
+            onDragLeave={(event) => {
               // Moving onto a child element fires dragleave with the child as
               // target — ignore those, or the zone would flicker.
-              if (!e.currentTarget.contains(e.relatedTarget)) setDragActive(false);
+              if (!event.currentTarget.contains(event.relatedTarget)) setDragActive(false);
             }}
             onDrop={handleDrop}
           >
@@ -414,7 +415,7 @@ export default function SectionResourcesEditor({
                     type="button"
                     onClick={() => {
                       if (isPendingUpload(form.upload)) discardUpload(form.upload);
-                      setForm((f) => ({ ...f, upload: null }));
+                      setForm((prev) => ({ ...prev, upload: null }));
                     }}
                     className="p-1.5 rounded-lg text-rose-500/50 hover:text-rose-500 transition-all"
                     title={t("common.remove")}
@@ -480,7 +481,7 @@ export default function SectionResourcesEditor({
           style={inputStyle}
           rows={2}
           value={form.description}
-          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+          onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
           placeholder={t("lms.sessionResources.fieldDescriptionPlaceholder")}
         />
       </Field>
@@ -489,7 +490,7 @@ export default function SectionResourcesEditor({
         <input
           type="checkbox"
           checked={form.is_recommended}
-          onChange={(e) => setForm((f) => ({ ...f, is_recommended: e.target.checked }))}
+          onChange={(event) => setForm((prev) => ({ ...prev, is_recommended: event.target.checked }))}
           className="mt-0.5"
         />
         <span>
@@ -512,8 +513,8 @@ export default function SectionResourcesEditor({
             style={inputStyle}
             rows={2}
             value={form.recommendation_note}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, recommendation_note: e.target.value }))
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, recommendation_note: event.target.value }))
             }
             placeholder={t("lms.sessionResources.fieldNotePlaceholder")}
           />
@@ -625,6 +626,7 @@ export default function SectionResourcesEditor({
 /** One resource: link, optional recommendation, optional pending marker. */
 function ResourceRow({ resource, canEdit, onEdit, onDelete }) {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const pending = !!resource.localId;
   return (
     <div
@@ -711,8 +713,8 @@ function ResourceRow({ resource, canEdit, onEdit, onDelete }) {
           </button>
           <button
             type="button"
-            onClick={() => {
-              if (window.confirm(t("lms.sessionResources.confirmDelete"))) onDelete();
+            onClick={async () => {
+              if (await confirm({ message: t("lms.sessionResources.confirmDelete"), tone: "danger" })) onDelete();
             }}
             className="p-1.5 rounded-lg text-rose-500/40 hover:text-rose-500 transition-all"
             title={t("lms.sessionResources.delete")}

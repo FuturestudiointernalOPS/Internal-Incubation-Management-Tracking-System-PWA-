@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { sendEmail } from "@/lib/mailer";
+import { sendStandaloneEmail } from "@/lib/email";
 import {
   findContactByEmail,
   getExistingInvestorProfileId,
@@ -61,9 +61,9 @@ export async function POST(req) {
 
       // Save preferences
       if (industries?.length || countries?.length || startup_stages?.length) {
-        const prof = await getExistingInvestorProfileId(user.cid);
+        const profileResult = await getExistingInvestorProfileId(user.cid);
         await upsertInvestorPreferences(
-          prof.rows[0]?.id,
+          profileResult.rows[0]?.id,
           industries || [],
           countries || [],
           startup_stages || [],
@@ -91,9 +91,9 @@ export async function POST(req) {
 
     // Save preferences
     if (industries?.length || countries?.length || startup_stages?.length) {
-      const profile = await getNewInvestorProfileId(cid);
+      const newProfileResult = await getNewInvestorProfileId(cid);
       await insertInvestorPreferences(
-        profile.rows[0].id,
+        newProfileResult.rows[0].id,
         industries || [],
         countries || [],
         startup_stages || [],
@@ -104,9 +104,11 @@ export async function POST(req) {
 
     // Send confirmation email
     try {
-      await sendEmail({
+      await sendStandaloneEmail({
         to: email,
         subject: "Investor Registration Received — Future Studio",
+        email_type: "investor_registration",
+        contact_cid: cid,
         body: `Hello ${name},\n\nYour investor registration has been received and is pending review.\n\nOrganization: ${organization_name || "Individual Investor"}\n\nWe'll notify you once your account is approved. You'll then be able to access Investor OS and discover investment opportunities.\n\n— Future Studio Team`,
       });
     } catch (_) {}
@@ -114,8 +116,8 @@ export async function POST(req) {
     // Notify admins
     try {
       const admins = await listAdminContactIdsForNotification();
-      for (const a of admins.rows) {
-        await notifyAdminsOfNewInvestor(a.cid, `New Investor: ${organization_name || name}`, `${name} completed the Investor Profile Wizard. Review their qualification.`);
+      for (const admin of admins.rows) {
+        await notifyAdminsOfNewInvestor(admin.cid, `New Investor: ${organization_name || name}`, `${name} completed the Investor Profile Wizard. Review their qualification.`);
       }
     } catch (_) {}
 

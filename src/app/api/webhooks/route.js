@@ -7,14 +7,14 @@ export const GET = createHandler(async (req) => {
   const capError = await requireAuthorization("settings", "view");
   if (capError) return capError;
 
-  const s = new URL(req.url).searchParams;
-    const limit = s.get("limit") ? parseInt(s.get("limit")) : undefined;
-    const offset = s.get("offset") ? parseInt(s.get("offset")) : undefined;
+  const searchParams = new URL(req.url).searchParams;
+    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")) : undefined;
+    const offset = searchParams.get("offset") ? parseInt(searchParams.get("offset")) : undefined;
 
     const webhooks = await getWebhooks({
-      ventureId: s.get("venture_id"),
-      event: s.get("event"),
-      isActive: s.has("is_active") ? s.get("is_active") === "true" : undefined,
+      ventureId: searchParams.get("venture_id"),
+      event: searchParams.get("event"),
+      isActive: searchParams.has("is_active") ? searchParams.get("is_active") === "true" : undefined,
       limit,
       offset,
     });

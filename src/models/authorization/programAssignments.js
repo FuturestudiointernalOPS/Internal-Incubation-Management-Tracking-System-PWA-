@@ -76,8 +76,8 @@ function toIsoDate(value) {
       ? null
       : value.toISOString().slice(0, 10);
   }
-  const s = String(value).slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+  const iso = String(value).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : null;
 }
 
 /**
@@ -119,8 +119,8 @@ export function resolveAssignmentCapabilityLevel(assignment, capability, ctx = {
 export function deriveFacilitatorDesiredCaps(assignments = [], lookups = {}) {
   const desired = {};
   const programs = [];
-  for (const a of assignments) {
-    const programId = String(a?.program_id ?? "");
+  for (const assignment of assignments) {
+    const programId = String(assignment?.program_id ?? "");
     if (!programId) continue;
     if (!programs.includes(programId)) programs.push(programId);
     const ctx = {
@@ -129,7 +129,7 @@ export function deriveFacilitatorDesiredCaps(assignments = [], lookups = {}) {
     };
     for (const capability of FACILITATOR_CAPABILITY_KEYS) {
       const level = Number(
-        resolveAssignmentCapabilityLevel(a, capability, ctx),
+        resolveAssignmentCapabilityLevel(assignment, capability, ctx),
       );
       if (!(level >= 1)) continue; // an explicit 0 is a deliberate removal
       const key = `facilitator.${capability}`;
@@ -149,8 +149,8 @@ export function deriveFacilitatorDesiredCaps(assignments = [], lookups = {}) {
  */
 export function deriveAssignmentsExpiry(assignments = []) {
   let latest = null;
-  for (const a of assignments) {
-    const end = toIsoDate(a?.end_date);
+  for (const assignment of assignments) {
+    const end = toIsoDate(assignment?.end_date);
     if (!end) return null;
     if (!latest || end > latest) latest = end;
   }
@@ -200,8 +200,8 @@ export async function executeWithOptionalProfileColumn({
     const res = await db.execute({ sql: withColumn, args });
     assignmentProfileColumn = true;
     return res;
-  } catch (e) {
-    if (assignmentProfileColumn === null && isMissingColumnError(e)) {
+  } catch (error) {
+    if (assignmentProfileColumn === null && isMissingColumnError(error)) {
       assignmentProfileColumn = false;
       console.warn(
         "[Authz] v2_program_staff.access_profile_id is absent (migration 041 not applied): " +
@@ -209,7 +209,7 @@ export async function executeWithOptionalProfileColumn({
       );
       return db.execute({ sql: withoutColumn, args });
     }
-    throw e;
+    throw error;
   }
 }
 
@@ -221,13 +221,13 @@ export function resetAssignmentProfileColumnCache() {
 /** Program ids where the person is the named manager. */
 export async function listManagedProgramIds(cid) {
   if (!cid) return [];
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT CAST(id AS TEXT) AS program_id
           FROM v2_programs
           WHERE CAST(assigned_pm_id AS TEXT) = ?`,
     args: [String(cid)],
   });
-  return (r.rows || []).map((row) => String(row.program_id)).filter(Boolean);
+  return (result.rows || []).map((row) => String(row.program_id)).filter(Boolean);
 }
 
 /**
@@ -287,12 +287,12 @@ export async function listActiveProgramAssignments(cid, { email = null } = {}) {
       (row) => !isProgramEnded(row, today),
     );
     return { rows, ended: true, error: null };
-  } catch (e) {
+  } catch (error) {
     console.warn(
       `[Authz] listActiveProgramAssignments(${cid}) failed:`,
-      e.message,
+      error.message,
     );
-    return { rows: [], ended: false, error: e.message };
+    return { rows: [], ended: false, error: error.message };
   }
 }
 
@@ -308,11 +308,11 @@ export function assignmentsForRole(rows = [], roleKey) {
  * capability per program).
  */
 export async function loadAssignmentLookups(assignments = []) {
-  const programIds = [...new Set(assignments.map((a) => String(a.program_id)))];
+  const programIds = [...new Set(assignments.map((assignment) => String(assignment.program_id)))];
   const profileIds = [
     ...new Set(
       assignments
-        .map((a) => a.access_profile_id)
+        .map((assignment) => assignment.access_profile_id)
         .filter((id) => id !== null && id !== undefined && id !== ""),
     ),
   ];
@@ -343,17 +343,17 @@ export async function loadAssignmentLookups(assignments = []) {
 
   const profileCapsByProfile = {};
   for (const row of profileRes.rows || []) {
-    const id = String(row.profile_id);
-    profileCapsByProfile[id] ??= [];
-    profileCapsByProfile[id].push(row);
+    const profileId = String(row.profile_id);
+    profileCapsByProfile[profileId] ??= [];
+    profileCapsByProfile[profileId].push(row);
   }
 
   const profileCapsByAssignment = {};
-  for (const a of assignments) {
-    const id = a.access_profile_id;
-    if (id === null || id === undefined || id === "") continue;
-    profileCapsByAssignment[String(a.program_id)] =
-      profileCapsByProfile[String(id)] || [];
+  for (const assignment of assignments) {
+    const profileId = assignment.access_profile_id;
+    if (profileId === null || profileId === undefined || profileId === "") continue;
+    profileCapsByAssignment[String(assignment.program_id)] =
+      profileCapsByProfile[String(profileId)] || [];
   }
 
   return { programDefaultById, profileCapsByAssignment };

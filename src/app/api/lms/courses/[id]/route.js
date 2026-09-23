@@ -23,8 +23,8 @@ export async function GET(req, { params }) {
     const { id } = await params;
     const structure = await getCourseStructure(id);
     return NextResponse.json({ success: true, course: structure });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }
 
@@ -41,8 +41,8 @@ export async function PUT(req, { params }) {
     const body = await req.json();
     const course = await updateCourse(id, body);
     return NextResponse.json({ success: true, course });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }
 
@@ -59,7 +59,7 @@ export async function DELETE(req, { params }) {
     const { id } = await params;
     const result = await deleteCourse(id);
     return NextResponse.json({ success: true, ...result });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { User, Clock, FileText, Briefcase, Rocket, Upload, Plus, ArrowLeft, Send, Mail, GraduationCap, Building2 } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
-import { formatLocaleDate } from "@/lib/constants";
+import { formatLabel, formatLocaleDate } from "@/lib/constants";
 import { useSafeBack } from "@/lib/useSafeBack";
 import MembershipSection from "@/components/membership/MembershipSection";
 import { useApi } from "@/lib/hooks/useApi";
@@ -16,11 +16,13 @@ import { useApi } from "@/lib/hooks/useApi";
 
 const TIMELINE_LIMIT = 200;
 
-const pickContact = (d) => (d?.contacts?.length > 0 ? d.contacts[0] : null);
-const pickTimeline = (d) => (d?.success ? d.events || [] : []);
-const pickRoles = (d) => (d?.success ? d.roles || [] : []);
-const pickProgramHistory = (d) => (d?.success ? d.history || [] : []);
-const pickLearning = (d) => (d?.success ? d.learning || null : null);
+const pickContact = (payload) =>
+  payload?.contacts?.length > 0 ? payload.contacts[0] : null;
+const pickTimeline = (payload) => (payload?.success ? payload.events || [] : []);
+const pickRoles = (payload) => (payload?.success ? payload.roles || [] : []);
+const pickProgramHistory = (payload) => (payload?.success ? payload.history || [] : []);
+const pickLearning = (payload) => (payload?.success ? payload.learning || null : null);
+const pickEmails = (payload) => (payload?.success ? payload.emails || [] : []);
 
 const MODULE_COLORS = {
   forms: "bg-purple-500/10 text-purple-400 border-purple-500/20",
@@ -67,6 +69,45 @@ const MODULE_LABELS = {
   system: "crm.modules.system",
 };
 
+// Every email type the SHARED delivery log can hold, so a person's history is
+// labelled in the reader's language. An unknown type falls back to a humanized
+// code rather than a raw key.
+const EMAIL_TYPE_KEYS = [
+  "activation", "access", "welcome", "password_reset", "approval_setup",
+  "team_credentials", "campaign", "investor_registration", "investor_decision",
+  "venture_approval", "venture_invitation", "venture_member_invitation",
+  "venture_notification", "notification",
+  "acknowledgement", "approval", "rejection", "manual", "result",
+];
+
+// Delivery statuses — the same vocabulary and colours the run email log uses.
+const EMAIL_STATUS_STYLES = {
+  sent: "bg-emerald-500/10 text-emerald-500",
+  delivered: "bg-emerald-400/10 text-emerald-400",
+  opened: "bg-sky-500/10 text-sky-500",
+  clicked: "bg-indigo-500/10 text-indigo-500",
+  delayed: "bg-amber-500/10 text-amber-500",
+  complained: "bg-rose-500/10 text-rose-500",
+  failed: "bg-rose-500/10 text-rose-500",
+  bounced: "bg-amber-500/10 text-amber-500",
+  cancelled: "bg-slate-500/10 text-slate-400",
+  skipped: "bg-slate-500/10 text-slate-400",
+  pending: "bg-amber-500/10 text-amber-400",
+};
+const EMAIL_STATUS_LABEL_KEYS = {
+  sent: "platformMisc.runs.emailSent",
+  delivered: "platformMisc.runs.emailDelivered",
+  opened: "platformMisc.runs.emailOpened",
+  clicked: "platformMisc.runs.emailClicked",
+  delayed: "platformMisc.runs.emailDelayed",
+  complained: "platformMisc.runs.emailComplained",
+  failed: "platformMisc.runs.emailFailed",
+  bounced: "platformMisc.runs.emailBounced",
+  cancelled: "platformMisc.runs.emailCancelled",
+  skipped: "platformMisc.runs.emailSkipped",
+  pending: "platformMisc.runs.emailPending",
+};
+
 export default function CrmDetailPage({ params }) {
   const { cid } = use(params);
   const _router = useRouter();
@@ -95,7 +136,7 @@ export default function CrmDetailPage({ params }) {
   const [inviting, setInviting] = useState(false);
   const [inviteMessage, setInviteMessage] = useState(null);
 
-  // Five reads of the same person, each through the shared hook: it owns the
+  // Reads of the same person, each through the shared hook: it owns the
   // cache, the cache-first paint and the discarding of a stale answer, so the
   // page keeps no copy of its own and reads its data during render.
   const { data: contact, loading: contactLoading, refresh: refreshContact } = useApi(
@@ -120,33 +161,38 @@ export default function CrmDetailPage({ params }) {
     cid ? `/api/contacts/${cid}/learning` : null,
     { defaultValue: null, transform: pickLearning, deps: [cid] },
   );
+  const { data: emails, loading: emailsLoading } = useApi(
+    cid ? `/api/contacts/${cid}/emails?limit=100` : null,
+    { defaultValue: [], transform: pickEmails, deps: [cid] },
+  );
 
   const loading =
     contactLoading ||
     eventsLoading ||
     rolesLoading ||
     programsLoading ||
-    learningLoading;
+    learningLoading ||
+    emailsLoading;
 
-  const currentRoles = roles.filter(r => r.is_current);
-  const pastRoles = roles.filter(r => !r.is_current);
+  const currentRoles = roles.filter(roleAssignment => roleAssignment.is_current);
+  const pastRoles = roles.filter(roleAssignment => !roleAssignment.is_current);
 
   // Group events by year
   const eventsByYear = {};
-  for (const ev of events) {
-    const year = new Date(ev.created_at).getFullYear();
+  for (const event of events) {
+    const year = new Date(event.created_at).getFullYear();
     if (!eventsByYear[year]) eventsByYear[year] = [];
-    eventsByYear[year].push(ev);
+    eventsByYear[year].push(event);
   }
-  const sortedYears = Object.keys(eventsByYear).sort((a, b) => b - a);
+  const sortedYears = Object.keys(eventsByYear).sort((first, second) => second - first);
 
   // Quick panel counts
   const panelCounts = {
-    forms: events.filter(e => e.context_module === "forms").length,
-    programs: events.filter(e => e.context_module === "programs").length,
-    ventures: events.filter(e => e.context_module === "ventures").length,
-    investors: events.filter(e => e.context_module === "investors").length,
-    comms: events.filter(e => e.context_module === "communications").length,
+    forms: events.filter(event => event.context_module === "forms").length,
+    programs: events.filter(event => event.context_module === "programs").length,
+    ventures: events.filter(event => event.context_module === "ventures").length,
+    investors: events.filter(event => event.context_module === "investors").length,
+    comms: events.filter(event => event.context_module === "communications").length,
   };
 
   async function handleAddNote() {
@@ -160,8 +206,8 @@ export default function CrmDetailPage({ params }) {
       });
       setNoteText("");
       // Refresh timeline
-      const res = await fetch(`/api/contacts/${cid}/timeline?limit=200`);
-      const data = await res.json();
+      const response = await fetch(`/api/contacts/${cid}/timeline?limit=200`);
+      const data = await response.json();
       if (data.success) setEvents(data.events || []);
     } catch (_) {}
     setSavingNote(false);
@@ -184,8 +230,8 @@ export default function CrmDetailPage({ params }) {
       setMeetingSummary("");
       setMeetingAttendees("");
       setMeetingOutcome("");
-      const res = await fetch(`/api/contacts/${cid}/timeline?limit=200`);
-      const data = await res.json();
+      const response = await fetch(`/api/contacts/${cid}/timeline?limit=200`);
+      const data = await response.json();
       if (data.success) setEvents(data.events || []);
     } catch (_) {}
     setSavingMeeting(false);
@@ -196,7 +242,7 @@ export default function CrmDetailPage({ params }) {
     setInviting(true);
     setInviteMessage(null);
     try {
-      const res = await fetch("/api/auth/invite", {
+      const response = await fetch("/api/auth/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -205,9 +251,15 @@ export default function CrmDetailPage({ params }) {
           role: contact.role || "participant",
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
-        setInviteMessage({ type: "success", text: t("crm.contacts.invitationSent") || "Invitation sent" });
+        // The person was invited either way — but "sent" is only claimed when
+        // the sender really sent it.
+        setInviteMessage(
+          data.email_sent === false
+            ? { type: "error", text: t("crm.contacts.inviteEmailFailed", { error: data.email_error || t("crm.contacts.inviteFailed") }) }
+            : { type: "success", text: t("crm.contacts.invitationSent") || "Invitation sent" },
+        );
         // Re-read the person so the invitation state on screen is the server's.
         refreshContact();
       } else {
@@ -219,8 +271,8 @@ export default function CrmDetailPage({ params }) {
     setInviting(false);
   }
 
-  async function handleFileUpload(e) {
-    const file = e.target.files?.[0];
+  async function handleFileUpload(event) {
+    const file = event.target.files?.[0];
     if (!file) return;
     setUploading(true);
     try {
@@ -238,8 +290,8 @@ export default function CrmDetailPage({ params }) {
             metadata: { file_url: uploadData.url, file_name: file.name },
           }),
         });
-        const res = await fetch(`/api/contacts/${cid}/timeline?limit=200`);
-        const data = await res.json();
+        const response = await fetch(`/api/contacts/${cid}/timeline?limit=200`);
+        const data = await response.json();
         if (data.success) setEvents(data.events || []);
       }
     } catch (_) {}
@@ -293,9 +345,9 @@ export default function CrmDetailPage({ params }) {
                 {contact.email} {contact.phone ? "· " + contact.phone : ""}
               </p>
               <div className="flex flex-wrap gap-1.5 mt-3">
-                {currentRoles.map(r => (
-                  <span key={r.id} className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
-                    {t(ROLE_LABELS[r.role] || "") || r.role}
+                {currentRoles.map(roleAssignment => (
+                  <span key={roleAssignment.id} className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                    {t(ROLE_LABELS[roleAssignment.role] || "") || roleAssignment.role}
                   </span>
                 ))}
                 {pastRoles.length > 0 && (
@@ -357,24 +409,25 @@ export default function CrmDetailPage({ params }) {
         <div className="flex gap-1 border-b border-[var(--border-primary)] pb-0">
           {[
             { key: "timeline", label: t("crm.people.tabTimeline"), icon: Clock },
+            { key: "emails", label: t("crm.people.tabEmails"), icon: Mail },
             { key: "programs", label: t("crm.people.tabPrograms"), icon: Rocket },
             { key: "learning", label: t("crm.people.tabLearning"), icon: GraduationCap },
             { key: "membership", label: t("crm.people.tabMembership"), icon: Building2 },
             { key: "notes", label: t("crm.people.tabNotes"), icon: FileText },
             { key: "meetings", label: t("crm.people.tabMeetings"), icon: Briefcase },
             { key: "documents", label: t("crm.people.tabDocuments"), icon: Upload },
-          ].map(item => (
+          ].map(tabItem => (
             <button
-              key={item.key}
-              onClick={() => setTab(item.key)}
+              key={tabItem.key}
+              onClick={() => setTab(tabItem.key)}
               className={`flex items-center gap-2 px-4 py-2.5 text-[11px] font-black uppercase tracking-wider border-b-2 transition-colors ${
-                tab === item.key
+                tab === tabItem.key
                   ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
                   : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
-              <item.icon className="w-3.5 h-3.5" />
-              {item.label}
+              <tabItem.icon className="w-3.5 h-3.5" />
+              {tabItem.label}
             </button>
           ))}
         </div>
@@ -390,33 +443,33 @@ export default function CrmDetailPage({ params }) {
                 { key: "ventures", label: t("crm.people.panelVentures"), count: panelCounts.ventures, color: "border-emerald-500/30" },
                 { key: "investors", label: t("crm.people.panelInvestors"), count: panelCounts.investors, color: "border-amber-500/30" },
                 { key: "communications", label: t("crm.people.panelComms"), count: panelCounts.comms, color: "border-cyan-500/30" },
-              ].map(p => (
+              ].map(panel => (
                 <button
-                  key={p.key}
-                  onClick={() => setModuleFilter(moduleFilter === p.key ? "" : p.key)}
+                  key={panel.key}
+                  onClick={() => setModuleFilter(moduleFilter === panel.key ? "" : panel.key)}
                   className={`p-3 rounded-xl border text-center transition-all ${
-                    moduleFilter === p.key
+                    moduleFilter === panel.key
                       ? "border-[var(--brand-orange)] bg-[var(--brand-orange)]/5"
                       : "border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50"
                   }`}
                 >
-                  <p className="text-lg font-black">{p.count}</p>
-                  <p className="text-[10px] font-bold uppercase text-[var(--text-secondary)]">{p.label}</p>
+                  <p className="text-lg font-black">{panel.count}</p>
+                  <p className="text-[10px] font-bold uppercase text-[var(--text-secondary)]">{panel.label}</p>
                 </button>
               ))}
             </div>
 
             {/* Filter pills */}
             <div className="flex flex-wrap gap-1.5">
-              {["", "forms", "programs", "ventures", "investors", "communications", "system"].map(f => (
+              {["", "forms", "programs", "ventures", "investors", "communications", "system"].map(module => (
                 <button
-                  key={f}
-                  onClick={() => setModuleFilter(f)}
+                  key={module}
+                  onClick={() => setModuleFilter(module)}
                   className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-colors ${
-                    moduleFilter === f ? "bg-[var(--brand-orange)] text-black border-orange-600" : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]"
+                    moduleFilter === module ? "bg-[var(--brand-orange)] text-black border-orange-600" : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]"
                   }`}
                 >
-                  {t(MODULE_LABELS[f] || "") || f || t("crm.people.all")}
+                  {t(MODULE_LABELS[module] || "") || module || t("crm.people.all")}
                 </button>
               ))}
             </div>
@@ -439,25 +492,63 @@ export default function CrmDetailPage({ params }) {
                       <h3 className="text-xs font-black uppercase tracking-widest text-[var(--brand-orange)]">{year}</h3>
                     </div>
                     <div className="space-y-1.5 pl-5 border-l-2 border-[var(--border-primary)]">
-                      {eventsByYear[year].map(ev => (
-                        <div key={ev.id} className="relative pl-5 pb-3">
+                      {eventsByYear[year].map(event => (
+                        <div key={event.id} className="relative pl-5 pb-3">
                           <div className="absolute left-[-23px] top-1.5 w-2 h-2 rounded-full bg-[var(--border-primary)] border-2 border-primary" />
                           <div className="bg-primary border border-[var(--border-primary)] rounded-xl p-3">
                             <div className="flex items-start justify-between gap-2">
-                              <p className="text-sm font-bold">{ev.description}</p>
-                              {ev.context_module && (
-                                <span className={`shrink-0 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full border ${MODULE_COLORS[ev.context_module] || MODULE_COLORS.system}`}>
-                                  {t(MODULE_LABELS[ev.context_module] || "") || ev.context_module}
+                              <p className="text-sm font-bold">{event.description}</p>
+                              {event.context_module && (
+                                <span className={`shrink-0 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full border ${MODULE_COLORS[event.context_module] || MODULE_COLORS.system}`}>
+                                  {t(MODULE_LABELS[event.context_module] || "") || event.context_module}
                                 </span>
                               )}
                             </div>
                             <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                              {formatLocaleDate(ev.created_at, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)}
+                              {formatLocaleDate(event.created_at, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)}
                             </p>
                           </div>
                         </div>
                       ))}
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Emails Tab — the person's history from the SHARED delivery log */}
+        {tab === "emails" && (
+          <div className="space-y-4">
+            <p className="text-[11px] text-[var(--text-secondary)]">{t("crm.people.emailsDesc")}</p>
+            {emails.length === 0 ? (
+              <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-8 text-center">
+                <Mail className="w-8 h-8 mx-auto mb-2 text-[var(--text-secondary)]" />
+                <p className="text-sm font-bold">{t("crm.people.emailsEmpty")}</p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {emails.map((email) => (
+                  <div key={email.id} className="bg-primary border border-[var(--border-primary)] rounded-xl p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-bold">
+                        {EMAIL_TYPE_KEYS.includes(email.email_type)
+                          ? t(`crm.emailTypes.${email.email_type}`)
+                          : formatLabel(email.email_type)}
+                      </p>
+                      <span className={`shrink-0 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${EMAIL_STATUS_STYLES[email.status] || "bg-white/5 text-[var(--text-secondary)]"}`}>
+                        {EMAIL_STATUS_LABEL_KEYS[email.status] ? t(EMAIL_STATUS_LABEL_KEYS[email.status]) : formatLabel(email.status)}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-[var(--text-secondary)] mt-1">
+                      {email.recipient || t("crm.people.emailsNoRecipient")}
+                      {email.provider ? ` · ${email.provider}` : ""}
+                      {` · ${formatLocaleDate(email.sent_at || email.created_at, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }, lang)}`}
+                    </p>
+                    {email.error && (
+                      <p className="text-[10px] text-rose-400 mt-1">{email.error}</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -473,8 +564,8 @@ export default function CrmDetailPage({ params }) {
                 type="text"
                 placeholder={t("crm.people.notePlaceholder")}
                 value={noteText}
-                onChange={e => setNoteText(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleAddNote()}
+                onChange={event => setNoteText(event.target.value)}
+                onKeyDown={event => event.key === "Enter" && handleAddNote()}
                 className="flex-1 bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand-orange)]"
               />
               <button
@@ -486,15 +577,15 @@ export default function CrmDetailPage({ params }) {
               </button>
             </div>
             <div className="space-y-2">
-              {events.filter(e => e.event_type === "note_added").map(ev => (
-                <div key={ev.id} className="bg-primary border border-[var(--border-primary)] rounded-xl p-3">
-                  <p className="text-sm">{ev.description}</p>
+              {events.filter(event => event.event_type === "note_added").map(noteEvent => (
+                <div key={noteEvent.id} className="bg-primary border border-[var(--border-primary)] rounded-xl p-3">
+                  <p className="text-sm">{noteEvent.description}</p>
                   <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                    {formatLocaleDate(ev.created_at, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)}
+                    {formatLocaleDate(noteEvent.created_at, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)}
                   </p>
                 </div>
               ))}
-              {events.filter(e => e.event_type === "note_added").length === 0 && (
+              {events.filter(event => event.event_type === "note_added").length === 0 && (
                 <p className="text-sm text-[var(--text-secondary)] py-4">{t("crm.people.noNotes")}</p>
               )}
             </div>
@@ -516,27 +607,27 @@ export default function CrmDetailPage({ params }) {
                 <input
                   type="date"
                   value={meetingDate}
-                  onChange={e => setMeetingDate(e.target.value)}
+                  onChange={event => setMeetingDate(event.target.value)}
                   className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand-orange)]"
                 />
                 <input
                   type="text"
                   placeholder={t("crm.people.meetingSummaryPlaceholder")}
                   value={meetingSummary}
-                  onChange={e => setMeetingSummary(e.target.value)}
+                  onChange={event => setMeetingSummary(event.target.value)}
                   className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand-orange)]"
                 />
                 <input
                   type="text"
                   placeholder={t("crm.people.meetingAttendeesPlaceholder")}
                   value={meetingAttendees}
-                  onChange={e => setMeetingAttendees(e.target.value)}
+                  onChange={event => setMeetingAttendees(event.target.value)}
                   className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand-orange)]"
                 />
                 <textarea
                   placeholder={t("crm.people.meetingOutcomePlaceholder")}
                   value={meetingOutcome}
-                  onChange={e => setMeetingOutcome(e.target.value)}
+                  onChange={event => setMeetingOutcome(event.target.value)}
                   rows={2}
                   className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand-orange)]"
                 />
@@ -556,22 +647,22 @@ export default function CrmDetailPage({ params }) {
             )}
 
             <div className="space-y-2">
-              {events.filter(e => e.event_type === "meeting_held").map(ev => (
-                <div key={ev.id} className="bg-primary border border-[var(--border-primary)] rounded-xl p-3">
-                  <p className="text-sm font-bold">{ev.description}</p>
-                  {ev.metadata && (
+              {events.filter(event => event.event_type === "meeting_held").map(meetingEvent => (
+                <div key={meetingEvent.id} className="bg-primary border border-[var(--border-primary)] rounded-xl p-3">
+                  <p className="text-sm font-bold">{meetingEvent.description}</p>
+                  {meetingEvent.metadata && (
                     <div className="text-[10px] text-[var(--text-secondary)] mt-1 space-y-0.5">
-                      {ev.metadata.date && <p>{t("crm.people.metaDate")} {ev.metadata.date}</p>}
-                      {ev.metadata.attendees && <p>{t("crm.people.metaAttendees")} {ev.metadata.attendees}</p>}
-                      {ev.metadata.outcome && <p>{t("crm.people.metaOutcome")} {ev.metadata.outcome}</p>}
+                      {meetingEvent.metadata.date && <p>{t("crm.people.metaDate")} {meetingEvent.metadata.date}</p>}
+                      {meetingEvent.metadata.attendees && <p>{t("crm.people.metaAttendees")} {meetingEvent.metadata.attendees}</p>}
+                      {meetingEvent.metadata.outcome && <p>{t("crm.people.metaOutcome")} {meetingEvent.metadata.outcome}</p>}
                     </div>
                   )}
                   <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                    {formatLocaleDate(ev.created_at, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)}
+                    {formatLocaleDate(meetingEvent.created_at, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)}
                   </p>
                 </div>
               ))}
-              {events.filter(e => e.event_type === "meeting_held").length === 0 && (
+              {events.filter(event => event.event_type === "meeting_held").length === 0 && (
                 <p className="text-sm text-[var(--text-secondary)] py-4">{t("crm.people.noMeetings")}</p>
               )}
             </div>
@@ -587,22 +678,22 @@ export default function CrmDetailPage({ params }) {
               <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
             </label>
             <div className="space-y-2">
-              {events.filter(e => e.event_type === "document_attached").map(ev => (
-                <div key={ev.id} className="bg-primary border border-[var(--border-primary)] rounded-xl p-3 flex items-center justify-between">
+              {events.filter(event => event.event_type === "document_attached").map(documentEvent => (
+                <div key={documentEvent.id} className="bg-primary border border-[var(--border-primary)] rounded-xl p-3 flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-bold">{ev.description}</p>
+                    <p className="text-sm font-bold">{documentEvent.description}</p>
                     <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
-                      {formatLocaleDate(ev.created_at, { month: "short", day: "numeric" }, lang)}
+                      {formatLocaleDate(documentEvent.created_at, { month: "short", day: "numeric" }, lang)}
                     </p>
                   </div>
-                  {ev.metadata?.file_url && (
-                    <a href={ev.metadata.file_url} target="_blank" className="text-[10px] font-bold text-[var(--brand-orange)] uppercase" rel="noreferrer">
+                  {documentEvent.metadata?.file_url && (
+                    <a href={documentEvent.metadata.file_url} target="_blank" className="text-[10px] font-bold text-[var(--brand-orange)] uppercase" rel="noreferrer">
                       {t("crm.people.download")}
                     </a>
                   )}
                 </div>
               ))}
-              {events.filter(e => e.event_type === "document_attached").length === 0 && (
+              {events.filter(event => event.event_type === "document_attached").length === 0 && (
                 <p className="text-sm text-[var(--text-secondary)] py-4">{t("crm.people.noDocuments")}</p>
               )}
             </div>
@@ -620,22 +711,22 @@ export default function CrmDetailPage({ params }) {
             ) : (
               <>
                 {[
-                  { title: t("crm.people.activeEngagements"), rows: programs.filter(p => p.status === "active") },
-                  { title: t("crm.people.pastEngagements"), rows: programs.filter(p => p.status !== "active") },
-                ].map(group => group.rows.length === 0 ? null : (
-                  <div key={group.title} className="space-y-2">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-[var(--brand-orange)]">{group.title}</h3>
+                  { title: t("crm.people.activeEngagements"), rows: programs.filter(program => program.status === "active") },
+                  { title: t("crm.people.pastEngagements"), rows: programs.filter(program => program.status !== "active") },
+                ].map(engagementGroup => engagementGroup.rows.length === 0 ? null : (
+                  <div key={engagementGroup.title} className="space-y-2">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-[var(--brand-orange)]">{engagementGroup.title}</h3>
                     <div className="space-y-2">
-                      {group.rows.map((p) => (
-                        <div key={`${p.program_id}-${p.role}`} className="flex items-center justify-between gap-3 p-4 rounded-xl border border-[var(--border-primary)] bg-primary">
+                      {engagementGroup.rows.map((program) => (
+                        <div key={`${program.program_id}-${program.role}`} className="flex items-center justify-between gap-3 p-4 rounded-xl border border-[var(--border-primary)] bg-primary">
                           <div className="min-w-0">
-                            <p className="text-sm font-bold truncate">{p.program_name}</p>
+                            <p className="text-sm font-bold truncate">{program.program_name}</p>
                             <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mt-0.5">
-                              {t(PROGRAM_ROLE_LABELS[p.role] || "") || p.role}
+                              {t(PROGRAM_ROLE_LABELS[program.role] || "") || program.role}
                             </p>
                           </div>
-                          <span className={`shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${p.status === "active" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-tertiary text-[var(--text-secondary)] border-[var(--border-primary)]"}`}>
-                            {p.status === "active" ? t("crm.people.activeStatus") : t("crm.people.completedStatus")}
+                          <span className={`shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${program.status === "active" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-tertiary text-[var(--text-secondary)] border-[var(--border-primary)]"}`}>
+                            {program.status === "active" ? t("crm.people.activeStatus") : t("crm.people.completedStatus")}
                           </span>
                         </div>
                       ))}
@@ -665,37 +756,37 @@ export default function CrmDetailPage({ params }) {
                   <h3 className="text-xs font-black uppercase tracking-widest text-[var(--brand-orange)]">
                     {t("crm.people.learningCourses")}
                   </h3>
-                  {learning.courses.map((item) => (
+                  {learning.courses.map((courseItem) => (
                     <div
-                      key={item.course.id}
+                      key={courseItem.course.id}
                       className="flex items-center justify-between gap-3 p-4 rounded-xl border border-[var(--border-primary)] bg-primary"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-bold truncate">{item.course.title}</p>
+                        <p className="text-sm font-bold truncate">{courseItem.course.title}</p>
                         <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mt-0.5">
-                          {item.progress?.percent || 0}% · {item.progress?.completedLessons || 0} / {item.progress?.totalLessons || 0}{" "}
+                          {courseItem.progress?.percent || 0}% · {courseItem.progress?.completedLessons || 0} / {courseItem.progress?.totalLessons || 0}{" "}
                           {t("crm.people.lessons").toLowerCase()}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span
                           className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                            item.progress?.status === "completed"
+                            courseItem.progress?.status === "completed"
                               ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                              : item.progress?.status === "in_progress"
+                              : courseItem.progress?.status === "in_progress"
                                 ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
                                 : "bg-tertiary text-[var(--text-secondary)] border-[var(--border-primary)]"
                           }`}
                         >
-                          {item.progress?.status === "completed"
+                          {courseItem.progress?.status === "completed"
                             ? t("crm.people.completedStatus")
-                            : item.progress?.status === "in_progress"
+                            : courseItem.progress?.status === "in_progress"
                               ? t("status.inProgress")
                               : t("crm.people.notStarted")}
                         </span>
-                        {item.certificate && (
+                        {courseItem.certificate && (
                           <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                            {t("crm.people.certificate")} · {item.certificate.certificate_number}
+                            {t("crm.people.certificate")} · {courseItem.certificate.certificate_number}
                           </span>
                         )}
                       </div>
@@ -707,19 +798,19 @@ export default function CrmDetailPage({ params }) {
                     <h3 className="text-xs font-black uppercase tracking-widest text-[var(--brand-orange)]">
                       {t("crm.people.learningCertificates")}
                     </h3>
-                    {learning.certificates.map((cert) => (
+                    {learning.certificates.map((certificate) => (
                       <div
-                        key={cert.certificate_number}
+                        key={certificate.certificate_number}
                         className="flex items-center justify-between gap-3 p-4 rounded-xl border border-[var(--border-primary)] bg-primary"
                       >
                         <div className="min-w-0">
-                          <p className="text-sm font-bold truncate">{cert.course_title}</p>
+                          <p className="text-sm font-bold truncate">{certificate.course_title}</p>
                           <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mt-0.5">
-                            {cert.certificate_number} · {cert.learner_name}
+                            {certificate.certificate_number} · {certificate.learner_name}
                           </p>
                         </div>
                         <span className="shrink-0 text-[8px] font-black uppercase px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                          {cert.status === "valid" ? t("crm.people.certificateValid") : t("crm.people.certificateRevoked")}
+                          {certificate.status === "valid" ? t("crm.people.certificateValid") : t("crm.people.certificateRevoked")}
                         </span>
                       </div>
                     ))}

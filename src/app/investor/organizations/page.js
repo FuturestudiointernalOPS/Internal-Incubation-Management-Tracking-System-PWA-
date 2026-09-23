@@ -15,7 +15,7 @@ import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
 // Module scope on purpose: the hook keys its internal callback on this function,
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop.
-const pickOrganizations = (d) => (d?.success ? d.organizations || [] : []);
+const pickOrganizations = (response) => (response?.success ? response.organizations || [] : []);
 
 export default function InvestorOrganizationsPage() {
   const goBack = useSafeBack("/investor");
@@ -46,7 +46,7 @@ export default function InvestorOrganizationsPage() {
     setDetailLoading(true);
     try {
       const url = `/api/investor/organizations?id=${orgId}`;
-      const apply = (data) => {
+      const applyDetail = (data) => {
         if (data.success) {
           setSelectedOrg(data.organization);
           setOrgMembers(data.members || []);
@@ -57,15 +57,15 @@ export default function InvestorOrganizationsPage() {
       if (!bypassCache) {
         const cached = cacheGet(url);
         if (cached !== null && cached.success) {
-          apply(cached);
+          applyDetail(cached);
           setDetailLoading(false);
         }
       }
-      const res = await fetch(url);
-      const data = await res.json();
+      const response = await fetch(url);
+      const data = await response.json();
       if (data.success) {
         cacheSet(url, data);
-        apply(data);
+        applyDetail(data);
       }
     } catch (_) {}
     setDetailLoading(false);
@@ -78,12 +78,12 @@ export default function InvestorOrganizationsPage() {
     }
     setSaving(true);
     try {
-      const res = await fetch("/api/investor/organizations", {
+      const response = await fetch("/api/investor/organizations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newOrg),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setToast({ type: "success", message: t("investorMisc.organizations.created") });
         setShowCreate(false);
@@ -167,22 +167,22 @@ export default function InvestorOrganizationsPage() {
                 <p className="text-xs text-[var(--text-tertiary)]">{t("investorMisc.organizations.noMembersYet")}</p>
               ) : (
                 <div className="space-y-2">
-                  {orgMembers.map(m => (
-                    <div key={m.id} className="flex items-center justify-between p-3 rounded-xl bg-[var(--surface-3)]">
+                  {orgMembers.map(member => (
+                    <div key={member.id} className="flex items-center justify-between p-3 rounded-xl bg-[var(--surface-3)]">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center">
                           <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-[var(--text-primary)]">{m.name || m.organization_name || "—"}</p>
-                          <p className="text-[10px] text-[var(--text-tertiary)]">{m.email}</p>
+                          <p className="text-xs font-bold text-[var(--text-primary)]">{member.name || member.organization_name || "—"}</p>
+                          <p className="text-[10px] text-[var(--text-tertiary)]">{member.email}</p>
                         </div>
                       </div>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
-                        m.role === "admin" ? "bg-amber-500/10 text-amber-400" : "bg-slate-500/10 text-slate-400"
+                        member.role === "admin" ? "bg-amber-500/10 text-amber-400" : "bg-slate-500/10 text-slate-400"
                       }`}>
-                        {m.role === "admin" ? <Crown className="w-3 h-3 inline mr-1" /> : null}
-                        {m.role}
+                        {member.role === "admin" ? <Crown className="w-3 h-3 inline mr-1" /> : null}
+                        {member.role}
                       </span>
                     </div>
                   ))}
@@ -205,19 +205,19 @@ export default function InvestorOrganizationsPage() {
         ) : (
           /* ORG LIST */
           <div className="space-y-3">
-            {orgs.map(org => (
-              <AppCard key={org.id} padding="md" hover onClick={() => fetchOrgDetail(org.id)}>
+            {orgs.map(organization => (
+              <AppCard key={organization.id} padding="md" hover onClick={() => fetchOrgDetail(organization.id)}>
                 <div className="flex items-center gap-4 cursor-pointer">
                   <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 flex items-center justify-center">
                     <Building2 className="w-5 h-5 text-[var(--brand-orange)]" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-bold text-[var(--text-primary)]">{org.name}</p>
+                    <p className="text-sm font-bold text-[var(--text-primary)]">{organization.name}</p>
                     <p className="text-[10px] text-[var(--text-secondary)]">
-                      {t("investorMisc.organizations.role")}: <span className="text-[var(--brand-orange)]">{org.member_role || t("investorMisc.organizations.member")}</span>
+                      {t("investorMisc.organizations.role")}: <span className="text-[var(--brand-orange)]">{organization.member_role || t("investorMisc.organizations.member")}</span>
                     </p>
                   </div>
-                  {org.member_role === "admin" && (
+                  {organization.member_role === "admin" && (
                     <Crown className="w-4 h-4 text-amber-400" />
                   )}
                 </div>
@@ -241,19 +241,19 @@ export default function InvestorOrganizationsPage() {
               <div className="p-6 space-y-4">
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.organizations.name")}</label>
-                  <input value={newOrg.name} onChange={e => setNewOrg({...newOrg, name: e.target.value})}
+                  <input value={newOrg.name} onChange={event => setNewOrg({...newOrg, name: event.target.value})}
                     placeholder={t("investorMisc.organizations.namePlaceholder")}
                     className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.organizations.description")}</label>
-                  <textarea value={newOrg.description} onChange={e => setNewOrg({...newOrg, description: e.target.value})}
+                  <textarea value={newOrg.description} onChange={event => setNewOrg({...newOrg, description: event.target.value})}
                     rows={2} placeholder={t("investorMisc.organizations.descriptionPlaceholder")}
                     className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 resize-none" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.organizations.website")}</label>
-                  <input value={newOrg.website} onChange={e => setNewOrg({...newOrg, website: e.target.value})}
+                  <input value={newOrg.website} onChange={event => setNewOrg({...newOrg, website: event.target.value})}
                     placeholder="https://..."
                     className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                 </div>

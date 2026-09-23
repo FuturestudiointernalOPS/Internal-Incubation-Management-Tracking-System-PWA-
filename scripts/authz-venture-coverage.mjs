@@ -18,11 +18,11 @@ import path from "node:path";
 const ROOT = "src/app/api/ventures";
 
 const files = [];
-(function walk(dir) {
-  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    const p = path.join(dir, e.name);
-    if (e.isDirectory()) walk(p);
-    else if (e.name === "route.js") files.push(p);
+(function walk(directory) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) walk(entryPath);
+    else if (entry.name === "route.js") files.push(entryPath);
   }
 })(ROOT);
 
@@ -30,14 +30,14 @@ const buckets = { scoped: [], legacy: [], none: [] };
 
 for (const file of files) {
   const src = fs.readFileSync(file, "utf8");
-  const rel = file.replace(/\\/g, "/");
-  if (src.includes("requireVentureScopedAccess")) buckets.scoped.push(rel);
+  const relativePath = file.replace(/\\/g, "/");
+  if (src.includes("requireVentureScopedAccess")) buckets.scoped.push(relativePath);
   else if (src.includes("requireVentureAccess(") || src.includes("requireAuth("))
-    buckets.legacy.push(rel);
-  else buckets.none.push(rel);
+    buckets.legacy.push(relativePath);
+  else buckets.none.push(relativePath);
 }
 
-const list = (arr) => arr.map((f) => `    ${f}`).join("\n");
+const list = (paths) => paths.map((filePath) => `    ${filePath}`).join("\n");
 
 console.log(`AUTHZ VENTURE COVERAGE — ${files.length} route files\n`);
 console.log(`  NEW SYSTEM (scoped) : ${buckets.scoped.length}`);

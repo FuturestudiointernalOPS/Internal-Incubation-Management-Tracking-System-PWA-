@@ -31,8 +31,8 @@ export async function logAuditEvent({
         metadata ? JSON.stringify(metadata) : null,
       ],
     });
-  } catch (e) {
-    console.error("Audit log error:", e.message);
+  } catch (error) {
+    console.error("Audit log error:", error.message);
   }
 }
 
@@ -54,8 +54,8 @@ export async function isTaskLocked(taskId) {
     const now = new Date();
     const hoursDiff = (now - createdAt) / (1000 * 60 * 60);
     return hoursDiff >= 144; // 6 days
-  } catch (e) {
-    console.error("Task lock check error:", e.message);
+  } catch (error) {
+    console.error("Task lock check error:", error.message);
     return false;
   }
 }

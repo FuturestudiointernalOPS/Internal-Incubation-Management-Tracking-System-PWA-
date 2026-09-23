@@ -36,16 +36,16 @@ export async function POST(req) {
     }
 
     // Fetch invitation
-    const invRes = await getProjectInvitationById(invitation_id);
-    if (invRes.rows.length === 0) {
+    const invitationResult = await getProjectInvitationById(invitation_id);
+    if (invitationResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Invitation not found" },
         { status: 404 },
       );
     }
-    const inv = invRes.rows[0];
+    const invitation = invitationResult.rows[0];
 
-    if (inv.status !== "pending") {
+    if (invitation.status !== "pending") {
       return NextResponse.json(
         { success: false, error: "Invitation is no longer pending" },
         { status: 400 },
@@ -54,7 +54,7 @@ export async function POST(req) {
 
     if (action === "cancel") {
       // Only inviter can cancel
-      if (session.name !== inv.inviter_id && session.role !== "super_admin") {
+      if (session.name !== invitation.inviter_id && session.role !== "super_admin") {
         return NextResponse.json(
           { success: false, error: "Only the inviter can cancel" },
           { status: 403 },
@@ -66,7 +66,7 @@ export async function POST(req) {
 
     // Accept or decline: only the invitee
     const userCid = session.cid;
-    if (inv.invitee_id !== userCid) {
+    if (invitation.invitee_id !== userCid) {
       return NextResponse.json(
         { success: false, error: "Only the invited user can respond" },
         { status: 403 },
@@ -81,25 +81,25 @@ export async function POST(req) {
     if (action === "accept") {
       // Add to project_members
       await addProjectMemberFromInvitation(
-        inv.project_id,
-        inv.invitee_id,
-        inv.role,
+        invitation.project_id,
+        invitation.invitee_id,
+        invitation.role,
       );
 
       // Mark invitation accepted
       await acceptProjectInvitation(invitation_id);
 
       // Notify inviter
-      const projRes = await getProjectNameForInvitation(inv.project_id);
-      const projectName = projRes.rows[0]?.name || "Unknown Project";
+      const projectResult = await getProjectNameForInvitation(invitation.project_id);
+      const projectName = projectResult.rows[0]?.name || "Unknown Project";
 
       // Find inviter's cid to send notification
-      const inviterRes = await getContactCidByName(inv.inviter_id);
-      if (inviterRes.rows.length > 0) {
+      const inviterResult = await getContactCidByName(invitation.inviter_id);
+      if (inviterResult.rows.length > 0) {
         await createInvitationAcceptedNotification(
-          inviterRes.rows[0].cid,
+          inviterResult.rows[0].cid,
           "Invitation Accepted",
-          `${session.name || inv.invitee_id} accepted your invitation to "${projectName}"`,
+          `${session.name || invitation.invitee_id} accepted your invitation to "${projectName}"`,
           "project_invite",
         );
       }

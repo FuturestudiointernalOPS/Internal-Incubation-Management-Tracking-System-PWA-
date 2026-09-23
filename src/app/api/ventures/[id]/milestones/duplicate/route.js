@@ -36,8 +36,8 @@ export async function POST(req, { params }) {
     if (!milestoneId) return NextResponse.json({ success: false, error: "milestone_id is required." }, { status: 400 });
 
     // Internal UUID + VNT code accepted as owner values (legacy rows exist on both).
-    const ventureRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] }).catch(() => ({ rows: [] }));
-    const dbId = ventureRes.rows?.[0]?.id || (id.includes("-") && !id.startsWith("VNT-") ? id : null);
+    const ventureResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] }).catch(() => ({ rows: [] }));
+    const dbId = ventureResult.rows?.[0]?.id || (id.includes("-") && !id.startsWith("VNT-") ? id : null);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const result = await duplicateMilestone(db, { dbId, code: id, milestoneId, actorCid: session.cid || null });
@@ -55,7 +55,7 @@ export async function POST(req, { params }) {
     } catch (_) {}
 
     return NextResponse.json({ success: true, milestone: result.milestone, tasks_copied: result.tasks_copied });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

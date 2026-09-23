@@ -135,8 +135,8 @@ export default function OperationsView() {
       } else {
         setReadiness(data);
       }
-    } catch (e) {
-      notify("error", e.message || t("engineering.permissions.operationsFailed"));
+    } catch (error) {
+      notify("error", error.message || t("engineering.permissions.operationsFailed"));
     } finally {
       setBusy(false);
     }
@@ -196,28 +196,28 @@ export default function OperationsView() {
 
             {contexts.length > 0 ? (
               <div className="space-y-1.5">
-                {contexts.map((c) => (
+                {contexts.map((context) => (
                   <div
-                    key={`${c.context}:${c.roleKey}`}
+                    key={`${context.context}:${context.roleKey}`}
                     className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border-primary)] bg-surface-2 px-3 py-2"
                   >
                     <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                      {c.context} · {c.roleKey}
+                      {context.context} · {context.roleKey}
                     </span>
                     <span className="text-[10px] text-[var(--text-secondary)]">
                       {t("engineering.permissions.operationsEvaluated").replace(
                         "{n}",
-                        String(c.evaluated ?? 0),
+                        String(context.evaluated ?? 0),
                       )}
                     </span>
-                    {c.changes === 0 ? (
+                    {context.changes === 0 ? (
                       <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--brand-orange)]">
                         <CheckCircle2 className="h-3 w-3" />
                         {t("engineering.permissions.operationsUpToDate")}
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold text-amber-400">
-                        +{c.applied?.length ?? 0} / −{c.revoked?.length ?? 0}
+                        +{context.applied?.length ?? 0} / −{context.revoked?.length ?? 0}
                       </span>
                     )}
                   </div>
@@ -328,8 +328,8 @@ export default function OperationsView() {
                           {t("engineering.permissions.operationsDrift")}:
                         </span>{" "}
                         {[
-                          ...(row.driftToAdd || []).map((k) => `+${k}`),
-                          ...(row.driftToRemove || []).map((k) => `−${k}`),
+                          ...(row.driftToAdd || []).map((capability) => `+${capability}`),
+                          ...(row.driftToRemove || []).map((capability) => `−${capability}`),
                         ].join(", ")}
                       </p>
                     )}

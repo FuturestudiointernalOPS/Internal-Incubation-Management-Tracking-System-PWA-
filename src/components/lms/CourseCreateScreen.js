@@ -48,8 +48,8 @@ export default function CourseCreateScreen({ basePath = "/admin/lms/courses" }) 
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.courses.created");
       router.push(`${basePath}/${data.course.id}`);
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
       setSaving(false);
     }
   };

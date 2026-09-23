@@ -16,9 +16,9 @@ export function toE164(value) {
   // Legacy structured JSON.
   if (raw.startsWith("{")) {
     try {
-      const p = JSON.parse(raw);
-      const dial = String(p.code || "").replace(/\D/g, "");
-      const digits = String(p.number || "").replace(/\D/g, "");
+      const legacyPhone = JSON.parse(raw);
+      const dial = String(legacyPhone.code || "").replace(/\D/g, "");
+      const digits = String(legacyPhone.number || "").replace(/\D/g, "");
       if (!dial || !digits) return "";
       const candidate = `+${dial}${digits}`;
       const parsed = parsePhoneNumber(candidate);

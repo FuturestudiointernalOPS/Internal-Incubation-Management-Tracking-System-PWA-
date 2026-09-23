@@ -13,9 +13,9 @@ export const FOUNDER_ROLES = ["Founder", "Lead Founder", "Co-Founder", "Technica
 export const TEAM_ROLES = ["Team Member", "Developer", "Designer", "Product Manager", "Marketing", "Operations", "Advisor"];
 
 export function getFounderMembers(members) {
-  return members.filter(m => m.member_type === "founder");
+  return members.filter(member => member.member_type === "founder");
 }
 
 export function getTeamMembers(members) {
-  return members.filter(m => m.member_type === "team_member");
+  return members.filter(member => member.member_type === "team_member");
 }

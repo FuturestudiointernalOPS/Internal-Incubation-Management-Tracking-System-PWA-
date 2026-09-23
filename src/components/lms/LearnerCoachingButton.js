@@ -6,6 +6,7 @@ import AppModal from "@/components/ui/AppModal";
 import AppButton from "@/components/ui/AppButton";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import { useApi } from "@/lib/hooks/useApi";
 
 /**
@@ -35,10 +36,11 @@ import { useApi } from "@/lib/hooks/useApi";
  * read failed ("the button stays usable even if the status read fails"), so a
  * read that did not answer simply leaves the list empty.
  */
-const pickRequests = (d) => (d?.success ? d.requests || [] : []);
+const pickRequests = (data) => (data?.success ? data.requests || [] : []);
 
 export default function LearnerCoachingButton({ courseId = null, lessonId = null }) {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const [open, setOpen] = useState(false);
   const [courses, setCourses] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -74,8 +76,8 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
       }));
       setCourses(list);
       setEdits((prev) => ({ ...prev, courseId: prev.courseId || list[0]?.id || "" }));
-    } catch (e) {
-      notify("error", e.message || "lms.errors.loadFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.loadFailed");
     }
   };
 
@@ -85,9 +87,9 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
   };
 
   const activeRequest = (requests || []).find(
-    (r) =>
-      r.status === "pending" &&
-      (!courseId || String(r.course_id) === String(courseId)),
+    (request) =>
+      request.status === "pending" &&
+      (!courseId || String(request.course_id) === String(courseId)),
   );
 
   const submit = async () => {
@@ -110,15 +112,15 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
       setOpen(false);
       setEdits({});
       refreshRequests();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     } finally {
       setSaving(false);
     }
   };
 
   const cancel = async (id) => {
-    if (!window.confirm(t("lms.coaching.confirmCancel"))) return;
+    if (!(await confirm({ message: t("lms.coaching.confirmCancel"), tone: "danger" }))) return;
     setCancelling(true);
     try {
       const res = await fetch(`/api/lms/coaching-requests/${id}`, { method: "DELETE" });
@@ -127,8 +129,8 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
       notify("success", "lms.coaching.cancelled");
       setOpen(false);
       refreshRequests();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     } finally {
       setCancelling(false);
     }
@@ -191,7 +193,7 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
               ) : (
                 <select
                   value={form.courseId}
-                  onChange={(e) => setEdits((prev) => ({ ...prev, courseId: e.target.value }))}
+                  onChange={(event) => setEdits((prev) => ({ ...prev, courseId: event.target.value }))}
                   className="w-full px-3 py-2 rounded-lg outline-none border text-xs"
                   style={{
                     background: "var(--surface-2)",
@@ -240,7 +242,7 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
 
           <input
             value={form.topic}
-            onChange={(e) => setEdits((prev) => ({ ...prev, topic: e.target.value }))}
+            onChange={(event) => setEdits((prev) => ({ ...prev, topic: event.target.value }))}
             placeholder={t("lms.coaching.topicPlaceholder")}
             className="w-full px-3 py-2 rounded-lg outline-none border text-xs"
             style={{
@@ -253,7 +255,7 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
           <textarea
             rows={3}
             value={form.message}
-            onChange={(e) => setEdits((prev) => ({ ...prev, message: e.target.value }))}
+            onChange={(event) => setEdits((prev) => ({ ...prev, message: event.target.value }))}
             placeholder={t("lms.coaching.messagePlaceholder")}
             className="w-full px-3 py-2 rounded-lg outline-none border text-xs"
             style={{

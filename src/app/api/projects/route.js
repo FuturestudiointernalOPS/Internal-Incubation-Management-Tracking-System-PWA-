@@ -153,42 +153,42 @@ export async function GET(req) {
     );
 
     // Get all members in a single query instead of N+1
-    const projectIds = result.rows.map((r) => r.id);
+    const projectIds = result.rows.map((row) => row.id);
     let allMembers = [];
     if (projectIds.length > 0) {
-      const memberRes = await getProjectMembersForProjects(projectIds);
-      allMembers = memberRes.rows || [];
+      const membersResult = await getProjectMembersForProjects(projectIds);
+      allMembers = membersResult.rows || [];
     }
 
     // Group members by project_id
     const memberMap = {};
-    for (const m of allMembers) {
-      const pid = String(m.project_id);
-      if (!memberMap[pid]) memberMap[pid] = [];
-      memberMap[pid].push({ user_cid: m.user_cid, role: m.role });
+    for (const member of allMembers) {
+      const projectIdKey = String(member.project_id);
+      if (!memberMap[projectIdKey]) memberMap[projectIdKey] = [];
+      memberMap[projectIdKey].push({ user_cid: member.user_cid, role: member.role });
     }
 
     // Batch per-project task stats into ONE grouped query instead of one
     // COUNT per project. Produces identical { total, completed } per project.
     const taskMap = {};
     if (projectIds.length > 0) {
-      const taskRes = await getTaskSummaryByProjectIds(projectIds);
-      for (const r of taskRes.rows || []) taskMap[r.pid] = r;
+      const taskSummaryResult = await getTaskSummaryByProjectIds(projectIds);
+      for (const row of taskSummaryResult.rows || []) taskMap[row.pid] = row;
     }
 
     const projectsWithStats = result.rows.map((row) => {
       const meta =
         (typeof row.meta === "string" ? JSON.parse(row.meta) : row.meta) ||
         {};
-      const pidKey = String(row.id);
-      const ts = taskMap[pidKey] || {};
+      const projectIdKey = String(row.id);
+      const taskSummary = taskMap[projectIdKey] || {};
       return {
         ...row,
         meta,
-        members: memberMap[pidKey] || [],
+        members: memberMap[projectIdKey] || [],
         task_summary: {
-          total: ts.total || 0,
-          completed: ts.completed || 0,
+          total: taskSummary.total || 0,
+          completed: taskSummary.completed || 0,
         },
       };
     });

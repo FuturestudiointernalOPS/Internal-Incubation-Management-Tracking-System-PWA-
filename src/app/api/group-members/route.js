@@ -31,7 +31,7 @@ export async function POST(req) {
         .eq("participant_id", participant_id);
 
       const alreadyInProgram = existing?.some(
-        (m) => m.v2_groups.program_id === groupData.program_id,
+        (member) => member.v2_groups.program_id === groupData.program_id,
       );
       if (alreadyInProgram) {
         return NextResponse.json(

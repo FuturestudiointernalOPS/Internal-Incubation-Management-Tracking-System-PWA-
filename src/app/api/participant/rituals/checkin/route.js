@@ -17,8 +17,8 @@ export const GET = createHandler(async (req) => {
   	const { searchParams } = new URL(req.url);
   	const programId = searchParams.get("program_id");
 
-  const res = await getCheckinsByParticipantAndProgram(cid, programId);
-  return NextResponse.json({ success: true, checkins: res.rows });
+  const result = await getCheckinsByParticipantAndProgram(cid, programId);
+  return NextResponse.json({ success: true, checkins: result.rows });
 });
 
 export const POST = createHandler(async (req) => {

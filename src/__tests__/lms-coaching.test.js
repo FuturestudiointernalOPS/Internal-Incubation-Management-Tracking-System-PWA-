@@ -164,7 +164,7 @@ describe("lms coaching requests — service", () => {
     expect(result.request.lesson_id).toBe("les-1");
 
     // Assigned PM + program staff are notified, the learner is not.
-    const recipients = mockFake.state.v2_notifications.map((n) => String(n.recipient_id)).sort();
+    const recipients = mockFake.state.v2_notifications.map((notification) => String(notification.recipient_id)).sort();
     expect(recipients).toEqual(["U-COACH", "U-PM"]);
   });
 
@@ -212,7 +212,7 @@ describe("lms coaching requests — service", () => {
     seedCourse();
     seedEnrollment();
     const { request } = await createCoachingRequest({ cid: LEARNER, courseId: COURSE, timing: "during" });
-    const before = mockFake.state.v2_notifications.length;
+    const notificationCountBefore = mockFake.state.v2_notifications.length;
 
     const updated = await updateCoachingRequest(request.id, {
       status: "accepted",
@@ -223,7 +223,7 @@ describe("lms coaching requests — service", () => {
     expect(updated.response_note).toBe("Let's meet Friday.");
     expect(updated.handled_by).toBe("U-PM");
     expect(updated.handled_at).toBeTruthy();
-    expect(mockFake.state.v2_notifications.length).toBe(before + 1);
+    expect(mockFake.state.v2_notifications.length).toBe(notificationCountBefore + 1);
     expect(String(mockFake.state.v2_notifications.at(-1).recipient_id)).toBe(LEARNER);
   });
 

@@ -36,12 +36,12 @@ export async function GET(req, { params }) {
       return NextResponse.json({ success: false, error: "Staff access required." }, { status: 403 });
     }
 
-    const ventureRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] }).catch(() => ({ rows: [] }));
-    const dbId = ventureRes.rows?.[0]?.id || null;
+    const ventureResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] }).catch(() => ({ rows: [] }));
+    const dbId = ventureResult.rows?.[0]?.id || null;
     const owners = [id, dbId].filter(Boolean);
     const ownersSql = OWNERS_IN(owners);
 
-    const [stagesRes, msRes, tasksRes, subRes, sessRes, supportRes, delivRes] = await Promise.all([
+    const [stagesResult, milestonesResult, tasksResult, submissionsResult, sessionsResult, supportResult, deliverablesResult] = await Promise.all([
       // Archived journeys (soft-deleted) are excluded from the operating
       // report. Guarded: a pre-migration database without the archive column
       // falls back to the plain stage read.
@@ -95,73 +95,73 @@ export async function GET(req, { params }) {
       }).catch(() => ({ rows: [] })),
     ]);
 
-    const stages = (stagesRes.rows || []).map((s) => {
-      const ms = (msRes.rows || []).filter((m) => String(m.journey_stage_id) === String(s.id));
-      const total = ms.length;
-      const completed = ms.filter((m) => isMilestoneComplete(m.status)).length;
+    const stages = (stagesResult.rows || []).map((stage) => {
+      const stageMilestones = (milestonesResult.rows || []).filter((milestone) => String(milestone.journey_stage_id) === String(stage.id));
+      const total = stageMilestones.length;
+      const completed = stageMilestones.filter((milestone) => isMilestoneComplete(milestone.status)).length;
       return {
-        id: s.id,
-        name: s.name,
-        status: s.status,
-        stage_order: s.stage_order,
-        target_date: s.target_date || null,
-        completed_at: s.completed_at || null,
-        journey_complete: isJourneyStageComplete(s.status),
+        id: stage.id,
+        name: stage.name,
+        status: stage.status,
+        stage_order: stage.stage_order,
+        target_date: stage.target_date || null,
+        completed_at: stage.completed_at || null,
+        journey_complete: isJourneyStageComplete(stage.status),
         milestones: { total, completed, progress_pct: total > 0 ? Math.round((completed / total) * 100) : 0 },
       };
     });
 
-    const milestoneStatuses = msRes.rows || [];
+    const milestoneStatuses = milestonesResult.rows || [];
     const milestonesByStatus = {};
-    for (const m of milestoneStatuses) {
-      milestonesByStatus[m.status] = (milestonesByStatus[m.status] || 0) + 1;
+    for (const milestone of milestoneStatuses) {
+      milestonesByStatus[milestone.status] = (milestonesByStatus[milestone.status] || 0) + 1;
     }
 
-    const taskRows = tasksRes.rows || [];
+    const taskRows = tasksResult.rows || [];
     const tasksByStatus = {};
     let completedTasks = 0;
-    for (const t of taskRows) {
-      tasksByStatus[t.status] = (tasksByStatus[t.status] || 0) + 1;
-      if (TASK_COMPLETED_STATUSES.includes(t.status)) completedTasks += 1;
+    for (const task of taskRows) {
+      tasksByStatus[task.status] = (tasksByStatus[task.status] || 0) + 1;
+      if (TASK_COMPLETED_STATUSES.includes(task.status)) completedTasks += 1;
     }
 
     const overdue = taskRows
-      .filter((t) => t.due_date && OPEN_TASK_STATUSES.includes(t.status) && new Date(t.due_date) < new Date())
-      .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
+      .filter((task) => task.due_date && OPEN_TASK_STATUSES.includes(task.status) && new Date(task.due_date) < new Date())
+      .sort((first, second) => new Date(first.due_date) - new Date(second.due_date))
       .slice(0, 50)
-      .map((t) => ({ id: t.id, status: t.status, due_date: t.due_date }));
+      .map((task) => ({ id: task.id, status: task.status, due_date: task.due_date }));
 
     // Deliverables awaiting staff review — counted live, never stored.
-    const deliverablesAwaitingReview = (delivRes.rows || []).length;
+    const deliverablesAwaitingReview = (deliverablesResult.rows || []).length;
 
-    const reviewed = subRes.rows || [];
+    const reviewed = submissionsResult.rows || [];
     const submissions = {
       reviewed_total: reviewed.length,
-      approved: reviewed.filter((s) => s.review_decision === "approved").length,
-      changes_requested: reviewed.filter((s) => s.review_decision === "changes_requested").length,
+      approved: reviewed.filter((submission) => submission.review_decision === "approved").length,
+      changes_requested: reviewed.filter((submission) => submission.review_decision === "changes_requested").length,
     };
 
     const sessions = {
-      total: (sessRes.rows || []).length,
-      by_status: (sessRes.rows || []).reduce((acc, s) => {
-        acc[s.status] = (acc[s.status] || 0) + 1;
-        return acc;
+      total: (sessionsResult.rows || []).length,
+      by_status: (sessionsResult.rows || []).reduce((counts, session) => {
+        counts[session.status] = (counts[session.status] || 0) + 1;
+        return counts;
       }, {}),
-      upcoming: (sessRes.rows || []).filter(
-        (s) => s.status === "scheduled" && s.start_time && new Date(s.start_time) >= new Date(),
+      upcoming: (sessionsResult.rows || []).filter(
+        (session) => session.status === "scheduled" && session.start_time && new Date(session.start_time) >= new Date(),
       ).length,
-      venture_facing_scheduled: (sessRes.rows || []).filter(
-        (s) => s.venture_facing === true && s.status === "scheduled",
+      venture_facing_scheduled: (sessionsResult.rows || []).filter(
+        (session) => session.venture_facing === true && session.status === "scheduled",
       ).length,
     };
 
     const support = {
-      assignments: (supportRes.rows || []).length,
-      responsibilities: [...new Set((supportRes.rows || []).map((a) => a.responsibility_code))],
+      assignments: (supportResult.rows || []).length,
+      responsibilities: [...new Set((supportResult.rows || []).map((assignment) => assignment.responsibility_code))],
     };
 
     const journeyTotal = stages.length;
-    const journeyCompleted = stages.filter((s) => s.journey_complete).length;
+    const journeyCompleted = stages.filter((stage) => stage.journey_complete).length;
 
     return NextResponse.json({
       success: true,
@@ -186,7 +186,7 @@ export async function GET(req, { params }) {
         support,
       },
     });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -14,14 +14,14 @@ export const POST = createHandler(async (req) => {
       { success: false, error: "Query param required: dataSourceId" },
       { status: 400 },
     );
-  const ds = await getDataSourceLastSyncAt(dataSourceId);
-  if (ds.rows.length === 0)
+  const dataSource = await getDataSourceLastSyncAt(dataSourceId);
+  if (dataSource.rows.length === 0)
     return NextResponse.json(
       { success: false, error: "Data source not found" },
       { status: 404 },
     );
-  const lastSync = ds.rows[0].last_sync_at
-    ? new Date(ds.rows[0].last_sync_at).getTime()
+  const lastSync = dataSource.rows[0].last_sync_at
+    ? new Date(dataSource.rows[0].last_sync_at).getTime()
     : 0;
   const now = Date.now();
   if (now - lastSync < 60000) {

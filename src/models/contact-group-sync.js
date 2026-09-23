@@ -14,17 +14,17 @@ import db, { initDb } from "@/lib/db";
 async function resolveContactId(submitterId) {
   if (!submitterId) return null;
   if (String(submitterId).includes("@")) {
-    const res = await db.execute({
+    const emailResult = await db.execute({
       sql: "SELECT cid FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 LIMIT 1",
       args: [submitterId],
     });
-    return res.rows[0]?.cid || null;
+    return emailResult.rows[0]?.cid || null;
   }
-  const res = await db.execute({
+  const cidResult = await db.execute({
     sql: "SELECT cid FROM contacts WHERE cid = ? AND deleted = 0 LIMIT 1",
     args: [submitterId],
   });
-  return res.rows[0]?.cid || null;
+  return cidResult.rows[0]?.cid || null;
 }
 
 async function fillGroupAndProgram(contactCid, groupName, programId) {
@@ -85,8 +85,8 @@ export async function syncApprovedSubmissionToProgramGroup(submission) {
     }
 
     await fillGroupAndProgram(contactCid, groupName, programId);
-  } catch (e) {
-    console.error("[contact-group-sync] approval sync failed:", e.message);
+  } catch (error) {
+    console.error("[contact-group-sync] approval sync failed:", error.message);
   }
 }
 
@@ -96,8 +96,36 @@ export async function syncApprovedSubmissionToProgramGroup(submission) {
  *   who submitted through an assigned run.
  * - Backfills `participant_programs`.
  * - Backfills program links and contextual roles for facilitators.
+ *
+ * This is a SAFETY NET for records that predate the event-driven repair: the
+ * normal path fixes a person the moment their submission is approved
+ * (`syncApprovedSubmissionToProgramGroup`, called from the review route). It is
+ * idempotent, but it is also several WRITING statements, and it used to run on
+ * every /api/contacts/full-state read — so a read endpoint paid for writes on
+ * every load, which is most of why the registry screen measured ten sequential
+ * round trips.
+ *
+ * Keep the net, drop the per-request cost: at most one run per window per
+ * process. Callers arriving while a run is in flight share it rather than each
+ * starting their own, and a run that failed is not retried until the next window
+ * (so a broken statement cannot become a retry storm).
  */
+const RECONCILE_WINDOW_MS = 60 * 1000;
+let reconcilePromise = null;
+let lastReconcileAt = 0;
+
 export async function reconcileProgramGroups() {
+  if (reconcilePromise) return reconcilePromise;
+  if (Date.now() - lastReconcileAt < RECONCILE_WINDOW_MS) return;
+  lastReconcileAt = Date.now();
+  reconcilePromise = runReconcileProgramGroups().finally(() => {
+    reconcilePromise = null;
+    lastReconcileAt = Date.now();
+  });
+  return reconcilePromise;
+}
+
+async function runReconcileProgramGroups() {
   try {
     await initDb();
 
@@ -217,8 +245,8 @@ export async function reconcileProgramGroups() {
     //    participant_programs from the remaining legacy sources so it can
     //    become the single source of truth for Person -> Program membership.
     await reconcileParticipantPrograms();
-  } catch (e) {
-    console.error("[contact-group-sync] reconciliation failed:", e.message);
+  } catch (error) {
+    console.error("[contact-group-sync] reconciliation failed:", error.message);
   }
 }
 
@@ -269,8 +297,8 @@ export async function reconcileParticipantPrograms() {
     });
 
     return { success: true };
-  } catch (e) {
-    console.error("[participant-programs] reconciliation failed:", e.message);
-    return { success: false, error: e.message };
+  } catch (error) {
+    console.error("[participant-programs] reconciliation failed:", error.message);
+    return { success: false, error: error.message };
   }
 }

@@ -14,14 +14,14 @@ export const GET = createHandler({ roles: ["super_admin"] }, async (req) => {
   // Batch the per-task blocker query into one IN query instead of 1 DB
   // round-trip PER task (up to 200). Produces identical per-task `blockers`
   // arrays ordered created_at DESC.
-  const taskIds = tasks.map((t) => t.id);
+  const taskIds = tasks.map((task) => task.id);
   let blockersByTask = {};
   if (taskIds.length > 0) {
-    const blockerRes = await getAdminTaskBlockers(taskIds);
-    for (const r of blockerRes.rows || []) {
-      const id = String(r.task_id);
+    const blockerResult = await getAdminTaskBlockers(taskIds);
+    for (const row of blockerResult.rows || []) {
+      const id = String(row.task_id);
       if (!blockersByTask[id]) blockersByTask[id] = [];
-      const { task_id: _task_id, ...rest } = r;
+      const { task_id: _task_id, ...rest } = row;
       blockersByTask[id].push(rest);
     }
   }

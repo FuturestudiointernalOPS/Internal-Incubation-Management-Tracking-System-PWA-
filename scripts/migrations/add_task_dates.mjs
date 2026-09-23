@@ -9,10 +9,10 @@ if (fs.existsSync(envPath)) {
   for (const line of envContent.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    let value = trimmed.slice(eqIdx + 1).trim();
+    const equalsIndex = trimmed.indexOf("=");
+    if (equalsIndex === -1) continue;
+    const key = trimmed.slice(0, equalsIndex).trim();
+    let value = trimmed.slice(equalsIndex + 1).trim();
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
       (value.startsWith("'") && value.endsWith("'"))
@@ -42,18 +42,18 @@ async function migrate() {
     ["end_date", "DATE DEFAULT NULL"],
   ];
 
-  for (const [col, def] of columns) {
+  for (const [columnName, columnDefinition] of columns) {
     try {
       await db.execute({
-        sql: `ALTER TABLE tasks ADD COLUMN ${col} ${def}`,
+        sql: `ALTER TABLE tasks ADD COLUMN ${columnName} ${columnDefinition}`,
         args: [],
       });
-      console.log(`  ✅ ${col} column added`);
-    } catch (e) {
-      if (e.message.includes("already exists")) {
-        console.log(`  ⚠️  ${col} already exists`);
+      console.log(`  ✅ ${columnName} column added`);
+    } catch (error) {
+      if (error.message.includes("already exists")) {
+        console.log(`  ⚠️  ${columnName} already exists`);
       } else {
-        console.error(`  ❌ ${col}: ${e.message}`);
+        console.error(`  ❌ ${columnName}: ${error.message}`);
       }
     }
   }

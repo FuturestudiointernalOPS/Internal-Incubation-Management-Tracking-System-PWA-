@@ -51,7 +51,7 @@ const MODULE_LABELS = {
 function TimelinePageContent({ basePath }) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const cid = searchParams.get("cid");
+  const contactId = searchParams.get("cid");
   const { t, lang } = useI18n();
   const goBack = useSafeBack(basePath);
 
@@ -64,9 +64,9 @@ function TimelinePageContent({ basePath }) {
   const [searching, setSearching] = useState(false);
 
   useEffect(() => {
-    if (!cid) return;
+    if (!contactId) return;
     async function fetchTimeline(bypassCache = false) {
-      const url = `/api/contacts/${cid}/timeline?limit=100${moduleFilter ? `&module=${moduleFilter}` : ""}`;
+      const url = `/api/contacts/${contactId}/timeline?limit=100${moduleFilter ? `&module=${moduleFilter}` : ""}`;
       const apply = (data) => {
         if (data.success) {
           setContact(data.contact);
@@ -90,21 +90,21 @@ function TimelinePageContent({ basePath }) {
           cacheSet(url, data);
           apply(data);
         }
-      } catch (e) {
-        console.error("Timeline fetch error:", e);
+      } catch (error) {
+        console.error("Timeline fetch error:", error);
       } finally {
         setLoading(false);
       }
     }
     fetchTimeline();
-  }, [cid, moduleFilter]);
+  }, [contactId, moduleFilter]);
 
-  async function handleContactSearch(q) {
-    setSearchQuery(q);
-    if (q.length < 2) { setSearchResults([]); return; }
+  async function handleContactSearch(query) {
+    setSearchQuery(query);
+    if (query.length < 2) { setSearchResults([]); return; }
     setSearching(true);
     try {
-      const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(query)}`);
       const data = await res.json();
       setSearchResults(data.contacts || []);
     } catch {}
@@ -112,14 +112,14 @@ function TimelinePageContent({ basePath }) {
   }
 
   const eventsByYear = {};
-  for (const ev of events) {
-    const year = new Date(ev.created_at).getFullYear();
+  for (const event of events) {
+    const year = new Date(event.created_at).getFullYear();
     if (!eventsByYear[year]) eventsByYear[year] = [];
-    eventsByYear[year].push(ev);
+    eventsByYear[year].push(event);
   }
   const sortedYears = Object.keys(eventsByYear).sort((a, b) => b - a);
 
-  if (!cid) {
+  if (!contactId) {
     return (
       <>
         <div className="p-8 max-w-4xl mx-auto">
@@ -136,22 +136,22 @@ function TimelinePageContent({ basePath }) {
                   type="text"
                   placeholder={t("crm.timeline.searchPlaceholder")}
                   value={searchQuery}
-                  onChange={(e) => handleContactSearch(e.target.value)}
+                  onChange={(event) => handleContactSearch(event.target.value)}
                   className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl py-3 pl-12 pr-4 text-sm outline-none focus:border-[var(--brand-orange)]"
                 />
               </div>
               {searchResults.length > 0 && (
                 <div className="mt-2 bg-tertiary border border-[var(--border-primary)] rounded-xl overflow-hidden text-left">
-                  {searchResults.map((c) => (
+                  {searchResults.map((contact) => (
                     <button
-                      key={c.cid}
-                      onClick={() => router.push(`${basePath}/timeline?cid=${c.cid}`)}
+                      key={contact.cid}
+                      onClick={() => router.push(`${basePath}/timeline?cid=${contact.cid}`)}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-primary transition-colors text-left"
                     >
                       <User className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
                       <div>
-                        <p className="text-sm font-bold">{c.name}</p>
-                        <p className="text-[10px] text-[var(--text-secondary)]">{c.email}</p>
+                        <p className="text-sm font-bold">{contact.name}</p>
+                        <p className="text-[10px] text-[var(--text-secondary)]">{contact.email}</p>
                       </div>
                     </button>
                   ))}
@@ -203,17 +203,17 @@ function TimelinePageContent({ basePath }) {
             { key: "investors", label: t("crm.timeline.filterInvestors") },
             { key: "communications", label: t("crm.timeline.filterComms") },
             { key: "system", label: t("crm.timeline.filterSystem") },
-          ].map((f) => (
+          ].map((filterOption) => (
             <button
-              key={f.key}
-              onClick={() => setModuleFilter(f.key)}
+              key={filterOption.key}
+              onClick={() => setModuleFilter(filterOption.key)}
               className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border transition-colors ${
-                moduleFilter === f.key
+                moduleFilter === filterOption.key
                   ? "bg-[var(--brand-orange)] text-black border-orange-600"
                   : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]"
               }`}
             >
-              {f.label}
+              {filterOption.label}
             </button>
           ))}
         </div>
@@ -241,20 +241,20 @@ function TimelinePageContent({ basePath }) {
                   </h2>
                 </div>
                 <div className="space-y-2 pl-6 border-l-2 border-[var(--border-primary)]">
-                  {eventsByYear[year].map((ev) => (
-                    <div key={ev.id} className="relative pl-6 pb-4">
+                  {eventsByYear[year].map((event) => (
+                    <div key={event.id} className="relative pl-6 pb-4">
                       <div className="absolute left-[-23px] top-1.5 w-2.5 h-2.5 rounded-full bg-[var(--border-primary)] border-2 border-primary" />
                       <div className="bg-primary border border-[var(--border-primary)] rounded-xl p-4">
                         <div className="flex items-start justify-between gap-3">
-                          <p className="text-sm font-bold">{ev.description}</p>
-                          {ev.context_module && (
-                            <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${MODULE_COLORS[ev.context_module] || MODULE_COLORS.system}`}>
-                              {t(MODULE_LABELS[ev.context_module] || "") || ev.context_module}
+                          <p className="text-sm font-bold">{event.description}</p>
+                          {event.context_module && (
+                            <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${MODULE_COLORS[event.context_module] || MODULE_COLORS.system}`}>
+                              {t(MODULE_LABELS[event.context_module] || "") || event.context_module}
                             </span>
                           )}
                         </div>
                         <p className="text-[10px] text-[var(--text-secondary)] mt-1.5">
-                          {formatLocaleDate(ev.created_at, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)}
+                          {formatLocaleDate(event.created_at, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)}
                         </p>
                       </div>
                     </div>

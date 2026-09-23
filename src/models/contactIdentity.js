@@ -23,8 +23,8 @@ let duplicateFlagsSchemaPromise = null;
 
 async function safe(sql, args = []) {
   try {
-    const r = await db.execute({ sql, args });
-    return r || { rows: [] };
+    const result = await db.execute({ sql, args });
+    return result || { rows: [] };
   } catch (_) {
     return { rows: [] };
   }
@@ -165,8 +165,8 @@ export async function ensureContactIdentitySchema() {
         args: [],
       });
       return true;
-    } catch (e) {
-      console.warn("[Contact Identity] schema ensure failed:", e.message);
+    } catch (error) {
+      console.warn("[Contact Identity] schema ensure failed:", error.message);
       return false;
     }
   })();
@@ -196,8 +196,8 @@ export function backfillNeutralParticipantRoles() {
           sql: "ALTER TABLE contacts ALTER COLUMN role SET DEFAULT 'member'",
           args: [],
         });
-      } catch (e) {
-        console.warn("[Contact Identity] role default change skipped:", e.message);
+      } catch (error) {
+        console.warn("[Contact Identity] role default change skipped:", error.message);
       }
       try {
         await safe(
@@ -217,8 +217,8 @@ export function backfillNeutralParticipantRoles() {
              )`,
           [],
         );
-      } catch (e) {
-        console.warn("[Contact Identity] neutral role backfill skipped:", e.message);
+      } catch (error) {
+        console.warn("[Contact Identity] neutral role backfill skipped:", error.message);
       }
       return true;
     })();
@@ -251,31 +251,31 @@ export async function resolvePersonIdentity({ email, phone } = {}) {
   const emailNorm = normalizeEmail(email);
   if (emailNorm && emailNorm.includes("@")) {
     // Primary email (contacts.email)
-    const prim = await safe(
+    const primaryMatches = await safe(
       "SELECT cid, deleted FROM contacts WHERE LOWER(email) = ?",
       [emailNorm],
     );
-    for (const row of prim.rows || []) {
+    for (const row of primaryMatches.rows || []) {
       if (Number(row.deleted) === 0) addSource(row.cid, "primary_email");
     }
     // Alternative emails (contact_emails) — must still be an active contact.
-    const alt = await safe(
+    const alternativeMatches = await safe(
       `SELECT ce.contact_cid AS cid
        FROM contact_emails ce
        JOIN contacts c ON c.cid = ce.contact_cid
        WHERE ce.email = ? AND c.deleted = 0`,
       [emailNorm],
     );
-    for (const row of alt.rows || []) addSource(row.cid, "alternative_email");
+    for (const row of alternativeMatches.rows || []) addSource(row.cid, "alternative_email");
   }
 
   const phoneNorm = normalizePhone(phone);
   if (phoneNorm && phoneNorm.length >= 6) {
-    const ph = await safe(
+    const phoneMatches = await safe(
       "SELECT cid FROM contacts WHERE phone_norm = ? AND deleted = 0",
       [phoneNorm],
     );
-    for (const row of ph.rows || []) addSource(row.cid, "phone");
+    for (const row of phoneMatches.rows || []) addSource(row.cid, "phone");
   }
 
   const cids = [...sourcesByCid.keys()];
@@ -301,15 +301,15 @@ export async function resolvePersonIdentity({ email, phone } = {}) {
 export async function flagIdentityConflict({ cidA, cidB, reason }) {
   if (!cidA || !cidB || cidA === cidB) return false;
   await ensureDuplicateFlagsTable();
-  const [a, b] = [String(cidA), String(cidB)].sort();
-  const res = await safe(
+  const [contactCidA, contactCidB] = [String(cidA), String(cidB)].sort();
+  const insertResult = await safe(
     `INSERT INTO contact_duplicate_flags (contact_cid_a, contact_cid_b, match_reason, confidence, status)
      VALUES (?, ?, ?, 0.50, 'pending')
      ON CONFLICT (contact_cid_a, contact_cid_b) DO NOTHING
      RETURNING id`,
-    [a, b, reason || "Identity conflict"],
+    [contactCidA, contactCidB, reason || "Identity conflict"],
   );
-  return (res.rows || []).length > 0;
+  return (insertResult.rows || []).length > 0;
 }
 
 /** Resolve an email to an existing contact or create a minimal new one. */
@@ -317,9 +317,9 @@ export async function resolveOrCreateContactIdentity({ email, name, role = "memb
   const emailNorm = normalizeEmail(email);
   if (!emailNorm || !emailNorm.includes("@")) return null;
 
-  const ident = await resolvePersonIdentity({ email: emailNorm, phone: null });
-  if (ident.status === "matched") return ident.contact_cid;
-  if (ident.status === "conflict") return null; // never auto-create on conflict
+  const identity = await resolvePersonIdentity({ email: emailNorm, phone: null });
+  if (identity.status === "matched") return identity.contact_cid;
+  if (identity.status === "conflict") return null; // never auto-create on conflict
 
   const existing = await safe("SELECT cid FROM contacts WHERE LOWER(email) = ?", [emailNorm]);
   if ((existing.rows || []).length > 0) return existing.rows[0].cid;
@@ -344,8 +344,8 @@ export async function addContactEmail({ contactCid, email, actorCid, source = "m
   await ensureContactIdentitySchema().catch(() => false);
 
   // Same as the contact's primary email → nothing to do.
-  const prim = await safe("SELECT email FROM contacts WHERE cid = ?", [contactCid]);
-  if ((prim.rows || []).length > 0 && normalizeEmail(prim.rows[0].email) === emailNorm) {
+  const primaryEmailResult = await safe("SELECT email FROM contacts WHERE cid = ?", [contactCid]);
+  if ((primaryEmailResult.rows || []).length > 0 && normalizeEmail(primaryEmailResult.rows[0].email) === emailNorm) {
     return { ok: true, exists: "primary" };
   }
   // Belongs to another contact already?
@@ -363,27 +363,27 @@ export async function addContactEmail({ contactCid, email, actorCid, source = "m
     return { ok: false, error: "This email is already the primary email of another Contact." };
   }
 
-  const ins = await safe(
+  const insertResult = await safe(
     `INSERT INTO contact_emails (contact_cid, email, label, is_verified, source, created_by)
      VALUES (?, ?, 'alternative', true, ?, ?)
      ON CONFLICT (email) DO NOTHING
      RETURNING id`,
     [contactCid, emailNorm, source, actorCid || null],
   );
-  if ((ins.rows || []).length === 0) {
+  if ((insertResult.rows || []).length === 0) {
     return { ok: false, error: "This email is already on this Contact." };
   }
-  return { ok: true, id: ins.rows[0].id };
+  return { ok: true, id: insertResult.rows[0].id };
 }
 
 export async function listContactEmails(contactCid) {
   if (!contactCid) return [];
   await ensureContactIdentitySchema().catch(() => false);
-  const res = await safe(
+  const result = await safe(
     "SELECT id, email, label, is_verified, source, created_at FROM contact_emails WHERE contact_cid = ? ORDER BY label, created_at",
     [contactCid],
   );
-  return res.rows || [];
+  return result.rows || [];
 }
 
 export async function removeContactEmail({ id, contactCid }) {

@@ -54,17 +54,17 @@ const SECTION = "S-1";
 
 /** FormData request with a browser-like File. */
 function fileRequest({ name = "handout.pdf", type = "application/pdf", bytes, kind = "document" } = {}) {
-  const fd = new FormData();
-  fd.append(
+  const formData = new FormData();
+  formData.append(
     "file",
     new File([bytes || Buffer.from("fake-file-bytes")], name, { type }),
   );
-  fd.append("kind", kind);
-  fd.append("course_id", COURSE);
-  fd.append("section_id", SECTION);
+  formData.append("kind", kind);
+  formData.append("course_id", COURSE);
+  formData.append("section_id", SECTION);
   return new Request("http://localhost/api/lms/section-resources/upload", {
     method: "POST",
-    body: fd,
+    body: formData,
   });
 }
 
@@ -93,12 +93,12 @@ describe("POST /api/lms/section-resources/upload", () => {
   });
 
   test("400 when no file is provided", async () => {
-    const fd = new FormData();
-    fd.append("kind", "document");
+    const formData = new FormData();
+    formData.append("kind", "document");
     const res = await POST(
       new Request("http://localhost/api/lms/section-resources/upload", {
         method: "POST",
-        body: fd,
+        body: formData,
       }),
     );
     expect(res.status).toBe(400);
@@ -159,10 +159,10 @@ describe("POST /api/lms/section-resources/upload", () => {
     expect(data.file_size).toBeGreaterThan(0);
 
     expect(from).toHaveBeenCalledWith("lms-session-resources");
-    const [objectPath, buffer, opts] = upload.mock.calls[0];
+    const [objectPath, buffer, options] = upload.mock.calls[0];
     expect(objectPath).toBe(data.storage_path);
     expect(Buffer.isBuffer(buffer)).toBe(true);
-    expect(opts).toMatchObject({ contentType: "application/pdf", upsert: true });
+    expect(options).toMatchObject({ contentType: "application/pdf", upsert: true });
     expect(createBucket).not.toHaveBeenCalled();
   });
 

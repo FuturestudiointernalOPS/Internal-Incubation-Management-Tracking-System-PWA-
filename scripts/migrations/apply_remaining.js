@@ -42,15 +42,15 @@ async function run() {
 
       const statements = sql
         .split(";")
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0 && !s.startsWith("--") && !s.startsWith("/*"));
+        .map((statement) => statement.trim())
+        .filter((statement) => statement.length > 0 && !statement.startsWith("--") && !statement.startsWith("/*"));
 
       let successCount = 0;
       let errorCount = 0;
 
-      for (const stmt of statements) {
+      for (const statement of statements) {
         try {
-          await pool.query(stmt);
+          await pool.query(statement);
           successCount++;
         } catch (err) {
           if (

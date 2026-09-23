@@ -33,8 +33,8 @@ export function useSubTab(defaultKey) {
     // performs no synchronous state update — server and client markup match.
     defer(() => {
       try {
-        const s = new URLSearchParams(window.location.search).get("sub");
-        if (s) setSub(s);
+        const subParam = new URLSearchParams(window.location.search).get("sub");
+        if (subParam) setSub(subParam);
       } catch {
         /* SSR / malformed URL — keep the default */
       }

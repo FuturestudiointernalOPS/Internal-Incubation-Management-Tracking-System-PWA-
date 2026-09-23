@@ -8,6 +8,7 @@
     "passwordsDontMatch": "Les mots de passe ne correspondent pas.",
     "networkError": "Erreur réseau. Veuillez réessayer.",
     "somethingWrong": "Une erreur est survenue. Veuillez réessayer.",
+    "taskCreateFailed": "Impossible de créer la tâche.",
     "authRequired": "Authentification requise.",
     "insufficientPermissions": "Permissions insuffisantes.",
     "invalidEligibilityChanges": "Configuration d'éligibilité invalide.",

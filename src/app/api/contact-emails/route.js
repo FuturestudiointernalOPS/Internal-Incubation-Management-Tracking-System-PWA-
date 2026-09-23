@@ -33,12 +33,16 @@ export async function GET(req) {
     if (requestedCid && !isPrivileged) {
       return NextResponse.json({ success: false, error: "Unauthorized." }, { status: 403 });
     }
-    const cid = requestedCid || session?.cid;
-    if (!cid) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    const targetCid = requestedCid || session?.cid;
+    if (!targetCid)
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
 
     const { listContactEmails } = await import("@/lib/contactIdentity");
-    const emails = await listContactEmails(cid);
-    return NextResponse.json({ success: true, contact_cid: cid, emails });
+    const emails = await listContactEmails(targetCid);
+    return NextResponse.json({ success: true, contact_cid: targetCid, emails });
   } catch (error) {
     console.error("GET /api/contact-emails error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -53,12 +57,12 @@ export async function POST(req) {
     const session = await getSession();
 
     const body = await req.json();
-    const { email, cid } = body || {};
+    const { email, cid: requestedCid } = body || {};
     const isPrivileged = PRIVILEGED.includes(session?.role);
-    if (cid && !isPrivileged) {
+    if (requestedCid && !isPrivileged) {
       return NextResponse.json({ success: false, error: "Unauthorized." }, { status: 403 });
     }
-    const targetCid = cid || session?.cid;
+    const targetCid = requestedCid || session?.cid;
     if (!targetCid) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     if (!email) return NextResponse.json({ success: false, error: "email is required." }, { status: 400 });
 
@@ -94,12 +98,12 @@ export async function DELETE(req) {
     if (requestedCid && !isPrivileged) {
       return NextResponse.json({ success: false, error: "Unauthorized." }, { status: 403 });
     }
-    const cid = requestedCid || session?.cid;
+    const targetCid = requestedCid || session?.cid;
     if (!id) return NextResponse.json({ success: false, error: "id is required." }, { status: 400 });
-    if (!cid) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!targetCid) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 
     const { removeContactEmail } = await import("@/lib/contactIdentity");
-    const result = await removeContactEmail({ id: parseInt(id), contactCid: cid });
+    const result = await removeContactEmail({ id: parseInt(id), contactCid: targetCid });
     if (!result.ok) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }

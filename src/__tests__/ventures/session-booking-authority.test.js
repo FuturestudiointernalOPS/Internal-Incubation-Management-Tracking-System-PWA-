@@ -60,7 +60,7 @@ jest.mock("@/lib/auth", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
 
-jest.mock("@/lib/api/createHandler", () => ({ createHandler: (fn) => fn }));
+jest.mock("@/lib/api/createHandler", () => ({ createHandler: (handler) => handler }));
 
 jest.mock("@/lib/ventureScopedAccess", () => ({
   requireVentureScopedAccess: jest.fn(async () => mockGuard),
@@ -196,8 +196,8 @@ describe("a Coach supports the Venture; a manager schedules it", () => {
     // Assignments store the VNT code while the route may receive a UUID; reading
     // the matrix with the raw UUID would deny every delegated manager.
     expect(resolveVentureCode).toHaveBeenCalledWith(expect.anything(), VENTURE_ID);
-    const opts = hasVentureCapability.mock.calls[0][1];
-    expect(opts).toMatchObject({
+    const options = hasVentureCapability.mock.calls[0][1];
+    expect(options).toMatchObject({
       ventureId: "VNT-7",
       contactId: "lm-1",
       area: "calendar",

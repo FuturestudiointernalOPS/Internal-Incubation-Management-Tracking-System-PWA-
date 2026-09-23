@@ -5,12 +5,12 @@ import { requireAuth } from "@/lib/auth";
 const DB_PATH = path.join(process.cwd(), "data.json");
 
 function getDb() {
-  const data = fs.readFileSync(DB_PATH, "utf8");
-  return JSON.parse(data);
+  const fileContents = fs.readFileSync(DB_PATH, "utf8");
+  return JSON.parse(fileContents);
 }
 
-function saveDb(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), "utf8");
+function saveDb(database) {
+  fs.writeFileSync(DB_PATH, JSON.stringify(database, null, 2), "utf8");
 }
 
 export async function GET() {
@@ -29,7 +29,7 @@ export async function POST(request) {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
     const body = await request.json();
-    const { table, data } = body;
+    const { table, data: recordData } = body;
     const db = getDb();
 
     if (!db[table]) {
@@ -38,7 +38,7 @@ export async function POST(request) {
 
     const newItem = {
       id: Date.now(),
-      ...data,
+      ...recordData,
     };
 
     db[table].push(newItem);

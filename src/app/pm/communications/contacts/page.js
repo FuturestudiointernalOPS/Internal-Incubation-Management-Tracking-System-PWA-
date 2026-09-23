@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
-function cn(...classes) {
+function classNames(...classes) {
   return classes.filter(Boolean).join(" ");
 }
 
@@ -37,15 +37,15 @@ export default function PMGroups() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const uid = user.cid || user.id;
-    if (!uid) return;
+    const userId = user.cid || user.id;
+    if (!userId) return;
 
     const fetchData = async (bypassCache = false) => {
       setLoading(true);
       let painted = false;
       try {
         // 1. Fetch PM's programs
-        const progsUrl = `/api/pm/programs?assigned_pm_id=${uid}`;
+        const progsUrl = `/api/pm/programs?assigned_pm_id=${userId}`;
 
         // Sync all page state from the program list + per-program full states.
         const apply = (myProgs, states) => {
@@ -60,25 +60,25 @@ export default function PMGroups() {
           const teamsMap = {};
           const staffMap = {};
 
-          myProgs.forEach((p, i) => {
-            const state = states[i];
+          myProgs.forEach((program, index) => {
+            const state = states[index];
             if (!state?.success) return;
 
             // Participants
             const participants = (state.participants || []).filter(
-              (part) => part.name || part.email,
+              (participant) => participant.name || participant.email,
             );
             // Deduplicate by email
             const unique = Array.from(
-              new Map(participants.map((part) => [part.email, part])).values(),
+              new Map(participants.map((participant) => [participant.email, participant])).values(),
             );
-            groupsMap[p.id] = unique;
+            groupsMap[program.id] = unique;
 
             // Teams
-            teamsMap[p.id] = state.teams || [];
+            teamsMap[program.id] = state.teams || [];
 
             // Staff (assigned staff for this program)
-            staffMap[p.id] = state.assignedStaff || [];
+            staffMap[program.id] = state.assignedStaff || [];
           });
 
           setGroups(groupsMap);
@@ -93,10 +93,10 @@ export default function PMGroups() {
           const cachedProgs = cacheGet(progsUrl);
           if (cachedProgs !== null && cachedProgs.success) {
             const progList = cachedProgs.programs || [];
-            const cachedStates = progList.map((p) =>
-              cacheGet(`/api/pm/full-state?id=${p.id}`),
+            const cachedStates = progList.map((program) =>
+              cacheGet(`/api/pm/full-state?id=${program.id}`),
             );
-            if (cachedStates.every((c) => c !== null && c.success)) {
+            if (cachedStates.every((cachedState) => cachedState !== null && cachedState.success)) {
               apply(progList, cachedStates);
               painted = true;
               setLoading(false);
@@ -104,10 +104,10 @@ export default function PMGroups() {
           }
         }
 
-        const progRes = await fetch(progsUrl);
-        const progData = await progRes.json();
-        const myProgs = progData.programs || [];
-        if (progData.success) cacheSet(progsUrl, progData);
+        const programsResponse = await fetch(progsUrl);
+        const programsData = await programsResponse.json();
+        const myProgs = programsData.programs || [];
+        if (programsData.success) cacheSet(progsUrl, programsData);
 
         if (myProgs.length === 0) {
           apply(myProgs, []);
@@ -115,17 +115,17 @@ export default function PMGroups() {
         }
 
         // 2. Fetch full state for each program
-        const stateUrls = myProgs.map((p) => `/api/pm/full-state?id=${p.id}`);
-        const statePromises = stateUrls.map((u) =>
-          fetch(u)
-            .then((r) => r.json())
+        const stateUrls = myProgs.map((program) => `/api/pm/full-state?id=${program.id}`);
+        const statePromises = stateUrls.map((url) =>
+          fetch(url)
+            .then((response) => response.json())
             .catch(() => ({ success: false })),
         );
         const states = await Promise.all(statePromises);
 
         // Distinct per-program URLs cache independently.
-        stateUrls.forEach((u, i) => {
-          if (states[i]?.success) cacheSet(u, states[i]);
+        stateUrls.forEach((url, index) => {
+          if (states[index]?.success) cacheSet(url, states[index]);
         });
 
         apply(myProgs, states);
@@ -139,7 +139,7 @@ export default function PMGroups() {
     fetchData();
   }, []);
 
-  const currentProgram = programs.find((p) => p.id === selectedProgram);
+  const currentProgram = programs.find((program) => program.id === selectedProgram);
 
   const currentItems =
     tab === "participants"
@@ -150,20 +150,20 @@ export default function PMGroups() {
 
   const filteredItems = currentItems.filter((item) => {
     if (!search) return true;
-    const q = search.toLowerCase();
+    const query = search.toLowerCase();
     return (
-      (item.name || "").toLowerCase().includes(q) ||
-      (item.email || "").toLowerCase().includes(q) ||
-      (item.role || "").toLowerCase().includes(q) ||
-      (item.group_name || "").toLowerCase().includes(q) ||
-      (item.handler_name || "").toLowerCase().includes(q)
+      (item.name || "").toLowerCase().includes(query) ||
+      (item.email || "").toLowerCase().includes(query) ||
+      (item.role || "").toLowerCase().includes(query) ||
+      (item.group_name || "").toLowerCase().includes(query) ||
+      (item.handler_name || "").toLowerCase().includes(query)
     );
   });
 
   const totalAcrossAll =
-    Object.values(groups).reduce((a, b) => a + b.length, 0) +
-    Object.values(teams).reduce((a, b) => a + b.length, 0) +
-    Object.values(staff).reduce((a, b) => a + b.length, 0);
+    Object.values(groups).reduce((total, list) => total + list.length, 0) +
+    Object.values(teams).reduce((total, list) => total + list.length, 0) +
+    Object.values(staff).reduce((total, list) => total + list.length, 0);
 
   return (
     <>
@@ -186,7 +186,7 @@ export default function PMGroups() {
               type="text"
               placeholder={t("pmMisc.contacts.searchPlaceholder")}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               className="w-full pl-9 pr-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)] transition-all"
             />
           </div>
@@ -206,17 +206,17 @@ export default function PMGroups() {
                   {t("pmMisc.contacts.noProgramsAssigned")}
                 </p>
               ) : (
-                programs.map((prog) => {
-                  const isActive = selectedProgram === prog.id;
+                programs.map((program) => {
+                  const isActive = selectedProgram === program.id;
                   const count =
-                    (groups[prog.id]?.length || 0) +
-                    (teams[prog.id]?.length || 0) +
-                    (staff[prog.id]?.length || 0);
+                    (groups[program.id]?.length || 0) +
+                    (teams[program.id]?.length || 0) +
+                    (staff[program.id]?.length || 0);
                   return (
                     <button
-                      key={prog.id}
-                      onClick={() => setSelectedProgram(prog.id)}
-                      className={cn(
+                      key={program.id}
+                      onClick={() => setSelectedProgram(program.id)}
+                      className={classNames(
                         "w-full text-left p-2.5 rounded-xl transition-all flex items-center gap-2.5",
                         isActive
                           ? "bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20"
@@ -224,7 +224,7 @@ export default function PMGroups() {
                       )}
                     >
                       <div
-                        className={cn(
+                        className={classNames(
                           "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
                           isActive
                             ? "bg-[var(--brand-orange)]/20 text-[var(--brand-orange)]"
@@ -235,14 +235,14 @@ export default function PMGroups() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p
-                          className={cn(
+                          className={classNames(
                             "text-[10px] truncate",
                             isActive
                               ? "font-black text-[var(--text-primary)]"
                               : "font-bold text-[var(--text-secondary)]",
                           )}
                         >
-                          {prog.name}
+                          {program.name}
                         </p>
                         <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                           {count}{" "}
@@ -317,7 +317,7 @@ export default function PMGroups() {
                       <button
                         key={tabItem.id}
                         onClick={() => setTab(tabItem.id)}
-                        className={cn(
+                        className={classNames(
                           "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all",
                           tab === tabItem.id
                             ? "bg-[var(--brand-orange)] text-black"

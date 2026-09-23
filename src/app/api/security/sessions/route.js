@@ -9,10 +9,10 @@ import {
 export const GET = createHandler(
   { roles: ["super_admin", "security_officer"] },
   async (req) => {
-    const s = new URL(req.url).searchParams;
-    const userCid = s.get("user_cid") || undefined;
-    const limit = parseInt(s.get("limit")) || 50;
-    const offset = parseInt(s.get("offset")) || 0;
+    const searchParams = new URL(req.url).searchParams;
+    const userCid = searchParams.get("user_cid") || undefined;
+    const limit = parseInt(searchParams.get("limit")) || 50;
+    const offset = parseInt(searchParams.get("offset")) || 0;
 
     const sessions = await getActiveSessions({ userCid, limit, offset });
     return NextResponse.json({ success: true, sessions });

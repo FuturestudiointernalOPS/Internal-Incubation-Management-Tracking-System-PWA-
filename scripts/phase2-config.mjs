@@ -9,19 +9,19 @@
 import { readFileSync } from "node:fs";
 import pg from "pg";
 
-const readUrl = (f) =>
-  readFileSync(f, "utf-8")
+const readDatabaseUrl = (file) =>
+  readFileSync(file, "utf-8")
     .split("\n")
-    .find((l) => l.startsWith("DATABASE_URL="))
+    .find((envLine) => envLine.startsWith("DATABASE_URL="))
     ?.substring("DATABASE_URL=".length)
     .trim();
 
 const ENVS = [
-  { label: "PROD", url: readUrl(".env.local") },
-  { label: "STAGE", url: readUrl(".env.audit-staging") },
+  { label: "PROD", url: readDatabaseUrl(".env.local") },
+  { label: "STAGE", url: readDatabaseUrl(".env.audit-staging") },
 ];
 
-const ELIG = [
+const ELIGIBILITY_ROWS = [
   ["security", "role", "staff", 1],
   ["settings", "role", "staff", 1],
   ["programs", "role", "participant", 1],
@@ -32,20 +32,20 @@ for (const env of ENVS) {
   const pool = new pg.Pool({ connectionString: env.url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 10000 });
   console.log(`\n=== ${env.label} ===`);
 
-  for (const [feature, type, ident, val] of ELIG) {
-    const r = await pool.query(
+  for (const [featureKey, identityType, identityValue, eligibleFlag] of ELIGIBILITY_ROWS) {
+    const insertResult = await pool.query(
       `INSERT INTO feature_eligibility (feature_key, identity_type, identity_value, eligible)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (feature_key, identity_type, identity_value) DO NOTHING`,
-      [feature, type, ident, val],
+      [featureKey, identityType, identityValue, eligibleFlag],
     );
-    console.log(`  eligibility ${feature}/${ident}: ${r.rowCount === 1 ? "added" : "already present"}`);
+    console.log(`  eligibility ${featureKey}/${identityValue}: ${insertResult.rowCount === 1 ? "added" : "already present"}`);
   }
 
-  const ren = await pool.query(
+  const renameResult = await pool.query(
     "UPDATE access_profiles SET name = 'Investor Access' WHERE name = 'Mentor' RETURNING id",
   );
-  console.log(`  profile rename Mentor → Investor Access: ${ren.rows.length > 0 ? "renamed (id " + ren.rows[0].id + ")" : "no 'Mentor' profile found"}`);
+  console.log(`  profile rename Mentor → Investor Access: ${renameResult.rows.length > 0 ? "renamed (id " + renameResult.rows[0].id + ")" : "no 'Mentor' profile found"}`);
 
   if (env.label === "PROD") {
     await pool.query(
@@ -62,14 +62,14 @@ for (const env of ENVS) {
   }
 
   // Verify final state
-  const v1 = await pool.query(
+  const eligibilityVerify = await pool.query(
     "SELECT feature_key, identity_value FROM feature_eligibility WHERE identity_type='role' AND (identity_value='staff' AND feature_key IN ('security','settings') OR identity_value='participant' AND feature_key='programs' OR identity_value='investor' AND feature_key='ventures') ORDER BY feature_key",
   );
-  console.log("  eligibility verify:", JSON.stringify(v1.rows));
-  const v2 = await pool.query("SELECT id, name FROM access_profiles WHERE name = 'Investor Access' OR name = 'Mentor'");
-  console.log("  profile verify:", JSON.stringify(v2.rows));
-  const v3 = await pool.query("SELECT role_name, access_profile_id FROM role_access_profile_defaults WHERE role_name IN ('investor','mentor') ORDER BY role_name");
-  console.log("  role defaults verify:", JSON.stringify(v3.rows));
+  console.log("  eligibility verify:", JSON.stringify(eligibilityVerify.rows));
+  const profileVerify = await pool.query("SELECT id, name FROM access_profiles WHERE name = 'Investor Access' OR name = 'Mentor'");
+  console.log("  profile verify:", JSON.stringify(profileVerify.rows));
+  const roleDefaultsVerify = await pool.query("SELECT role_name, access_profile_id FROM role_access_profile_defaults WHERE role_name IN ('investor','mentor') ORDER BY role_name");
+  console.log("  role defaults verify:", JSON.stringify(roleDefaultsVerify.rows));
 
   await pool.end();
 }

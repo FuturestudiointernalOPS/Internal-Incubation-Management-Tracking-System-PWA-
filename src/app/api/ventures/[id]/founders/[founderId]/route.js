@@ -110,8 +110,8 @@ export const DELETE = createHandler(
       });
 
       return NextResponse.json({ success: true, ...result });
-    } catch (e) {
-      return NextResponse.json({ success: false, error: e.message }, { status: 400 });
+    } catch (error) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
   },
 );

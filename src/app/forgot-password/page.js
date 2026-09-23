@@ -18,25 +18,25 @@ export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      const res = await fetch("/api/auth/forgot-password", {
+      const response = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
 
-      const data = await res.json();
+      const payload = await response.json();
 
-      if (data.success) {
+      if (payload.success) {
         setSent(true);
       } else {
         setError(
-          t(data.error || "Failed to send reset email.") || data.error || "Failed to send reset email.",
+          t(payload.error || "Failed to send reset email.") || payload.error || "Failed to send reset email.",
         );
       }
     } catch {
@@ -124,7 +124,7 @@ export default function ForgotPasswordPage() {
                   type="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(event) => setEmail(event.target.value)}
                   placeholder="sarah@impactos.com"
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-3 pl-12 pr-4 text-sm font-medium outline-none focus:border-[var(--brand-orange)] transition-all"
                 />

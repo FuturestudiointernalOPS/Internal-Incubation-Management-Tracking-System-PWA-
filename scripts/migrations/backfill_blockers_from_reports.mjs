@@ -9,10 +9,10 @@ if (fs.existsSync(envPath)) {
   for (const line of envContent.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    let value = trimmed.slice(eqIdx + 1).trim();
+    const equalsIndex = trimmed.indexOf("=");
+    if (equalsIndex === -1) continue;
+    const key = trimmed.slice(0, equalsIndex).trim();
+    let value = trimmed.slice(equalsIndex + 1).trim();
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
       (value.startsWith("'") && value.endsWith("'"))
@@ -42,10 +42,10 @@ if (fs.existsSync(envPath)) {
  * Run: set -a && . .env.local && node scripts/backfill_blockers_from_reports.mjs
  */
 
-function truncate(str, maxLen) {
-  if (!str) return "";
-  const s = String(str).trim();
-  return s.length > maxLen ? s.slice(0, maxLen) : s;
+function truncate(text, maxLen) {
+  if (!text) return "";
+  const trimmed = String(text).trim();
+  return trimmed.length > maxLen ? trimmed.slice(0, maxLen) : trimmed;
 }
 
 function mapSeverity(blockerType) {
@@ -77,8 +77,8 @@ async function backfill() {
   let skipCount = 0;
   let taskCreateCount = 0;
 
-  for (let i = 0; i < totalReports; i++) {
-    const report = reports[i];
+  for (let index = 0; index < totalReports; index++) {
+    const report = reports[index];
     const reportType = report.report_type;
     const userId = report.user_id;
     const userName = report.user_name || "";
@@ -100,7 +100,7 @@ async function backfill() {
 
     if (!title) {
       console.log(
-        `  ⚠️  Report ${i + 1}/${totalReports} (${userId} W${weekNumber} ${reportType}): empty blocker title, skipping`,
+        `  ⚠️  Report ${index + 1}/${totalReports} (${userId} W${weekNumber} ${reportType}): empty blocker title, skipping`,
       );
       continue;
     }
@@ -147,9 +147,9 @@ async function backfill() {
 
     blockerCount++;
 
-    if ((i + 1) % 20 === 0 || i === totalReports - 1) {
+    if ((index + 1) % 20 === 0 || index === totalReports - 1) {
       console.log(
-        `  Processed ${i + 1}/${totalReports} reports — ${blockerCount} blockers created, ${skipCount} skipped, ${taskCreateCount} placeholder tasks created`,
+        `  Processed ${index + 1}/${totalReports} reports — ${blockerCount} blockers created, ${skipCount} skipped, ${taskCreateCount} placeholder tasks created`,
       );
     }
   }

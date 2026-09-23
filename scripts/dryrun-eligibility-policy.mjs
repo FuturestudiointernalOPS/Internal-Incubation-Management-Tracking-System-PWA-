@@ -68,14 +68,14 @@ for (const file of envCandidates) {
   const url = readUrlFrom(file);
   if (!url) continue;
   try {
-    const probe = await import("pg");
-    const pool = new probe.default.Pool({
+    const pgModule = await import("pg");
+    const probePool = new pgModule.default.Pool({
       connectionString: url,
       ssl: { rejectUnauthorized: false },
       connectionTimeoutMillis: 8000,
     });
-    await pool.query("SELECT 1");
-    await pool.end();
+    await probePool.query("SELECT 1");
+    await probePool.end();
     process.env.DATABASE_URL = url;
     usedEnvFile = file;
     break;
@@ -127,56 +127,56 @@ const CAP_ROUTES = {
 
 // ─── Read-only data loading (11 batched SELECTs, mirrors resolver queries) ──
 async function loadData() {
-  const q = async (name, sql) => {
+  const runQuery = async (name, sql) => {
     try {
-      const r = await db.execute({ sql, args: [] });
-      return { name, rows: r.rows };
-    } catch (e) {
-      throw new Error(`Query "${name}" failed: ${e.message}`);
+      const result = await db.execute({ sql, args: [] });
+      return { name, rows: result.rows };
+    } catch (error) {
+      throw new Error(`Query "${name}" failed: ${error.message}`);
     }
   };
 
   const results = await Promise.all([
-    q("contacts", "SELECT cid, access_profile_id, group_name FROM contacts"),
-    q("active users", "SELECT cid, name, email, role FROM contacts WHERE deleted_at IS NULL"),
-    q("grants", "SELECT user_cid, module, capability, access_level FROM user_capabilities WHERE (expires_at IS NULL OR expires_at > NOW())"),
-    q("restrictions", "SELECT user_cid, module, capability FROM user_capability_restrictions WHERE (expires_at IS NULL OR expires_at > NOW())"),
-    q("profiles", "SELECT id, name, is_active FROM access_profiles"),
-    q("role defaults", "SELECT rpd.role_name, ap.id, ap.name, ap.is_active FROM role_access_profile_defaults rpd JOIN access_profiles ap ON ap.id = rpd.access_profile_id"),
-    q("profile caps", "SELECT profile_id, module, capability, access_level FROM access_profile_capabilities"),
-    q("role caps", "SELECT role, module, capability, access_level FROM role_capabilities"),
-    q("user groups", "SELECT user_cid, group_name FROM user_groups"),
-    q("group caps", "SELECT group_name, module, capability, access_level FROM group_capabilities"),
-    q("eligibility", "SELECT feature_key, identity_type, identity_value, eligible FROM feature_eligibility"),
+    runQuery("contacts", "SELECT cid, access_profile_id, group_name FROM contacts"),
+    runQuery("active users", "SELECT cid, name, email, role FROM contacts WHERE deleted_at IS NULL"),
+    runQuery("grants", "SELECT user_cid, module, capability, access_level FROM user_capabilities WHERE (expires_at IS NULL OR expires_at > NOW())"),
+    runQuery("restrictions", "SELECT user_cid, module, capability FROM user_capability_restrictions WHERE (expires_at IS NULL OR expires_at > NOW())"),
+    runQuery("profiles", "SELECT id, name, is_active FROM access_profiles"),
+    runQuery("role defaults", "SELECT rpd.role_name, ap.id, ap.name, ap.is_active FROM role_access_profile_defaults rpd JOIN access_profiles ap ON ap.id = rpd.access_profile_id"),
+    runQuery("profile caps", "SELECT profile_id, module, capability, access_level FROM access_profile_capabilities"),
+    runQuery("role caps", "SELECT role, module, capability, access_level FROM role_capabilities"),
+    runQuery("user groups", "SELECT user_cid, group_name FROM user_groups"),
+    runQuery("group caps", "SELECT group_name, module, capability, access_level FROM group_capabilities"),
+    runQuery("eligibility", "SELECT feature_key, identity_type, identity_value, eligible FROM feature_eligibility"),
   ]);
-  const map = Object.fromEntries(results.map((r) => [r.name, r.rows]));
+  const map = Object.fromEntries(results.map((result) => [result.name, result.rows]));
 
   const groupBy = (rows, key) => {
-    const m = new Map();
-    for (const r of rows) {
-      const k = r[key];
-      if (!m.has(k)) m.set(k, []);
-      m.get(k).push(r);
+    const grouped = new Map();
+    for (const row of rows) {
+      const groupKey = row[key];
+      if (!grouped.has(groupKey)) grouped.set(groupKey, []);
+      grouped.get(groupKey).push(row);
     }
-    return m;
+    return grouped;
   };
 
   return {
-    contactsMap: new Map(map.contacts.map((r) => [r.cid, r])),
+    contactsMap: new Map(map.contacts.map((contact) => [contact.cid, contact])),
     users: map["active users"],
     grantsByUser: groupBy(map.grants, "user_cid"),
     restrictionsByUser: groupBy(map.restrictions, "user_cid"),
-    profiles: new Map(map.profiles.map((r) => [r.id, r])),
-    roleDefaults: new Map(map["role defaults"].map((r) => [r.role_name, r])), // first row wins (matches resolver rows[0])
+    profiles: new Map(map.profiles.map((profile) => [profile.id, profile])),
+    roleDefaults: new Map(map["role defaults"].map((roleDefault) => [roleDefault.role_name, roleDefault])), // first row wins (matches resolver rows[0])
     profileCapsByProfile: groupBy(map["profile caps"], "profile_id"),
     roleCapsByRole: groupBy(map["role caps"], "role"),
     groupsByUser: (() => {
-      const m = new Map();
-      for (const r of map["user groups"]) {
-        if (!m.has(r.user_cid)) m.set(r.user_cid, []);
-        m.get(r.user_cid).push(r.group_name);
+      const grouped = new Map();
+      for (const row of map["user groups"]) {
+        if (!grouped.has(row.user_cid)) grouped.set(row.user_cid, []);
+        grouped.get(row.user_cid).push(row.group_name);
       }
-      return m;
+      return grouped;
     })(),
     groupCapsByGroup: groupBy(map["group caps"], "group_name"),
     eligRowsAll: map.eligibility,
@@ -185,12 +185,12 @@ async function loadData() {
 
 // ─── Context assembly — mirrors resolveAuthorizationContext() (resolver.js) ──
 function buildSuperAdminMatrix() {
-  const m = {};
-  for (const [mod, def] of Object.entries(PERMISSION_MODULES)) {
-    m[mod] = {};
-    for (const capability of def.capabilities) m[mod][capability] = ACCESS_LEVELS.FULL;
+  const matrix = {};
+  for (const [module, moduleDef] of Object.entries(PERMISSION_MODULES)) {
+    matrix[module] = {};
+    for (const capability of moduleDef.capabilities) matrix[module][capability] = ACCESS_LEVELS.FULL;
   }
-  return m;
+  return matrix;
 }
 
 function buildCtx(user, data, applyPolicy) {
@@ -225,18 +225,18 @@ function buildCtx(user, data, applyPolicy) {
   let profileName = null;
   let profileSource = "legacy";
   if (contact.access_profile_id) {
-    const p = data.profiles.get(contact.access_profile_id);
-    if (p && Number(p.is_active) === 1) {
-      profileId = p.id;
-      profileName = p.name;
+    const profile = data.profiles.get(contact.access_profile_id);
+    if (profile && Number(profile.is_active) === 1) {
+      profileId = profile.id;
+      profileName = profile.name;
       profileSource = "user";
     }
   }
   if (!profileId && role) {
-    const p = data.roleDefaults.get(role);
-    if (p && Number(p.is_active) === 1) {
-      profileId = p.id;
-      profileName = p.name;
+    const roleDefault = data.roleDefaults.get(role);
+    if (roleDefault && Number(roleDefault.is_active) === 1) {
+      profileId = roleDefault.id;
+      profileName = roleDefault.name;
       profileSource = "role";
     }
   }
@@ -256,23 +256,23 @@ function buildCtx(user, data, applyPolicy) {
   // 5. Group capabilities.
   let groupCaps = {};
   if (groups.length > 0) {
-    const rows = groups.flatMap((g) => data.groupCapsByGroup.get(g) || []);
-    groupCaps = rowsToCaps(rows);
+    const groupCapRows = groups.flatMap((group) => data.groupCapsByGroup.get(group) || []);
+    groupCaps = rowsToCaps(groupCapRows);
   }
 
   // 6. Eligibility rows for this user's identities (role + groups).
   let eligRows = data.eligRowsAll.filter(
-    (r) =>
-      (r.identity_type === "role" && r.identity_value === role) ||
-      (r.identity_type === "group" && groups.includes(r.identity_value)),
+    (eligibilityRow) =>
+      (eligibilityRow.identity_type === "role" && eligibilityRow.identity_value === role) ||
+      (eligibilityRow.identity_type === "group" && groups.includes(eligibilityRow.identity_value)),
   );
   if (applyPolicy) {
     eligRows = eligRows.filter(
-      (r) =>
+      (eligibilityRow) =>
         !(
-          r.identity_type === "role" &&
+          eligibilityRow.identity_type === "role" &&
           POLICY_DELETES.some(
-            (d) => d.feature_key === r.feature_key && d.identity_value === r.identity_value,
+            (policyDelete) => policyDelete.feature_key === eligibilityRow.feature_key && policyDelete.identity_value === eligibilityRow.identity_value,
           )
         ),
     );
@@ -306,33 +306,33 @@ function buildCtx(user, data, applyPolicy) {
 const db = await initDb();
 const data = await loadData();
 
-const targetRows = data.eligRowsAll.filter((r) =>
+const targetRows = data.eligRowsAll.filter((eligibilityRow) =>
   POLICY_DELETES.some(
-    (d) => d.feature_key === r.feature_key && d.identity_value === r.identity_value,
+    (policyDelete) => policyDelete.feature_key === eligibilityRow.feature_key && policyDelete.identity_value === eligibilityRow.identity_value,
   ),
 );
-const targetRowsRole = targetRows.filter((r) => r.identity_type === "role");
-const targetRowsOther = targetRows.filter((r) => r.identity_type !== "role");
+const targetRowsRole = targetRows.filter((row) => row.identity_type === "role");
+const targetRowsOther = targetRows.filter((row) => row.identity_type !== "role");
 
 const roleCounts = {};
-for (const u of data.users) roleCounts[u.role ?? "(none)"] = (roleCounts[u.role ?? "(none)"] ?? 0) + 1;
+for (const user of data.users) roleCounts[user.role ?? "(none)"] = (roleCounts[user.role ?? "(none)"] ?? 0) + 1;
 
 // Coverage signals — detect when a claim cannot be verified per-user.
-const adminCount = data.users.filter((u) => u.role === "admin").length;
+const adminCount = data.users.filter((user) => user.role === "admin").length;
 const profileCount = data.profiles.size;
-const groupCount = data.eligRowsAll.filter((r) => r.identity_type === "group").length;
+const groupCount = data.eligRowsAll.filter((row) => row.identity_type === "group").length;
 const adminReportsCaps =
-  (data.roleCapsByRole.get("admin") || []).filter((r) => r.module === "reports").length;
+  (data.roleCapsByRole.get("admin") || []).filter((row) => row.module === "reports").length;
 
 console.log("=".repeat(78));
 console.log("READ-ONLY DRY-RUN — Eligibility policy #3 (no changes applied)");
 console.log("=".repeat(78));
 console.log(`Active users scanned : ${data.users.length}`);
 console.log(`Users by role        : ${JSON.stringify(roleCounts)}`);
-console.log(`Eligibility rows     : ${data.eligRowsAll.length} (role=${data.eligRowsAll.filter((r) => r.identity_type === "role").length}, group=${data.eligRowsAll.filter((r) => r.identity_type === "group").length})`);
-console.log(`Target rows present  : ${targetRowsRole.length} role rows (${targetRowsRole.map((r) => `${r.feature_key}/${r.identity_value}=${r.eligible}`).join(", ") || "none"})`);
+console.log(`Eligibility rows     : ${data.eligRowsAll.length} (role=${data.eligRowsAll.filter((row) => row.identity_type === "role").length}, group=${data.eligRowsAll.filter((row) => row.identity_type === "group").length})`);
+console.log(`Target rows present  : ${targetRowsRole.length} role rows (${targetRowsRole.map((row) => `${row.feature_key}/${row.identity_value}=${row.eligible}`).join(", ") || "none"})`);
 if (targetRowsOther.length) {
-  console.log(`WARNING — non-role target rows present (NOT part of the delete set): ${targetRowsOther.map((r) => `${r.feature_key}/${r.identity_type}/${r.identity_value}=${r.eligible}`).join(", ")}`);
+  console.log(`WARNING — non-role target rows present (NOT part of the delete set): ${targetRowsOther.map((row) => `${row.feature_key}/${row.identity_type}/${row.identity_value}=${row.eligible}`).join(", ")}`);
 }
 if (adminCount === 0) {
   console.log("WARNING — this database has NO users with role='admin': admin-loss claims can only be");
@@ -350,25 +350,25 @@ console.log("-".repeat(78));
 // ─── Compute decisions ───────────────────────────────────────────────────────
 const changes = []; // { user, mod, cap, curLevel, postLevel, curElig, postElig }
 const capabilities = [];
-for (const [mod, def] of Object.entries(PERMISSION_MODULES)) {
-  for (const cap of def.capabilities) capabilities.push([mod, cap]);
+for (const [module, moduleDef] of Object.entries(PERMISSION_MODULES)) {
+  for (const capability of moduleDef.capabilities) capabilities.push([module, capability]);
 }
 
-for (const u of data.users) {
-  const cur = buildCtx(u, data, false);
-  const post = buildCtx(u, data, true);
-  for (const [mod, cap] of capabilities) {
-    const curAllow = authorize(cur, mod, cap, 1);
-    const postAllow = authorize(post, mod, cap, 1);
+for (const user of data.users) {
+  const cur = buildCtx(user, data, false);
+  const post = buildCtx(user, data, true);
+  for (const [module, capability] of capabilities) {
+    const curAllow = authorize(cur, module, capability, 1);
+    const postAllow = authorize(post, module, capability, 1);
     if (curAllow !== postAllow) {
       changes.push({
-        user: u,
-        mod,
-        cap,
-        curLevel: cur.effective?.[mod]?.[cap] ?? 0,
-        postLevel: post.effective?.[mod]?.[cap] ?? 0,
-        curElig: cur.eligibility?.[MODULE_TO_FEATURE[mod]],
-        postElig: post.eligibility?.[MODULE_TO_FEATURE[mod]],
+        user,
+        mod: module,
+        cap: capability,
+        curLevel: cur.effective?.[module]?.[capability] ?? 0,
+        postLevel: post.effective?.[module]?.[capability] ?? 0,
+        curElig: cur.eligibility?.[MODULE_TO_FEATURE[module]],
+        postElig: post.eligibility?.[MODULE_TO_FEATURE[module]],
         curAllow,
         postAllow,
       });
@@ -376,11 +376,11 @@ for (const u of data.users) {
   }
 }
 
-// ─── Report changed users ────────────────────────────────────────────────────
+// ─── Report changed users ───────────────────────────────────
 const byUser = new Map();
-for (const c of changes) {
-  if (!byUser.has(c.user.cid)) byUser.set(c.user.cid, []);
-  byUser.get(c.user.cid).push(c);
+for (const change of changes) {
+  if (!byUser.has(change.user.cid)) byUser.set(change.user.cid, []);
+  byUser.get(change.user.cid).push(change);
 }
 
 if (byUser.size === 0) {
@@ -388,20 +388,20 @@ if (byUser.size === 0) {
   console.log("If the target rows are absent, current behavior already equals the post-policy state.");
 }
 
-for (const [cid, chs] of byUser) {
-  const u = chs[0].user;
-  const ctx = buildCtx(u, data, false);
+for (const [cid, userChanges] of byUser) {
+  const user = userChanges[0].user;
+  const ctx = buildCtx(user, data, false);
   const flippedFeatures = new Set();
-  for (const c of chs) flippedFeatures.add(MODULE_TO_FEATURE[c.mod]);
-  console.log(`\nUSER: ${u.name || "(unnamed)"} <${u.email || "no email"}>  role=${u.role}  cid=${cid}`);
+  for (const change of userChanges) flippedFeatures.add(MODULE_TO_FEATURE[change.mod]);
+  console.log(`\nUSER: ${user.name || "(unnamed)"} <${user.email || "no email"}>  role=${user.role}  cid=${cid}`);
   console.log(`  groups: ${ctx.groups.length ? ctx.groups.join(", ") : "(none)"}`);
-  for (const f of [...flippedFeatures]) {
-    console.log(`  eligibility: ${f} ${chs[0].curElig ? "eligible → NOT eligible" : "ineligible → eligible"}`);
+  for (const featureKey of [...flippedFeatures]) {
+    console.log(`  eligibility: ${featureKey} ${userChanges[0].curElig ? "eligible → NOT eligible" : "ineligible → eligible"}`);
   }
-  for (const c of chs) {
-    const routes = CAP_ROUTES[`${c.mod}.${c.cap}`] || ["(unknown route)"];
-    const arrow = c.curAllow && !c.postAllow ? "ALLOW → DENY" : "DENY → ALLOW";
-    console.log(`  ${arrow}: ${c.mod}.${c.cap} (level ${c.curLevel} → ${c.postLevel})   ${routes.join(", ")}`);
+  for (const change of userChanges) {
+    const routes = CAP_ROUTES[`${change.mod}.${change.cap}`] || ["(unknown route)"];
+    const arrow = change.curAllow && !change.postAllow ? "ALLOW → DENY" : "DENY → ALLOW";
+    console.log(`  ${arrow}: ${change.mod}.${change.cap} (level ${change.curLevel} → ${change.postLevel})   ${routes.join(", ")}`);
   }
 }
 
@@ -416,35 +416,35 @@ const check = (label, ok, detail = "") => {
   if (!ok) failures++;
 };
 
-const losses = changes.filter((c) => c.curAllow && !c.postAllow);
-const gains = changes.filter((c) => !c.curAllow && c.postAllow);
-const affectedCids = new Set(changes.map((c) => c.user.cid));
+const losses = changes.filter((change) => change.curAllow && !change.postAllow);
+const gains = changes.filter((change) => !change.curAllow && change.postAllow);
+const affectedCids = new Set(changes.map((change) => change.user.cid));
 const adminCids = new Set(
-  data.users.filter((u) => u.role === "admin").map((u) => u.cid),
+  data.users.filter((user) => user.role === "admin").map((user) => user.cid),
 );
-const adminChanges = changes.filter((c) => adminCids.has(c.user.cid));
-const nonAdminChanges = changes.filter((c) => !adminCids.has(c.user.cid));
+const adminChanges = changes.filter((change) => adminCids.has(change.user.cid));
+const nonAdminChanges = changes.filter((change) => !adminCids.has(change.user.cid));
 const adminBadModules = adminChanges.filter(
-  (c) => !["internal_comms", "reports"].includes(c.mod),
+  (change) => !["internal_comms", "reports"].includes(change.mod),
 );
-const participantFounderChanges = changes.filter((c) =>
-  ["participant", "founder"].includes(c.user.role),
+const participantFounderChanges = changes.filter((change) =>
+  ["participant", "founder"].includes(change.user.role),
 );
 
 check(
   "No user gains access anywhere",
   gains.length === 0,
-  gains.length ? `${gains.length} unexpected gain(s): ${gains.map((g) => `${g.user.role}/${g.user.cid}:${g.mod}.${g.cap}`).join(", ")}` : `${changes.length} changes total, all allow→deny`,
+  gains.length ? `${gains.length} unexpected gain(s): ${gains.map((gain) => `${gain.user.role}/${gain.user.cid}:${gain.mod}.${gain.cap}`).join(", ")}` : `${changes.length} changes total, all allow→deny`,
 );
 check(
   "All decision changes belong to role=admin users",
   nonAdminChanges.length === 0,
-  nonAdminChanges.length ? `non-admin changes: ${nonAdminChanges.map((c) => `${c.user.role}/${c.user.cid}:${c.mod}.${c.cap}`).join(", ")}` : "confirmed",
+  nonAdminChanges.length ? `non-admin changes: ${nonAdminChanges.map((change) => `${change.user.role}/${change.user.cid}:${change.mod}.${change.cap}`).join(", ")}` : "confirmed",
 );
 check(
   "Admin losses confined to internal_comms + reports modules",
   adminBadModules.length === 0,
-  adminBadModules.length ? `offending: ${adminBadModules.map((c) => `${c.mod}.${c.cap}`).join(", ")}` : "confirmed",
+  adminBadModules.length ? `offending: ${adminBadModules.map((change) => `${change.mod}.${change.cap}`).join(", ")}` : "confirmed",
 );
 check(
   "participant / founder users see zero decision changes",
@@ -457,8 +457,8 @@ check(
     ? true
     : (() => {
         const adminsStillEligible = data.users
-          .filter((u) => u.role === "admin")
-          .filter((u) => buildCtx(u, data, true).eligibility?.internal_comms === true);
+          .filter((user) => user.role === "admin")
+          .filter((user) => buildCtx(user, data, true).eligibility?.internal_comms === true);
         return adminsStillEligible.length === 0;
       })(),
   "group-eligibility rows for internal_comms could preserve admin access — none found",
@@ -469,8 +469,8 @@ check(
     ? true
     : (() => {
         const adminsStillEligible = data.users
-          .filter((u) => u.role === "admin")
-          .filter((u) => buildCtx(u, data, true).eligibility?.reporting === true);
+          .filter((user) => user.role === "admin")
+          .filter((user) => buildCtx(user, data, true).eligibility?.reporting === true);
         return adminsStillEligible.length === 0;
       })(),
   "group-eligibility rows for reporting could preserve admin access — none found",
@@ -484,7 +484,7 @@ console.log(`Users scanned        : ${data.users.length}`);
 console.log(`Users with changes   : ${affectedCids.size}`);
 console.log(`Decision losses      : ${losses.length}`);
 console.log(`Decision gains       : ${gains.length}`);
-console.log(`Admin users affected : ${new Set(adminChanges.map((c) => c.user.cid)).size} of ${adminCids.size} admin user(s)`);
+console.log(`Admin users affected : ${new Set(adminChanges.map((change) => change.user.cid)).size} of ${adminCids.size} admin user(s)`);
 console.log(`Query cost           : ${Object.keys(data).length + 1} batched SELECTs for the whole population `);
 console.log(`                       (per-user resolver cost is 9 queries/user — unchanged by this policy)`);
 

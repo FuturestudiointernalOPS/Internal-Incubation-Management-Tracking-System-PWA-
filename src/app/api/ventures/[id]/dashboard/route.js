@@ -31,8 +31,8 @@ export const GET = createHandler(
     // Resolve the internal id (UUID-lineage tables key on it, not the VNT code)
     let dbId = id;
     try {
-      const vRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
-      if (vRes.rows[0]) dbId = vRes.rows[0].id;
+      const ventureLookup = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+      if (ventureLookup.rows[0]) dbId = ventureLookup.rows[0].id;
     } catch (_) {}
 
     // ── Profile Completion ──
@@ -51,7 +51,7 @@ export const GET = createHandler(
           percentage: data.completion_percentage || 0,
           is_submitted: data.profile?.is_submitted || false,
           items,
-          missing: items.filter((i) => !i.completed).map((i) => i.name),
+          missing: items.filter((item) => !item.completed).map((item) => item.name),
         };
       } catch { return null; }
     })();
@@ -59,11 +59,11 @@ export const GET = createHandler(
     // ── Venture Info ──
     const ventureInfo = (async () => {
       try {
-        const res = await db.execute({
+        const ventureQuery = await db.execute({
           sql: "SELECT company_name, venture_id, industry, business_stage, status, created_at, description, website, logo_url, registration_number FROM ventures WHERE venture_id = ?",
           args: [id],
         });
-        return res.rows[0] || null;
+        return ventureQuery.rows[0] || null;
       } catch { return null; }
     })();
 
@@ -85,16 +85,16 @@ export const GET = createHandler(
           owner: summary.owner
             ? { name: summary.owner.name, email: summary.owner.email, role: summary.owner.role }
             : null,
-          members: members.map((m) => ({
-            id: m.id,
-            name: m.name,
-            email: m.email,
-            phone: m.phone,
-            role: m.role,
-            is_founder: m.is_founder,
-            is_owner: m.is_owner,
-            status: m.status,
-            joined_at: m.joined_at,
+          members: members.map((member) => ({
+            id: member.id,
+            name: member.name,
+            email: member.email,
+            phone: member.phone,
+            role: member.role,
+            is_founder: member.is_founder,
+            is_owner: member.is_owner,
+            status: member.status,
+            joined_at: member.joined_at,
           })),
         };
       } catch { return null; }
@@ -106,11 +106,11 @@ export const GET = createHandler(
     // (that feed is NEVER exposed to Venture members).
     const notifications = (async () => {
       try {
-        const memberRes = await db.execute({
+        const memberResult = await db.execute({
           sql: "SELECT contact_id, user_cid FROM venture_members WHERE venture_id = ? AND removed_at IS NULL",
           args: [id],
         });
-        const recipientIds = [...new Set((memberRes.rows || []).flatMap((r) => [r.contact_id, r.user_cid]).filter(Boolean))];
+        const recipientIds = [...new Set((memberResult.rows || []).flatMap((row) => [row.contact_id, row.user_cid]).filter(Boolean))];
         const orInternal = isInternalViewer ? " OR recipient_id = 'sa'" : "";
         let sql, args;
         if (recipientIds.length > 0) {
@@ -128,13 +128,13 @@ export const GET = createHandler(
         } else {
           return { unread: 0, recent: [] };
         }
-        const res = await db.execute({ sql, args });
-        const notifs = res.rows || [];
+        const feedResult = await db.execute({ sql, args });
+        const notificationRows = feedResult.rows || [];
         return {
-          unread: notifs.filter((n) => !n.is_read).length,
-          recent: notifs.slice(0, 5).map((n) => ({
-            id: n.id, title: n.title, message: n.message, type: n.type,
-            is_read: !!n.is_read, created_at: n.created_at,
+          unread: notificationRows.filter((notification) => !notification.is_read).length,
+          recent: notificationRows.slice(0, 5).map((notification) => ({
+            id: notification.id, title: notification.title, message: notification.message, type: notification.type,
+            is_read: !!notification.is_read, created_at: notification.created_at,
           })),
         };
       } catch { return null; }
@@ -162,39 +162,39 @@ export const GET = createHandler(
     ];
     const recentActivity = (async () => {
       try {
-        const res = await db.execute({
+        const activityQuery = await db.execute({
           sql: `SELECT id, action, actor_name, details, created_at
                 FROM venture_activity_log WHERE venture_id = ?
                 ORDER BY created_at DESC LIMIT 40`,
           args: [id],
         });
-        const rows = res.rows || [];
+        const rows = activityQuery.rows || [];
         if (isInternalViewer) {
-          return rows.slice(0, 10).map((a) => ({
-            id: a.id, action: a.action, actor: a.actor_name || "System",
-            details: a.details, created_at: a.created_at,
+          return rows.slice(0, 10).map((entry) => ({
+            id: entry.id, action: entry.action, actor: entry.actor_name || "System",
+            details: entry.details, created_at: entry.created_at,
           }));
         }
         return rows
-          .filter((a) => VENTURE_FACING_CODES.includes(a.action))
+          .filter((entry) => VENTURE_FACING_CODES.includes(entry.action))
           .slice(0, 10)
-          .map((a) => ({ id: a.id, action: a.action, created_at: a.created_at }));
+          .map((entry) => ({ id: entry.id, action: entry.action, created_at: entry.created_at }));
       } catch { return null; }
     })();
 
     // ── Verification Status ──
     const verification = (async () => {
       try {
-        const data = await getOrCreateVerification(id);
-        const items = data.items.map((i) => ({
-          category: i.category,
-          label: i.category_label,
-          status: i.status,
+        const verificationData = await getOrCreateVerification(id);
+        const items = verificationData.items.map((item) => ({
+          category: item.category,
+          label: item.category_label,
+          status: item.status,
         }));
         return {
-          status: data.verification.status,
+          status: verificationData.verification.status,
           categories: items,
-          verified_count: items.filter((i) => i.status === "verified").length,
+          verified_count: items.filter((item) => item.status === "verified").length,
           total_count: items.length,
         };
       } catch { return null; }
@@ -205,17 +205,17 @@ export const GET = createHandler(
       try {
         let rows = [];
         try {
-          const res = await db.execute({
+          const documentsQuery = await db.execute({
             sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? AND is_deleted = false ORDER BY created_at DESC LIMIT 5",
             args: [id],
           });
-          rows = res.rows || [];
+          rows = documentsQuery.rows || [];
         } catch (_) {
-          const res = await db.execute({
+          const documentsQuery = await db.execute({
             sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? ORDER BY created_at DESC LIMIT 5",
             args: [id],
           });
-          rows = res.rows || [];
+          rows = documentsQuery.rows || [];
         }
         return {
           total: rows.length,
@@ -227,15 +227,15 @@ export const GET = createHandler(
     // ── Meetings (placeholder — integrates with calendar/events module) ──
     const meetings = (async () => {
       try {
-        const res = await db.execute({
+        const meetingsQuery = await db.execute({
           sql: `SELECT id, title, description, event_date, event_time, status, type
                 FROM calendar_events WHERE venture_id = ? AND event_date >= CURRENT_DATE
                 ORDER BY event_date ASC LIMIT 5`,
           args: [id],
         }).catch(() => ({ rows: [] }));
-        return (res.rows || []).map((m) => ({
-          id: m.id, title: m.title, description: m.description,
-          date: m.event_date, time: m.event_time, status: m.status, type: m.type || "meeting",
+        return (meetingsQuery.rows || []).map((meeting) => ({
+          id: meeting.id, title: meeting.title, description: meeting.description,
+          date: meeting.event_date, time: meeting.event_time, status: meeting.status, type: meeting.type || "meeting",
         }));
       } catch { return []; }
     })();
@@ -243,7 +243,7 @@ export const GET = createHandler(
     // ── KPI Summary (the venture KPI module, not the global kpis table) ──
     const kpiSummary = (async () => {
       try {
-        const res = await db.execute({
+        const kpiQuery = await db.execute({
           sql: `SELECT d.name, d.unit, d.auto_calc_source, a.target_value, a.current_value, a.updated_at
                 FROM venture_kpi_assignments a
                 JOIN venture_kpi_definitions d ON d.id = a.kpi_definition_id
@@ -251,11 +251,11 @@ export const GET = createHandler(
                 ORDER BY a.updated_at DESC LIMIT 5`,
           args: [dbId],
         }).catch(() => ({ rows: [] }));
-        return (res.rows || []).map((k) => ({
-          id: k.id, title: k.name, category: k.auto_calc_source || "manual",
-          current: k.current_value, target: k.target_value,
-          unit: k.unit, status: k.auto_calc_source ? "auto" : "manual",
-          progress: k.target_value > 0 ? Math.round((k.current_value / k.target_value) * 100) : 0,
+        return (kpiQuery.rows || []).map((kpi) => ({
+          id: kpi.id, title: kpi.name, category: kpi.auto_calc_source || "manual",
+          current: kpi.current_value, target: kpi.target_value,
+          unit: kpi.unit, status: kpi.auto_calc_source ? "auto" : "manual",
+          progress: kpi.target_value > 0 ? Math.round((kpi.current_value / kpi.target_value) * 100) : 0,
         }));
       } catch { return []; }
     })();
@@ -263,14 +263,14 @@ export const GET = createHandler(
     // ── Coaching / Advisors (real sources) ──
     const coaching = (async () => {
       try {
-        const [advisorRes, sessionRes, assignmentRes] = await Promise.all([
+        const [advisorResult, sessionResult, assignmentResult] = await Promise.all([
           db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_advisors WHERE venture_id::text = ?", args: [dbId] }).catch(() => ({ rows: [{ n: 0 }] })),
           db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_coaching_sessions WHERE venture_id::text = ?", args: [dbId] }).catch(() => ({ rows: [{ n: 0 }] })),
           db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_coach_assignments WHERE venture_id::text = ? AND status = 'active'", args: [dbId] }).catch(() => ({ rows: [{ n: 0 }] })),
         ]);
-        const coaches = Number(assignmentRes.rows?.[0]?.n || 0);
-        const advisors = Number(advisorRes.rows?.[0]?.n || 0);
-        const sessions = Number(sessionRes.rows?.[0]?.n || 0);
+        const coaches = Number(assignmentResult.rows?.[0]?.n || 0);
+        const advisors = Number(advisorResult.rows?.[0]?.n || 0);
+        const sessions = Number(sessionResult.rows?.[0]?.n || 0);
         return { coaches, advisors, coaching_sessions: sessions, total: coaches + advisors };
       } catch { return { coaches: [], advisors: [], coaching_sessions: 0, total: 0 }; }
     })();
@@ -296,12 +296,12 @@ export const GET = createHandler(
       profileResult,
       ventureResult,
       teamResult,
-      notifResult,
+      notificationsResult,
       activityResult,
-      verifResult,
-      docsResult,
+      verificationResult,
+      documentsResult,
       meetingsResult,
-      kpiResult,
+      kpiSummaryResult,
       coachingResult,
       investmentResult,
     ] = await Promise.all([
@@ -317,12 +317,12 @@ export const GET = createHandler(
         profile_completion: profileResult,
         venture: ventureResult,
         team: teamResult,
-        notifications: notifResult,
+        notifications: notificationsResult,
         recent_activity: activityResult,
-        verification: verifResult,
-        documents: docsResult,
+        verification: verificationResult,
+        documents: documentsResult,
         meetings: meetingsResult,
-        kpis: kpiResult,
+        kpis: kpiSummaryResult,
         coaching: coachingResult,
         investment_readiness: investmentResult,
       },

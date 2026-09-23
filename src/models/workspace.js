@@ -261,20 +261,20 @@ export async function getCalendarVentureSessions(userId) {
       args: [userId, userId, userId],
     })
     .catch(() => empty);
-  const codes = (scopeRes.rows || []).map((r) => r.venture_id).filter(Boolean);
+  const ventureCodes = (scopeRes.rows || []).map((row) => row.venture_id).filter(Boolean);
 
   // 2. Expand to the internal ids too (rows may be keyed either way).
-  let ids = [];
-  if (codes.length > 0) {
+  let internalVentureIds = [];
+  if (ventureCodes.length > 0) {
     const idRes = await db
       .execute({
-        sql: `SELECT id::text AS id FROM ventures WHERE venture_id IN (${codes.map(() => "?").join(",")})`,
-        args: codes,
+        sql: `SELECT id::text AS id FROM ventures WHERE venture_id IN (${ventureCodes.map(() => "?").join(",")})`,
+        args: ventureCodes,
       })
       .catch(() => empty);
-    ids = (idRes.rows || []).map((r) => r.id).filter(Boolean);
+    internalVentureIds = (idRes.rows || []).map((row) => row.id).filter(Boolean);
   }
-  const scope = [...new Set([...codes, ...ids])];
+  const scope = [...new Set([...ventureCodes, ...internalVentureIds])];
   // Sentinel: a person with no Ventures still gets their own coach sessions,
   // and the IN list can never match a real venture id.
   const scopeList = scope.length > 0 ? scope : ["__no_venture_scope__"];
@@ -326,6 +326,35 @@ export async function createNotification(recipientId, title, message, type) {
     sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
             VALUES (?, ?, ?, ?, 0, NOW())`,
     args: [recipientId, title, message, type],
+  });
+}
+
+let notificationLinkColumnPromise = null;
+
+/** v2_notifications.link — the base schema predates it, so add it on first use. */
+export function ensureNotificationLinkColumn() {
+  if (!notificationLinkColumnPromise) {
+    notificationLinkColumnPromise = db
+      .execute("ALTER TABLE v2_notifications ADD COLUMN IF NOT EXISTS link TEXT")
+      .catch(() => {
+        notificationLinkColumnPromise = null; // allow a retry on the next call
+      });
+  }
+  return notificationLinkColumnPromise;
+}
+
+/**
+ * Create a notification that carries a destination. The inbox turns it into
+ * navigation for the types that know what to do with it (investor,
+ * venture_invite). Kept separate from createNotification so the many existing
+ * producers never depend on the link column.
+ */
+export async function createLinkedNotification(recipientId, title, message, type, link) {
+  await ensureNotificationLinkColumn();
+  return db.execute({
+    sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at, link)
+            VALUES (?, ?, ?, ?, 0, NOW(), ?)`,
+    args: [recipientId, title, message, type, link],
   });
 }
 

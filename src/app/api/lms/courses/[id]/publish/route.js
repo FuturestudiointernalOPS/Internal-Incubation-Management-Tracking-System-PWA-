@@ -21,7 +21,7 @@ export async function POST(req, { params }) {
     const { id } = await params;
     const result = await publishCourse(id);
     return NextResponse.json({ success: true, ...result });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

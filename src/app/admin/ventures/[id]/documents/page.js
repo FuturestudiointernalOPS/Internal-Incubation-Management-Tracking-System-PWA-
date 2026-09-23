@@ -14,8 +14,8 @@ import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
 
 const EMPTY_LIST = [];
 
-const pickVenture = (d) => (d?.success ? d.venture || null : null);
-const pickDocuments = (d) => (d?.success ? d.documents || [] : []);
+const pickVenture = (payload) => (payload?.success ? payload.venture || null : null);
+const pickDocuments = (payload) => (payload?.success ? payload.documents || [] : []);
 
 const CATEGORIES = [
   { value: "pitch_deck", label: "Pitch Deck", icon: FileText },
@@ -82,10 +82,10 @@ export default function VentureDataRoomPage() {
       `/api/ventures/${id}/documents?type=shares&document_id=${docId}`,
       `/api/ventures/${id}/documents?type=access_logs&document_id=${docId}`,
     ];
-    const apply = (d, s, l) => {
-      if (d.success) setSelectedDoc(d.document);
-      if (s.success) setShares(s.shares || []);
-      if (l.success) setAccessLogs(l.logs || []);
+    const apply = (documentData, sharesData, logsData) => {
+      if (documentData.success) setSelectedDoc(documentData.document);
+      if (sharesData.success) setShares(sharesData.shares || []);
+      if (logsData.success) setAccessLogs(logsData.logs || []);
       setShowDetail(true);
     };
     try {
@@ -93,17 +93,17 @@ export default function VentureDataRoomPage() {
       // fresh snapshot; share/revoke flows pass bypassCache=true so the
       // drawer always reflects the last action.
       if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
+        const cached = urls.map((url) => cacheGet(url));
+        if (cached.every((snapshot) => snapshot !== null && snapshot.success)) {
           apply(cached[0], cached[1], cached[2]);
         }
       }
-      const [dRes, sRes, lRes] = await Promise.all(urls.map((u) => fetch(u)));
-      const d = await dRes.json(); const s = await sRes.json(); const l = await lRes.json();
-      if (d.success) cacheSet(urls[0], d);
-      if (s.success) cacheSet(urls[1], s);
-      if (l.success) cacheSet(urls[2], l);
-      apply(d, s, l);
+      const [documentResponse, sharesResponse, logsResponse] = await Promise.all(urls.map((url) => fetch(url)));
+      const documentData = await documentResponse.json(); const sharesData = await sharesResponse.json(); const logsData = await logsResponse.json();
+      if (documentData.success) cacheSet(urls[0], documentData);
+      if (sharesData.success) cacheSet(urls[1], sharesData);
+      if (logsData.success) cacheSet(urls[2], logsData);
+      apply(documentData, sharesData, logsData);
     } catch {}
   };
 
@@ -124,13 +124,13 @@ export default function VentureDataRoomPage() {
     if (!selectedDoc) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/ventures/${id}/documents`, {
+      const response = await fetch(`/api/ventures/${id}/documents`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "share", document_id: selectedDoc.id, ...shareForm }),
       });
-      const d = await res.json();
-      if (d.success) {
-        navigator.clipboard?.writeText(`${window.location.origin}${d.share_url}`);
+      const payload = await response.json();
+      if (payload.success) {
+        navigator.clipboard?.writeText(`${window.location.origin}${payload.share_url}`);
         loadDetail(selectedDoc.id, true);
         setShowShareModal(false);
       }
@@ -153,9 +153,9 @@ export default function VentureDataRoomPage() {
     setShowDetail(false); setSelectedDoc(null); reload();
   };
 
-  const filtered = documents.filter((d) => {
-    if (activeCategory && d.category !== activeCategory) return false;
-    if (search) { const q = search.toLowerCase(); return d.title?.toLowerCase().includes(q) || d.description?.toLowerCase().includes(q); }
+  const filtered = documents.filter((payload) => {
+    if (activeCategory && payload.category !== activeCategory) return false;
+    if (search) { const normalizedQuery = search.toLowerCase(); return payload.title?.toLowerCase().includes(normalizedQuery) || payload.description?.toLowerCase().includes(normalizedQuery); }
     return true;
   });
 
@@ -187,13 +187,13 @@ export default function VentureDataRoomPage() {
         <div className="flex gap-3">
           <div className="flex gap-1 overflow-x-auto pb-1">
             <button onClick={() => setActiveCategory("")} className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${!activeCategory ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "bg-tertiary text-[var(--text-secondary)] hover:bg-white/5"}`}>All</button>
-            {CATEGORIES.map((c) => (
-              <button key={c.value} onClick={() => setActiveCategory(c.value)} className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${activeCategory===c.value ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "bg-tertiary text-[var(--text-secondary)] hover:bg-white/5"}`}>{c.label}</button>
+            {CATEGORIES.map((category) => (
+              <button key={category.value} onClick={() => setActiveCategory(category.value)} className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${activeCategory===category.value ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "bg-tertiary text-[var(--text-secondary)] hover:bg-white/5"}`}>{category.label}</button>
             ))}
           </div>
           <div className="relative flex-1 max-w-xs ml-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." className="w-full pl-9 pr-3 py-2 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search..." className="w-full pl-9 pr-3 py-2 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
           </div>
         </div>
 
@@ -202,17 +202,17 @@ export default function VentureDataRoomPage() {
           {filtered.length === 0 ? (
             <div className="col-span-full text-center py-16"><FileText className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-[var(--text-secondary)]">No documents</p></div>
           ) : (
-            filtered.map((doc) => (
-              <div key={doc.id} onClick={() => loadDetail(doc.id)} className="p-4 rounded-2xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all">
+            filtered.map((documentEntry) => (
+              <div key={documentEntry.id} onClick={() => loadDetail(documentEntry.id)} className="p-4 rounded-2xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all">
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0"><FileText className="w-5 h-5 text-[var(--brand-orange)]" /></div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-[var(--text-primary)] truncate">{doc.title}</p>
-                    <p className="text-[10px] text-[var(--text-secondary)] mt-0.5 capitalize">{doc.category?.replace(/_/g, " ")}</p>
+                    <p className="text-xs font-bold text-[var(--text-primary)] truncate">{documentEntry.title}</p>
+                    <p className="text-[10px] text-[var(--text-secondary)] mt-0.5 capitalize">{documentEntry.category?.replace(/_/g, " ")}</p>
                     <div className="flex items-center gap-2 mt-1.5 text-[10px] text-[var(--text-secondary)]">
-                      {doc.file_size && <span>{(doc.file_size/1024).toFixed(0)} KB</span>}
-                      <span>v{doc.current_version||1}</span>
-                      {doc.is_pitch_deck && <span className="text-[var(--brand-orange)]">Pitch</span>}
+                      {documentEntry.file_size && <span>{(documentEntry.file_size/1024).toFixed(0)} KB</span>}
+                      <span>v{documentEntry.current_version||1}</span>
+                      {documentEntry.is_pitch_deck && <span className="text-[var(--brand-orange)]">Pitch</span>}
                     </div>
                   </div>
                 </div>
@@ -233,23 +233,23 @@ export default function VentureDataRoomPage() {
             <div className="space-y-4">
               <div>
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">Title *</label>
-                <input value={uForm.title} onChange={(e) => setUForm((p) => ({ ...p, title: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                <input value={uForm.title} onChange={(event) => setUForm((previous) => ({ ...previous, title: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">Category</label>
-                  <select value={uForm.category} onChange={(e) => setUForm((p) => ({ ...p, category: e.target.value, is_pitch_deck: e.target.value === "pitch_deck" }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
-                    {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  <select value={uForm.category} onChange={(event) => setUForm((previous) => ({ ...previous, category: event.target.value, is_pitch_deck: event.target.value === "pitch_deck" }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
+                    {CATEGORIES.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">File URL *</label>
-                  <input value={uForm.file_url} onChange={(e) => setUForm((p) => ({ ...p, file_url: e.target.value }))} placeholder="https://..." className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                  <input value={uForm.file_url} onChange={(event) => setUForm((previous) => ({ ...previous, file_url: event.target.value }))} placeholder="https://..." className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
               </div>
               <div>
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">Description</label>
-                <textarea value={uForm.description} onChange={(e) => setUForm((p) => ({ ...p, description: e.target.value }))} rows={2} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none resize-none" />
+                <textarea value={uForm.description} onChange={(event) => setUForm((previous) => ({ ...previous, description: event.target.value }))} rows={2} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none resize-none" />
               </div>
             </div>
             <div className="flex gap-3">
@@ -297,11 +297,11 @@ export default function VentureDataRoomPage() {
                 <div>
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-2 flex items-center gap-1.5"><History className="w-3 h-3" /> Versions</p>
                   <div className="space-y-1">
-                    {selectedDoc.versions.map((v) => (
-                      <div key={v.id} className="flex items-center justify-between p-2 bg-primary rounded-lg border border-[var(--border-primary)]">
-                        <span className="text-[9px] font-bold">v{v.version}</span>
-                        <span className="text-[10px] text-[var(--text-secondary)]">{new Date(v.created_at).toLocaleDateString()}</span>
-                        <a href={v.file_url} className="text-[var(--brand-orange)]"><Download className="w-3 h-3" /></a>
+                    {selectedDoc.versions.map((version) => (
+                      <div key={version.id} className="flex items-center justify-between p-2 bg-primary rounded-lg border border-[var(--border-primary)]">
+                        <span className="text-[9px] font-bold">v{version.version}</span>
+                        <span className="text-[10px] text-[var(--text-secondary)]">{new Date(version.created_at).toLocaleDateString()}</span>
+                        <a href={version.file_url} className="text-[var(--brand-orange)]"><Download className="w-3 h-3" /></a>
                       </div>
                     ))}
                   </div>
@@ -312,14 +312,14 @@ export default function VentureDataRoomPage() {
               {shares.length > 0 && (
                 <div>
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-2 flex items-center gap-1.5"><Share2 className="w-3 h-3" /> Shared Links</p>
-                  {shares.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between p-2 bg-primary rounded-lg mb-1">
+                  {shares.map((share) => (
+                    <div key={share.id} className="flex items-center justify-between p-2 bg-primary rounded-lg mb-1">
                       <div>
-                        <span className="text-[10px] font-bold">{s.shared_with_email || "Anyone with link"}</span>
-                        <span className="text-[10px] text-[var(--text-secondary)] ml-2">{s.access_type} · {s.download_count||0} downloads</span>
-                        {s.expires_at && <span className="text-[10px] text-rose-400 ml-1">Expires {new Date(s.expires_at).toLocaleDateString()}</span>}
+                        <span className="text-[10px] font-bold">{share.shared_with_email || "Anyone with link"}</span>
+                        <span className="text-[10px] text-[var(--text-secondary)] ml-2">{share.access_type} · {share.download_count||0} downloads</span>
+                        {share.expires_at && <span className="text-[10px] text-rose-400 ml-1">Expires {new Date(share.expires_at).toLocaleDateString()}</span>}
                       </div>
-                      {!s.is_revoked && <button onClick={() => handleRevoke(s.id)} className="text-[10px] font-bold text-rose-400 uppercase hover:underline">Revoke</button>}
+                      {!share.is_revoked && <button onClick={() => handleRevoke(share.id)} className="text-[10px] font-bold text-rose-400 uppercase hover:underline">Revoke</button>}
                     </div>
                   ))}
                 </div>
@@ -329,11 +329,11 @@ export default function VentureDataRoomPage() {
               {accessLogs.length > 0 && (
                 <div>
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-2 flex items-center gap-1.5"><Eye className="w-3 h-3" /> Access Logs</p>
-                  {accessLogs.slice(0, 5).map((l) => (
-                    <div key={l.id} className="flex items-center gap-2 p-2 bg-primary rounded-lg mb-1 text-[10px]">
-                      <span className="font-bold capitalize">{l.access_type}</span>
-                      <span className="text-[var(--text-secondary)]">{l.viewer_name || l.viewer_email || "Anonymous"}</span>
-                      <span className="text-[var(--text-secondary)] ml-auto">{new Date(l.created_at).toLocaleString()}</span>
+                  {accessLogs.slice(0, 5).map((accessLog) => (
+                    <div key={accessLog.id} className="flex items-center gap-2 p-2 bg-primary rounded-lg mb-1 text-[10px]">
+                      <span className="font-bold capitalize">{accessLog.access_type}</span>
+                      <span className="text-[var(--text-secondary)]">{accessLog.viewer_name || accessLog.viewer_email || "Anonymous"}</span>
+                      <span className="text-[var(--text-secondary)] ml-auto">{new Date(accessLog.created_at).toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
@@ -356,23 +356,23 @@ export default function VentureDataRoomPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">Email (optional)</label>
-                  <input value={shareForm.email} onChange={(e) => setShareForm((p) => ({ ...p, email: e.target.value }))} placeholder="investor@example.com" className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                  <input value={shareForm.email} onChange={(event) => setShareForm((previous) => ({ ...previous, email: event.target.value }))} placeholder="investor@example.com" className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">Name (optional)</label>
-                  <input value={shareForm.name} onChange={(e) => setShareForm((p) => ({ ...p, name: e.target.value }))} placeholder="Investor name" className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                  <input value={shareForm.name} onChange={(event) => setShareForm((previous) => ({ ...previous, name: event.target.value }))} placeholder="Investor name" className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">Access Type</label>
-                  <select value={shareForm.access_type} onChange={(e) => setShareForm((p) => ({ ...p, access_type: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
+                  <select value={shareForm.access_type} onChange={(event) => setShareForm((previous) => ({ ...previous, access_type: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
                     <option value="read">Read Only</option><option value="download">Download</option><option value="full">Full Access</option>
                   </select>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">Expires In</label>
-                  <select value={shareForm.expires_in_hours} onChange={(e) => setShareForm((p) => ({ ...p, expires_in_hours: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
+                  <select value={shareForm.expires_in_hours} onChange={(event) => setShareForm((previous) => ({ ...previous, expires_in_hours: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
                     <option value="24">24 hours</option><option value="72">3 days</option><option value="168">7 days</option><option value="720">30 days</option><option value="">Never</option>
                   </select>
                 </div>

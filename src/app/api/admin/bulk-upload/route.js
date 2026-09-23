@@ -104,9 +104,9 @@ export async function POST(req) {
     // Pre-fetch all existing phones for duplicate check
     const phoneSet = new Set();
     try {
-      const phoneRes = await getAllActiveContactPhones();
-      for (const r of phoneRes.rows) {
-        if (r.phone) phoneSet.add(r.phone.trim());
+      const phoneResult = await getAllActiveContactPhones();
+      for (const row of phoneResult.rows) {
+        if (row.phone) phoneSet.add(row.phone.trim());
       }
     } catch (_) {}
 
@@ -214,12 +214,12 @@ export async function POST(req) {
           results.created++;
           processedCids.push(cid);
         }
-      } catch (rowErr) {
+      } catch (rowError) {
         // 7.7: Rollback on DB failure
         dbErrors.push({
           row: row.rowNum,
           email: row.email,
-          error: rowErr.message,
+          error: rowError.message,
         });
 
         // Rollback: delete all records we just created in this batch
@@ -232,7 +232,7 @@ export async function POST(req) {
         return NextResponse.json(
           {
             success: false,
-            error: `Database error at row ${row.rowNum}: ${rowErr.message}. All changes rolled back.`,
+            error: `Database error at row ${row.rowNum}: ${rowError.message}. All changes rolled back.`,
             dbErrors,
           },
           { status: 500 },
@@ -244,8 +244,8 @@ export async function POST(req) {
     if (results.created > 0 || results.updated > 0) {
       try {
         await insertBulkImportNotification(results.created, results.updated, results.errors.length);
-      } catch (e) {
-        console.error("Notification error:", e.message);
+      } catch (error) {
+        console.error("Notification error:", error.message);
       }
     }
 

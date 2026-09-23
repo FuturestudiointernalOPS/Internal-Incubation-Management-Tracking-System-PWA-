@@ -44,12 +44,12 @@ export async function PUT(req) {
     await initDb();
 
     // Get responsibility name for audit
-    const resp = await getResponsibilityName(responsibility_id);
-    const respName = resp.rows[0]?.name || "Unknown";
+    const responsibilityResult = await getResponsibilityName(responsibility_id);
+    const respName = responsibilityResult.rows[0]?.name || "Unknown";
 
     // Get target user name
-    const target = await getContactName(user_cid);
-    const targetName = target.rows[0]?.name || "Unknown";
+    const targetResult = await getContactName(user_cid);
+    const targetName = targetResult.rows[0]?.name || "Unknown";
 
     if (action === "assign") {
       const result = await assignResponsibility(user_cid, responsibility_id, session?.cid);
@@ -64,7 +64,7 @@ export async function PUT(req) {
       // the base `view` capability so the sidebar area actually loads. Never
       // fails the assignment (best-effort; a failure only leaves the area
       // without module access, like before).
-      const responsibilityKey = resp.rows[0]?.key || null;
+      const responsibilityKey = responsibilityResult.rows[0]?.key || null;
       let grantedModules = [];
       if (responsibilityKey) {
         try {
@@ -110,7 +110,7 @@ export async function PUT(req) {
       // responsibility created (its ledger), so removing a responsibility no
       // longer leaves its area silently reachable. Best-effort — a failure only
       // leaves the grants in place, as before.
-      const responsibilityKey = resp.rows[0]?.key || null;
+      const responsibilityKey = responsibilityResult.rows[0]?.key || null;
       let revokedModules = [];
       if (responsibilityKey) {
         try {
@@ -182,18 +182,18 @@ export async function GET(req) {
     }
 
     // Get all active responsibilities (self-seeds defaults when empty)
-    const all = await getAllResponsibilities();
+    const allResponsibilities = await getAllResponsibilities();
 
     // Get user's assigned responsibilities
-    const assigned = await getAssignedResponsibilitiesForUser(userCid);
+    const assignedResponsibilities = await getAssignedResponsibilitiesForUser(userCid);
 
-    const assignedIds = new Set(assigned.rows.map((r) => r.id));
+    const assignedIds = new Set(assignedResponsibilities.rows.map((row) => row.id));
 
     // Build full response with toggle state
-    const responsibilities = all.map((r) => ({
-      ...r,
-      assigned: assignedIds.has(r.id),
-      allowed_roles: normalizeAllowedRoles(r.allowed_roles),
+    const responsibilities = allResponsibilities.map((responsibility) => ({
+      ...responsibility,
+      assigned: assignedIds.has(responsibility.id),
+      allowed_roles: normalizeAllowedRoles(responsibility.allowed_roles),
     }));
 
     const user = await getContactByCid(userCid);

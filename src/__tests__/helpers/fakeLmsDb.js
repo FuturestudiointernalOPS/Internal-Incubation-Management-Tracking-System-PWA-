@@ -55,20 +55,20 @@ const TABLE_DEFAULTS = {
  * not the ones inside a quoted literal.
  */
 function splitValueTokens(tuple) {
-  const out = [];
+  const tokens = [];
   let current = "";
   let inQuote = false;
-  for (const ch of tuple) {
-    if (ch === "'") inQuote = !inQuote;
-    if (ch === "," && !inQuote) {
-      out.push(current.trim());
+  for (const char of tuple) {
+    if (char === "'") inQuote = !inQuote;
+    if (char === "," && !inQuote) {
+      tokens.push(current.trim());
       current = "";
       continue;
     }
-    current += ch;
+    current += char;
   }
-  out.push(current.trim());
-  return out;
+  tokens.push(current.trim());
+  return tokens;
 }
 
 /**
@@ -82,12 +82,12 @@ function valueTuples(sql) {
   const tuples = [];
   let depth = 0;
   let current = "";
-  for (const ch of match[1]) {
-    if (ch === "(") {
+  for (const char of match[1]) {
+    if (char === "(") {
       depth += 1;
       if (depth === 1) continue;
     }
-    if (ch === ")") {
+    if (char === ")") {
       depth -= 1;
       if (depth === 0) {
         tuples.push(current);
@@ -95,14 +95,14 @@ function valueTuples(sql) {
         continue;
       }
     }
-    if (depth >= 1) current += ch;
+    if (depth >= 1) current += char;
   }
   return tuples;
 }
 
 export function createFakeDb() {
-  let state = Object.fromEntries(TABLES.map((t) => [t, []]));
-  let seq = 1;
+  let state = Object.fromEntries(TABLES.map((table) => [table, []]));
+  let nextId = 1;
   const executed = [];
   let handler = interpreter;
 
@@ -111,18 +111,18 @@ export function createFakeDb() {
   }
 
   function reset() {
-    state = Object.fromEntries(TABLES.map((t) => [t, []]));
-    seq = 1;
+    state = Object.fromEntries(TABLES.map((table) => [table, []]));
+    nextId = 1;
     executed.length = 0;
     handler = interpreter;
   }
 
-  function setHandler(fn) {
-    handler = fn;
+  function setHandler(newHandler) {
+    handler = newHandler;
   }
 
   function rowFor(table) {
-    const row = { id: `${table.replace(/^lms_/, "LMS-").replace(/_/g, "-")}-${seq++}` };
+    const row = { id: `${table.replace(/^lms_/, "LMS-").replace(/_/g, "-")}-${nextId++}` };
     row.created_at = "2026-08-27T00:00:00Z";
     row.updated_at = "2026-08-27T00:00:00Z";
     return row;
@@ -132,12 +132,12 @@ export function createFakeDb() {
     const table = /insert into (\w+)/i.exec(sql)[1];
     const columns = /\(([^)]+)\)\s*VALUES/i.exec(sql)[1]
       .split(",")
-      .map((c) => c.trim());
+      .map((column) => column.trim());
     const tuples = valueTuples(sql);
     const conflictCols = /on conflict/i.test(sql)
       ? (/on conflict \(([^)]+)\)/i.exec(sql)?.[1] || "")
           .split(",")
-          .map((c) => c.trim())
+          .map((column) => column.trim())
       : null;
 
     const written = [];
@@ -158,13 +158,13 @@ export function createFakeDb() {
         }
       });
       // Apply schema defaults for omitted columns (e.g. certificate status).
-      for (const [col, val] of Object.entries(TABLE_DEFAULTS[table] || {})) {
-        if (row[col] === undefined) row[col] = val;
+      for (const [column, value] of Object.entries(TABLE_DEFAULTS[table] || {})) {
+        if (row[column] === undefined) row[column] = value;
       }
 
       if (conflictCols) {
-        const existing = state[table].find((r) =>
-          conflictCols.every((c) => String(r[c]) === String(row[c])),
+        const existing = state[table].find((candidate) =>
+          conflictCols.every((column) => String(candidate[column]) === String(row[column])),
         );
         if (existing) {
           written.push(existing); // DO NOTHING — the row that is already there
@@ -182,22 +182,22 @@ export function createFakeDb() {
   function update(sql, args) {
     const table = /^update (\w+)/i.exec(sql)[1];
     const id = args[args.length - 1];
-    const row = state[table].find((r) => String(r.id) === String(id));
+    const row = state[table].find((existingRow) => String(existingRow.id) === String(id));
     if (!row) return { rows: [], rowsAffected: 0 };
 
     // Immutable snapshot: never mutate the object a service may still hold.
     const updated = { ...row };
     const setMatch = /set (.+?) where/i.exec(sql);
-    const parts = setMatch ? setMatch[1].split(",").map((p) => p.trim()) : [];
+    const parts = setMatch ? setMatch[1].split(",").map((part) => part.trim()) : [];
     let argIndex = 0;
     for (const part of parts) {
-      const m = /^(\w+)\s*=\s*\?/.exec(part);
-      if (m) {
-        updated[m[1]] = args[argIndex++];
+      const assignmentMatch = /^(\w+)\s*=\s*\?/.exec(part);
+      if (assignmentMatch) {
+        updated[assignmentMatch[1]] = args[argIndex++];
         continue;
       }
-      const lit = /^(\w+)\s*=\s*'([^']+)'/.exec(part);
-      if (lit) updated[lit[1]] = lit[2];
+      const literalMatch = /^(\w+)\s*=\s*'([^']+)'/.exec(part);
+      if (literalMatch) updated[literalMatch[1]] = literalMatch[2];
       else if (/updated_at\s*=\s*now\(\)/i.test(part)) updated.updated_at = "2026-08-27T01:00:00Z";
       else if (/position\s*=\s*-1/.test(part)) updated.position = -1;
       else if (/completed_at\s*=\s*coalesce/i.test(part))
@@ -208,38 +208,38 @@ export function createFakeDb() {
         // Generic `<col> = NOW()` (e.g. handled_at on a coaching decision).
         updated[/^(\w+)\s*=\s*now\(\)/i.exec(part)[1]] = "2026-08-27T04:00:00Z";
     }
-    state[table] = state[table].map((r) => (r === row ? updated : r));
+    state[table] = state[table].map((existingRow) => (existingRow === row ? updated : existingRow));
     return { rows: [updated], rowsAffected: 1 };
   }
 
   function remove(sql, args) {
     const table = /delete from (\w+)/i.exec(sql)[1];
     // The WHERE decides which rows go: one id, or a whole chunk of them.
-    const doomed = state[table].filter((r) => evalWhere(sql, args, r));
-    const gone = new Set(doomed.map((r) => String(r.id)));
-    state[table] = state[table].filter((r) => !gone.has(String(r.id)));
+    const doomed = state[table].filter((row) => evalWhere(sql, args, row));
+    const gone = new Set(doomed.map((row) => String(row.id)));
+    state[table] = state[table].filter((row) => !gone.has(String(row.id)));
 
     if (table === "lms_course_sections") {
       const lessonIds = state.lms_lessons
-        .filter((l) => gone.has(String(l.section_id)))
-        .map((l) => String(l.id));
-      state.lms_lessons = state.lms_lessons.filter((l) => lessonIds.includes(String(l.id)) === false);
+        .filter((lesson) => gone.has(String(lesson.section_id)))
+        .map((lesson) => String(lesson.id));
+      state.lms_lessons = state.lms_lessons.filter((lesson) => lessonIds.includes(String(lesson.id)) === false);
       state.lms_assessments = state.lms_assessments.filter(
-        (a) => !gone.has(String(a.section_id)),
+        (assessment) => !gone.has(String(assessment.section_id)),
       );
       // Mirrors the real FK: a section's material dies with the section.
       state.lms_section_resources = state.lms_section_resources.filter(
-        (r) => !gone.has(String(r.section_id)),
+        (resource) => !gone.has(String(resource.section_id)),
       );
     }
     if (table === "lms_assessments") {
       state.lms_assessment_questions = state.lms_assessment_questions.filter(
-        (q) => !gone.has(String(q.assessment_id)),
+        (question) => !gone.has(String(question.assessment_id)),
       );
     }
     if (table === "lms_lessons") {
       state.lms_lesson_progress = state.lms_lesson_progress.filter(
-        (p) => !gone.has(String(p.lesson_id)),
+        (progress) => !gone.has(String(progress.lesson_id)),
       );
     }
     return { rows: [], rowsAffected: 1 };
@@ -248,7 +248,7 @@ export function createFakeDb() {
   function evalWhere(sql, args, row) {
     const whereMatch = /where (.+?)(?:\s+order by|\s+limit|$)/is.exec(sql);
     if (!whereMatch) return true;
-    const cond = whereMatch[1];
+    const condition = whereMatch[1];
     let argIndex = 0;
 
     // Conditions are evaluated in SQL order because placeholders consume args
@@ -257,26 +257,26 @@ export function createFakeDb() {
     // bind the IN list to the wrong args whenever an `=` clause precedes it.
     // An optional `::type` cast is tolerated (production code casts TEXT/UUID
     // id columns to compare across the two id spaces).
-    const condRe =
+    const conditionPattern =
       /(\w+)(?:::\w+)?\s+in\s*\(([^)]*)\)|(\w+)(?:::\w+)?\s*(?:<>|!=)\s*'([^']+)'|(\w+)(?:::\w+)?\s*=\s*\?|(\w+)(?:::\w+)?\s+like\s*\?/gi;
-    let m;
-    while ((m = condRe.exec(cond))) {
-      if (m[1]) {
-        const count = (m[2].match(/\?/g) || []).length;
-        const ids = args.slice(argIndex, argIndex + count).map((a) => String(a));
+    let conditionMatch;
+    while ((conditionMatch = conditionPattern.exec(condition))) {
+      if (conditionMatch[1]) {
+        const count = (conditionMatch[2].match(/\?/g) || []).length;
+        const ids = args.slice(argIndex, argIndex + count).map((argValue) => String(argValue));
         argIndex += count;
-        if (!ids.includes(String(row[m[1]]))) return false;
-      } else if (m[3]) {
+        if (!ids.includes(String(row[conditionMatch[1]]))) return false;
+      } else if (conditionMatch[3]) {
         // col <> 'literal' / col != 'literal' (negation; consumes no args)
-        if (String(row[m[3]]) === m[4]) return false;
-      } else if (m[5]) {
-        if (String(row[m[5]]) !== String(args[argIndex])) return false;
+        if (String(row[conditionMatch[3]]) === conditionMatch[4]) return false;
+      } else if (conditionMatch[5]) {
+        if (String(row[conditionMatch[5]]) !== String(args[argIndex])) return false;
         argIndex++;
       } else {
         // LIKE ? — converts the SQL pattern (CERT-2026-%) into a regex.
-        const re = likeToRegExp(String(args[argIndex]));
+        const likeRegex = likeToRegExp(String(args[argIndex]));
         argIndex++;
-        if (!re.test(String(row[m[6]]))) return false;
+        if (!likeRegex.test(String(row[conditionMatch[6]]))) return false;
       }
     }
     return true;
@@ -289,73 +289,73 @@ export function createFakeDb() {
   }
 
   function nextValue(sql, args) {
-    const m = /from (\w+)/i.exec(sql);
-    const table = m[1];
+    const tableMatch = /from (\w+)/i.exec(sql);
+    const table = tableMatch[1];
     // The floor comes from the SQL itself: section/lesson positions start at
     // -1 (COALESCE(MAX(position), -1) + 1 → first position 0) while assessment
     // attempt numbers start at 0 (COALESCE(MAX(attempt_number), 0) + 1 → first
     // attempt 1).
     const floorMatch = /coalesce\(max\(\w+\),\s*(-?\d+)\)\s*\+\s*1/i.exec(sql);
     const floor = floorMatch ? parseInt(floorMatch[1], 10) : -1;
-    const siblings = state[table].filter((r) => evalWhere(sql, args, r));
-    const max = siblings.reduce(
-      (acc, r) => Math.max(acc, r.attempt_number ?? r.position ?? -1),
+    const siblings = state[table].filter((row) => evalWhere(sql, args, row));
+    const highestValue = siblings.reduce(
+      (highest, row) => Math.max(highest, row.attempt_number ?? row.position ?? -1),
       floor,
     );
-    return { rows: [{ next: max + 1 }] };
+    return { rows: [{ next: highestValue + 1 }] };
   }
 
   function neighbor(sql, args) {
     const table = /from (\w+)/i.exec(sql)[1];
-    const m = /(\w+) = \? and (\w+) ([<>]) \?/i.exec(sql);
-    const parentColumn = m[1];
-    const op = m[3];
+    const columnsMatch = /(\w+) = \? and (\w+) ([<>]) \?/i.exec(sql);
+    const parentColumn = columnsMatch[1];
+    const operator = columnsMatch[3];
     const parentId = args[0];
-    const pos = args[1];
+    const position = args[1];
     const rows = state[table]
-      .filter((r) => String(r[parentColumn]) === String(parentId))
-      .filter((r) => (op === "<" ? r.position < pos : r.position > pos))
-      .sort((a, b) => (op === "<" ? b.position - a.position : a.position - b.position));
-    return { rows: rows.slice(0, 1).map((r) => ({ ...r })) };
+      .filter((row) => String(row[parentColumn]) === String(parentId))
+      .filter((row) => (operator === "<" ? row.position < position : row.position > position))
+      .sort((left, right) => (operator === "<" ? right.position - left.position : left.position - right.position));
+    return { rows: rows.slice(0, 1).map((row) => ({ ...row })) };
   }
 
   function guard(sql, args) {
     const table = /from (\w+)/i.exec(sql)[1];
-    const found = state[table].some((r) => evalWhere(sql, args, r));
+    const found = state[table].some((row) => evalWhere(sql, args, row));
     return { rows: found ? [{ ok: 1 }] : [] };
   }
 
   function selectAll(sql, args) {
     const table = /from (\w+)/i.exec(sql)[1];
-    let rows = state[table].filter((r) => evalWhere(sql, args, r));
+    let rows = state[table].filter((row) => evalWhere(sql, args, row));
 
     const orderMatch = /order by (\w+)(?: asc)?/i.exec(sql);
     if (orderMatch) {
-      const col = orderMatch[1];
-      rows = [...rows].sort((a, b) => {
-        const av = a[col] ?? 0;
-        const bv = b[col] ?? 0;
-        return av > bv ? 1 : av < bv ? -1 : 0;
+      const column = orderMatch[1];
+      rows = [...rows].sort((left, right) => {
+        const leftValue = left[column] ?? 0;
+        const rightValue = right[column] ?? 0;
+        return leftValue > rightValue ? 1 : leftValue < rightValue ? -1 : 0;
       });
     }
-    return { rows: rows.map((r) => ({ ...r })) };
+    return { rows: rows.map((row) => ({ ...row })) };
   }
 
   function interpreter(sql, args) {
-    const s = sql.replace(/\s+/g, " ").trim();
-    if (/^insert into/i.test(s)) return insert(s, args);
-    if (/^update/i.test(s)) return update(s, args);
-    if (/^delete from/i.test(s)) return remove(s, args);
-    if (/coalesce\(max\(/i.test(s)) return nextValue(s, args);
-    if (/select id, position from/i.test(s)) return neighbor(s, args);
-    if (/^select 1 from/i.test(s)) return guard(s, args);
-    if (/^select count\(\*\)/i.test(s)) return countRows(s, args);
-    return selectAll(s, args);
+    const statement = sql.replace(/\s+/g, " ").trim();
+    if (/^insert into/i.test(statement)) return insert(statement, args);
+    if (/^update/i.test(statement)) return update(statement, args);
+    if (/^delete from/i.test(statement)) return remove(statement, args);
+    if (/coalesce\(max\(/i.test(statement)) return nextValue(statement, args);
+    if (/select id, position from/i.test(statement)) return neighbor(statement, args);
+    if (/^select 1 from/i.test(statement)) return guard(statement, args);
+    if (/^select count\(\*\)/i.test(statement)) return countRows(statement, args);
+    return selectAll(statement, args);
   }
 
   function countRows(sql, args) {
     const table = /from (\w+)/i.exec(sql)[1];
-    const rows = state[table].filter((r) => evalWhere(sql, args, r));
+    const rows = state[table].filter((row) => evalWhere(sql, args, row));
     return { rows: [{ n: rows.length }] };
   }
 
@@ -371,8 +371,8 @@ export function createFakeDb() {
       executed.push({ sql, args: args || [] });
       return handler(sql, args || []);
     },
-    transaction: async (cb) =>
-      cb(async (sql, args = []) => {
+    transaction: async (transactionBody) =>
+      transactionBody(async (sql, args = []) => {
         executed.push({ sql, args });
         return handler(sql, args);
       }),

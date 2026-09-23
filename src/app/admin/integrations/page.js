@@ -25,7 +25,7 @@ import { useApiMulti } from "@/lib/hooks/useApi";
 // transformations, which is why they are made here rather than written inline.
 
 /** A list from a `success` payload, empty when the read was refused. */
-const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
+const pickList = (field) => (payload) => (payload?.success ? payload[field] || [] : []);
 
 const INTEGRATION_ENDPOINTS = [
   {
@@ -97,9 +97,9 @@ const API_SCOPES = [
   "*",
 ];
 
-function formatDate(d) {
-  if (!d) return "";
-  return new Date(d).toLocaleString("fr-FR", {
+function formatDate(dateValue) {
+  if (!dateValue) return "";
+  return new Date(dateValue).toLocaleString("fr-FR", {
     day: "2-digit", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
@@ -143,109 +143,109 @@ export default function IntegrationsPage() {
   const handleAddIntegration = async () => {
     if (!newIntegration.provider) return;
     try {
-      const res = await fetch("/api/integrations", {
+      const response = await fetch("/api/integrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newIntegration),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setShowAddIntegration(false);
         setNewIntegration({ provider: "", label: "" });
         refresh();
       }
-    } catch (err) {
-      console.error("Add integration error:", err);
+    } catch (error) {
+      console.error("Add integration error:", error);
     }
   };
 
   const handleRemoveIntegration = async (id) => {
     try {
-      const res = await fetch(`/api/integrations/${id}`, { method: "DELETE" });
-      const data = await res.json();
+      const response = await fetch(`/api/integrations/${id}`, { method: "DELETE" });
+      const data = await response.json();
       if (data.success) {
         setConfirmAction(null);
         refresh();
       }
-    } catch (err) {
-      console.error("Remove integration error:", err);
+    } catch (error) {
+      console.error("Remove integration error:", error);
     }
   };
 
   const handleCreateApiKey = async () => {
     if (!newKey.name || newKey.scopes.length === 0) return;
     try {
-      const res = await fetch("/api/api-keys", {
+      const response = await fetch("/api/api-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newKey),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setNewKeyResult(data);
         setShowAddKey(false);
         setNewKey({ name: "", description: "", scopes: [], expires_at: "" });
         refresh();
       }
-    } catch (err) {
-      console.error("Create API key error:", err);
+    } catch (error) {
+      console.error("Create API key error:", error);
     }
   };
 
   const handleRevokeKey = async (keyId) => {
     try {
-      const res = await fetch(`/api/api-keys/${keyId}`, { method: "DELETE" });
-      const data = await res.json();
+      const response = await fetch(`/api/api-keys/${keyId}`, { method: "DELETE" });
+      const data = await response.json();
       if (data.success) {
         setConfirmAction(null);
         refresh();
       }
-    } catch (err) {
-      console.error("Revoke key error:", err);
+    } catch (error) {
+      console.error("Revoke key error:", error);
     }
   };
 
   const handleCreateWebhook = async () => {
     if (!newWebhook.name || !newWebhook.url || newWebhook.events.length === 0) return;
     try {
-      const res = await fetch("/api/webhooks", {
+      const response = await fetch("/api/webhooks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newWebhook),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setShowAddWebhook(false);
         setNewWebhook({ name: "", url: "", events: [], secret: "" });
         refresh();
       }
-    } catch (err) {
-      console.error("Create webhook error:", err);
+    } catch (error) {
+      console.error("Create webhook error:", error);
     }
   };
 
   const handleDeleteWebhook = async (id) => {
     try {
-      const res = await fetch(`/api/webhooks/${id}`, { method: "DELETE" });
-      const data = await res.json();
+      const response = await fetch(`/api/webhooks/${id}`, { method: "DELETE" });
+      const data = await response.json();
       if (data.success) {
         setConfirmAction(null);
         refresh();
         if (selectedWebhook?.id === id) setSelectedWebhook(null);
       }
-    } catch (err) {
-      console.error("Delete webhook error:", err);
+    } catch (error) {
+      console.error("Delete webhook error:", error);
     }
   };
 
   const loadWebhookLogs = async (webhookId) => {
     setLogsLoading(true);
     try {
-      const res = await fetch(`/api/webhooks/${webhookId}`);
-      const data = await res.json();
+      const response = await fetch(`/api/webhooks/${webhookId}`);
+      const data = await response.json();
       if (data.success) setWebhookLogs(data.logs || []);
-    } catch (err) {
-      console.error("Load logs error:", err);
+    } catch (error) {
+      console.error("Load logs error:", error);
     } finally {
       setLogsLoading(false);
     }
@@ -361,11 +361,11 @@ export default function IntegrationsPage() {
                   <div>
                     <h3 className="text-sm font-medium text-gray-400 mb-3">{t("adminMisc.integrations.availableProviders")}</h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                      {providers.map((p) => (
-                        <div key={p.id} className="bg-[#0f172a] border border-gray-800 rounded-xl p-4 text-center hover:border-gray-700 transition-colors cursor-pointer" onClick={() => { setNewIntegration({ provider: p.provider_key, label: p.name }); setShowAddIntegration(true); }}>
-                          <span className="text-3xl block mb-2">{PROVIDER_ICONS[p.provider_key] || "🔌"}</span>
-                          <p className="text-xs font-medium">{t(PROVIDER_NAME_KEYS[p.provider_key] || "") || p.name}</p>
-                          <p className="text-[10px] text-gray-500 mt-1">{t(PROVIDER_DESC_KEYS[p.provider_key] || "") || p.description?.substring(0, 40)}</p>
+                      {providers.map((provider) => (
+                        <div key={provider.id} className="bg-[#0f172a] border border-gray-800 rounded-xl p-4 text-center hover:border-gray-700 transition-colors cursor-pointer" onClick={() => { setNewIntegration({ provider: provider.provider_key, label: provider.name }); setShowAddIntegration(true); }}>
+                          <span className="text-3xl block mb-2">{PROVIDER_ICONS[provider.provider_key] || "🔌"}</span>
+                          <p className="text-xs font-medium">{t(PROVIDER_NAME_KEYS[provider.provider_key] || "") || provider.name}</p>
+                          <p className="text-[10px] text-gray-500 mt-1">{t(PROVIDER_DESC_KEYS[provider.provider_key] || "") || provider.description?.substring(0, 40)}</p>
                         </div>
                       ))}
                     </div>
@@ -473,32 +473,32 @@ export default function IntegrationsPage() {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {webhooks.map((wh) => (
+                        {webhooks.map((webhook) => (
                           <div
-                            key={wh.id}
+                            key={webhook.id}
                             className={`bg-[#0f172a] border rounded-xl p-4 cursor-pointer transition-colors ${
-                              selectedWebhook?.id === wh.id ? "border-[var(--brand-orange)]" : "border-gray-800 hover:border-gray-700"
+                              selectedWebhook?.id === webhook.id ? "border-[var(--brand-orange)]" : "border-gray-800 hover:border-gray-700"
                             }`}
-                            onClick={() => { setSelectedWebhook(wh); loadWebhookLogs(wh.id); }}
+                            onClick={() => { setSelectedWebhook(webhook); loadWebhookLogs(webhook.id); }}
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex items-center gap-3">
-                                <Zap size={16} className={wh.is_active ? "text-emerald-400" : "text-gray-500"} />
+                                <Zap size={16} className={webhook.is_active ? "text-emerald-400" : "text-gray-500"} />
                                 <div>
-                                  <p className="font-medium">{wh.name}</p>
-                                  <p className="text-xs text-gray-500 font-mono truncate max-w-[300px]">{wh.url}</p>
+                                  <p className="font-medium">{webhook.name}</p>
+                                  <p className="text-xs text-gray-500 font-mono truncate max-w-[300px]">{webhook.url}</p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                {wh.last_status && (
+                                {webhook.last_status && (
                                   <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                                    wh.last_status === "success" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+                                    webhook.last_status === "success" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
                                   }`}>
-                                    {wh.last_status}
+                                    {webhook.last_status}
                                   </span>
                                 )}
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); setConfirmAction({ type: "delete_webhook", id: wh.id, name: wh.name }); }}
+                                  onClick={(event) => { event.stopPropagation(); setConfirmAction({ type: "delete_webhook", id: webhook.id, name: webhook.name }); }}
                                   className="p-1.5 hover:bg-red-500/10 rounded-lg text-gray-400 hover:text-red-400"
                                 >
                                   <Trash2 size={12} />
@@ -506,8 +506,8 @@ export default function IntegrationsPage() {
                               </div>
                             </div>
                             <div className="flex flex-wrap gap-2 mt-2">
-                              {(typeof wh.events === "string" ? JSON.parse(wh.events) : wh.events || []).map((evt) => (
-                                <span key={evt} className="text-[10px] px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full">{evt}</span>
+                              {(typeof webhook.events === "string" ? JSON.parse(webhook.events) : webhook.events || []).map((webhookEvent) => (
+                                <span key={webhookEvent} className="text-[10px] px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full">{webhookEvent}</span>
                               ))}
                             </div>
                           </div>
@@ -559,7 +559,7 @@ export default function IntegrationsPage() {
         {/* Add Integration Modal */}
         {showAddIntegration && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowAddIntegration(false)}>
-            <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-md m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-md m-4" onClick={(event) => event.stopPropagation()}>
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
                 <h2 className="text-lg font-black tracking-tight">{t("adminMisc.integrations.addIntegration")}</h2>
                 <button onClick={() => setShowAddIntegration(false)} className="p-2 hover:bg-white/5 rounded-lg"><X size={16} /></button>
@@ -567,17 +567,17 @@ export default function IntegrationsPage() {
               <div className="p-6 space-y-4">
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.provider")}</label>
-                  <select value={newIntegration.provider} onChange={(e) => setNewIntegration((p) => ({ ...p, provider: e.target.value }))}
+                  <select value={newIntegration.provider} onChange={(event) => setNewIntegration((previous) => ({ ...previous, provider: event.target.value }))}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white focus:outline-none focus:border-[var(--brand-orange)]">
                     <option value="">{t("adminMisc.integrations.selectProvider")}</option>
-                    {providers.map((p) => (
-                      <option key={p.provider_key} value={p.provider_key}>{t(PROVIDER_NAME_KEYS[p.provider_key] || "") || p.name} ({p.provider_key})</option>
+                    {providers.map((provider) => (
+                      <option key={provider.provider_key} value={provider.provider_key}>{t(PROVIDER_NAME_KEYS[provider.provider_key] || "") || provider.name} ({provider.provider_key})</option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.labelOptional")}</label>
-                  <input type="text" value={newIntegration.label} onChange={(e) => setNewIntegration((p) => ({ ...p, label: e.target.value }))}
+                  <input type="text" value={newIntegration.label} onChange={(event) => setNewIntegration((previous) => ({ ...previous, label: event.target.value }))}
                     placeholder={t("adminMisc.integrations.labelPlaceholder")}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
@@ -593,7 +593,7 @@ export default function IntegrationsPage() {
         {/* Add API Key Modal */}
         {showAddKey && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowAddKey(false)}>
-            <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-lg m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-lg m-4" onClick={(event) => event.stopPropagation()}>
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
                 <h2 className="text-lg font-black tracking-tight">{t("adminMisc.integrations.generateApiKey")}</h2>
                 <button onClick={() => setShowAddKey(false)} className="p-2 hover:bg-white/5 rounded-lg"><X size={16} /></button>
@@ -601,13 +601,13 @@ export default function IntegrationsPage() {
               <div className="p-6 space-y-4">
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.nameRequired")}</label>
-                  <input type="text" value={newKey.name} onChange={(e) => setNewKey((k) => ({ ...k, name: e.target.value }))}
+                  <input type="text" value={newKey.name} onChange={(event) => setNewKey((previous) => ({ ...previous, name: event.target.value }))}
                     placeholder={t("adminMisc.integrations.apiKeyNamePlaceholder")}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.description")}</label>
-                  <textarea value={newKey.description} onChange={(e) => setNewKey((k) => ({ ...k, description: e.target.value }))}
+                  <textarea value={newKey.description} onChange={(event) => setNewKey((previous) => ({ ...previous, description: event.target.value }))}
                     placeholder={t("adminMisc.integrations.descriptionPlaceholder")}
                     rows={2}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
@@ -616,8 +616,8 @@ export default function IntegrationsPage() {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.scopesRequired")}</label>
                   <div className="flex flex-wrap gap-2">
                     {API_SCOPES.map((scope) => (
-                      <button key={scope} onClick={() => setNewKey((k) => ({
-                        ...k, scopes: k.scopes.includes(scope) ? k.scopes.filter((s) => s !== scope) : [...k.scopes, scope],
+                      <button key={scope} onClick={() => setNewKey((previous) => ({
+                        ...previous, scopes: previous.scopes.includes(scope) ? previous.scopes.filter((existingScope) => existingScope !== scope) : [...previous.scopes, scope],
                       }))}
                         className={`text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg border transition-colors ${
                           newKey.scopes.includes(scope)
@@ -631,7 +631,7 @@ export default function IntegrationsPage() {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.expiresAtOptional")}</label>
-                  <input type="datetime-local" value={newKey.expires_at} onChange={(e) => setNewKey((k) => ({ ...k, expires_at: e.target.value }))}
+                  <input type="datetime-local" value={newKey.expires_at} onChange={(event) => setNewKey((previous) => ({ ...previous, expires_at: event.target.value }))}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <button onClick={handleCreateApiKey} disabled={!newKey.name || newKey.scopes.length === 0}
@@ -646,7 +646,7 @@ export default function IntegrationsPage() {
         {/* Add Webhook Modal */}
         {showAddWebhook && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowAddWebhook(false)}>
-            <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-lg m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-lg m-4" onClick={(event) => event.stopPropagation()}>
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
                 <h2 className="text-lg font-black tracking-tight">{t("adminMisc.integrations.createWebhook")}</h2>
                 <button onClick={() => setShowAddWebhook(false)} className="p-2 hover:bg-white/5 rounded-lg"><X size={16} /></button>
@@ -654,35 +654,35 @@ export default function IntegrationsPage() {
               <div className="p-6 space-y-4">
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.nameRequired")}</label>
-                  <input type="text" value={newWebhook.name} onChange={(e) => setNewWebhook((w) => ({ ...w, name: e.target.value }))}
+                  <input type="text" value={newWebhook.name} onChange={(event) => setNewWebhook((previous) => ({ ...previous, name: event.target.value }))}
                     placeholder={t("adminMisc.integrations.webhookNamePlaceholder")}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.callbackUrlRequired")}</label>
-                  <input type="url" value={newWebhook.url} onChange={(e) => setNewWebhook((w) => ({ ...w, url: e.target.value }))}
+                  <input type="url" value={newWebhook.url} onChange={(event) => setNewWebhook((previous) => ({ ...previous, url: event.target.value }))}
                     placeholder="https://hooks.example.com/notify"
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.secretOptional")}</label>
-                  <input type="text" value={newWebhook.secret} onChange={(e) => setNewWebhook((w) => ({ ...w, secret: e.target.value }))}
+                  <input type="text" value={newWebhook.secret} onChange={(event) => setNewWebhook((previous) => ({ ...previous, secret: event.target.value }))}
                     placeholder="webhook_secret_123"
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.eventsRequired")}</label>
                   <div className="flex flex-wrap gap-2">
-                    {WEBHOOK_EVENT_OPTIONS.map((evt) => (
-                      <button key={evt} onClick={() => setNewWebhook((w) => ({
-                        ...w, events: w.events.includes(evt) ? w.events.filter((e) => e !== evt) : [...w.events, evt],
+                    {WEBHOOK_EVENT_OPTIONS.map((webhookEvent) => (
+                      <button key={webhookEvent} onClick={() => setNewWebhook((previous) => ({
+                        ...previous, events: previous.events.includes(webhookEvent) ? previous.events.filter((existingEvent) => existingEvent !== webhookEvent) : [...previous.events, webhookEvent],
                       }))}
                         className={`text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg border transition-colors ${
-                          newWebhook.events.includes(evt)
+                          newWebhook.events.includes(webhookEvent)
                             ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
                             : "bg-[#020617] border-gray-800 text-gray-400 hover:border-gray-600"
                         }`}>
-                        {evt}
+                        {webhookEvent}
                       </button>
                     ))}
                   </div>
@@ -699,7 +699,7 @@ export default function IntegrationsPage() {
         {/* Confirm Dialog */}
         {confirmAction && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setConfirmAction(null)}>
-            <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-md m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-md m-4" onClick={(event) => event.stopPropagation()}>
               <div className="p-6">
                 {confirmAction.type === "remove_integration" && (
                   <>

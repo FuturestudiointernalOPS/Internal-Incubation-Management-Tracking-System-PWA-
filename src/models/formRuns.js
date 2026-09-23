@@ -235,6 +235,36 @@ export async function listSubmissionsForOpenRuns() {
   });
 }
 
+/**
+ * Approved submissions whose result email has not gone out yet, together with
+ * the settings the delay is read from (the run's and its form's).
+ *
+ * The automatic send is time-based per RUN, so the decision cannot be taken by
+ * SQL alone: this query narrows the field to the submissions that COULD be due
+ * (approved, submitted, no result email ever marked 'sent' for them), and the
+ * caller applies each run's delay. A submission with no sent result row is the
+ * only candidate — the sent row is the idempotency sentinel, so a second pass
+ * can never resend.
+ */
+export async function listApprovedSubmissionsAwaitingResultEmail() {
+  return db.execute({
+    sql: `SELECT ps.id, ps.run_id, ps.submitter_id, ps.submitted_at, ps.updated_at,
+                 r.name AS run_name, r.settings AS run_settings,
+                 f.name AS form_name, f.settings AS form_settings
+          FROM platform_form_submissions ps
+          JOIN platform_form_runs r ON r.id = ps.run_id
+          JOIN platform_forms f ON f.id = r.form_id
+          WHERE ps.status = 'approved'
+            AND ps.submitted_at IS NOT NULL
+            AND COALESCE(r.status, '') NOT IN ('draft', 'cancelled')
+            AND NOT EXISTS (
+              SELECT 1 FROM platform_email_log el
+              WHERE el.submission_id = ps.id AND el.email_type = 'result' AND el.status = 'sent'
+            )
+          ORDER BY ps.submitted_at ASC`,
+  });
+}
+
 /** Review rows for a run's submissions (run detail view). */
 export async function getReviewsByRunId(runId) {
   return db.execute({ sql: "SELECT pr.* FROM platform_submission_reviews pr JOIN platform_form_submissions ps ON pr.submission_id = ps.id WHERE ps.run_id = ? ORDER BY pr.created_at DESC", args: [parseInt(runId)] });
@@ -404,14 +434,14 @@ export async function listFormRunsPage({ groupId, programId, formId, status, per
     status,
   });
 
-  const res = await db.execute({
+  const result = await db.execute({
     sql: `SELECT r.*, f.name as form_name, ga.target_id as group_target_id, COUNT(*) OVER () AS total_count ${RUN_LIST_FROM}${whereClause} ORDER BY r.updated_at DESC LIMIT ? OFFSET ?`,
     args: [...args, perPage, offset],
   });
 
-  const rows = (res.rows || []).map(({ total_count: _totalCount, ...row }) => row);
-  if ((res.rows || []).length > 0) {
-    return { rows, total: parseInt(res.rows[0].total_count) || 0 };
+  const rows = (result.rows || []).map(({ total_count: _totalCount, ...row }) => row);
+  if ((result.rows || []).length > 0) {
+    return { rows, total: parseInt(result.rows[0].total_count) || 0 };
   }
   if (offset === 0) return { rows, total: 0 };
 
@@ -909,8 +939,8 @@ export async function updateFormRunMetadataById({ id, name, description, status,
   const fields = [];
   const args = [];
   const updatable = { name, description, status, opens_at, closes_at };
-  for (const [k, v] of Object.entries(updatable)) {
-    if (v !== undefined) { fields.push(`${k} = ?`); args.push(v); }
+  for (const [columnName, columnValue] of Object.entries(updatable)) {
+    if (columnValue !== undefined) { fields.push(`${columnName} = ?`); args.push(columnValue); }
   }
   if (settings !== undefined) { fields.push("settings = ?"); args.push(JSON.stringify(settings)); }
   fields.push("updated_at = NOW()");

@@ -9,43 +9,43 @@
 import { readFileSync } from "node:fs";
 import pg from "pg";
 
-const readUrl = (f) =>
-  readFileSync(f, "utf-8")
+const readDatabaseUrl = (file) =>
+  readFileSync(file, "utf-8")
     .split("\n")
-    .find((l) => l.startsWith("DATABASE_URL="))
+    .find((envLine) => envLine.startsWith("DATABASE_URL="))
     ?.substring("DATABASE_URL=".length)
     .trim();
 
 const ENVS = [
-  { label: "PROD", url: readUrl(".env.local") },
-  { label: "STAGE", url: readUrl(".env.audit-staging") },
+  { label: "PROD", url: readDatabaseUrl(".env.local") },
+  { label: "STAGE", url: readDatabaseUrl(".env.audit-staging") },
 ];
 
 for (const env of ENVS) {
   const pool = new pg.Pool({ connectionString: env.url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 10000 });
   console.log(`\n=== ${env.label} ===`);
 
-  const prof = await pool.query("SELECT id FROM access_profiles WHERE name = 'Participant Default'");
-  const id = prof.rows[0]?.id;
-  if (!id) {
+  const profileResult = await pool.query("SELECT id FROM access_profiles WHERE name = 'Participant Default'");
+  const profileId = profileResult.rows[0]?.id;
+  if (!profileId) {
     console.log("  Participant Default not found — skipped");
     await pool.end();
     continue;
   }
 
-  for (const cap of ["view", "send"]) {
-    const r = await pool.query(
+  for (const capability of ["view", "send"]) {
+    const deleteResult = await pool.query(
       "DELETE FROM access_profile_capabilities WHERE profile_id = $1 AND module = 'messaging' AND capability = $2",
-      [id, cap],
+      [profileId, capability],
     );
-    console.log(`  participant messaging.${cap}: ${r.rowCount} row(s) removed`);
+    console.log(`  participant messaging.${capability}: ${deleteResult.rowCount} row(s) removed`);
   }
 
-  const fin = await pool.query(
+  const finalCapabilities = await pool.query(
     "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = $1 ORDER BY module, capability",
-    [id],
+    [profileId],
   );
-  console.log("  Participant Default now:", JSON.stringify(fin.rows));
+  console.log("  Participant Default now:", JSON.stringify(finalCapabilities.rows));
 
   if (env.label === "PROD") {
     await pool.query(

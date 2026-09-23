@@ -11,16 +11,16 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import pg from "pg";
 
-const readUrl = (f) =>
-  readFileSync(f, "utf-8")
+const readDatabaseUrl = (file) =>
+  readFileSync(file, "utf-8")
     .split("\n")
-    .find((l) => l.startsWith("DATABASE_URL="))
+    .find((envLine) => envLine.startsWith("DATABASE_URL="))
     ?.substring("DATABASE_URL=".length)
     .trim();
 
 const ENVS = [
-  { label: "PROD", url: readUrl(".env.local") },
-  { label: "STAGE", url: readUrl(".env.audit-staging") },
+  { label: "PROD", url: readDatabaseUrl(".env.local") },
+  { label: "STAGE", url: readDatabaseUrl(".env.audit-staging") },
 ];
 
 const STAFF_REMOVE = [
@@ -39,48 +39,48 @@ const STAFF_ADD = [
 ];
 const PARTICIPANT_REMOVE = [["projects", "view"]];
 
-const before = {};
+const beforeImage = {};
 
 for (const env of ENVS) {
   const pool = new pg.Pool({ connectionString: env.url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 10000 });
   console.log(`\n=== ${env.label} ===`);
 
-  const profId = async (name) => {
-    const r = await pool.query("SELECT id FROM access_profiles WHERE name = $1", [name]);
-    if (r.rows.length === 0) throw new Error(`profile not found: ${name}`);
-    return r.rows[0].id;
+  const lookupProfileId = async (name) => {
+    const profileResult = await pool.query("SELECT id FROM access_profiles WHERE name = $1", [name]);
+    if (profileResult.rows.length === 0) throw new Error(`profile not found: ${name}`);
+    return profileResult.rows[0].id;
   };
 
-  const staffId = await profId("Staff Default");
-  const partId = await profId("Participant Default");
+  const staffProfileId = await lookupProfileId("Staff Default");
+  const participantProfileId = await lookupProfileId("Participant Default");
 
   // 1. Before-image
-  const snap = await pool.query(
+  const snapshot = await pool.query(
     "SELECT profile_id, module, capability, access_level FROM access_profile_capabilities WHERE profile_id IN ($1,$2) ORDER BY profile_id, module, capability",
-    [staffId, partId],
+    [staffProfileId, participantProfileId],
   );
-  before[env.label] = snap.rows;
-  console.log(`  before-image: ${snap.rows.length} rows captured`);
+  beforeImage[env.label] = snapshot.rows;
+  console.log(`  before-image: ${snapshot.rows.length} rows captured`);
 
   // 2. Staff Default — remove
-  for (const [m, c] of STAFF_REMOVE) {
-    const r = await pool.query("DELETE FROM access_profile_capabilities WHERE profile_id = $1 AND module = $2 AND capability = $3", [staffId, m, c]);
-    console.log(`  staff remove ${m}.${c}: ${r.rowCount}`);
+  for (const [module, capability] of STAFF_REMOVE) {
+    const deleteResult = await pool.query("DELETE FROM access_profile_capabilities WHERE profile_id = $1 AND module = $2 AND capability = $3", [staffProfileId, module, capability]);
+    console.log(`  staff remove ${module}.${capability}: ${deleteResult.rowCount}`);
   }
   // 3. Staff Default — add (upsert)
-  for (const [m, c, lvl] of STAFF_ADD) {
+  for (const [module, capability, accessLevel] of STAFF_ADD) {
     await pool.query(
       `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
        VALUES ($1,$2,$3,$4)
        ON CONFLICT (profile_id, module, capability) DO UPDATE SET access_level = EXCLUDED.access_level`,
-      [staffId, m, c, lvl],
+      [staffProfileId, module, capability, accessLevel],
     );
-    console.log(`  staff upsert ${m}.${c} = L${lvl}: ok`);
+    console.log(`  staff upsert ${module}.${capability} = L${accessLevel}: ok`);
   }
   // 4. Participant Default — remove
-  for (const [m, c] of PARTICIPANT_REMOVE) {
-    const r = await pool.query("DELETE FROM access_profile_capabilities WHERE profile_id = $1 AND module = $2 AND capability = $3", [partId, m, c]);
-    console.log(`  participant remove ${m}.${c}: ${r.rowCount}`);
+  for (const [module, capability] of PARTICIPANT_REMOVE) {
+    const deleteResult = await pool.query("DELETE FROM access_profile_capabilities WHERE profile_id = $1 AND module = $2 AND capability = $3", [participantProfileId, module, capability]);
+    console.log(`  participant remove ${module}.${capability}: ${deleteResult.rowCount}`);
   }
 
   if (env.label === "PROD") {
@@ -93,15 +93,15 @@ for (const env of ENVS) {
   }
 
   // 5. Final state
-  const fin = await pool.query(
+  const finalRows = await pool.query(
     "SELECT a.name, c.module, c.capability, c.access_level FROM access_profile_capabilities c JOIN access_profiles a ON a.id = c.profile_id WHERE c.profile_id IN ($1,$2) ORDER BY a.name, c.module, c.capability",
-    [staffId, partId],
+    [staffProfileId, participantProfileId],
   );
   console.log("  final rows:");
-  for (const x of fin.rows) console.log(`    ${x.name} :: ${x.module}.${x.capability} = L${x.access_level}`);
+  for (const row of finalRows.rows) console.log(`    ${row.name} :: ${row.module}.${row.capability} = L${row.access_level}`);
 
   await pool.end();
 }
 
-writeFileSync("scratch/phase3-before-image.json", JSON.stringify(before, null, 2));
+writeFileSync("scratch/phase3-before-image.json", JSON.stringify(beforeImage, null, 2));
 console.log("\n[done] before-image saved to scratch/phase3-before-image.json");

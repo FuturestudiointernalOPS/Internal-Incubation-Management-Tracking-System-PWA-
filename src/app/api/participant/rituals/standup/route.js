@@ -17,8 +17,8 @@ export const GET = createHandler(async (req) => {
   	const { searchParams } = new URL(req.url);
   	const weekNum = searchParams.get("week_number");
 
-  	const res = await getStandupsByUserAndWeek(cid, weekNum);
-  	return NextResponse.json({ success: true, standups: res.rows });
+  	const result = await getStandupsByUserAndWeek(cid, weekNum);
+  	return NextResponse.json({ success: true, standups: result.rows });
 });
 
 export const POST = createHandler(async (req) => {

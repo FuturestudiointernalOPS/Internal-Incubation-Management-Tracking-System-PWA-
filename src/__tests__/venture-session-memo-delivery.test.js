@@ -36,7 +36,7 @@ jest.mock("@/lib/auth", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
 
-jest.mock("@/lib/api/createHandler", () => ({ createHandler: (fn) => fn }));
+jest.mock("@/lib/api/createHandler", () => ({ createHandler: (handler) => handler }));
 
 // The real guard returns { session, path } on allow — path is how a caller knows
 // it was let through as Super Admin. A bare { allowed: true } is not a shape the
@@ -128,9 +128,9 @@ describe("Phase 1 — the memo travels with the session notice", () => {
     expect(coach.emailLines.join("\n")).toContain(MEMO);
 
     // The Lead Managers, who are accountable for it.
-    const lm = optsOf(mockNotifyLeadManagers);
-    expect(lm.message).toContain(MEMO);
-    expect(lm.emailLines.join("\n")).toContain(MEMO);
+    const leadManager = optsOf(mockNotifyLeadManagers);
+    expect(leadManager.message).toContain(MEMO);
+    expect(leadManager.emailLines.join("\n")).toContain(MEMO);
   });
 
   test("the memo is stored as a template param so it can be rendered in the reader's language", async () => {

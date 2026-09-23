@@ -90,7 +90,7 @@ function SkeletonCard() {
 // ─── Read shapers (module scope: built once, never per render) ───────────
 
 // The venture record.
-const pickVenture = (d) => (d?.success ? d.venture : null);
+const pickVenture = (payload) => (payload?.success ? payload.venture : null);
 
 // The dashboard payload, with the server's own refusal folded into the value.
 // That folded `failure` is what lets the screen tell the three failures apart:
@@ -98,10 +98,10 @@ const pickVenture = (d) => (d?.success ? d.venture : null);
 // that reports its own failure as data.
 const EMPTY_DASHBOARD = { dashboard: null, failure: null };
 
-const pickDashboard = (d) =>
-  d?.success
-    ? { dashboard: d.dashboard, failure: null }
-    : { dashboard: null, failure: d?.error || null };
+const pickDashboard = (payload) =>
+  payload?.success
+    ? { dashboard: payload.dashboard, failure: null }
+    : { dashboard: null, failure: payload?.error || null };
 
 // A widget whose payload is not in hand yet.
 const WIDGET_IDLE = { loading: true, error: null, empty: false, data: null };
@@ -163,18 +163,18 @@ export default function VentureDashboard({ id, embedded = false }) {
 
   const widgetBase = useMemo(() => {
     const base = {};
-    for (const [key, val] of Object.entries(dashboard || {})) {
+    for (const [key, value] of Object.entries(dashboard || {})) {
       base[key] = {
         loading: false,
-        error: val === null ? t("vadmin.dashboard.loadFailed") : null,
-        empty: val === null ? false : isWidgetEmpty(val),
-        data: val,
+        error: value === null ? t("vadmin.dashboard.loadFailed") : null,
+        empty: value === null ? false : isWidgetEmpty(value),
+        data: value,
       };
     }
     return base;
   }, [dashboard, t]);
 
-  const ws = (key) => {
+  const widgetState = (key) => {
     const base = widgetBase[key] || WIDGET_IDLE;
     return widgetOverlay[key] ? { ...base, ...widgetOverlay[key] } : base;
   };
@@ -198,7 +198,7 @@ export default function VentureDashboard({ id, embedded = false }) {
   const refreshWidget = (key) => {
     markWidget(key, { loading: true, error: null });
     fetch(`/api/ventures/${id}/dashboard`)
-      .then((r) => r.json())
+      .then((response) => response.json())
       .then((data) => {
         if (data.success) {
           // The write's own answer is published into the read rather than
@@ -240,7 +240,7 @@ export default function VentureDashboard({ id, embedded = false }) {
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+            {Array.from({ length: 6 }).map((_, index) => <SkeletonCard key={index} />)}
           </div>
         </div>
       </>
@@ -265,8 +265,8 @@ export default function VentureDashboard({ id, embedded = false }) {
     );
   }
 
-  const d = dashboard || {};
-  const v = venture || {};
+  const dashboardData = dashboard || {};
+  const ventureData = venture || {};
 
   return (
     <>
@@ -280,14 +280,14 @@ export default function VentureDashboard({ id, embedded = false }) {
                   onClick={() => router.push(`/admin/ventures/${id}`)}
                   className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2"
                 >
-                  <ChevronRight className="w-3 h-3 rotate-180" /> {t("vadmin.dashboard.backToVenture", { name: v.company_name || t("vadmin.dashboard.venture") })}
+                  <ChevronRight className="w-3 h-3 rotate-180" /> {t("vadmin.dashboard.backToVenture", { name: ventureData.company_name || t("vadmin.dashboard.venture") })}
                 </button>
                 <h1 className="text-3xl font-black text-[var(--text-primary)] tracking-tight flex items-center gap-3">
                   <Rocket className="w-7 h-7 text-[var(--brand-orange)]" />
                   {t("vadmin.dashboard.startupDashboard")}
                 </h1>
                 <p className="text-xs text-[var(--text-secondary)] mt-1">
-                  {v.company_name} · {v.venture_id} · {t("vadmin.dashboard.updatedAt", { time: new Date().toLocaleTimeString(lang) })}
+                  {ventureData.company_name} · {ventureData.venture_id} · {t("vadmin.dashboard.updatedAt", { time: new Date().toLocaleTimeString(lang) })}
                 </p>
               </div>
               <button
@@ -308,22 +308,22 @@ export default function VentureDashboard({ id, embedded = false }) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20">
             <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1">{t("vadmin.dashboard.profile")}</p>
-            <p className="text-2xl font-black text-emerald-400">{d.profile_completion?.percentage || 0}%</p>
-            <p className="text-[10px] text-emerald-500/60 mt-0.5">{d.profile_completion?.is_submitted ? t("vadmin.dashboard.submitted") : t("vadmin.dashboard.sectionsMissing", { count: d.profile_completion?.missing?.length || 0 })}</p>
+            <p className="text-2xl font-black text-emerald-400">{dashboardData.profile_completion?.percentage || 0}%</p>
+            <p className="text-[10px] text-emerald-500/60 mt-0.5">{dashboardData.profile_completion?.is_submitted ? t("vadmin.dashboard.submitted") : t("vadmin.dashboard.sectionsMissing", { count: dashboardData.profile_completion?.missing?.length || 0 })}</p>
           </div>
           <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 to-amber-500/5 border border-amber-500/20">
             <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-1">{t("vadmin.dashboard.stage")}</p>
-            <p className="text-2xl font-black text-amber-400 capitalize">{d.venture?.business_stage?.replace(/_/g, " ") || "—"}</p>
+            <p className="text-2xl font-black text-amber-400 capitalize">{dashboardData.venture?.business_stage?.replace(/_/g, " ") || "—"}</p>
             <p className="text-[10px] text-amber-500/60 mt-0.5">{t("vadmin.dashboard.currentMilestone")}</p>
           </div>
           <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20">
             <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">{t("vadmin.dashboard.team")}</p>
-            <p className="text-2xl font-black text-blue-400">{d.team?.active || 0}</p>
+            <p className="text-2xl font-black text-blue-400">{dashboardData.team?.active || 0}</p>
             <p className="text-[10px] text-blue-500/60 mt-0.5">{t("vadmin.dashboard.activeMembers")}</p>
           </div>
           <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 border border-purple-500/20">
             <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1">{t("vadmin.dashboard.readiness")}</p>
-            <p className="text-2xl font-black text-purple-400">{d.investment_readiness?.score || 0}%</p>
+            <p className="text-2xl font-black text-purple-400">{dashboardData.investment_readiness?.score || 0}%</p>
             <p className="text-[10px] text-purple-500/60 mt-0.5">{t("vadmin.dashboard.investmentScore")}</p>
           </div>
         </div>
@@ -358,23 +358,23 @@ export default function VentureDashboard({ id, embedded = false }) {
           <div className="space-y-6">
             {/* 1. Profile Completion */}
             <WidgetCard title={t("vadmin.dashboard.profileCompletion")} icon={Layers} iconColor="bg-purple-500/10"
-              loading={ws("profile_completion").loading} error={ws("profile_completion").error}
-              empty={ws("profile_completion").empty} emptyMessage={t("vadmin.dashboard.startProfileWizard")}
+              loading={widgetState("profile_completion").loading} error={widgetState("profile_completion").error}
+              empty={widgetState("profile_completion").empty} emptyMessage={t("vadmin.dashboard.startProfileWizard")}
               onRefresh={() => refreshWidget("profile_completion")}
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-3xl font-black text-[var(--text-primary)]">{d.profile_completion?.percentage || 0}%</span>
+                  <span className="text-3xl font-black text-[var(--text-primary)]">{dashboardData.profile_completion?.percentage || 0}%</span>
                   <button onClick={() => router.push(`/ventures/${id}/wizard`)} className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider hover:underline flex items-center gap-1">
                     {t("vadmin.dashboard.open")} <ArrowRight className="w-3 h-3" />
                   </button>
                 </div>
                 <div className="w-full bg-tertiary rounded-full h-2 overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full transition-all" style={{ width: `${d.profile_completion?.percentage || 0}%` }} />
+                  <div className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full transition-all" style={{ width: `${dashboardData.profile_completion?.percentage || 0}%` }} />
                 </div>
                 <div className="space-y-1.5">
-                  {(d.profile_completion?.items || []).map((item, i) => (
-                    <div key={i} className="flex items-center gap-2">
+                  {(dashboardData.profile_completion?.items || []).map((item, index) => (
+                    <div key={index} className="flex items-center gap-2">
                       {item.completed ? (
                         <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
                       ) : (
@@ -389,25 +389,25 @@ export default function VentureDashboard({ id, embedded = false }) {
 
             {/* 2. Investment Readiness */}
             <WidgetCard title={t("vadmin.dashboard.investmentReadiness")} icon={TrendingUp} iconColor="bg-purple-500/10"
-              loading={ws("investment_readiness").loading} error={ws("investment_readiness").error}
-              empty={ws("investment_readiness").empty} emptyMessage={t("vadmin.dashboard.completeProfileForScore")}
+              loading={widgetState("investment_readiness").loading} error={widgetState("investment_readiness").error}
+              empty={widgetState("investment_readiness").empty} emptyMessage={t("vadmin.dashboard.completeProfileForScore")}
               onRefresh={() => refreshWidget("investment_readiness")}
             >
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-3xl font-black text-purple-400">{d.investment_readiness?.score || 0}%</span>
-                  <span className="text-[10px] font-bold text-[var(--text-secondary)] capitalize">{d.investment_readiness?.stage?.replace(/_/g, " ") || t("vadmin.dashboard.unknown")}</span>
+                  <span className="text-3xl font-black text-purple-400">{dashboardData.investment_readiness?.score || 0}%</span>
+                  <span className="text-[10px] font-bold text-[var(--text-secondary)] capitalize">{dashboardData.investment_readiness?.stage?.replace(/_/g, " ") || t("vadmin.dashboard.unknown")}</span>
                 </div>
                 <div className="w-full bg-tertiary rounded-full h-2 overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-purple-500 to-purple-400 rounded-full transition-all" style={{ width: `${d.investment_readiness?.score || 0}%` }} />
+                  <div className="h-full bg-gradient-to-r from-purple-500 to-purple-400 rounded-full transition-all" style={{ width: `${dashboardData.investment_readiness?.score || 0}%` }} />
                 </div>
-                {(d.investment_readiness?.next_milestones || []).length > 0 && (
+                {(dashboardData.investment_readiness?.next_milestones || []).length > 0 && (
                   <div className="space-y-1">
                     <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">{t("vadmin.dashboard.nextMilestones")}</p>
-                    {d.investment_readiness.next_milestones.map((m, i) => (
-                      <div key={i} className="flex items-center gap-2 text-[10px] text-[var(--text-secondary)]">
+                    {dashboardData.investment_readiness.next_milestones.map((milestone, index) => (
+                      <div key={index} className="flex items-center gap-2 text-[10px] text-[var(--text-secondary)]">
                         <Target className="w-3 h-3 text-[var(--brand-orange)] shrink-0" />
-                        {m}
+                        {milestone}
                       </div>
                     ))}
                   </div>
@@ -417,30 +417,30 @@ export default function VentureDashboard({ id, embedded = false }) {
 
             {/* 3. Verification Status */}
             <WidgetCard title={t("vadmin.dashboard.verification")} icon={Shield} iconColor="bg-emerald-500/10"
-              loading={ws("verification").loading} error={ws("verification").error}
-              empty={ws("verification").empty} emptyMessage={t("vadmin.dashboard.noVerificationData")}
+              loading={widgetState("verification").loading} error={widgetState("verification").error}
+              empty={widgetState("verification").empty} emptyMessage={t("vadmin.dashboard.noVerificationData")}
               onRefresh={() => refreshWidget("verification")}
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded ${
-                    d.verification?.status === "verified" ? "bg-emerald-500/10 text-emerald-400" :
-                    d.verification?.status === "pending_review" ? "bg-amber-500/10 text-amber-400" :
-                    d.verification?.status === "rejected" ? "bg-rose-500/10 text-rose-400" :
+                    dashboardData.verification?.status === "verified" ? "bg-emerald-500/10 text-emerald-400" :
+                    dashboardData.verification?.status === "pending_review" ? "bg-amber-500/10 text-amber-400" :
+                    dashboardData.verification?.status === "rejected" ? "bg-rose-500/10 text-rose-400" :
                     "bg-slate-500/10 text-slate-400"
-                  }`}>{verificationStatusLabel(d.verification?.status)}</span>
-                  <span className="text-[10px] font-bold text-[var(--text-secondary)]">{t("vadmin.dashboard.verifiedCount", { verified: d.verification?.verified_count || 0, total: d.verification?.total_count || 6 })}</span>
+                  }`}>{verificationStatusLabel(dashboardData.verification?.status)}</span>
+                  <span className="text-[10px] font-bold text-[var(--text-secondary)]">{t("vadmin.dashboard.verifiedCount", { verified: dashboardData.verification?.verified_count || 0, total: dashboardData.verification?.total_count || 6 })}</span>
                 </div>
                 <div className="space-y-1.5">
-                  {(d.verification?.categories || []).map((cat, i) => (
-                    <div key={i} className="flex items-center justify-between p-2 bg-tertiary rounded-lg">
-                      <span className="text-[10px] font-bold text-[var(--text-secondary)]">{cat.label}</span>
+                  {(dashboardData.verification?.categories || []).map((category, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-tertiary rounded-lg">
+                      <span className="text-[10px] font-bold text-[var(--text-secondary)]">{category.label}</span>
                       <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                        cat.status === "verified" ? "bg-emerald-500/10 text-emerald-400" :
-                        cat.status === "rejected" ? "bg-rose-500/10 text-rose-400" :
-                        cat.status === "under_review" ? "bg-amber-500/10 text-amber-400" :
+                        category.status === "verified" ? "bg-emerald-500/10 text-emerald-400" :
+                        category.status === "rejected" ? "bg-rose-500/10 text-rose-400" :
+                        category.status === "under_review" ? "bg-amber-500/10 text-amber-400" :
                         "bg-slate-500/10 text-slate-500"
-                      }`}>{verificationStatusLabel(cat.status)}</span>
+                      }`}>{verificationStatusLabel(category.status)}</span>
                     </div>
                   ))}
                 </div>
@@ -457,44 +457,44 @@ export default function VentureDashboard({ id, embedded = false }) {
                 The founder invitation ledger is a separate screen, reached from
                 the button below, and is never what a head count is read from. */}
             <WidgetCard title={t("vadmin.dashboard.team")} icon={Users} iconColor="bg-blue-500/10"
-              loading={ws("team").loading} error={ws("team").error}
-              empty={ws("team").empty} emptyMessage={t("vadmin.dashboard.noTeamMembersYet")}
+              loading={widgetState("team").loading} error={widgetState("team").error}
+              empty={widgetState("team").empty} emptyMessage={t("vadmin.dashboard.noTeamMembersYet")}
               onRefresh={() => refreshWidget("team")}
             >
               <div className="space-y-3">
                 <div className="grid grid-cols-3 gap-2">
                   <div className="p-2 bg-tertiary rounded-lg text-center">
-                    <p className="text-lg font-black text-[var(--text-primary)]">{d.team?.active || 0}</p>
+                    <p className="text-lg font-black text-[var(--text-primary)]">{dashboardData.team?.active || 0}</p>
                     <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">{t("vadmin.dashboard.active")}</p>
                   </div>
                   <div className="p-2 bg-tertiary rounded-lg text-center">
-                    <p className="text-lg font-black text-blue-400">{d.team?.founders || 0}</p>
+                    <p className="text-lg font-black text-blue-400">{dashboardData.team?.founders || 0}</p>
                     <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">{t("vadmin.dashboard.foundersCount")}</p>
                   </div>
                   <div className="p-2 bg-tertiary rounded-lg text-center">
-                    <p className="text-lg font-black text-rose-400">{d.team?.suspended || 0}</p>
+                    <p className="text-lg font-black text-rose-400">{dashboardData.team?.suspended || 0}</p>
                     <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">{t("vadmin.dashboard.suspended")}</p>
                   </div>
                 </div>
-                {d.team?.owner && (
+                {dashboardData.team?.owner && (
                   <p className="text-[10px] text-[var(--text-secondary)]">
-                    {t("vadmin.dashboard.owner", { name: d.team.owner.name || d.team.owner.email || "—" })}
+                    {t("vadmin.dashboard.owner", { name: dashboardData.team.owner.name || dashboardData.team.owner.email || "—" })}
                   </p>
                 )}
                 <div className="space-y-1.5">
-                  {(d.team?.members || []).slice(0, 4).map((m) => (
-                    <div key={m.id} className="flex items-center justify-between p-2 bg-tertiary rounded-lg">
+                  {(dashboardData.team?.members || []).slice(0, 4).map((member) => (
+                    <div key={member.id} className="flex items-center justify-between p-2 bg-tertiary rounded-lg">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold shrink-0">
-                          {(m.name || m.email || "?").charAt(0).toUpperCase()}
+                          {(member.name || member.email || "?").charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{m.name || m.email}</p>
-                          <p className="text-[10px] text-[var(--text-secondary)] truncate">{m.is_founder ? t("vadmin.dashboard.founderBadge") : t("vadmin.dashboard.teamMemberBadge")}</p>
+                          <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{member.name || member.email}</p>
+                          <p className="text-[10px] text-[var(--text-secondary)] truncate">{member.is_founder ? t("vadmin.dashboard.founderBadge") : t("vadmin.dashboard.teamMemberBadge")}</p>
                         </div>
                       </div>
-                      {m.is_owner && <Crown className="w-3 h-3 text-amber-400 shrink-0" />}
-                      {m.status === "suspended" && <Ban className="w-3 h-3 text-rose-400 shrink-0" />}
+                      {member.is_owner && <Crown className="w-3 h-3 text-amber-400 shrink-0" />}
+                      {member.status === "suspended" && <Ban className="w-3 h-3 text-rose-400 shrink-0" />}
                     </div>
                   ))}
                 </div>
@@ -506,29 +506,29 @@ export default function VentureDashboard({ id, embedded = false }) {
 
             {/* 6. Coaching / Advisors */}
             <WidgetCard title={t("vadmin.dashboard.coachingAndAdvisors")} icon={BookOpen} iconColor="bg-indigo-500/10"
-              loading={ws("coaching").loading} error={ws("coaching").error}
-              empty={ws("coaching").empty} emptyMessage={t("vadmin.dashboard.noCoachesOrAdvisors")}
+              loading={widgetState("coaching").loading} error={widgetState("coaching").error}
+              empty={widgetState("coaching").empty} emptyMessage={t("vadmin.dashboard.noCoachesOrAdvisors")}
               onRefresh={() => refreshWidget("coaching")}
             >
               <div className="space-y-3">
-                {(d.coaching?.coaches || []).length > 0 && (
+                {(dashboardData.coaching?.coaches || []).length > 0 && (
                   <div>
                     <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">{t("vadmin.dashboard.coaches")}</p>
-                    {d.coaching.coaches.slice(0, 3).map((c, i) => (
-                      <div key={c.cid || i} className="flex items-center gap-2 p-1.5">
-                        <div className="w-5 h-5 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold">{c.name?.charAt(0)}</div>
-                        <span className="text-[10px] font-bold text-[var(--text-primary)]">{c.name}</span>
+                    {dashboardData.coaching.coaches.slice(0, 3).map((coach, index) => (
+                      <div key={coach.cid || index} className="flex items-center gap-2 p-1.5">
+                        <div className="w-5 h-5 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold">{coach.name?.charAt(0)}</div>
+                        <span className="text-[10px] font-bold text-[var(--text-primary)]">{coach.name}</span>
                       </div>
                     ))}
                   </div>
                 )}
-                {(d.coaching?.advisors || []).length > 0 && (
+                {(dashboardData.coaching?.advisors || []).length > 0 && (
                   <div>
                     <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">{t("vadmin.dashboard.advisors")}</p>
-                    {d.coaching.advisors.slice(0, 3).map((a, i) => (
-                      <div key={a.cid || i} className="flex items-center gap-2 p-1.5">
-                        <div className="w-5 h-5 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold">{a.name?.charAt(0)}</div>
-                        <span className="text-[10px] font-bold text-[var(--text-primary)]">{a.name}</span>
+                    {dashboardData.coaching.advisors.slice(0, 3).map((advisor, index) => (
+                      <div key={advisor.cid || index} className="flex items-center gap-2 p-1.5">
+                        <div className="w-5 h-5 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold">{advisor.name?.charAt(0)}</div>
+                        <span className="text-[10px] font-bold text-[var(--text-primary)]">{advisor.name}</span>
                       </div>
                     ))}
                   </div>
@@ -541,29 +541,29 @@ export default function VentureDashboard({ id, embedded = false }) {
           <div className="space-y-6">
             {/* 7. Upcoming Meetings */}
             <WidgetCard title={t("vadmin.dashboard.upcomingMeetings")} icon={Calendar} iconColor="bg-blue-500/10"
-              loading={ws("meetings").loading} error={ws("meetings").error}
-              empty={ws("meetings").empty} emptyMessage={t("vadmin.dashboard.noUpcomingMeetings")}
+              loading={widgetState("meetings").loading} error={widgetState("meetings").error}
+              empty={widgetState("meetings").empty} emptyMessage={t("vadmin.dashboard.noUpcomingMeetings")}
               onRefresh={() => refreshWidget("meetings")}
             >
               <div className="space-y-2">
-                {(d.meetings || []).length === 0 ? (
+                {(dashboardData.meetings || []).length === 0 ? (
                   <div className="flex flex-col items-center py-4">
                     <Calendar className="w-8 h-8 text-slate-600 mb-2" />
                     <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.dashboard.noScheduledMeetings")}</p>
                   </div>
                 ) : (
-                  (d.meetings || []).slice(0, 4).map((m, i) => (
-                    <div key={m.id || i} className="flex items-start gap-3 p-3 bg-tertiary rounded-xl">
+                  (dashboardData.meetings || []).slice(0, 4).map((meeting, index) => (
+                    <div key={meeting.id || index} className="flex items-start gap-3 p-3 bg-tertiary rounded-xl">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        m.type === "coaching" ? "bg-indigo-500/10 text-indigo-400" :
-                        m.type === "advisor" ? "bg-purple-500/10 text-purple-400" :
+                        meeting.type === "coaching" ? "bg-indigo-500/10 text-indigo-400" :
+                        meeting.type === "advisor" ? "bg-purple-500/10 text-purple-400" :
                         "bg-blue-500/10 text-blue-400"
                       }`}>
                         <Calendar className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{m.title}</p>
-                        <p className="text-[10px] text-[var(--text-secondary)]">{m.date ? new Date(m.date).toLocaleDateString(lang) : ""}{m.time ? ` ${t("vadmin.dashboard.atTime", { time: m.time })}` : ""}</p>
+                        <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{meeting.title}</p>
+                        <p className="text-[10px] text-[var(--text-secondary)]">{meeting.date ? new Date(meeting.date).toLocaleDateString(lang) : ""}{meeting.time ? ` ${t("vadmin.dashboard.atTime", { time: meeting.time })}` : ""}</p>
                       </div>
                     </div>
                   ))
@@ -573,27 +573,27 @@ export default function VentureDashboard({ id, embedded = false }) {
 
             {/* 8. Activity */}
             <WidgetCard title={t("vadmin.dashboard.recentActivity")} icon={Activity} iconColor="bg-amber-500/10"
-              loading={ws("recent_activity").loading} error={ws("recent_activity").error}
-              empty={ws("recent_activity").empty} emptyMessage={t("vadmin.dashboard.noRecentActivity")}
+              loading={widgetState("recent_activity").loading} error={widgetState("recent_activity").error}
+              empty={widgetState("recent_activity").empty} emptyMessage={t("vadmin.dashboard.noRecentActivity")}
               onRefresh={() => refreshWidget("recent_activity")}
             >
               <div className="space-y-1.5">
-                {(d.recent_activity || []).slice(0, 5).map((a, i) => {
-                  const details = activityDetails(a.details, t);
+                {(dashboardData.recent_activity || []).slice(0, 5).map((activity, index) => {
+                  const details = activityDetails(activity.details, t);
                   return (
-                    <div key={a.id || i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-tertiary transition-all">
+                    <div key={activity.id || index} className="flex items-start gap-3 p-2 rounded-lg hover:bg-tertiary transition-all">
                       <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${
-                        a.action?.includes("APPROVED") || a.action?.includes("CREATED") ? "bg-emerald-500/10 text-emerald-400" :
-                        a.action?.includes("REJECTED") || a.action?.includes("REMOVED") ? "bg-rose-500/10 text-rose-400" :
+                        activity.action?.includes("APPROVED") || activity.action?.includes("CREATED") ? "bg-emerald-500/10 text-emerald-400" :
+                        activity.action?.includes("REJECTED") || activity.action?.includes("REMOVED") ? "bg-rose-500/10 text-rose-400" :
                         "bg-amber-500/10 text-amber-400"
                       }`}>
                         <Activity className="w-3 h-3" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] font-bold text-[var(--text-primary)]">{activityLabel(a.action, t)}</p>
+                        <p className="text-[10px] font-bold text-[var(--text-primary)]">{activityLabel(activity.action, t)}</p>
                         <p className="text-[10px] text-[var(--text-secondary)]">
-                          {isSystemActor(a.actor) ? "" : `${a.actor} · `}
-                          {a.created_at ? new Date(a.created_at).toLocaleDateString(lang) : ""}
+                          {isSystemActor(activity.actor) ? "" : `${activity.actor} · `}
+                          {activity.created_at ? new Date(activity.created_at).toLocaleDateString(lang) : ""}
                         </p>
                         {details.length > 0 && (
                           <p className="text-[10px] text-[var(--text-secondary)] opacity-80">{details[0]}</p>
@@ -607,19 +607,19 @@ export default function VentureDashboard({ id, embedded = false }) {
 
             {/* 9. Documents */}
             <WidgetCard title={t("vadmin.dashboard.recentDocuments")} icon={FileText} iconColor="bg-[var(--brand-orange)]/10"
-              loading={ws("documents").loading} error={ws("documents").error}
-              empty={ws("documents").empty} emptyMessage={t("vadmin.dashboard.noDocumentsUploaded")}
+              loading={widgetState("documents").loading} error={widgetState("documents").error}
+              empty={widgetState("documents").empty} emptyMessage={t("vadmin.dashboard.noDocumentsUploaded")}
               onRefresh={() => refreshWidget("documents")}
             >
               <div className="space-y-2">
-                {(d.documents?.recent || []).length === 0 ? (
+                {(dashboardData.documents?.recent || []).length === 0 ? (
                   <div className="flex flex-col items-center py-4">
                     <FileText className="w-8 h-8 text-slate-600 mb-2" />
                     <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.dashboard.uploadFirstDocument")}</p>
                   </div>
                 ) : (
-                  (d.documents?.recent || []).slice(0, 4).map((doc, i) => (
-                    <div key={doc.id || i} className="flex items-center gap-3 p-2 bg-tertiary rounded-lg">
+                  (dashboardData.documents?.recent || []).slice(0, 4).map((doc, index) => (
+                    <div key={doc.id || index} className="flex items-center gap-3 p-2 bg-tertiary rounded-lg">
                       <FileText className="w-4 h-4 text-[var(--brand-orange)] shrink-0" />
                       <div className="min-w-0">
                         <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{doc.file_name}</p>
@@ -632,18 +632,18 @@ export default function VentureDashboard({ id, embedded = false }) {
             </WidgetCard>
 
             {/* 10. Notifications */}
-            <WidgetCard title={`${t("vadmin.dashboard.notifications")}${d.notifications?.unread > 0 ? ` (${d.notifications.unread})` : ""}`} icon={Bell} iconColor="bg-rose-500/10"
-              loading={ws("notifications").loading} error={ws("notifications").error}
-              empty={ws("notifications").empty} emptyMessage={t("vadmin.dashboard.noNotifications")}
+            <WidgetCard title={`${t("vadmin.dashboard.notifications")}${dashboardData.notifications?.unread > 0 ? ` (${dashboardData.notifications.unread})` : ""}`} icon={Bell} iconColor="bg-rose-500/10"
+              loading={widgetState("notifications").loading} error={widgetState("notifications").error}
+              empty={widgetState("notifications").empty} emptyMessage={t("vadmin.dashboard.noNotifications")}
               onRefresh={() => refreshWidget("notifications")}
             >
               <div className="space-y-1.5">
-                {(d.notifications?.recent || []).slice(0, 4).map((n, i) => (
-                  <div key={n.id || i} className={`flex items-start gap-3 p-2 rounded-lg ${!n.is_read ? "bg-rose-500/5 border border-rose-500/10" : "hover:bg-tertiary"}`}>
-                    <Bell className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${n.is_read ? "text-slate-600" : "text-rose-400"}`} />
+                {(dashboardData.notifications?.recent || []).slice(0, 4).map((notification, index) => (
+                  <div key={notification.id || index} className={`flex items-start gap-3 p-2 rounded-lg ${!notification.is_read ? "bg-rose-500/5 border border-rose-500/10" : "hover:bg-tertiary"}`}>
+                    <Bell className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${notification.is_read ? "text-slate-600" : "text-rose-400"}`} />
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{n.title}</p>
-                      <p className="text-[10px] text-[var(--text-secondary)] truncate">{n.message}</p>
+                      <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{notification.title}</p>
+                      <p className="text-[10px] text-[var(--text-secondary)] truncate">{notification.message}</p>
                     </div>
                   </div>
                 ))}
@@ -666,9 +666,9 @@ function AttentionWidget({ id }) {
     (async () => {
       try {
         const res = await fetch(`/api/ventures/${id}/journey-report`);
-        const d = await res.json();
-        if (d.success) setData(d.journey_report);
-        else setError(d.error || "failed");
+        const payload = await res.json();
+        if (payload.success) setData(payload.journey_report);
+        else setError(payload.error || "failed");
       } catch (_) {
         setError("failed");
       }
@@ -682,7 +682,7 @@ function AttentionWidget({ id }) {
   const awaitingApproval = (data?.milestones_by_status || {}).under_review || 0;
   const stageTotal = data?.journey_progression?.total || 0;
   const stagePct = data?.journey_progression?.progress_pct || 0;
-  const currentJourney = (data?.stages || []).find((s) => s.status === "active")?.name || (data?.stages || [])[0]?.name || null;
+  const currentJourney = (data?.stages || []).find((stage) => stage.status === "active")?.name || (data?.stages || [])[0]?.name || null;
 
   const items = [
     { n: overdue, label: t("venture.attention.overdue") },
@@ -714,10 +714,10 @@ function AttentionWidget({ id }) {
             </p>
           )}
           <div className="grid grid-cols-2 gap-2">
-            {items.map((it) => (
-              <div key={it.label} className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                <p className={`text-xl font-black ${it.n > 0 ? "text-amber-400" : "text-[var(--text-primary)]"}`}>{it.n}</p>
-                <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">{it.label}</p>
+            {items.map((item) => (
+              <div key={item.label} className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                <p className={`text-xl font-black ${item.n > 0 ? "text-amber-400" : "text-[var(--text-primary)]"}`}>{item.n}</p>
+                <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">{item.label}</p>
               </div>
             ))}
           </div>

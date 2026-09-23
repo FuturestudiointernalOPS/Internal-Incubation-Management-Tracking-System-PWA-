@@ -35,51 +35,54 @@ export default function NavigationLoader() {
   const safetyRef = useRef(null);
   const animRef = useRef(null);
 
-  const cancelPending = () => {
-    if (pendingRef.current) clearTimeout(pendingRef.current);
-    pendingRef.current = null;
-  };
-
-  const show = (from) => {
-    setStartedFrom(from);
-    setProgress(15);
-    if (safetyRef.current) clearTimeout(safetyRef.current);
-    if (animRef.current) clearInterval(animRef.current);
-    animRef.current = setInterval(() => {
-      setProgress((p) => (p < 85 ? p + 12 : p));
-    }, 180);
-    // Safety: never leave the bar stuck if the route never changes.
-    safetyRef.current = setTimeout(() => {
-      cancelPending();
-      setStartedFrom(null);
-      setProgress(0);
-    }, 6000);
-  };
-
-  const start = () => {
-    cancelPending();
-    const from = `${window.location.pathname}${window.location.search}`;
-    // Only start the animation if the route is still loading after the grace
-    // period — otherwise fast navigations flash a meaningless progress bar.
-    pendingRef.current = setTimeout(() => {
-      // A navigation that completed inside the grace period shows nothing.
-      if (`${window.location.pathname}${window.location.search}` !== from) return;
-      show(from);
-    }, 250);
-  };
-
-  // Detect internal link clicks → start loading
+  // Detect internal link clicks → start loading. The three helpers live INSIDE
+  // this effect because it is their only caller: the listener is attached once,
+  // and they read the timers through refs and write state through the stable
+  // setters, so there is nothing here for a dependency list to watch.
   useEffect(() => {
-    const onClick = (e) => {
-      const link = e.target?.closest?.("a");
+    const cancelPending = () => {
+      if (pendingRef.current) clearTimeout(pendingRef.current);
+      pendingRef.current = null;
+    };
+
+    const show = (from) => {
+      setStartedFrom(from);
+      setProgress(15);
+      if (safetyRef.current) clearTimeout(safetyRef.current);
+      if (animRef.current) clearInterval(animRef.current);
+      animRef.current = setInterval(() => {
+        setProgress((currentProgress) => (currentProgress < 85 ? currentProgress + 12 : currentProgress));
+      }, 180);
+      // Safety: never leave the bar stuck if the route never changes.
+      safetyRef.current = setTimeout(() => {
+        cancelPending();
+        setStartedFrom(null);
+        setProgress(0);
+      }, 6000);
+    };
+
+    const start = () => {
+      cancelPending();
+      const from = `${window.location.pathname}${window.location.search}`;
+      // Only start the animation if the route is still loading after the grace
+      // period — otherwise fast navigations flash a meaningless progress bar.
+      pendingRef.current = setTimeout(() => {
+        // A navigation that completed inside the grace period shows nothing.
+        if (`${window.location.pathname}${window.location.search}` !== from) return;
+        show(from);
+      }, 250);
+    };
+
+    const onClick = (event) => {
+      const link = event.target?.closest?.("a");
       if (!link) return;
       if (
-        e.defaultPrevented ||
-        e.metaKey ||
-        e.ctrlKey ||
-        e.shiftKey ||
-        e.altKey ||
-        e.button !== 0
+        event.defaultPrevented ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey ||
+        event.button !== 0
       )
         return;
       if (link.target && link.target !== "_self") return;
@@ -113,7 +116,6 @@ export default function NavigationLoader() {
       if (safetyRef.current) clearTimeout(safetyRef.current);
       if (animRef.current) clearInterval(animRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // The navigation is over the moment the address it started from stops being

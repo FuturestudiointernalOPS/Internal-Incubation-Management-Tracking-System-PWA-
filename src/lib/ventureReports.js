@@ -24,8 +24,8 @@ function rowsOf(result) {
 export const REPORT_KINDS = ["progress", "closing"];
 
 function jsonList(value) {
-  const arr = Array.isArray(value) ? value : [];
-  return arr.slice(0, 100).map((v) => (typeof v === "string" ? v.slice(0, 500) : String(v || "").slice(0, 500)));
+  const list = Array.isArray(value) ? value : [];
+  return list.slice(0, 100).map((item) => (typeof item === "string" ? item.slice(0, 500) : String(item || "").slice(0, 500)));
 }
 
 export async function createVentureReport(db, { code, actorCid = null, fields = {} }) {
@@ -81,10 +81,10 @@ export async function listVentureReports(db, { code, status = null, journeyStage
  * where the journey table is empty, is a normal state.
  */
 export async function listJourneysMissingClosingReport(db, { code }) {
-  const v = await db
+  const ventureResult = await db
     .execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [code] })
     .catch(() => ({ rows: [] }));
-  const ventureDbId = rowsOf(v)[0]?.id;
+  const ventureDbId = rowsOf(ventureResult)[0]?.id;
   if (!ventureDbId) return [];
   const res = await db
     .execute({
@@ -160,7 +160,8 @@ export async function listPortfolioReports(db, { status = null, limit = 200 } = 
   return rowsOf(res).map((row) => ({
     id: row.report_id,
     venture_code: row.venture_code || null,
-    venture_name: row.name || row.company_name || row.venture_code || null,
+    // company_name is the canonical label; `name` is the legacy column.
+    venture_name: row.company_name || row.name || row.venture_code || null,
     journey_stage_id: row.report_journey_stage_id || null,
     journey_name: row.journey_name || null,
     title: row.report_title,
@@ -195,7 +196,7 @@ export async function listPortfolioMissingClosingReports(db, { limit = 200 } = {
     journey_name: row.journey_name || null,
     completed_at: row.completed_at || null,
     venture_code: row.venture_id || null,
-    venture_name: row.name || row.company_name || row.venture_id || null,
+    venture_name: row.company_name || row.name || row.venture_id || null,
   }));
 }
 

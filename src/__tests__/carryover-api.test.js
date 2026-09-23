@@ -24,7 +24,7 @@ jest.mock("@/lib/db", () => {
         // Original task lookup
         if (sql.includes("SELECT * FROM tasks WHERE id = ?")) {
           const id = Number(args[0]);
-          return { rows: mockState.tasks.filter((t) => t.id === id) };
+          return { rows: mockState.tasks.filter((task) => task.id === id) };
         }
         // Chain walk — newest OPEN clone (completed/archived copies are skipped)
         if (
@@ -35,15 +35,15 @@ jest.mock("@/lib/db", () => {
           return {
             rows: mockState.tasks
               .filter(
-                (t) =>
-                  t.carried_over_from_task_id === sourceId &&
-                  !["completed", "archived"].includes(t.status),
+                (task) =>
+                  task.carried_over_from_task_id === sourceId &&
+                  !["completed", "archived"].includes(task.status),
               )
               .sort(
-                (a, b) =>
-                  b.created_year - a.created_year ||
-                  b.created_week - a.created_week ||
-                  b.id - a.id,
+                (left, right) =>
+                  right.created_year - left.created_year ||
+                  right.created_week - left.created_week ||
+                  right.id - left.id,
               )
               .slice(0, 1),
           };
@@ -80,13 +80,13 @@ jest.mock("@/lib/db", () => {
           sql.includes("completed_at IS NULL")
         ) {
           const id = Number(args[0]);
-          const t = mockState.tasks.find((x) => x.id === id);
+          const task = mockState.tasks.find((row) => row.id === id);
           if (
-            t &&
-            !["completed", "archived"].includes(t.status) &&
-            t.completed_at == null
+            task &&
+            !["completed", "archived"].includes(task.status) &&
+            task.completed_at == null
           ) {
-            t.status = "carried_over";
+            task.status = "carried_over";
             return { rowsAffected: 1 };
           }
           return { rowsAffected: 0 };
@@ -169,7 +169,7 @@ describe("POST /api/tasks/carryover — Phase 1 guards", () => {
     expect(res.status).toBe(409);
     const data = await readJson(res);
     expect(data.success).toBe(false);
-    expect(mockExecuted.some((e) => e.sql.includes("INSERT INTO tasks"))).toBe(
+    expect(mockExecuted.some((entry) => entry.sql.includes("INSERT INTO tasks"))).toBe(
       false,
     );
   });
@@ -190,7 +190,7 @@ describe("POST /api/tasks/carryover — Phase 1 guards", () => {
     expect(data.success).toBe(true);
     expect(data.action).toBe("already_carried_over");
     expect(data.id).toBe(2);
-    expect(mockExecuted.some((e) => e.sql.includes("INSERT INTO tasks"))).toBe(
+    expect(mockExecuted.some((entry) => entry.sql.includes("INSERT INTO tasks"))).toBe(
       false,
     );
   });
@@ -232,12 +232,12 @@ describe("POST /api/tasks/carryover — Phase 1 guards", () => {
       }),
     );
     expect(res.status).toBe(200);
-    const insert = mockExecuted.find((e) => e.sql.includes("INSERT INTO tasks"));
+    const insert = mockExecuted.find((entry) => entry.sql.includes("INSERT INTO tasks"));
     expect(insert).toBeDefined();
     // New clone must point at the newest OPEN copy (id 6), not the completed one (id 5)
     expect(Number(insert.args[8])).toBe(6);
     // The completed copy (5) must never be flipped
-    expect(mockState.tasks.find((t) => t.id === 5).status).toBe("completed");
+    expect(mockState.tasks.find((task) => task.id === 5).status).toBe("completed");
   });
 
   test("legitimate carry-over clones once and flips its open source", async () => {
@@ -255,8 +255,8 @@ describe("POST /api/tasks/carryover — Phase 1 guards", () => {
     const data = await readJson(res);
     expect(data.success).toBe(true);
     expect(data.action).toBe("carried_over");
-    const inserts = mockExecuted.filter((e) => e.sql.includes("INSERT INTO tasks"));
+    const inserts = mockExecuted.filter((entry) => entry.sql.includes("INSERT INTO tasks"));
     expect(inserts.length).toBe(1);
-    expect(mockState.tasks.find((t) => t.id === 7).status).toBe("carried_over");
+    expect(mockState.tasks.find((task) => task.id === 7).status).toBe("carried_over");
   });
 });

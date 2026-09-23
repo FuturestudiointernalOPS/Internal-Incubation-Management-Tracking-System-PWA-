@@ -34,13 +34,13 @@ export const POST = createHandler(
     });
     if (contactLimited) return contactLimited;
 
-    const contactRes = await getContactBriefByCid(cid);
-    if (contactRes.rows.length === 0)
+    const contactResult = await getContactBriefByCid(cid);
+    if (contactResult.rows.length === 0)
       return NextResponse.json(
         { success: false, error: "User not found" },
         { status: 404 },
       );
-    const contact = contactRes.rows[0];
+    const contact = contactResult.rows[0];
     await expirePendingSetupTokensByCid(cid);
     const token = uuidv4();
     const tokenHash = hashToken(token);
@@ -50,7 +50,10 @@ export const POST = createHandler(
       name: contact.name,
       role: contact.role,
       token,
-    }).catch((e) => console.error("Resend invite email failed:", e));
+      contact_cid: cid,
+    }).catch((emailError) =>
+      console.error("Resend invite email failed:", emailError),
+    );
     return NextResponse.json({ success: true, message: "Invite resent" });
   },
 );

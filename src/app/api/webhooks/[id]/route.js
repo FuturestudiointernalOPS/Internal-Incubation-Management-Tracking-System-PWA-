@@ -18,12 +18,12 @@ export const GET = createHandler(async (req, { params }) => {
   if (capError) return capError;
 
   const { id } = await params;
-    const s = new URL(req.url).searchParams;
+    const searchParams = new URL(req.url).searchParams;
 
     const logs = await getWebhookDeliveryLogs(id, {
-      limit: parseInt(s.get("limit")) || 50,
-      offset: parseInt(s.get("offset")) || 0,
-      status: s.get("status"),
+      limit: parseInt(searchParams.get("limit")) || 50,
+      offset: parseInt(searchParams.get("offset")) || 0,
+      status: searchParams.get("status"),
     });
     return NextResponse.json({ success: true, logs });
   },

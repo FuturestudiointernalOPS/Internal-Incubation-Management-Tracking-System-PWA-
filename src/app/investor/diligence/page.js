@@ -18,8 +18,8 @@ import { useApi } from "@/lib/hooks/useApi";
 // Module scope on purpose: the hook keys its internal callback on these
 // functions, so inline arrows would give them a new identity on every render and
 // refetch in a loop.
-const pickDiligence = (d) => (d?.success ? d : null);
-const pickEvaluation = (d) => (d?.success ? d : null);
+const pickDiligence = (response) => (response?.success ? response : null);
+const pickEvaluation = (response) => (response?.success ? response : null);
 
 const REQUEST_CATEGORIES = [
   { id: "corporate", label: "Corporate", color: "bg-blue-500/10 text-blue-400" },
@@ -72,8 +72,8 @@ function DueDiligenceContent() {
   const [activeTab, setActiveTab] = useState("overview");
 
   // New request form
-  const [newReq, setNewReq] = useState({ title: "", description: "", category: "financial", priority: "medium", due_date: "" });
-  const [showReqForm, setShowReqForm] = useState(false);
+  const [newRequest, setNewRequest] = useState({ title: "", description: "", category: "financial", priority: "medium", due_date: "" });
+  const [showRequestForm, setShowRequestForm] = useState(false);
 
   // New note form
   const [newNote, setNewNote] = useState("");
@@ -87,12 +87,12 @@ function DueDiligenceContent() {
 
   const createWorkspace = async () => {
     try {
-      const res = await fetch("/api/investor/diligence", {
+      const response = await fetch("/api/investor/diligence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pipeline_id: pipelineId, action: "create_workspace" }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setToast({ type: "success", message: "Due Diligence workspace created" });
         refreshAll();
@@ -101,29 +101,29 @@ function DueDiligenceContent() {
   };
 
   const addRequest = async () => {
-    if (!newReq.title.trim()) return;
+    if (!newRequest.title.trim()) return;
     try {
-      const res = await fetch("/api/investor/diligence", {
+      const response = await fetch("/api/investor/diligence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pipeline_id: pipelineId, action: "add_request", ...newReq }),
+        body: JSON.stringify({ pipeline_id: pipelineId, action: "add_request", ...newRequest }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setToast({ type: "success", message: "Request submitted" });
-        setNewReq({ title: "", description: "", category: "financial", priority: "medium", due_date: "" });
-        setShowReqForm(false);
+        setNewRequest({ title: "", description: "", category: "financial", priority: "medium", due_date: "" });
+        setShowRequestForm(false);
         refreshAll();
       }
     } catch (_) {}
   };
 
-  const updateRequest = async (reqId, status) => {
+  const updateRequest = async (requestId, status) => {
     try {
       await fetch("/api/investor/diligence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pipeline_id: pipelineId, action: "update_request", request_id: reqId, status }),
+        body: JSON.stringify({ pipeline_id: pipelineId, action: "update_request", request_id: requestId, status }),
       });
       refreshAll();
     } catch (_) {}
@@ -132,12 +132,12 @@ function DueDiligenceContent() {
   const addNote = async () => {
     if (!newNote.trim()) return;
     try {
-      const res = await fetch("/api/investor/diligence", {
+      const response = await fetch("/api/investor/diligence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pipeline_id: pipelineId, action: "add_note", content: newNote, note_type: noteType }),
       });
-      if (res.ok) { setNewNote(""); refreshAll(); }
+      if (response.ok) { setNewNote(""); refreshAll(); }
     } catch (_) {}
   };
 
@@ -154,25 +154,25 @@ function DueDiligenceContent() {
   };
 
   const [followupQuestion, setFollowupQuestion] = useState("");
-  const [followupReqId, setFollowupReqId] = useState(null);
-  const [uploadReqId, setUploadReqId] = useState(null);
-  const [ddDocs, setDdDocs] = useState({});
+  const [followupRequestId, setFollowupRequestId] = useState(null);
+  const [uploadRequestId, setUploadRequestId] = useState(null);
+  const [diligenceDocs, setDiligenceDocs] = useState({});
 
   const handleFileUpload = async (requestId, file) => {
     const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64 = e.target.result.split(",")[1];
+    reader.onload = async (event) => {
+      const base64 = event.target.result.split(",")[1];
       try {
-        const res = await fetch("/api/investor/diligence/documents", {
+        const response = await fetch("/api/investor/diligence/documents", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ request_id: requestId, file_name: file.name, file_type: file.type, file_data: base64 }),
         });
-        const data = await res.json();
+        const data = await response.json();
         if (data.success) {
           setToast({ type: "success", message: `"${file.name}" uploaded` });
-          setUploadReqId(null);
-          fetchDdDocs(requestId);
+          setUploadRequestId(null);
+          fetchDiligenceDocs(requestId);
           refreshAll();
         }
       } catch (_) {}
@@ -180,18 +180,18 @@ function DueDiligenceContent() {
     reader.readAsDataURL(file);
   };
 
-  const fetchDdDocs = async (requestId) => {
+  const fetchDiligenceDocs = async (requestId) => {
     try {
-      const res = await fetch(`/api/investor/diligence/documents?request_id=${requestId}`);
-      const data = await res.json();
-      if (data.success) setDdDocs(prev => ({ ...prev, [requestId]: data.documents }));
+      const response = await fetch(`/api/investor/diligence/documents?request_id=${requestId}`);
+      const data = await response.json();
+      if (data.success) setDiligenceDocs(previousDocs => ({ ...previousDocs, [requestId]: data.documents }));
     } catch (_) {}
   };
 
-  const handleDownload = async (docId) => {
+  const handleDownload = async (documentId) => {
     try {
-      const res = await fetch(`/api/investor/diligence/documents?id=${docId}&download=true`);
-      const data = await res.json();
+      const response = await fetch(`/api/investor/diligence/documents?id=${documentId}&download=true`);
+      const data = await response.json();
       if (data.success && data.document?.file_data) {
         const link = document.createElement("a");
         link.href = `data:${data.document.file_type};base64,${data.document.file_data}`;
@@ -202,17 +202,17 @@ function DueDiligenceContent() {
   };
 
   const addFollowup = async () => {
-    if (!followupQuestion.trim() || !followupReqId) return;
+    if (!followupQuestion.trim() || !followupRequestId) return;
     try {
-      const res = await fetch("/api/investor/diligence", {
+      const response = await fetch("/api/investor/diligence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pipeline_id: pipelineId, action: "add_followup", request_id: followupReqId, question: followupQuestion }),
+        body: JSON.stringify({ pipeline_id: pipelineId, action: "add_followup", request_id: followupRequestId, question: followupQuestion }),
       });
-      if (res.ok) {
+      if (response.ok) {
         setToast({ type: "success", message: "Follow-up question submitted" });
         setFollowupQuestion("");
-        setFollowupReqId(null);
+        setFollowupRequestId(null);
         refreshAll();
       }
     } catch (_) {}
@@ -246,7 +246,7 @@ function DueDiligenceContent() {
     } catch (_) {}
   };
 
-  const completedReqs = requests.filter(r => r.status === "responded" || r.status === "closed").length;
+  const completedReqs = requests.filter(request => request.status === "responded" || request.status === "closed").length;
   const progress = requests.length > 0 ? Math.round((completedReqs / requests.length) * 100) : 0;
 
   if (loading) {
@@ -330,10 +330,10 @@ function DueDiligenceContent() {
                         { label: "Country", value: pipeline?.country || "—" },
                         { label: "Stage", value: pipeline?.business_stage || "—" },
                         { label: "Status", value: workspace.status || "active" },
-                      ].map((m, i) => (
-                        <div key={i} className="p-3 rounded-xl bg-[var(--surface-3)]">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{m.label}</p>
-                          <p className="text-xs font-bold text-[var(--text-primary)] mt-1">{m.value}</p>
+                      ].map((metric, index) => (
+                        <div key={index} className="p-3 rounded-xl bg-[var(--surface-3)]">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{metric.label}</p>
+                          <p className="text-xs font-bold text-[var(--text-primary)] mt-1">{metric.value}</p>
                         </div>
                       ))}
                     </div>
@@ -347,28 +347,28 @@ function DueDiligenceContent() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">{t("requests")}</h3>
-                  <AppButton variant="primary" size="sm" icon={Plus} onClick={() => setShowReqForm(true)}>{t("newRequest")}</AppButton>
+                  <AppButton variant="primary" size="sm" icon={Plus} onClick={() => setShowRequestForm(true)}>{t("newRequest")}</AppButton>
                 </div>
 
-                {showReqForm && (
+                {showRequestForm && (
                   <AppCard padding="md">
                     <div className="space-y-3">
-                      <input value={newReq.title} onChange={e => setNewReq({...newReq, title: e.target.value})}
+                      <input value={newRequest.title} onChange={event => setNewRequest({...newRequest, title: event.target.value})}
                         placeholder="What information do you need? (e.g. Financial Statements 2024)"
                         className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" />
                       <div className="flex gap-2 flex-wrap">
                         <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] self-center">Category:</span>
-                        {REQUEST_CATEGORIES.map(c => (
-                          <button key={c.id} onClick={() => setNewReq({...newReq, category: c.id})}
-                            className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase ${newReq.category === c.id ? "bg-[var(--brand-orange)] text-white" : c.color}`}>
-                            {c.label}
+                        {REQUEST_CATEGORIES.map(categoryOption => (
+                          <button key={categoryOption.id} onClick={() => setNewRequest({...newRequest, category: categoryOption.id})}
+                            className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase ${newRequest.category === categoryOption.id ? "bg-[var(--brand-orange)] text-white" : categoryOption.color}`}>
+                            {categoryOption.label}
                           </button>
                         ))}
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Priority</label>
-                          <select value={newReq.priority} onChange={e => setNewReq({...newReq, priority: e.target.value})}
+                          <select value={newRequest.priority} onChange={event => setNewRequest({...newRequest, priority: event.target.value})}
                             className="w-full mt-0.5 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-[10px] font-bold text-[var(--text-primary)] outline-none">
                             <option value="low">Low</option>
                             <option value="medium">Medium</option>
@@ -377,75 +377,75 @@ function DueDiligenceContent() {
                         </div>
                         <div>
                           <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Due Date</label>
-                          <input type="date" value={newReq.due_date} onChange={e => setNewReq({...newReq, due_date: e.target.value})}
+                          <input type="date" value={newRequest.due_date} onChange={event => setNewRequest({...newRequest, due_date: event.target.value})}
                             className="w-full mt-0.5 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-[10px] font-bold text-[var(--text-primary)] outline-none" />
                         </div>
                       </div>
-                      <textarea value={newReq.description} onChange={e => setNewReq({...newReq, description: e.target.value})}
+                      <textarea value={newRequest.description} onChange={event => setNewRequest({...newRequest, description: event.target.value})}
                         rows={2} placeholder="Additional details or comments..."
                         className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none" />
                       <div className="flex gap-2 justify-end">
-                        <AppButton variant="secondary" size="sm" onClick={() => setShowReqForm(false)}>{t("cancel")}</AppButton>
+                        <AppButton variant="secondary" size="sm" onClick={() => setShowRequestForm(false)}>{t("cancel")}</AppButton>
                         <AppButton variant="primary" size="sm" icon={Send} onClick={addRequest}>{t("submit")}</AppButton>
                       </div>
                     </div>
                   </AppCard>
                 )}
 
-                {requests.length === 0 && !showReqForm ? (
+                {requests.length === 0 && !showRequestForm ? (
                   <div className="text-center py-12">
                     <ClipboardList className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3" />
                     <p className="text-sm font-bold text-[var(--text-secondary)]">No requests yet</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {requests.map(r => {
-                      const cat = REQUEST_CATEGORIES.find(c => c.id === r.category) || REQUEST_CATEGORIES[0];
+                    {requests.map(request => {
+                      const category = REQUEST_CATEGORIES.find(categoryOption => categoryOption.id === request.category) || REQUEST_CATEGORIES[0];
                       return (
-                        <AppCard key={r.id} padding="md">
+                        <AppCard key={request.id} padding="md">
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${cat.color}`}>{cat.label}</span>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${category.color}`}>{category.label}</span>
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                  r.status === "responded" || r.status === "closed" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
-                                }`}>{r.status}</span>
+                                  request.status === "responded" || request.status === "closed" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+                                }`}>{request.status}</span>
                               </div>
-                              <p className="text-sm font-bold text-[var(--text-primary)]">{r.title}</p>
+                              <p className="text-sm font-bold text-[var(--text-primary)]">{request.title}</p>
                               <div className="flex items-center gap-2 mt-0.5">
-                                {r.priority && (
+                                {request.priority && (
                                   <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                    r.priority === "high" ? "bg-rose-500/10 text-rose-400" : r.priority === "medium" ? "bg-amber-500/10 text-amber-400" : "bg-slate-500/10 text-slate-400"
-                                  }`}>{r.priority}</span>
+                                    request.priority === "high" ? "bg-rose-500/10 text-rose-400" : request.priority === "medium" ? "bg-amber-500/10 text-amber-400" : "bg-slate-500/10 text-slate-400"
+                                  }`}>{request.priority}</span>
                                 )}
-                                {r.due_date && (
-                                  <span className="text-[10px] font-medium text-[var(--text-tertiary)]">Due: {new Date(r.due_date).toLocaleDateString()}</span>
+                                {request.due_date && (
+                                  <span className="text-[10px] font-medium text-[var(--text-tertiary)]">Due: {new Date(request.due_date).toLocaleDateString()}</span>
                                 )}
                               </div>
-                              {r.description && <p className="text-xs text-[var(--text-secondary)] mt-1">{r.description}</p>}
-                              {r.response_text && (
+                              {request.description && <p className="text-xs text-[var(--text-secondary)] mt-1">{request.description}</p>}
+                              {request.response_text && (
                                 <div className="mt-2 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
                                   <p className="text-[10px] font-bold text-emerald-400 uppercase mb-1">Response:</p>
-                                  <p className="text-xs text-[var(--text-secondary)]">{r.response_text}</p>
+                                  <p className="text-xs text-[var(--text-secondary)]">{request.response_text}</p>
                                 </div>
                               )}
                               {/* Follow-up questions */}
-                              {r.follow_up_questions && (() => {
+                              {request.follow_up_questions && (() => {
                                 try {
-                                  const fups = typeof r.follow_up_questions === "string" ? JSON.parse(r.follow_up_questions) : r.follow_up_questions;
-                                  if (!Array.isArray(fups) || fups.length === 0) return null;
+                                  const followUps = typeof request.follow_up_questions === "string" ? JSON.parse(request.follow_up_questions) : request.follow_up_questions;
+                                  if (!Array.isArray(followUps) || followUps.length === 0) return null;
                                   return (
                                     <div className="mt-2 space-y-1.5">
                                       <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Follow-up Questions</p>
-                                      {fups.map((fq, i) => (
-                                        <div key={i} className="p-2 rounded-lg bg-[var(--surface-2)] text-[10px]">
-                                          <p className="text-[var(--text-primary)] font-bold">Q: {fq.question}</p>
-                                          {fq.response ? (
-                                            <p className="text-emerald-400 mt-1">A: {fq.response}</p>
+                                      {followUps.map((followUp, index) => (
+                                        <div key={index} className="p-2 rounded-lg bg-[var(--surface-2)] text-[10px]">
+                                          <p className="text-[var(--text-primary)] font-bold">Q: {followUp.question}</p>
+                                          {followUp.response ? (
+                                            <p className="text-emerald-400 mt-1">A: {followUp.response}</p>
                                           ) : (
                                             <p className="text-amber-400 mt-1">Awaiting response...</p>
                                           )}
-                                          <p className="text-[10px] font-medium text-[var(--text-tertiary)] mt-0.5">{new Date(fq.asked_at).toLocaleDateString()}</p>
+                                          <p className="text-[10px] font-medium text-[var(--text-tertiary)] mt-0.5">{new Date(followUp.asked_at).toLocaleDateString()}</p>
                                         </div>
                                       ))}
                                     </div>
@@ -453,19 +453,19 @@ function DueDiligenceContent() {
                                 } catch (_) { return null; }
                               })()}
                               {/* Add follow-up question (for investor, when docs uploaded) */}
-                              {r.status === "documents_uploaded" || r.status === "verified" ? (
+                              {request.status === "documents_uploaded" || request.status === "verified" ? (
                                 <div className="mt-2">
-                                  {followupReqId === r.id ? (
+                                  {followupRequestId === request.id ? (
                                     <div className="flex gap-2">
-                                      <input value={followupQuestion} onChange={e => setFollowupQuestion(e.target.value)}
+                                      <input value={followupQuestion} onChange={event => setFollowupQuestion(event.target.value)}
                                         placeholder="Ask a follow-up question..."
                                         className="flex-1 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-[10px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60"
-                                        onKeyDown={e => e.key === "Enter" && addFollowup()} />
+                                        onKeyDown={event => event.key === "Enter" && addFollowup()} />
                                       <AppButton variant="primary" size="sm" icon={Send} onClick={addFollowup}>Send</AppButton>
-                                      <AppButton variant="secondary" size="sm" onClick={() => { setFollowupReqId(null); setFollowupQuestion(""); }}>Cancel</AppButton>
+                                      <AppButton variant="secondary" size="sm" onClick={() => { setFollowupRequestId(null); setFollowupQuestion(""); }}>Cancel</AppButton>
                                     </div>
                                   ) : (
-                                    <button onClick={() => setFollowupReqId(r.id)}
+                                    <button onClick={() => setFollowupRequestId(request.id)}
                                       className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline">
                                       + Ask follow-up question
                                     </button>
@@ -474,9 +474,9 @@ function DueDiligenceContent() {
                               ) : null}
                               {/* Documents section */}
                               <div className="pt-2 border-t border-[var(--border-primary)]">
-                                {(ddDocs[r.id] || []).length > 0 && (
+                                {(diligenceDocs[request.id] || []).length > 0 && (
                                   <div className="space-y-1 mb-2">
-                                    {(ddDocs[r.id] || []).map(doc => (
+                                    {(diligenceDocs[request.id] || []).map(doc => (
                                       <div key={doc.id} className="flex items-center justify-between p-1.5 rounded-lg bg-[var(--surface-2)]">
                                         <div className="flex items-center gap-2">
                                           <FileText className="w-3 h-3 text-[var(--text-tertiary)]" />
@@ -489,21 +489,21 @@ function DueDiligenceContent() {
                                     ))}
                                   </div>
                                 )}
-                                {r.status !== "completed" && r.status !== "closed" && (
-                                  uploadReqId === r.id ? (
+                                {request.status !== "completed" && request.status !== "closed" && (
+                                  uploadRequestId === request.id ? (
                                     <div className="flex items-center gap-2">
-                                      <input type="file" id={`inv-dd-upload-${r.id}`}
-                                        onChange={e => { if (e.target.files[0]) handleFileUpload(r.id, e.target.files[0]); }}
+                                      <input type="file" id={`inv-dd-upload-${request.id}`}
+                                        onChange={event => { if (event.target.files[0]) handleFileUpload(request.id, event.target.files[0]); }}
                                         className="hidden" />
-                                      <label htmlFor={`inv-dd-upload-${r.id}`}
+                                      <label htmlFor={`inv-dd-upload-${request.id}`}
                                         className="px-3 py-1.5 rounded-lg bg-[var(--surface-2)] text-[10px] font-bold text-[var(--text-secondary)] cursor-pointer hover:text-[var(--text-primary)]">
                                         Choose file...
                                       </label>
-                                      <button onClick={() => setUploadReqId(null)}
+                                      <button onClick={() => setUploadRequestId(null)}
                                         className="text-[10px] font-bold text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">Cancel</button>
                                     </div>
                                   ) : (
-                                    <button onClick={() => { setUploadReqId(r.id); fetchDdDocs(r.id); }}
+                                    <button onClick={() => { setUploadRequestId(request.id); fetchDiligenceDocs(request.id); }}
                                       className="flex items-center gap-1 text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline">
                                       <Upload className="w-3 h-3" /> Upload Document
                                     </button>
@@ -512,10 +512,10 @@ function DueDiligenceContent() {
                               </div>
                             </div>
                             <div className="flex gap-2 shrink-0">
-                              {r.status === "pending" && (
+                              {request.status === "pending" && (
                                 <>
-                                  <AppButton variant="secondary" size="sm" onClick={() => updateRequest(r.id, "responded")}><CheckCircle2 className="w-3 h-3" /></AppButton>
-                                  <AppButton variant="secondary" size="sm" onClick={() => updateRequest(r.id, "closed")}><X className="w-3 h-3" /></AppButton>
+                                  <AppButton variant="secondary" size="sm" onClick={() => updateRequest(request.id, "responded")}><CheckCircle2 className="w-3 h-3" /></AppButton>
+                                  <AppButton variant="secondary" size="sm" onClick={() => updateRequest(request.id, "closed")}><X className="w-3 h-3" /></AppButton>
                                 </>
                               )}
                             </div>
@@ -533,15 +533,15 @@ function DueDiligenceContent() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center"><h3 className="text-sm font-black text-[var(--text-primary)] uppercase">Founder Evaluations</h3><AppButton variant="primary" size="sm" icon={Plus} onClick={()=>setShowFounderForm(true)}>Evaluate Founder</AppButton></div>
                 {showFounderForm && (<AppCard padding="md"><div className="space-y-3">
-                  <input value={founderForm.founder_name} onChange={e=>setFounderForm({...founderForm,founder_name:e.target.value})} placeholder="Founder name *" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none"/>
-                  <input value={founderForm.role} onChange={e=>setFounderForm({...founderForm,role:e.target.value})} placeholder="Role (e.g. CEO, CTO)" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none"/>
+                  <input value={founderForm.founder_name} onChange={event=>setFounderForm({...founderForm,founder_name:event.target.value})} placeholder="Founder name *" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none"/>
+                  <input value={founderForm.role} onChange={event=>setFounderForm({...founderForm,role:event.target.value})} placeholder="Role (e.g. CEO, CTO)" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none"/>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {[{key:"experience_score",label:"Experience"},{key:"leadership_score",label:"Leadership"},{key:"domain_expertise_score",label:"Domain"},{key:"overall_rating",label:"Overall"}].map(s=>(<div key={s.key}><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{s.label} (0-10)</label><input type="number" min={0} max={10} value={founderForm[s.key]} onChange={e=>setFounderForm({...founderForm,[s.key]:parseInt(e.target.value)||0})} className="w-full mt-0.5 px-2 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-xs font-bold text-[var(--text-primary)] outline-none"/></div>))}
+                    {[{key:"experience_score",label:"Experience"},{key:"leadership_score",label:"Leadership"},{key:"domain_expertise_score",label:"Domain"},{key:"overall_rating",label:"Overall"}].map(scoreField=>(<div key={scoreField.key}><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{scoreField.label} (0-10)</label><input type="number" min={0} max={10} value={founderForm[scoreField.key]} onChange={event=>setFounderForm({...founderForm,[scoreField.key]:parseInt(event.target.value)||0})} className="w-full mt-0.5 px-2 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-xs font-bold text-[var(--text-primary)] outline-none"/></div>))}
                   </div>
-                  <textarea value={founderForm.notes} onChange={e=>setFounderForm({...founderForm,notes:e.target.value})} rows={2} placeholder="Evaluation notes..." className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/>
+                  <textarea value={founderForm.notes} onChange={event=>setFounderForm({...founderForm,notes:event.target.value})} rows={2} placeholder="Evaluation notes..." className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/>
                   <div className="flex justify-end gap-2"><AppButton variant="secondary" size="sm" onClick={()=>setShowFounderForm(false)}>Cancel</AppButton><AppButton variant="primary" size="sm" icon={Save} onClick={saveFounder}>Save</AppButton></div>
                 </div></AppCard>)}
-                {founders.length===0&&!showFounderForm?<div className="text-center py-12"><Users className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3"/><p className="text-sm font-bold text-[var(--text-secondary)]">No founder evaluations yet</p></div>:<div className="space-y-3">{founders.map(f=>(<AppCard key={f.id} padding="md"><div className="flex items-start justify-between"><div><p className="text-sm font-bold text-[var(--text-primary)]">{f.founder_name}{f.role?` — ${f.role}`:""}</p><div className="flex gap-4 mt-2 text-[10px]"><span className="text-[var(--text-secondary)]">Exp: <b className="text-[var(--text-primary)]">{f.experience_score}/10</b></span><span className="text-[var(--text-secondary)]">Leadership: <b className="text-[var(--text-primary)]">{f.leadership_score}/10</b></span><span className="text-[var(--text-secondary)]">Domain: <b className="text-[var(--text-primary)]">{f.domain_expertise_score}/10</b></span></div><div className="mt-1"><span className="text-[10px] font-black text-[var(--brand-orange)]">Overall: {f.overall_rating}/10</span></div>{f.notes&&<p className="text-[10px] text-[var(--text-tertiary)] mt-2">{f.notes}</p>}</div></div></AppCard>))}</div>}
+                {founders.length===0&&!showFounderForm?<div className="text-center py-12"><Users className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3"/><p className="text-sm font-bold text-[var(--text-secondary)]">No founder evaluations yet</p></div>:<div className="space-y-3">{founders.map(founder=>(<AppCard key={founder.id} padding="md"><div className="flex items-start justify-between"><div><p className="text-sm font-bold text-[var(--text-primary)]">{founder.founder_name}{founder.role?` — ${founder.role}`:""}</p><div className="flex gap-4 mt-2 text-[10px]"><span className="text-[var(--text-secondary)]">Exp: <b className="text-[var(--text-primary)]">{founder.experience_score}/10</b></span><span className="text-[var(--text-secondary)]">Leadership: <b className="text-[var(--text-primary)]">{founder.leadership_score}/10</b></span><span className="text-[var(--text-secondary)]">Domain: <b className="text-[var(--text-primary)]">{founder.domain_expertise_score}/10</b></span></div><div className="mt-1"><span className="text-[10px] font-black text-[var(--brand-orange)]">Overall: {founder.overall_rating}/10</span></div>{founder.notes&&<p className="text-[10px] text-[var(--text-tertiary)] mt-2">{founder.notes}</p>}</div></div></AppCard>))}</div>}
               </div>
             )}
 
@@ -550,17 +550,17 @@ function DueDiligenceContent() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center"><h3 className="text-sm font-black text-[var(--text-primary)] uppercase">Risk Assessments</h3><AppButton variant="primary" size="sm" icon={Plus} onClick={()=>setShowRiskForm(true)}>Add Risk</AppButton></div>
                 {showRiskForm && (<AppCard padding="md"><div className="space-y-3">
-                  <div className="flex gap-2">{["market","product","financial","operational","legal"].map(c=>(<button key={c} onClick={()=>setRiskForm({...riskForm,risk_category:c})} className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase ${riskForm.risk_category===c?"bg-[var(--brand-orange)] text-white":"bg-[var(--surface-3)] text-[var(--text-secondary)]"}`}>{c}</button>))}</div>
-                  <textarea value={riskForm.risk_description} onChange={e=>setRiskForm({...riskForm,risk_description:e.target.value})} rows={2} placeholder="Describe the risk *" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/>
+                  <div className="flex gap-2">{["market","product","financial","operational","legal"].map(riskCategory=>(<button key={riskCategory} onClick={()=>setRiskForm({...riskForm,risk_category:riskCategory})} className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase ${riskForm.risk_category===riskCategory?"bg-[var(--brand-orange)] text-white":"bg-[var(--surface-3)] text-[var(--text-secondary)]"}`}>{riskCategory}</button>))}</div>
+                  <textarea value={riskForm.risk_description} onChange={event=>setRiskForm({...riskForm,risk_description:event.target.value})} rows={2} placeholder="Describe the risk *" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/>
                   <div className="grid grid-cols-3 gap-3">
-                    <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Severity</label><select value={riskForm.severity} onChange={e=>setRiskForm({...riskForm,severity:e.target.value})} className="w-full mt-0.5 px-2 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-xs font-bold outline-none"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
-                    <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Status</label><select value={riskForm.status} onChange={e=>setRiskForm({...riskForm,status:e.target.value})} className="w-full mt-0.5 px-2 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-xs font-bold outline-none"><option value="open">Open</option><option value="mitigated">Mitigated</option><option value="accepted">Accepted</option></select></div>
+                    <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Severity</label><select value={riskForm.severity} onChange={event=>setRiskForm({...riskForm,severity:event.target.value})} className="w-full mt-0.5 px-2 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-xs font-bold outline-none"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
+                    <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Status</label><select value={riskForm.status} onChange={event=>setRiskForm({...riskForm,status:event.target.value})} className="w-full mt-0.5 px-2 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-xs font-bold outline-none"><option value="open">Open</option><option value="mitigated">Mitigated</option><option value="accepted">Accepted</option></select></div>
                     <div/>
                   </div>
-                  <input value={riskForm.mitigation} onChange={e=>setRiskForm({...riskForm,mitigation:e.target.value})} placeholder="Mitigation strategy (optional)" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none"/>
+                  <input value={riskForm.mitigation} onChange={event=>setRiskForm({...riskForm,mitigation:event.target.value})} placeholder="Mitigation strategy (optional)" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none"/>
                   <div className="flex justify-end gap-2"><AppButton variant="secondary" size="sm" onClick={()=>setShowRiskForm(false)}>Cancel</AppButton><AppButton variant="primary" size="sm" onClick={saveRisk}>Save</AppButton></div>
                 </div></AppCard>)}
-                {risks.length===0&&!showRiskForm?<div className="text-center py-12"><AlertTriangle className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3"/><p className="text-sm font-bold text-[var(--text-secondary)]">No risks assessed yet</p></div>:<div className="space-y-3">{risks.map(r=>{const sevColors={low:"bg-blue-500/10 text-blue-400",medium:"bg-amber-500/10 text-amber-400",high:"bg-orange-500/10 text-orange-400",critical:"bg-rose-500/10 text-rose-400"};return(<AppCard key={r.id} padding="md"><div className="flex items-start justify-between"><div className="flex-1"><div className="flex items-center gap-2 mb-1"><span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-500/10 text-purple-400">{r.risk_category}</span><span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${sevColors[r.severity]||sevColors.medium}`}>{r.severity}</span><span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${r.status==="open"?"bg-amber-500/10 text-amber-400":r.status==="mitigated"?"bg-emerald-500/10 text-emerald-400":"bg-slate-500/10 text-slate-400"}`}>{r.status}</span></div><p className="text-xs text-[var(--text-primary)]">{r.risk_description}</p>{r.mitigation&&<p className="text-[10px] text-emerald-400 mt-1">Mitigation: {r.mitigation}</p>}</div></div></AppCard>)})}</div>}
+                {risks.length===0&&!showRiskForm?<div className="text-center py-12"><AlertTriangle className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3"/><p className="text-sm font-bold text-[var(--text-secondary)]">No risks assessed yet</p></div>:<div className="space-y-3">{risks.map(risk=>{const severityColors={low:"bg-blue-500/10 text-blue-400",medium:"bg-amber-500/10 text-amber-400",high:"bg-orange-500/10 text-orange-400",critical:"bg-rose-500/10 text-rose-400"};return(<AppCard key={risk.id} padding="md"><div className="flex items-start justify-between"><div className="flex-1"><div className="flex items-center gap-2 mb-1"><span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-500/10 text-purple-400">{risk.risk_category}</span><span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${severityColors[risk.severity]||severityColors.medium}`}>{risk.severity}</span><span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${risk.status==="open"?"bg-amber-500/10 text-amber-400":risk.status==="mitigated"?"bg-emerald-500/10 text-emerald-400":"bg-slate-500/10 text-slate-400"}`}>{risk.status}</span></div><p className="text-xs text-[var(--text-primary)]">{risk.risk_description}</p>{risk.mitigation&&<p className="text-[10px] text-emerald-400 mt-1">Mitigation: {risk.mitigation}</p>}</div></div></AppCard>)})}</div>}
               </div>
             )}
 
@@ -569,15 +569,15 @@ function DueDiligenceContent() {
               <div className="space-y-4">
                 <AppCard padding="md">
                   <div className="space-y-3">
-                    <textarea value={newNote} onChange={e => setNewNote(e.target.value)}
+                    <textarea value={newNote} onChange={event => setNewNote(event.target.value)}
                       rows={2} placeholder="Write an investment note..."
                       className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none" />
                     <div className="flex items-center justify-between">
                       <div className="flex gap-2">
-                        {["private", "shared", "advisor", "decision"].map(t => (
-                          <button key={t} onClick={() => setNoteType(t)}
-                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${noteType === t ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)]"}`}>
-                            {t}
+                        {["private", "shared", "advisor", "decision"].map(noteTypeOption => (
+                          <button key={noteTypeOption} onClick={() => setNoteType(noteTypeOption)}
+                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${noteType === noteTypeOption ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)]"}`}>
+                            {noteTypeOption}
                           </button>
                         ))}
                       </div>
@@ -593,19 +593,19 @@ function DueDiligenceContent() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {notes.map(n => (
-                      <AppCard key={n.id} padding="md">
+                    {notes.map(note => (
+                      <AppCard key={note.id} padding="md">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                n.note_type === "private" ? "bg-slate-500/10 text-slate-400" :
-                                n.note_type === "shared" ? "bg-blue-500/10 text-blue-400" :
-                                n.note_type === "advisor" ? "bg-purple-500/10 text-purple-400" : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
-                              }`}>{n.note_type}</span>
+                                note.note_type === "private" ? "bg-slate-500/10 text-slate-400" :
+                                note.note_type === "shared" ? "bg-blue-500/10 text-blue-400" :
+                                note.note_type === "advisor" ? "bg-purple-500/10 text-purple-400" : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                              }`}>{note.note_type}</span>
                             </div>
-                            <p className="text-xs text-[var(--text-primary)]">{n.content}</p>
-                            <p className="text-[10px] text-[var(--text-tertiary)] mt-2">{new Date(n.created_at).toLocaleString()}</p>
+                            <p className="text-xs text-[var(--text-primary)]">{note.content}</p>
+                            <p className="text-[10px] text-[var(--text-tertiary)] mt-2">{new Date(note.created_at).toLocaleString()}</p>
                           </div>
                         </div>
                       </AppCard>

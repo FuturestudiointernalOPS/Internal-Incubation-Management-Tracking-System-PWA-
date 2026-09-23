@@ -16,10 +16,10 @@ const EMPTY_SECTION_RESOURCES = { resources: null, failure: null };
  * The section's material, together with the reason it is missing. A refusal
  * carries the server's own i18n key, which is what the toast already showed.
  */
-const pickSectionResources = (d) =>
-  d?.success
-    ? { resources: d.resources || [], failure: null }
-    : { resources: [], failure: d?.error || "lms.errors.loadFailed" };
+const pickSectionResources = (data) =>
+  data?.success
+    ? { resources: data.resources || [], failure: null }
+    : { resources: [], failure: data?.error || "lms.errors.loadFailed" };
 
 /**
  * SECTION RESOURCES — panel of the course editor.
@@ -72,10 +72,10 @@ export default function SectionResourcesPanel({ courseId, sectionId, canEdit = f
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       await refresh();
       return true;
-    } catch (e) {
+    } catch (error) {
       // Rethrown so the editor keeps the form open: nothing the author typed is lost.
-      notify("error", e.message || "lms.errors.saveFailed");
-      throw e;
+      notify("error", error.message || "lms.errors.saveFailed");
+      throw error;
     } finally {
       setSaving(false);
     }

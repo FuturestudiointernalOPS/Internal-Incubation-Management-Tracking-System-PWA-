@@ -7,6 +7,7 @@ import AppButton from "@/components/ui/AppButton";
 import CourseThumb from "./CourseThumb";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import { useApi } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
 
@@ -21,10 +22,10 @@ const EMPTY_PROGRAM_LEARNING = { requirements: null, summary: [], failure: null 
  * they are missing. A refusal carries the server's own i18n key, which is what
  * the toast already showed.
  */
-const pickProgramLearning = (d) =>
-  d?.success
-    ? { requirements: d.requirements || [], summary: d.summary || [], failure: null }
-    : { requirements: [], summary: [], failure: d?.error || "lms.errors.loadFailed" };
+const pickProgramLearning = (data) =>
+  data?.success
+    ? { requirements: data.requirements || [], summary: data.summary || [], failure: null }
+    : { requirements: [], summary: [], failure: data?.error || "lms.errors.loadFailed" };
 
 /**
  * PROGRAM LEARNING SECTION (Phase 6 — Program Manager experience)
@@ -49,6 +50,7 @@ export default function ProgramLearningSection({
   canEdit = false,
 }) {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const { can, permissions, loading: permsLoading } = usePermissions();
   // The shell resolves the capability matrix once per surface and shares it.
   // Until it lands we know nothing about this viewer, so we neither fetch (a
@@ -99,8 +101,8 @@ export default function ProgramLearningSection({
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "lms.errors.loadFailed");
       setCourses(data.courses || []);
-    } catch (e) {
-      notify("error", e.message || "lms.errors.loadFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.loadFailed");
       setCourses([]);
     }
   };
@@ -124,8 +126,8 @@ export default function ProgramLearningSection({
       notify("success", "lms.programLearning.attached");
       setShowPicker(false);
       refresh();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     } finally {
       setSaving(false);
     }
@@ -142,13 +144,13 @@ export default function ProgramLearningSection({
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.programLearning.updated");
       refresh();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     }
   };
 
   const detach = async (req) => {
-    if (!window.confirm(t("lms.programLearning.confirmDetach"))) return;
+    if (!(await confirm({ message: t("lms.programLearning.confirmDetach"), tone: "danger" }))) return;
     try {
       const res = await fetch(`/api/lms/program-requirements/${req.id}`, {
         method: "DELETE",
@@ -157,13 +159,13 @@ export default function ProgramLearningSection({
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.programLearning.detached");
       refresh();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     }
   };
 
   const availableCourses = (courses || []).filter(
-    (c) => !(requirements || []).some((r) => String(r.course_id) === String(c.id)),
+    (course) => !(requirements || []).some((requirement) => String(requirement.course_id) === String(course.id)),
   );
 
   // Not granted the LMS: the section has nothing to show and every call would
@@ -244,13 +246,13 @@ export default function ProgramLearningSection({
                       </span>
                     )}
                     {canManageLms &&
-                      summary.find((s) => String(s.requirement_id) === String(req.id)) &&
+                      summary.find((summaryEntry) => String(summaryEntry.requirement_id) === String(req.id)) &&
                       (() => {
-                        const s = summary.find((x) => String(x.requirement_id) === String(req.id));
+                        const summaryEntry = summary.find((entry) => String(entry.requirement_id) === String(req.id));
                         return (
                           <span className="text-[8px] font-bold uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>
-                            {t("lms.programLearning.enrolledCount", { n: s.enrolled })}
-                            {s.completed > 0 ? ` · ${t("lms.programLearning.completedCount", { n: s.completed })}` : ""}
+                            {t("lms.programLearning.enrolledCount", { n: summaryEntry.enrolled })}
+                            {summaryEntry.completed > 0 ? ` · ${t("lms.programLearning.completedCount", { n: summaryEntry.completed })}` : ""}
                           </span>
                         );
                       })()}

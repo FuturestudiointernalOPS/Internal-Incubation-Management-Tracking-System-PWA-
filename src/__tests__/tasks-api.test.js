@@ -21,15 +21,15 @@ jest.mock("@/lib/db", () => {
         // getTaskById: SELECT * FROM tasks WHERE id = ?
         if (sql.includes("SELECT * FROM tasks WHERE id = ?")) {
           const id = Number(args[0]);
-          return { rows: state.tasks.filter((t) => t.id === id) };
+          return { rows: state.tasks.filter((task) => task.id === id) };
         }
         // Sibling incomplete count: SELECT COUNT(*) AS total ... WHERE parent_task_id = ?
         if (sql.includes("COUNT(*) AS total") && sql.includes("parent_task_id = ?")) {
-          const pid = Number(args[0]);
+          const parentTaskId = Number(args[0]);
           const total = state.tasks.filter(
-            (t) =>
-              t.parent_task_id === pid &&
-              !["completed", "archived"].includes(t.status),
+            (task) =>
+              task.parent_task_id === parentTaskId &&
+              !["completed", "archived"].includes(task.status),
           ).length;
           return { rows: [{ total }] };
         }
@@ -38,10 +38,10 @@ jest.mock("@/lib/db", () => {
           sql.includes("SELECT id FROM blockers WHERE task_id = ?") &&
           sql.includes("status = 'active'")
         ) {
-          const tid = Number(args[0]);
+          const taskId = Number(args[0]);
           return {
             rows: state.blockers.filter(
-              (b) => b.task_id === tid && b.status === "active",
+              (blocker) => blocker.task_id === taskId && blocker.status === "active",
             ),
           };
         }
@@ -51,9 +51,9 @@ jest.mock("@/lib/db", () => {
           sql.includes("WHERE id = ?")
         ) {
           const id = Number(args[args.length - 1]);
-          const t = state.tasks.find((x) => x.id === id);
-          if (t && t.status !== "archived" && t.status !== "completed") {
-            t.status = "completed";
+          const task = state.tasks.find((candidate) => candidate.id === id);
+          if (task && task.status !== "archived" && task.status !== "completed") {
+            task.status = "completed";
             return { rowsAffected: 1 };
           }
           return { rowsAffected: 0 };
@@ -63,16 +63,16 @@ jest.mock("@/lib/db", () => {
           sql.trim().startsWith("UPDATE tasks SET status = 'completed'") &&
           sql.includes("WHERE parent_task_id = ?")
         ) {
-          const pid = Number(args[0]);
+          const parentTaskId = Number(args[0]);
           state.tasks
             .filter(
-              (t) =>
-                t.parent_task_id === pid &&
-                t.status !== "completed" &&
-                t.status !== "archived",
+              (task) =>
+                task.parent_task_id === parentTaskId &&
+                task.status !== "completed" &&
+                task.status !== "archived",
             )
-            .forEach((t) => {
-              t.status = "completed";
+            .forEach((task) => {
+              task.status = "completed";
             });
           return { rowsAffected: 1 };
         }
@@ -82,9 +82,9 @@ jest.mock("@/lib/db", () => {
           sql.includes("WHERE id = ?")
         ) {
           const id = Number(args[args.length - 1]);
-          const t = state.tasks.find((x) => x.id === id);
-          if (t && t.status === "completed") {
-            t.status = "in_progress";
+          const task = state.tasks.find((candidate) => candidate.id === id);
+          if (task && task.status === "completed") {
+            task.status = "in_progress";
             return { rowsAffected: 1 };
           }
           return { rowsAffected: 0 };
@@ -92,16 +92,16 @@ jest.mock("@/lib/db", () => {
         // Generic UPDATE with parameterized status
         if (sql.trim().startsWith("UPDATE tasks SET")) {
           const id = Number(args[args.length - 1]);
-          const t = state.tasks.find((x) => x.id === id);
-          if (t && sql.includes("status = ?")) {
+          const task = state.tasks.find((candidate) => candidate.id === id);
+          if (task && sql.includes("status = ?")) {
             const statusIdx = sql.indexOf("status = ?");
             const paramCount = sql.slice(0, statusIdx).split("?").length - 1;
-            t.status = args[paramCount];
+            task.status = args[paramCount];
             if (sql.includes("completed_at = CURRENT_TIMESTAMP")) {
-              t.completed_at = new Date().toISOString();
+              task.completed_at = new Date().toISOString();
             }
             if (sql.includes("completed_at = NULL")) {
-              t.completed_at = null;
+              task.completed_at = null;
             }
           }
           return { rowsAffected: 1 };
@@ -150,19 +150,19 @@ jest.mock("@/lib/standupUpsert", () => ({
 
 jest.mock("@/lib/db/queries/tasks", () => ({
   getTaskById: jest.fn(async (id) => {
-    const t = global.__dbState.tasks.find((x) => x.id === Number(id));
-    return t || null;
+    const task = global.__dbState.tasks.find((candidate) => candidate.id === Number(id));
+    return task || null;
   }),
   getTaskTitleById: jest.fn(async (id) => {
-    const t = global.__dbState.tasks.find((x) => x.id === Number(id));
-    return t ? t.title : null;
+    const task = global.__dbState.tasks.find((candidate) => candidate.id === Number(id));
+    return task ? task.title : null;
   }),
   getTaskEndDateById: jest.fn(async (id) => {
-    const t = global.__dbState.tasks.find((x) => x.id === Number(id));
-    return t ? t.end_date || null : null;
+    const task = global.__dbState.tasks.find((candidate) => candidate.id === Number(id));
+    return task ? task.end_date || null : null;
   }),
   taskExists: jest.fn(async (id) =>
-    global.__dbState.tasks.some((x) => x.id === Number(id)),
+    global.__dbState.tasks.some((candidate) => candidate.id === Number(id)),
   ),
 }));
 
@@ -190,19 +190,19 @@ describe("POST /api/tasks — date validation", () => {
   // time-independent (they previously hard-coded week 33 of 2026 and
   // rotted once that week was no longer the current one).
   const isoWeek = (date) => {
-    const d = new Date(
+    const utcDate = new Date(
       Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
     );
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+    const dayNum = utcDate.getUTCDay() || 7;
+    utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+    return Math.ceil(((utcDate - yearStart) / 86400000 + 1) / 7);
   };
   const fmtDate = (date) => date.toISOString().split("T")[0];
-  const daysFromNow = (n) => {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() + n);
-    return fmtDate(d);
+  const daysFromNow = (days) => {
+    const date = new Date();
+    date.setUTCDate(date.getUTCDate() + days);
+    return fmtDate(date);
   };
   const now = new Date();
 
@@ -377,7 +377,7 @@ describe("PUT /api/tasks — subtask ⇄ parent completion cascade", () => {
       jsonReq({ id: 2, status: "completed", user_id: "staff-1" }, "PUT"),
     );
     expect(res.status).toBe(200);
-    const parent = dbState.tasks.find((t) => t.id === 1);
+    const parent = dbState.tasks.find((task) => task.id === 1);
     expect(parent.status).toBe("in_progress");
   });
 
@@ -387,7 +387,7 @@ describe("PUT /api/tasks — subtask ⇄ parent completion cascade", () => {
       jsonReq({ id: 3, status: "completed", user_id: "staff-1" }, "PUT"),
     );
     expect(res.status).toBe(200);
-    const parent = dbState.tasks.find((t) => t.id === 1);
+    const parent = dbState.tasks.find((task) => task.id === 1);
     expect(parent.status).toBe("completed");
   });
 
@@ -395,14 +395,14 @@ describe("PUT /api/tasks — subtask ⇄ parent completion cascade", () => {
     // Complete both subtasks (parent auto-completes)
     await PUT(jsonReq({ id: 2, status: "completed", user_id: "staff-1" }, "PUT"));
     await PUT(jsonReq({ id: 3, status: "completed", user_id: "staff-1" }, "PUT"));
-    expect(dbState.tasks.find((t) => t.id === 1).status).toBe("completed");
+    expect(dbState.tasks.find((task) => task.id === 1).status).toBe("completed");
 
     // Reopen Sub B → parent must reopen
     const res = await PUT(
       jsonReq({ id: 3, status: "in_progress", user_id: "staff-1" }, "PUT"),
     );
     expect(res.status).toBe(200);
-    expect(dbState.tasks.find((t) => t.id === 1).status).toBe("in_progress");
+    expect(dbState.tasks.find((task) => task.id === 1).status).toBe("in_progress");
   });
 
   test("parent with no subtasks is unaffected by the cascade", async () => {
@@ -420,7 +420,7 @@ describe("PUT /api/tasks — subtask ⇄ parent completion cascade", () => {
       jsonReq({ id: 9, status: "completed", user_id: "staff-1" }, "PUT"),
     );
     expect(res.status).toBe(200);
-    expect(dbState.tasks.find((t) => t.id === 9).status).toBe("completed");
+    expect(dbState.tasks.find((task) => task.id === 9).status).toBe("completed");
   });
 
   test("parent with active blockers is NOT auto-completed", async () => {
@@ -432,7 +432,7 @@ describe("PUT /api/tasks — subtask ⇄ parent completion cascade", () => {
     });
     await PUT(jsonReq({ id: 2, status: "completed", user_id: "staff-1" }, "PUT"));
     await PUT(jsonReq({ id: 3, status: "completed", user_id: "staff-1" }, "PUT"));
-    expect(dbState.tasks.find((t) => t.id === 1).status).toBe("in_progress");
+    expect(dbState.tasks.find((task) => task.id === 1).status).toBe("in_progress");
   });
 });
 
@@ -460,7 +460,7 @@ describe("PUT /api/tasks — carry-over status safety (Phase 1)", () => {
     expect(data.success).toBe(false);
     expect(data.error.toLowerCase()).toContain("completed");
     // State untouched
-    const task = dbState.tasks.find((t) => t.id === 1);
+    const task = dbState.tasks.find((candidate) => candidate.id === 1);
     expect(task.status).toBe("completed");
     expect(task.completed_at).toBe("2026-08-20T07:50:00.000Z");
   });
@@ -470,7 +470,7 @@ describe("PUT /api/tasks — carry-over status safety (Phase 1)", () => {
       jsonReq({ id: 1, status: "in_progress", user_id: "staff-1" }, "PUT"),
     );
     expect(res.status).toBe(200);
-    const task = dbState.tasks.find((t) => t.id === 1);
+    const task = dbState.tasks.find((candidate) => candidate.id === 1);
     expect(task.status).toBe("in_progress");
     expect(task.completed_at).toBeNull();
   });
@@ -483,6 +483,53 @@ describe("PUT /api/tasks — carry-over status safety (Phase 1)", () => {
       jsonReq({ id: 1, status: "carried_over", user_id: "staff-1" }, "PUT"),
     );
     expect(res.status).toBe(200);
-    expect(dbState.tasks.find((t) => t.id === 1).status).toBe("carried_over");
+    expect(dbState.tasks.find((task) => task.id === 1).status).toBe("carried_over");
+  });
+});
+
+describe("PUT /api/tasks — reassigning into a project the actor does not belong to", () => {
+  test("resets the status, naming that column once", async () => {
+    dbState.tasks.push({
+      id: 1,
+      user_id: "staff-1",
+      user_name: "Staff One",
+      title: "Draft brief",
+      status: "todo",
+      project_id: 7,
+      parent_task_id: null,
+    });
+    const db = require("@/lib/db").default;
+    db.execute.mockClear();
+
+    const res = await PUT(
+      jsonReq(
+        {
+          id: 1,
+          user_id: "staff-1",
+          user_name: "Staff One",
+          status: "in_progress",
+          project_id: 42,
+        },
+        "PUT",
+      ),
+    );
+    expect(res.status).toBe(200);
+
+    const update = db.execute.mock.calls
+      .map(([call]) => call)
+      .find((call) => String(call.sql).startsWith("UPDATE tasks SET") && String(call.sql).includes("project_id = ?"));
+    expect(update).toBeTruthy();
+
+    const sql = String(update.sql);
+    const columns = sql
+      .slice(sql.indexOf("SET ") + 4, sql.indexOf(" WHERE id = ?"))
+      .split(", ")
+      .map((entry) => entry.split(" = ")[0]);
+
+    // Postgres refuses a SET list that names one column twice, so the caller's
+    // status and this reset could not both be written: the save was lost.
+    expect(columns.filter((column, index) => columns.indexOf(column) !== index)).toEqual([]);
+    expect(sql).toContain("status = 'pending_project_approval'");
+    expect(sql).not.toContain("status = ?");
   });
 });

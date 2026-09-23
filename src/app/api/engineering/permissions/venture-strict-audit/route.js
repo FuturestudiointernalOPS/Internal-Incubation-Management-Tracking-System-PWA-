@@ -44,19 +44,21 @@ export async function GET(req) {
     const relationships = await listVentureRelationships();
 
     // Group ventures per person.
-    const byCid = new Map();
-    for (const rel of relationships) {
-      const cid = String(rel.cid);
-      if (!byCid.has(cid)) byCid.set(cid, []);
-      byCid.get(cid).push(String(rel.venture_id));
+    const venturesByCid = new Map();
+    for (const relationship of relationships) {
+      const cid = String(relationship.cid);
+      if (!venturesByCid.has(cid)) venturesByCid.set(cid, []);
+      venturesByCid.get(cid).push(String(relationship.venture_id));
     }
-    const cids = [...byCid.keys()].slice(0, limit);
+    const contactCids = [...venturesByCid.keys()].slice(0, limit);
 
-    const contacts = await listAuditContacts(cids);
-    const contactByCid = new Map(contacts.map((c) => [String(c.cid), c]));
+    const contacts = await listAuditContacts(contactCids);
+    const contactByCid = new Map(
+      contacts.map((contact) => [String(contact.cid), contact]),
+    );
 
     const people = [];
-    for (const cid of cids) {
+    for (const cid of contactCids) {
       const contact = contactByCid.get(cid) || null;
       const sessionLike = {
         cid,
@@ -67,9 +69,13 @@ export async function GET(req) {
       let viewAllowed = false;
       let editAllowed = false;
       try {
-        const ctx = await getAuthorizationContext(sessionLike);
-        viewAllowed = ctx?.isSuperAdmin || authorize(ctx, "ventures", "view");
-        editAllowed = ctx?.isSuperAdmin || authorize(ctx, "ventures", "edit");
+        const authorizationContext = await getAuthorizationContext(sessionLike);
+        viewAllowed =
+          authorizationContext?.isSuperAdmin ||
+          authorize(authorizationContext, "ventures", "view");
+        editAllowed =
+          authorizationContext?.isSuperAdmin ||
+          authorize(authorizationContext, "ventures", "edit");
       } catch {
         // Fail closed: an unresolvable person is reported as missing.
         viewAllowed = false;
@@ -77,10 +83,10 @@ export async function GET(req) {
       }
       let scopeCount = 0;
       try {
-        const ids = await resolveScopeIds("venture_own", cid, {
+        const resolvedScopeIds = await resolveScopeIds("venture_own", cid, {
           email: sessionLike.email,
         });
-        scopeCount = Array.isArray(ids) ? ids.length : 0;
+        scopeCount = Array.isArray(resolvedScopeIds) ? resolvedScopeIds.length : 0;
       } catch {
         scopeCount = 0;
       }
@@ -88,7 +94,7 @@ export async function GET(req) {
         cid,
         name: sessionLike.name,
         role: sessionLike.role,
-        ventures: byCid.get(cid),
+        ventures: venturesByCid.get(cid),
         viewAllowed,
         editAllowed,
         scopeCount,
@@ -107,10 +113,10 @@ export async function GET(req) {
       editMissing: summary.editMissing,
       rows: summary.rows,
     });
-  } catch (err) {
-    console.error("[Venture Strict Audit] GET error:", err);
+  } catch (error) {
+    console.error("[Venture Strict Audit] GET error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

@@ -36,9 +36,9 @@ export const PARTICIPANT_BATCH_SIZE = 30;
 export function participantBatches(items, size = PARTICIPANT_BATCH_SIZE) {
   const list = Array.isArray(items) ? items : [];
   const step = size > 0 ? size : PARTICIPANT_BATCH_SIZE;
-  const out = [];
+  const chunks = [];
   for (let i = 0; i < list.length; i += step) {
-    out.push(list.slice(i, i + step));
+    chunks.push(list.slice(i, i + step));
   }
-  return out;
+  return chunks;
 }

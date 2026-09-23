@@ -27,14 +27,14 @@ const COPY_SUFFIX = " — Copy";
 function newUuid() {
   return typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
-    : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-        const r = (Math.random() * 16) | 0;
-        const v = c === "x" ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
+    : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+        const random = (Math.random() * 16) | 0;
+        const value = char === "x" ? random : (random & 0x3) | 0x8;
+        return value.toString(16);
       });
 }
 
-const boolParam = (v) => v === true || v === 1 || v === "true" || v === "t" || v === "1";
+const boolParam = (value) => value === true || value === 1 || value === "true" || value === "t" || value === "1";
 
 /** Normalize an executor result ({ rows }) from execute-style or tx-style calls. */
 function rowsOf(result) {
@@ -50,7 +50,7 @@ async function copyTaskRow(exec, { task, ventureId, newMilestoneId, actorCid, pa
   const title = suffixTitle && task.title ? `${task.title}${COPY_SUFFIX}` : task.title;
   // venture_tasks.id is SERIAL (integer) — never insert an explicit id;
   // capture the generated one for subtask re-parenting.
-  const ins = await exec(
+  const insertResult = await exec(
     `INSERT INTO venture_tasks
        (venture_id, milestone_id, title, description, status, priority,
         due_date, estimated_hours, assigned_cid, assigned_name, reporter_cid,
@@ -75,7 +75,7 @@ async function copyTaskRow(exec, { task, ventureId, newMilestoneId, actorCid, pa
       task.required_deliverable_type || null,
     ],
   );
-  const newTaskId = ins?.rows?.[0]?.id ?? ins?.lastInsertRowid;
+  const newTaskId = insertResult?.rows?.[0]?.id ?? insertResult?.lastInsertRowid;
   parentMap.set(String(task.id), newTaskId);
   return newTaskId;
 }
@@ -95,13 +95,13 @@ function safeParse(value, fallback) {
  * Returns the number of copied tasks.
  */
 async function copyTasksForMilestone(exec, { sourceMilestoneId, newMilestoneId, ventureId, actorCid }) {
-  const res = await exec(
+  const tasksResult = await exec(
     `SELECT * FROM venture_tasks
      WHERE milestone_id = ?
      ORDER BY (parent_task_id IS NULL) DESC, id ASC`,
     [sourceMilestoneId],
   );
-  const tasks = rowsOf(res);
+  const tasks = rowsOf(tasksResult);
   const parentMap = new Map();
   let count = 0;
   for (const task of tasks) {
@@ -118,11 +118,11 @@ async function copyTasksForMilestone(exec, { sourceMilestoneId, newMilestoneId, 
  * Returns { error } or { success, stage, milestones_copied, tasks_copied }.
  */
 export async function duplicateJourneyStage(db, { dbId, stageId, actorCid }) {
-  const stageRes = await db.execute({
+  const stageResult = await db.execute({
     sql: "SELECT * FROM venture_journey_stages WHERE id = ? AND venture_id = ?",
     args: [stageId, dbId],
   });
-  const stage = rowsOf(stageRes)[0];
+  const stage = rowsOf(stageResult)[0];
   if (!stage) return { error: "Stage not found." };
 
   const newStageId = newUuid();
@@ -132,20 +132,20 @@ export async function duplicateJourneyStage(db, { dbId, stageId, actorCid }) {
 
   const outcome = await db.transaction(async (query) => {
     // ── Stage ordering: insert the copy right after the source ──
-    const orderRes = await query(
+    const orderResult = await query(
       "SELECT id, stage_order FROM venture_journey_stages WHERE venture_id = ? ORDER BY stage_order ASC",
       [dbId],
     );
-    const ordered = rowsOf(orderRes);
-    const sourceIdx = ordered.findIndex((r) => String(r.id) === String(stageId));
-    if (sourceIdx === -1) return { error: "Stage not found." };
+    const ordered = rowsOf(orderResult);
+    const sourceIndex = ordered.findIndex((row) => String(row.id) === String(stageId));
+    if (sourceIndex === -1) return { error: "Stage not found." };
 
     // Park every existing stage on distinct negatives so the UNIQUE
     // (venture_id, stage_order) constraint can never collide mid-swap.
-    for (const r of ordered) {
-      await query("UPDATE venture_journey_stages SET stage_order = ? WHERE id = ?", [-Number(r.stage_order), r.id]);
+    for (const row of ordered) {
+      await query("UPDATE venture_journey_stages SET stage_order = ? WHERE id = ?", [-Number(row.stage_order), row.id]);
     }
-    const maxOrder = ordered.reduce((m, r) => Math.max(m, Number(r.stage_order) || 0), 0);
+    const maxOrder = ordered.reduce((maxSoFar, row) => Math.max(maxSoFar, Number(row.stage_order) || 0), 0);
     await query(
       `INSERT INTO venture_journey_stages (id, venture_id, name, description, objective, target_date, stage_order, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'locked')`,
@@ -154,40 +154,40 @@ export async function duplicateJourneyStage(db, { dbId, stageId, actorCid }) {
 
     // Restore order as a dense 1..n sequence with the copy after the source.
     const finalOrder = [
-      ...ordered.slice(0, sourceIdx + 1).map((r) => r.id),
+      ...ordered.slice(0, sourceIndex + 1).map((row) => row.id),
       newStageId,
-      ...ordered.slice(sourceIdx + 1).map((r) => r.id),
+      ...ordered.slice(sourceIndex + 1).map((row) => row.id),
     ];
     for (let i = 0; i < finalOrder.length; i++) {
       await query("UPDATE venture_journey_stages SET stage_order = ? WHERE id = ?", [i + 1, finalOrder[i]]);
     }
 
     // ── Milestones bound to the source stage → fresh copies on the new stage ──
-    const msRes = await query(
+    const milestonesResult = await query(
       "SELECT * FROM venture_milestones WHERE journey_stage_id = ?",
       [stageId],
     );
-    const stageMilestones = rowsOf(msRes);
-    for (let mi = 0; mi < stageMilestones.length; mi++) {
-      const m = stageMilestones[mi];
-      const newMsId = newUuid();
+    const stageMilestones = rowsOf(milestonesResult);
+    for (let milestoneIndex = 0; milestoneIndex < stageMilestones.length; milestoneIndex++) {
+      const milestone = stageMilestones[milestoneIndex];
+      const newMilestoneId = newUuid();
       // Sequential release (Phase 3): the first milestone of the copied stage
       // is available; the rest start locked until the previous one completes.
-      const msStatus = mi === 0 ? "not_started" : "locked";
+      const milestoneStatus = milestoneIndex === 0 ? "not_started" : "locked";
       await query(
         `INSERT INTO venture_milestones
            (id, venture_id, title, description, objective, target_date, start_date,
             status, progress, priority, owner_cid, display_order, journey_stage_id, created_by)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
         [
-          newMsId, dbId, m.title, m.description || null, m.objective || null,
-          m.target_date || null, m.start_date || null, msStatus,
-          m.priority || "medium", m.owner_cid || null,
-          m.display_order ?? null, newStageId, actorCid || null,
+          newMilestoneId, dbId, milestone.title, milestone.description || null, milestone.objective || null,
+          milestone.target_date || null, milestone.start_date || null, milestoneStatus,
+          milestone.priority || "medium", milestone.owner_cid || null,
+          milestone.display_order ?? null, newStageId, actorCid || null,
         ],
       );
       tasksCopied += await copyTasksForMilestone(query, {
-        sourceMilestoneId: m.id, newMilestoneId: newMsId, ventureId: dbId, actorCid,
+        sourceMilestoneId: milestone.id, newMilestoneId, ventureId: dbId, actorCid,
       });
       milestonesCopied += 1;
     }
@@ -220,15 +220,15 @@ export async function duplicateJourneyStage(db, { dbId, stageId, actorCid }) {
 export async function duplicateMilestone(db, { dbId, code, milestoneId, actorCid }) {
   const owners = [dbId, code].filter(Boolean);
   const placeholders = owners.map(() => "?").join(", ");
-  const sourceRes = await db.execute({
+  const sourceResult = await db.execute({
     sql: `SELECT * FROM venture_milestones WHERE id = ? AND venture_id IN (${placeholders})`,
     args: [milestoneId, ...owners],
   });
-  const m = rowsOf(sourceRes)[0];
-  if (!m) return { error: "Milestone not found." };
+  const milestone = rowsOf(sourceResult)[0];
+  if (!milestone) return { error: "Milestone not found." };
 
-  const newMsId = newUuid();
-  const title = m.title ? `${m.title}${COPY_SUFFIX}` : "Untitled milestone";
+  const newMilestoneId = newUuid();
+  const title = milestone.title ? `${milestone.title}${COPY_SUFFIX}` : "Untitled milestone";
   let tasksCopied = 0;
 
   await db.transaction(async (query) => {
@@ -238,23 +238,23 @@ export async function duplicateMilestone(db, { dbId, code, milestoneId, actorCid
           status, progress, priority, owner_cid, display_order, journey_stage_id, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
       [
-        newMsId, m.venture_id || dbId, title, m.description || null, m.objective || null,
-        m.target_date || null, m.start_date || null, "not_started",
-        m.priority || "medium", m.owner_cid || null,
-        m.display_order ?? null, m.journey_stage_id || null, actorCid || null,
+        newMilestoneId, milestone.venture_id || dbId, title, milestone.description || null, milestone.objective || null,
+        milestone.target_date || null, milestone.start_date || null, "not_started",
+        milestone.priority || "medium", milestone.owner_cid || null,
+        milestone.display_order ?? null, milestone.journey_stage_id || null, actorCid || null,
       ],
     );
     tasksCopied = await copyTasksForMilestone(query, {
-      sourceMilestoneId: m.id, newMilestoneId: newMsId, ventureId: m.venture_id || dbId, actorCid,
+      sourceMilestoneId: milestone.id, newMilestoneId, ventureId: milestone.venture_id || dbId, actorCid,
     });
   });
 
   return {
     success: true,
     milestone: {
-      id: newMsId,
+      id: newMilestoneId,
       title,
-      journey_stage_id: m.journey_stage_id || null,
+      journey_stage_id: milestone.journey_stage_id || null,
       status: "not_started",
       progress: 0,
     },
@@ -269,15 +269,15 @@ export async function duplicateMilestone(db, { dbId, code, milestoneId, actorCid
 export async function duplicateTask(db, { dbId, code, taskId, actorCid }) {
   const owners = [dbId, code].filter(Boolean);
   const placeholders = owners.map(() => "?").join(", ");
-  const sourceRes = await db.execute({
+  const sourceResult = await db.execute({
     sql: `SELECT * FROM venture_tasks WHERE id = ? AND venture_id IN (${placeholders})`,
     args: [taskId, ...owners],
   });
-  const task = rowsOf(sourceRes)[0];
+  const task = rowsOf(sourceResult)[0];
   if (!task) return { error: "Task not found." };
 
   // venture_tasks.id is SERIAL — omit the id and capture the generated one.
-  const ins = await db.execute({
+  const insertResult = await db.execute({
     sql: `INSERT INTO venture_tasks
        (venture_id, milestone_id, title, description, status, priority,
         due_date, estimated_hours, assigned_cid, assigned_name, reporter_cid,
@@ -301,7 +301,7 @@ export async function duplicateTask(db, { dbId, code, taskId, actorCid }) {
       task.required_deliverable_type || null,
     ],
   });
-  const newTaskId = ins?.rows?.[0]?.id ?? ins?.lastInsertRowid;
+  const newTaskId = insertResult?.rows?.[0]?.id ?? insertResult?.lastInsertRowid;
 
   return {
     success: true,

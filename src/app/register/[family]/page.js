@@ -23,8 +23,8 @@ export default function FamilyRegistrationLink() {
   });
   const [status, setStatus] = useState('idle'); // idle, loading, success
 
-  const handleSubmit = async (e) => {
-     e.preventDefault();
+  const handleSubmit = async (event) => {
+     event.preventDefault();
      setStatus('loading');
      try {
         const payloadName = formData.name?.trim() || `Anonymous Guest`;
@@ -37,21 +37,21 @@ export default function FamilyRegistrationLink() {
            group_name: decodedFamilyName 
         }];
 
-        const res = await fetch('/api/contacts', {
+        const response = await fetch('/api/contacts', {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify(payload)
         });
-        const data = await res.json();
+        const result = await response.json();
         
-        if (data.success && data.inserted > 0) {
+        if (result.success && result.inserted > 0) {
            window.dispatchEvent(new CustomEvent('impactos:notify', { 
                detail: { type: 'success', message: t("rootMisc.registerFamily.syncSuccess") } 
            }));
            setStatus('success');
            IMPACT_CACHE.clear('contacts');
         } else {
-           const errReason = data.errors && data.errors.length > 0 ? (t(data.errors[0].error || "") || data.errors[0].error) : t("rootMisc.registerFamily.databaseError");
+           const errReason = result.errors && result.errors.length > 0 ? (t(result.errors[0].error || "") || result.errors[0].error) : t("rootMisc.registerFamily.databaseError");
            window.dispatchEvent(new CustomEvent('impactos:notify', { 
                detail: { type: 'error', message: t("rootMisc.registerFamily.registrationFailed", { reason: errReason }) } 
            }));
@@ -111,7 +111,7 @@ export default function FamilyRegistrationLink() {
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-2">{t("rootMisc.registerFamily.fullIdentityName")}</label>
                 <div className="relative">
                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                   <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder={t("rootMisc.registerFamily.namePlaceholder")} className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 outline-none rounded-xl py-4 pl-12 pr-6 font-bold text-white transition-all" />
+                   <input type="text" value={formData.name} onChange={event => setFormData({...formData, name: event.target.value})} placeholder={t("rootMisc.registerFamily.namePlaceholder")} className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 outline-none rounded-xl py-4 pl-12 pr-6 font-bold text-white transition-all" />
                 </div>
              </div>
 
@@ -120,14 +120,14 @@ export default function FamilyRegistrationLink() {
                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-2">{t("rootMisc.registerFamily.emailAddress")}</label>
                    <div className="relative">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                      <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder={t("rootMisc.registerFamily.emailPlaceholder")} className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 outline-none rounded-xl py-4 pl-12 pr-6 font-bold text-white transition-all" />
+                      <input type="email" value={formData.email} onChange={event => setFormData({...formData, email: event.target.value})} placeholder={t("rootMisc.registerFamily.emailPlaceholder")} className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 outline-none rounded-xl py-4 pl-12 pr-6 font-bold text-white transition-all" />
                    </div>
                 </div>
                 <div className="space-y-2">
                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-2">{t("rootMisc.registerFamily.phoneNumber")}</label>
                    <div className="relative">
                       <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                      <input type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder={t("rootMisc.registerFamily.phonePlaceholder")} className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 outline-none rounded-xl py-4 pl-12 pr-6 font-bold text-white transition-all" />
+                      <input type="tel" value={formData.phone} onChange={event => setFormData({...formData, phone: event.target.value})} placeholder={t("rootMisc.registerFamily.phonePlaceholder")} className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 outline-none rounded-xl py-4 pl-12 pr-6 font-bold text-white transition-all" />
                    </div>
                 </div>
              </div>
@@ -136,7 +136,7 @@ export default function FamilyRegistrationLink() {
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-2">{t("rootMisc.registerFamily.dateOfBirth")}</label>
                 <div className="relative">
                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                   <input type="date" value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 outline-none rounded-xl py-4 pl-12 pr-6 font-bold text-white transition-all" />
+                   <input type="date" value={formData.dob} onChange={event => setFormData({...formData, dob: event.target.value})} className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 outline-none rounded-xl py-4 pl-12 pr-6 font-bold text-white transition-all" />
                 </div>
              </div>
 
@@ -144,7 +144,7 @@ export default function FamilyRegistrationLink() {
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-2">{t("rootMisc.registerFamily.physicalAddress")}</label>
                 <div className="relative">
                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                   <input type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder={t("rootMisc.registerFamily.addressPlaceholder")} className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 outline-none rounded-xl py-4 pl-12 pr-6 font-bold text-white transition-all" />
+                   <input type="text" value={formData.address} onChange={event => setFormData({...formData, address: event.target.value})} placeholder={t("rootMisc.registerFamily.addressPlaceholder")} className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 outline-none rounded-xl py-4 pl-12 pr-6 font-bold text-white transition-all" />
                 </div>
              </div>
 

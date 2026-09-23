@@ -83,8 +83,8 @@ const { GET } = require("@/app/api/ventures/[id]/journey/route");
 
 const readJson = async (res) => res.json();
 const fetchJourney = async () => GET(new Request("http://localhost/api/ventures/VNT-1/journey"), { params: { id: VENTURE_DB_ID } });
-const stageById = (data, id) => (data.stages || []).find((s) => s.id === id);
-const milestoneById = (stage, id) => (stage.milestones || []).find((m) => m.id === id);
+const stageById = (data, id) => (data.stages || []).find((stage) => stage.id === id);
+const milestoneById = (stage, id) => (stage.milestones || []).find((milestone) => milestone.id === id);
 
 /** A member: not a privileged role, and no authoring access to this Venture. */
 const asMember = () => {
@@ -111,7 +111,7 @@ describe("GET /api/ventures/[id]/journey — the member's map is complete", () =
     const data = await readJson(await fetchJourney());
     expect(data.success).toBe(true);
     expect(data.guided).toBe(true);
-    expect((data.stages || []).map((s) => s.status)).toEqual(["completed", "active", "locked"]);
+    expect((data.stages || []).map((stage) => stage.status)).toEqual(["completed", "active", "locked"]);
     expect(data.stages.length).toBe(3);
   });
 
@@ -147,7 +147,7 @@ describe("GET /api/ventures/[id]/journey — the work is sealed, not the map", (
     expect(current.sealed).toBe(false);
     expect(current.description).toBe("Twenty interviews");
     expect(current.objective).toBe("Prove demand");
-    expect(current.deliverables.map((d) => d.id)).toEqual(["d1"]);
+    expect(current.deliverables.map((deliverable) => deliverable.id)).toEqual(["d1"]);
   });
 
   test("a future milestone keeps its title and target date but no work", async () => {
@@ -185,13 +185,13 @@ describe("GET /api/ventures/[id]/journey — staff keep the whole roadmap unseal
     const data = await readJson(await fetchJourney());
     expect(data.success).toBe(true);
     expect(data.stages.length).toBe(3);
-    expect(data.stages.map((s) => s.sealed)).toEqual([false, false, false]);
+    expect(data.stages.map((stage) => stage.sealed)).toEqual([false, false, false]);
     expect(data.access).toEqual({ create: true, edit: true, manage: true });
 
     const future = milestoneById(stageById(data, "s2"), "m3");
     expect(future.sealed).toBe(false);
     expect(future.description).toBe("Build the model");
     // The deliverable of a locked milestone IS visible to staff.
-    expect(future.deliverables.map((d) => d.id)).toEqual(["d2"]);
+    expect(future.deliverables.map((deliverable) => deliverable.id)).toEqual(["d2"]);
   });
 });

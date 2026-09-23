@@ -70,7 +70,7 @@ describe("public course catalogue", () => {
     const res = await catalogGET();
     const data = await readJson(res);
     expect(data.success).toBe(true);
-    expect(data.courses.map((c) => c.slug)).toEqual(["pub"]);
+    expect(data.courses.map((course) => course.slug)).toEqual(["pub"]);
   });
 
   test("catalog payload never leaks internal ids or youtube ids", async () => {
@@ -78,15 +78,15 @@ describe("public course catalogue", () => {
     seedStructure("crs-1");
     const res = await catalogGET();
     const data = await readJson(res);
-    const c = data.courses[0];
-    expect(c.slug).toBe("customer-discovery");
-    expect(c.id).toBeUndefined();
-    expect(JSON.stringify(c)).not.toContain("youtube");
-    expect(c.lessons).toBe(2);
-    expect(c.sections).toBe(1);
-    expect(c.duration_minutes).toBe(13);
-    expect(c.is_free).toBe(true);
-    expect(c.price).toBeNull();
+    const course = data.courses[0];
+    expect(course.slug).toBe("customer-discovery");
+    expect(course.id).toBeUndefined();
+    expect(JSON.stringify(course)).not.toContain("youtube");
+    expect(course.lessons).toBe(2);
+    expect(course.sections).toBe(1);
+    expect(course.duration_minutes).toBe(13);
+    expect(course.is_free).toBe(true);
+    expect(course.price).toBeNull();
   });
 });
 
@@ -122,15 +122,15 @@ describe("public enrollment", () => {
   test("free course enrolls an authenticated user (source self, idempotent)", async () => {
     seedCourse();
     const params = { slug: "customer-discovery" };
-    const first = await detailPOST(new Request("http://localhost/api/public/courses/x", { method: "POST" }), { params });
-    const data1 = await readJson(first);
-    expect(data1.success).toBe(true);
-    expect(data1.courseId).toBe("crs-1");
-    expect(data1.alreadyEnrolled).toBe(false);
+    const firstResponse = await detailPOST(new Request("http://localhost/api/public/courses/x", { method: "POST" }), { params });
+    const firstResult = await readJson(firstResponse);
+    expect(firstResult.success).toBe(true);
+    expect(firstResult.courseId).toBe("crs-1");
+    expect(firstResult.alreadyEnrolled).toBe(false);
 
-    const second = await detailPOST(new Request("http://localhost/api/public/courses/x", { method: "POST" }), { params });
-    const data2 = await readJson(second);
-    expect(data2.alreadyEnrolled).toBe(true);
+    const secondResponse = await detailPOST(new Request("http://localhost/api/public/courses/x", { method: "POST" }), { params });
+    const secondResult = await readJson(secondResponse);
+    expect(secondResult.alreadyEnrolled).toBe(true);
     expect(mockFake.state.lms_enrollments.length).toBe(1);
     expect(mockFake.state.lms_enrollments[0].source).toBe("self");
   });

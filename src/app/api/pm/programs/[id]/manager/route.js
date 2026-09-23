@@ -152,10 +152,10 @@ export async function PUT(req, { params }) {
           applied: result.applied || [],
           revoked: result.revoked || [],
         });
-      } catch (e) {
+      } catch (error) {
         console.warn(
           `[program manager] reconcile failed for ${cid}:`,
-          e.message,
+          error.message,
         );
       }
     };

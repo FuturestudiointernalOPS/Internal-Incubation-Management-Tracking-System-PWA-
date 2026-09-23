@@ -12,11 +12,11 @@
 export function summarizeContextRoles(roles = []) {
   const list = Array.isArray(roles) ? roles : [];
   const gaps = list.filter(
-    (r) => r.profile_id === null || r.profile_id === undefined,
+    (row) => row.profile_id === null || row.profile_id === undefined,
   );
   return {
     total: list.length,
     mapped: list.length - gaps.length,
-    gaps: gaps.map((g) => ({ context: g.context, role_key: g.role_key })),
+    gaps: gaps.map((gap) => ({ context: gap.context, role_key: gap.role_key })),
   };
 }

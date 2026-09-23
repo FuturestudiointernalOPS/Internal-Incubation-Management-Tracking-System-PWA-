@@ -96,7 +96,7 @@ export async function GET(req, { params }) {
     // timeline can show stage -> milestone progress. Venture-facing data only
     // (milestones are visible to members through their own tools). Defensive:
     // if the additive columns are missing the stage list still renders.
-    const milestoneRes = await db.execute({
+    const milestonesResult = await db.execute({
       sql: `SELECT id, title, description, objective, status, progress, target_date,
                    priority, display_order, created_at, journey_stage_id
             FROM venture_milestones
@@ -113,9 +113,9 @@ export async function GET(req, { params }) {
       }).catch(() => ({ rows: [] })),
     );
     const milestonesByStage = {};
-    for (const m of milestoneRes.rows || []) {
-      const key = String(m.journey_stage_id);
-      (milestonesByStage[key] = milestonesByStage[key] || []).push(m);
+    for (const milestone of milestonesResult.rows || []) {
+      const key = String(milestone.journey_stage_id);
+      (milestonesByStage[key] = milestonesByStage[key] || []).push(milestone);
     }
 
     // Deliverables attached to each milestone (evidence submitted by the
@@ -123,10 +123,10 @@ export async function GET(req, { params }) {
     // database without the table still renders the journey.
     const boundMilestoneIds = Object.values(milestonesByStage)
       .flat()
-      .map((m) => String(m.id));
+      .map((milestone) => String(milestone.id));
     const deliverablesByMilestone = {};
     if (boundMilestoneIds.length > 0) {
-      const dvRes = await db
+      const deliverablesResult = await db
         .execute({
           sql: `SELECT id, milestone_id, title, description, deliverable_type, status, approval_status,
                        due_date, attachment_url, attachment_name, rejection_reason, reviewer_name
@@ -136,9 +136,9 @@ export async function GET(req, { params }) {
           args: [boundMilestoneIds],
         })
         .catch(() => ({ rows: [] }));
-      for (const dv of dvRes.rows || []) {
-        const key = String(dv.milestone_id);
-        (deliverablesByMilestone[key] = deliverablesByMilestone[key] || []).push(dv);
+      for (const deliverable of deliverablesResult.rows || []) {
+        const key = String(deliverable.milestone_id);
+        (deliverablesByMilestone[key] = deliverablesByMilestone[key] || []).push(deliverable);
       }
       // Private evidence: a storage path is signed per read (1h), while an
       // external link the author pasted passes through untouched. Only viewers
@@ -146,41 +146,41 @@ export async function GET(req, { params }) {
       await Promise.all(
         Object.values(deliverablesByMilestone)
           .flat()
-          .map(async (dv) => {
-            if (!dv.attachment_url) return;
-            dv.evidence_download_url = isExternalEvidenceLink(dv.attachment_url)
-              ? dv.attachment_url
-              : await evidenceDownloadUrl(dv.attachment_url);
+          .map(async (deliverable) => {
+            if (!deliverable.attachment_url) return;
+            deliverable.evidence_download_url = isExternalEvidenceLink(deliverable.attachment_url)
+              ? deliverable.attachment_url
+              : await evidenceDownloadUrl(deliverable.attachment_url);
           }),
       );
     }
 
     // Template provenance: stages generated from a reusable template carry a
     // (type, id) stamp — resolve the current template name for the UI banner.
-    const stamped = stages.find((s) => s.source_template_id);
+    const stamped = stages.find((stage) => stage.source_template_id);
     let templateSource = null;
     if (stamped && stamped.source_template_id) {
       const srcType = stamped.source_template_type === "journey" ? "journey" : "plan";
       const table = srcType === "journey" ? "venture_journey_templates" : "venture_plan_templates";
       try {
-        const tplRes = await db.execute({
+        const templateResult = await db.execute({
           sql: `SELECT name FROM ${table} WHERE id = ?`,
           args: [stamped.source_template_id],
         }).catch(() => ({ rows: [] }));
-        const tpl = tplRes.rows?.[0];
-        if (tpl) templateSource = { type: srcType, id: stamped.source_template_id, name: tpl.name || null };
+        const template = templateResult.rows?.[0];
+        if (template) templateSource = { type: srcType, id: stamped.source_template_id, name: template.name || null };
       } catch (_) {}
     }
 
     for (const stage of stages) {
-      const list = milestonesByStage[stage.id] || [];
-      stage.milestones = list;
-      for (const m of list) {
-        m.deliverables = deliverablesByMilestone[String(m.id)] || [];
+      const stageMilestones = milestonesByStage[stage.id] || [];
+      stage.milestones = stageMilestones;
+      for (const milestone of stageMilestones) {
+        milestone.deliverables = deliverablesByMilestone[String(milestone.id)] || [];
       }
       stage.milestone_counts = {
-        total: list.length,
-        completed: list.filter((m) => m.status === "completed").length,
+        total: stageMilestones.length,
+        completed: stageMilestones.filter((milestone) => milestone.status === "completed").length,
       };
       // Provenance is surfaced once at the top level — never per-stage.
       delete stage.source_template_type;
@@ -212,8 +212,8 @@ export async function GET(req, { params }) {
     }
 
     return NextResponse.json({ success: true, stages: projected, access, template_source: templateSource, milestone_authority: milestoneAuthority });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -242,7 +242,7 @@ export async function POST(req, { params }) {
     const status = count === 0 ? "active" : "locked";
     const targetDate = body.target_date ? String(body.target_date).slice(0, 10) : null;
 
-    const ins = await db.execute({
+    const insertResult = await db.execute({
       sql: `INSERT INTO venture_journey_stages (venture_id, name, description, objective, target_date, stage_order, status)
             VALUES (?,?,?,?,?,?,?) RETURNING id`,
       args: [dbId, name, body.description || null, body.objective || null, targetDate, stageOrder, status],
@@ -257,9 +257,9 @@ export async function POST(req, { params }) {
     // only to callers holding the manage capability (same rule as GET).
     const canManage = await allowsPlanAction(db, access, "manage");
     const stages = await listJourneyStages(db, dbId, { includeArchived: canManage });
-    return NextResponse.json({ success: true, stage: stages.find((s) => s.id === ins.rows?.[0]?.id) || null, stages });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+    return NextResponse.json({ success: true, stage: stages.find((stage) => stage.id === insertResult.rows?.[0]?.id) || null, stages });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -374,7 +374,7 @@ export async function PATCH(req, { params }) {
     // Reached only after the manage gate above — safe to include archived rows.
     const stages = await listJourneyStages(db, dbId, { includeArchived: true });
     return NextResponse.json({ success: true, stages });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

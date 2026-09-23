@@ -8,10 +8,10 @@ if (fs.existsSync(envPath)) {
   for (const line of envContent.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    let value = trimmed.slice(eqIdx + 1).trim();
+    const equalsIndex = trimmed.indexOf("=");
+    if (equalsIndex === -1) continue;
+    const key = trimmed.slice(0, equalsIndex).trim();
+    let value = trimmed.slice(equalsIndex + 1).trim();
     if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
     if (!process.env[key]) process.env[key] = value;
   }
@@ -24,9 +24,9 @@ async function migrate() {
   try {
     await db.execute({ sql: "ALTER TABLE blockers ADD COLUMN project_id TEXT DEFAULT NULL", args: [] });
     console.log("  ✅ blockers.project_id added");
-  } catch (e) {
-    if (e.message.includes("already exists")) console.log("  ⚠️  already exists");
-    else console.error("  ❌", e.message);
+  } catch (error) {
+    if (error.message.includes("already exists")) console.log("  ⚠️  already exists");
+    else console.error("  ❌", error.message);
   }
 
   console.log("\n✅ Done.");

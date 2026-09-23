@@ -172,6 +172,28 @@
     "roles": {
       "groupLeader": "Group Leader",
       "staff": "Staff"
+    },
+    "ventureReview": {
+      "commentPrompt": "Add a comment for the Venture (optional)",
+      "reviewFailed": "Review failed."
+    },
+    "ventureWorkspace": {
+      "unavailable": "Venture unavailable",
+      "unavailableHint": "You can only access Ventures you are explicitly assigned to.",
+      "backToMyVentures": "Back to My Ventures",
+      "myRole": "My role on this Venture",
+      "noAssignment": "No active assignment found.",
+      "needsAttention": "Needs your attention ({count})",
+      "nothingToReview": "Nothing awaiting your review.",
+      "submissionMeta": "v{version} by {name}",
+      "foundersAndMembers": "Founders & members ({count})",
+      "noMembers": "No members yet.",
+      "about": "About",
+      "readPanesNote": "Read panes shown according to your assignment. Full management tools are configured through Venture Permissions.",
+      "noSessions": "No sessions scheduled.",
+      "listSubtitle": "Ventures assigned to you — access is per assignment, never by staff role alone.",
+      "listEmpty": "No Venture assignments yet",
+      "listEmptyHint": "When the Super Admin assigns you as a Lead Manager, Coach or Facilitator for a Venture, it will appear here."
     }
   }
 }

@@ -53,9 +53,9 @@ export default function LoginPage() {
     async function fetchUsers() {
       setImpersonateDebug("Fetching users...");
       try {
-        const res = await fetch("/api/auth/impersonate");
-        setImpersonateDebug("API responded: " + res.status);
-        const data = await res.json();
+        const response = await fetch("/api/auth/impersonate");
+        setImpersonateDebug("API responded: " + response.status);
+        const data = await response.json();
         if (data.success && Object.keys(data.users || {}).length > 0) {
           setImpersonateUsers(data.users);
           setImpersonateDebug("Loaded " + Object.keys(data.users).length + " roles from API");
@@ -64,8 +64,8 @@ export default function LoginPage() {
           setImpersonateDebug("API returned empty — using fallback users");
           setImpersonateUsers(FALLBACK_USERS);
         }
-      } catch (err) {
-        setImpersonateDebug("Fetch failed: " + (err.message || "network error") + " — using fallback");
+      } catch (error) {
+        setImpersonateDebug("Fetch failed: " + (error.message || "network error") + " — using fallback");
         setImpersonateUsers(FALLBACK_USERS);
       }
     }
@@ -78,18 +78,18 @@ export default function LoginPage() {
     setImpersonateError("");
     try {
       const selectedUsers = impersonateUsers[selectedRole] || [];
-      const selectedUser = selectedUsers.find((u) => u.cid === selectedUserCid);
+      const selectedUser = selectedUsers.find((user) => user.cid === selectedUserCid);
       const userEmail = selectedUser ? selectedUser.email : selectedUserCid;
 
       // Use the passwordless staging impersonation endpoint instead of a
       // hardcoded password login. This works for any existing contact and
       // removes the "Invalid credentials" failure caused by password drift.
-      const res = await fetch("/api/auth/impersonate", {
+      const response = await fetch("/api/auth/impersonate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cid: selectedUserCid, email: userEmail }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         localStorage.setItem("user", JSON.stringify(data.user));
         // The destination comes with the identity: the server decided it from
@@ -112,19 +112,19 @@ export default function LoginPage() {
     }
   };
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const handleLogin = async (event) => {
+    event.preventDefault();
     setLoading(true);
     setErrorMsg("");
 
     try {
-      const res = await fetch("/api/auth/session-login", {
+      const response = await fetch("/api/auth/session-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, remember_me: rememberMe }),
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
       if (data.success) {
         localStorage.setItem("user", JSON.stringify(data.user));
@@ -142,20 +142,20 @@ export default function LoginPage() {
           // that the user is not repeatedly redirected, even if they skip it.
           if (data.user.is_first_login) {
             try {
-              const profRes = await fetch("/api/profile");
-              const profData = await profRes.json();
-              if (profData.success && profData.isComplete === false) {
-                const r = data.user.role;
+              const profileResponse = await fetch("/api/profile");
+              const profileData = await profileResponse.json();
+              if (profileData.success && profileData.isComplete === false) {
+                const userRole = data.user.role;
                 target =
-                  r === "super_admin" || r === "staff"
+                  userRole === "super_admin" || userRole === "staff"
                     ? "/admin/profile"
-                    : r === "program_manager"
+                    : userRole === "program_manager"
                       ? "/pm/profile"
-                      : r === "facilitator"
+                      : userRole === "facilitator"
                           ? "/facilitator/profile"
-                          : r === "participant"
+                          : userRole === "participant"
                             ? "/participant/profile"
-                            : r === "member" || r === "founder" || r === "applicant"
+                            : userRole === "member" || userRole === "founder" || userRole === "applicant"
                               ? "/workspaces"
                               : "/participant/profile";
               }
@@ -212,7 +212,7 @@ export default function LoginPage() {
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
                 placeholder="sarah@impactos.com"
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-3 px-4 text-sm font-medium outline-none focus:border-[var(--brand-orange)] transition-all"
               />
@@ -227,7 +227,7 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(event) => setPassword(event.target.value)}
                   placeholder="........"
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-3 px-4 text-sm font-medium outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
@@ -250,7 +250,7 @@ export default function LoginPage() {
                 <input
                   type="checkbox"
                   checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
+                  onChange={(event) => setRememberMe(event.target.checked)}
                   className="w-3.5 h-3.5 accent-[var(--brand-orange)] cursor-pointer"
                 />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
@@ -319,7 +319,7 @@ export default function LoginPage() {
                   </label>
                   <select
                     value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value)}
+                    onChange={(event) => setSelectedRole(event.target.value)}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-2 px-3 text-xs font-medium outline-none focus:border-amber-500 transition-all mb-2"
                   >
                     <option value="">-- Select role --</option>
@@ -338,13 +338,13 @@ export default function LoginPage() {
                       </label>
                       <select
                         value={selectedUserCid}
-                        onChange={(e) => setUserChoice({ role: selectedRole, cid: e.target.value })}
+                        onChange={(event) => setUserChoice({ role: selectedRole, cid: event.target.value })}
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-2 px-3 text-xs font-medium outline-none focus:border-amber-500 transition-all mb-2"
                       >
                         <option value="">-- Select user --</option>
-                        {impersonateUsers[selectedRole].map((u) => (
-                          <option key={u.cid} value={u.cid}>
-                            {u.name} ({u.email})
+                        {impersonateUsers[selectedRole].map((user) => (
+                          <option key={user.cid} value={user.cid}>
+                            {user.name} ({user.email})
                           </option>
                         ))}
                       </select>
@@ -379,18 +379,18 @@ export default function LoginPage() {
 
         <div className="flex items-center justify-center gap-2 mb-4">
           <Globe className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-          {SUPPORTED_LANGUAGES.map((l) => (
+          {SUPPORTED_LANGUAGES.map((language) => (
             <button
-              key={l.code}
+              key={language.code}
               type="button"
-              onClick={() => switchLang(l.code)}
+              onClick={() => switchLang(language.code)}
               className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md transition-all ${
-                lang === l.code
+                lang === language.code
                   ? "bg-[var(--brand-orange)]/20 text-[var(--brand-orange)] border border-[var(--brand-orange)]/30"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent"
               }`}
             >
-              {l.nativeLabel}
+              {language.nativeLabel}
             </button>
           ))}
         </div>

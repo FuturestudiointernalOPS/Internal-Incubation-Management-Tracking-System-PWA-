@@ -308,19 +308,19 @@ describe("the authorization migration ledger", () => {
     // A migration this process applied is not asked about again - not even for
     // the price of one round trip.
     mockSequencer.reset();
-    const fn = jest.fn(async () => {});
-    const again = await runAuthzMigration("cap-backfill-tasks", fn);
+    const migration = jest.fn(async () => {});
+    const again = await runAuthzMigration("cap-backfill-tasks", migration);
     const after = mockSequencer.report();
     expect(again.applied).toBe(false);
-    expect(fn).not.toHaveBeenCalled();
+    expect(migration).not.toHaveBeenCalled();
     expect(after.statements).toBe(0);
 
     // ── The case production is in: the database already holds every marker ──
     // The names the batch just recorded are exactly the ones a migrated
     // database would answer with.
     const recorded = batch.records
-      .filter((r) => r.sql.includes("INSERT INTO authz_migrations"))
-      .flatMap((r) => r.args || []);
+      .filter((record) => record.sql.includes("INSERT INTO authz_migrations"))
+      .flatMap((record) => record.args || []);
     console.log(`migrations the batch recorded: ${recorded.length}`);
     expect(recorded.length).toBeGreaterThan(20);
 
@@ -344,8 +344,8 @@ describe("the authorization migration ledger", () => {
     const ledgerReadsOnMigrated = migrated.calls.filter(
       (sql) => sql.includes("authz_migrations") && sql.includes("SELECT"),
     );
-    const reApplied = migrated.records.filter((r) =>
-      r.sql.includes("INSERT INTO authz_migrations"),
+    const reApplied = migrated.records.filter((record) =>
+      record.sql.includes("INSERT INTO authz_migrations"),
     );
     console.log(
       `migrated database: ${ledgerReadsOnMigrated.length} ledger read(s) for the whole cold gate, ` +

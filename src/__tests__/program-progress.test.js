@@ -6,7 +6,7 @@ import {
 } from "@/lib/programProgress";
 
 const TODAY = "2025-03-10";
-const day = (n) => addDays(TODAY, n);
+const day = (offsetDays) => addDays(TODAY, offsetDays);
 
 describe("date helpers", () => {
   it("round-trips addDays and daysBetween", () => {

@@ -21,7 +21,7 @@
 function read(value, path) {
   return path
     .split(".")
-    .reduce((acc, key) => (acc && typeof acc === "object" ? acc[key] : undefined), value);
+    .reduce((node, key) => (node && typeof node === "object" ? node[key] : undefined), value);
 }
 
 /**
@@ -55,16 +55,16 @@ export const AUTOMATION_FLAG_PATHS = [
 
 /** The effective value of every flag, for display. */
 export function effectiveAutomation(formSettings, runSettings) {
-  const out = {};
+  const flags = {};
   for (const path of AUTOMATION_FLAG_PATHS) {
-    out[path] = resolveAutomationFlag(formSettings, runSettings, path);
+    flags[path] = resolveAutomationFlag(formSettings, runSettings, path);
   }
-  return out;
+  return flags;
 }
 
 /** Does this run override anything at all? Used by the run settings screen. */
 export function hasRunAutomationOverride(runSettings) {
-  const auto = runSettings?.automation;
-  if (!auto || typeof auto !== "object") return false;
-  return AUTOMATION_FLAG_PATHS.some((path) => typeof read(auto, path) === "boolean");
+  const automation = runSettings?.automation;
+  if (!automation || typeof automation !== "object") return false;
+  return AUTOMATION_FLAG_PATHS.some((path) => typeof read(automation, path) === "boolean");
 }

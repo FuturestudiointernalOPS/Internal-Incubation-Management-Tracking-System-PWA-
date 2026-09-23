@@ -83,70 +83,78 @@ export async function GET(req) {
     // Return enriched user list for the table view
     if (users === "true") {
       // Fetch all contacts with their enriched data
-      const contactsRes = await listPermissionTableContacts();
+      const contactsResult = await listPermissionTableContacts();
 
       // Fetch all user_groups
-      const groupsRes = await safeQuery("SELECT user_cid, group_name FROM user_groups");
+      const groupsResult = await safeQuery("SELECT user_cid, group_name FROM user_groups");
       const groupMap = {};
-      for (const row of groupsRes.rows) {
+      for (const row of groupsResult.rows) {
         if (!groupMap[row.user_cid]) groupMap[row.user_cid] = [];
         groupMap[row.user_cid].push(row.group_name);
       }
 
       // Fetch all user responsibilities
-      const respRes = await safeQuery(`SELECT ur.user_cid, r.id, r.name, r.key, r.icon
+      const responsibilitiesResult = await safeQuery(`SELECT ur.user_cid, r.id, r.name, r.key, r.icon
               FROM user_responsibilities ur
               JOIN responsibilities r ON r.id = ur.responsibility_id
               WHERE r.is_active = 1`);
       const respMap = {};
-      for (const row of respRes.rows) {
+      for (const row of responsibilitiesResult.rows) {
         if (!respMap[row.user_cid]) respMap[row.user_cid] = [];
         respMap[row.user_cid].push({ id: row.id, name: row.name, key: row.key, icon: row.icon });
       }
 
       // Fetch all access profiles
-      const profileRes = await safeQuery("SELECT id, name, description FROM access_profiles WHERE is_active = 1");
+      const profilesResult = await safeQuery("SELECT id, name, description FROM access_profiles WHERE is_active = 1");
       const profileMap = {};
-      for (const row of profileRes.rows) {
+      for (const row of profilesResult.rows) {
         profileMap[row.id] = row;
       }
 
       // Fetch role-to-profile defaults
-      const roleProfileRes = await safeQuery(`SELECT rpd.role_name, ap.id as profile_id, ap.name as profile_name
+      const roleProfileDefaultsResult = await safeQuery(`SELECT rpd.role_name, ap.id as profile_id, ap.name as profile_name
               FROM role_access_profile_defaults rpd
               JOIN access_profiles ap ON ap.id = rpd.access_profile_id`);
       const roleProfileMap = {};
-      for (const row of roleProfileRes.rows) {
+      for (const row of roleProfileDefaultsResult.rows) {
         roleProfileMap[row.role_name] = { id: row.profile_id, name: row.profile_name };
       }
 
       // Build enriched users
-      const enrichedUsers = contactsRes.rows.map((u) => {
+      const enrichedUsers = contactsResult.rows.map((contact) => {
         let profile = null;
         // Check explicit profile assignment
-        if (u.access_profile_id && profileMap[u.access_profile_id]) {
-          profile = { id: u.access_profile_id, name: profileMap[u.access_profile_id].name, source: "user" };
+        if (contact.access_profile_id && profileMap[contact.access_profile_id]) {
+          profile = {
+            id: contact.access_profile_id,
+            name: profileMap[contact.access_profile_id].name,
+            source: "user",
+          };
         }
         // Fall back to role default
-        if (!profile && roleProfileMap[u.role]) {
-          profile = { id: roleProfileMap[u.role].id, name: roleProfileMap[u.role].name, source: "role" };
+        if (!profile && roleProfileMap[contact.role]) {
+          profile = {
+            id: roleProfileMap[contact.role].id,
+            name: roleProfileMap[contact.role].name,
+            source: "role",
+          };
         }
         // Merge groups from user_groups + legacy group_name
-        const groups = groupMap[u.cid] || [];
-        if (u.group_name && !groups.includes(u.group_name)) {
-          groups.unshift(u.group_name);
+        const groups = groupMap[contact.cid] || [];
+        if (contact.group_name && !groups.includes(contact.group_name)) {
+          groups.unshift(contact.group_name);
         }
 
         return {
-          cid: u.cid,
-          name: u.name,
-          email: u.email,
-          role: u.role,
-          status: u.status,
+          cid: contact.cid,
+          name: contact.name,
+          email: contact.email,
+          role: contact.role,
+          status: contact.status,
           access_profile: profile,
           groups,
-          responsibilities: respMap[u.cid] || [],
-          created_at: u.created_at,
+          responsibilities: respMap[contact.cid] || [],
+          created_at: contact.created_at,
         };
       });
 
@@ -156,9 +164,9 @@ export async function GET(req) {
     // Return full modules definition
     if (!userCid && !role && !group) {
       // Get all role defaults
-      const roleCaps = await safeQuery("SELECT * FROM role_capabilities ORDER BY role, module, capability");
+      const roleCapabilities = await safeQuery("SELECT * FROM role_capabilities ORDER BY role, module, capability");
       // Get all group defaults
-      const groupCaps = await safeQuery("SELECT * FROM group_capabilities ORDER BY group_name, module, capability");
+      const groupCapabilities = await safeQuery("SELECT * FROM group_capabilities ORDER BY group_name, module, capability");
 
       // Get access profile defaults
       let accessProfiles = [];
@@ -181,8 +189,8 @@ export async function GET(req) {
         modules: PERMISSION_MODULES,
         accessLevels: ACCESS_LEVELS,
         catalog: CAPABILITY_CATALOG,
-        roleDefaults: roleCaps.rows,
-        groupDefaults: groupCaps.rows,
+        roleDefaults: roleCapabilities.rows,
+        groupDefaults: groupCapabilities.rows,
         accessProfiles,
         accessProfileDefaults,
       });
@@ -190,27 +198,27 @@ export async function GET(req) {
 
     // Get effective permissions for a specific user
     if (userCid) {
-      const userRes = await getContactForEffectivePermissions(userCid);
-      if (userRes.rows.length === 0) {
+      const userResult = await getContactForEffectivePermissions(userCid);
+      if (userResult.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "User not found" },
           { status: 404 },
         );
       }
-      const user = userRes.rows[0];
+      const user = userResult.rows[0];
       const groups = await getUserGroups(userCid);
       // Canonical authorization context (V2-equivalent + eligibility).
       // Phase 0: the admin UI no longer depends on V1 for the effective
       // permission matrix; V1 remains in the codebase but is unused here.
-      const authzCtx = await getAuthorizationContext({
+      const authorizationContext = await getAuthorizationContext({
         cid: userCid,
         role: user.role,
         group_name: user.group_name,
       });
-      const matrix = effectivePermissionsFromContext(authzCtx);
+      const matrix = effectivePermissionsFromContext(authorizationContext);
       // "Who has access and why": per-feature eligibility (with the identity
       // rows that produced it) + the raw capability inputs per module.
-      const explanation = buildPermissionExplanation(authzCtx);
+      const explanation = buildPermissionExplanation(authorizationContext);
 
       // Get individual grants
       const grants = await safeQuery(
@@ -234,8 +242,8 @@ export async function GET(req) {
       // context_type='supervision'). Null when none exists.
       let supervisorCid = null;
       try {
-        const supRes = await getCurrentSupervisor(userCid);
-        supervisorCid = supRes.rows[0]?.supervisor_cid || null;
+        const supervisorResult = await getCurrentSupervisor(userCid);
+        supervisorCid = supervisorResult.rows[0]?.supervisor_cid || null;
       } catch (_) {}
 
       return NextResponse.json({
@@ -261,27 +269,27 @@ export async function GET(req) {
 
     // Get role defaults
     if (role) {
-      const caps = await safeQuery("SELECT * FROM role_capabilities WHERE role = ? ORDER BY module, capability", [role]);
+      const capabilitiesResult = await safeQuery("SELECT * FROM role_capabilities WHERE role = ? ORDER BY module, capability", [role]);
       return NextResponse.json({
         success: true,
         role,
-        capabilities: caps.rows,
+        capabilities: capabilitiesResult.rows,
       });
     }
 
     // Get group defaults
     if (group) {
-      const caps = await safeQuery("SELECT * FROM group_capabilities WHERE group_name = ? ORDER BY module, capability", [group]);
+      const capabilitiesResult = await safeQuery("SELECT * FROM group_capabilities WHERE group_name = ? ORDER BY module, capability", [group]);
       return NextResponse.json({
         success: true,
         group,
-        capabilities: caps.rows,
+        capabilities: capabilitiesResult.rows,
       });
     }
-  } catch (err) {
-    console.error("[Permissions] GET error:", err);
+  } catch (error) {
+    console.error("[Permissions] GET error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }
@@ -323,9 +331,9 @@ export async function PUT(req) {
     await ensurePermissionsSchema();
 
     // Get target user info
-    const targetRes = await getContactNameAndRole(user_cid);
-    const targetName = targetRes.rows[0]?.name || "Unknown";
-    const targetRole = targetRes.rows[0]?.role || null;
+    const targetResult = await getContactNameAndRole(user_cid);
+    const targetName = targetResult.rows[0]?.name || "Unknown";
+    const targetRole = targetResult.rows[0]?.role || null;
 
     // Handle promote/remove super admin specially
     if (action === "promote_super_admin") {
@@ -377,13 +385,13 @@ export async function PUT(req) {
     // eligible by bypass.)
     const featureKey = MODULE_TO_FEATURE[module];
     if (action === "grant" && featureKey) {
-      const targetAuthz = await getAuthorizationContext({
+      const targetAuthorization = await getAuthorizationContext({
         cid: user_cid,
         role: targetRole,
       });
       const targetEligible =
-        targetAuthz?.isSuperAdmin ||
-        targetAuthz?.eligibility?.[featureKey] === true;
+        targetAuthorization?.isSuperAdmin ||
+        targetAuthorization?.eligibility?.[featureKey] === true;
       if (!targetEligible) {
         return NextResponse.json(
           {
@@ -581,8 +589,8 @@ export async function PUT(req) {
           );
         }
         // Validate the supervisor is a real contact.
-        const supCheck = await contactExistsById(supervisorCid);
-        if (supCheck.rows.length === 0) {
+        const supervisorCheck = await contactExistsById(supervisorCid);
+        if (supervisorCheck.rows.length === 0) {
           return NextResponse.json(
             { success: false, error: "Supervisor contact not found" },
             { status: 400 },
@@ -649,10 +657,10 @@ export async function PUT(req) {
 
     invalidateAuthorizationContext(user_cid);
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("[Permissions] PUT error:", err);
+  } catch (error) {
+    console.error("[Permissions] PUT error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

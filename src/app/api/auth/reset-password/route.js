@@ -28,13 +28,13 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: 'Current password required for self-reset.' }, { status: 400 });
     }
 
-    const userRes = await getContactByEmailForPasswordReset(cleanEmail);
+    const userResult = await getContactByEmailForPasswordReset(cleanEmail);
 
-    if (!userRes.rows || userRes.rows.length === 0) {
+    if (!userResult.rows || userResult.rows.length === 0) {
       return NextResponse.json({ success: false, error: 'User not found.' }, { status: 404 });
     }
 
-    const user = userRes.rows[0];
+    const user = userResult.rows[0];
     const isHashed = user.password && user.password.startsWith('$2');
     let isMatch = false;
 

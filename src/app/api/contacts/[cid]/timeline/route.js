@@ -34,8 +34,8 @@ export async function GET(req, { params }) {
     // Program managers: scope events to non-program modules + their programs.
     let pmProgramIds;
     if (session.role === "program_manager") {
-      const progRes = await getProgramIdsForPm(session.cid);
-      pmProgramIds = progRes.rows.map(r => r.id);
+      const programsResult = await getProgramIdsForPm(session.cid);
+      pmProgramIds = programsResult.rows.map((row) => row.id);
     }
 
     const result = await getContactTimelineEvents(
@@ -46,9 +46,9 @@ export async function GET(req, { params }) {
       limit,
       offset,
     );
-    const contactRes = await getTimelineContactIdentity(cid);
+    const contactResult = await getTimelineContactIdentity(cid);
 
-    return NextResponse.json({ success: true, contact: contactRes.rows[0] || null, events: result.rows, total: result.rows.length });
+    return NextResponse.json({ success: true, contact: contactResult.rows[0] || null, events: result.rows, total: result.rows.length });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

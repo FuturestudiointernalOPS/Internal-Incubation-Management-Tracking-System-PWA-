@@ -115,7 +115,7 @@ export async function rebuildStandupTasks(user_id, week_number, year) {
 
   if (standup.rows.length === 0) return { action: "skipped" };
 
-  const ctx = standup.rows[0];
+  const standupContext = standup.rows[0];
 
   // Filter tasks by the standup's context to prevent cross-context leakage
   let taskSql = `SELECT title, status FROM tasks
@@ -123,12 +123,12 @@ export async function rebuildStandupTasks(user_id, week_number, year) {
         AND status != 'completed'`;
   const taskArgs = [user_id, week_number, year];
 
-  if (ctx.context_type) {
+  if (standupContext.context_type) {
     taskSql += " AND context_type = ?";
-    taskArgs.push(ctx.context_type);
-    if (ctx.context_id) {
+    taskArgs.push(standupContext.context_type);
+    if (standupContext.context_id) {
       taskSql += " AND context_id = ?";
-      taskArgs.push(ctx.context_id);
+      taskArgs.push(standupContext.context_id);
     }
   }
 
@@ -140,7 +140,7 @@ export async function rebuildStandupTasks(user_id, week_number, year) {
   });
 
   const lines = tasks.rows.map(
-    (t) => `• ${t.title} (${t.status.replace(/_/g, " ")})`,
+    (task) => `• ${task.title} (${task.status.replace(/_/g, " ")})`,
   );
 
   await db.execute({

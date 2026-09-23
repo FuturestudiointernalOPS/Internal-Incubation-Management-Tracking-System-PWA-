@@ -23,13 +23,13 @@ async function run() {
     console.log(`venture_documents exists: ${exists.rows[0].exists}`);
 
     if (exists.rows[0].exists) {
-      const cols = await client.query(`
+      const columns = await client.query(`
         SELECT column_name, data_type FROM information_schema.columns 
         WHERE table_schema = 'public' AND table_name = 'venture_documents'
         ORDER BY ordinal_position
       `);
       console.log("\nColumns:");
-      cols.rows.forEach(r => console.log(`   ${r.column_name.padEnd(25)} ${r.data_type}`));
+      columns.rows.forEach(column => console.log(`   ${column.column_name.padEnd(25)} ${column.data_type}`));
     }
 
     // Also check fundraising_opportunities
@@ -45,7 +45,7 @@ async function run() {
       ORDER BY table_name
     `);
     console.log("\nAll venture_* tables:");
-    allVenture.rows.forEach(r => console.log(`   ${r.table_name}`));
+    allVenture.rows.forEach(table => console.log(`   ${table.table_name}`));
   } finally {
     client.release();
     await pool.end();

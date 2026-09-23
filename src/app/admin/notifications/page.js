@@ -24,14 +24,14 @@ const TYPE_COLORS = {
 // reaches a `.filter` / `.map` read. Module scope keeps them stable for the hook
 // (inline values would refetch on every render).
 const EMPTY_NOTIFICATION_INBOX = { notifications: [], unread_count: 0 };
-const pickNotificationInbox = (d) =>
-  d?.success
-    ? { notifications: d.notifications || [], unread_count: d.unread_count || 0 }
+const pickNotificationInbox = (payload) =>
+  payload?.success
+    ? { notifications: payload.notifications || [], unread_count: payload.unread_count || 0 }
     : EMPTY_NOTIFICATION_INBOX;
 // The preferences endpoint answers with the stored row: its `preferences` field
 // is the per-type channel map, and the delivery settings sit beside it. The
 // screen edits both, so the row is kept whole.
-const pickNotificationPreferences = (d) => (d?.success ? d.preferences : null);
+const pickNotificationPreferences = (payload) => (payload?.success ? payload.preferences : null);
 
 export default function NotificationsPage() {
   const { t } = useI18n();
@@ -77,7 +77,7 @@ export default function NotificationsPage() {
     });
     setInbox((prev) => ({
       ...prev,
-      notifications: prev.notifications.map((n) => n.id === id ? { ...n, status: "read" } : n),
+      notifications: prev.notifications.map((notification) => notification.id === id ? { ...notification, status: "read" } : notification),
       unread_count: Math.max(0, prev.unread_count - 1),
     }));
   };
@@ -89,7 +89,7 @@ export default function NotificationsPage() {
     });
     setInbox((prev) => ({
       ...prev,
-      notifications: prev.notifications.map((n) => n.status === "unread" ? { ...n, status: "read" } : n),
+      notifications: prev.notifications.map((notification) => notification.status === "unread" ? { ...notification, status: "read" } : notification),
       unread_count: 0,
     }));
     notify(t("adminMisc.notifications.allMarkedRead"));
@@ -100,7 +100,7 @@ export default function NotificationsPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "archive", notification_id: id }),
     });
-    setInbox((prev) => ({ ...prev, notifications: prev.notifications.filter((n) => n.id !== id) }));
+    setInbox((prev) => ({ ...prev, notifications: prev.notifications.filter((notification) => notification.id !== id) }));
   };
 
   const deleteNotif = async (id) => {
@@ -108,7 +108,7 @@ export default function NotificationsPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "delete", notification_id: id }),
     });
-    setInbox((prev) => ({ ...prev, notifications: prev.notifications.filter((n) => n.id !== id) }));
+    setInbox((prev) => ({ ...prev, notifications: prev.notifications.filter((notification) => notification.id !== id) }));
   };
 
   const sendTest = async () => {
@@ -128,10 +128,10 @@ export default function NotificationsPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "update_preferences", updates: { preferences: updated } }),
     });
-    setPreferences((p) => ({ ...p, preferences: updated }));
+    setPreferences((previous) => ({ ...previous, preferences: updated }));
   };
 
-  const filtered = filterType ? notifications.filter((n) => n.type === filterType) : notifications;
+  const filtered = filterType ? notifications.filter((notification) => notification.type === filterType) : notifications;
 
   if (loading) return (
     <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
@@ -183,8 +183,8 @@ export default function NotificationsPage() {
             {/* Filter */}
             <div className="flex gap-1 overflow-x-auto pb-1">
               <button onClick={() => setFilterType("")} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap ${!filterType?"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]":"bg-tertiary text-[var(--text-secondary)]"}`}>{t("adminMisc.notifications.all")}</button>
-              {Object.keys(TYPE_COLORS).map((t) => (
-                <button key={t} onClick={() => setFilterType(t)} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap ${filterType===t?"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]":"bg-tertiary text-[var(--text-secondary)]"}`}>{t}</button>
+              {Object.keys(TYPE_COLORS).map((typeKey) => (
+                <button key={typeKey} onClick={() => setFilterType(typeKey)} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap ${filterType===typeKey?"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]":"bg-tertiary text-[var(--text-secondary)]"}`}>{typeKey}</button>
               ))}
             </div>
 
@@ -193,25 +193,25 @@ export default function NotificationsPage() {
               <div className="text-center py-16"><Bell className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-[var(--text-secondary)]">{t("adminMisc.notifications.noNotifications")}</p></div>
             ) : (
               <div className="space-y-2">
-                {filtered.map((n) => (
-                  <div key={n.id}
-                    className={`p-4 rounded-2xl border transition-all cursor-pointer ${n.status==="unread" ? "bg-[var(--brand-orange)]/[0.02] border-[var(--brand-orange)]/20" : "bg-tertiary border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30"}`}
-                    onClick={() => n.status === "unread" && markRead(n.id)}>
+                {filtered.map((notification) => (
+                  <div key={notification.id}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer ${notification.status==="unread" ? "bg-[var(--brand-orange)]/[0.02] border-[var(--brand-orange)]/20" : "bg-tertiary border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30"}`}
+                    onClick={() => notification.status === "unread" && markRead(notification.id)}>
                     <div className="flex items-start gap-3">
-                      <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.status==="unread" ? "bg-[var(--brand-orange)]" : "bg-transparent"}`} />
+                      <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${notification.status==="unread" ? "bg-[var(--brand-orange)]" : "bg-transparent"}`} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${TYPE_COLORS[n.type] || TYPE_COLORS.system}`}>{n.type}</span>
-                          {n.priority === "urgent" && <span className="text-[10px] font-bold uppercase text-rose-400">{t("adminMisc.notifications.urgent")}</span>}
-                          <span className="text-[10px] font-medium text-[var(--text-secondary)] ml-auto">{new Date(n.created_at).toLocaleString()}</span>
+                          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${TYPE_COLORS[notification.type] || TYPE_COLORS.system}`}>{notification.type}</span>
+                          {notification.priority === "urgent" && <span className="text-[10px] font-bold uppercase text-rose-400">{t("adminMisc.notifications.urgent")}</span>}
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)] ml-auto">{new Date(notification.created_at).toLocaleString()}</span>
                         </div>
-                        <p className={`text-xs mt-1 ${n.status==="unread" ? "font-bold text-[var(--text-primary)]" : "font-medium text-[var(--text-secondary)]"}`}>{n.title}</p>
-                        {n.body && <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">{n.body}</p>}
+                        <p className={`text-xs mt-1 ${notification.status==="unread" ? "font-bold text-[var(--text-primary)]" : "font-medium text-[var(--text-secondary)]"}`}>{notification.title}</p>
+                        {notification.body && <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">{notification.body}</p>}
                       </div>
                       <div className="flex gap-1 shrink-0">
-                        {n.status === "unread" && <button onClick={(e) => { e.stopPropagation(); markRead(n.id); }} className="p-1.5 text-slate-500 hover:text-[var(--brand-orange)]"><CheckCircle2 className="w-3.5 h-3.5" /></button>}
-                        <button onClick={(e) => { e.stopPropagation(); archiveNotif(n.id); }} className="p-1.5 text-slate-500 hover:text-blue-400"><Archive className="w-3.5 h-3.5" /></button>
-                        <button onClick={(e) => { e.stopPropagation(); deleteNotif(n.id); }} className="p-1.5 text-slate-500 hover:text-rose-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                        {notification.status === "unread" && <button onClick={(event) => { event.stopPropagation(); markRead(notification.id); }} className="p-1.5 text-slate-500 hover:text-[var(--brand-orange)]"><CheckCircle2 className="w-3.5 h-3.5" /></button>}
+                        <button onClick={(event) => { event.stopPropagation(); archiveNotif(notification.id); }} className="p-1.5 text-slate-500 hover:text-blue-400"><Archive className="w-3.5 h-3.5" /></button>
+                        <button onClick={(event) => { event.stopPropagation(); deleteNotif(notification.id); }} className="p-1.5 text-slate-500 hover:text-rose-400"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   </div>
@@ -245,9 +245,9 @@ export default function NotificationsPage() {
                 <div className="flex items-center justify-between p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                   <span className="text-[10px] font-bold text-[var(--text-primary)]">{t("adminMisc.notifications.digestFrequency")}</span>
                   <select value={preferences.digest_frequency || "realtime"}
-                    onChange={async (e) => {
-                      await fetch(`/api/notifications/venture`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update_preferences", updates: { digest_frequency: e.target.value } }) });
-                      setPreferences((p) => ({ ...p, digest_frequency: e.target.value }));
+                    onChange={async (event) => {
+                      await fetch(`/api/notifications/venture`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update_preferences", updates: { digest_frequency: event.target.value } }) });
+                      setPreferences((previous) => ({ ...previous, digest_frequency: event.target.value }));
                       notify(t("adminMisc.notifications.updated"));
                     }}
                     className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-sm font-bold outline-none">

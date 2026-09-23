@@ -75,17 +75,17 @@ export async function POST(req) {
       );
     }
 
-    const inv = await getAssignmentById(assignment_id);
-    if (inv.rows.length === 0) {
+    const assignmentResult = await getAssignmentById(assignment_id);
+    if (assignmentResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Assignment not found" },
         { status: 404 },
       );
     }
-    const a = inv.rows[0];
+    const assignment = assignmentResult.rows[0];
 
     // Accept/decline only valid for pending assignments
-    if (action !== "reassign" && a.status !== "pending") {
+    if (action !== "reassign" && assignment.status !== "pending") {
       return NextResponse.json(
         { success: false, error: "Assignment no longer pending" },
         { status: 400 },
@@ -102,7 +102,7 @@ export async function POST(req) {
           { status: 400 },
         );
       }
-      if (session.role !== "super_admin" && a.assigner_id !== userCid) {
+      if (session.role !== "super_admin" && assignment.assigner_id !== userCid) {
         return NextResponse.json(
           { success: false, error: "Only the assigner can reassign" },
           { status: 403 },
@@ -110,7 +110,7 @@ export async function POST(req) {
       }
     } else {
       // Accept/decline: only the assignee can respond
-      if (a.assignee_id !== userCid) {
+      if (assignment.assignee_id !== userCid) {
         return NextResponse.json(
           { success: false, error: "Only the assignee can respond" },
           { status: 403 },
@@ -119,16 +119,16 @@ export async function POST(req) {
     }
 
     // Get task info
-    const taskRes = await getTaskAssignmentMeta(a.task_id);
-    const task = taskRes.rows[0];
+    const taskResult = await getTaskAssignmentMeta(assignment.task_id);
+    const task = taskResult.rows[0];
 
     if (action === "decline") {
       await declineAssignment(assignment_id);
       // Notify assigner
       await createAssignmentDeclinedNotification(
-        a.assigner_id,
+        assignment.assigner_id,
         "Assignment Declined",
-        `${session.name || userCid} declined task "${task?.title || "#" + a.task_id}"`,
+        `${session.name || userCid} declined task "${task?.title || "#" + assignment.task_id}"`,
         "task_assignment",
       );
       return NextResponse.json({ success: true, action: "declined" });
@@ -138,16 +138,16 @@ export async function POST(req) {
       await acceptAssignment(assignment_id);
 
       // Update task's assigned_to
-      await updateTaskAssignedTo(a.assignee_id, a.task_id);
+      await updateTaskAssignedTo(assignment.assignee_id, assignment.task_id);
 
       // Sync to assignee's standup
       if (task) {
-        const contactRes = await getContactById(a.assignee_id);
-        const contact = contactRes.rows[0] || {};
+        const contactResult = await getContactById(assignment.assignee_id);
+        const contact = contactResult.rows[0] || {};
         try {
           await standupUpsert({
-            user_id: a.assignee_id,
-            user_name: contact.name || a.assignee_id,
+            user_id: assignment.assignee_id,
+            user_name: contact.name || assignment.assignee_id,
             user_role: contact.role || "staff",
             week_number: task.created_week || 0,
             year: task.created_year || 0,
@@ -158,9 +158,9 @@ export async function POST(req) {
 
       // Notify assigner
       await createAssignmentAcceptedNotification(
-        a.assigner_id,
+        assignment.assigner_id,
         "Assignment Accepted",
-        `${session.name || userCid} accepted task "${task?.title || "#" + a.task_id}"`,
+        `${session.name || userCid} accepted task "${task?.title || "#" + assignment.task_id}"`,
         "task_assignment",
       );
 
@@ -174,12 +174,12 @@ export async function POST(req) {
       if (session.role !== "super_admin") {
         const { validateTaskAssignment } = await import("@/lib/contactGroups");
         // Fetch task context for venture check
-        const taskCtx = await getTaskAssignmentContext(a.task_id);
-        const ctx = taskCtx.rows[0] || {};
+        const taskContextResult = await getTaskAssignmentContext(assignment.task_id);
+        const taskContext = taskContextResult.rows[0] || {};
         const groupCheck = await validateTaskAssignment(
           userCid,
           new_assignee_id,
-          { context_type: ctx.context_type || "staff", context_id: ctx.context_id || null },
+          { context_type: taskContext.context_type || "staff", context_id: taskContext.context_id || null },
         );
         if (!groupCheck.allowed) {
           return NextResponse.json(
@@ -193,23 +193,23 @@ export async function POST(req) {
       }
 
       // If old assignment was pending, mark it declined so it drops from old assignee's list
-      if (a.status === "pending") {
+      if (assignment.status === "pending") {
         await declineAssignmentForReassign(assignment_id);
       }
 
       // If old assignment was already accepted, clear tasks.assigned_to back to NULL
-      if (a.status === "accepted") {
-        await clearTaskAssignee(a.task_id);
+      if (assignment.status === "accepted") {
+        await clearTaskAssignee(assignment.task_id);
       }
 
       // Insert new pending row for the new assignee
-      await createAssignment(a.task_id, userCid, new_assignee_id);
+      await createAssignment(assignment.task_id, userCid, new_assignee_id);
 
       // Notify new assignee
       await createAssignmentReassignedNotification(
         new_assignee_id,
         "New Task Assignment",
-        `${session.name || userCid} reassigned you task "${task?.title || "#" + a.task_id}"`,
+        `${session.name || userCid} reassigned you task "${task?.title || "#" + assignment.task_id}"`,
         "task_assignment",
       );
 

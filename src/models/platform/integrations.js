@@ -16,24 +16,24 @@ import { deepseekIntelligence } from "@/lib/deepseek";
 
 /**
  * Log a platform audit event.
- * @param {Object} opts
- * @param {string} opts.entity_type - e.g. "form_run", "submission", "review"
- * @param {string|number} opts.entity_id
- * @param {string} opts.user_id - actor CID
- * @param {string} [opts.user_name]
- * @param {string} opts.action - e.g. "created", "launched", "submitted", "approved"
- * @param {string} [opts.details] - human-readable description
- * @param {Object} [opts.meta] - extra structured data
+ * @param {Object} options
+ * @param {string} options.entity_type - e.g. "form_run", "submission", "review"
+ * @param {string|number} options.entity_id
+ * @param {string} options.user_id - actor CID
+ * @param {string} [options.user_name]
+ * @param {string} options.action - e.g. "created", "launched", "submitted", "approved"
+ * @param {string} [options.details] - human-readable description
+ * @param {Object} [options.meta] - extra structured data
  */
-export async function audit(opts) {
+export async function audit(options) {
   return logAuditEvent({
-    entity_type: opts.entity_type,
-    entity_id: String(opts.entity_id),
-    user_id: opts.user_id,
-    user_name: opts.user_name || "",
-    action: opts.action,
-    details: opts.details || null,
-    metadata: opts.meta || null,
+    entity_type: options.entity_type,
+    entity_id: String(options.entity_id),
+    user_id: options.user_id,
+    user_name: options.user_name || "",
+    action: options.action,
+    details: options.details || null,
+    metadata: options.meta || null,
   });
 }
 
@@ -46,34 +46,10 @@ export async function audit(opts) {
 export async function email({ to, subject, body, isHtml, fromName }) {
   try {
     return await sendEmail({ to, subject, body, isHtml, fromName });
-  } catch (e) {
-    console.error("[Platform Integration] Email failed:", e.message);
-    return { success: false, error: e.message };
+  } catch (error) {
+    console.error("[Platform Integration] Email failed:", error.message);
+    return { success: false, error: error.message };
   }
-}
-
-/**
- * Send a submission confirmation email to a participant.
- */
-export async function sendSubmissionConfirmation({ to, participantName, runName, submittedAt }) {
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #020617; color: #f8fafc; padding: 40px;">
-      <div style="max-width: 480px; margin: 0 auto; background: #0f172a; border-radius: 16px; border: 1px solid #334155; padding: 40px;">
-        <h1 style="margin:0 0 8px; font-size:22px;"><span style="color:#ff6600;">Impact</span><span style="color:#f8fafc;">OS</span></h1>
-        <p style="color:#64748b; font-size:13px; margin:0 0 24px;">Future Studio Platform</p>
-        <h2 style="color:#f8fafc; font-size:18px; margin:0 0 8px;">Submission Received ✓</h2>
-        <p style="color:#94a3b8; font-size:14px; line-height:1.6; margin:0 0 8px;">
-          Hi <strong style="color:#f8fafc;">${participantName}</strong>,
-        </p>
-        <p style="color:#94a3b8; font-size:14px; line-height:1.6; margin:0 0 24px;">
-          Your submission for <strong style="color:#ff6600;">${runName}</strong> has been received on ${submittedAt}. We will review it and get back to you.
-        </p>
-        <hr style="border:none; border-top:1px solid #1e293b; margin:24px 0;" />
-        <p style="color:#475569; font-size:11px; margin:0;">This is an automated notification from ImpactOS.</p>
-      </div>
-    </div>`;
-
-  return email({ to, subject: `Submission Received — ${runName}`, body: html, isHtml: true, fromName: "ImpactOS" });
 }
 
 /**
@@ -131,7 +107,7 @@ export async function sendReviewDecision({ to, participantName, runName, decisio
 export async function summarizeSubmission(submission, form) {
   try {
     const fields = Object.entries(submission.data || {})
-      .map(([k, v]) => `- ${k}: ${typeof v === "string" ? v.substring(0, 200) : String(v)}`)
+      .map(([key, value]) => `- ${key}: ${typeof value === "string" ? value.substring(0, 200) : String(value)}`)
       .join("\n");
 
     const prompt = `You are an application reviewer assistant for an incubation program called ImpactOS by Future Studio.
@@ -147,8 +123,8 @@ ${fields || "No data provided"}`;
 
     const summary = await deepseekIntelligence.chat(prompt);
     return summary;
-  } catch (e) {
-    console.error("[Platform AI] Summarization failed:", e.message);
+  } catch (error) {
+    console.error("[Platform AI] Summarization failed:", error.message);
     return null;
   }
 }
@@ -160,7 +136,7 @@ ${fields || "No data provided"}`;
 export async function analyzeSubmission(submission, form) {
   try {
     const fields = Object.entries(submission.data || {})
-      .map(([k, v]) => `- ${k}: ${typeof v === "string" ? v.substring(0, 200) : String(v)}`)
+      .map(([key, value]) => `- ${key}: ${typeof value === "string" ? value.substring(0, 200) : String(value)}`)
       .join("\n");
 
     const prompt = `You are a reviewer assistant. Analyze this application submission and return a JSON object with:
@@ -181,8 +157,8 @@ Return ONLY valid JSON, no markdown, no extra text. Format: {"summary":"...","fl
       return JSON.parse(jsonMatch[0]);
     }
     return null;
-  } catch (e) {
-    console.error("[Platform AI] Analysis failed:", e.message);
+  } catch (error) {
+    console.error("[Platform AI] Analysis failed:", error.message);
     return null;
   }
 }
@@ -202,8 +178,8 @@ export async function notifyUser({ userId, title, body, actionUrl, type }) {
             VALUES (?, ?, ?, ?, ?, FALSE)`,
       args: [userId, title, body || null, actionUrl || null, type || "info"],
     });
-  } catch (e) {
-    console.error("[Platform Notification] Failed:", e.message);
+  } catch (error) {
+    console.error("[Platform Notification] Failed:", error.message);
   }
 }
 
@@ -240,7 +216,6 @@ export async function healthCheck() {
 export default {
   audit,
   email,
-  sendSubmissionConfirmation,
   sendReviewDecision,
   summarizeSubmission,
   analyzeSubmission,

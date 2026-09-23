@@ -18,8 +18,8 @@ async function run() {
   try {
     await pool.query("ALTER TABLE v2_projects ALTER COLUMN program_id DROP NOT NULL");
     console.log("✅ Success! program_id constraint removed.");
-  } catch (e) {
-    console.log("⚠️", e.message);
+  } catch (error) {
+    console.log("⚠️", error.message);
   }
   await pool.end();
   process.exit(0);

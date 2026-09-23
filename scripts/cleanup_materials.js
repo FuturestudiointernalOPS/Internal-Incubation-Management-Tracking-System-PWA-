@@ -11,27 +11,27 @@ async function run() {
   try {
     // Fix corrupted materials by resetting to empty array
     // where they are deeply nested strings that can't be parsed as arrays
-    const all = await client.query("SELECT id, materials FROM v2_programs WHERE materials IS NOT NULL AND materials != '' AND materials != '[]'");
-    console.log(`Found ${all.rows.length} programs with non-empty materials`);
-    for (const p of all.rows) {
+    const programsWithMaterials = await client.query("SELECT id, materials FROM v2_programs WHERE materials IS NOT NULL AND materials != '' AND materials != '[]'");
+    console.log(`Found ${programsWithMaterials.rows.length} programs with non-empty materials`);
+    for (const program of programsWithMaterials.rows) {
       try {
-        let val = p.materials;
-        for (let i = 0; i < 4; i++) {
+        let materialsValue = program.materials;
+        for (let attempt = 0; attempt < 4; attempt++) {
           try {
-            const parsed = JSON.parse(val);
-            if (Array.isArray(parsed)) { val = parsed; break; }
-            val = parsed;
+            const parsed = JSON.parse(materialsValue);
+            if (Array.isArray(parsed)) { materialsValue = parsed; break; }
+            materialsValue = parsed;
           } catch { break; }
         }
-        if (Array.isArray(val)) {
-          console.log(`  ${p.id.substring(0,8)}... OK — is array with ${val.length} items`);
+        if (Array.isArray(materialsValue)) {
+          console.log(`  ${program.id.substring(0,8)}... OK — is array with ${materialsValue.length} items`);
         } else {
-          console.log(`  ${p.id.substring(0,8)}... CORRUPTED — resetting to []`);
-          await client.query("UPDATE v2_programs SET materials = '[]' WHERE id = $1", [p.id]);
+          console.log(`  ${program.id.substring(0,8)}... CORRUPTED — resetting to []`);
+          await client.query("UPDATE v2_programs SET materials = '[]' WHERE id = $1", [program.id]);
         }
       } catch {
-        console.log(`  ${p.id.substring(0,8)}... ERROR — resetting to []`);
-        await client.query("UPDATE v2_programs SET materials = '[]' WHERE id = $1", [p.id]);
+        console.log(`  ${program.id.substring(0,8)}... ERROR — resetting to []`);
+        await client.query("UPDATE v2_programs SET materials = '[]' WHERE id = $1", [program.id]);
       }
     }
     console.log("\nCleanup complete");

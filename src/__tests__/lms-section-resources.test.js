@@ -197,11 +197,11 @@ describe("lms section resources — service", () => {
     });
 
     const forSection = await listSectionResources({ sectionId: SECTION });
-    expect(forSection.map((r) => r.title)).toEqual(["Reader", "Toolkit"]);
+    expect(forSection.map((resource) => resource.title)).toEqual(["Reader", "Toolkit"]);
 
     // Recommendations stay in the list, flagged — the surface decides how to
     // present them (the learner view pulls them into their own block).
-    const recommended = forSection.filter((r) => r.is_recommended);
+    const recommended = forSection.filter((resource) => resource.is_recommended);
     expect(recommended).toHaveLength(1);
     expect(recommended[0].title).toBe("Toolkit");
     expect(recommended[0].id).toBe(toolkit.id);
@@ -320,16 +320,16 @@ describe("lms section resources — routes", () => {
       url: "https://x.test/reader.pdf",
     });
 
-    const put = await resourcePUT(
+    const putResponse = await resourcePUT(
       jsonReq({ is_recommended: true, recommendation_note: "Read first" }),
       { params: Promise.resolve({ id: resource.id }) },
     );
-    const putData = await readJson(put);
-    expect(putData.resource.is_recommended).toBe(true);
+    const putBody = await readJson(putResponse);
+    expect(putBody.resource.is_recommended).toBe(true);
 
-    const del = await resourceDELETE(jsonReq({}), {
+    const deleteResponse = await resourceDELETE(jsonReq({}), {
       params: Promise.resolve({ id: resource.id }),
     });
-    expect((await readJson(del)).success).toBe(true);
+    expect((await readJson(deleteResponse)).success).toBe(true);
   });
 });

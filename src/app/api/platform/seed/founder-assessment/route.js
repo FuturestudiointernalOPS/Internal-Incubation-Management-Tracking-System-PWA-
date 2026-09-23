@@ -242,26 +242,26 @@ export async function POST() {
       { field_type: "file", label: "Prototype / Product Images", required: false, sort_order: 24, validation: { acceptedFiles: ".jpg,.png,.mp4", maxSize: 50 } },
     ];
 
-    const profileSec = await insertFounderProfileSection(formId, sortOrder++);
-    const profileSecId = profileSec.rows[0].id;
+    const profileSection = await insertFounderProfileSection(formId, sortOrder++);
+    const profileSectionId = profileSection.rows[0].id;
 
     let stageOfBusinessFieldId = null;
     let teamSizeFieldId = null;
 
-    for (const f of profileFields) {
-      const res = await insertFounderProfileField(formId, profileSecId, f);
-      if (f.label === "Stage of Business") stageOfBusinessFieldId = res.rows[0].id;
-      if (f.label === "Team Size") teamSizeFieldId = res.rows[0].id;
+    for (const field of profileFields) {
+      const insertResult = await insertFounderProfileField(formId, profileSectionId, field);
+      if (field.label === "Stage of Business") stageOfBusinessFieldId = insertResult.rows[0].id;
+      if (field.label === "Team Size") teamSizeFieldId = insertResult.rows[0].id;
     }
 
     // ── Scored sections ──
 
-    for (const sec of SCORED_SECTIONS) {
-      const secRes = await insertScoredAssessmentSection(formId, sec.title, sortOrder++);
-      const secId = secRes.rows[0].id;
+    for (const section of SCORED_SECTIONS) {
+      const sectionResult = await insertScoredAssessmentSection(formId, section.title, sortOrder++);
+      const sectionId = sectionResult.rows[0].id;
 
-      for (let i = 0; i < sec.questions.length; i++) {
-        await insertScoredRatingField(formId, secId, sec.questions[i], RATING_OPTIONS, i);
+      for (let questionIndex = 0; questionIndex < section.questions.length; questionIndex++) {
+        await insertScoredRatingField(formId, sectionId, section.questions[questionIndex], RATING_OPTIONS, questionIndex);
       }
     }
 
@@ -275,11 +275,11 @@ export async function POST() {
       "Where do you see yourself and your startup in 5 years?",
     ];
 
-    const openSec = await insertOpenResponseSection(formId, sortOrder++);
-    const openSecId = openSec.rows[0].id;
+    const openSection = await insertOpenResponseSection(formId, sortOrder++);
+    const openSectionId = openSection.rows[0].id;
 
-    for (let i = 0; i < openQuestions.length; i++) {
-      await insertOpenResponseField(formId, openSecId, openQuestions[i], i);
+    for (let questionIndex = 0; questionIndex < openQuestions.length; questionIndex++) {
+      await insertOpenResponseField(formId, openSectionId, openQuestions[questionIndex], questionIndex);
     }
 
     // ── Apply conditional logic ──

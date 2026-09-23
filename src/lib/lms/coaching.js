@@ -78,18 +78,18 @@ function normalizeStatus(value) {
 
 /** Lesson (when provided) must belong to the course the learner is enrolled in. */
 async function assertLessonBelongsToCourse(lessonId, courseId) {
-  const lessonRes = await db.execute({
+  const lessonResult = await db.execute({
     sql: "SELECT id, section_id FROM lms_lessons WHERE id = ?",
     args: [lessonId],
   });
-  const lesson = lessonRes.rows[0];
+  const lesson = lessonResult.rows[0];
   if (!lesson) throw new LmsError("lms.errors.lessonNotFound", 404);
 
-  const sectionRes = await db.execute({
+  const sectionResult = await db.execute({
     sql: "SELECT id, course_id FROM lms_course_sections WHERE id = ?",
     args: [lesson.section_id],
   });
-  const section = sectionRes.rows[0];
+  const section = sectionResult.rows[0];
   if (!section || String(section.course_id) !== String(courseId)) {
     throw new LmsError("lms.errors.lessonNotFound", 404);
   }
@@ -101,11 +101,11 @@ async function assertLessonBelongsToCourse(lessonId, courseId) {
  */
 async function resolveProgramId(courseId, enrollment) {
   if (enrollment?.program_id) return String(enrollment.program_id);
-  const res = await db.execute({
+  const result = await db.execute({
     sql: "SELECT program_id FROM lms_program_requirements WHERE course_id = ? ORDER BY position, created_at LIMIT 1",
     args: [courseId],
   });
-  return res.rows[0]?.program_id ? String(res.rows[0].program_id) : null;
+  return result.rows[0]?.program_id ? String(result.rows[0].program_id) : null;
 }
 
 /** Program staff (assigned PM + assigned staff) — the people who can answer. */
@@ -113,20 +113,20 @@ export async function getProgramStaffIds(programId) {
   if (!programId) return [];
   const ids = new Set();
 
-  const programRes = await db.execute({
+  const programResult = await db.execute({
     sql: "SELECT assigned_pm_id FROM v2_programs WHERE id = ?",
     args: [String(programId)],
   });
-  const pmId = programRes.rows[0]?.assigned_pm_id;
+  const pmId = programResult.rows[0]?.assigned_pm_id;
   if (pmId) ids.add(String(pmId));
 
-  const staffRes = await db.execute({
+  const staffResult = await db.execute({
     // `::text` cast matches the existing v2_program_staff readers (the column's
     // UUID-vs-TEXT form varies across deployments).
     sql: "SELECT staff_id FROM v2_program_staff WHERE program_id::text = ?",
     args: [String(programId)],
   });
-  for (const row of staffRes.rows || []) {
+  for (const row of staffResult.rows || []) {
     if (row.staff_id) ids.add(String(row.staff_id));
   }
   return [...ids];
@@ -149,8 +149,8 @@ async function notifyStaff(programId, title, message, excludeCid) {
       });
     }
     return recipients.length;
-  } catch (e) {
-    console.error("[LMS] coaching notification failed:", e.message);
+  } catch (error) {
+    console.error("[LMS] coaching notification failed:", error.message);
     return 0;
   }
 }
@@ -163,8 +163,8 @@ async function notifyLearner(cid, title, message) {
             VALUES (?, ?, ?, 'coaching_request', 0, NOW())`,
       args: [String(cid), title, message],
     });
-  } catch (e) {
-    console.error("[LMS] coaching notification to learner failed:", e.message);
+  } catch (error) {
+    console.error("[LMS] coaching notification to learner failed:", error.message);
   }
 }
 
@@ -183,11 +183,11 @@ export async function createCoachingRequest({
   if (!cid) throw new LmsError("errors.authRequired", 401);
   if (!courseId) throw new LmsError("lms.errors.courseIdRequired", 400);
 
-  const courseRes = await db.execute({
+  const courseResult = await db.execute({
     sql: "SELECT id, title, status FROM lms_courses WHERE id = ?",
     args: [courseId],
   });
-  const course = courseRes.rows[0];
+  const course = courseResult.rows[0];
   if (!course) throw new LmsError("lms.errors.courseNotFound", 404);
 
   // Enrollment IS the access model for the learner experience.
@@ -202,15 +202,15 @@ export async function createCoachingRequest({
   const programId = await resolveProgramId(courseId, enrollment);
 
   // Never queue twice: an open request for this course is returned untouched.
-  const openRes = await db.execute({
+  const openResult = await db.execute({
     sql: "SELECT * FROM lms_coaching_requests WHERE user_cid = ? AND course_id = ? AND status = 'pending' LIMIT 1",
     args: [String(cid), courseId],
   });
-  if (openRes.rows.length > 0) {
-    return { request: parseRequest(openRes.rows[0]), duplicate: true, notified: 0 };
+  if (openResult.rows.length > 0) {
+    return { request: parseRequest(openResult.rows[0]), duplicate: true, notified: 0 };
   }
 
-  const ins = await db.execute({
+  const insertResult = await db.execute({
     sql: `INSERT INTO lms_coaching_requests
             (user_cid, program_id, course_id, lesson_id, timing, topic, message, status)
           VALUES (?, ?, ?, ?, ?, ?, ?, 'pending') RETURNING *`,
@@ -224,7 +224,7 @@ export async function createCoachingRequest({
       message ? String(message).trim() : null,
     ],
   });
-  const request = parseRequest(ins.rows[0]);
+  const request = parseRequest(insertResult.rows[0]);
 
   const learnerName = await getLearnerName(cid);
   const notified = await notifyStaff(
@@ -238,20 +238,20 @@ export async function createCoachingRequest({
 }
 
 async function getLearnerName(cid) {
-  const res = await db.execute({
+  const result = await db.execute({
     sql: "SELECT name FROM contacts WHERE cid = ? LIMIT 1",
     args: [String(cid)],
   });
-  return res.rows[0]?.name || String(cid);
+  return result.rows[0]?.name || String(cid);
 }
 
 async function getCourseTitle(courseId) {
   if (!courseId) return "";
-  const res = await db.execute({
+  const result = await db.execute({
     sql: "SELECT title FROM lms_courses WHERE id = ? LIMIT 1",
     args: [courseId],
   });
-  return res.rows[0]?.title || String(courseId);
+  return result.rows[0]?.title || String(courseId);
 }
 
 /** Raw rows for one filter set (no enrichment). */
@@ -275,23 +275,23 @@ async function selectRequests({ cid, programId, courseId, status } = {}) {
     args.push(normalizeStatus(status));
   }
   const where = clauses.length > 0 ? ` WHERE ${clauses.join(" AND ")}` : "";
-  const res = await db.execute({
+  const result = await db.execute({
     sql: `SELECT * FROM lms_coaching_requests${where} ORDER BY created_at DESC`,
     args,
   });
-  return res.rows.map(parseRequest);
+  return result.rows.map(parseRequest);
 }
 
 /** Attach learner, course and lesson labels (composed in code — no JOIN). */
 async function enrichRequests(requests) {
   if (requests.length === 0) return [];
 
-  const cids = [...new Set(requests.map((r) => String(r.user_cid)))];
-  const courseIds = [...new Set(requests.filter((r) => r.course_id).map((r) => String(r.course_id)))];
-  const lessonIds = [...new Set(requests.filter((r) => r.lesson_id).map((r) => String(r.lesson_id)))];
-  const programIds = [...new Set(requests.filter((r) => r.program_id).map((r) => String(r.program_id)))];
+  const cids = [...new Set(requests.map((requestRow) => String(requestRow.user_cid)))];
+  const courseIds = [...new Set(requests.filter((requestRow) => requestRow.course_id).map((requestRow) => String(requestRow.course_id)))];
+  const lessonIds = [...new Set(requests.filter((requestRow) => requestRow.lesson_id).map((requestRow) => String(requestRow.lesson_id)))];
+  const programIds = [...new Set(requests.filter((requestRow) => requestRow.program_id).map((requestRow) => String(requestRow.program_id)))];
 
-  const [contactsRes, coursesRes, lessonsRes, programsRes] = await Promise.all([
+  const [contactsResult, coursesResult, lessonsResult, programsResult] = await Promise.all([
     cids.length > 0
       ? db.execute({
           sql: `SELECT cid, name, email FROM contacts WHERE cid IN (${cids.map(() => "?").join(",")})`,
@@ -318,19 +318,19 @@ async function enrichRequests(requests) {
       : { rows: [] },
   ]);
 
-  const byCid = new Map(contactsRes.rows.map((r) => [String(r.cid), r]));
-  const byCourse = new Map(coursesRes.rows.map((r) => [String(r.id), r]));
-  const byLesson = new Map(lessonsRes.rows.map((r) => [String(r.id), r]));
-  const byProgram = new Map(programsRes.rows.map((r) => [String(r.id), r]));
+  const contactsByCid = new Map(contactsResult.rows.map((contactRow) => [String(contactRow.cid), contactRow]));
+  const coursesById = new Map(coursesResult.rows.map((courseRow) => [String(courseRow.id), courseRow]));
+  const lessonsById = new Map(lessonsResult.rows.map((lessonRow) => [String(lessonRow.id), lessonRow]));
+  const programsById = new Map(programsResult.rows.map((programRow) => [String(programRow.id), programRow]));
 
-  return requests.map((r) => {
-    const contact = byCid.get(String(r.user_cid));
-    const course = r.course_id ? byCourse.get(String(r.course_id)) : null;
-    const lesson = r.lesson_id ? byLesson.get(String(r.lesson_id)) : null;
-    const program = r.program_id ? byProgram.get(String(r.program_id)) : null;
+  return requests.map((requestRow) => {
+    const contact = contactsByCid.get(String(requestRow.user_cid));
+    const course = requestRow.course_id ? coursesById.get(String(requestRow.course_id)) : null;
+    const lesson = requestRow.lesson_id ? lessonsById.get(String(requestRow.lesson_id)) : null;
+    const program = requestRow.program_id ? programsById.get(String(requestRow.program_id)) : null;
     return {
-      ...r,
-      learner_name: contact?.name || String(r.user_cid),
+      ...requestRow,
+      learner_name: contact?.name || String(requestRow.user_cid),
       learner_email: contact?.email || null,
       course_title: course?.title || null,
       lesson_title: lesson?.title || null,
@@ -344,9 +344,9 @@ export async function listMyCoachingRequests(cid, { courseId } = {}) {
   if (!cid) throw new LmsError("errors.authRequired", 401);
   const requests = await selectRequests({ cid, courseId });
   const enriched = await enrichRequests(requests);
-  return enriched.map((r) => ({
-    ...r,
-    can_cancel: OPEN_STATUSES.includes(r.status),
+  return enriched.map((requestRow) => ({
+    ...requestRow,
+    can_cancel: OPEN_STATUSES.includes(requestRow.status),
   }));
 }
 
@@ -358,11 +358,11 @@ export async function listCoachingRequests({ programId, courseId, status } = {})
 }
 
 export async function getCoachingRequest(requestId) {
-  const res = await db.execute({
+  const result = await db.execute({
     sql: "SELECT * FROM lms_coaching_requests WHERE id = ?",
     args: [requestId],
   });
-  return parseRequest(res.rows[0]);
+  return parseRequest(result.rows[0]);
 }
 
 /**

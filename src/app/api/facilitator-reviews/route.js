@@ -47,14 +47,14 @@ export async function GET(req) {
     const weekNumber = searchParams.get("week_number");
 
     // Non-management roles may only read their own reviews
-    const res = await listFacilitatorReviews({
+    const reviewsResult = await listFacilitatorReviews({
       programId,
       facilitatorId,
       weekNumber,
       onlyOwn: !!(session && !hasProgramManagementAccess(session.role)),
       ownCid: session?.cid,
     });
-    return NextResponse.json({ success: true, reviews: res.rows });
+    return NextResponse.json({ success: true, reviews: reviewsResult.rows });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },
@@ -66,7 +66,7 @@ export async function GET(req) {
 // Additive/idempotent — ensures the structured review columns exist so the
 // route works even before migration 042 is applied. Never drops legacy columns.
 async function ensureReviewStructure() {
-  const cols = [
+  const columns = [
     "overall_rating TEXT",
     "went_well TEXT",
     "struggles TEXT",
@@ -76,9 +76,9 @@ async function ensureReviewStructure() {
     "focus_next_week TEXT",
     "additional_notes TEXT",
   ];
-  for (const col of cols) {
+  for (const column of columns) {
     try {
-      await ensureFacilitatorReviewColumn(col);
+      await ensureFacilitatorReviewColumn(column);
     } catch (_) {}
   }
 }
@@ -226,11 +226,11 @@ export async function PUT(req) {
 
     // PMs can only decide on reviews for programs they manage (or SA/staff)
     if (session.role === "program_manager") {
-      const review = await getReviewProgramId(id);
-      const progId = review.rows[0]?.program_id;
-      if (progId) {
-        const prog = await getProgramAssignedPmId(progId);
-        if (prog.rows[0]?.assigned_pm_id !== session.cid) {
+      const reviewProgramResult = await getReviewProgramId(id);
+      const programId = reviewProgramResult.rows[0]?.program_id;
+      if (programId) {
+        const assignedPmResult = await getProgramAssignedPmId(programId);
+        if (assignedPmResult.rows[0]?.assigned_pm_id !== session.cid) {
           return NextResponse.json(
             { success: false, error: "errors.insufficientPermissions" },
             { status: 403 },

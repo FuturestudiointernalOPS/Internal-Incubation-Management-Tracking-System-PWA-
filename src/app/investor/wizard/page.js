@@ -54,8 +54,8 @@ export default function InvestorWizardPage() {
       100,
   );
 
-  const toggleArray = (arr, setArr, item) => {
-    setArr(arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item]);
+  const toggleArray = (items, setItems, item) => {
+    setItems(items.includes(item) ? items.filter(entry => entry !== item) : [...items, item]);
   };
 
   const validateStep = () => {
@@ -83,7 +83,7 @@ export default function InvestorWizardPage() {
   const handleSubmit = async () => {
     setLoading(true); setError("");
     try {
-      const res = await fetch("/api/investor/register", {
+      const response = await fetch("/api/investor/register", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name, email, password,
@@ -94,7 +94,7 @@ export default function InvestorWizardPage() {
           investment_experience: `${investmentExperience}\n\nPrior: ${priorInvestments}`,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) setSuccess(true);
       else setError(t(data.error || "Registration failed.") || data.error || "Registration failed.");
     } catch (_) { setError("Network error."); }
@@ -127,8 +127,8 @@ export default function InvestorWizardPage() {
             <span className="text-xs font-bold text-[var(--brand-orange)]">{completion}%</span>
           </div>
           <div className="flex gap-1">
-            {STEPS.map((s, i) => (
-              <div key={s.id} className={`flex-1 h-1 rounded-full ${i <= step ? "bg-[var(--brand-orange)]" : "bg-[var(--surface-3)]"}`} />
+            {STEPS.map((stepItem, stepIndex) => (
+              <div key={stepItem.id} className={`flex-1 h-1 rounded-full ${stepIndex <= step ? "bg-[var(--brand-orange)]" : "bg-[var(--surface-3)]"}`} />
             ))}
           </div>
         </div>
@@ -137,43 +137,43 @@ export default function InvestorWizardPage() {
 
         <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl p-6 space-y-4 min-h-[320px]">
           <div className="flex items-center gap-2 mb-4">
-            {(() => { const S = STEPS[step]; return <><S.icon className="w-5 h-5 text-[var(--brand-orange)]" /><h2 className="text-sm font-black text-[var(--text-primary)] uppercase">{t(`wizard.${S.id}`)}</h2></>; })()}
+            {(() => { const currentStep = STEPS[step]; return <><currentStep.icon className="w-5 h-5 text-[var(--brand-orange)]" /><h2 className="text-sm font-black text-[var(--text-primary)] uppercase">{t(`wizard.${currentStep.id}`)}</h2></>; })()}
           </div>
 
           {step === 0 && (<div className="space-y-3">
-            <div className="relative"><User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" /><input type="text" value={name} onChange={e => setName(e.target.value)} placeholder={t("wizard.fullName") + " *"} className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" /></div>
-            <div className="relative"><Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" /><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t("wizard.email") + " *"} className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" /></div>
+            <div className="relative"><User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" /><input type="text" value={name} onChange={event => setName(event.target.value)} placeholder={t("wizard.fullName") + " *"} className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" /></div>
+            <div className="relative"><Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" /><input type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder={t("wizard.email") + " *"} className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="relative"><Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" /><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={t("wizard.password") + " *"} className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" /></div>
-              <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder={t("wizard.confirm") + " *"} className="px-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+              <div className="relative"><Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" /><input type="password" value={password} onChange={event => setPassword(event.target.value)} placeholder={t("wizard.password") + " *"} className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" /></div>
+              <input type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder={t("wizard.confirm") + " *"} className="px-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
             </div>
           </div>)}
 
           {step === 1 && (<div className="space-y-3">
-            <div className="relative"><Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" /><input value={orgName} onChange={e => setOrgName(e.target.value)} placeholder={t("wizard.orgName") + " *"} className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" /></div>
-            <textarea value={biography} onChange={e => setBiography(e.target.value)} rows={3} placeholder={t("wizard.bio")} className="w-full px-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 resize-none" />
+            <div className="relative"><Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" /><input value={orgName} onChange={event => setOrgName(event.target.value)} placeholder={t("wizard.orgName") + " *"} className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" /></div>
+            <textarea value={biography} onChange={event => setBiography(event.target.value)} rows={3} placeholder={t("wizard.bio")} className="w-full px-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 resize-none" />
             <div className="grid grid-cols-2 gap-3">
-              <div className="relative"><Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" /><input value={website} onChange={e => setWebsite(e.target.value)} placeholder={t("wizard.website")} className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" /></div>
-              <div className="relative"><Link className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" /><input value={linkedin} onChange={e => setLinkedin(e.target.value)} placeholder={t("wizard.linkedin")} className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" /></div>
+              <div className="relative"><Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" /><input value={website} onChange={event => setWebsite(event.target.value)} placeholder={t("wizard.website")} className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" /></div>
+              <div className="relative"><Link className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" /><input value={linkedin} onChange={event => setLinkedin(event.target.value)} placeholder={t("wizard.linkedin")} className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" /></div>
             </div>
           </div>)}
 
           {step === 2 && (<div className="space-y-4">
-            <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("wizard.industries")} *</label><div className="flex flex-wrap gap-1.5 mt-1.5">{INDUSTRIES.map(ind=>(<button key={ind} onClick={()=>toggleArray(industries,setIndustries,ind)} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase ${industries.includes(ind)?"bg-[var(--brand-orange)] text-white":"bg-[var(--surface-3)] text-[var(--text-secondary)]"}`}>{ind}</button>))}</div></div>
-            <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-1"><MapPin className="w-3 h-3"/> {t("wizard.countries")} *</label><div className="flex flex-wrap gap-1.5 mt-1.5">{COUNTRIES.map(c=>(<button key={c} onClick={()=>toggleArray(countries,setCountries,c)} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase ${countries.includes(c)?"bg-[var(--brand-orange)] text-white":"bg-[var(--surface-3)] text-[var(--text-secondary)]"}`}>{c}</button>))}</div></div>
-            <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-1"><TrendingUp className="w-3 h-3"/> {t("wizard.stages")}</label><div className="flex flex-wrap gap-1.5 mt-1.5">{STAGES.map(s=>(<button key={s} onClick={()=>toggleArray(stages,setStages,s)} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase ${stages.includes(s)?"bg-[var(--brand-orange)] text-white":"bg-[var(--surface-3)] text-[var(--text-secondary)]"}`}>{s}</button>))}</div></div>
-            <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]"><DollarSign className="w-3 h-3 inline"/> {t("wizard.ticketSize")}</label><div className="grid grid-cols-2 gap-3 mt-1.5"><input type="number" value={ticketMin} onChange={e=>setTicketMin(e.target.value)} placeholder={t("wizard.min")} className="px-4 py-2.5 bg-[var(--surface-2)] border rounded-xl text-sm font-bold outline-none"/><input type="number" value={ticketMax} onChange={e=>setTicketMax(e.target.value)} placeholder={t("wizard.max")} className="px-4 py-2.5 bg-[var(--surface-2)] border rounded-xl text-sm font-bold outline-none"/></div></div>
+            <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("wizard.industries")} *</label><div className="flex flex-wrap gap-1.5 mt-1.5">{INDUSTRIES.map(industry=>(<button key={industry} onClick={()=>toggleArray(industries,setIndustries,industry)} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase ${industries.includes(industry)?"bg-[var(--brand-orange)] text-white":"bg-[var(--surface-3)] text-[var(--text-secondary)]"}`}>{industry}</button>))}</div></div>
+            <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-1"><MapPin className="w-3 h-3"/> {t("wizard.countries")} *</label><div className="flex flex-wrap gap-1.5 mt-1.5">{COUNTRIES.map(country=>(<button key={country} onClick={()=>toggleArray(countries,setCountries,country)} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase ${countries.includes(country)?"bg-[var(--brand-orange)] text-white":"bg-[var(--surface-3)] text-[var(--text-secondary)]"}`}>{country}</button>))}</div></div>
+            <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-1"><TrendingUp className="w-3 h-3"/> {t("wizard.stages")}</label><div className="flex flex-wrap gap-1.5 mt-1.5">{STAGES.map(stage=>(<button key={stage} onClick={()=>toggleArray(stages,setStages,stage)} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase ${stages.includes(stage)?"bg-[var(--brand-orange)] text-white":"bg-[var(--surface-3)] text-[var(--text-secondary)]"}`}>{stage}</button>))}</div></div>
+            <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]"><DollarSign className="w-3 h-3 inline"/> {t("wizard.ticketSize")}</label><div className="grid grid-cols-2 gap-3 mt-1.5"><input type="number" value={ticketMin} onChange={event=>setTicketMin(event.target.value)} placeholder={t("wizard.min")} className="px-4 py-2.5 bg-[var(--surface-2)] border rounded-xl text-sm font-bold outline-none"/><input type="number" value={ticketMax} onChange={event=>setTicketMax(event.target.value)} placeholder={t("wizard.max")} className="px-4 py-2.5 bg-[var(--surface-2)] border rounded-xl text-sm font-bold outline-none"/></div></div>
           </div>)}
 
           {step === 3 && (<div className="space-y-3">
-            <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("wizard.investExperience")}</label><textarea value={investmentExperience} onChange={e=>setInvestmentExperience(e.target.value)} rows={3} placeholder={t("wizard.investExperienceDesc")} className="w-full px-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/></div>
-            <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("wizard.priorPortfolio")}</label><textarea value={priorInvestments} onChange={e=>setPriorInvestments(e.target.value)} rows={2} placeholder={t("wizard.priorPortfolioDesc")} className="w-full px-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/></div>
+            <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("wizard.investExperience")}</label><textarea value={investmentExperience} onChange={event=>setInvestmentExperience(event.target.value)} rows={3} placeholder={t("wizard.investExperienceDesc")} className="w-full px-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/></div>
+            <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("wizard.priorPortfolio")}</label><textarea value={priorInvestments} onChange={event=>setPriorInvestments(event.target.value)} rows={2} placeholder={t("wizard.priorPortfolioDesc")} className="w-full px-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/></div>
           </div>)}
 
           {step === 4 && (<div className="space-y-4">
             <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">{t("wizard.reviewProfile")}</h3>
             <div className="grid grid-cols-2 gap-3 text-xs">
-              {[["Name",name],["Email",email],["Organization",orgName],["Industries",industries.join(", ")],["Countries",countries.join(", ")],["Stages",stages.join(", ")||"Any"],["Ticket",ticketMin&&ticketMax?`$${ticketMin}–$${ticketMax}`:"—"],["Experience",investmentExperience?"Provided":"—"]].map(([l,v],i)=>(<div key={i} className="p-3 rounded-lg bg-[var(--surface-3)]"><p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{l}</p><p className="text-xs font-bold text-[var(--text-primary)] mt-0.5">{v||"—"}</p></div>))}
+              {[["Name",name],["Email",email],["Organization",orgName],["Industries",industries.join(", ")],["Countries",countries.join(", ")],["Stages",stages.join(", ")||"Any"],["Ticket",ticketMin&&ticketMax?`$${ticketMin}–$${ticketMax}`:"—"],["Experience",investmentExperience?"Provided":"—"]].map(([label, value], index)=>(<div key={index} className="p-3 rounded-lg bg-[var(--surface-3)]"><p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{label}</p><p className="text-xs font-bold text-[var(--text-primary)] mt-0.5">{value||"—"}</p></div>))}
             </div>
             <p className="text-[10px] text-[var(--text-tertiary)] text-center">{t("wizard.reviewMessage")}</p>
           </div>)}

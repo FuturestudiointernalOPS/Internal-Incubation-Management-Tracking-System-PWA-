@@ -32,10 +32,10 @@ const envPath = resolve(projectRoot, ".env.local");
 try {
   const envContent = readFileSync(envPath, "utf-8");
   for (const line of envContent.split("\n")) {
-    const eqIdx = line.indexOf("=");
-    if (eqIdx > 0 && !line.startsWith("#")) {
-      const key = line.substring(0, eqIdx).trim();
-      const value = line.substring(eqIdx + 1).trim();
+    const equalsIndex = line.indexOf("=");
+    if (equalsIndex > 0 && !line.startsWith("#")) {
+      const key = line.substring(0, equalsIndex).trim();
+      const value = line.substring(equalsIndex + 1).trim();
       if (!process.env[key]) process.env[key] = value;
     }
   }
@@ -46,34 +46,34 @@ import { initDb } from "../src/lib/db.js";
 // ── Mirrors of src/lib/email.js helpers (see NOTE above) ─────────────
 function isPlaceholderEmail(email) {
   if (!email || typeof email !== "string") return true;
-  const e = email.trim().toLowerCase();
-  if (!e.includes("@")) return true;
-  if (e.includes("placeholder")) return true;
-  if (e.includes("@example.") || e.includes("@test.") || e.endsWith(".local") || e.endsWith(".invalid")) return true;
-  if (e.startsWith("import-")) return true;
+  const normalized = email.trim().toLowerCase();
+  if (!normalized.includes("@")) return true;
+  if (normalized.includes("placeholder")) return true;
+  if (normalized.includes("@example.") || normalized.includes("@test.") || normalized.endsWith(".local") || normalized.endsWith(".invalid")) return true;
+  if (normalized.startsWith("import-")) return true;
   return false;
 }
 
 function resolveSubmissionEmail({ submissionData, fieldLabels, contactEmail }) {
   const data = submissionData && typeof submissionData === "object" ? submissionData : {};
-  const labelOf = (k) => {
+  const labelOf = (key) => {
     const raw =
-      fieldLabels && fieldLabels[String(k)] != null
-        ? String(fieldLabels[String(k)])
-        : String(k);
+      fieldLabels && fieldLabels[String(key)] != null
+        ? String(fieldLabels[String(key)])
+        : String(key);
     return raw.toLowerCase().trim();
   };
-  const isReal = (v) =>
-    typeof v === "string" && v.includes("@") && !isPlaceholderEmail(v);
+  const isReal = (value) =>
+    typeof value === "string" && value.includes("@") && !isPlaceholderEmail(value);
   const EMAIL_HINTS = /(e-?mail|courriel|mel|adresse\s*(e-?mail|mail))/i;
 
   const labeled = [];
   const anyReal = [];
-  for (const [k, v] of Object.entries(data)) {
-    const val = typeof v === "string" ? v.trim() : "";
-    if (!isReal(val)) continue;
-    if (EMAIL_HINTS.test(labelOf(k))) labeled.push(val);
-    else anyReal.push(val);
+  for (const [key, value] of Object.entries(data)) {
+    const trimmedValue = typeof value === "string" ? value.trim() : "";
+    if (!isReal(trimmedValue)) continue;
+    if (EMAIL_HINTS.test(labelOf(key))) labeled.push(trimmedValue);
+    else anyReal.push(trimmedValue);
   }
   if (labeled.length > 0) return labeled[0].toLowerCase();
   if (anyReal.length > 0) return anyReal[0].toLowerCase();
@@ -87,26 +87,26 @@ const GENERIC_NAMES = /^(unknown|anonymous|n\/a|none|participant|null|undefined|
 
 function resolveNameFromSubmission(subData, fieldLabels) {
   const data = subData && typeof subData === "object" ? subData : {};
-  const labelOf = (k) => {
+  const labelOf = (key) => {
     const raw =
-      fieldLabels && fieldLabels[String(k)] != null
-        ? String(fieldLabels[String(k)])
-        : String(k);
+      fieldLabels && fieldLabels[String(key)] != null
+        ? String(fieldLabels[String(key)])
+        : String(key);
     return raw.toLowerCase().trim();
   };
   const NAME_HINTS = /(name|nom|full)/i;
-  const isNameValue = (v) =>
-    typeof v === "string" &&
-    v.trim().length > 1 &&
-    !v.includes("@") &&
-    !v.startsWith("{") &&
-    !v.startsWith("import-") &&
-    !GENERIC_NAMES.test(v.trim());
-  for (const [k, v] of Object.entries(data)) {
-    if (isNameValue(v) && NAME_HINTS.test(labelOf(k))) return v.trim();
+  const isNameValue = (value) =>
+    typeof value === "string" &&
+    value.trim().length > 1 &&
+    !value.includes("@") &&
+    !value.startsWith("{") &&
+    !value.startsWith("import-") &&
+    !GENERIC_NAMES.test(value.trim());
+  for (const [key, value] of Object.entries(data)) {
+    if (isNameValue(value) && NAME_HINTS.test(labelOf(key))) return value.trim();
   }
-  for (const v of Object.values(data)) {
-    if (isNameValue(v)) return v.trim();
+  for (const value of Object.values(data)) {
+    if (isNameValue(value)) return value.trim();
   }
   return "";
 }
@@ -136,7 +136,7 @@ let fixed = 0;
 let unresolved = 0;
 for (const contact of placeholders.rows) {
   // Latest submissions for this contact
-  const subs = await db.execute({
+  const submissions = await db.execute({
     sql: `SELECT s.id, s.run_id, s.data FROM platform_form_submissions s
           WHERE s.submitter_id = ? ORDER BY s.id DESC LIMIT 3`,
     args: [contact.cid],
@@ -145,30 +145,30 @@ for (const contact of placeholders.rows) {
   let realEmail = "";
   let subData = {};
   let foundLabels = {};
-  for (const sub of subs.rows) {
+  for (const submission of submissions.rows) {
     let fieldLabels = {};
     try {
-      const runRes = await db.execute({
+      const runResult = await db.execute({
         sql: "SELECT form_id FROM platform_form_runs WHERE id = ?",
-        args: [sub.run_id],
+        args: [submission.run_id],
       });
-      if (runRes.rows.length > 0) {
-        const fRes = await db.execute({
+      if (runResult.rows.length > 0) {
+        const fieldsResult = await db.execute({
           sql: "SELECT id, label FROM platform_form_fields WHERE form_id = ?",
-          args: [runRes.rows[0].form_id],
+          args: [runResult.rows[0].form_id],
         });
-        for (const f of fRes.rows) fieldLabels[String(f.id)] = f.label;
+        for (const field of fieldsResult.rows) fieldLabels[String(field.id)] = field.label;
       }
     } catch (_) {}
 
     const candidate = resolveSubmissionEmail({
-      submissionData: sub.data || {},
+      submissionData: submission.data || {},
       fieldLabels,
       contactEmail: contact.email,
     });
     if (candidate) {
       realEmail = candidate;
-      subData = sub.data || {};
+      subData = submission.data || {};
       foundLabels = fieldLabels;
       break;
     }
@@ -200,12 +200,12 @@ for (const contact of placeholders.rows) {
 
   try {
     if (owner.rows.length > 0) {
-      const real = owner.rows[0];
+      const realContact = owner.rows[0];
 
       // Re-link submissions to the real-email identity.
-      const relinkedRows = await db.execute({
+      const relinkResult = await db.execute({
         sql: "UPDATE platform_form_submissions SET submitter_id = ? WHERE submitter_id = ?",
-        args: [real.cid, contact.cid],
+        args: [realContact.cid, contact.cid],
       });
 
       // Move program enrollments to the real identity (idempotent).
@@ -214,7 +214,7 @@ for (const contact of placeholders.rows) {
           sql: `INSERT INTO participant_programs (participant_id, program_id, status, accepted_at)
                 SELECT ?, program_id, status, accepted_at FROM participant_programs
                 WHERE participant_id = ? ON CONFLICT DO NOTHING`,
-          args: [real.cid, contact.cid],
+          args: [realContact.cid, contact.cid],
         });
         await db.execute({
           sql: "DELETE FROM participant_programs WHERE participant_id = ?",
@@ -223,17 +223,17 @@ for (const contact of placeholders.rows) {
       } catch (_) {}
 
       // Carry the group over when the real contact has none yet.
-      if (!real.group_name || String(real.group_name).trim() === "" || String(real.group_name).toLowerCase() === "unassigned") {
+      if (!realContact.group_name || String(realContact.group_name).trim() === "" || String(realContact.group_name).toLowerCase() === "unassigned") {
         try {
-          const grp = await db.execute({
+          const groupResult = await db.execute({
             sql: "SELECT group_name FROM contacts WHERE cid = ?",
             args: [contact.cid],
           });
-          const carriedGroup = grp.rows[0]?.group_name;
+          const carriedGroup = groupResult.rows[0]?.group_name;
           if (carriedGroup && String(carriedGroup).trim() !== "") {
             await db.execute({
               sql: "UPDATE contacts SET group_name = ? WHERE cid = ?",
-              args: [carriedGroup, real.cid],
+              args: [carriedGroup, realContact.cid],
             });
           }
         } catch (_) {}
@@ -241,12 +241,12 @@ for (const contact of placeholders.rows) {
 
       // If the real contact still has a generic name, resolve a real name
       // from the submission data.
-      if (!real.name || GENERIC_NAMES.test(String(real.name).trim())) {
+      if (!realContact.name || GENERIC_NAMES.test(String(realContact.name).trim())) {
         const betterName = resolveNameFromSubmission(subData, foundLabels);
         if (betterName) {
           await db.execute({
             sql: "UPDATE contacts SET name = ? WHERE cid = ?",
-            args: [betterName, real.cid],
+            args: [betterName, realContact.cid],
           });
         }
       }
@@ -258,7 +258,7 @@ for (const contact of placeholders.rows) {
         args: [contact.cid],
       });
 
-      console.log(`LINK  ${contact.cid} (${contact.email}) -> ${real.cid} (${realEmail}) [${relinkedRows.rowCount ?? "?"} submissions]`);
+      console.log(`LINK  ${contact.cid} (${contact.email}) -> ${realContact.cid} (${realEmail}) [${relinkResult.rowCount ?? "?"} submissions]`);
       relinked++;
     } else {
       // No real contact exists — write the real email onto this contact and
@@ -271,8 +271,8 @@ for (const contact of placeholders.rows) {
       console.log(`FIX   ${contact.cid}  ${contact.email} -> ${realEmail}${betterName ? ` (name: ${betterName})` : ""}`);
       fixed++;
     }
-  } catch (e) {
-    console.log(`FAIL  ${contact.cid}  ${e.message}`);
+  } catch (error) {
+    console.log(`FAIL  ${contact.cid}  ${error.message}`);
   }
 }
 

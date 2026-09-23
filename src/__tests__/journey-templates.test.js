@@ -50,7 +50,7 @@ function makeFakeDb() {
     return { rows: [] };
   });
 
-  const tx = jest.fn(async (sql, args = []) => {
+  const transactionQuery = jest.fn(async (sql, args = []) => {
     executed.push({ tx: true, sql, args });
     // Save path inside the transaction
     if (sql.includes("SELECT * FROM venture_milestones WHERE journey_stage_id = ?")) {
@@ -65,12 +65,12 @@ function makeFakeDb() {
       };
     }
     if (sql.includes("SELECT * FROM venture_tasks") && sql.includes("parent_task_id IS NULL")) {
-      const msId = String(args[0]);
+      const milestoneId = String(args[0]);
       return {
         rows:
-          msId === MS_1
+          milestoneId === MS_1
             ? [{ id: 11, title: "Define problem", description: null, priority: "high", labels: [], checklist: [], review_required: true, required_deliverable_type: "document", display_order: 1 }]
-            : msId === MS_2
+            : milestoneId === MS_2
               ? [{ id: 22, title: "Interviews", description: null, priority: "medium", labels: [], checklist: [], review_required: false, required_deliverable_type: null, display_order: 1 }]
               : [],
       };
@@ -91,9 +91,9 @@ function makeFakeDb() {
       };
     }
     if (sql.includes("SELECT * FROM venture_journey_template_tasks WHERE milestone_id = ?")) {
-      const msId = String(args[0]);
+      const milestoneId = String(args[0]);
       return {
-        rows: msId === "tms1" ? [{ id: "ttk1", title: "Define problem", description: null, priority: "high", labels: [], checklist: [], review_required: true, required_deliverable_type: "document", display_order: 1 }] : [{ id: "ttk2", title: "Interviews", description: null, priority: "medium", labels: [], checklist: [], review_required: false, required_deliverable_type: null, display_order: 1 }],
+        rows: milestoneId === "tms1" ? [{ id: "ttk1", title: "Define problem", description: null, priority: "high", labels: [], checklist: [], review_required: true, required_deliverable_type: "document", display_order: 1 }] : [{ id: "ttk2", title: "Interviews", description: null, priority: "medium", labels: [], checklist: [], review_required: false, required_deliverable_type: null, display_order: 1 }],
       };
     }
     // RETURNING id for the new journey stage
@@ -104,7 +104,7 @@ function makeFakeDb() {
     return { rows: [] };
   });
 
-  return { execute, transaction: jest.fn(async (cb) => cb(tx)), flags };
+  return { execute, transaction: jest.fn(async (transactionBody) => transactionBody(transactionQuery)), flags };
 }
 
 const mockDb = makeFakeDb();
@@ -149,7 +149,7 @@ beforeEach(() => {
 });
 
 function insertsMatching(sqlLike) {
-  return executed.filter((q) => q.sql.includes(sqlLike));
+  return executed.filter((entry) => entry.sql.includes(sqlLike));
 }
 
 describe("POST /journey/save-template — save entire journey as template", () => {
@@ -170,13 +170,13 @@ describe("POST /journey/save-template — save entire journey as template", () =
     // 2 template stages bound to the new template id, ordered
     const stageInserts = insertsMatching("INSERT INTO venture_journey_template_stages");
     expect(stageInserts.length).toBe(2);
-    for (const ins of stageInserts) {
-      expect(ins.args[1]).toBe(tplInsert.args[0]);
+    for (const insert of stageInserts) {
+      expect(insert.args[1]).toBe(tplInsert.args[0]);
     }
     expect(insertsMatching("INSERT INTO venture_journey_template_milestones").length).toBe(2);
     expect(insertsMatching("INSERT INTO venture_journey_template_tasks").length).toBe(2);
     // review config preserved on template tasks
-    const taskInsert = insertsMatching("INSERT INTO venture_journey_template_tasks").find((t) => t.args[2] === "Define problem");
+    const taskInsert = insertsMatching("INSERT INTO venture_journey_template_tasks").find((entry) => entry.args[2] === "Define problem");
     expect(taskInsert.args).toEqual(expect.arrayContaining(["TRUE", "document"]));
 
     const { addVentureHistory } = require("@/lib/ventures");
@@ -207,8 +207,8 @@ describe("POST /journey/apply-journey-template — generate journey from saved t
     // Milestones bound to the freshly returned stage ids
     const msInserts = insertsMatching("INSERT INTO venture_milestones");
     expect(msInserts.length).toBe(2);
-    for (const ins of msInserts) {
-      expect(["new-stage-1", "new-stage-2"]).toContain(ins.args[8]); // journey_stage_id
+    for (const insert of msInserts) {
+      expect(["new-stage-1", "new-stage-2"]).toContain(insert.args[8]); // journey_stage_id
     }
     expect(insertsMatching("INSERT INTO venture_tasks").length).toBe(2);
     expect(insertsMatching("INSERT INTO venture_tasks")[0].sql).toContain("'backlog'");

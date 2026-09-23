@@ -20,10 +20,10 @@ const EMPTY_LIST = [];
 const EMPTY_OBJECT = {};
 
 /** A payload that keeps its shape, or nothing when the read was refused. */
-const pickMain = (d) => (d?.success ? d : null);
-const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
-const pickEvaluation = (d) =>
-  d?.success && d.evaluation ? d.evaluation : null;
+const pickMain = (response) => (response?.success ? response : null);
+const pickList = (listKey) => (response) => (response?.success ? response[listKey] || [] : []);
+const pickEvaluation = (response) =>
+  response?.success && response.evaluation ? response.evaluation : null;
 import { usePermissions } from "@/lib/PermissionProvider";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
@@ -64,13 +64,13 @@ export default function ReviewPage() {
   const canReview = can("runs", "review");
 
   const [saving, setSaving] = useState(false);
-  const [notif, setNotif] = useState(null);
+  const [notification, setNotification] = useState(null);
   const [reviewData, setReviewData] = useState({ decision: "approved", comment: "", internal_note: "" });
   const [expandedDims, setExpandedDims] = useState({});
   const [showHistory, setShowHistory] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState({});
 
-  const notify = (msg) => { setNotif(msg); setTimeout(() => setNotif(null), 3000); };
+  const notify = (message) => { setNotification(message); setTimeout(() => setNotification(null), 3000); };
 
   // ─── The submission and everything around it ────────────────────────────────
   //
@@ -144,8 +144,8 @@ export default function ReviewPage() {
       storedEvaluation
         ? {
             ...storedEvaluation,
-            dimensions: (storedEvaluation.dimensions || []).map((d, i) =>
-              editsHere[i] ? { ...d, ...editsHere[i] } : d,
+            dimensions: (storedEvaluation.dimensions || []).map((dimension, index) =>
+              editsHere[index] ? { ...dimension, ...editsHere[index] } : dimension,
             ),
           }
         : null,
@@ -188,29 +188,29 @@ export default function ReviewPage() {
   // Live-recalculate overall % whenever human overrides any dimension score
   const computedOverall = useMemo(() => {
     if (!evaluation?.dimensions?.length) return evaluation?.overall_score ?? null;
-    const dims = evaluation.dimensions;
-    const totalWeight = dims.reduce((s, d) => s + (d.weight ?? 1), 0);
-    const weighted = dims.reduce((s, d) => {
-      const score = d.final_score ?? d.score ?? 0;
-      return s + (score * (d.weight ?? 1));
+    const dimensions = evaluation.dimensions;
+    const totalWeight = dimensions.reduce((sum, dimension) => sum + (dimension.weight ?? 1), 0);
+    const weighted = dimensions.reduce((sum, dimension) => {
+      const score = dimension.final_score ?? dimension.score ?? 0;
+      return sum + (score * (dimension.weight ?? 1));
     }, 0);
     return Math.round((weighted / totalWeight) * 10);
   }, [evaluation]);
 
   // Helper: update a single dimension's human score
-  const updateDimScore = (di, val) => {
+  const updateDimScore = (dimensionIndex, value) => {
     if (isReviewLocked) return;
-    editDimension(di, {
-      human_score: val,
-      human_comment: evaluation.dimensions[di].human_comment || "",
-      final_score: val ?? evaluation.dimensions[di].score,
+    editDimension(dimensionIndex, {
+      human_score: value,
+      human_comment: evaluation.dimensions[dimensionIndex].human_comment || "",
+      final_score: value ?? evaluation.dimensions[dimensionIndex].score,
     });
   };
 
   // Helper: update a single dimension's human comment
-  const updateDimComment = (di, val) => {
+  const updateDimComment = (dimensionIndex, value) => {
     if (isReviewLocked) return;
-    editDimension(di, { human_comment: val });
+    editDimension(dimensionIndex, { human_comment: value });
   };
 
   const handleReRunAI = async () => {
@@ -218,8 +218,8 @@ export default function ReviewPage() {
     if (isReviewLocked) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/platform/ai/evaluate-submission", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ submission_id: parseInt(submissionId) }) });
-      const data = await res.json();
+      const response = await fetch("/api/platform/ai/evaluate-submission", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ submission_id: parseInt(submissionId) }) });
+      const data = await response.json();
       if (data.success) { notify(t("platformMisc.runReview.aiEvalComplete")); reload(); }
       else notify(t((data.error || t("platformMisc.runReview.evalFailed")) || "") || (data.error || t("platformMisc.runReview.evalFailed")));
     } catch (_) { notify(t("platformMisc.runReview.aiEvalFailed")); }
@@ -231,10 +231,10 @@ export default function ReviewPage() {
     try {
       // Build dimension overrides from evaluation state
       const dimensionOverrides = evaluation?.dimensions
-        ?.filter(d => d.human_score != null)
-        .map(d => ({ name: d.name, human_score: d.human_score, human_comment: d.human_comment || "", final_score: d.final_score })) || [];
+        ?.filter(dimension => dimension.human_score != null)
+        .map(dimension => ({ name: dimension.name, human_score: dimension.human_score, human_comment: dimension.human_comment || "", final_score: dimension.final_score })) || [];
 
-      const res = await fetch("/api/platform/form-runs?action=review", {
+      const response = await fetch("/api/platform/form-runs?action=review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -243,7 +243,7 @@ export default function ReviewPage() {
           dimension_overrides: dimensionOverrides,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) { notify(t("platformMisc.runReview.reviewSubmitted")); reload(); }
       else notify(t((data.error || t("platformMisc.runReview.failed")) || "") || (data.error || t("platformMisc.runReview.failed")));
     } catch (_) { notify(t("platformMisc.runReview.failed")); }
@@ -253,33 +253,33 @@ export default function ReviewPage() {
   if (loading) return <div className="min-h-screen bg-primary flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)]" /></div>;
   if (error) return <div className="min-h-screen bg-primary flex items-center justify-center"><div className="text-center"><AlertTriangle className="w-10 h-10 text-rose-500 mx-auto mb-3" /><p className="text-[var(--text-primary)]">{error}</p><button onClick={goBack} className="mt-4 text-[var(--brand-orange)] text-sm font-bold">← {t("platformMisc.runReview.goBack")}</button></div></div>;
 
-  const subData = submission?.data || {};
+  const submissionData = submission?.data || {};
   const statusLabel = (t(STATUS_LABEL_KEYS[submission?.status] || "") || workflow.statusLabels[submission?.status]) || submission?.status || t("platformMisc.runReview.unknown");
   const statusColor = { draft: "text-slate-500", submitted: "text-blue-500", approved: "text-emerald-500", rejected: "text-rose-500", revision_requested: "text-amber-500" }[submission?.status] || "";
-  const decisionMeta = workflow.decisions.find(d => d.id === reviewData.decision) || workflow.decisions[0];
+  const decisionMeta = workflow.decisions.find(decision => decision.id === reviewData.decision) || workflow.decisions[0];
   const decisionLabel = t(DECISION_LABEL_KEYS[decisionMeta.id] || "") || decisionMeta.label;
 
   // Get field value
-  const getVal = (f) => subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
+  const getFieldValue = (field) => submissionData[field.label] ?? submissionData[String(field.id)] ?? submissionData[field.id];
 
   // Format display value
-  const fmt = (val, field) => {
-    if (val === undefined || val === null || val === "") return null;
-    const s = String(val);
-    if (field?.field_type === "phone" && s.startsWith("{") && s.includes('"code"')) {
-      try { const p = JSON.parse(s); if (p.code && p.number) return `${p.code} ${p.number}`; } catch (_) {}
+  const formatValue = (value, field) => {
+    if (value === undefined || value === null || value === "") return null;
+    const text = String(value);
+    if (field?.field_type === "phone" && text.startsWith("{") && text.includes('"code"')) {
+      try { const parsed = JSON.parse(text); if (parsed.code && parsed.number) return `${parsed.code} ${parsed.number}`; } catch (_) {}
     }
-    return s;
+    return text;
   };
 
-  const sectionsWithFields = sections.map(sec => ({
-    ...sec,
-    fields: fields.filter(f => String(f.section_id) === String(sec.id)),
+  const sectionsWithFields = sections.map(section => ({
+    ...section,
+    fields: fields.filter(field => String(field.section_id) === String(section.id)),
   }));
 
   return (
     <div className="min-h-screen bg-primary">
-      {notif && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-xs font-bold uppercase shadow-lg">{notif}</div>}
+      {notification && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-xs font-bold uppercase shadow-lg">{notification}</div>}
 
       {/* Top Bar */}
       <div className="sticky top-0 z-[100] flex items-center gap-4 px-6 py-3 border-b border-[var(--border-primary)] bg-secondary">
@@ -322,11 +322,11 @@ export default function ReviewPage() {
                 {(() => {
                   const firstSec = sectionsWithFields[0];
                   // Find personal name field: contains "name" but not "startup"/"business"/"company"/"project"/"team"
-                  const nameField = firstSec?.fields.find(f => {
-                    const l = (f.label || "").toLowerCase();
-                    return l.includes("name") && !l.includes("startup") && !l.includes("business") && !l.includes("company") && !l.includes("project") && !l.includes("team") && !l.includes("brand");
+                  const nameField = firstSec?.fields.find(field => {
+                    const label = (field.label || "").toLowerCase();
+                    return label.includes("name") && !label.includes("startup") && !label.includes("business") && !label.includes("company") && !label.includes("project") && !label.includes("team") && !label.includes("brand");
                   });
-                  const nameVal = nameField ? fmt(getVal(nameField)) : submission?.submitter_name;
+                  const nameVal = nameField ? formatValue(getFieldValue(nameField)) : submission?.submitter_name;
                   return nameVal || t("platformMisc.runReview.applicant");
                 })()}
               </h2>
@@ -341,13 +341,13 @@ export default function ReviewPage() {
             {(() => {
               const firstSec = sectionsWithFields[0];
               const items = firstSec ? firstSec.fields.slice(0, 4) : fields.slice(0, 4);
-              return items.map(f => {
-                const val = fmt(getVal(f));
-                if (!val) return null;
+              return items.map(field => {
+                const value = formatValue(getFieldValue(field));
+                if (!value) return null;
                 return (
-                  <div key={f.id}>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{f.label}</p>
-                    <p className="text-xs font-bold text-[var(--text-primary)] mt-1 truncate">{val}</p>
+                  <div key={field.id}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{field.label}</p>
+                    <p className="text-xs font-bold text-[var(--text-primary)] mt-1 truncate">{value}</p>
                   </div>
                 );
               });
@@ -360,42 +360,42 @@ export default function ReviewPage() {
           <div className="px-6 py-4 border-b border-[var(--border-primary)] flex items-center gap-3">
             <FileText className="w-5 h-5 text-[var(--text-secondary)]" />
             <h2 className="text-sm font-black uppercase text-[var(--text-primary)] flex-1">{t("platformMisc.runReview.application")}</h2>
-            {sectionsWithFields.filter(s => s.fields.some(f => fmt(getVal(f)))).length > 2 && (
+            {sectionsWithFields.filter(section => section.fields.some(field => formatValue(getFieldValue(field)))).length > 2 && (
               <button
                 onClick={() => {
                   const allIds = {};
-                  const hasCollapsed = Object.values(collapsedSections).some(v => v);
-                  sectionsWithFields.forEach(s => { allIds[s.id] = !hasCollapsed; });
+                  const hasCollapsed = Object.values(collapsedSections).some(isCollapsed => isCollapsed);
+                  sectionsWithFields.forEach(section => { allIds[section.id] = !hasCollapsed; });
                   setCollapsedSections(hasCollapsed ? {} : allIds);
                 }}
                 className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               >
-                {Object.values(collapsedSections).some(v => v) ? t("platformMisc.runReview.expandAll") : t("platformMisc.runReview.collapseAll")}
+                {Object.values(collapsedSections).some(isCollapsed => isCollapsed) ? t("platformMisc.runReview.expandAll") : t("platformMisc.runReview.collapseAll")}
               </button>
             )}
           </div>
           <div className="divide-y divide-[var(--border-primary)]">
-            {sectionsWithFields.map(sec => {
-              const answered = sec.fields.filter(f => fmt(getVal(f)));
+            {sectionsWithFields.map(section => {
+              const answered = section.fields.filter(field => formatValue(getFieldValue(field)));
               if (answered.length === 0) return null;
               return (
-                <div key={sec.id} className="px-6 py-4">
+                <div key={section.id} className="px-6 py-4">
                   <button
-                    onClick={() => setCollapsedSections(p => ({ ...p, [sec.id]: !p[sec.id] }))}
+                    onClick={() => setCollapsedSections(previousCollapsed => ({ ...previousCollapsed, [section.id]: !previousCollapsed[section.id] }))}
                     className="flex items-center gap-2 w-full text-left"
                   >
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)] flex-1">{sec.title}</h3>
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)] flex-1">{section.title}</h3>
                     <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runReview.answered", { count: answered.length })}</span>
-                    {collapsedSections[sec.id] ? <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)]" /> : <ChevronUp className="w-3.5 h-3.5 text-[var(--text-secondary)]" />}
+                    {collapsedSections[section.id] ? <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)]" /> : <ChevronUp className="w-3.5 h-3.5 text-[var(--text-secondary)]" />}
                   </button>
-                  {!collapsedSections[sec.id] && (
+                  {!collapsedSections[section.id] && (
                     <div className="mt-3 space-y-3">
-                      {answered.map(f => {
-                        const val = fmt(getVal(f));
+                      {answered.map(field => {
+                        const value = formatValue(getFieldValue(field));
                         return (
-                          <div key={f.id}>
-                            <p className="text-[10px] font-bold text-[var(--text-secondary)] mb-1">{f.label}</p>
-                            <p className="text-xs text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">{val}</p>
+                          <div key={field.id}>
+                            <p className="text-[10px] font-bold text-[var(--text-secondary)] mb-1">{field.label}</p>
+                            <p className="text-xs text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">{value}</p>
                           </div>
                         );
                       })}
@@ -459,48 +459,48 @@ export default function ReviewPage() {
             )}
 
             <div className="divide-y divide-[var(--border-primary)]">
-              {evaluation.dimensions.map((dim, di) => {
-                const isExp = expandedDims[di];
-                const aiScore = dim.score ?? dim.ai_score;
-                const finalScore = dim.final_score ?? aiScore;
+              {evaluation.dimensions.map((dimension, dimensionIndex) => {
+                const isExpanded = expandedDims[dimensionIndex];
+                const aiScore = dimension.score ?? dimension.ai_score;
+                const finalScore = dimension.final_score ?? aiScore;
                 const scoreLabel = finalScore >= 9 ? t("platformMisc.runReview.scoreExcellent") : finalScore >= 7 ? t("platformMisc.runReview.scoreStrong") : finalScore >= 5 ? t("platformMisc.runReview.scoreAdequate") : finalScore >= 3 ? t("platformMisc.runReview.scoreWeak") : t("platformMisc.runReview.scorePoor");
                 const scoreColor = finalScore >= 7 ? "text-emerald-400" : finalScore >= 5 ? "text-amber-400" : "text-rose-400";
                 const scoreBg = finalScore >= 7 ? "bg-emerald-500/10 border-emerald-500/20" : finalScore >= 5 ? "bg-amber-500/10 border-amber-500/20" : "bg-rose-500/10 border-rose-500/20";
 
                 // Match evidence quotes to actual form fields
-                const relevantFields = fields.filter(f => {
-                  const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
-                  if (!val) return false;
-                  const valStr = String(val).toLowerCase();
+                const relevantFields = fields.filter(field => {
+                  const fieldValue = submissionData[field.label] ?? submissionData[String(field.id)] ?? submissionData[field.id];
+                  if (!fieldValue) return false;
+                  const normalizedValue = String(fieldValue).toLowerCase();
                   // Check if any evidence quote references this field's label or content
-                  return (dim.evidence || []).some(ev =>
-                    ev.toLowerCase().includes(f.label.toLowerCase().substring(0, 15)) ||
-                    valStr.slice(0, 60).split(' ').filter(w => w.length > 5).some(word => ev.toLowerCase().includes(word.toLowerCase()))
+                  return (dimension.evidence || []).some(evidence =>
+                    evidence.toLowerCase().includes(field.label.toLowerCase().substring(0, 15)) ||
+                    normalizedValue.slice(0, 60).split(' ').filter(word => word.length > 5).some(word => evidence.toLowerCase().includes(word.toLowerCase()))
                   );
                 }).slice(0, 4);
 
                 // If no matched fields, show top 3 long-form answers as fallback
-                const qaFields = relevantFields.length > 0 ? relevantFields : fields.filter(f => {
-                  const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
-                  return val && String(val).length > 30 && (f.field_type === "textarea" || f.field_type === "richtext" || f.field_type === "text");
+                const qaFields = relevantFields.length > 0 ? relevantFields : fields.filter(field => {
+                  const fieldValue = submissionData[field.label] ?? submissionData[String(field.id)] ?? submissionData[field.id];
+                  return fieldValue && String(fieldValue).length > 30 && (field.field_type === "textarea" || field.field_type === "richtext" || field.field_type === "text");
                 }).slice(0, 3);
 
                 return (
-                  <div key={di}>
+                  <div key={dimensionIndex}>
                     {/* Row header — click to expand */}
                     <div
-                      onClick={() => setExpandedDims(p => ({ ...p, [di]: !p[di] }))}
+                      onClick={() => setExpandedDims(previousExpanded => ({ ...previousExpanded, [dimensionIndex]: !previousExpanded[dimensionIndex] }))}
                       className="px-6 py-4 flex items-center gap-4 cursor-pointer hover:bg-tertiary/50 transition-colors"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold text-[var(--text-primary)]">{dim.name}</span>
-                          {dim.confidence != null && (
-                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runReview.confident", { pct: (dim.confidence * 100).toFixed(0) })}</span>
+                          <span className="text-xs font-bold text-[var(--text-primary)]">{dimension.name}</span>
+                          {dimension.confidence != null && (
+                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runReview.confident", { pct: (dimension.confidence * 100).toFixed(0) })}</span>
                           )}
                         </div>
-                        {!isExp && dim.reasoning && (
-                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5 truncate max-w-xs">{dim.reasoning}</p>
+                        {!isExpanded && dimension.reasoning && (
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5 truncate max-w-xs">{dimension.reasoning}</p>
                         )}
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
@@ -512,14 +512,14 @@ export default function ReviewPage() {
                           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runReview.you")}</p>
                           <input
                             type="number" min={0} max={10} step={0.5}
-                            value={dim.human_score ?? ""}
+                            value={dimension.human_score ?? ""}
                             placeholder={String(aiScore ?? "—")}
                             disabled={isReviewLocked}
-                            onClick={e => e.stopPropagation()}
-                            onChange={e => updateDimScore(di, e.target.value === "" ? null : parseFloat(e.target.value))}
+                            onClick={event => event.stopPropagation()}
+                            onChange={event => updateDimScore(dimensionIndex, event.target.value === "" ? null : parseFloat(event.target.value))}
                             className={cn(
                               "w-12 px-1.5 py-1 rounded-lg border text-xs font-bold outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
-                              dim.human_score != null ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]/40 text-[var(--brand-orange)]" : "bg-primary border-[var(--border-primary)] text-[var(--text-primary)]",
+                              dimension.human_score != null ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]/40 text-[var(--brand-orange)]" : "bg-primary border-[var(--border-primary)] text-[var(--text-primary)]",
                               isReviewLocked && "opacity-50 cursor-not-allowed"
                             )}
                           />
@@ -528,12 +528,12 @@ export default function ReviewPage() {
                           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runReview.final")}</p>
                           <p className={cn("text-sm font-black", scoreColor)}>{finalScore ?? "—"}</p>
                         </div>
-                        {isExp ? <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />}
+                        {isExpanded ? <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />}
                       </div>
                     </div>
 
                     {/* Expanded panel */}
-                    {isExp && (
+                    {isExpanded && (
                       <div className="bg-tertiary/20 border-t border-[var(--border-primary)] px-6 py-5 space-y-5">
 
                         {/* Score verdict */}
@@ -546,41 +546,41 @@ export default function ReviewPage() {
                               <span className={cn("text-[10px] font-bold uppercase tracking-widest ml-1", scoreColor)}>— {scoreLabel}</span>
                             </div>
                           </div>
-                          {dim.confidence != null && (
+                          {dimension.confidence != null && (
                             <div className="ml-auto text-right">
                               <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-0.5">{t("platformMisc.runReview.confidence")}</p>
-                              <p className="text-sm font-black text-[var(--text-primary)]">{(dim.confidence * 100).toFixed(0)}%</p>
+                              <p className="text-sm font-black text-[var(--text-primary)]">{(dimension.confidence * 100).toFixed(0)}%</p>
                             </div>
                           )}
                         </div>
 
                         {/* AI Reasoning */}
-                        {dim.reasoning && (
+                        {dimension.reasoning && (
                           <div>
                             <p className="text-[10px] font-bold uppercase tracking-widest text-purple-400 mb-2">{t("platformMisc.runReview.whyThisScore")}</p>
-                            <p className="text-[12px] text-[var(--text-primary)] leading-relaxed">{dim.reasoning}</p>
+                            <p className="text-[12px] text-[var(--text-primary)] leading-relaxed">{dimension.reasoning}</p>
                           </div>
                         )}
 
                         {/* Strengths & Weaknesses */}
-                        {(dim.strengths?.length > 0 || dim.weaknesses?.length > 0) && (
+                        {(dimension.strengths?.length > 0 || dimension.weaknesses?.length > 0) && (
                           <div className="grid grid-cols-2 gap-3">
-                            {dim.strengths?.length > 0 && (
+                            {dimension.strengths?.length > 0 && (
                               <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
                                 <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 mb-2">{t("platformMisc.runReview.strengths")}</p>
                                 <div className="space-y-1.5">
-                                  {dim.strengths.map((s, i) => (
-                                    <p key={i} className="text-[11px] text-emerald-300 leading-snug">+ {s}</p>
+                                  {dimension.strengths.map((strength, index) => (
+                                    <p key={index} className="text-[11px] text-emerald-300 leading-snug">+ {strength}</p>
                                   ))}
                                 </div>
                               </div>
                             )}
-                            {dim.weaknesses?.length > 0 && (
+                            {dimension.weaknesses?.length > 0 && (
                               <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/20">
                                 <p className="text-[10px] font-bold uppercase tracking-widest text-rose-400 mb-2">{t("platformMisc.runReview.areasToImprove")}</p>
                                 <div className="space-y-1.5">
-                                  {dim.weaknesses.map((w, i) => (
-                                    <p key={i} className="text-[11px] text-rose-300 leading-snug">− {w}</p>
+                                  {dimension.weaknesses.map((weakness, index) => (
+                                    <p key={index} className="text-[11px] text-rose-300 leading-snug">− {weakness}</p>
                                   ))}
                                 </div>
                               </div>
@@ -589,12 +589,12 @@ export default function ReviewPage() {
                         )}
 
                         {/* Evidence quotes from AI */}
-                        {dim.evidence?.length > 0 && (
+                        {dimension.evidence?.length > 0 && (
                           <div>
                             <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">{t("platformMisc.runReview.evidenceFromApplicant")}</p>
                             <div className="space-y-2">
-                              {dim.evidence.map((ev, i) => (
-                                <p key={i} className="text-[11px] text-[var(--text-secondary)] pl-4 border-l-2 border-purple-500/30 leading-relaxed">&quot;{ev}&quot;</p>
+                              {dimension.evidence.map((evidence, index) => (
+                                <p key={index} className="text-[11px] text-[var(--text-secondary)] pl-4 border-l-2 border-purple-500/30 leading-relaxed">&quot;{evidence}&quot;</p>
                               ))}
                             </div>
                           </div>
@@ -605,13 +605,13 @@ export default function ReviewPage() {
                           <div>
                             <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">{t("platformMisc.runReview.relevantQA")}</p>
                             <div className="space-y-3">
-                              {qaFields.map(f => {
-                                const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
-                                if (!val) return null;
+                              {qaFields.map(field => {
+                                const fieldValue = submissionData[field.label] ?? submissionData[String(field.id)] ?? submissionData[field.id];
+                                if (!fieldValue) return null;
                                 return (
-                                  <div key={f.id} className="rounded-xl bg-secondary border border-[var(--border-primary)] p-4">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">{f.label}</p>
-                                    <p className="text-[12px] text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">{String(val)}</p>
+                                  <div key={field.id} className="rounded-xl bg-secondary border border-[var(--border-primary)] p-4">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">{field.label}</p>
+                                    <p className="text-[12px] text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">{String(fieldValue)}</p>
                                   </div>
                                 );
                               })}
@@ -632,16 +632,16 @@ export default function ReviewPage() {
                               <div className="flex items-start gap-3">
                                 <input
                                   type="number" min={0} max={10} step={0.5}
-                                  value={dim.human_score ?? ""}
+                                  value={dimension.human_score ?? ""}
                                   placeholder={String(aiScore ?? "—")}
-                                  onClick={e => e.stopPropagation()}
-                                  onChange={e => updateDimScore(di, e.target.value === "" ? null : parseFloat(e.target.value))}
+                                  onClick={event => event.stopPropagation()}
+                                  onChange={event => updateDimScore(dimensionIndex, event.target.value === "" ? null : parseFloat(event.target.value))}
                                   className="w-20 px-3 py-2 rounded-xl bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shrink-0"
                                 />
                                 <textarea
-                                  value={dim.human_comment || ""}
-                                  onChange={e => updateDimComment(di, e.target.value)}
-                                  onClick={e => e.stopPropagation()}
+                                  value={dimension.human_comment || ""}
+                                  onChange={event => updateDimComment(dimensionIndex, event.target.value)}
+                                  onClick={event => event.stopPropagation()}
                                   rows={2}
                                   placeholder={t("platformMisc.runReview.overridePlaceholder")}
                                   className="flex-1 rounded-xl px-3 py-2 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] resize-none"
@@ -683,22 +683,22 @@ export default function ReviewPage() {
             ) : (
               <>
                 <div className="flex gap-2">
-                  {workflow.decisions.map(d => (
-                    <button key={d.id} onClick={() => setReviewData({ ...reviewData, decision: d.id })}
+                  {workflow.decisions.map(decision => (
+                    <button key={decision.id} onClick={() => setReviewData({ ...reviewData, decision: decision.id })}
                       className={cn(
                         "flex-1 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wide border transition-all text-center",
-                        reviewData.decision === d.id
-                          ? `bg-${d.color}-500/10 border-${d.color}-500 text-${d.color}-400`
+                        reviewData.decision === decision.id
+                          ? `bg-${decision.color}-500/10 border-${decision.color}-500 text-${decision.color}-400`
                           : "bg-tertiary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--text-primary)]"
                       )}>
-                      {t(DECISION_LABEL_KEYS[d.id] || "") || d.label}
+                      {t(DECISION_LABEL_KEYS[decision.id] || "") || decision.label}
                     </button>
                   ))}
                 </div>
-                <textarea value={reviewData.comment} onChange={e => setReviewData({ ...reviewData, comment: e.target.value })} rows={2}
+                <textarea value={reviewData.comment} onChange={event => setReviewData({ ...reviewData, comment: event.target.value })} rows={2}
                   placeholder={t("platformMisc.runReview.commentPlaceholder")}
                   className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] resize-none" />
-                <textarea value={reviewData.internal_note} onChange={e => setReviewData({ ...reviewData, internal_note: e.target.value })} rows={2}
+                <textarea value={reviewData.internal_note} onChange={event => setReviewData({ ...reviewData, internal_note: event.target.value })} rows={2}
                   placeholder={t("platformMisc.runReview.internalNotePlaceholder")}
                   className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-amber-500/5 border border-amber-500/20 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] resize-none" />
                 <button onClick={handleReview} disabled={saving}
@@ -722,8 +722,8 @@ export default function ReviewPage() {
               {timeline.length === 0 ? (
                 <p className="text-[10px] font-medium text-[var(--text-secondary)] text-center py-4">{t("platformMisc.runReview.noActivity")}</p>
               ) : (
-                timeline.map((entry, idx) => (
-                  <div key={idx} className="flex items-start gap-3">
+                timeline.map((entry, index) => (
+                  <div key={index} className="flex items-start gap-3">
                     <div className={cn("w-2 h-2 mt-1.5 rounded-full shrink-0",
                       entry.action === "submitted" ? "bg-blue-500" :
                       entry.action === "approved" ? "bg-emerald-500" :

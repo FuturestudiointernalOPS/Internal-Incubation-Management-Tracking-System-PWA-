@@ -34,8 +34,8 @@ export default function SectionResourcesList({ resources = [] }) {
   const { t } = useI18n();
   if (!Array.isArray(resources) || resources.length === 0) return null;
 
-  const recommended = resources.filter((r) => r.is_recommended);
-  const others = resources.filter((r) => !r.is_recommended);
+  const recommended = resources.filter((resource) => resource.is_recommended);
+  const others = resources.filter((resource) => !resource.is_recommended);
 
   return (
     <div className="space-y-3">

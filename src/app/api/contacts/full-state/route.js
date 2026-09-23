@@ -40,70 +40,77 @@ export async function GET(req) {
       statusFilter ? `(Status: ${statusFilter})` : "",
     );
 
-    let contactsRes;
+    let contactsResult;
     let familiesList;
     let teamsRows;
 
     if (pmId) {
       // 1. Identify assigned programs and segments
-      const progRes = await getPmAssignedPrograms(pmId);
-      const myProgs = progRes.rows;
-      const myProgIds = myProgs.map((p) => p.id);
-      const myProgNames = myProgs.map((p) => p.name.toUpperCase());
+      const programsResult = await getPmAssignedPrograms(pmId);
+      const myPrograms = programsResult.rows;
+      const myProgramIds = myPrograms.map((program) => program.id);
+      const myProgramNames = myPrograms.map((program) => program.name.toUpperCase());
 
-      // 2. Fetch scoped contacts (include v2_participants for full registry)
-      if (myProgIds.length > 0 || myProgNames.length > 0) {
-        contactsRes = await getContactsScopedByProgramsAndGroups(
-          myProgIds,
-          myProgNames,
-          statusFilter,
-        );
+      // 2. Scoped contacts, participants, families and teams all depend only on
+      //    the programs just read, so they go out together.
+      if (myProgramIds.length > 0 || myProgramNames.length > 0) {
+        const wantsParticipants = statusFilter !== "archived";
+        const [scopedContacts, participantsResult, familiesResult, teamsResult] =
+          await Promise.all([
+            getContactsScopedByProgramsAndGroups(
+              myProgramIds,
+              myProgramNames,
+              statusFilter,
+            ),
+            // Participants via participant_programs (authoritative membership)
+            // — skipped when viewing archived.
+            wantsParticipants
+              ? getEnrolledProgramParticipants(myProgramIds)
+              : Promise.resolve({ rows: [] }),
+            getFamiliesScopedByProgramsAndGroups(myProgramIds, myProgramNames),
+            getTeamsScopedByPrograms(myProgramIds),
+          ]);
 
-        // Also fetch participants via participant_programs (authoritative
-        // membership) — skip when viewing archived.
-        if (statusFilter !== "archived") {
-          const ppRes = await getEnrolledProgramParticipants(myProgIds);
-          const ppRows = ppRes.rows || [];
-          if (ppRows.length > 0) {
-            const existingEmails = new Set(
-              (contactsRes.rows || [])
-                .map((c) => c.email?.toLowerCase())
-                .filter(Boolean),
-            );
-            for (const c of ppRows) {
-              if (!existingEmails.has(c.email?.toLowerCase())) {
-                contactsRes.rows.push({ ...c, source: "participant_programs" });
-              }
+        contactsResult = scopedContacts;
+
+        const participantRows = (participantsResult && participantsResult.rows) || [];
+        if (participantRows.length > 0) {
+          const existingEmails = new Set(
+            (contactsResult.rows || [])
+              .map((contact) => contact.email?.toLowerCase())
+              .filter(Boolean),
+          );
+          for (const participantRow of participantRows) {
+            if (!existingEmails.has(participantRow.email?.toLowerCase())) {
+              contactsResult.rows.push({
+                ...participantRow,
+                source: "participant_programs",
+              });
             }
           }
         }
 
-        // 3. Fetch scoped families/segments
-        const famRes = await getFamiliesScopedByProgramsAndGroups(
-          myProgIds,
-          myProgNames,
-        );
-        familiesList = famRes.rows;
-
-        // 4. Fetch scoped teams
-        const teamRes = await getTeamsScopedByPrograms(myProgIds);
-        teamsRows = teamRes.rows;
+        familiesList = familiesResult.rows;
+        teamsRows = teamsResult.rows;
       } else {
-        contactsRes = { rows: [] };
+        contactsResult = { rows: [] };
         familiesList = [];
         teamsRows = [];
       }
     } else {
-      // Global View (Super Admin)
-      contactsRes = await getRegistryContacts(statusFilter);
-      const famRes = await getFamiliesList();
-      familiesList = famRes.rows;
-      const teamRes = await getRegistryTeams();
-      teamsRows = teamRes.rows;
+      // Global View (Super Admin) — three independent reads, one wave.
+      const [registryContacts, familiesResult, teamsResult] = await Promise.all([
+        getRegistryContacts(statusFilter),
+        getFamiliesList(),
+        getRegistryTeams(),
+      ]);
+      contactsResult = registryContacts;
+      familiesList = familiesResult.rows;
+      teamsRows = teamsResult.rows;
     }
 
     // NORMALIZATION: Ensure FUTURE STUDIO is in the filter list (Uppercase Protocol)
-    if (!familiesList.find((f) => f.name.toUpperCase() === "FUTURE STUDIO")) {
+    if (!familiesList.find((family) => family.name.toUpperCase() === "FUTURE STUDIO")) {
       // Synthetic row: no `families` record stands behind it, so it has no
       // database id. It is listed by id on screen, and a row without one is
       // what React warns about, so it carries a stable id of its own (family
@@ -116,14 +123,31 @@ export async function GET(req) {
     }
 
     // Data Sanitization: Normalize all contact group names to uppercase
-    const normalizedContacts = (contactsRes.rows || []).map((c) => ({
-      ...c,
-      group_name: c.group_name ? c.group_name.toUpperCase() : "UNASSIGNED",
+    const normalizedContacts = (contactsResult.rows || []).map((contact) => ({
+      ...contact,
+      group_name: contact.group_name
+        ? contact.group_name.toUpperCase()
+        : "UNASSIGNED",
     }));
 
-    // Derive invitation/account status (Not Invited / Sent / Activated / Expired)
-    // and strip the password hash so it is never sent to the browser.
-    const contactsWithInvitation = (await attachInvitationStatus(normalizedContacts)).map(
+    // Invitation/token status and activation EMAIL status are independent — both
+    // keyed on the same contact ids — so they go out in one wave instead of one
+    // after the other. attachInvitationStatus maps 1:1 (it never drops a row), so
+    // the ids are the same before and after it; the email-log read stays
+    // best-effort.
+    const contactCids = [
+      ...new Set(normalizedContacts.map((contact) => contact.cid).filter(Boolean)),
+    ];
+
+    const [invitationStatuses, emailLogResult] = await Promise.all([
+      attachInvitationStatus(normalizedContacts),
+      contactCids.length > 0
+        ? getActivationEmailLogForContacts(contactCids).catch(() => ({ rows: [] }))
+        : Promise.resolve({ rows: [] }),
+    ]);
+
+    // Strip the password hash so it is never sent to the browser.
+    const contactsWithInvitation = invitationStatuses.map(
       ({ password: _password, ...safeContact }) => safeContact,
     );
 
@@ -131,26 +155,24 @@ export async function GET(req) {
     // source of truth the Runs page uses — so Contacts and Runs agree on
     // whether an activation email has actually been sent. Never derived
     // from approval status or account status.
-    const cids = [...new Set(contactsWithInvitation.map((c) => c.cid).filter(Boolean))];
     const activationByCid = {};
-    if (cids.length > 0) {
-      try {
-        const elRes = await getActivationEmailLogForContacts(cids);
-        for (const row of elRes.rows) {
-          const cur = activationByCid[row.contact_cid] || { latest: null, lastSentAt: null };
-          cur.latest = row;
-          if (row.status === "sent") cur.lastSentAt = row.sent_at || row.created_at;
-          activationByCid[row.contact_cid] = cur;
-        }
-      } catch (_) {}
+    for (const row of emailLogResult.rows) {
+      const activationEntry = activationByCid[row.contact_cid] || {
+        latest: null,
+        lastSentAt: null,
+      };
+      activationEntry.latest = row;
+      if (row.status === "sent")
+        activationEntry.lastSentAt = row.sent_at || row.created_at;
+      activationByCid[row.contact_cid] = activationEntry;
     }
-    const contacts = contactsWithInvitation.map((c) => {
-      const act = activationByCid[c.cid] || null;
+    const contacts = contactsWithInvitation.map((contact) => {
+      const activation = activationByCid[contact.cid] || null;
       return {
-        ...c,
-        activation_email_status: act?.latest?.status || null,
-        activation_email_sent_at: act?.lastSentAt || null,
-        activation_email_error: act?.latest?.error || null,
+        ...contact,
+        activation_email_status: activation?.latest?.status || null,
+        activation_email_sent_at: activation?.lastSentAt || null,
+        activation_email_error: activation?.latest?.error || null,
       };
     });
 

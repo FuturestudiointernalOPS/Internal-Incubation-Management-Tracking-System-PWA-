@@ -72,16 +72,16 @@ export async function getProgramRequirements(programId, { weekNumber, sessionId 
 
   // Attach course info (no JOIN — matches the codebase convention of composing
   // rows in service code).
-  const courseIds = [...new Set(requirements.map((r) => String(r.course_id)))];
+  const courseIds = [...new Set(requirements.map((requirement) => String(requirement.course_id)))];
   const coursesRes = await db.execute({
     sql: `SELECT id, title, description, thumbnail_url, status, visibility, is_free, price
           FROM lms_courses WHERE id IN (${courseIds.map(() => "?").join(",")})`,
     args: courseIds,
   });
-  const courseById = new Map(coursesRes.rows.map((c) => [String(c.id), c]));
-  return requirements.map((r) => ({
-    ...r,
-    course: courseById.get(String(r.course_id)) || null,
+  const courseById = new Map(coursesRes.rows.map((course) => [String(course.id), course]));
+  return requirements.map((requirement) => ({
+    ...requirement,
+    course: courseById.get(String(requirement.course_id)) || null,
   }));
 }
 
@@ -132,7 +132,7 @@ export async function attachCourseToProgram({
     weekNumber,
     sessionId,
   });
-  return list.find((r) => String(r.course_id) === String(courseId)) || list[list.length - 1];
+  return list.find((requirement) => String(requirement.course_id) === String(courseId)) || list[list.length - 1];
 }
 
 /** Update a learning requirement (title, required flag, week/session context). */
@@ -213,22 +213,22 @@ async function getRequirement(requirementId) {
  */
 export async function ensureProgramEnrollments(programId, cids) {
   const participantIds = Array.isArray(cids)
-    ? cids.map((c) => String(c).trim()).filter(Boolean)
+    ? cids.map((cid) => String(cid).trim()).filter(Boolean)
     : [];
   if (participantIds.length === 0) return { enrolled: 0, skipped: 0 };
 
   const requirements = await getProgramRequirements(programId);
   const published = requirements.filter(
-    (r) => r.course && r.course.status === "published",
+    (requirement) => requirement.course && requirement.course.status === "published",
   );
   if (published.length === 0) return { enrolled: 0, skipped: participantIds.length };
 
   let enrolled = 0;
-  for (const req of published) {
+  for (const requirement of published) {
     for (const chunk of participantBatches(participantIds)) {
       const values = chunk.map(() => "(?, ?, 'program', ?)").join(", ");
       const args = chunk.flatMap((cid) => [
-        req.course_id,
+        requirement.course_id,
         cid,
         String(programId),
       ]);
@@ -258,22 +258,22 @@ export async function ensureProgramEnrollments(programId, cids) {
 export async function getProgramLearningForParticipant(programId, cid) {
   const requirements = await getProgramRequirements(programId);
   const items = [];
-  for (const req of requirements) {
-    if (!req.course) continue;
-    const progress = await courseProgressForUser(req.course, cid);
+  for (const requirement of requirements) {
+    if (!requirement.course) continue;
+    const progress = await courseProgressForUser(requirement.course, cid);
     items.push({
-      id: req.id,
-      program_id: req.program_id,
-      week_number: req.week_number,
-      session_id: req.session_id,
-      is_required: req.is_required,
-      title: req.title || req.course.title,
-      description: req.description || req.course.description,
+      id: requirement.id,
+      program_id: requirement.program_id,
+      week_number: requirement.week_number,
+      session_id: requirement.session_id,
+      is_required: requirement.is_required,
+      title: requirement.title || requirement.course.title,
+      description: requirement.description || requirement.course.description,
       course: {
-        id: req.course.id,
-        title: req.course.title,
-        thumbnail_url: req.course.thumbnail_url,
-        status: req.course.status,
+        id: requirement.course.id,
+        title: requirement.course.title,
+        thumbnail_url: requirement.course.thumbnail_url,
+        status: requirement.course.status,
       },
       progress,
     });
@@ -309,19 +309,19 @@ export async function courseProgressForUser(course, cid) {
   const structure = await loadStructure(course.id);
   const progress = await loadEnrollmentProgress(enrollment.id);
   const assessmentStates = await loadAssessmentStates(cid, course.id);
-  const assessmentProgress = [...assessmentStates.values()].map((s) => ({
-    id: s.id,
-    is_required: s.is_required,
-    passed: s.passed,
+  const assessmentProgress = [...assessmentStates.values()].map((state) => ({
+    id: state.id,
+    is_required: state.is_required,
+    passed: state.passed,
   }));
-  const cp = computeCourseProgress(structure, progress, assessmentProgress);
+  const courseProgress = computeCourseProgress(structure, progress, assessmentProgress);
 
   return {
-    percent: cp.percent,
-    status: cp.complete ? "completed" : cp.status,
-    completedLessons: cp.completedLessons,
-    totalLessons: cp.totalLessons,
-    continueLesson: cp.complete ? null : findContinueLesson(structure, progress),
+    percent: courseProgress.percent,
+    status: courseProgress.complete ? "completed" : courseProgress.status,
+    completedLessons: courseProgress.completedLessons,
+    totalLessons: courseProgress.totalLessons,
+    continueLesson: courseProgress.complete ? null : findContinueLesson(structure, progress),
     enrollment: {
       id: enrollment.id,
       status: enrollment.status,
@@ -337,7 +337,7 @@ export async function getProgramParticipantIds(programId) {
     sql: "SELECT participant_id FROM participant_programs WHERE program_id = ?",
     args: [String(programId)],
   });
-  return res.rows.map((r) => String(r.participant_id).trim()).filter(Boolean);
+  return res.rows.map((row) => String(row.participant_id).trim()).filter(Boolean);
 }
 
 /**
@@ -352,15 +352,15 @@ export async function getProgramLearningSummary(programId) {
     getProgramParticipantIds(programId),
   ]);
   if (participantIds.length === 0) {
-    return requirements.map((r) => ({
-      requirement_id: r.id,
-      course_id: r.course_id,
+    return requirements.map((requirement) => ({
+      requirement_id: requirement.id,
+      course_id: requirement.course_id,
       enrolled: 0,
       completed: 0,
     }));
   }
 
-  const courseIds = [...new Set(requirements.map((r) => String(r.course_id)))];
+  const courseIds = [...new Set(requirements.map((requirement) => String(requirement.course_id)))];
   const byCourse = new Map();
   if (courseIds.length > 0) {
     const res = await db.execute({
@@ -369,17 +369,17 @@ export async function getProgramLearningSummary(programId) {
               AND user_cid IN (${participantIds.map(() => "?").join(",")})`,
       args: [...courseIds, ...participantIds],
     });
-    for (const r of res.rows) {
-      const key = String(r.course_id);
-      const cur = byCourse.get(key) || { enrolled: 0, completed: 0 };
-      cur.enrolled += 1;
-      if (r.status === "completed") cur.completed += 1;
-      byCourse.set(key, cur);
+    for (const row of res.rows) {
+      const key = String(row.course_id);
+      const entry = byCourse.get(key) || { enrolled: 0, completed: 0 };
+      entry.enrolled += 1;
+      if (row.status === "completed") entry.completed += 1;
+      byCourse.set(key, entry);
     }
   }
 
-  return requirements.map((r) => {
-    const s = byCourse.get(String(r.course_id)) || { enrolled: 0, completed: 0 };
-    return { requirement_id: r.id, course_id: r.course_id, ...s };
+  return requirements.map((requirement) => {
+    const entry = byCourse.get(String(requirement.course_id)) || { enrolled: 0, completed: 0 };
+    return { requirement_id: requirement.id, course_id: requirement.course_id, ...entry };
   });
 }

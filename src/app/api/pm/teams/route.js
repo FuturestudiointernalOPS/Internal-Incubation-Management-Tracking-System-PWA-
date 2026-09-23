@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { sendEmail } from "@/lib/mailer";
+import { sendStandaloneEmail } from "@/lib/email";
 import {
   requireAuth,
   getSession,
@@ -144,13 +144,13 @@ export async function POST(req) {
         const allMembers = [];
 
         if (uuidIds.length > 0) {
-          const res = await getNewTeamParticipantMembers(uuidIds);
-          allMembers.push(...res.rows);
+          const participantMembersResult = await getNewTeamParticipantMembers(uuidIds);
+          allMembers.push(...participantMembersResult.rows);
         }
 
         if (contactIds.length > 0) {
-          const res = await getNewTeamContactMembers(contactIds);
-          allMembers.push(...res.rows);
+          const contactMembersResult = await getNewTeamContactMembers(contactIds);
+          allMembers.push(...contactMembersResult.rows);
         }
 
         // Management groups (facilitator cohort groups) do NOT send shared
@@ -158,7 +158,7 @@ export async function POST(req) {
         if (!is_management_group) {
           for (const member of allMembers) {
             try {
-              await sendEmail({
+              await sendStandaloneEmail({
                 to: member.email,
                 subject: `Unit Credentials Secured: ${name}`,
                 body: `
@@ -175,9 +175,10 @@ export async function POST(req) {
                 </div>
               `,
                 isHtml: true,
+                email_type: "team_credentials",
               });
-            } catch (e) {
-              console.error(`Email delivery failed for ${member.email}:`, e);
+            } catch (error) {
+              console.error(`Email delivery failed for ${member.email}:`, error);
             }
           }
         }
@@ -259,18 +260,18 @@ export async function PATCH(req) {
     // Send Emails (Copied Logic from POST)
     const allMembers = [];
     if (uuidIds.length > 0) {
-      const res = await getTeamParticipantMembers(uuidIds);
-      allMembers.push(...res.rows);
+      const participantMembersResult = await getTeamParticipantMembers(uuidIds);
+      allMembers.push(...participantMembersResult.rows);
     }
     if (contactIds.length > 0) {
-      const res = await getTeamContactMembers(contactIds);
-      allMembers.push(...res.rows);
+      const contactMembersResult = await getTeamContactMembers(contactIds);
+      allMembers.push(...contactMembersResult.rows);
     }
 
     if (!is_management_group) {
       for (const member of allMembers) {
         try {
-          await sendEmail({
+          await sendStandaloneEmail({
             to: member.email,
             subject: `Unit Assignment Confirmed: ${team.name}`,
             body: `
@@ -287,6 +288,7 @@ export async function PATCH(req) {
             </div>
           `,
             isHtml: true,
+            email_type: "team_credentials",
           });
         } catch {}
       }

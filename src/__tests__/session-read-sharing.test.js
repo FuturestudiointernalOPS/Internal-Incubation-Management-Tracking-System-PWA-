@@ -67,11 +67,11 @@ test("concurrent callers for one token share ONE session read", async () => {
   serveSessions({ "hash-token-1": asUser("U1", "token-1") });
   cookies.mockResolvedValue({ get: () => ({ value: "token-1" }) });
 
-  const [a, b, c] = await Promise.all([getSession(), getSession(), getSession()]);
+  const [firstSession, secondSession, thirdSession] = await Promise.all([getSession(), getSession(), getSession()]);
 
-  expect(a).toBeTruthy();
-  expect(b).toEqual(a);
-  expect(c).toEqual(a);
+  expect(firstSession).toBeTruthy();
+  expect(secondSession).toEqual(firstSession);
+  expect(thirdSession).toEqual(firstSession);
   expect(sessionReads()).toHaveLength(1);
 });
 
@@ -105,10 +105,10 @@ test("an unknown token resolves to null for every caller", async () => {
   serveSessions({});
   cookies.mockResolvedValue({ get: () => ({ value: "token-unknown" }) });
 
-  const [a, b] = await Promise.all([getSession(), getSession()]);
+  const [firstSession, secondSession] = await Promise.all([getSession(), getSession()]);
 
-  expect(a).toBeNull();
-  expect(b).toBeNull();
+  expect(firstSession).toBeNull();
+  expect(secondSession).toBeNull();
   expect(sessionReads()).toHaveLength(2); // hash lookup + plaintext fallback
 });
 

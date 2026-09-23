@@ -184,14 +184,15 @@ export async function POST(req) {
       let hasVenture = false;
       if (!hasDirectProgram && user.cid) {
         try {
-          const [ppRes, lmsRes, ventureRes] = await Promise.all([
-            getParticipantProgramRecordForLogin(user.cid),
-            getLmsEnrollmentRecordForLogin(user.cid),
-            getVentureMembershipRecordForLogin(user.cid),
-          ]);
-          hasParticipantPrograms = ppRes.rows.length > 0;
-          hasLms = lmsRes.rows.length > 0;
-          hasVenture = ventureRes.rows.length > 0;
+          const [participantProgramResult, lmsEnrollmentResult, ventureMembershipResult] =
+            await Promise.all([
+              getParticipantProgramRecordForLogin(user.cid),
+              getLmsEnrollmentRecordForLogin(user.cid),
+              getVentureMembershipRecordForLogin(user.cid),
+            ]);
+          hasParticipantPrograms = participantProgramResult.rows.length > 0;
+          hasLms = lmsEnrollmentResult.rows.length > 0;
+          hasVenture = ventureMembershipResult.rows.length > 0;
         } catch (_) {}
       }
       if (!hasDirectProgram && !hasParticipantPrograms && !hasLms && !hasVenture) {
@@ -248,8 +249,8 @@ export async function POST(req) {
         maxAge,
         req.headers.get("host"),
       );
-    } catch (sessionErr) {
-      console.error("Session creation failed:", sessionErr.message);
+    } catch (sessionError) {
+      console.error("Session creation failed:", sessionError.message);
       // NEVER return success without a session cookie — that is what turns a
       // DB/schema failure into an endless login->redirect loop.
       return NextResponse.json(
@@ -261,8 +262,8 @@ export async function POST(req) {
         { status: 500 },
       );
     }
-  } catch (err) {
-    console.error("Auth V1 Error:", err);
+  } catch (error) {
+    console.error("Auth V1 Error:", error);
     return NextResponse.json(
       { success: false, error: "Authentication system failure." },
       { status: 500 },

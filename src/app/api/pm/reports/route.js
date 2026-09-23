@@ -65,7 +65,7 @@ export async function GET(req) {
     const rows = fullAccess
       ? reports.rows
       : reports.rows.filter(
-          (r) => String(r.teacher_id ?? "") === String(session?.cid ?? ""),
+          (report) => String(report.teacher_id ?? "") === String(session?.cid ?? ""),
         );
 
     // The KPI names the rows refer to, in the same answer.
@@ -79,20 +79,20 @@ export async function GET(req) {
     let kpis = [];
     try {
       const catalogue = await listKpiNamesForPrograms(
-        rows.map((r) => r.program_id),
+        rows.map((row) => row.program_id),
       );
-      kpis = (catalogue.rows || []).map((k) => ({ id: k.id, title: k.title }));
-    } catch (e) {
+      kpis = (catalogue.rows || []).map((kpi) => ({ id: kpi.id, title: kpi.title }));
+    } catch (error) {
       // The names are a convenience for the screen: a report whose KPIs cannot be
       // named still belongs on the page, with its ids shown as they are.
-      console.warn("[pm/reports] KPI names unavailable:", e?.message);
+      console.warn("[pm/reports] KPI names unavailable:", error?.message);
     }
 
     return NextResponse.json({ success: true, reports: rows, kpis });
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error(error);
     return NextResponse.json(
-      { success: false, error: e.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }
@@ -212,10 +212,10 @@ export async function POST(req) {
       attachment_url || null,
     );
     return NextResponse.json({ success: true });
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error(error);
     return NextResponse.json(
-      { success: false, error: e.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

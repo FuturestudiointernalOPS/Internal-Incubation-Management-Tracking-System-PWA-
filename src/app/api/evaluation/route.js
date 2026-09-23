@@ -29,16 +29,16 @@ export const GET = createHandler(
 
     // Return program evaluation config
     if (programId) {
-      const progRes = await getProgramEvaluationConfig(programId);
+      const programResult = await getProgramEvaluationConfig(programId);
 
-      if (progRes.rows.length === 0) {
+      if (programResult.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Program not found" },
           { status: 404 },
         );
       }
 
-      const program = progRes.rows[0];
+      const program = programResult.rows[0];
       let evaluationConfig = {};
       try {
         evaluationConfig =
@@ -58,22 +58,22 @@ export const GET = createHandler(
 
     // Return evaluation for a specific submission
     if (submissionId) {
-      const subRes = await getSubmissionEvaluation(submissionId);
+      const submissionResult = await getSubmissionEvaluation(submissionId);
 
-      if (subRes.rows.length === 0) {
+      if (submissionResult.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Submission not found" },
           { status: 404 },
         );
       }
 
-      const sub = subRes.rows[0];
+      const submission = submissionResult.rows[0];
       let evaluationData = {};
       try {
         evaluationData =
-          typeof sub.evaluation_data === "string"
-            ? JSON.parse(sub.evaluation_data)
-            : sub.evaluation_data || {};
+          typeof submission.evaluation_data === "string"
+            ? JSON.parse(submission.evaluation_data)
+            : submission.evaluation_data || {};
       } catch (_) {
         evaluationData = {};
       }
@@ -81,9 +81,9 @@ export const GET = createHandler(
       return NextResponse.json({
         success: true,
         evaluation: {
-          score: sub.evaluation_score,
+          score: submission.evaluation_score,
           data: evaluationData,
-          deliverable_title: sub.deliverable_title,
+          deliverable_title: submission.deliverable_title,
         },
       });
     }
@@ -109,16 +109,16 @@ export const PUT = createHandler(
     }
 
     // Fetch program's grading mode for validation
-    const progRes = await getProgramEvaluationConfigForValidation(program_id);
+    const programResult = await getProgramEvaluationConfigForValidation(program_id);
 
-    if (progRes.rows.length === 0) {
+    if (programResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Program not found" },
         { status: 404 },
       );
     }
 
-    const program = progRes.rows[0];
+    const program = programResult.rows[0];
     const gradingMode = program.grading_mode;
 
     // Validate based on grading mode
@@ -148,15 +148,15 @@ export const PUT = createHandler(
         "team",
         "traction",
       ];
-      for (const dim of dimensions) {
+      for (const dimension of dimensions) {
         if (
-          evaluation_data[dim] !== undefined &&
-          (evaluation_data[dim] < 1 || evaluation_data[dim] > 5)
+          evaluation_data[dimension] !== undefined &&
+          (evaluation_data[dimension] < 1 || evaluation_data[dimension] > 5)
         ) {
           return NextResponse.json(
             {
               success: false,
-              error: `${dim} score must be between 1 and 5`,
+              error: `${dimension} score must be between 1 and 5`,
             },
             { status: 400 },
           );

@@ -12,7 +12,7 @@ const glyph = (size) => sharp(SRC).resize(size, size, { fit: "fill" });
 async function appIcon(size) {
   const inset = Math.round(size * 0.06);
   const glyphSize = size - inset * 2;
-  const bg = await sharp({
+  const background = await sharp({
     create: {
       width: size,
       height: size,
@@ -22,9 +22,9 @@ async function appIcon(size) {
   })
     .png()
     .toBuffer();
-  const g = await glyph(glyphSize).png().toBuffer();
-  return sharp(bg)
-    .composite([{ input: g, left: inset, top: inset }])
+  const glyphBuffer = await glyph(glyphSize).png().toBuffer();
+  return sharp(background)
+    .composite([{ input: glyphBuffer, left: inset, top: inset }])
     .png()
     .toBuffer();
 }
@@ -35,30 +35,30 @@ function buildIco(entries) {
   header.writeUInt16LE(1, 2); // type: icon
   header.writeUInt16LE(entries.length, 4); // image count
   let offset = 6 + 16 * entries.length;
-  const dir = [];
+  const dirEntries = [];
   const blobs = [];
   for (const { size, buf } of entries) {
-    const e = Buffer.alloc(16);
-    e.writeUInt8(size >= 256 ? 0 : size, 0); // width
-    e.writeUInt8(size >= 256 ? 0 : size, 1); // height
-    e.writeUInt8(0, 2); // palette
-    e.writeUInt8(0, 3); // reserved
-    e.writeUInt16LE(1, 4); // color planes
-    e.writeUInt16LE(32, 6); // bits per pixel
-    e.writeUInt32LE(buf.length, 8);
-    e.writeUInt32LE(offset, 12);
+    const dirEntry = Buffer.alloc(16);
+    dirEntry.writeUInt8(size >= 256 ? 0 : size, 0); // width
+    dirEntry.writeUInt8(size >= 256 ? 0 : size, 1); // height
+    dirEntry.writeUInt8(0, 2); // palette
+    dirEntry.writeUInt8(0, 3); // reserved
+    dirEntry.writeUInt16LE(1, 4); // color planes
+    dirEntry.writeUInt16LE(32, 6); // bits per pixel
+    dirEntry.writeUInt32LE(buf.length, 8);
+    dirEntry.writeUInt32LE(offset, 12);
     offset += buf.length;
-    dir.push(e);
+    dirEntries.push(dirEntry);
     blobs.push(buf);
   }
-  return Buffer.concat([header, ...dir, ...blobs]);
+  return Buffer.concat([header, ...dirEntries, ...blobs]);
 }
 
 (async () => {
   // Transparent PNGs for the browser tab (light + dark themes both fine)
-  for (const s of [16, 32]) {
-    fs.writeFileSync(`${OUT}/favicon-${s}x${s}.png`, await glyph(s).png().toBuffer());
-    console.log(`favicon-${s}x${s}.png ✓`);
+  for (const size of [16, 32]) {
+    fs.writeFileSync(`${OUT}/favicon-${size}x${size}.png`, await glyph(size).png().toBuffer());
+    console.log(`favicon-${size}x${size}.png ✓`);
   }
 
   // Multi-size classic .ico (PNG-compressed entries — supported by modern browsers)
@@ -71,9 +71,9 @@ function buildIco(entries) {
   console.log("favicon.ico ✓");
 
   // Solid-background squares for PWA manifest + iOS home screen
-  for (const s of [192, 512]) {
-    fs.writeFileSync(`${OUT}/icon-${s}x${s}.png`, await appIcon(s));
-    console.log(`icon-${s}x${s}.png ✓`);
+  for (const size of [192, 512]) {
+    fs.writeFileSync(`${OUT}/icon-${size}x${size}.png`, await appIcon(size));
+    console.log(`icon-${size}x${size}.png ✓`);
   }
   fs.writeFileSync(`${OUT}/apple-touch-icon.png`, await appIcon(180));
   console.log("apple-touch-icon.png ✓");

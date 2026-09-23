@@ -21,12 +21,12 @@ export async function POST(req) {
     const { industries, countries, startup_stages, ticket_size_min, ticket_size_max, investment_philosophy } = body;
 
     // Find investor profile
-    const profile = await getInvestorProfileIdForPreferences(user.cid || user.id);
-    if (profile.rows.length === 0) {
+    const profileResult = await getInvestorProfileIdForPreferences(user.cid || user.id);
+    if (profileResult.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Investor profile not found. Create profile first." }, { status: 404 });
     }
 
-    const investorId = profile.rows[0].id;
+    const investorId = profileResult.rows[0].id;
 
     // Upsert preferences
     await upsertInvestorPreferencesWithPhilosophy(

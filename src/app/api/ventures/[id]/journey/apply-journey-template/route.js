@@ -55,7 +55,7 @@ export async function POST(req, { params }) {
     const canManage = await allowsPlanAction(db, access, "manage");
     const stages = await listJourneyStages(db, dbId, { includeArchived: canManage });
     return NextResponse.json({ success: true, stages, ...result });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

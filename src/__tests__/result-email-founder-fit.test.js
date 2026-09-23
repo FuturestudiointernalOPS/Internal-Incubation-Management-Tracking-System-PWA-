@@ -42,6 +42,20 @@ describe("result email copy — Founder Fit Score scope", () => {
     expect(EMAIL).toMatch(/html: compose\(true, url\)/);
   });
 
+  test("a failed run/form read refuses the send instead of quietly going neutral", () => {
+    // The classification read feeds the copy choice AND the document. Swallowing
+    // its failure is what once let a wrong-but-plausible email go out with
+    // nothing in the logs to explain it; a broken read must be loud, not a
+    // silent downgrade to the neutral copy.
+    const call = ROUTE.indexOf("await getRunFormContextBySubmissionId(submission_id)");
+    expect(call).toBeGreaterThan(-1);
+    const region = ROUTE.slice(call, call + 700);
+    expect(region).not.toMatch(/catch \(_\) \{\}/);
+    expect(region).toMatch(/console\.error/);
+    expect(region).toMatch(/status: "failed"/);
+    expect(region).toMatch(/if \(!ctx\)/);
+  });
+
   test("a run is classified by its form name, with the run name as fallback", () => {
     expect(ROUTE).toMatch(/function isFounderFitResultRun\(ctx\)/);
     expect(ROUTE).toMatch(/form_name/);
@@ -50,8 +64,51 @@ describe("result email copy — Founder Fit Score scope", () => {
   });
 
   test("the sender forwards the flag it was handed", () => {
-    expect(ROUTE).toMatch(/projectName, template \} = doc;/);
+    expect(ROUTE).toMatch(/projectName, template \} = resultDocument;/);
     expect(ROUTE).toMatch(/^\s+template,$/m);
+  });
+
+  test("a text designed in the UI takes over the built-in copy", () => {
+    // The built-in wording is only a fallback now. A designed text must win,
+    // while the "how to reach the document" lines stay the application's — so a
+    // designed message can never promise an attachment the transport could not
+    // carry, nor point at a document that is not there.
+    expect(EMAIL).toContain('designedSubject ? applyTemplate(designedSubject, tv) : copy.subject;');
+    expect(EMAIL).toContain(': copy.greetingHtml + copy.openingHtml');
+    expect(EMAIL).toContain('designedBody ? "" : copy.closingHtml');
+    // Resolved WITHOUT the platform default, because the default here depends on
+    // the kind of run.
+    expect(ROUTE).toContain('getDesignedTemplate(settingsRow?.settings || {}, "result", settingsRow?.run_settings || {})');
+  });
+
+  test("a designed text chooses where the document line goes, and gets it appended otherwise", () => {
+    // The recipient must always learn how to reach the document, and only the
+    // platform knows whether it went out as an attachment or as a link.
+    expect(EMAIL).toContain('templateVariableNames(designedBody).includes("document_access")');
+    expect(EMAIL).toContain('{ ...tv, document_access: copy.accessHtml(hosted, url) }');
+    expect(EMAIL).toContain('(designedBody && designedAccessSlot ? "" : copy.accessHtml(hosted, url))');
+  });
+
+  test("the result message speaks in the platform's own voice", () => {
+    // Its built-in copies say "Future Studio" and close with the Future Studio
+    // team, so the {{organization}} variable must not resolve to something else.
+    expect(EMAIL).toContain('organization: "Future Studio"');
+  });
+
+  test("a missing name reads as a greeting, never as an English filler word", () => {
+    // "Bonjour {{name}}," with no known name must read "Bonjour," — not
+    // "Bonjour there,". English keeps its idiomatic "Hello there,".
+    expect(EMAIL).toContain('name: greetingName || (isFr ? "" : "there"),');
+  });
+
+  test("a sentence that hangs on the project name is never left incomplete", () => {
+    // With no project name found, "la différenciation de {{project_name}}" must
+    // read "la différenciation de votre projet" — never "la différenciation de .".
+    expect(EMAIL).toContain('project_name: project || (isFr ? "votre projet" : "your project"),');
+  });
+
+  test("the subject is built on the recipient's name", () => {
+    expect(EMAIL).toContain('subject: "{{name}}, your result is ready",');
   });
 
   test("the score and the project name are resolved where the answers are", () => {

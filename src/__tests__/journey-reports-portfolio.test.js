@@ -65,7 +65,7 @@ jest.mock("@/lib/auth", () => ({
 }));
 
 const { GET } = require("@/app/api/journey-reports/route");
-const req = (qs = "") => new Request(`http://localhost/api/journey-reports${qs}`);
+const req = (queryString = "") => new Request(`http://localhost/api/journey-reports${queryString}`);
 const readJson = async (res) => res.json();
 
 beforeEach(() => {
@@ -104,15 +104,15 @@ describe("GET /api/journey-reports — the portfolio", () => {
 
   test("the status filter reaches the query", async () => {
     await GET(req("?status=submitted"));
-    const q = executed.find((x) => x.sql.includes("FROM venture_reports r"));
-    expect(q.sql).toContain("WHERE r.status = ?");
-    expect(q.args).toContain("submitted");
+    const query = executed.find((record) => record.sql.includes("FROM venture_reports r"));
+    expect(query.sql).toContain("WHERE r.status = ?");
+    expect(query.args).toContain("submitted");
   });
 
   test("without a filter, every status is listed", async () => {
     await GET(req());
-    const q = executed.find((x) => x.sql.includes("FROM venture_reports r"));
-    expect(q.sql).not.toContain("WHERE r.status = ?");
+    const query = executed.find((record) => record.sql.includes("FROM venture_reports r"));
+    expect(query.sql).not.toContain("WHERE r.status = ?");
   });
 });
 

@@ -35,8 +35,8 @@ export async function GET(req) {
 
     const res = await listVentureOptions(optionType, includeInactive);
     return NextResponse.json({ success: true, options: res.rows || [] });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -60,8 +60,8 @@ export async function POST(req) {
     }
     const res = await upsertVentureOption(option_type, value, label, sort_order);
     return NextResponse.json({ success: true, id: res.rows[0]?.id });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -94,7 +94,7 @@ export async function PATCH(req) {
     args.push(id);
     await updateVentureOption(sets, args);
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

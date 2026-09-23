@@ -26,29 +26,29 @@ export async function POST() {
     const results = [];
 
     // 1. Find the first program
-    const progRes = await getLatestProgram();
+    const programResult = await getLatestProgram();
 
-    if (progRes.rows.length === 0) {
+    if (programResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "No programs found. Create one first." },
         { status: 404 },
       );
     }
 
-    const program = progRes.rows[0];
+    const program = programResult.rows[0];
     results.push(`Found program: ${program.name} (${program.id})`);
 
     // 2. Find the participant
-    const contactRes = await getContactByCid(TARGET_CID);
+    const contactResult = await getContactByCid(TARGET_CID);
 
-    if (contactRes.rows.length === 0) {
+    if (contactResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: `Participant ${TARGET_CID} not found` },
         { status: 404 },
       );
     }
 
-    const contact = contactRes.rows[0];
+    const contact = contactResult.rows[0];
     results.push(
       `Found participant: ${contact.name} (${contact.cid}), current program_id: ${contact.program_id}`,
     );
@@ -57,8 +57,8 @@ export async function POST() {
     try {
       await addParticipantProgramMembership(contact.cid, program.id);
       results.push(`Inserted into participant_programs`);
-    } catch (e) {
-      results.push(`participant_programs: ${e.message}`);
+    } catch (error) {
+      results.push(`participant_programs: ${error.message}`);
     }
 
     // 4. Clear invalid contacts.program_id
@@ -79,8 +79,8 @@ export async function POST() {
       } else {
         results.push(`v2_participants already exists`);
       }
-    } catch (e) {
-      results.push(`v2_participants sync: ${e.message}`);
+    } catch (error) {
+      results.push(`v2_participants sync: ${error.message}`);
     }
 
     return NextResponse.json({
@@ -90,9 +90,9 @@ export async function POST() {
       program: { id: program.id, name: program.name },
       participant: { cid: contact.cid, name: contact.name },
     });
-  } catch (err) {
+  } catch (error) {
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

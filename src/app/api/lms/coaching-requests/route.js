@@ -49,8 +49,8 @@ export async function GET(req) {
       courseId: searchParams.get("course_id") || undefined,
     });
     return NextResponse.json({ success: true, requests });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }
 
@@ -71,7 +71,7 @@ export async function POST(req) {
       message: body.message,
     });
     return NextResponse.json({ success: true, ...result });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Upload, RefreshCw, X } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
+import AppImage from "@/components/ui/AppImage";
 import { useI18n } from "@/lib/i18n";
 
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -22,9 +23,9 @@ export default function CourseImageUpload({ value = "", onChange }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = ""; // allow re-selecting the same file
+  const handleFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = ""; // allow re-selecting the same file
     if (!file) return;
 
     if (!ACCEPTED_TYPES.includes(file.type) && !ACCEPTED_EXT.test(file.name || "")) {
@@ -82,8 +83,7 @@ export default function CourseImageUpload({ value = "", onChange }) {
           className="rounded-xl border overflow-hidden w-full max-w-sm"
           style={{ background: "var(--surface-2)", borderColor: "var(--border-primary)" }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <AppImage
             src={value}
             alt={t("lms.fields.thumbnail")}
             referrerPolicy="no-referrer"

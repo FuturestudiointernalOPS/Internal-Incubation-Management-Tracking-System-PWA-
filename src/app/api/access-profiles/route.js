@@ -42,42 +42,42 @@ import {
  * view is impossible — view is auto-granted (level 1). Zero rows are dropped
  * (absence already means level 0).
  */
-function normalizeCapabilities(caps) {
-  const out = {};
-  for (const [module, capMap] of Object.entries(caps || {})) {
+function normalizeCapabilities(capabilities) {
+  const normalized = {};
+  for (const [module, capMap] of Object.entries(capabilities || {})) {
     if (!capMap || typeof capMap !== "object") continue;
-    const next = {};
+    const moduleLevels = {};
     for (const [capability, level] of Object.entries(capMap)) {
-      const lvl = Math.max(0, Number(level) || 0);
-      if (lvl > 0) next[capability] = lvl;
+      const normalizedLevel = Math.max(0, Number(level) || 0);
+      if (normalizedLevel > 0) moduleLevels[capability] = normalizedLevel;
     }
     // Zero rows were dropped above, so a cleared `view` is ABSENT (not 0).
     // Any other active capability in a module that CARRIES view implies it.
     const supportsView =
       PERMISSION_MODULES[module]?.capabilities?.includes("view") ?? false;
-    const othersActive = Object.keys(next).some(
-      (c) => c !== "view" && next[c] > 0,
+    const othersActive = Object.keys(moduleLevels).some(
+      (capability) => capability !== "view" && moduleLevels[capability] > 0,
     );
-    if (supportsView && othersActive && !next.view) next.view = 1; // edit/create/delete imply view
-    if (Object.keys(next).length > 0) out[module] = next;
+    if (supportsView && othersActive && !moduleLevels.view) moduleLevels.view = 1; // edit/create/delete imply view
+    if (Object.keys(moduleLevels).length > 0) normalized[module] = moduleLevels;
   }
-  return out;
+  return normalized;
 }
 
 /** Roles that use this profile as their default access template. */
 async function profileDefaultRoles(profileId) {
-  const res = await getRoleDefaultRoles(profileId);
-  return res.rows.map((r) => r.role_name);
+  const result = await getRoleDefaultRoles(profileId);
+  return result.rows.map((row) => row.role_name);
 }
 
 /** Per-feature eligibility map for a role (fail closed on missing rows). */
 async function eligibilityForRole(role) {
-  const res = await getRoleEligibilityRows(role);
-  const map = {};
+  const result = await getRoleEligibilityRows(role);
+  const eligibilityMap = {};
   for (const feature of Object.values(MODULE_TO_FEATURE)) {
-    map[feature] = evaluateEligibility(res.rows, feature);
+    eligibilityMap[feature] = evaluateEligibility(result.rows, feature);
   }
-  return map;
+  return eligibilityMap;
 }
 
 /**
@@ -86,11 +86,11 @@ async function eligibilityForRole(role) {
  * assertTemplateCapsEligible (role-defaults route) but validates the incoming
  * payload instead of the persisted rows.
  */
-async function assertCapsEligibleForRoles(caps, roles) {
+async function assertCapsEligibleForRoles(capabilities, roles) {
   for (const role of roles) {
     const eligibility = await eligibilityForRole(role);
     const { valid, violations } = validateCapabilitiesWithinEligibility(
-      caps,
+      capabilities,
       eligibility,
     );
     if (!valid) return { valid: false, violations, role };
@@ -159,10 +159,10 @@ export async function GET(req) {
       roleDefaults: roleProfileMap,
       modules: PERMISSION_MODULES,
     });
-  } catch (err) {
-    console.error("[Access Profiles] GET error:", err);
+  } catch (error) {
+    console.error("[Access Profiles] GET error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }
@@ -199,9 +199,9 @@ export async function POST(req) {
 
     // Add capabilities if provided
     if (capabilities && typeof capabilities === "object") {
-      const normalized = normalizeCapabilities(capabilities);
-      for (const [module, caps] of Object.entries(normalized)) {
-        for (const [capability, level] of Object.entries(caps)) {
+      const normalizedCapabilities = normalizeCapabilities(capabilities);
+      for (const [module, moduleCapabilities] of Object.entries(normalizedCapabilities)) {
+        for (const [capability, level] of Object.entries(moduleCapabilities)) {
           await insertProfileCapability(profileId, module, capability, level);
         }
       }
@@ -223,10 +223,10 @@ export async function POST(req) {
       profileId,
       message: `Profile "${name}" created`,
     });
-  } catch (err) {
-    console.error("[Access Profiles] POST error:", err);
+  } catch (error) {
+    console.error("[Access Profiles] POST error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }
@@ -281,7 +281,7 @@ export async function PUT(req) {
       if (!is_active) {
         const refs = await getRoleDefaultRefs(id);
         if (refs.rows.length > 0) {
-          const roles = refs.rows.map((r) => r.role_name).join(", ");
+          const roles = refs.rows.map((row) => row.role_name).join(", ");
           return NextResponse.json(
             {
               success: false,
@@ -296,14 +296,14 @@ export async function PUT(req) {
 
     // Replace capabilities if provided
     if (capabilities && typeof capabilities === "object") {
-      const normalized = normalizeCapabilities(capabilities);
+      const normalizedCapabilities = normalizeCapabilities(capabilities);
 
       // Eligibility is the boundary: when this profile is the default for
       // role(s), none of those roles may receive a capability whose feature
       // they are not eligible for.
       const defaultRoles = await profileDefaultRoles(id);
       if (defaultRoles.length > 0) {
-        const check = await assertCapsEligibleForRoles(normalized, defaultRoles);
+        const check = await assertCapsEligibleForRoles(normalizedCapabilities, defaultRoles);
         if (!check.valid) {
           return NextResponse.json(
             {
@@ -321,8 +321,8 @@ export async function PUT(req) {
       await clearProfileCapabilities(id);
 
       // Insert new
-      for (const [module, caps] of Object.entries(normalized)) {
-        for (const [capability, level] of Object.entries(caps)) {
+      for (const [module, moduleCapabilities] of Object.entries(normalizedCapabilities)) {
+        for (const [capability, level] of Object.entries(moduleCapabilities)) {
           await replaceProfileCapability(id, module, capability, level);
         }
       }
@@ -346,10 +346,10 @@ export async function PUT(req) {
       success: true,
       message: "Profile updated",
     });
-  } catch (err) {
-    console.error("[Access Profiles] PUT error:", err);
+  } catch (error) {
+    console.error("[Access Profiles] PUT error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }
@@ -382,7 +382,7 @@ export async function DELETE(req) {
     const roleRefs = await getRoleDefaultsForProfile(id);
 
     if (roleRefs.rows.length > 0) {
-      const roles = roleRefs.rows.map((r) => r.role_name).join(", ");
+      const roles = roleRefs.rows.map((row) => row.role_name).join(", ");
       return NextResponse.json(
         {
           success: false,
@@ -415,10 +415,10 @@ export async function DELETE(req) {
       success: true,
       message: "Profile deleted",
     });
-  } catch (err) {
-    console.error("[Access Profiles] DELETE error:", err);
+  } catch (error) {
+    console.error("[Access Profiles] DELETE error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

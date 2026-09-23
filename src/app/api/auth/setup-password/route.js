@@ -83,9 +83,9 @@ export async function POST(req) {
     // 5. Audit log
     try {
       await logPasswordSetupAudit(setupRecord.contact_cid);
-    } catch (e) {
+    } catch (error) {
       // Audit logging is non-critical
-      console.error("Audit log error (non-critical):", e.message);
+      console.error("Audit log error (non-critical):", error.message);
     }
 
     return NextResponse.json({

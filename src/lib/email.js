@@ -7,6 +7,7 @@
 
 import { normalizeToHtml } from "@/lib/platform/ai/email-personalize";
 import { resolveAppUrl } from "@/lib/appUrl";
+import { TEMPLATE_VARIABLE_PATTERN, templateVariableNames } from "@/lib/constants";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "noreply@impactos.futurestudio.bj";
@@ -61,15 +62,15 @@ function gmailCredentialsAvailable() {
 
 /** Map provider errors to safe, non-sensitive categories (never echo raw details). */
 function classifyGmailError(err) {
-  const msg = String(err?.message || err?.response?.data?.error || "").toLowerCase();
-  if (msg.includes("invalid_grant")) return "refresh_token_invalid_or_revoked";
-  if (msg.includes("invalid_client")) return "client_id_or_secret_invalid";
-  if (msg.includes("access_denied") || msg.includes("insufficient") || msg.includes("forbidden"))
+  const errorText = String(err?.message || err?.response?.data?.error || "").toLowerCase();
+  if (errorText.includes("invalid_grant")) return "refresh_token_invalid_or_revoked";
+  if (errorText.includes("invalid_client")) return "client_id_or_secret_invalid";
+  if (errorText.includes("access_denied") || errorText.includes("insufficient") || errorText.includes("forbidden"))
     return "permission_or_scope_denied";
-  if (msg.includes("quota") || msg.includes("rate")) return "quota_or_rate_limit";
-  if (msg.includes("daily limit")) return "daily_send_limit_reached";
-  if (msg.includes("delegation") || msg.includes("send-as")) return "sender_identity_not_authorized";
-  if (msg.includes("enabled") || msg.includes("not found") || msg.includes("404")) return "gmail_api_not_enabled";
+  if (errorText.includes("quota") || errorText.includes("rate")) return "quota_or_rate_limit";
+  if (errorText.includes("daily limit")) return "daily_send_limit_reached";
+  if (errorText.includes("delegation") || errorText.includes("send-as")) return "sender_identity_not_authorized";
+  if (errorText.includes("enabled") || errorText.includes("not found") || errorText.includes("404")) return "gmail_api_not_enabled";
   return "unknown_error";
 }
 
@@ -82,7 +83,7 @@ function encodeMailHeader(value) {
 
 /** Build a raw MIME message for the Gmail API. Supports optional file
  * attachments (multipart/mixed) — used for PDF result documents. */
-function buildGmailRawMessage({ to, subject, html, attachments }) {
+function buildGmailRawMessage({ to, subject, html, attachments, fromName }) {
   const plainText = (html || "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
     .replace(/<[^>]+>/g, " ")
@@ -92,7 +93,7 @@ function buildGmailRawMessage({ to, subject, html, attachments }) {
     .substring(0, 4000);
   const altBoundary = `futurestudio_alt_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   const outerHeaders = [
-    `From: ${GMAIL_SENDER_NAME} <${GMAIL_SENDER_EMAIL}>`,
+    `From: ${fromName || GMAIL_SENDER_NAME} <${GMAIL_SENDER_EMAIL}>`,
     `Reply-To: ${GMAIL_SENDER_EMAIL}`,
     `To: ${to}`,
     `Subject: ${encodeMailHeader(subject)}`,
@@ -117,7 +118,7 @@ function buildGmailRawMessage({ to, subject, html, attachments }) {
   ].join("\n");
   const altHeader = `Content-Type: multipart/alternative; boundary="${altBoundary}"`;
 
-  const list = Array.isArray(attachments) ? attachments.filter((a) => a && a.content != null) : [];
+  const list = Array.isArray(attachments) ? attachments.filter((attachment) => attachment && attachment.content != null) : [];
   if (list.length === 0) {
     return Buffer.from([outerHeaders, altHeader, "", altBody].join("\n"), "utf8").toString("base64url");
   }
@@ -144,7 +145,7 @@ function buildGmailRawMessage({ to, subject, html, attachments }) {
 }
 
 /** Send one email through the Google Workspace (Gmail API) transport. */
-async function sendViaGmail({ to, subject, html, attachments }) {
+async function sendViaGmail({ to, subject, html, attachments, fromName }) {
   if (!gmailCredentialsAvailable()) {
     console.warn("[Gmail] Credentials not configured — skipping Gmail send to:", to);
     return { success: false, provider: "gmail", note: "Gmail credentials not configured" };
@@ -160,13 +161,13 @@ async function sendViaGmail({ to, subject, html, attachments }) {
     auth.setCredentials({ refresh_token: GMAIL_REFRESH_TOKEN });
 
     const gmail = google.gmail({ version: "v1", auth });
-    const raw = buildGmailRawMessage({ to, subject, html, attachments });
+    const raw = buildGmailRawMessage({ to, subject, html, attachments, fromName });
     const sendRes = await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
 
     return { success: true, provider: "gmail", data: { id: sendRes.data?.id || null } };
-  } catch (e) {
-    console.error("[Gmail] Send error:", classifyGmailError(e));
-    return { success: false, provider: "gmail", error: classifyGmailError(e) };
+  } catch (error) {
+    console.error("[Gmail] Send error:", classifyGmailError(error));
+    return { success: false, provider: "gmail", error: classifyGmailError(error) };
   }
 }
 
@@ -193,19 +194,44 @@ const DEFAULT_TEMPLATES = {
     subject: "Welcome back to {{organization}} — Log In",
     body: `<p>Hello {{name}},</p><p>You already have an account with us. You can access the platform using your existing login credentials.</p>`,
   },
+  result: {
+    // The NEUTRAL result wording. A Founder Fit Score run still gets its own
+    // built-in message INSTEAD of this one (see sendResultEmail), so this default
+    // is what every other run falls back to — and the base the AI personalizes.
+    // The subject is built on the recipient's name, which is why it still reads
+    // correctly when no name is known (the leading comma is tidied away).
+    subject: "{{name}}, your result is ready",
+    body: `<p>Hello {{name}},</p><p>The result of your submission is ready. The document contains your responses, the evaluation of your submission and your final score.</p><p>Thank you for participating.</p>`,
+  },
 };
 
 /**
- * Replace {{variables}} in a template string with provided values.
- * Falls back gracefully for missing values.
+ * Replace {{variables}} in a template string with provided values, then remove
+ * whatever placeholder is left over.
+ *
+ * Only the names this caller actually passes can be filled in. Any OTHER name
+ * has no value and must never reach a recipient as raw `{{text}}` — so the
+ * final sweep deletes it. The template editors warn about those names as they
+ * are typed (see findUnknownTemplateVariables), making this a safety net rather
+ * than the only line of defence.
  */
 export function applyTemplate(text, vars = {}) {
   if (!text) return "";
-  let result = text;
+  let result = String(text);
   for (const [key, val] of Object.entries(vars)) {
-    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), val != null ? String(val) : "");
+    // A name this sender provides is filled in even when the template carries
+    // extra spaces ({{ name }}), so a hand-typed placeholder is not a trap.
+    result = result.replace(new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g"), val != null ? String(val) : "");
   }
-  return result;
+  const swept = result.replace(TEMPLATE_VARIABLE_PATTERN, "");
+  // An empty value must not strand the punctuation around it: "Bonjour {{name}},"
+  // with no known name would read "Bonjour ," — and a SUBJECT built on the name
+  // ("{{name}}, your result is ready") would read ", your result is ready".
+  //
+  // Only the comma and the full stop are tidied, because in French typography a
+  // space before ! ? ; or : is correct; and the leading rule demands a space
+  // AFTER the mark, so ".NET" is never touched.
+  return swept.replace(/\s+([,.])/g, "$1").replace(/^\s*[,.]\s+/, "");
 }
 
 /**
@@ -218,7 +244,7 @@ export function applyTemplate(text, vars = {}) {
 export function getTemplate(formSettings, templateKey, runSettings) {
   const custom = formSettings?.automation?.templates?.[templateKey] || {};
   const runCustom = runSettings?.templates?.[templateKey] || {};
-  const text = (v) => (typeof v === "string" ? v.trim() : v);
+  const text = (value) => (typeof value === "string" ? value.trim() : value);
   // Per-field fallthrough: run value (non-blank) → form value (non-blank) → default
   const pick = (runVal, formVal) => text(runVal) || text(formVal) || "";
   const def = DEFAULT_TEMPLATES[templateKey];
@@ -238,16 +264,58 @@ export function getDefaultTemplate(templateKey) {
 }
 
 /**
+ * Resolve ONLY the DESIGNED levels of a template — run, then form — without the
+ * platform default.
+ *
+ * The result message needs this: its built-in wording depends on the kind of
+ * run (a Founder Fit Score run has its own message), so the platform default
+ * must not be reached before that choice is made — otherwise adding a default
+ * would silently replace every run's specific message. Blank values fall
+ * through exactly like getTemplate.
+ */
+export function getDesignedTemplate(formSettings, templateKey, runSettings) {
+  const custom = formSettings?.automation?.templates?.[templateKey] || {};
+  const runCustom = runSettings?.templates?.[templateKey] || {};
+  const text = (value) => (typeof value === "string" ? value.trim() : value);
+  const pick = (runVal, formVal) => text(runVal) || text(formVal) || "";
+  return { subject: pick(runCustom.subject, custom.subject), body: pick(runCustom.body, custom.body) };
+}
+
+/**
+ * How long, in hours, a submission waits after it is sent before its result is
+ * emailed automatically. The delay lives with the template it belongs to:
+ *   • run  → settings.templates.result.delay_hours (an override)
+ *   • form → settings.automation.templates.result.delay_hours (the default)
+ *
+ * An ABSENT run value falls through to the form; an explicit 0 stops the
+ * automatic send for that run (the operator sends by hand). That is the one
+ * place this resolver differs from the text one: there, blank means "not set";
+ * here, an explicit 0 must be obeyed. 0 (or nothing to send) is the default.
+ */
+export function resolveResultDelayHours(formSettings, runSettings) {
+  const parse = (value) => {
+    if (value === undefined || value === null || value === "") return null;
+    const hours = Number(value);
+    if (!Number.isFinite(hours) || hours < 0) return null;
+    return Math.floor(hours);
+  };
+  const fromRun = parse(runSettings?.templates?.result?.delay_hours);
+  if (fromRun !== null) return fromRun;
+  const fromForm = parse(formSettings?.automation?.templates?.result?.delay_hours);
+  return fromForm !== null ? fromForm : 0;
+}
+
+/**
  * Send an invite email with activation link
  */
 function resolveGreetingName(name) {
-  const n = typeof name === "string" ? name.replace(/\s+/g, " ").trim() : "";
-  if (!n || n.includes("@")) return "";
-  if (/^(unknown|anonymous|n\/a|none|participant|null|undefined|-+|\s*)$/i.test(n)) return "";
-  return n;
+  const cleanedName = typeof name === "string" ? name.replace(/\s+/g, " ").trim() : "";
+  if (!cleanedName || cleanedName.includes("@")) return "";
+  if (/^(unknown|anonymous|n\/a|none|participant|null|undefined|-+|\s*)$/i.test(cleanedName)) return "";
+  return cleanedName;
 }
 
-export async function sendInviteEmail({ to, name, role, token, template, templateVars, programName }) {
+export async function sendInviteEmail({ to, name, role, token, template, templateVars, programName, contact_cid }) {
   const activationUrl = `${APP_URL}/activate?token=${token}`;
   const roleLabel = role?.replace(/_/g, " ") || "User";
   const org = templateVars?.organization || "Impact OS";
@@ -320,14 +388,14 @@ export async function sendInviteEmail({ to, name, role, token, template, templat
     </html>
   `;
 
-  return sendEmail({ to, subject, html });
+  return sendAndRecord({ to, subject, html, contact_cid, email_type: "activation" });
 }
 
 /**
  * Send an access email to someone who ALREADY has a platform account.
  * No password-setup token — the recipient logs in with existing credentials.
  */
-export async function sendLoginEmail({ to, name, role, template, templateVars, programName }) {
+export async function sendLoginEmail({ to, name, role, template, templateVars, programName, contact_cid }) {
   const loginUrl = `${APP_URL}/login`;
   const org = templateVars?.organization || "Impact OS";
   const greetingName = resolveGreetingName(name);
@@ -395,13 +463,13 @@ export async function sendLoginEmail({ to, name, role, template, templateVars, p
     </html>
   `;
 
-  return sendEmail({ to, subject, html });
+  return sendAndRecord({ to, subject, html, contact_cid, email_type: "access" });
 }
 
 /**
  * Send a welcome email after activation
  */
-export async function sendWelcomeEmail({ to, name, language }) {
+export async function sendWelcomeEmail({ to, name, language, contact_cid }) {
   // Never render placeholder identities (UNKNOWN / Anonymous / empty) when a
   // resolved name is unavailable — use a neutral greeting instead.
   const displayName = isGenericName(name) ? "there" : (name || "there").trim();
@@ -465,13 +533,13 @@ export async function sendWelcomeEmail({ to, name, language }) {
     </html>
   `;
 
-  return sendEmail({ to, subject: copy.subject, html, provider: "gmail" });
+  return sendAndRecord({ to, subject: copy.subject, html, provider: "gmail", contact_cid, email_type: "welcome" });
 }
 
 /**
  * Send a password reset email
  */
-export async function sendPasswordResetEmail({ to, name, resetUrl }) {
+export async function sendPasswordResetEmail({ to, name, resetUrl, contact_cid }) {
   const html = `
     <!DOCTYPE html>
     <html>
@@ -522,14 +590,14 @@ export async function sendPasswordResetEmail({ to, name, resetUrl }) {
     </html>
   `;
 
-  return sendEmail({ to, subject: "Reset your ImpactOS password", html });
+  return sendAndRecord({ to, subject: "Reset your ImpactOS password", html, contact_cid, email_type: "password_reset" });
 }
 
 /**
  * Send a venture approval email (venture created via invite link has been approved).
  * Includes a setup link so the founder can set their password and access the dashboard.
  */
-export async function sendVentureApprovalEmail({ to, name, ventureName, setupUrl }) {
+export async function sendVentureApprovalEmail({ to, name, ventureName, setupUrl, contact_cid }) {
   const ctaUrl = setupUrl || `${APP_URL}/login`;
   const ctaLabel = setupUrl ? "SET YOUR PASSWORD" : "LOG IN";
   const html = `
@@ -590,14 +658,14 @@ export async function sendVentureApprovalEmail({ to, name, ventureName, setupUrl
     </html>
   `;
 
-  return sendEmail({ to, subject: `Your venture ${ventureName} has been approved`, html });
+  return sendAndRecord({ to, subject: `Your venture ${ventureName} has been approved`, html, contact_cid, email_type: "venture_approval" });
 }
 
 /**
  * Send a Venture Run invitation email (Invite ≠ create — the recipient
  * completes the Venture Application form; only approval creates the Venture).
  */
-export async function sendVentureInvitationEmail({ to, name, runUrl, runName }) {
+export async function sendVentureInvitationEmail({ to, name, runUrl, runName, contact_cid }) {
   const ctaUrl = runUrl || `${APP_URL}/login`;
   const ctaLabel = runUrl ? "COMPLETE YOUR VENTURE APPLICATION" : "LOG IN";
   const html = `
@@ -654,13 +722,94 @@ export async function sendVentureInvitationEmail({ to, name, runUrl, runName }) 
     </html>
   `;
 
-  return sendEmail({ to, subject: "You're invited to register a Venture", html });
+  return sendAndRecord({ to, subject: "You're invited to register a Venture", html, contact_cid, email_type: "venture_invitation" });
+}
+
+/**
+ * Venture MEMBER invitation — a founder adding a teammate to an existing
+ * Venture. Rides the SAME transport as every other Venture email (Google
+ * Workspace first, Resend fallback), so it is no longer a separate weaker
+ * sender that silently no-ops when one provider is unavailable.
+ *
+ * Returns the transport result unchanged: `success: false` means the email did
+ * NOT leave the system and the caller must tell the founder.
+ */
+export async function sendVentureMemberInvitationEmail({
+  to,
+  ventureName,
+  inviterName,
+  memberType,
+  inviteUrl,
+  expiresAt,
+  contact_cid,
+}) {
+  const ctaUrl = inviteUrl || `${APP_URL}/login`;
+  const venue = ventureName || "the Venture";
+  const seat = memberType === "founder" ? "a founder" : "a team member";
+  const inviter = inviterName ? `<strong style="color: #f8fafc;">${inviterName}</strong>` : "A founder";
+  const expiryLine = expiresAt
+    ? `<p style="color: #64748b; font-size: 12px; margin: 0 0 24px;">This invitation link expires on ${new Date(expiresAt).toLocaleDateString("en-GB")}.</p>`
+    : "";
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; margin: 0; padding: 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background: #020617;">
+        <tr><td align="center" style="padding: 40px 20px;">
+          <table width="480" cellpadding="0" cellspacing="0" style="background: #0f172a; border-radius: 16px; border: 1px solid #334155;">
+            <tr><td style="padding: 40px;">
+              <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
+                <span style="color: #ff6600;">Impact</span><span style="color: #f8fafc;">OS</span>
+              </h1>
+              <p style="color: #64748b; font-size: 13px; margin: 0 0 24px;">Future Studio Platform</p>
+
+              <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">You're invited to join ${venue} 🤝</h2>
+              <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
+                ${inviter} invited you to join <strong style="color: #f8fafc;">${venue}</strong> as ${seat}.
+                Accept the invitation below to join the team.
+              </p>
+
+              <table cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
+                <tr>
+                  <td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;">
+                    <a href="${ctaUrl}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">
+                      ACCEPT INVITATION
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              ${expiryLine}
+
+              <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin: 0 0 4px;">
+                If the button doesn't work, copy and paste this URL into your browser:
+              </p>
+              <p style="color: #ff6600; font-size: 11px; word-break: break-all; margin: 0 0 24px;">
+                ${ctaUrl}
+              </p>
+
+              <hr style="border: none; border-top: 1px solid #1e293b; margin: 24px 0;" />
+              <p style="color: #475569; font-size: 11px; line-height: 1.5; margin: 0;">
+                If you have any questions, please contact your administrator.
+              </p>
+              ${FUTURE_STUDIO_FOOTER}
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  return sendAndRecord({ to, subject: `You're invited to join ${venue}`, html, contact_cid, email_type: "venture_member_invitation" });
 }
 
 /**
  * Internal: sends email via Resend
  */
-async function sendViaResend({ to, subject, html }) {
+async function sendViaResend({ to, subject, html, fromName }) {
   if (!RESEND_API_KEY) {
     console.warn("Resend not configured — skipping email to:", to, "subject:", subject);
     return { success: false, provider: "resend", note: "Resend API key not configured" };
@@ -671,7 +820,7 @@ async function sendViaResend({ to, subject, html }) {
     const resend = new Resend(RESEND_API_KEY);
 
     const { data, error } = await resend.emails.send({
-      from: FROM_EMAIL,
+      from: fromName ? `${fromName} <${FROM_EMAIL}>` : FROM_EMAIL,
       to,
       subject,
       html,
@@ -683,9 +832,9 @@ async function sendViaResend({ to, subject, html }) {
     }
 
     return { success: true, provider: "resend", data };
-  } catch (e) {
-    console.error("Email send error:", e);
-    return { success: false, provider: "resend", error: e.message };
+  } catch (error) {
+    console.error("Email send error:", error);
+    return { success: false, provider: "resend", error: error.message };
   }
 }
 
@@ -700,7 +849,7 @@ async function sendViaResend({ to, subject, html }) {
  * and fall back to Resend on transport failure so the applicant still
  * receives the notification — it remains a single tracked attempt.
  */
-export async function sendEmail({ to, subject, html, provider, attachments }) {
+export async function sendEmail({ to, subject, html, provider, attachments, fromName }) {
   // HARD GUARD: an internal placeholder address (import-…@placeholder…,
   // .local, example.com…) must NEVER leave the system, no matter which
   // code path built the recipient. This is the final safety net before any
@@ -712,10 +861,10 @@ export async function sendEmail({ to, subject, html, provider, attachments }) {
 
   const chosen = provider || EMAIL_PRIMARY_DEFAULT;
   const fallback = chosen === "gmail" ? "resend" : "gmail";
-  const sendWith = (p) =>
-    p === "gmail"
-      ? sendViaGmail({ to, subject, html, attachments })
-      : sendViaResend({ to, subject, html }); // Resend transport has no attachment support
+  const sendWith = (providerName) =>
+    providerName === "gmail"
+      ? sendViaGmail({ to, subject, html, attachments, fromName })
+      : sendViaResend({ to, subject, html, fromName }); // Resend transport has no attachment support
 
   const primary = await sendWith(chosen);
   if (primary.success) return primary;
@@ -734,13 +883,93 @@ export async function sendEmail({ to, subject, html, provider, attachments }) {
     note: "Primary provider (" + chosen + ") and fallback (" + fallback + ") both failed",
   };
 }
+
+// ─── STANDALONE SENDERS (no submission behind the email) ─────────────
+// Invitations, password setup, approvals, credentials, campaigns. They use the
+// SAME transport and the SAME delivery log as the workflow emails, so "sent"
+// means sent and a failure is visible instead of silently successful.
+
+/** HTML-escape plain text so a body sent without markup cannot inject tags. */
+function textToHtml(text) {
+  const escaped = String(text || "").replace(/[&<>]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[character]));
+  return `<pre style="font-family:inherit;white-space:pre-wrap;word-break:break-word;margin:0;">${escaped}</pre>`;
+}
+
+/**
+ * Append ONE row per standalone attempt (sent OR failed) to the shared log.
+ * Never deduped: every attempt is history and the LATEST row is the status.
+ */
+async function recordStandaloneSend({ result, to, contact_cid, email_type, note, provider }) {
+  try {
+    await ensureEmailLogTable();
+    const { default: db } = await import("@/lib/db");
+    const recipient = to ? String(to).trim().substring(0, 300) : null;
+    if (result?.success) {
+      await db.execute({
+        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient, email_id, sent_at)
+              VALUES (NULL, ?, ?, 'sent', ?, ?, ?, ?, NOW())`,
+        args: [contact_cid || null, email_type, result?.provider || provider || null, note || null, recipient, result?.data?.id || null],
+      });
+    } else {
+      const reason = result?.provider === "blocked"
+        ? "Refused — the address is a placeholder, not a real recipient"
+        : String(typeof result?.error === "string" ? result.error : result?.error ? JSON.stringify(result.error) : "Send failed");
+      await db.execute({
+        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient)
+              VALUES (NULL, ?, ?, 'failed', ?, ?, ?)`,
+        args: [contact_cid || null, email_type, result?.provider || provider || null, reason.substring(0, 500), recipient],
+      });
+    }
+  } catch (error) {
+    console.warn("[EmailLog] Could not record standalone send:", error.message);
+  }
+}
+
+/** Send + record one standalone email. Used by the in-module senders below. */
+async function sendAndRecord({ to, subject, html, fromName, provider, contact_cid, email_type, note, attachments }) {
+  const result = await sendEmail({ to, subject, html, fromName, provider, attachments });
+  await recordStandaloneSend({ result, to, contact_cid, email_type, note, provider });
+  return result;
+}
+
+/**
+ * Public entry point for a STANDALONE transactional email — anything that is
+ * not tied to a form submission: invitations, password setup, account
+ * approvals, team credentials, campaign sends.
+ *
+ * Same transport as every workflow email (professional mailbox first, fallback
+ * to the transactional service, placeholder addresses refused, attachments
+ * supported) and same delivery log, so it can be supervised and its failure
+ * seen. The argument shape matches the historical standalone sender
+ * ({ to, subject, body, isHtml, fromName }) — `body` may be plain text or, with
+ * isHtml, markup — plus `contact_cid` and `email_type` for the log.
+ *
+ * Returns the transport result: { success, provider, error?, data? }.
+ */
+export async function sendStandaloneEmail({
+  to,
+  subject,
+  body,
+  html,
+  isHtml = false,
+  fromName,
+  contact_cid,
+  email_type = "notification",
+  note,
+  provider,
+  attachments,
+}) {
+  const content = html != null ? html : isHtml ? (body || "") : textToHtml(body);
+  return sendAndRecord({ to, subject, html: content, fromName, provider, contact_cid, email_type, note, attachments });
+}
+
 // Every workflow email is tracked in platform_email_log so the system
 // never sends the same email type twice for the same submission, and
 // failed sends are distinguishable from successful ones.
 
 let emailLogTablePromise = null;
 
-async function ensureEmailLogTable() {
+export async function ensureEmailLogTable() {
   if (emailLogTablePromise) return emailLogTablePromise;
   emailLogTablePromise = (async () => {
     try {
@@ -765,8 +994,8 @@ async function ensureEmailLogTable() {
         ON platform_email_log (submission_id, email_type, COALESCE(batch_id, ''))
         WHERE status = 'sent'`);
       return true;
-    } catch (e) {
-      console.warn("[EmailLog] Could not ensure table:", e.message);
+    } catch (error) {
+      console.warn("[EmailLog] Could not ensure table:", error.message);
       emailLogTablePromise = null; // allow retry on transient failure
       return false;
     }
@@ -856,7 +1085,7 @@ export async function getActivationHistory({ submission_id, contact_cid }) {
       });
       rows = res.rows;
     }
-    const sentRows = rows.filter((r) => r.status === "sent");
+    const sentRows = rows.filter((row) => row.status === "sent");
 
     let tokenValid = false;
     let tokenExpiresAt = null;
@@ -942,8 +1171,8 @@ export async function ensurePasswordSetupTokensSchema() {
         END IF;
       END $$`);
       return true;
-    } catch (e) {
-      console.warn("[TokenSchema] Could not ensure password_setup_tokens schema:", e.message);
+    } catch (error) {
+      console.warn("[TokenSchema] Could not ensure password_setup_tokens schema:", error.message);
       passwordSetupTokensSchemaPromise = null; // allow retry on transient failure
       return false;
     }
@@ -957,11 +1186,11 @@ export async function ensurePasswordSetupTokensSchema() {
  */
 export function isPlaceholderEmail(email) {
   if (!email || typeof email !== "string") return true;
-  const e = email.trim().toLowerCase();
-  if (!e.includes("@")) return true;
-  if (e.includes("placeholder")) return true;
-  if (e.includes("@example.") || e.includes("@test.") || e.endsWith(".local") || e.endsWith(".invalid")) return true;
-  if (e.startsWith("import-")) return true; // import-generated placeholder pattern
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail.includes("@")) return true;
+  if (normalizedEmail.includes("placeholder")) return true;
+  if (normalizedEmail.includes("@example.") || normalizedEmail.includes("@test.") || normalizedEmail.endsWith(".local") || normalizedEmail.endsWith(".invalid")) return true;
+  if (normalizedEmail.startsWith("import-")) return true; // import-generated placeholder pattern
   return false;
 }
 
@@ -978,26 +1207,26 @@ export function isPlaceholderEmail(email) {
  */
 export function resolveSubmissionEmail({ submissionData, fieldLabels, contactEmail }) {
   const data = submissionData && typeof submissionData === "object" ? submissionData : {};
-  const labelOf = (k) => {
+  const labelOf = (fieldKey) => {
     const raw =
-      fieldLabels && fieldLabels[String(k)] != null
-        ? String(fieldLabels[String(k)])
-        : String(k);
+      fieldLabels && fieldLabels[String(fieldKey)] != null
+        ? String(fieldLabels[String(fieldKey)])
+        : String(fieldKey);
     return raw.toLowerCase().trim();
   };
-  const isReal = (v) =>
-    typeof v === "string" && v.includes("@") && !isPlaceholderEmail(v);
+  const isReal = (candidate) =>
+    typeof candidate === "string" && candidate.includes("@") && !isPlaceholderEmail(candidate);
   // English + French email question labels (Email, E-mail, Email Address,
   // Adresse e-mail, Courriel, Mel…). Never matches a bare "Adresse" field.
   const EMAIL_HINTS = /(e-?mail|courriel|mel|adresse\s*(e-?mail|mail))/i;
 
   const labeled = [];
   const anyReal = [];
-  for (const [k, v] of Object.entries(data)) {
-    const val = typeof v === "string" ? v.trim() : "";
-    if (!isReal(val)) continue;
-    if (EMAIL_HINTS.test(labelOf(k))) labeled.push(val);
-    else anyReal.push(val);
+  for (const [fieldKey, fieldValue] of Object.entries(data)) {
+    const value = typeof fieldValue === "string" ? fieldValue.trim() : "";
+    if (!isReal(value)) continue;
+    if (EMAIL_HINTS.test(labelOf(fieldKey))) labeled.push(value);
+    else anyReal.push(value);
   }
   if (labeled.length > 0) return labeled[0].toLowerCase();
   if (anyReal.length > 0) return anyReal[0].toLowerCase();
@@ -1056,23 +1285,23 @@ const NAME_HINTS = /^(name)$/i;
  * when a real name exists anywhere.
  */
 export function resolvePersonName({ contactName, contactFirstName, contactLastName, submitterName, submissionData, fieldLabels }) {
-  const clean = (v) =>
-    typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "";
+  const clean = (value) =>
+    typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
 
   const data = submissionData && typeof submissionData === "object" ? submissionData : {};
-  const stringify = (v) => {
-    if (typeof v !== "string") return "";
+  const stringify = (value) => {
+    if (typeof value !== "string") return "";
     try {
-      if (v.startsWith("{") && v.includes('"code"')) return ""; // phone objects
+      if (value.startsWith("{") && value.includes('"code"')) return ""; // phone objects
     } catch (_) {}
-    return v;
+    return value;
   };
   // Effective label for a data key: field id → real question label.
-  const labelOf = (k) => {
+  const labelOf = (fieldKey) => {
     const raw =
-      fieldLabels && fieldLabels[String(k)] != null
-        ? String(fieldLabels[String(k)])
-        : String(k);
+      fieldLabels && fieldLabels[String(fieldKey)] != null
+        ? String(fieldLabels[String(fieldKey)])
+        : String(fieldKey);
     return raw.toLowerCase().trim();
   };
 
@@ -1081,15 +1310,15 @@ export function resolvePersonName({ contactName, contactFirstName, contactLastNa
   const lastNames = [];
   let bareName = "";
 
-  for (const [k, v] of Object.entries(data)) {
-    const val = clean(stringify(v));
-    if (!val) continue;
-    const label = labelOf(k);
+  for (const [fieldKey, fieldValue] of Object.entries(data)) {
+    const value = clean(stringify(fieldValue));
+    if (!value) continue;
+    const label = labelOf(fieldKey);
     if (!label) continue;
-    if (FULL_NAME_HINTS.test(label)) fullNames.push(val);
-    else if (FIRST_NAME_HINTS.test(label)) firstNames.push(val);
-    else if (LAST_NAME_HINTS.test(label) || FR_LAST_NAME_HINTS.test(label)) lastNames.push(val);
-    else if (NAME_HINTS.test(label)) bareName = bareName || val;
+    if (FULL_NAME_HINTS.test(label)) fullNames.push(value);
+    else if (FIRST_NAME_HINTS.test(label)) firstNames.push(value);
+    else if (LAST_NAME_HINTS.test(label) || FR_LAST_NAME_HINTS.test(label)) lastNames.push(value);
+    else if (NAME_HINTS.test(label)) bareName = bareName || value;
   }
 
   const candidates = [];
@@ -1098,7 +1327,7 @@ export function resolvePersonName({ contactName, contactFirstName, contactLastNa
   if (clean(contactName)) candidates.push(clean(contactName));
 
   // 2. Submission full-name field(s)
-  for (const n of fullNames) candidates.push(n);
+  for (const fullName of fullNames) candidates.push(fullName);
 
   // 3. CRM first (+ last) name when stored separately
   const crmFirst = clean(contactFirstName);
@@ -1119,17 +1348,17 @@ export function resolvePersonName({ contactName, contactFirstName, contactLastNa
   if (clean(submitterName)) candidates.push(clean(submitterName));
 
   // 7. Any remaining name-ish answer (label or key contains name words)
-  for (const [k, v] of Object.entries(data)) {
-    const key = labelOf(k);
-    const val = clean(stringify(v));
-    if (!val || !key) continue;
+  for (const [fieldKey, fieldValue] of Object.entries(data)) {
+    const key = labelOf(fieldKey);
+    const value = clean(stringify(fieldValue));
+    if (!value || !key) continue;
     if (key.includes("name") || key.includes("nom") || key.includes("prénom") || key.includes("prenom")) {
-      candidates.push(val);
+      candidates.push(value);
     }
   }
 
-  for (const c of candidates) {
-    if (c && !GENERIC_NAMES.test(c)) return c;
+  for (const candidate of candidates) {
+    if (candidate && !GENERIC_NAMES.test(candidate)) return candidate;
   }
   return "";
 }
@@ -1138,7 +1367,7 @@ export function resolvePersonName({ contactName, contactFirstName, contactLastNa
 // Name"; other venture forms use Project / Nom du projet. Kept apart from the
 // person-name hints on purpose — a company name is never the applicant's name.
 const PROJECT_NAME_HINTS =
-  /^(startup|project|company|venture|business)\s*(name)?$|^nom\s+(du\s+|de\s+la\s+|de\s+l['’]?)?(projet|startup|entreprise|soci[eé]t[eé])$|^(nom|name)\s+(du\s+|of\s+(the\s+)?)?(projet|project)$/i;
+  /^(startup|project|company|venture|business)\s*(name)?$|^nom\s+(du\s+|de\s+la\s+|de\s+l['’]?)?(projet|startup|entreprise|soci[eé]t[eé]|structure|organisation|organization)$|^(raison|d[ée]nomination)\s+sociale$|^(nom|name)\s+(du\s+|of\s+(the\s+)?)?(projet|project)$/i;
 
 /**
  * Resolve the applicant's project / venture name from the submission, using the
@@ -1148,20 +1377,20 @@ const PROJECT_NAME_HINTS =
  */
 export function resolveProjectName({ submissionData, fieldLabels }) {
   const data = submissionData && typeof submissionData === "object" ? submissionData : {};
-  const clean = (v) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "");
-  const labelOf = (k) =>
-    fieldLabels && fieldLabels[String(k)] != null ? String(fieldLabels[String(k)]) : String(k);
+  const clean = (value) => (typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "");
+  const labelOf = (fieldKey) =>
+    fieldLabels && fieldLabels[String(fieldKey)] != null ? String(fieldLabels[String(fieldKey)]) : String(fieldKey);
 
   let loose = "";
-  for (const [k, v] of Object.entries(data)) {
-    const val = clean(v);
-    if (!val) continue;
-    const label = labelOf(k).trim();
-    if (PROJECT_NAME_HINTS.test(label)) return val;
+  for (const [fieldKey, fieldValue] of Object.entries(data)) {
+    const value = clean(fieldValue);
+    if (!value) continue;
+    const label = labelOf(fieldKey).trim();
+    if (PROJECT_NAME_HINTS.test(label)) return value;
     // Softer net, never enough on its own: a label that merely mentions the
     // venture ("Startup Industry") must not match, hence the name/nom word.
-    if (!loose && /(startup|projet|project|venture)/i.test(label) && /(name|nom)/i.test(label)) {
-      loose = val;
+    if (!loose && /(startup|projet|project|venture|entreprise|company|structure|soci[eé]t[eé])/i.test(label) && /(name|nom)/i.test(label)) {
+      loose = value;
     }
   }
   return loose;
@@ -1176,11 +1405,11 @@ export function resolveProjectName({ submissionData, fieldLabels }) {
 export function detectLanguage(fieldLabels) {
   let fr = 0;
   let en = 0;
-  for (const v of Object.values(fieldLabels || {})) {
-    const l = String(v).toLowerCase();
-    if (/nom complet|pr[eé]nom|prenom|courriel|t[eé]l[eé]phone|date de naissance|ville|pays/.test(l)) {
+  for (const label of Object.values(fieldLabels || {})) {
+    const labelText = String(label).toLowerCase();
+    if (/nom complet|pr[eé]nom|prenom|courriel|t[eé]l[eé]phone|date de naissance|ville|pays/.test(labelText)) {
       fr++;
-    } else if (/full name|first name|last name|email address|phone|date of birth|city|country/.test(l)) {
+    } else if (/full name|first name|last name|email address|phone|date of birth|city|country/.test(labelText)) {
       en++;
     }
   }
@@ -1222,8 +1451,8 @@ export async function recordEmailStatus({ submission_id, contact_cid, email_type
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
       args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, safeStatus, provider || null, (error || "Unknown reason").substring(0, 500), to ? String(to).trim().substring(0, 300) : null],
     });
-  } catch (e) {
-    console.warn("[EmailLog] Could not record status:", e.message);
+  } catch (error) {
+    console.warn("[EmailLog] Could not record status:", error.message);
   }
 }
 
@@ -1263,8 +1492,8 @@ export async function markEmailBounced({ recipient, error }) {
       ],
     });
     return true;
-  } catch (e) {
-    console.warn("[EmailLog] markEmailBounced:", e.message);
+  } catch (error) {
+    console.warn("[EmailLog] markEmailBounced:", error.message);
     return false;
   }
 }
@@ -1284,11 +1513,11 @@ export async function recordResendEvent({ email_id, status, error, createdAt }) 
     const { default: db } = await import("@/lib/db");
     let row = null;
     if (email_id) {
-      const r = await db.execute({
+      const result = await db.execute({
         sql: "SELECT * FROM platform_email_log WHERE email_id = ? ORDER BY id DESC LIMIT 1",
         args: [String(email_id)],
       });
-      row = r.rows[0] || null;
+      row = result.rows[0] || null;
     }
     if (!row) return false; // unknown email_id — nothing to attach to
     const eventAt = createdAt ? new Date(createdAt).toISOString() : new Date().toISOString();
@@ -1309,8 +1538,8 @@ export async function recordResendEvent({ email_id, status, error, createdAt }) 
       ],
     });
     return true;
-  } catch (e) {
-    console.warn("[EmailLog] recordResendEvent:", e.message);
+  } catch (error) {
+    console.warn("[EmailLog] recordResendEvent:", error.message);
     return false;
   }
 }
@@ -1334,8 +1563,8 @@ async function recordEmailResult({ submission_id, contact_cid, email_type, succe
         args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, (error || "Unknown error").substring(0, 500), recipient, batch_id || null],
       });
     }
-  } catch (e) {
-    console.warn("[EmailLog] Could not record:", e.message);
+  } catch (error) {
+    console.warn("[EmailLog] Could not record:", error.message);
   }
 }
 
@@ -1366,8 +1595,8 @@ export async function recordEmailSent({ submission_id, contact_cid, email_type, 
       args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, note || null, recipient, emailId || null, batch_id || null],
     });
     return true;
-  } catch (e) {
-    console.warn("[EmailLog] Could not record sent email:", e.message);
+  } catch (error) {
+    console.warn("[EmailLog] Could not record sent email:", error.message);
     return false;
   }
 }
@@ -1387,8 +1616,8 @@ export async function sendTrackedEmail({ submission_id, contact_cid, email_type,
   let result;
   try {
     result = await sendFn();
-  } catch (e) {
-    result = { success: false, error: e?.message || "Send failed" };
+  } catch (error) {
+    result = { success: false, error: error?.message || "Send failed" };
   }
 
   await recordEmailResult({
@@ -1524,6 +1753,53 @@ export async function sendDecisionEmail({ to, applicantName, formName, decision,
   return sendEmail({ to, subject, html, provider: provider || DECISION_EMAIL_DEFAULT });
 }
 
+/**
+ * Send the submission-confirmation (acknowledgement) email.
+ *
+ * Uses the SAME run → form → default template chain as the decision and
+ * activation emails, the same branded shell, the same footer and the same
+ * transport selection (professional mailbox first, Resend as the automatic
+ * fallback) so the confirmation is no longer pinned to a single provider.
+ */
+export async function sendConfirmationEmail({ to, applicantName, formName, organization, template, templateVars }) {
+  const tv = {
+    name: applicantName || "there",
+    form_name: formName || "application",
+    organization: organization || "ImpactOS",
+    ...(templateVars || {}),
+  };
+
+  const subject = template?.subject
+    ? applyTemplate(template.subject, tv)
+    : `Thank you for your submission — ${tv.form_name}`;
+
+  const bodyHtml = normalizeToHtml(
+    template?.body
+      ? applyTemplate(template.body, tv)
+      : `<p style="margin:0 0 8px;font-size:15px;color:#e2e8f0;">Hello ${tv.name},</p><p style="margin:0 0 8px;font-size:14px;color:#94a3b8;line-height:1.6;">We have received your submission for <strong style="color:#f8fafc;">${tv.form_name}</strong>.</p><p style="margin:0;font-size:14px;color:#94a3b8;line-height:1.6;">Our team will review it and get back to you soon.</p>`
+  );
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; margin: 0; padding: 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background: #020617;">
+        <tr><td align="center" style="padding: 40px 20px;">
+          <table width="480" cellpadding="0" cellspacing="0" style="background: #0f172a; border-radius: 16px; border: 1px solid #334155;">
+            <tr><td style="padding: 40px;">
+              <h1 style="margin: 0 0 16px; font-size: 20px; font-weight: 800;">${subject}</h1>
+              ${bodyHtml}
+              ${FUTURE_STUDIO_FOOTER}
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body></html>`;
+
+  return sendEmail({ to, subject, html });
+}
+
 // Shared inline styles for result-email paragraphs (dark card drawn by the shell).
 const R_P = "color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 10px;";
 const R_PL = "color:#94a3b8;font-size:14px;line-height:1.6;margin:0;";
@@ -1634,13 +1910,19 @@ function founderFitResultCopy({ isFr, greeting, frGreeting, scoreText, project }
  * them: without a score its score sentence is dropped, and without a project
  * name its recommendation refers to "your project".
  *
+ * A text DESIGNED in the UI (run → form — see getDesignedTemplate) takes over
+ * the message. The built-in copy then only supplies what the author left blank,
+ * and the "how to reach the document" lines stay application-owned: a designed
+ * text can never point the recipient at a document that is not there, nor
+ * promise an attachment that the transport could not carry.
+ *
  * Delivery:
  *  - Gmail transport attaches the PDF natively when Google Workspace
  *    credentials are configured.
  *  - Otherwise the PDF is hosted in Supabase storage and delivered as a
  *    download button through Resend (never silently dropped).
  */
-export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en", runId, submissionId, score, projectName, template }) {
+export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en", runId, submissionId, score, projectName, template, designed }) {
   const isFr = (lang || "en").toLowerCase().startsWith("fr");
   const greetingName = resolveGreetingName(applicantName);
   const greeting = greetingName ? `Hello ${greetingName},` : "Hello,";
@@ -1660,7 +1942,28 @@ export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en
   const copy = template === "founder_fit"
     ? founderFitResultCopy({ isFr, greeting, frGreeting, scoreText, project })
     : genericResultCopy({ isFr, greeting, frGreeting });
-  const subject = copy.subject;
+
+  // What a designed text may use. Every name here is one THIS sender fills in,
+  // so the list the editors show and the values substituted cannot drift.
+  const tv = {
+    // A missing name must read as a greeting, not as an English filler word in a
+    // French message: no known name means an EMPTY name, which the substitution
+    // turns back into "Bonjour," — never "Bonjour there,". English keeps its
+    // idiomatic "Hello there,".
+    name: greetingName || (isFr ? "" : "there"),
+    // The result message speaks in the platform's own voice (its built-in copies
+    // say "Future Studio" and close with the Future Studio team).
+    organization: "Future Studio",
+    score: scoreText,
+    // A sentence that hangs on the project name must never be left incomplete:
+    // with no name found, it says "votre projet" / "your project" instead of
+    // printing a gap ("la différenciation de .").
+    project_name: project || (isFr ? "votre projet" : "your project"),
+  };
+
+  const designedSubject = typeof designed?.subject === "string" ? designed.subject.trim() : "";
+  const designedBody = typeof designed?.body === "string" ? designed.body.trim() : "";
+  const subject = designedSubject ? applyTemplate(designedSubject, tv) : copy.subject;
 
   if (isPlaceholderEmail(to)) {
     console.warn("[Email] REFUSING to send to placeholder address:", to);
@@ -1690,8 +1993,21 @@ export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en
 
   // One body for both transports — the copy is identical, only the way the
   // report is reached differs (attached, or a download button on the fallback).
+  // A designed text replaces the editorial part; the lines that tell the
+  // recipient how to REACH the document stay the application's. A designed text
+  // places them where it wants with {{document_access}}; when it does not use
+  // that variable at all they are appended instead. Either way the recipient
+  // always gets a way to the document, and a designed text can never promise an
+  // attachment that the transport could not carry.
+  const designedAccessSlot = templateVariableNames(designedBody).includes("document_access");
   const compose = (hosted, url = "") =>
-    shell(copy.greetingHtml + copy.openingHtml + copy.accessHtml(hosted, url) + copy.closingHtml);
+    shell(
+      (designedBody
+        ? applyTemplate(designedBody, { ...tv, document_access: copy.accessHtml(hosted, url) })
+        : copy.greetingHtml + copy.openingHtml) +
+        (designedBody && designedAccessSlot ? "" : copy.accessHtml(hosted, url)) +
+        (designedBody ? "" : copy.closingHtml),
+    );
 
   // Preferred path: native PDF attachment through the Gmail API transport.
   if (gmailCredentialsAvailable()) {
@@ -1738,8 +2054,8 @@ export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en
       return { ...mailRes, error: mailRes.error || mailRes.note || "Email send failed" };
     }
     return mailRes;
-  } catch (e) {
-    console.error("[Email] Result delivery (hosted PDF) error:", e?.message || e);
-    return { success: false, provider: "storage", error: `Could not store the result PDF for delivery — ${e?.message || "storage error"}` };
+  } catch (error) {
+    console.error("[Email] Result delivery (hosted PDF) error:", error?.message || error);
+    return { success: false, provider: "storage", error: `Could not store the result PDF for delivery — ${error?.message || "storage error"}` };
   }
 }

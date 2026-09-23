@@ -93,10 +93,10 @@ describe("POST /api/standups/submit", () => {
     const data = await readJson(res);
     expect(data.success).toBe(true);
 
-    const insert = mockExecutedQueries.find((q) => q.sql.includes("INSERT INTO v2_op_reports"));
+    const insert = mockExecutedQueries.find((query) => query.sql.includes("INSERT INTO v2_op_reports"));
     expect(insert).toBeDefined();
     const expectedDeliverablesArg = insert.args.find(
-      (a) => typeof a === "string" && a.includes("Q3 budget"),
+      (argValue) => typeof argValue === "string" && argValue.includes("Q3 budget"),
     );
     expect(expectedDeliverablesArg).toBe(
       JSON.stringify(["Ship onboarding v1", "Publish Q3 budget"]),
@@ -106,7 +106,7 @@ describe("POST /api/standups/submit", () => {
   test("upsert lookup is scoped by context to avoid cross-context overwrites", async () => {
     await submitStandup(jsonReq(base));
     const lookup = mockExecutedQueries.find(
-      (q) => q.sql.includes("SELECT id FROM v2_op_reports") && q.sql.includes("'standup'"),
+      (query) => query.sql.includes("SELECT id FROM v2_op_reports") && query.sql.includes("'standup'"),
     );
     expect(lookup).toBeDefined();
     expect(lookup.sql).toContain("context_type = ?");
@@ -148,12 +148,12 @@ describe("POST /api/retros/submit", () => {
     expect(data.reconciledTasks).toHaveLength(2);
 
     const insert = mockExecutedQueries.find(
-      (q) => q.sql.includes("INSERT INTO v2_op_reports") && q.sql.includes("'retro'"),
+      (query) => query.sql.includes("INSERT INTO v2_op_reports") && query.sql.includes("'retro'"),
     );
     expect(insert).toBeDefined();
     // The retro route passes the wins value through for persistence
     const winsArg = insert.args.find(
-      (a) => a != null && String(a).includes("Q3 budget"),
+      (argValue) => argValue != null && String(argValue).includes("Q3 budget"),
     );
     expect(winsArg).toBeTruthy();
   });
@@ -161,7 +161,7 @@ describe("POST /api/retros/submit", () => {
   test("upsert lookup is scoped by context", async () => {
     await submitRetro(jsonReq(base));
     const lookup = mockExecutedQueries.find(
-      (q) => q.sql.includes("SELECT id FROM v2_op_reports") && q.sql.includes("'retro'"),
+      (query) => query.sql.includes("SELECT id FROM v2_op_reports") && query.sql.includes("'retro'"),
     );
     expect(lookup).toBeDefined();
     expect(lookup.sql).toContain("context_type = ?");

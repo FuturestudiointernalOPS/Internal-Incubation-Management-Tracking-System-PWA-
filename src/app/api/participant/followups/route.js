@@ -28,36 +28,36 @@ export const GET = createHandler(async (_req) => {
   // Also check v2_followups table for any follow-ups
   let followupRows = [];
   try {
-    const fuRes = await getFollowupTableRowsByParticipant(cid);
-    followupRows = fuRes.rows || [];
+    const followupTableResult = await getFollowupTableRowsByParticipant(cid);
+    followupRows = followupTableResult.rows || [];
   } catch (_) {}
 
   // Merge: events + followups
-  const events = (result.rows || []).map(e => ({
-    id: `evt-${e.id}`,
-    program_name: e.program_name,
-    title: e.title,
-    description: e.description,
-    scheduled_at: e.start_time,
-    duration_minutes: e.end_time ? Math.round((new Date(e.end_time) - new Date(e.start_time)) / 60000) : 30,
-    meeting_link: e.meeting_link,
+  const events = (result.rows || []).map(event => ({
+    id: `evt-${event.id}`,
+    program_name: event.program_name,
+    title: event.title,
+    description: event.description,
+    scheduled_at: event.start_time,
+    duration_minutes: event.end_time ? Math.round((new Date(event.end_time) - new Date(event.start_time)) / 60000) : 30,
+    meeting_link: event.meeting_link,
     status: 'scheduled',
   }));
 
-  const fups = followupRows.map(f => ({
-    id: `fu-${f.fu_id}`,
-    program_name: f.program_name,
-    title: f.comment || 'Follow-up meeting',
-    description: f.notes,
-    scheduled_at: f.scheduled_at,
-    duration_minutes: f.duration_minutes || 30,
-    meeting_link: f.meeting_link,
-    status: f.fu_status || 'scheduled',
+  const followups = followupRows.map(followup => ({
+    id: `fu-${followup.fu_id}`,
+    program_name: followup.program_name,
+    title: followup.comment || 'Follow-up meeting',
+    description: followup.notes,
+    scheduled_at: followup.scheduled_at,
+    duration_minutes: followup.duration_minutes || 30,
+    meeting_link: followup.meeting_link,
+    status: followup.fu_status || 'scheduled',
   }));
 
-  const all = [...events, ...fups];
+  const all = [...events, ...followups];
   // Sort by scheduled_at descending
-  all.sort((a, b) => new Date(b.scheduled_at || 0) - new Date(a.scheduled_at || 0));
+  all.sort((first, second) => new Date(second.scheduled_at || 0) - new Date(first.scheduled_at || 0));
 
   return NextResponse.json({ success: true, followups: all });
 });

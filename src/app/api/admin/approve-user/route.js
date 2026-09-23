@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import { requireAuthorization } from "@/lib/authorization";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { sendEmail } from "@/lib/mailer";
+import { sendStandaloneEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import {
   approveContact,
@@ -121,12 +121,14 @@ export async function POST(req) {
       </div>
     `;
 
-    const emailResult = await sendEmail({
+    const emailResult = await sendStandaloneEmail({
       to: user.email,
       subject: "Set Your Password — Future Studio Account Approved",
       body: emailBody,
       isHtml: true,
       fromName: "Future Studio Admin",
+      email_type: "approval_setup",
+      contact_cid: user_cid,
     });
 
     // 5. Log to audit_log
@@ -139,22 +141,25 @@ export async function POST(req) {
         expiresAt,
         emailSent: emailResult.success,
       });
-    } catch (e) {
-      console.error("Audit log error (non-critical):", e.message);
+    } catch (error) {
+      console.error("Audit log error (non-critical):", error.message);
     }
 
     // 6. Clear related notifications
     try {
       await markApprovalUserNotificationsRead(user.name);
-    } catch (e) {
-      console.error("Notification clear error (non-critical):", e.message);
+    } catch (error) {
+      console.error("Notification clear error (non-critical):", error.message);
     }
 
     return NextResponse.json({
       success: true,
-      message: `User '${user.name}' approved successfully. Setup email sent to ${user.email}.`,
+      // Honest wording: the approval succeeded, but the setup email only left
+      // the system if the transport actually reported success.
+      message: emailResult.success
+        ? `User '${user.name}' approved successfully. Setup email sent to ${user.email}.`
+        : `User '${user.name}' approved successfully, but the setup email could not be sent to ${user.email}.`,
       emailSent: emailResult.success,
-      emailMocked: emailResult.mock,
       setupUrl,
     });
   } catch (error) {

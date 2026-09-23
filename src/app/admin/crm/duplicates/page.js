@@ -26,10 +26,10 @@ const EMPTY_FLAGS = { flags: [], failure: null };
  * that answers a failed read with "no duplicates" is telling the reader
  * something it does not know.
  */
-const pickFlags = (d) =>
-  d?.success
-    ? { flags: d.flags || [], failure: null }
-    : { flags: [], failure: d?.error || null };
+const pickFlags = (payload) =>
+  payload?.success
+    ? { flags: payload.flags || [], failure: null }
+    : { flags: [], failure: payload?.error || null };
 
 export default function DuplicatesPage() {
   const { t } = useI18n();
@@ -79,10 +79,10 @@ export default function DuplicatesPage() {
 
   async function handleDismiss(flagId) {
     try {
-      const res = await fetch(`/api/contacts/duplicates?id=${flagId}`, { method: "DELETE" });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        dropFlags(x => x.id !== flagId);
+      const response = await fetch(`/api/contacts/duplicates?id=${flagId}`, { method: "DELETE" });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        dropFlags((flag) => flag.id !== flagId);
         notify(t("crm.duplicates.duplicateFlagDismissed"), "success");
       } else {
         notify(t(data?.error || "") || t("crm.duplicates.failedToDismiss"), "error");
@@ -94,24 +94,24 @@ export default function DuplicatesPage() {
     setMerging({ aCid, bCid });
     setPreview(null);
     try {
-      const res = await fetch(`/api/contacts/merge/preview?a=${aCid}&b=${bCid}`);
-      const data = await res.json();
-      if (res.ok && data.success) setPreview(data);
+      const response = await fetch(`/api/contacts/merge/preview?a=${aCid}&b=${bCid}`);
+      const data = await response.json();
+      if (response.ok && data.success) setPreview(data);
       else notify(t(data?.error || "") || t("crm.duplicates.failedToPreviewMerge"), "error");
     } catch (_) { notify(t("crm.duplicates.failedToPreviewMerge"), "error"); }
   }
 
   async function handleMerge(survivor, duplicate) {
     try {
-      const res = await fetch("/api/contacts/merge", {
+      const response = await fetch("/api/contacts/merge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ survivor_cid: survivor, duplicate_cid: duplicate }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("crm.duplicates.mergedSuccess", { summary: data.summary || "" }), "success");
-        dropFlags(x => x.contact_cid_a !== survivor && x.contact_cid_b !== duplicate);
+        dropFlags((flag) => flag.contact_cid_a !== survivor && flag.contact_cid_b !== duplicate);
         setMerging(null);
         setPreview(null);
         refresh();
@@ -219,9 +219,9 @@ export default function DuplicatesPage() {
                     <p className="text-xs font-bold uppercase">{t("crm.duplicates.mergePreview")}</p>
                     {preview.summary && (
                       <div className="grid grid-cols-2 gap-2 text-[10px]">
-                        {Object.entries(preview.summary).map(([k, v]) => (
-                          <div key={k} className="bg-tertiary rounded-lg p-2">
-                            <span className="font-bold">{v}</span> <span className="text-[var(--text-secondary)]">{t(MERGE_FIELD_LABELS[k] || "") || k}</span>
+                        {Object.entries(preview.summary).map(([fieldKey, fieldValue]) => (
+                          <div key={fieldKey} className="bg-tertiary rounded-lg p-2">
+                            <span className="font-bold">{fieldValue}</span> <span className="text-[var(--text-secondary)]">{t(MERGE_FIELD_LABELS[fieldKey] || "") || fieldKey}</span>
                           </div>
                         ))}
                       </div>

@@ -45,12 +45,12 @@ export async function POST(req) {
 
     // Check if contact already exists
     const normalizedEmail = email.trim().toLowerCase();
-    const existCheck = await findContactCidByEmail(normalizedEmail);
+    const existingContact = await findContactCidByEmail(normalizedEmail);
 
     const cid = "USR-" + uuidv4().split("-")[0].toUpperCase();
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    if (existCheck.rows.length > 0) {
+    if (existingContact.rows.length > 0) {
       // Update existing contact
       await updateContactForRegistration(hashedPassword, name, group, normalizedEmail);
     } else {
@@ -61,7 +61,7 @@ export async function POST(req) {
     // Add participant to the program
     if (group.program_id) {
       try {
-        const contactCid = existCheck.rows.length > 0 ? existCheck.rows[0].cid : cid;
+        const contactCid = existingContact.rows.length > 0 ? existingContact.rows[0].cid : cid;
         // Same-program conflict guard (Phase 2A): a facilitator in this program
         // cannot register as a participant in the same program.
         const conflictError = await assertNoParticipantFacilitatorConflict(
@@ -80,15 +80,15 @@ export async function POST(req) {
         // group-link registrations show up in the Program Participants view once
         // the contact's account becomes active.
         await insertParticipantProgramMembership(contactCid, group.program_id);
-      } catch (e) {
-        console.warn("Failed to add participant:", e.message);
+      } catch (error) {
+        console.warn("Failed to add participant:", error.message);
       }
     }
 
     return NextResponse.json({
       success: true,
       message: "Application Submitted. Our team will review your application. If approved, you'll receive an email with your login instructions.",
-      user: { cid: existCheck.rows.length > 0 ? existCheck.rows[0].cid : cid, name, email: normalizedEmail, role: "participant" },
+      user: { cid: existingContact.rows.length > 0 ? existingContact.rows[0].cid : cid, name, email: normalizedEmail, role: "participant" },
     });
   } catch (error) {
     console.error("Public registration error:", error);

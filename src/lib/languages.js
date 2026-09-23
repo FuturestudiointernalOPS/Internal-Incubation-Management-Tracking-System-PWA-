@@ -25,7 +25,7 @@ export const LANGUAGES = [
   { code: "ru", en: "Russian", fr: "Russe", native: "Русский" },
 ];
 
-const languageMap = new Map(LANGUAGES.map((l) => [l.code, l]));
+const languageMap = new Map(LANGUAGES.map((language) => [language.code, language]));
 
 export function getLanguage(code) {
   return languageMap.get(code) || null;

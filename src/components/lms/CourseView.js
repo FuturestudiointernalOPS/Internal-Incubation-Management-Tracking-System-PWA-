@@ -26,10 +26,10 @@ export default function CourseView({ course }) {
 
   const sections = course.sections || [];
   const courseAssessments = course.courseAssessments || [];
-  const lessons = sections.flatMap((s) => s.lessons || []);
+  const lessons = sections.flatMap((section) => section.lessons || []);
   const lessonCount = lessons.length;
   const assessmentCount =
-    sections.filter((s) => s.assessment).length + courseAssessments.length;
+    sections.filter((section) => section.assessment).length + courseAssessments.length;
   // The reference the left box plays. `lessons[0]` is only the fallback used to
   // name the empty state when the course holds no video at all.
   const firstVideoLesson =
@@ -112,7 +112,7 @@ export default function CourseView({ course }) {
             </div>
           ) : (
             <div className="space-y-3">
-              {sections.map((section, si) => (
+              {sections.map((section, sectionIndex) => (
                 <div
                   key={section.id}
                   className="rounded-xl border overflow-hidden"
@@ -120,7 +120,7 @@ export default function CourseView({ course }) {
                 >
                   <div className="flex items-center gap-3 px-4 py-3" style={{ background: "var(--surface-2)" }}>
                     <span className="text-[9px] font-black uppercase tracking-widest shrink-0" style={{ color: "var(--text-tertiary)" }}>
-                      {si + 1}
+                      {sectionIndex + 1}
                     </span>
                     <p className="text-xs font-black uppercase tracking-wider flex-1 min-w-0 truncate" style={{ color: "var(--text-primary)" }}>
                       {section.title || "—"}

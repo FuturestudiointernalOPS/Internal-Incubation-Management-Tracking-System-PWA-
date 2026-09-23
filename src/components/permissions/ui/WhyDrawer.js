@@ -20,7 +20,7 @@ export default function WhyDrawer({ title, onClose, children }) {
     >
       <aside
         className="w-full max-w-md h-full bg-surface-1 border-l border-[var(--border-primary)] p-6 overflow-y-auto space-y-4"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label={title}

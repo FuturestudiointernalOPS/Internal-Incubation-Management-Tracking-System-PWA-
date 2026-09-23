@@ -102,27 +102,27 @@ export async function reorderSections(courseId, orderedIds) {
   if (current.length !== requested.length || new Set(requested).size !== requested.length) {
     throw new LmsError("lms.errors.reorderInvalid", 400);
   }
-  const currentIds = new Set(current.map((r) => String(r.id)));
+  const currentIds = new Set(current.map((row) => String(row.id)));
   if (!requested.every((id) => currentIds.has(id))) {
     throw new LmsError("lms.errors.reorderInvalid", 400);
   }
 
-  const sorted = [...current].sort((a, b) => a.position - b.position);
-  const unchanged = sorted.every((r, i) => String(r.id) === requested[i]);
+  const sorted = [...current].sort((first, second) => first.position - second.position);
+  const unchanged = sorted.every((row, index) => String(row.id) === requested[index]);
   if (unchanged) return { success: true, moved: false };
 
   await db.transaction(async (query) => {
     // Stage every row on a negative position so no transient duplicate occurs.
-    for (let i = 0; i < requested.length; i++) {
+    for (let index = 0; index < requested.length; index++) {
       await query("UPDATE lms_course_sections SET position = ? WHERE id = ?", [
-        -1 - i,
-        requested[i],
+        -1 - index,
+        requested[index],
       ]);
     }
-    for (let i = 0; i < requested.length; i++) {
+    for (let index = 0; index < requested.length; index++) {
       await query("UPDATE lms_course_sections SET position = ? WHERE id = ?", [
-        i,
-        requested[i],
+        index,
+        requested[index],
       ]);
     }
   });
@@ -138,7 +138,7 @@ export async function deleteSection(sectionId) {
     sql: "SELECT id FROM lms_lessons WHERE section_id = ?",
     args: [sectionId],
   });
-  const lessonIds = lessons.rows.map((r) => r.id);
+  const lessonIds = lessons.rows.map((row) => row.id);
   if (lessonIds.length > 0) {
     const progress = await db.execute({
       sql: `SELECT 1 FROM lms_lesson_progress WHERE lesson_id IN (${lessonIds

@@ -109,14 +109,14 @@ export const PUT = createHandler(async (req) => {
     // checked here so granting ventures.edit can never open unscoped writes.
     {
       const session = await getSession();
-      const ctx = await getAuthorizationContext(session);
-      if (!ctx?.isSuperAdmin) {
+      const authzContext = await getAuthorizationContext(session);
+      if (!authzContext?.isSuperAdmin) {
         const scopeId = await resolveVentureScopeId(id);
         const within =
           Boolean(scopeId) &&
           (await isWithinScope("venture_own", session?.cid, scopeId));
         if (!within) {
-          const res = NextResponse.json(
+          const response = NextResponse.json(
             {
               success: false,
               error: "errors.insufficientPermissions",
@@ -124,8 +124,8 @@ export const PUT = createHandler(async (req) => {
             },
             { status: 403 },
           );
-          res.headers.set("X-Authz-Decision", "out-of-scope");
-          return res;
+          response.headers.set("X-Authz-Decision", "out-of-scope");
+          return response;
         }
       }
     }
@@ -154,7 +154,7 @@ export const PUT = createHandler(async (req) => {
         const { getSession } = await import("@/lib/auth");
         const session = await getSession();
         if (session?.cid) {
-          const updatedFields = Object.keys(updates).filter(k => k !== "social_media" && k !== "branding");
+          const updatedFields = Object.keys(updates).filter(field => field !== "social_media" && field !== "branding");
           await recordVentureUpdatedTimeline({ contact_cid: session.cid, venture_id: id, updated_fields: updatedFields });
         }
       } catch (_) {}

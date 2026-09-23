@@ -45,10 +45,10 @@ const EMPTY_ASSESSMENT = { payload: null, failure: null };
  * wording for) and both it and a request that never answered are translated
  * where they are shown.
  */
-const pickAssessment = (d) =>
-  d?.success
-    ? { payload: d, failure: null }
-    : { payload: null, failure: d?.error || null };
+const pickAssessment = (data) =>
+  data?.success
+    ? { payload: data, failure: null }
+    : { payload: null, failure: data?.error || null };
 
 export default function AssessmentTake({ courseId, assessmentId }) {
   const { t } = useI18n();
@@ -93,16 +93,16 @@ export default function AssessmentTake({ courseId, assessmentId }) {
 
   const submit = async () => {
     // Client-side guard: every question must have an answer.
-    const missing = questions.find((q) => answers[q.id] == null);
+    const missing = questions.find((question) => answers[question.id] == null);
     if (missing) {
       setValidationError("lms.errors.answerRequired");
-      setIndex(questions.findIndex((q) => q.id === missing.id));
+      setIndex(questions.findIndex((question) => question.id === missing.id));
       return;
     }
     setSubmitting(true);
     try {
       const payload = {
-        answers: questions.map((q) => ({ questionId: q.id, answer: answers[q.id] })),
+        answers: questions.map((question) => ({ questionId: question.id, answer: answers[question.id] })),
       };
       const res = await fetch(`/api/lms/assessments/${assessmentId}/submit`, {
         method: "POST",
@@ -119,8 +119,8 @@ export default function AssessmentTake({ courseId, assessmentId }) {
       // than being appended to a copy the screen keeps.
       refresh();
       setView("result");
-    } catch (e) {
-      notify("error", e.message === "lms.errors.answerRequired" ? e.message : "lms.assessment.submitFailed");
+    } catch (error) {
+      notify("error", error.message === "lms.errors.answerRequired" ? error.message : "lms.assessment.submitFailed");
     } finally {
       setSubmitting(false);
     }
@@ -192,15 +192,15 @@ export default function AssessmentTake({ courseId, assessmentId }) {
 
         {/* Question indicator */}
         <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("lms.assessment.questionsCount", { count: questions.length })}>
-          {questions.map((q, i) => {
-            const isAnswered = answers[q.id] != null;
-            const isCurrent = i === index;
+          {questions.map((question, questionIndex) => {
+            const isAnswered = answers[question.id] != null;
+            const isCurrent = questionIndex === index;
             return (
               <button
-                key={q.id}
+                key={question.id}
                 type="button"
-                onClick={() => setIndex(i)}
-                aria-label={`${i + 1}${isAnswered ? ` ${t("lms.assessment.passed").toLowerCase()}` : ""}`}
+                onClick={() => setIndex(questionIndex)}
+                aria-label={`${questionIndex + 1}${isAnswered ? ` ${t("lms.assessment.passed").toLowerCase()}` : ""}`}
                 className="w-7 h-7 rounded-lg text-[10px] font-black transition-colors"
                 style={{
                   background: isCurrent ? "var(--brand-orange)" : isAnswered ? "var(--surface-3)" : "transparent",
@@ -208,7 +208,7 @@ export default function AssessmentTake({ courseId, assessmentId }) {
                   border: "1px solid var(--border-primary)",
                 }}
               >
-                {i + 1}
+                {questionIndex + 1}
               </button>
             );
           })}
@@ -221,12 +221,12 @@ export default function AssessmentTake({ courseId, assessmentId }) {
           </h2>
           <div className="mt-5 space-y-2.5" role="radiogroup" aria-label={question.question}>
             {question.question_type === "true_false" ? (
-              ["true", "false"].map((val) => (
+              ["true", "false"].map((choice) => (
                 <OptionRow
-                  key={val}
-                  label={t(`lms.questions.${val}`)}
-                  selected={answers[question.id] === val}
-                  onSelect={() => selectAnswer(question.id, val)}
+                  key={choice}
+                  label={t(`lms.questions.${choice}`)}
+                  selected={answers[question.id] === choice}
+                  onSelect={() => selectAnswer(question.id, choice)}
                 />
               ))
             ) : (
@@ -251,11 +251,11 @@ export default function AssessmentTake({ courseId, assessmentId }) {
 
         {/* Navigation */}
         <div className="flex items-center justify-between gap-3">
-          <AppButton variant="secondary" icon={ChevronLeft} disabled={index === 0} onClick={() => setIndex((i) => i - 1)}>
+          <AppButton variant="secondary" icon={ChevronLeft} disabled={index === 0} onClick={() => setIndex((prev) => prev - 1)}>
             {t("lms.assessment.previous")}
           </AppButton>
           {index < questions.length - 1 ? (
-            <AppButton variant="primary" icon={ChevronRight} onClick={() => setIndex((i) => i + 1)}>
+            <AppButton variant="primary" icon={ChevronRight} onClick={() => setIndex((prev) => prev + 1)}>
               {t("lms.assessment.next")}
             </AppButton>
           ) : (
@@ -271,7 +271,7 @@ export default function AssessmentTake({ courseId, assessmentId }) {
   // ─── Entry view ──────────────────────────────────────────────────────────
   const passed = data.passed;
   const bestPercent = attempts.length
-    ? Math.max(...attempts.map((a) => (a.total_points > 0 ? Math.round((a.score / a.total_points) * 100) : 0)))
+    ? Math.max(...attempts.map((attempt) => (attempt.total_points > 0 ? Math.round((attempt.score / attempt.total_points) * 100) : 0)))
     : null;
 
   return (
@@ -345,23 +345,23 @@ export default function AssessmentTake({ courseId, assessmentId }) {
           </p>
         ) : (
           <div className="space-y-1.5">
-            {attempts.map((a) => {
-              const percent = a.total_points > 0 ? Math.round((a.score / a.total_points) * 100) : 0;
+            {attempts.map((attempt) => {
+              const percent = attempt.total_points > 0 ? Math.round((attempt.score / attempt.total_points) * 100) : 0;
               return (
-                <div key={`${a.attempt_number}-${a.completed_at}`} className="flex items-center gap-3 text-xs">
-                  {a.passed ? (
+                <div key={`${attempt.attempt_number}-${attempt.completed_at}`} className="flex items-center gap-3 text-xs">
+                  {attempt.passed ? (
                     <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "var(--chart-success)" }} />
                   ) : (
                     <XCircle className="w-4 h-4 shrink-0" style={{ color: "var(--chart-danger)" }} />
                   )}
                   <span className="font-bold flex-1" style={{ color: "var(--text-primary)" }}>
-                    {t("lms.assessment.attempt", { n: a.attempt_number })} — {percent}%
+                    {t("lms.assessment.attempt", { n: attempt.attempt_number })} — {percent}%
                   </span>
                   <span
                     className="text-[9px] font-black uppercase tracking-wider"
-                    style={{ color: a.passed ? "var(--chart-success)" : "var(--chart-danger)" }}
+                    style={{ color: attempt.passed ? "var(--chart-success)" : "var(--chart-danger)" }}
                   >
-                    {a.passed ? t("lms.assessment.passed") : t("lms.assessment.failed")}
+                    {attempt.passed ? t("lms.assessment.passed") : t("lms.assessment.failed")}
                   </span>
                 </div>
               );

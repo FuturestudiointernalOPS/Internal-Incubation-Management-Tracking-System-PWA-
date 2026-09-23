@@ -12,8 +12,8 @@
 
 const executed = [];
 const VENTURE_DB_ID = "11111111-1111-4111-8111-111111111111";
-const MS_1 = "33333333-3333-4333-8333-333333333333";
-const MS_2 = "44444444-4444-4444-8444-444444444444";
+const MILESTONE_1 = "33333333-3333-4333-8333-333333333333";
+const MILESTONE_2 = "44444444-4444-4444-8444-444444444444";
 
 function makeFakeDb() {
   const flags = { lastStatus: null, nextLocked: true, assignment: "none", stageCloses: false };
@@ -27,7 +27,7 @@ function makeFakeDb() {
     // Its milestones, for “is every one of them done?”. The release query also
     // reads this table but orders by display_order, so it is excluded here.
     if (sql.includes("SELECT id, status FROM venture_milestones") && sql.includes("journey_stage_id = ?") && !sql.includes("ORDER BY")) {
-      return { rows: flags.stageCloses ? [{ id: MS_1, status: "completed" }] : [] };
+      return { rows: flags.stageCloses ? [{ id: MILESTONE_1, status: "completed" }] : [] };
     }
     if (sql.includes("SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?")) {
       return { rows: [{ id: VENTURE_DB_ID, venture_id: "VNT-TEST" }] };
@@ -66,10 +66,10 @@ function makeFakeDb() {
     }
     // completeMilestoneAndUnlockNext: source milestone + next locked
     if (sql.includes("SELECT id, journey_stage_id FROM venture_milestones WHERE id = ? AND venture_id = ?")) {
-      return { rows: [{ id: MS_1, journey_stage_id: "s1" }] };
+      return { rows: [{ id: MILESTONE_1, journey_stage_id: "s1" }] };
     }
     if (sql.includes("status = 'locked'") && sql.includes("ORDER BY COALESCE(display_order, 0), created_at ASC")) {
-      return { rows: flags.nextLocked ? [{ id: MS_2 }] : [] };
+      return { rows: flags.nextLocked ? [{ id: MILESTONE_2 }] : [] };
     }
     // title lookup after completion
     if (sql.includes("SELECT title, journey_stage_id FROM venture_milestones WHERE id = ?")) {
@@ -157,11 +157,11 @@ describe("milestone completion authority (Lead Manager / Super Admin only)", () 
     const data = await readJson(res);
     expect(data.success).toBe(true);
 
-    const completedUpdate = executed.find((q) => q.sql.includes("UPDATE venture_milestones SET status = 'completed'"));
+    const completedUpdate = executed.find((query) => query.sql.includes("UPDATE venture_milestones SET status = 'completed'"));
     expect(completedUpdate).toBeDefined();
-    const unlockUpdate = executed.find((q) => q.sql.includes("UPDATE venture_milestones SET status = 'not_started'"));
+    const unlockUpdate = executed.find((query) => query.sql.includes("UPDATE venture_milestones SET status = 'not_started'"));
     expect(unlockUpdate).toBeDefined();
-    expect(unlockUpdate.args[0]).toBe(MS_2);
+    expect(unlockUpdate.args[0]).toBe(MILESTONE_2);
 
     const { notifyVentureFounders } = require("@/lib/ventures");
     expect(notifyVentureFounders).toHaveBeenCalledWith(
@@ -180,7 +180,7 @@ describe("milestone completion authority (Lead Manager / Super Admin only)", () 
       ctx,
     );
     expect(res.status).toBe(403);
-    const completedUpdate = executed.find((q) => q.sql.includes("UPDATE venture_milestones SET status = 'completed'"));
+    const completedUpdate = executed.find((query) => query.sql.includes("UPDATE venture_milestones SET status = 'completed'"));
     expect(completedUpdate).toBeUndefined();
   });
 

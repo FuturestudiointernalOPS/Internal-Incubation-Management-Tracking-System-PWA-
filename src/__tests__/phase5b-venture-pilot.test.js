@@ -172,10 +172,10 @@ describe("Phase 5c — the old gate cannot come back", () => {
     const root = path.join(process.cwd(), "src", "app", "api", "ventures");
     const files = [];
     (function walk(dir) {
-      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-        const full = path.join(dir, e.name);
-        if (e.isDirectory()) walk(full);
-        else if (e.name === "route.js") files.push(full);
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(fullPath);
+        else if (entry.name === "route.js") files.push(fullPath);
       }
     })(root);
     const offenders = [];
@@ -183,14 +183,14 @@ describe("Phase 5c — the old gate cannot come back", () => {
       const src = fs.readFileSync(file, "utf8");
       if (!src.includes("requireVentureScopedAccess")) continue;
       const lines = src.split(/\r?\n/);
-      lines.forEach((line, i) => {
+      lines.forEach((line, lineIndex) => {
         if (!line.includes("requireVentureScopedAccess") || !line.includes("ventureId: id")) return;
         let declared = false;
-        for (let j = i - 1; j >= 0; j--) {
-          if (/const \{ id \}[^=]*= await params/.test(lines[j])) { declared = true; break; }
-          if (/export (async )?function|export const [A-Z]+ = createHandler/.test(lines[j])) break;
+        for (let scanIndex = lineIndex - 1; scanIndex >= 0; scanIndex--) {
+          if (/const \{ id \}[^=]*= await params/.test(lines[scanIndex])) { declared = true; break; }
+          if (/export (async )?function|export const [A-Z]+ = createHandler/.test(lines[scanIndex])) break;
         }
-        if (!declared) offenders.push(`${path.relative(process.cwd(), file)}:${i + 1}`);
+        if (!declared) offenders.push(`${path.relative(process.cwd(), file)}:${lineIndex + 1}`);
       });
     }
     expect(offenders).toEqual([]);
@@ -205,9 +205,9 @@ describe("Phase 5c — strict-mode readiness audit", () => {
     ]);
     expect(summary.total).toBe(2);
     expect(summary.viewAllowed).toBe(1);
-    expect(summary.viewMissing.map((r) => r.cid)).toEqual(["C2"]);
+    expect(summary.viewMissing.map((row) => row.cid)).toEqual(["C2"]);
     expect(summary.viewMissing[0].missing).toEqual(["ventures.view"]);
-    expect(summary.editMissing.map((r) => r.cid)).toEqual(["C1"]);
+    expect(summary.editMissing.map((row) => row.cid)).toEqual(["C1"]);
     expect(summary.editMissing[0].missing).toEqual(["ventures.edit"]);
   });
 

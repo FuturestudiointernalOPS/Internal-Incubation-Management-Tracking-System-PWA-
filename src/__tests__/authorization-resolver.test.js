@@ -757,30 +757,30 @@ describe("buildPermissionExplanation (who has access + why)", () => {
       groupCaps: { finance: { view: 3 } },
       grants: { finance: { export: 3 } },
     };
-    const ex = buildPermissionExplanation(ctx);
-    expect(ex.eligibility.finance).toEqual({
+    const explanation = buildPermissionExplanation(ctx);
+    expect(explanation.eligibility.finance).toEqual({
       eligible: true,
       sources: [{ identity_type: "role", identity_value: "staff", eligible: 1 }],
     });
-    expect(ex.eligibility.crm.eligible).toBe(false); // no rows → not eligible
-    expect(ex.sources.profile.finance.view).toBe(1);
-    expect(ex.sources.groups.finance.view).toBe(3);
-    expect(ex.sources.grants.finance.export).toBe(3);
+    expect(explanation.eligibility.crm.eligible).toBe(false); // no rows → not eligible
+    expect(explanation.sources.profile.finance.view).toBe(1);
+    expect(explanation.sources.groups.finance.view).toBe(3);
+    expect(explanation.sources.grants.finance.export).toBe(3);
   });
 
   test("SA: eligible everywhere by super_admin bypass", () => {
     const { buildPermissionExplanation } = require("@/lib/authorization");
-    const ex = buildPermissionExplanation({
+    const explanation = buildPermissionExplanation({
       isSuperAdmin: true,
       baseCaps: {},
       groupCaps: {},
       grants: {},
     });
-    expect(ex.eligibility.finance).toEqual({
+    expect(explanation.eligibility.finance).toEqual({
       eligible: true,
       source: "super_admin bypass",
     });
-    expect(ex.eligibility.crm).toEqual({
+    expect(explanation.eligibility.crm).toEqual({
       eligible: true,
       source: "super_admin bypass",
     });
@@ -852,14 +852,14 @@ describe("lms module", () => {
     dbMock.execute.mockClear();
 
     const user = { cid: "USER_SHARED_CONTEXT", role: "staff" };
-    const [a, b, c] = await Promise.all([
+    const [firstContext, secondContext, thirdContext] = await Promise.all([
       getAuthorizationContext(user),
       getAuthorizationContext(user),
       getAuthorizationContext(user),
     ]);
 
-    expect(a).toBe(b);
-    expect(b).toBe(c);
+    expect(firstContext).toBe(secondContext);
+    expect(secondContext).toBe(thirdContext);
     const restrictionReads = dbMock.execute.mock.calls.filter((call) =>
       /SELECT module, capability FROM user_capability_restrictions\s+WHERE user_cid/i.test(
         typeof call[0] === "string" ? call[0] : call[0]?.sql || "",
@@ -873,10 +873,10 @@ describe("lms module", () => {
     const { getAuthorizationContext, invalidateAuthorizationContext } = require("@/lib/authorization");
 
     const user = { cid: "USER_CACHED_CONTEXT", role: "staff" };
-    const first = await getAuthorizationContext(user);
+    const cachedContext = await getAuthorizationContext(user);
 
     dbMock.execute.mockClear();
-    expect(await getAuthorizationContext(user)).toBe(first);
+    expect(await getAuthorizationContext(user)).toBe(cachedContext);
     expect(dbMock.execute).not.toHaveBeenCalled();
 
     // A permission write for that user must not keep serving the old answer.
@@ -907,11 +907,11 @@ describe("lms module", () => {
 
     await ensureLmsViewBackfill();
 
-    const calls = dbMock.execute.mock.calls.map((c) =>
-      typeof c[0] === "string" ? { sql: c[0], args: [] } : c[0],
+    const calls = dbMock.execute.mock.calls.map((call) =>
+      typeof call[0] === "string" ? { sql: call[0], args: [] } : call[0],
     );
-    const profileInserts = calls.filter((c) =>
-      c.sql.includes("INSERT INTO access_profile_capabilities"),
+    const profileInserts = calls.filter((call) =>
+      call.sql.includes("INSERT INTO access_profile_capabilities"),
     );
     expect(profileInserts).toHaveLength(1);
     expect(profileInserts[0].args).toEqual([5, "lms", "view", 1]);
@@ -919,7 +919,7 @@ describe("lms module", () => {
       /ON CONFLICT \(profile_id, module, capability\) DO NOTHING/,
     );
 
-    const roleInserts = calls.filter((c) => c.sql.includes("INSERT INTO role_capabilities"));
+    const roleInserts = calls.filter((call) => call.sql.includes("INSERT INTO role_capabilities"));
     expect(roleInserts).toHaveLength(1);
     expect(roleInserts[0].args).toEqual(["program_manager", "lms", "view", 1]);
 
@@ -939,7 +939,7 @@ describe("lms module", () => {
     await ensureLmsViewBackfill();
 
     const granted = dbMock.execute.mock.calls
-      .map((c) => (typeof c[0] === "string" ? [] : c[0].args))
+      .map((call) => (typeof call[0] === "string" ? [] : call[0].args))
       .filter((args) => Array.isArray(args) && args.includes("lms"))
       .map((args) => args[args.indexOf("lms") + 1]);
     expect(granted.length).toBeGreaterThan(0);
@@ -1019,7 +1019,7 @@ describe("final eligibility policy (#3)", () => {
     dbMock.execute.mockClear();
     await ensureFinalPolicyBackfill();
     const deletes = dbMock.execute.mock.calls
-      .map((c) => (typeof c[0] === "string" ? c[0] : c[0]?.sql))
+      .map((call) => (typeof call[0] === "string" ? call[0] : call[0]?.sql))
       .filter((sql) => sql && sql.includes("DELETE FROM feature_eligibility"));
     expect(deletes.length).toBeGreaterThan(0);
     const allSql = deletes.join("\n");
@@ -1045,24 +1045,24 @@ describe("retired roles cleanup (developer / admin)", () => {
 
     await ensureRetiredRoleCleanup();
 
-    const all = dbMock.execute.mock.calls
-      .map((c) => (typeof c[0] === "string" ? c[0] : c[0]?.sql))
+    const allSql = dbMock.execute.mock.calls
+      .map((call) => (typeof call[0] === "string" ? call[0] : call[0]?.sql))
       .filter(Boolean)
       .join("\n");
 
     // Templates: per-user assignments cleared FIRST, then caps + profiles.
-    expect(all).toMatch(/UPDATE contacts SET access_profile_id = NULL/);
-    expect(all).toMatch(/DELETE FROM access_profile_capabilities/);
-    expect(all).toMatch(
+    expect(allSql).toMatch(/UPDATE contacts SET access_profile_id = NULL/);
+    expect(allSql).toMatch(/DELETE FROM access_profile_capabilities/);
+    expect(allSql).toMatch(
       /DELETE FROM access_profiles WHERE name IN \('Developer', 'Developer Intern'\)/,
     );
 
     // Retired role rows (role-keyed only — group eligibility is sacred).
-    expect(all).toMatch(/DELETE FROM role_access_profile_defaults/);
-    expect(all).toMatch(
+    expect(allSql).toMatch(/DELETE FROM role_access_profile_defaults/);
+    expect(allSql).toMatch(
       /DELETE FROM role_capabilities WHERE role IN \('developer', 'admin'\)/,
     );
-    expect(all).toMatch(
+    expect(allSql).toMatch(
       /DELETE FROM feature_eligibility[\s\S]*?identity_type = 'role'[\s\S]*?'developer', 'admin'/,
     );
 
@@ -1075,7 +1075,7 @@ describe("retired roles cleanup (developer / admin)", () => {
       "access_profile_capabilities",
       "responsibility_capability_grants",
     ]) {
-      expect(all).toMatch(
+      expect(allSql).toMatch(
         new RegExp(
           `DELETE FROM ${table} WHERE module = 'engineering' AND capability = 'manage_developers'`,
         ),
@@ -1151,26 +1151,26 @@ describe("runAuthzMigration (one-time policy migrations)", () => {
     const { runAuthzMigration } = require("@/lib/authorization");
     let markerPresent = false;
     dbMock.execute.mockImplementation(async ({ sql } = {}) => {
-      const s = typeof sql === "string" ? sql : sql || "";
-      if (s.includes("authz_migrations") && s.includes("SELECT")) {
+      const statement = typeof sql === "string" ? sql : sql || "";
+      if (statement.includes("authz_migrations") && statement.includes("SELECT")) {
         return { rows: markerPresent ? [{ name: "test-mig" }] : [] };
       }
-      if (s.includes("INSERT INTO authz_migrations")) {
+      if (statement.includes("INSERT INTO authz_migrations")) {
         markerPresent = true;
         return { rows: [] };
       }
       return { rows: [] };
     });
 
-    const fn1 = jest.fn(async () => {});
-    const first = await runAuthzMigration("test-mig", fn1);
-    expect(first.applied).toBe(true);
-    expect(fn1).toHaveBeenCalledTimes(1);
+    const firstMigration = jest.fn(async () => {});
+    const firstResult = await runAuthzMigration("test-mig", firstMigration);
+    expect(firstResult.applied).toBe(true);
+    expect(firstMigration).toHaveBeenCalledTimes(1);
 
-    const fn2 = jest.fn(async () => {});
-    const second = await runAuthzMigration("test-mig", fn2);
-    expect(second.applied).toBe(false);
-    expect(fn2).not.toHaveBeenCalled();
+    const secondMigration = jest.fn(async () => {});
+    const secondResult = await runAuthzMigration("test-mig", secondMigration);
+    expect(secondResult.applied).toBe(false);
+    expect(secondMigration).not.toHaveBeenCalled();
 
     dbMock.execute.mockImplementation(async () => ({ rows: [] }));
   });
@@ -1180,11 +1180,11 @@ describe("runAuthzMigration (one-time policy migrations)", () => {
     const { runAuthzMigration } = require("@/lib/authorization");
     let markerPresent = false;
     dbMock.execute.mockImplementation(async ({ sql } = {}) => {
-      const s = typeof sql === "string" ? sql : sql || "";
-      if (s.includes("authz_migrations") && s.includes("SELECT")) {
+      const statement = typeof sql === "string" ? sql : sql || "";
+      if (statement.includes("authz_migrations") && statement.includes("SELECT")) {
         return { rows: markerPresent ? [{ name: "boom-mig" }] : [] };
       }
-      if (s.includes("INSERT INTO authz_migrations")) {
+      if (statement.includes("INSERT INTO authz_migrations")) {
         markerPresent = true;
         return { rows: [] };
       }
@@ -1206,14 +1206,14 @@ describe("runAuthzMigration (one-time policy migrations)", () => {
 describe("validateEligibilityChanges (eligibility API)", () => {
   test("normalizes a valid batch (1, 0 and null → delete)", () => {
     const { validateEligibilityChanges } = require("@/lib/authorization");
-    const r = validateEligibilityChanges([
+    const result = validateEligibilityChanges([
       { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 1 },
       { feature_key: "crm", identity_type: "group", identity_value: "Future Studio", eligible: 0 },
       { feature_key: "communication", identity_type: "role", identity_value: "member", eligible: null },
     ]);
-    expect(r.valid).toBe(true);
-    expect(r.errors).toEqual([]);
-    expect(r.normalized).toEqual([
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.normalized).toEqual([
       { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 1 },
       { feature_key: "crm", identity_type: "group", identity_value: "Future Studio", eligible: 0 },
       { feature_key: "communication", identity_type: "role", identity_value: "member", eligible: null },
@@ -1222,16 +1222,16 @@ describe("validateEligibilityChanges (eligibility API)", () => {
 
   test("rejects unknown features, identity types, empty values and bad eligible values", () => {
     const { validateEligibilityChanges } = require("@/lib/authorization");
-    const r = validateEligibilityChanges([
+    const result = validateEligibilityChanges([
       { feature_key: "not_a_feature", identity_type: "role", identity_value: "staff", eligible: 1 },
       { feature_key: "finance", identity_type: "planet", identity_value: "staff", eligible: 1 },
       { feature_key: "finance", identity_type: "role", identity_value: "  ", eligible: 1 },
       { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 7 },
       { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: "yes" },
     ]);
-    expect(r.valid).toBe(false);
-    expect(r.errors.length).toBe(5);
-    expect(r.normalized).toEqual([]);
+    expect(result.valid).toBe(false);
+    expect(result.errors.length).toBe(5);
+    expect(result.normalized).toEqual([]);
   });
 
   test("rejects an empty batch", () => {
@@ -1258,34 +1258,34 @@ describe("validateEligibilityChanges (eligibility API)", () => {
 
   test("capabilities within eligibility are valid (Phase 2)", () => {
     const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
-    const r = validateCapabilitiesWithinEligibility(
+    const result = validateCapabilitiesWithinEligibility(
       { programs: { view: 1 }, contacts: { view: 1 } },
       { programs: true, crm: true },
     );
-    expect(r.valid).toBe(true);
-    expect(r.violations).toEqual([]);
+    expect(result.valid).toBe(true);
+    expect(result.violations).toEqual([]);
   });
 
   test("ineligible feature capabilities are rejected (template boundary)", () => {
     const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
-    const r = validateCapabilitiesWithinEligibility(
+    const result = validateCapabilitiesWithinEligibility(
       { programs: { view: 1 }, finance: { view: 1 } },
       { programs: true, finance: false },
     );
-    expect(r.valid).toBe(false);
-    expect(r.violations).toEqual([
+    expect(result.valid).toBe(false);
+    expect(result.violations).toEqual([
       { module: "finance", capability: "view", feature: "finance" },
     ]);
   });
 
   test("unset eligibility (missing = fail closed) rejects template caps", () => {
     const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
-    const r = validateCapabilitiesWithinEligibility(
+    const result = validateCapabilitiesWithinEligibility(
       { finance: { view: 1 } },
       { programs: true }, // finance row missing entirely
     );
-    expect(r.valid).toBe(false);
-    expect(r.violations[0]).toEqual({
+    expect(result.valid).toBe(false);
+    expect(result.violations[0]).toEqual({
       module: "finance",
       capability: "view",
       feature: "finance",
@@ -1294,11 +1294,11 @@ describe("validateEligibilityChanges (eligibility API)", () => {
 
   test("infra modules without a feature mapping are not eligibility-bound", () => {
     const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
-    const r = validateCapabilitiesWithinEligibility(
+    const result = validateCapabilitiesWithinEligibility(
       { org_membership: { manage: 2 } },
       {},
     );
-    expect(r.valid).toBe(true);
+    expect(result.valid).toBe(true);
   });
 
   test("the template-ceiling catch-up mirrors the canonical defaults (no drift)", () => {

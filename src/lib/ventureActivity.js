@@ -134,13 +134,13 @@ function fieldLabel(field, t) {
 }
 
 function formatValue(value, t) {
-  if (Array.isArray(value)) return value.map((v) => formatValue(v, t)).filter(Boolean).join(", ");
+  if (Array.isArray(value)) return value.map((item) => formatValue(item, t)).filter(Boolean).join(", ");
   if (value === null || value === undefined) return "";
   if (typeof value === "boolean") return value ? t("common.yes") : t("common.no");
   if (typeof value === "object") {
     return Object.entries(value)
-      .filter(([, v]) => v !== null && v !== undefined && v !== "")
-      .map(([k, v]) => `${fieldLabel(k, t)}: ${formatValue(v, t)}`)
+      .filter(([, entryValue]) => entryValue !== null && entryValue !== undefined && entryValue !== "")
+      .map(([key, entryValue]) => `${fieldLabel(key, t)}: ${formatValue(entryValue, t)}`)
       .join(" · ");
   }
   return String(value);
@@ -173,7 +173,7 @@ function normalizeDetails(details) {
 export function activityDetails(details, t) {
   const bag = normalizeDetails(details);
   if (!bag) return [];
-  const out = [];
+  const lines = [];
 
   for (const [key, value] of Object.entries(bag)) {
     if (value === null || value === undefined || value === "") continue;
@@ -181,29 +181,29 @@ export function activityDetails(details, t) {
 
     if (key === "updated_fields") {
       const fields = (Array.isArray(value) ? value : [value])
-        .map((f) => fieldLabel(f, t))
+        .map((field) => fieldLabel(field, t))
         .filter(Boolean);
-      if (fields.length > 0) out.push(t("vadmin.activity.updatedFields", { fields: fields.join(", ") }));
+      if (fields.length > 0) lines.push(t("vadmin.activity.updatedFields", { fields: fields.join(", ") }));
       continue;
     }
 
     if (key === "submission_id") {
-      out.push(t("vadmin.activity.submissionRef", { id: value }));
+      lines.push(t("vadmin.activity.submissionRef", { id: value }));
       continue;
     }
 
     // Free prose the writer already wrote for a reader.
     if (["message", "reason", "comment", "comments", "notes", "note"].includes(key)) {
       const text = formatValue(value, t);
-      if (text) out.push(text);
+      if (text) lines.push(text);
       continue;
     }
 
     const formatted = formatValue(value, t);
-    if (formatted) out.push(`${fieldLabel(key, t)}: ${formatted}`);
+    if (formatted) lines.push(`${fieldLabel(key, t)}: ${formatted}`);
   }
 
-  return out;
+  return lines;
 }
 
 export default { activityLabel, activityDetails, humanizeCode, isSystemActor };

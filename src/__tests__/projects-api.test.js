@@ -129,8 +129,8 @@ describe("POST /api/projects", () => {
     expect(data.success).toBe(true);
     expect(data.project_id).toBe(77);
 
-    const inserts = executedQueries.filter((q) =>
-      q.sql.includes("INSERT INTO v2_projects"),
+    const inserts = executedQueries.filter((query) =>
+      query.sql.includes("INSERT INTO v2_projects"),
     );
     expect(inserts).toHaveLength(1);
     expect(inserts[0].sql).toContain(
@@ -141,13 +141,13 @@ describe("POST /api/projects", () => {
     expect(inserts[0].args[5]).toBe("high");
 
     // Two leads upserted as members + two notifications
-    const memberInserts = executedQueries.filter((q) =>
-      q.sql.includes("INSERT INTO project_members"),
+    const memberInserts = executedQueries.filter((query) =>
+      query.sql.includes("INSERT INTO project_members"),
     );
     expect(memberInserts).toHaveLength(2);
     expect(memberInserts[0].args).toEqual(["77", "pm-1"]);
-    const notifs = executedQueries.filter((q) =>
-      q.sql.includes("INSERT INTO v2_notifications"),
+    const notifs = executedQueries.filter((query) =>
+      query.sql.includes("INSERT INTO v2_notifications"),
     );
     expect(notifs).toHaveLength(2);
   });
@@ -163,18 +163,18 @@ describe("GET /api/projects", () => {
     expect(data.success).toBe(true);
     expect(data.projects).toHaveLength(2);
 
-    const p1 = data.projects.find((p) => p.id === 1);
-    expect(p1.meta).toEqual({ description: "build it" });
-    expect(p1.members).toEqual([{ user_cid: "user-1", role: "lead" }]);
-    expect(p1.task_summary).toEqual({ total: 4, completed: 2 });
+    const firstProject = data.projects.find((project) => project.id === 1);
+    expect(firstProject.meta).toEqual({ description: "build it" });
+    expect(firstProject.members).toEqual([{ user_cid: "user-1", role: "lead" }]);
+    expect(firstProject.task_summary).toEqual({ total: 4, completed: 2 });
 
     // Project without stats rows defaults to zeros
-    const p2 = data.projects.find((p) => p.id === 2);
-    expect(p2.task_summary).toEqual({ total: 0, completed: 0 });
+    const secondProject = data.projects.find((project) => project.id === 2);
+    expect(secondProject.task_summary).toEqual({ total: 0, completed: 0 });
 
     // Archived excluded by default, ordered newest first
-    const listQuery = executedQueries.find((q) =>
-      q.sql.includes("FROM v2_projects p"),
+    const listQuery = executedQueries.find((query) =>
+      query.sql.includes("FROM v2_projects p"),
     );
     expect(listQuery.sql).toContain("p.status != 'Archived'");
     expect(listQuery.sql).toContain("ORDER BY p.created_at DESC");
@@ -216,8 +216,8 @@ describe("PUT /api/projects", () => {
     const data = await readJson(res);
     expect(data).toEqual({ success: true, action: "updated" });
 
-    const update = executedQueries.find((q) =>
-      q.sql.startsWith("UPDATE v2_projects"),
+    const update = executedQueries.find((query) =>
+      query.sql.startsWith("UPDATE v2_projects"),
     );
     expect(update.sql).toContain('SET name = ?, status = ? WHERE id::text = ?');
     expect(update.args).toEqual(["Renamed", "Closed", "1"]);
@@ -230,16 +230,16 @@ describe("PUT /api/projects", () => {
     expect(res.status).toBe(200);
 
     // Fetches current meta first, then deletes old leads, then inserts new one
-    const metaFetch = executedQueries.find((q) =>
-      q.sql.includes("SELECT meta FROM v2_projects"),
+    const metaFetch = executedQueries.find((query) =>
+      query.sql.includes("SELECT meta FROM v2_projects"),
     );
     expect(metaFetch).toBeDefined();
-    const deletes = executedQueries.filter((q) =>
-      q.sql.includes("DELETE FROM project_members"),
+    const deletes = executedQueries.filter((query) =>
+      query.sql.includes("DELETE FROM project_members"),
     );
     expect(deletes).toHaveLength(1);
-    const memberInserts = executedQueries.filter((q) =>
-      q.sql.includes("INSERT INTO project_members"),
+    const memberInserts = executedQueries.filter((query) =>
+      query.sql.includes("INSERT INTO project_members"),
     );
     expect(memberInserts).toHaveLength(1);
     expect(memberInserts[0].args).toEqual(["1", "pm-9"]);
@@ -259,11 +259,11 @@ describe("DELETE /api/projects", () => {
     expect(data).toEqual({ success: true, action: "deleted" });
 
     const memberDelete = executedQueries.find(
-      (q) => q.sql.includes("DELETE FROM project_members") && q.args[0] === "5",
+      (query) => query.sql.includes("DELETE FROM project_members") && query.args[0] === "5",
     );
     expect(memberDelete).toBeDefined();
     const projectDelete = executedQueries.find(
-      (q) => q.sql.startsWith("DELETE FROM v2_projects") && q.args[0] === "5",
+      (query) => query.sql.startsWith("DELETE FROM v2_projects") && query.args[0] === "5",
     );
     expect(projectDelete).toBeDefined();
   });

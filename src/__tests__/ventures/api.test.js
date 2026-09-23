@@ -98,9 +98,9 @@ jest.mock("@/lib/api/createHandler", () => {
           // Simulate auth: add session
           req.session = { cid: "sa-001", name: "Super Admin", role: "super_admin" };
           return await handler(req, ...args);
-        } catch (e) {
+        } catch (error) {
           const { NextResponse } = require("next/server");
-          return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+          return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
       };
     }),

@@ -59,10 +59,10 @@ const EMPTY_MEMBERSHIP = { members: [], protectedMap: {}, failure: null };
  * The roster, together with the groups whose last member must not be removed,
  * and the reason they are missing. A refusal carries the server's own message.
  */
-const pickMembership = (d) =>
-  d?.success
-    ? { members: d.memberships || [], protectedMap: d.protected || {}, failure: null }
-    : { members: [], protectedMap: {}, failure: d?.error || null };
+const pickMembership = (payload) =>
+  payload?.success
+    ? { members: payload.memberships || [], protectedMap: payload.protected || {}, failure: null }
+    : { members: [], protectedMap: {}, failure: payload?.error || null };
 
 export default function MembershipScreen({
   readOnly = false,
@@ -106,7 +106,7 @@ export default function MembershipScreen({
   const groups = useMemo(
     () =>
       sortGroups(
-        [...new Set((members || []).map((m) => m.group_name).filter(Boolean))].map((name) => ({
+        [...new Set((members || []).map((member) => member.group_name).filter(Boolean))].map((name) => ({
           name,
           isProtected: !!protectedMap[name],
         })),
@@ -115,16 +115,16 @@ export default function MembershipScreen({
   );
 
   const roles = useMemo(
-    () => [...new Set((members || []).map((m) => m.role).filter(Boolean))].sort(),
+    () => [...new Set((members || []).map((member) => member.role).filter(Boolean))].sort(),
     [members],
   );
 
   const fmtDate = useCallback(
-    (v) => {
-      if (!v) return "—";
-      const d = new Date(v);
-      if (Number.isNaN(d.getTime())) return "—";
-      return d.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", {
+    (value) => {
+      if (!value) return "—";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "—";
+      return date.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", {
         day: "2-digit",
         month: "short",
         year: "numeric",
@@ -147,8 +147,8 @@ export default function MembershipScreen({
   };
 
   const accountKey = (status) => {
-    const s = String(status || "").toLowerCase();
-    switch (s) {
+    const normalized = String(status || "").toLowerCase();
+    switch (normalized) {
       case "active":
         return t("membership.status.accountActive");
       case "pending":
@@ -164,14 +164,14 @@ export default function MembershipScreen({
   };
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return (members || []).filter((m) => {
-      if (selectedGroup && m.group_name !== selectedGroup) return false;
-      if (q && !(m.name || "").toLowerCase().includes(q) && !(m.email || "").toLowerCase().includes(q)) return false;
-      const derived = deriveMembershipStatus(m);
+    const normalizedQuery = search.trim().toLowerCase();
+    return (members || []).filter((member) => {
+      if (selectedGroup && member.group_name !== selectedGroup) return false;
+      if (normalizedQuery && !(member.name || "").toLowerCase().includes(normalizedQuery) && !(member.email || "").toLowerCase().includes(normalizedQuery)) return false;
+      const derived = deriveMembershipStatus(member);
       if (statusFilter !== "all" && derived !== statusFilter) return false;
-      if (accountFilter !== "all" && String(m.account_status || "").toLowerCase() !== accountFilter) return false;
-      if (roleFilter !== "all" && m.role !== roleFilter) return false;
+      if (accountFilter !== "all" && String(member.account_status || "").toLowerCase() !== accountFilter) return false;
+      if (roleFilter !== "all" && member.role !== roleFilter) return false;
       return true;
     });
   }, [members, selectedGroup, search, statusFilter, accountFilter, roleFilter]);
@@ -248,12 +248,12 @@ export default function MembershipScreen({
           >
             {t("membership.page.allGroups")}
           </button>
-          {groups.map((g) => {
-            const active = selectedGroup === g.name;
+          {groups.map((group) => {
+            const active = selectedGroup === group.name;
             return (
               <button
-                key={g.name}
-                onClick={() => setSelectedGroup(active ? "" : g.name)}
+                key={group.name}
+                onClick={() => setSelectedGroup(active ? "" : group.name)}
                 className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
                   active ? "border-[var(--brand-orange)]" : "border-transparent"
                 }`}
@@ -263,9 +263,9 @@ export default function MembershipScreen({
                 }}
               >
                 <span className="inline-flex items-center gap-1.5">
-                  {g.isProtected && <Shield className="w-3.5 h-3.5" />}
-                  {g.name}
-                  {g.isProtected && (
+                  {group.isProtected && <Shield className="w-3.5 h-3.5" />}
+                  {group.name}
+                  {group.isProtected && (
                     <span
                       className="px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider"
                       style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B" }}
@@ -286,13 +286,13 @@ export default function MembershipScreen({
               icon={Search}
               placeholder={t("membership.page.searchPlaceholder")}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
             />
           </div>
           <AppSelect
             label={t("membership.page.filterStatus")}
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(event) => setStatusFilter(event.target.value)}
             options={[
               { value: "all", label: t("membership.page.filterStatusAll") },
               { value: "active", label: t("membership.status.active") },
@@ -304,7 +304,7 @@ export default function MembershipScreen({
           <AppSelect
             label={t("membership.page.filterAccountStatus")}
             value={accountFilter}
-            onChange={(e) => setAccountFilter(e.target.value)}
+            onChange={(event) => setAccountFilter(event.target.value)}
             options={[
               { value: "all", label: t("membership.page.filterAccountAll") },
               { value: "active", label: t("membership.status.accountActive") },
@@ -316,10 +316,10 @@ export default function MembershipScreen({
           <AppSelect
             label={t("membership.page.filterRole")}
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
+            onChange={(event) => setRoleFilter(event.target.value)}
             options={[
               { value: "all", label: t("membership.page.filterRoleAll") },
-              ...roles.map((r) => ({ value: r, label: r })),
+              ...roles.map((role) => ({ value: role, label: role })),
             ]}
           />
         </div>
@@ -342,8 +342,8 @@ export default function MembershipScreen({
 
           {loading ? (
             <div className="p-8 space-y-3">
-              {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="h-10 rounded-lg animate-pulse" style={{ background: "var(--surface-3)" }} />
+              {[0, 1, 2, 3].map((index) => (
+                <div key={index} className="h-10 rounded-lg animate-pulse" style={{ background: "var(--surface-3)" }} />
               ))}
             </div>
           ) : loadFailed ? (
@@ -381,37 +381,37 @@ export default function MembershipScreen({
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((m, i) => {
-                    const derived = deriveMembershipStatus(m);
+                  {filtered.map((member, index) => {
+                    const derived = deriveMembershipStatus(member);
                     const isExpired = derived === "expired";
                     const isEnded = derived === "ended";
                     return (
                       <tr
-                        key={`${m.user_cid}|${m.group_name}`}
+                        key={`${member.user_cid}|${member.group_name}`}
                         className="border-t"
                         style={{
                           borderColor: "var(--border-primary)",
-                          background: i % 2 ? "var(--surface-2)" : "transparent",
+                          background: index % 2 ? "var(--surface-2)" : "transparent",
                           opacity: isExpired || isEnded ? 0.65 : 1,
                         }}
                       >
                         <td className="px-5 py-3.5">
                           <p className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>
-                            {m.name || m.user_cid}
+                            {member.name || member.user_cid}
                           </p>
                           <p className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
-                            {m.email || "—"}
+                            {member.email || "—"}
                           </p>
                         </td>
                         <td className="px-5 py-3.5">
                           <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
-                            {m.role || "—"}
+                            {member.role || "—"}
                           </span>
                         </td>
                         <td className="px-5 py-3.5">
                           <span className="inline-flex items-center gap-1.5 text-[10px] font-bold" style={{ color: "var(--text-secondary)" }}>
-                            {isProtected(m.group_name) && <Shield className="w-3 h-3" style={{ color: "#F59E0B" }} />}
-                            {m.group_name}
+                            {isProtected(member.group_name) && <Shield className="w-3 h-3" style={{ color: "#F59E0B" }} />}
+                            {member.group_name}
                           </span>
                         </td>
                         <td className="px-5 py-3.5">
@@ -423,32 +423,32 @@ export default function MembershipScreen({
                           )}
                         </td>
                         <td className="px-5 py-3.5 text-[10px]" style={{ color: "var(--text-secondary)" }}>
-                          {fmtDate(m.started_at)}
+                          {fmtDate(member.started_at)}
                         </td>
                         <td className="px-5 py-3.5 text-[10px]" style={{ color: "var(--text-secondary)" }}>
-                          {m.expires_at ? fmtDate(m.expires_at) : t("membership.status.never")}
+                          {member.expires_at ? fmtDate(member.expires_at) : t("membership.status.never")}
                         </td>
                         <td className="px-5 py-3.5">
                           <Badge
-                            label={accountKey(m.account_status)}
-                            style={ACCOUNT_STYLE[String(m.account_status || "").toLowerCase()] || ACCOUNT_STYLE.inactive}
+                            label={accountKey(member.account_status)}
+                            style={ACCOUNT_STYLE[String(member.account_status || "").toLowerCase()] || ACCOUNT_STYLE.inactive}
                           />
                         </td>
                         <td className="px-5 py-3.5">
                           <div className="flex items-center justify-end gap-1.5">
-                            <AppButton variant="ghost" size="sm" icon={Eye} onClick={() => setDetailMember(m)}>
+                            <AppButton variant="ghost" size="sm" icon={Eye} onClick={() => setDetailMember(member)}>
                               {t("membership.actions.view")}
                             </AppButton>
                             {!readOnly && !isExpired && !isEnded && (
                               <>
-                                <AppButton variant="ghost" size="sm" icon={RotateCcw} onClick={() => setRenewMember(m)}>
+                                <AppButton variant="ghost" size="sm" icon={RotateCcw} onClick={() => setRenewMember(member)}>
                                   {t("membership.actions.renew")}
                                 </AppButton>
                                 <AppButton
                                   variant="ghost"
                                   size="sm"
                                   icon={Ban}
-                                  onClick={() => setConfirmState({ member: m, action: "deactivated" })}
+                                  onClick={() => setConfirmState({ member, action: "deactivated" })}
                                 >
                                   {t("membership.actions.deactivate")}
                                 </AppButton>
@@ -456,7 +456,7 @@ export default function MembershipScreen({
                                   variant="ghost"
                                   size="sm"
                                   icon={UserX}
-                                  onClick={() => setConfirmState({ member: m, action: "ended" })}
+                                  onClick={() => setConfirmState({ member, action: "ended" })}
                                 >
                                   {t("membership.actions.end")}
                                 </AppButton>
@@ -465,11 +465,11 @@ export default function MembershipScreen({
                             {isExpired && (
                               <>
                                 {!readOnly && (
-                                  <AppButton variant="ghost" size="sm" icon={RotateCcw} onClick={() => setRenewMember(m)}>
+                                  <AppButton variant="ghost" size="sm" icon={RotateCcw} onClick={() => setRenewMember(member)}>
                                     {t("membership.actions.renew")}
                                   </AppButton>
                                 )}
-                                <AppButton variant="ghost" size="sm" icon={History} onClick={() => setHistoryMember(m)}>
+                                <AppButton variant="ghost" size="sm" icon={History} onClick={() => setHistoryMember(member)}>
                                   {t("membership.actions.history")}
                                 </AppButton>
                               </>
@@ -477,11 +477,11 @@ export default function MembershipScreen({
                             {isEnded && (
                               <>
                                 {!readOnly && (
-                                  <AppButton variant="ghost" size="sm" icon={RotateCcw} onClick={() => setRenewMember(m)}>
+                                  <AppButton variant="ghost" size="sm" icon={RotateCcw} onClick={() => setRenewMember(member)}>
                                     {t("membership.actions.reactivate")}
                                   </AppButton>
                                 )}
-                                <AppButton variant="ghost" size="sm" icon={History} onClick={() => setHistoryMember(m)}>
+                                <AppButton variant="ghost" size="sm" icon={History} onClick={() => setHistoryMember(member)}>
                                   {t("membership.actions.history")}
                                 </AppButton>
                               </>

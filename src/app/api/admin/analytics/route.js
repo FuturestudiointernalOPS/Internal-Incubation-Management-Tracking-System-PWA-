@@ -59,9 +59,9 @@ export async function GET(_req) {
         : 0;
 
     // Average blocker resolution time (hours)
-    const resolutionTimeRes = await getAvgBlockerResolutionSeconds();
-    const avgResolutionHours = resolutionTimeRes.rows[0]?.avg_seconds
-      ? Math.round(resolutionTimeRes.rows[0].avg_seconds / 3600)
+    const averageResolutionResult = await getAvgBlockerResolutionSeconds();
+    const avgResolutionHours = averageResolutionResult.rows[0]?.avg_seconds
+      ? Math.round(averageResolutionResult.rows[0].avg_seconds / 3600)
       : 0;
 
     // Weekly productivity: tasks completed per week (by completion date), last 8 weeks
@@ -104,11 +104,11 @@ export async function GET(_req) {
 }
 
 function getWeekNumber(date) {
-  const d = new Date(
+  const utcDate = new Date(
     Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
   );
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  const dayNum = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  return Math.ceil(((utcDate - yearStart) / 86400000 + 1) / 7);
 }

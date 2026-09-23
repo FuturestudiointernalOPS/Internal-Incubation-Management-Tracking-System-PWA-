@@ -81,9 +81,9 @@ check("rowsToCsv round trip", roundTrip, grid);
 {
   const header = "Name,Email,Answer";
   const rowText = '"Person X","x@y.com","First line\nsecond line\nthird line"';
-  const big = [header, ...Array(548).fill(rowText)].join("\n") + "\n";
-  const parsed = parseCSVRows(big);
-  check("548 logical rows (with multi-line cells) parse as 548 rows", parsed.length, 549);
+  const largeCsv = [header, ...Array(548).fill(rowText)].join("\n") + "\n";
+  const parsedRows = parseCSVRows(largeCsv);
+  check("548 logical rows (with multi-line cells) parse as 548 rows", parsedRows.length, 549);
 }
 
 console.log(failed === 0 ? "\nALL TESTS PASSED" : `\n${failed} TEST(S) FAILED`);

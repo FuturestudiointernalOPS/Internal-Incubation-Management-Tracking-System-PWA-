@@ -39,8 +39,8 @@ export async function GET(req) {
     if (searchParams.get("summary") === "true") {
       const authError = await requireAuth(["super_admin"]);
       if (authError) return authError;
-      const kpiRes = await getProgramKpiSummary();
-      return NextResponse.json({ success: true, programs: kpiRes.rows });
+      const kpiSummaryResult = await getProgramKpiSummary();
+      return NextResponse.json({ success: true, programs: kpiSummaryResult.rows });
     }
 
     const authError = await requireAuth();
@@ -75,22 +75,22 @@ export async function GET(req) {
     // PHASE 1: All independent queries in parallel
     // ─────────────────────────────────────────────
     const [
-      userRes,
-      taskDateRes,
-      progDateRes,
-      sessRes,
-      delRes,
-      eventRes,
-      taskStatsRes,
-      blockerRes,
-      progCountRes,
-      ownedProjRes,
-      collabMembersRes,
-      activityRes,
-      assignmentsRes,
-      myTasksRes,
-      kpiRes,
-      ventureSessRes,
+      userResult,
+      taskDatesResult,
+      programDatesResult,
+      sessionsResult,
+      deliverablesResult,
+      eventsResult,
+      taskStatsResult,
+      blockersResult,
+      programCountResult,
+      ownedProjectsResult,
+      collabMembersResult,
+      activityResult,
+      assignmentsResult,
+      myTasksResult,
+      kpiProgressResult,
+      ventureSessionsResult,
     ] = await Promise.allSettled([
       // 1. User info
       getUserIdentity(userId),
@@ -148,17 +148,17 @@ export async function GET(req) {
 
     // 1. User info
     let userName = "User";
-    if (userRes.status === "fulfilled" && userRes.value.rows.length > 0) {
-      userName = userRes.value.rows[0].name || "User";
+    if (userResult.status === "fulfilled" && userResult.value.rows.length > 0) {
+      userName = userResult.value.rows[0].name || "User";
     }
 
     // Helper: convert any date format (Date object, ISO string, etc.) to YYYY-MM-DD
-    const toDateStr = (val) => {
-      if (!val) return null;
+    const toDateStr = (value) => {
+      if (!value) return null;
       try {
-        const d = new Date(val);
-        if (isNaN(d.getTime())) return null;
-        return d.toISOString().split("T")[0];
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return null;
+        return date.toISOString().split("T")[0];
       } catch {
         return null;
       }
@@ -167,13 +167,13 @@ export async function GET(req) {
     // Helper: generate all dates from start to end (inclusive)
     const dateRange = (start, end) => {
       const dates = [];
-      const s = new Date(start + "T00:00:00Z");
-      const e = new Date(end + "T00:00:00Z");
-      if (isNaN(s.getTime()) || isNaN(e.getTime())) return dates;
-      const cur = new Date(s);
-      while (cur <= e) {
-        dates.push(cur.toISOString().split("T")[0]);
-        cur.setUTCDate(cur.getUTCDate() + 1);
+      const startDate = new Date(start + "T00:00:00Z");
+      const endDate = new Date(end + "T00:00:00Z");
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return dates;
+      const currentDate = new Date(startDate);
+      while (currentDate <= endDate) {
+        dates.push(currentDate.toISOString().split("T")[0]);
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
       }
       return dates;
     };
@@ -182,22 +182,22 @@ export async function GET(req) {
     const calendarEvents = [];
 
     // Tasks → calendar — span all days from start_date to end_date
-    if (taskDateRes.status === "fulfilled") {
-      for (const t of taskDateRes.value.rows) {
-        const startStr = toDateStr(t.start_date);
-        const endStr = toDateStr(t.end_date);
+    if (taskDatesResult.status === "fulfilled") {
+      for (const task of taskDatesResult.value.rows) {
+        const startStr = toDateStr(task.start_date);
+        const endStr = toDateStr(task.end_date);
         // If no dates at all, show on today
         if (!startStr && !endStr) {
           calendarEvents.push({
-            id: `task-${t.id}-${todayStr}`,
-            title: t.title,
+            id: `task-${task.id}-${todayStr}`,
+            title: task.title,
             date: todayStr,
             type: "task_active",
             source: "task",
-            status: t.status,
-            priority: t.priority,
-            related_id: t.id,
-            project_id: t.project_id,
+            status: task.status,
+            priority: task.priority,
+            related_id: task.id,
+            project_id: task.project_id,
           });
           continue;
         }
@@ -209,115 +209,117 @@ export async function GET(req) {
           const isFirst = day === rangeStart;
           const isLast = day === rangeEnd;
           calendarEvents.push({
-            id: `task-${t.id}-${day}`,
-            title: t.title,
+            id: `task-${task.id}-${day}`,
+            title: task.title,
             date: day,
             type: isFirst ? "task_start" : isLast ? "task_due" : "task_active",
             source: "task",
-            status: t.status,
-            priority: t.priority,
-            related_id: t.id,
-            project_id: t.project_id,
+            status: task.status,
+            priority: task.priority,
+            related_id: task.id,
+            project_id: task.project_id,
           });
         }
       }
     }
 
     // Programs → calendar
-    if (progDateRes.status === "fulfilled") {
-      for (const p of progDateRes.value.rows) {
-        if (p.start_date) {
-          const d = toDateStr(p.start_date);
-          if (d)
+    if (programDatesResult.status === "fulfilled") {
+      for (const program of programDatesResult.value.rows) {
+        if (program.start_date) {
+          const startDateStr = toDateStr(program.start_date);
+          if (startDateStr)
             calendarEvents.push({
-              id: `program-${p.id}-start`,
-              title: `${p.name} starts`,
-              date: d,
+              id: `program-${program.id}-start`,
+              title: `${program.name} starts`,
+              date: startDateStr,
               type: "program_start",
               source: "program",
               status: "active",
-              related_id: p.id,
+              related_id: program.id,
             });
         }
-        if (p.end_date) {
-          const d = toDateStr(p.end_date);
-          if (d)
+        if (program.end_date) {
+          const endDateStr = toDateStr(program.end_date);
+          if (endDateStr)
             calendarEvents.push({
-              id: `program-${p.id}-end`,
-              title: `${p.name} ends`,
-              date: d,
+              id: `program-${program.id}-end`,
+              title: `${program.name} ends`,
+              date: endDateStr,
               type: "program_end",
               source: "program",
               status: "active",
-              related_id: p.id,
+              related_id: program.id,
             });
         }
       }
     }
 
     // Sessions → calendar
-    if (sessRes.status === "fulfilled") {
-      for (const s of sessRes.value.rows) {
+    if (sessionsResult.status === "fulfilled") {
+      for (const sessionRow of sessionsResult.value.rows) {
         calendarEvents.push({
-          id: `session-${s.id}`,
-          title: s.title,
-          date: toDateStr(s.start_at),
+          id: `session-${sessionRow.id}`,
+          title: sessionRow.title,
+          date: toDateStr(sessionRow.start_at),
           type: "session",
           source: "session",
           status: "scheduled",
-          related_id: s.id,
-          project_id: s.program_id,
+          related_id: sessionRow.id,
+          project_id: sessionRow.program_id,
         });
       }
     }
 
     // Venture sessions (Vinance 3): the coach's own sessions plus the
     // venture-facing sessions of the Ventures this person is part of.
-    if (ventureSessRes.status === "fulfilled") {
-      for (const s of ventureSessRes.value.rows || []) {
+    if (ventureSessionsResult.status === "fulfilled") {
+      for (const sessionRow of ventureSessionsResult.value.rows || []) {
         calendarEvents.push({
-          id: `vsess-${s.id}`,
-          title: s.title,
-          date: toDateStr(s.start_time),
+          id: `vsess-${sessionRow.id}`,
+          title: sessionRow.title,
+          date: toDateStr(sessionRow.start_time),
           type: "venture_session",
           // "session" keeps the existing session colour/icon in the calendar UI;
           // the type still says exactly what it is.
           source: "session",
-          status: s.status || "scheduled",
-          related_id: s.id,
+          status: sessionRow.status || "scheduled",
+          related_id: sessionRow.id,
           project_id: null,
-          description: s.coach_name ? `Coach: ${s.coach_name}` : null,
-          milestone_ref: s.milestone_ref || null,
+          description: sessionRow.coach_name
+            ? `Coach: ${sessionRow.coach_name}`
+            : null,
+          milestone_ref: sessionRow.milestone_ref || null,
         });
       }
     }
 
     // Deliverables → calendar
-    if (delRes.status === "fulfilled") {
-      for (const d of delRes.value.rows) {
+    if (deliverablesResult.status === "fulfilled") {
+      for (const deliverable of deliverablesResult.value.rows) {
         calendarEvents.push({
-          id: `deliverable-${d.id}`,
-          title: `${d.title} due`,
-          date: toDateStr(d.due_date),
+          id: `deliverable-${deliverable.id}`,
+          title: `${deliverable.title} due`,
+          date: toDateStr(deliverable.due_date),
           type: "deliverable_due",
           source: "deliverable",
           status: "pending",
-          related_id: d.id,
+          related_id: deliverable.id,
         });
       }
     }
 
     // v2_events → calendar
-    if (eventRes.status === "fulfilled") {
-      for (const e of eventRes.value.rows) {
+    if (eventsResult.status === "fulfilled") {
+      for (const calendarEvent of eventsResult.value.rows) {
         calendarEvents.push({
-          id: `v2event-${e.id}`,
-          title: e.title,
-          date: toDateStr(e.start_time),
+          id: `v2event-${calendarEvent.id}`,
+          title: calendarEvent.title,
+          date: toDateStr(calendarEvent.start_time),
           type: "event",
           source: "event",
           status: "scheduled",
-          related_id: e.id,
+          related_id: calendarEvent.id,
         });
       }
     }
@@ -325,7 +327,7 @@ export async function GET(req) {
     // Filter calendar to requested month
     const monthStr = String(month).padStart(2, "0");
     const monthEvents = calendarEvents.filter(
-      (e) => e.date && e.date.startsWith(`${year}-${monthStr}`),
+      (event) => event.date && event.date.startsWith(`${year}-${monthStr}`),
     );
 
     // 3. Task stats
@@ -335,35 +337,35 @@ export async function GET(req) {
     const overdueTaskList = [],
       dueTodayList = [];
 
-    if (taskStatsRes.status === "fulfilled") {
-      totalTasks = taskStatsRes.value.rows.length;
-      for (const t of taskStatsRes.value.rows) {
-        if (t.status !== "completed") openTasks++;
+    if (taskStatsResult.status === "fulfilled") {
+      totalTasks = taskStatsResult.value.rows.length;
+      for (const task of taskStatsResult.value.rows) {
+        if (task.status !== "completed") openTasks++;
         if (
-          t.end_date &&
-          t.status !== "completed" &&
-          String(t.end_date).split("T")[0] < todayStr
+          task.end_date &&
+          task.status !== "completed" &&
+          String(task.end_date).split("T")[0] < todayStr
         ) {
           overdueTasks++;
           overdueTaskList.push({
-            id: t.id,
-            title: t.title,
-            due_date: t.end_date,
-            priority: t.priority,
-            project_id: t.project_id,
+            id: task.id,
+            title: task.title,
+            due_date: task.end_date,
+            priority: task.priority,
+            project_id: task.project_id,
           });
         }
         if (
-          t.end_date &&
-          t.status !== "completed" &&
-          String(t.end_date).split("T")[0] === todayStr
+          task.end_date &&
+          task.status !== "completed" &&
+          String(task.end_date).split("T")[0] === todayStr
         ) {
           dueTodayList.push({
-            id: t.id,
-            title: t.title,
+            id: task.id,
+            title: task.title,
             type: "task",
-            related_id: t.id,
-            project_id: t.project_id,
+            related_id: task.id,
+            project_id: task.project_id,
           });
         }
       }
@@ -375,41 +377,41 @@ export async function GET(req) {
     const criticalBlockerList = [];
     const allBlockers = [];
 
-    if (blockerRes.status === "fulfilled") {
-      activeBlockers = blockerRes.value.rows.length;
+    if (blockersResult.status === "fulfilled") {
+      activeBlockers = blockersResult.value.rows.length;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      for (const b of blockerRes.value.rows) {
-        if (b.severity === "critical" || b.severity === "high") {
+      for (const blocker of blockersResult.value.rows) {
+        if (blocker.severity === "critical" || blocker.severity === "high") {
           let includeBlocker = true;
-          if (b.end_date) {
-            const dueDate = new Date(b.end_date);
+          if (blocker.end_date) {
+            const dueDate = new Date(blocker.end_date);
             dueDate.setHours(0, 0, 0, 0);
             includeBlocker = dueDate <= today;
           }
           if (includeBlocker) {
             criticalBlockers++;
             criticalBlockerList.push({
-              id: b.id,
-              title: b.title,
-              severity: b.severity,
-              task_id: b.task_id,
-              task_title: b.task_title,
-              project_id: b.project_id,
+              id: blocker.id,
+              title: blocker.title,
+              severity: blocker.severity,
+              task_id: blocker.task_id,
+              task_title: blocker.task_title,
+              project_id: blocker.project_id,
             });
           }
         }
-        allBlockers.push(b);
+        allBlockers.push(blocker);
       }
     }
 
     // 5. Programs
     let programCount = 0;
     const userPrograms = [];
-    if (progCountRes.status === "fulfilled") {
-      programCount = progCountRes.value.rows.length;
-      userPrograms.push(...progCountRes.value.rows.slice(0, 5));
+    if (programCountResult.status === "fulfilled") {
+      programCount = programCountResult.value.rows.length;
+      userPrograms.push(...programCountResult.value.rows.slice(0, 5));
     }
 
     // 6. Projects (owned + collaborator)
@@ -418,60 +420,61 @@ export async function GET(req) {
     let collabProjects = [];
 
     if (
-      ownedProjRes.status === "fulfilled" &&
-      collabMembersRes.status === "fulfilled"
+      ownedProjectsResult.status === "fulfilled" &&
+      collabMembersResult.status === "fulfilled"
     ) {
       // Map owned projects
-      const ownedMapped = (ownedProjRes.value.rows || []).map((p) => ({
-        id: p.id,
-        name: p.name,
-        status: p.status,
-        owner_id: p.owner_id,
-        meta: p.meta,
+      const ownedMapped = (ownedProjectsResult.value.rows || []).map((project) => ({
+        id: project.id,
+        name: project.name,
+        status: project.status,
+        owner_id: project.owner_id,
+        meta: project.meta,
         role: "owner",
         taskStats: {
-          total: parseInt(p.task_total) || 0,
-          completed: parseInt(p.task_completed) || 0,
+          total: parseInt(project.task_total) || 0,
+          completed: parseInt(project.task_completed) || 0,
         },
-        blockerStats: { active: parseInt(p.blocker_active) || 0 },
+        blockerStats: { active: parseInt(project.blocker_active) || 0 },
         completionRate:
-          (parseInt(p.task_total) || 0) > 0
+          (parseInt(project.task_total) || 0) > 0
             ? Math.round(
-                ((parseInt(p.task_completed) || 0) /
-                  (parseInt(p.task_total) || 1)) *
+                ((parseInt(project.task_completed) || 0) /
+                  (parseInt(project.task_total) || 1)) *
                   100,
               )
             : 0,
       }));
 
       // Collaborator projects
-      const collabProjectIds = collabMembersRes.value.rows.map(
-        (r) => r.project_id,
+      const collabProjectIds = collabMembersResult.value.rows.map(
+        (row) => row.project_id,
       );
       if (collabProjectIds.length > 0) {
         try {
-          const collabProjRes = await getCollabProjectsByIds(collabProjectIds);
+          const collabProjectsResult =
+            await getCollabProjectsByIds(collabProjectIds);
 
-          const ownedIds = new Set(ownedMapped.map((p) => String(p.id)));
-          collabProjects = (collabProjRes.rows || [])
-            .filter((p) => !ownedIds.has(String(p.id)))
-            .map((p) => ({
-              id: p.id,
-              name: p.name,
-              status: p.status,
-              owner_id: p.owner_id,
-              meta: p.meta,
+          const ownedIds = new Set(ownedMapped.map((project) => String(project.id)));
+          collabProjects = (collabProjectsResult.rows || [])
+            .filter((project) => !ownedIds.has(String(project.id)))
+            .map((project) => ({
+              id: project.id,
+              name: project.name,
+              status: project.status,
+              owner_id: project.owner_id,
+              meta: project.meta,
               role: "collaborator",
               taskStats: {
-                total: parseInt(p.task_total) || 0,
-                completed: parseInt(p.task_completed) || 0,
+                total: parseInt(project.task_total) || 0,
+                completed: parseInt(project.task_completed) || 0,
               },
-              blockerStats: { active: parseInt(p.blocker_active) || 0 },
+              blockerStats: { active: parseInt(project.blocker_active) || 0 },
               completionRate:
-                (parseInt(p.task_total) || 0) > 0
+                (parseInt(project.task_total) || 0) > 0
                   ? Math.round(
-                      ((parseInt(p.task_completed) || 0) /
-                        (parseInt(p.task_total) || 1)) *
+                      ((parseInt(project.task_completed) || 0) /
+                        (parseInt(project.task_total) || 1)) *
                         100,
                     )
                   : 0,
@@ -485,26 +488,26 @@ export async function GET(req) {
 
     // 7. Activity
     let activity = [];
-    if (activityRes.status === "fulfilled") {
-      activity = activityRes.value.rows;
+    if (activityResult.status === "fulfilled") {
+      activity = activityResult.value.rows;
     }
 
     // 8. Assignments
     let assignments = [];
-    if (assignmentsRes.status === "fulfilled") {
-      assignments = assignmentsRes.value.rows;
+    if (assignmentsResult.status === "fulfilled") {
+      assignments = assignmentsResult.value.rows;
     }
 
     // 9. My tasks
     let myTasks = [];
-    if (myTasksRes.status === "fulfilled") {
-      myTasks = myTasksRes.value.rows;
+    if (myTasksResult.status === "fulfilled") {
+      myTasks = myTasksResult.value.rows;
     }
 
     // 10. KPI Progress
     let kpiProgress = [];
-    if (kpiRes.status === "fulfilled") {
-      kpiProgress = kpiRes.value.rows;
+    if (kpiProgressResult.status === "fulfilled") {
+      kpiProgress = kpiProgressResult.value.rows;
     }
 
     // ─────────────────────────────────────────────
@@ -532,11 +535,11 @@ export async function GET(req) {
         criticalBlockers: criticalBlockerList.slice(0, 10),
         dueToday: dueTodayList.slice(0, 10),
       },
-      activity: activity.map((a) => ({
-        action: a.action,
-        description: a.description,
-        timestamp: a.timestamp,
-        user_id: a.user_id,
+      activity: activity.map((activityEntry) => ({
+        action: activityEntry.action,
+        description: activityEntry.description,
+        timestamp: activityEntry.timestamp,
+        user_id: activityEntry.user_id,
       })),
       quickAccess: {
         programs: userPrograms,

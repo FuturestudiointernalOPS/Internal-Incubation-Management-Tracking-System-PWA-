@@ -43,11 +43,11 @@ const PermissionContext = createContext(null); // null = no provider above
 
 const EMPTY_PERMISSIONS_READ = { permissions: null, isSuperAdmin: false };
 
-const pickPermissions = (d) =>
-  d?.success
+const pickPermissions = (response) =>
+  response?.success
     ? {
-        permissions: d.effective || null,
-        isSuperAdmin: Boolean(d.isSuperAdmin),
+        permissions: response.effective || null,
+        isSuperAdmin: Boolean(response.isSuperAdmin),
       }
     : EMPTY_PERMISSIONS_READ;
 
@@ -146,7 +146,7 @@ export function PermissionProvider({ children }) {
  * source below is never fetched.
  */
 export function usePermissions() {
-  const ctx = useContext(PermissionContext);
-  const standalone = usePermissionSource(ctx === null);
-  return ctx ?? standalone;
+  const context = useContext(PermissionContext);
+  const standalone = usePermissionSource(context === null);
+  return context ?? standalone;
 }

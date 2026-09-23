@@ -17,16 +17,16 @@ async function run() {
   const client = await pool.connect();
   try {
     // 1. Check venture_milestones columns
-    const cols = await client.query(`
+    const columns = await client.query(`
       SELECT column_name FROM information_schema.columns 
       WHERE table_schema = 'public' AND table_name = 'venture_milestones'
       ORDER BY ordinal_position
     `);
     console.log("✅ Colonnes venture_milestones:");
-    cols.rows.forEach(r => console.log(`   ${r.column_name}`));
+    columns.rows.forEach(column => console.log(`   ${column.column_name}`));
 
     // 2. Add project_id if missing
-    const hasProjectId = cols.rows.find(r => r.column_name === 'project_id');
+    const hasProjectId = columns.rows.find(column => column.column_name === 'project_id');
     if (!hasProjectId) {
       await client.query("ALTER TABLE venture_milestones ADD COLUMN project_id TEXT");
       console.log("   ✅ project_id ajoutée");
@@ -105,13 +105,13 @@ async function run() {
       "CREATE INDEX IF NOT EXISTS idx_milestone_activity_milestone_id ON venture_milestone_activity(milestone_id)",
     ];
 
-    for (const idx of indexes) {
+    for (const indexStatement of indexes) {
       try {
-        await client.query(idx);
-        console.log(`   ✅ ${idx.substring(0, 80)}`);
+        await client.query(indexStatement);
+        console.log(`   ✅ ${indexStatement.substring(0, 80)}`);
       } catch (err) {
         if (err.message.includes("already exists")) {
-          console.log(`   ⏭️  ${idx.substring(0, 60)}`);
+          console.log(`   ⏭️  ${indexStatement.substring(0, 60)}`);
         } else {
           console.error(`   ❌ ${err.message.substring(0, 120)}`);
         }

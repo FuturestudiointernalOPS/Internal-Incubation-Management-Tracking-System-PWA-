@@ -246,7 +246,7 @@ export async function createTaskCopy(task, created_week, created_year) {
 }
 
 /** Insert a " (Copy)" row for a subtask of the duplicated task. */
-export async function createSubtaskCopy(st, created_week, created_year, newTaskId) {
+export async function createSubtaskCopy(subtask, created_week, created_year, newTaskId) {
   return db.execute({
     sql: `INSERT INTO tasks
           (user_id, user_name, title, description, status, project_id, category,
@@ -254,21 +254,21 @@ export async function createSubtaskCopy(st, created_week, created_year, newTaskI
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            RETURNING id`,
     args: [
-      st.user_id,
-      st.user_name || "",
-      `${st.title} (Copy)`,
-      st.description || null,
+      subtask.user_id,
+      subtask.user_name || "",
+      `${subtask.title} (Copy)`,
+      subtask.description || null,
       "pending",
-      st.project_id || null,
-      st.category || null,
+      subtask.project_id || null,
+      subtask.category || null,
       created_week,
       created_year,
       newTaskId,
-      st.start_date || null,
-      st.end_date || null,
-      st.assigned_to || null,
-      st.priority || "medium",
-      st.link || null,
+      subtask.start_date || null,
+      subtask.end_date || null,
+      subtask.assigned_to || null,
+      subtask.priority || "medium",
+      subtask.link || null,
     ],
   });
 }

@@ -70,8 +70,8 @@ function isoDate(value) {
       ? null
       : value.toISOString().slice(0, 10);
   }
-  const s = String(value).slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+  const iso = String(value).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : null;
 }
 
 /** granted_by stamp for grants this module owns — the only rows it may remove. */
@@ -109,8 +109,8 @@ export function ensureContextAppliedGrantsSchema() {
         args: [],
       });
       return true;
-    })().catch((e) => {
-      console.warn("[Authz] ensureContextAppliedGrantsSchema failed:", e.message);
+    })().catch((error) => {
+      console.warn("[Authz] ensureContextAppliedGrantsSchema failed:", error.message);
       contextAppliedGrantsSchemaPromise = null;
       return false;
     });
@@ -141,7 +141,7 @@ export function planContextGrantChanges({
 }) {
   const desiredKeys = new Set(Object.keys(desired));
   const existingByKey = new Map(
-    (existing || []).map((r) => [`${r.module}.${r.capability}`, r]),
+    (existing || []).map((row) => [`${row.module}.${row.capability}`, row]),
   );
 
   const managesExpiry = expiresAt !== undefined;
@@ -173,8 +173,8 @@ export function planContextGrantChanges({
   }
 
   const toRevoke = (provenance || [])
-    .filter((r) => !desiredKeys.has(`${r.module}.${r.capability}`))
-    .map((r) => ({ module: r.module, capability: r.capability }));
+    .filter((row) => !desiredKeys.has(`${row.module}.${row.capability}`))
+    .map((row) => ({ module: row.module, capability: row.capability }));
 
   return { toApply, toRevoke };
 }
@@ -182,7 +182,7 @@ export function planContextGrantChanges({
 /** Active founder relationships for one person (the justification for grants). */
 export async function listActiveFounderVentures(cid) {
   if (!cid) return [];
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT DISTINCT CAST(venture_id AS TEXT) AS venture_id
           FROM venture_members
           WHERE removed_at IS NULL
@@ -190,7 +190,7 @@ export async function listActiveFounderVentures(cid) {
             AND (contact_id = ? OR user_cid = ?)`,
     args: [String(cid), String(cid)],
   });
-  return (r.rows || []).map((row) => String(row.venture_id)).filter(Boolean);
+  return (result.rows || []).map((row) => String(row.venture_id)).filter(Boolean);
 }
 
 /** Capabilities the registry says this context role should provide. */
@@ -200,16 +200,16 @@ export async function resolveContextDesiredCaps(context, roleKey) {
   if (!row || Number(row.is_active) !== 1 || !row.profile_id) {
     return { profile: null, desired: {}, reason: row ? "unmapped" : "no-registry-row" };
   }
-  const caps = await db.execute({
+  const capabilitiesResult = await db.execute({
     sql: "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ?",
     args: [row.profile_id],
   });
   const desired = {};
-  for (const c of caps.rows || []) {
-    desired[`${c.module}.${c.capability}`] = {
-      module: c.module,
-      capability: c.capability,
-      level: Number(c.access_level ?? 1),
+  for (const capabilityRow of capabilitiesResult.rows || []) {
+    desired[`${capabilityRow.module}.${capabilityRow.capability}`] = {
+      module: capabilityRow.module,
+      capability: capabilityRow.capability,
+      level: Number(capabilityRow.access_level ?? 1),
     };
   }
   return { profile: row.profile_name || null, desired, reason: "mapped" };
@@ -265,7 +265,7 @@ async function resolveContextJustification(cid, { context, roleKey, email }) {
   ) {
     const { rows } = await listActiveProgramAssignments(cid, { email });
     const mine = assignmentsForRole(rows, roleKey);
-    const sourceIds = mine.map((r) => String(r.program_id));
+    const sourceIds = mine.map((assignment) => String(assignment.program_id));
     if (mine.length === 0) {
       return {
         sourceIds,
@@ -447,13 +447,13 @@ export async function syncContextGrantsForUser(
         ? { ventures: sourceIds }
         : { programs: sourceIds }),
       ...(managesExpiry ? { expiresAt } : {}),
-      applied: plan.toApply.map((i) => `${i.module}.${i.capability}`),
-      revoked: plan.toRevoke.map((i) => `${i.module}.${i.capability}`),
+      applied: plan.toApply.map((item) => `${item.module}.${item.capability}`),
+      revoked: plan.toRevoke.map((item) => `${item.module}.${item.capability}`),
       reason: resolved.reason,
     };
-  } catch (e) {
-    console.warn(`[Authz] syncContextGrantsForUser(${cid}) failed:`, e.message);
-    return { success: false, cid, error: e.message };
+  } catch (error) {
+    console.warn(`[Authz] syncContextGrantsForUser(${cid}) failed:`, error.message);
+    return { success: false, cid, error: error.message };
   }
 }
 
@@ -475,7 +475,7 @@ export async function syncAllContextGrants(
               FROM venture_members
               WHERE removed_at IS NULL AND ${FOUNDER_MATCH_SQL}`,
       });
-      for (const r of relRes.rows || []) if (r.cid) cids.add(String(r.cid));
+      for (const row of relRes.rows || []) if (row.cid) cids.add(String(row.cid));
     } else if (context === "program") {
       // Everyone who currently holds a program assignment (any role — the
       // per-role split happens inside the per-user reconcile).
@@ -487,15 +487,15 @@ export async function syncAllContextGrants(
       sql: "SELECT DISTINCT user_cid AS cid FROM context_applied_grants WHERE context = ? AND role_key = ?",
       args: [context, roleKey],
     });
-    for (const r of provRes.rows || []) if (r.cid) cids.add(String(r.cid));
+    for (const row of provRes.rows || []) if (row.cid) cids.add(String(row.cid));
 
     const results = [];
     for (const cid of cids) {
       results.push(await syncContextGrantsForUser(cid, { context, roleKey }));
     }
 
-    const applied = results.flatMap((r) => r.applied || []);
-    const revoked = results.flatMap((r) => r.revoked || []);
+    const applied = results.flatMap((result) => result.applied || []);
+    const revoked = results.flatMap((result) => result.revoked || []);
     return {
       success: true,
       context,
@@ -506,9 +506,9 @@ export async function syncAllContextGrants(
       changes: applied.length + revoked.length,
       results,
     };
-  } catch (e) {
-    console.warn("[Authz] syncAllContextGrants failed:", e.message);
-    return { success: false, error: e.message };
+  } catch (error) {
+    console.warn("[Authz] syncAllContextGrants failed:", error.message);
+    return { success: false, error: error.message };
   }
 }
 
@@ -542,8 +542,8 @@ export async function syncContextGrantsOnConnect(cid, { email = null, force = fa
       await syncContextGrantsForUser(cid, { ...spec, email }),
     );
   }
-  const applied = results.flatMap((r) => r.applied || []);
-  const revoked = results.flatMap((r) => r.revoked || []);
+  const applied = results.flatMap((result) => result.applied || []);
+  const revoked = results.flatMap((result) => result.revoked || []);
   return {
     success: true,
     cid: key,
@@ -570,19 +570,19 @@ export async function syncAllContextGrantsEverywhere() {
   for (const spec of SUPPORTED_CONTEXT_ROLES) {
     contexts.push(await syncAllContextGrants(spec));
   }
-  const applied = contexts.flatMap((c) => c.applied || []);
-  const revoked = contexts.flatMap((c) => c.revoked || []);
+  const applied = contexts.flatMap((contextResult) => contextResult.applied || []);
+  const revoked = contexts.flatMap((contextResult) => contextResult.revoked || []);
   return {
-    success: contexts.every((c) => c.success !== false),
-    contexts: contexts.map((c) => ({
-      context: c.context,
-      roleKey: c.roleKey,
-      evaluated: c.evaluated ?? 0,
-      applied: c.applied || [],
-      revoked: c.revoked || [],
-      changes: c.changes ?? 0,
+    success: contexts.every((contextResult) => contextResult.success !== false),
+    contexts: contexts.map((contextResult) => ({
+      context: contextResult.context,
+      roleKey: contextResult.roleKey,
+      evaluated: contextResult.evaluated ?? 0,
+      applied: contextResult.applied || [],
+      revoked: contextResult.revoked || [],
+      changes: contextResult.changes ?? 0,
     })),
-    evaluated: contexts.reduce((n, c) => n + (c.evaluated ?? 0), 0),
+    evaluated: contexts.reduce((sum, contextResult) => sum + (contextResult.evaluated ?? 0), 0),
     applied,
     revoked,
     changes: applied.length + revoked.length,
@@ -619,8 +619,8 @@ export async function revokeAllContextGrants(cid, { context, roleKey }) {
     });
     if (removed.length) await invalidateUserContext(cid);
     return { success: true, cid: String(cid), context, roleKey, revoked: removed };
-  } catch (e) {
-    console.warn(`[Authz] revokeAllContextGrants(${cid}) failed:`, e.message);
-    return { success: false, error: e.message };
+  } catch (error) {
+    console.warn(`[Authz] revokeAllContextGrants(${cid}) failed:`, error.message);
+    return { success: false, error: error.message };
   }
 }

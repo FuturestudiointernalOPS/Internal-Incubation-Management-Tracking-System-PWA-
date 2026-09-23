@@ -58,8 +58,8 @@ export async function createSession(userCid, userRole, rememberMe = false, isImp
         console.log("[session] createSession — derived legacy role:", userRole, "→", derived, "(cid:", userCid, ")");
         userRole = derived;
       }
-    } catch (e) {
-      console.error("[session] legacy-role derivation failed (falling back to stored role):", e.message);
+    } catch (error) {
+      console.error("[session] legacy-role derivation failed (falling back to stored role):", error.message);
     }
   }
 
@@ -278,11 +278,11 @@ async function readSessionFromToken(token) {
 export function setSessionCookieOnResponse(response, token, maxAge, host) {
   let domain;
   if (host) {
-    const h = String(host).toLowerCase().split(":")[0]; // strip port
-    const isLocalhost = h === "localhost" || h.endsWith(".localhost");
+    const hostname = String(host).toLowerCase().split(":")[0]; // strip port
+    const isLocalhost = hostname === "localhost" || hostname.endsWith(".localhost");
     const isIp =
-      /^\d{1,3}(\.\d{1,3}){3}$/.test(h) || h.startsWith("[") || h.includes("_");
-    if (!isLocalhost && !isIp && h.includes(".")) domain = h;
+      /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.startsWith("[") || hostname.includes("_");
+    if (!isLocalhost && !isIp && hostname.includes(".")) domain = hostname;
   }
 
   response.cookies.set(SESSION_COOKIE_NAME, token, {
@@ -562,17 +562,17 @@ export const ACCESS_LEVELS = {
 export async function getUserGroups(userCid) {
   try {
     await initDb();
-    const r = await db.execute({
+    const groupsResult = await db.execute({
       sql: "SELECT group_name FROM user_groups WHERE user_cid = ?",
       args: [userCid],
     });
-    if (r.rows.length > 0) return r.rows.map((g) => g.group_name);
-    const u = await db.execute({
+    if (groupsResult.rows.length > 0) return groupsResult.rows.map((group) => group.group_name);
+    const contactResult = await db.execute({
       sql: "SELECT group_name FROM contacts WHERE cid = ?",
       args: [userCid],
     });
-    if (u.rows.length > 0 && u.rows[0].group_name)
-      return [u.rows[0].group_name];
+    if (contactResult.rows.length > 0 && contactResult.rows[0].group_name)
+      return [contactResult.rows[0].group_name];
     return [];
   } catch {
     return [];
@@ -608,8 +608,8 @@ export async function logPermissionAudit({
         details || null,
       ],
     });
-  } catch (e) {
-    console.error("logPermissionAudit error:", e.message);
+  } catch (error) {
+    console.error("logPermissionAudit error:", error.message);
   }
 }
 
@@ -714,18 +714,18 @@ export async function getProgramAssignment(programId, userCid, userEmail = null)
       : [String(programId), userCid];
     const res = await db.execute({ sql, args });
     if (res.rows.length === 0) return null;
-    const r = res.rows[0];
+    const row = res.rows[0];
     return {
-      id: r.id,
-      program_id: r.context_id,
-      staff_id: r.contact_cid,
-      role: r.role || r.title || "assignment",
-      title: r.title || r.role || "assignment",
-      permissions: r.capability_overrides || r.permissions || {},
-      access_profile_id: r.access_profile_id || null,
-      scope: r.scope || { type: "program" },
-      status: r.status || "active",
-      assigned_by: r.assigned_by || null,
+      id: row.id,
+      program_id: row.context_id,
+      staff_id: row.contact_cid,
+      role: row.role || row.title || "assignment",
+      title: row.title || row.role || "assignment",
+      permissions: row.capability_overrides || row.permissions || {},
+      access_profile_id: row.access_profile_id || null,
+      scope: row.scope || { type: "program" },
+      status: row.status || "active",
+      assigned_by: row.assigned_by || null,
     };
   } catch {
     return null;
@@ -840,8 +840,8 @@ export async function getFacilitatorParticipantScope(programId, userCid) {
     });
     return {
       scope: "groups",
-      groupIds: fam.rows.map((r) => r.id),
-      groupNames: fam.rows.map((r) => r.name),
+      groupIds: fam.rows.map((row) => row.id),
+      groupNames: fam.rows.map((row) => row.name),
     };
   } catch {
     return { scope: "groups", groupIds: [], groupNames: [] };
@@ -874,7 +874,7 @@ export async function getFacilitatorTeamScope(programId, facilitatorCid) {
     });
     return {
       scope: teams.rows.length ? "teams" : "none",
-      teamIds: teams.rows.map((r) => r.id),
+      teamIds: teams.rows.map((row) => row.id),
     };
   } catch {
     return { scope: "none", teamIds: [] };
@@ -1021,8 +1021,8 @@ export async function assertNoParticipantFacilitatorConflict(
       );
     }
     return null;
-  } catch (e) {
-    console.error("assertNoParticipantFacilitatorConflict error:", e.message);
+  } catch (error) {
+    console.error("assertNoParticipantFacilitatorConflict error:", error.message);
     return null;
   }
 }
@@ -1045,8 +1045,8 @@ export async function isSupervisorOf(supervisorCid, superviseeCid) {
       args: [superviseeCid, supervisorCid],
     });
     return res.rows.length > 0;
-  } catch (e) {
-    console.error("isSupervisorOf error:", e.message);
+  } catch (error) {
+    console.error("isSupervisorOf error:", error.message);
     return false;
   }
 }
@@ -1135,9 +1135,9 @@ export async function seedDefaultRoleCapabilities() {
     await initDb();
     const defaults = {
       super_admin: Object.fromEntries(
-        Object.entries(PERMISSION_MODULES).map(([k, m]) => [
-          k,
-          Object.fromEntries(m.capabilities.map((c) => [c, 5])),
+        Object.entries(PERMISSION_MODULES).map(([moduleKey, module]) => [
+          moduleKey,
+          Object.fromEntries(module.capabilities.map((capability) => [capability, 5])),
         ]),
       ),
       staff: {
@@ -1163,8 +1163,8 @@ export async function seedDefaultRoleCapabilities() {
       }
     }
     return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 }
 
@@ -1225,8 +1225,8 @@ export async function getUserEffectiveProfile(userCid, userRole) {
 
     // Step 3: No profile found — return legacy signal
     return { profileId: null, profileName: null, source: "legacy" };
-  } catch (e) {
-    console.error("getUserEffectiveProfile error:", e.message);
+  } catch (error) {
+    console.error("getUserEffectiveProfile error:", error.message);
     return { profileId: null, profileName: null, source: "legacy" };
   }
 }
@@ -1248,8 +1248,8 @@ export async function getAccessProfileCapabilities(profileId) {
       result[row.module][row.capability] = row.access_level;
     }
     return result;
-  } catch (e) {
-    console.error("getAccessProfileCapabilities error:", e.message);
+  } catch (error) {
+    console.error("getAccessProfileCapabilities error:", error.message);
     return {};
   }
 }
@@ -1272,9 +1272,9 @@ export async function seedDefaultAccessProfiles() {
       "Super Admin Default": {
         description: "Full system access — all modules, all capabilities",
         capabilities: Object.fromEntries(
-          Object.entries(PERMISSION_MODULES).map(([k, m]) => [
-            k,
-            Object.fromEntries(m.capabilities.map((c) => [c, 5])),
+          Object.entries(PERMISSION_MODULES).map(([moduleKey, module]) => [
+            moduleKey,
+            Object.fromEntries(module.capabilities.map((capability) => [capability, 5])),
           ]),
         ),
       },
@@ -1462,8 +1462,8 @@ export async function seedDefaultAccessProfiles() {
     }
 
     return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 }
 
@@ -1550,8 +1550,8 @@ export async function ensureResponsibilitiesSchema() {
       await db.execute(`CREATE INDEX IF NOT EXISTS idx_resp_cap_grants_cid ON responsibility_capability_grants(user_cid)`);
       await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS responsibility_capability_grants_key ON responsibility_capability_grants (user_cid, responsibility_key, module, capability)`);
       return true;
-    })().catch((e) => {
-      console.warn("[Auth] ensureResponsibilitiesSchema failed:", e.message);
+    })().catch((error) => {
+      console.warn("[Auth] ensureResponsibilitiesSchema failed:", error.message);
       responsibilitiesSchemaPromise = null; // allow retry on the next call
       return false;
     });
@@ -1644,8 +1644,8 @@ export function ensurePermissionsSchema() {
       await db.execute(`CREATE INDEX IF NOT EXISTS idx_user_caps_lookup ON user_capabilities(user_cid, module, capability)`);
       await db.execute(`CREATE INDEX IF NOT EXISTS idx_user_restr_lookup ON user_capability_restrictions(user_cid, module, capability)`);
       return true;
-    })().catch((e) => {
-      console.warn("[Auth] ensurePermissionsSchema failed:", e.message);
+    })().catch((error) => {
+      console.warn("[Auth] ensurePermissionsSchema failed:", error.message);
       permissionsSchemaPromise = null; // allow retry on the next call
       return false;
     });
@@ -1670,8 +1670,8 @@ export async function getUserResponsibilities(userCid) {
       args: [userCid],
     });
     return result.rows;
-  } catch (e) {
-    console.error("getUserResponsibilities error:", e.message);
+  } catch (error) {
+    console.error("getUserResponsibilities error:", error.message);
     return [];
   }
 }
@@ -1694,8 +1694,8 @@ export async function assignResponsibility(
       args: [userCid, responsibilityId, assignedBy || null],
     });
     return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 }
 
@@ -1711,8 +1711,8 @@ export async function removeResponsibility(userCid, responsibilityId) {
       args: [userCid, responsibilityId],
     });
     return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 }
 
@@ -1745,9 +1745,9 @@ export async function seedDefaultResponsibilities() {
   // every read of the responsibilities screen. A failure clears the memo so the
   // next call retries instead of the process caching a broken state.
   if (!responsibilitiesSeedPromise) {
-    responsibilitiesSeedPromise = seedDefaultResponsibilitiesOnce().catch((e) => {
+    responsibilitiesSeedPromise = seedDefaultResponsibilitiesOnce().catch((error) => {
       responsibilitiesSeedPromise = null;
-      return { success: false, error: e.message };
+      return { success: false, error: error.message };
     });
   }
   return responsibilitiesSeedPromise;
@@ -1867,7 +1867,7 @@ async function seedDefaultResponsibilitiesOnce() {
     });
 
     return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 }

@@ -36,11 +36,11 @@ const migration = fs.readFileSync(MIGRATION_PATH, "utf8");
 
 /** Extract the body of a CREATE TABLE block by table name. */
 function tableBlock(table) {
-  const re = new RegExp(
+  const pattern = new RegExp(
     `CREATE TABLE IF NOT EXISTS ${table} \\(([\\s\\S]*?)\\);`,
   );
-  const m = migration.match(re);
-  return m ? m[1] : "";
+  const match = migration.match(pattern);
+  return match ? match[1] : "";
 }
 
 const PHASE1_TABLES = [
@@ -74,78 +74,78 @@ describe("LMS migration — entity coverage", () => {
 
 describe("LMS migration — constraints", () => {
   test("courses: status lifecycle, slug, created_by", () => {
-    const b = tableBlock("lms_courses");
-    expect(b).toMatch(/slug TEXT UNIQUE/);
-    expect(b).toMatch(/CHECK \(status IN \('draft', 'published', 'archived'\)\)/);
-    expect(b).toMatch(/created_by TEXT/);
+    const block = tableBlock("lms_courses");
+    expect(block).toMatch(/slug TEXT UNIQUE/);
+    expect(block).toMatch(/CHECK \(status IN \('draft', 'published', 'archived'\)\)/);
+    expect(block).toMatch(/created_by TEXT/);
   });
 
   test("sections: cascade from course, unique ordering", () => {
-    const b = tableBlock("lms_course_sections");
-    expect(b).toMatch(
+    const block = tableBlock("lms_course_sections");
+    expect(block).toMatch(
       /course_id UUID NOT NULL REFERENCES lms_courses\(id\) ON DELETE CASCADE/,
     );
-    expect(b).toMatch(/UNIQUE \(course_id, position\)/);
+    expect(block).toMatch(/UNIQUE \(course_id, position\)/);
   });
 
   test("lessons: YouTube id, video-only content type, unique ordering", () => {
-    const b = tableBlock("lms_lessons");
-    expect(b).toMatch(
+    const block = tableBlock("lms_lessons");
+    expect(block).toMatch(
       /section_id UUID NOT NULL REFERENCES lms_course_sections\(id\) ON DELETE CASCADE/,
     );
-    expect(b).toMatch(/youtube_video_id TEXT/);
-    expect(b).toMatch(/CHECK \(content_type IN \('video'\)\)/);
-    expect(b).toMatch(/UNIQUE \(section_id, position\)/);
+    expect(block).toMatch(/youtube_video_id TEXT/);
+    expect(block).toMatch(/CHECK \(content_type IN \('video'\)\)/);
+    expect(block).toMatch(/UNIQUE \(section_id, position\)/);
   });
 
   test("enrollments: one per learner+course, source enum, existing identity", () => {
-    const b = tableBlock("lms_enrollments");
-    expect(b).toMatch(/user_cid TEXT NOT NULL REFERENCES contacts\(cid\) ON DELETE CASCADE/);
-    expect(b).toMatch(/CHECK \(source IN \('admin', 'program', 'self', 'purchase'\)\)/);
-    expect(b).toMatch(/UNIQUE \(course_id, user_cid\)/);
+    const block = tableBlock("lms_enrollments");
+    expect(block).toMatch(/user_cid TEXT NOT NULL REFERENCES contacts\(cid\) ON DELETE CASCADE/);
+    expect(block).toMatch(/CHECK \(source IN \('admin', 'program', 'self', 'purchase'\)\)/);
+    expect(block).toMatch(/UNIQUE \(course_id, user_cid\)/);
   });
 
   test("lesson progress: unique per enrollment+lesson, status enum", () => {
-    const b = tableBlock("lms_lesson_progress");
-    expect(b).toMatch(
+    const block = tableBlock("lms_lesson_progress");
+    expect(block).toMatch(
       /enrollment_id UUID NOT NULL REFERENCES lms_enrollments\(id\) ON DELETE CASCADE/,
     );
-    expect(b).toMatch(
+    expect(block).toMatch(
       /lesson_id UUID NOT NULL REFERENCES lms_lessons\(id\) ON DELETE CASCADE/,
     );
-    expect(b).toMatch(/CHECK \(status IN \('not_started', 'in_progress', 'completed'\)\)/);
-    expect(b).toMatch(/UNIQUE \(enrollment_id, lesson_id\)/);
+    expect(block).toMatch(/CHECK \(status IN \('not_started', 'in_progress', 'completed'\)\)/);
+    expect(block).toMatch(/UNIQUE \(enrollment_id, lesson_id\)/);
   });
 
   test("assessments: optional section anchor", () => {
-    const b = tableBlock("lms_assessments");
-    expect(b).toMatch(/course_id UUID NOT NULL REFERENCES lms_courses\(id\) ON DELETE CASCADE/);
-    expect(b).toMatch(/section_id UUID REFERENCES lms_course_sections\(id\) ON DELETE CASCADE/);
+    const block = tableBlock("lms_assessments");
+    expect(block).toMatch(/course_id UUID NOT NULL REFERENCES lms_courses\(id\) ON DELETE CASCADE/);
+    expect(block).toMatch(/section_id UUID REFERENCES lms_course_sections\(id\) ON DELETE CASCADE/);
   });
 
   test("questions: MC + true/false, JSONB options/answers, unique ordering", () => {
-    const b = tableBlock("lms_assessment_questions");
-    expect(b).toMatch(/CHECK \(question_type IN \('multiple_choice', 'true_false'\)\)/);
-    expect(b).toMatch(/options JSONB NOT NULL DEFAULT '\[\]'::jsonb/);
-    expect(b).toMatch(/correct_answer JSONB NOT NULL DEFAULT '\[\]'::jsonb/);
-    expect(b).toMatch(/UNIQUE \(assessment_id, position\)/);
+    const block = tableBlock("lms_assessment_questions");
+    expect(block).toMatch(/CHECK \(question_type IN \('multiple_choice', 'true_false'\)\)/);
+    expect(block).toMatch(/options JSONB NOT NULL DEFAULT '\[\]'::jsonb/);
+    expect(block).toMatch(/correct_answer JSONB NOT NULL DEFAULT '\[\]'::jsonb/);
+    expect(block).toMatch(/UNIQUE \(assessment_id, position\)/);
   });
 
   test("attempts: multiple attempts structurally supported", () => {
-    const b = tableBlock("lms_assessment_attempts");
-    expect(b).toMatch(/UNIQUE \(user_cid, assessment_id, attempt_number\)/);
-    expect(b).not.toMatch(/UNIQUE \(user_cid, assessment_id\)/);
-    expect(b).toMatch(/passed BOOLEAN NOT NULL DEFAULT FALSE/);
-    expect(b).toMatch(/score INTEGER NOT NULL DEFAULT 0/);
-    expect(b).toMatch(/total_points INTEGER NOT NULL DEFAULT 0/);
+    const block = tableBlock("lms_assessment_attempts");
+    expect(block).toMatch(/UNIQUE \(user_cid, assessment_id, attempt_number\)/);
+    expect(block).not.toMatch(/UNIQUE \(user_cid, assessment_id\)/);
+    expect(block).toMatch(/passed BOOLEAN NOT NULL DEFAULT FALSE/);
+    expect(block).toMatch(/score INTEGER NOT NULL DEFAULT 0/);
+    expect(block).toMatch(/total_points INTEGER NOT NULL DEFAULT 0/);
   });
 
   test("program requirements: program→course link", () => {
-    const b = tableBlock("lms_program_requirements");
-    expect(b).toMatch(/program_id TEXT NOT NULL/);
-    expect(b).toMatch(/course_id UUID NOT NULL REFERENCES lms_courses\(id\) ON DELETE CASCADE/);
-    expect(b).toMatch(/UNIQUE \(program_id, course_id\)/);
-    expect(b).toMatch(/is_required BOOLEAN NOT NULL DEFAULT TRUE/);
+    const block = tableBlock("lms_program_requirements");
+    expect(block).toMatch(/program_id TEXT NOT NULL/);
+    expect(block).toMatch(/course_id UUID NOT NULL REFERENCES lms_courses\(id\) ON DELETE CASCADE/);
+    expect(block).toMatch(/UNIQUE \(program_id, course_id\)/);
+    expect(block).toMatch(/is_required BOOLEAN NOT NULL DEFAULT TRUE/);
   });
 });
 
@@ -214,6 +214,6 @@ describe("LMS domain constants vs migration enums (drift guard)", () => {
     [LMS.LMS_QUESTION_TYPES, "lms_assessment_questions"],
   ])("%j matches the CHECK values in %s", (values, table) => {
     const block = tableBlock(table);
-    for (const v of values) expect(block).toContain(`'${v}'`);
+    for (const value of values) expect(block).toContain(`'${value}'`);
   });
 });

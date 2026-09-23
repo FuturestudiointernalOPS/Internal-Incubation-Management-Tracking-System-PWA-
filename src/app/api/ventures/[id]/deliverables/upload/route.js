@@ -40,7 +40,7 @@ export async function POST(req, { params }) {
     }
 
     return NextResponse.json({ success: true, path: result.path, name: result.name });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -35,7 +35,7 @@ export default function IndividualAccessScreen() {
   // would keep showing the access the person had a moment ago.
   const [accessVersion, setAccessVersion] = useState(0);
   const onAccessChanged = useCallback(
-    () => setAccessVersion((v) => v + 1),
+    () => setAccessVersion((prev) => prev + 1),
     [],
   );
 
@@ -52,11 +52,11 @@ export default function IndividualAccessScreen() {
     });
   }, []);
 
-  const pick = useCallback((u) => {
-    setPerson(u);
+  const pick = useCallback((user) => {
+    setPerson(user);
     try {
       const url = new URL(window.location.href);
-      url.searchParams.set("cid", u.cid);
+      url.searchParams.set("cid", user.cid);
       window.history.replaceState(null, "", url);
     } catch {
       /* cosmetic: the panels already follow the in-memory selection */

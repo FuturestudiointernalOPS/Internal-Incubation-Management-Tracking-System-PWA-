@@ -15,20 +15,20 @@ import db from "@/lib/db";
  * progress read performs when it finds no cached row.
  */
 export async function listKpiNamesForPrograms(programIds) {
-  const ids = [
+  const programIdsList = [
     ...new Set(
       (programIds || [])
         .filter((id) => id !== null && id !== undefined)
         .map((id) => String(id)),
     ),
   ];
-  if (ids.length === 0) return { rows: [] };
+  if (programIdsList.length === 0) return { rows: [] };
 
-  const placeholders = ids.map(() => "?").join(", ");
+  const placeholders = programIdsList.map(() => "?").join(", ");
   return db.execute({
     sql: `SELECT id, title, program_id FROM v2_kpis
           WHERE program_id::text IN (${placeholders})`,
-    args: ids,
+    args: programIdsList,
   });
 }
 
@@ -93,20 +93,20 @@ export async function recalculateKpiProgress(programId, participantId) {
     const results = kpis.map((kpi) => {
       const kpiIdStr = String(kpi.id);
       const linkedDocIds = docRes.rows
-        .filter((d) => {
+        .filter((documentRequirement) => {
           try {
-            const ids = typeof d.kpi_ids === "string" ? JSON.parse(d.kpi_ids || "[]") : (d.kpi_ids || []);
-            return ids.map(String).includes(kpiIdStr);
+            const requirementKpiIds = typeof documentRequirement.kpi_ids === "string" ? JSON.parse(documentRequirement.kpi_ids || "[]") : (documentRequirement.kpi_ids || []);
+            return requirementKpiIds.map(String).includes(kpiIdStr);
           } catch { return false; }
         })
-        .map((d) => String(d.id));
+        .map((documentRequirement) => String(documentRequirement.id));
 
       const approvedForKpi = approvedSubs.filter(
-        (s) =>
-          linkedDocIds.includes(String(s.deliverable_id)) ||
-          linkedDocIds.includes(String(s.document_id)),
+        (submission) =>
+          linkedDocIds.includes(String(submission.deliverable_id)) ||
+          linkedDocIds.includes(String(submission.document_id)),
       );
-      const uniqueApproved = new Set(approvedForKpi.map((s) => s.participant_id)).size;
+      const uniqueApproved = new Set(approvedForKpi.map((submission) => submission.participant_id)).size;
       const completionRate =
         totalParticipants > 0
           ? Math.min(100, Math.round((uniqueApproved / totalParticipants) * 100))
@@ -135,9 +135,9 @@ export async function recalculateKpiProgress(programId, participantId) {
           args: [String(programId)],
         });
         prevRates = new Map(
-          (prevRes.rows || []).map((r) => [
-            String(r.kpi_id),
-            parseFloat(r.completion_rate) || 0,
+          (prevRes.rows || []).map((cachedRow) => [
+            String(cachedRow.kpi_id),
+            parseFloat(cachedRow.completion_rate) || 0,
           ]),
         );
       } catch (_) {}
@@ -146,16 +146,16 @@ export async function recalculateKpiProgress(programId, participantId) {
       // are still computed per indicator above, so the "never downgrade to 0"
       // rule is unchanged; only the number of round trips changes (N → 1).
       const cacheArgs = [];
-      const values = results.map((r) => {
-        const prev = prevRates.get(String(r.kpi_id)) || 0;
-        const rate = r.completion_rate > 0 || prev <= 0 ? r.completion_rate : prev;
+      const values = results.map((progressEntry) => {
+        const prevRate = prevRates.get(String(progressEntry.kpi_id)) || 0;
+        const rate = progressEntry.completion_rate > 0 || prevRate <= 0 ? progressEntry.completion_rate : prevRate;
         cacheArgs.push(
           String(programId),
-          String(r.kpi_id),
-          r.title.substring(0, 255),
+          String(progressEntry.kpi_id),
+          progressEntry.title.substring(0, 255),
           rate,
           totalParticipants,
-          r.approved_count,
+          progressEntry.approved_count,
         );
         return "(?, ?, ?, ?, ?, ?, NOW())";
       });
@@ -173,17 +173,17 @@ export async function recalculateKpiProgress(programId, participantId) {
                   calculated_at = NOW()`,
             args: cacheArgs,
           });
-        } catch (e) {
+        } catch (error) {
           // The cache write is best-effort: the freshly computed values are still
           // returned to the caller (the original behaviour, kept deliberately).
-          console.warn("kpi_progress cache write:", e.message);
+          console.warn("kpi_progress cache write:", error.message);
         }
       }
     }
 
     return results;
-  } catch (e) {
-    console.error("recalculateKpiProgress error:", e.message);
+  } catch (error) {
+    console.error("recalculateKpiProgress error:", error.message);
     return [];
   }
 }
@@ -197,6 +197,20 @@ export async function recalculateKpiProgress(programId, participantId) {
  * single time.
  */
 export const KPI_PROGRESS_MAX_AGE_MS = 5 * 60 * 1000;
+
+/**
+ * How often, per process, this may even ASK whether a program's progress is
+ * stale.
+ *
+ * The read path calls this on every metrics load. The question is one cheap read,
+ * but it is still a round trip per load — and a background one, so it competes
+ * for the same limited connections the response itself needs. Asking at most once
+ * per window per program keeps the safety net (the TTL above still decides
+ * whether anything is recalculated) while removing that per-load round trip. The
+ * worst case is that a genuinely stale figure lingers one extra window.
+ */
+const KPI_PROGRESS_CHECK_INTERVAL_MS = 30 * 1000;
+const lastStaleCheckAt = new Map();
 
 /**
  * Recalculate ONLY when the persisted progress is older than `maxAgeMs`.
@@ -213,20 +227,28 @@ export async function refreshKpiProgressIfStale(
   programId,
   maxAgeMs = KPI_PROGRESS_MAX_AGE_MS,
 ) {
+  const key = String(programId);
+  const now = Date.now();
+  if (now - (lastStaleCheckAt.get(key) || 0) < KPI_PROGRESS_CHECK_INTERVAL_MS) {
+    return { skipped: true, calculatedAt: null };
+  }
+  // Recorded before the check, so a failed read is not retried until the next
+  // window (a broken statement must not become a per-load retry storm).
+  lastStaleCheckAt.set(key, now);
   try {
     const lastRes = await db.execute({
       sql: "SELECT MAX(calculated_at) AS last FROM kpi_progress WHERE program_id = ?",
       args: [String(programId)],
     });
-    const last = lastRes.rows?.[0]?.last || null;
-    const lastMs = last ? new Date(last).getTime() : 0;
-    if (lastMs && Date.now() - lastMs < maxAgeMs) {
-      return { skipped: true, calculatedAt: last };
+    const lastCalculatedAt = lastRes.rows?.[0]?.last || null;
+    const lastCalculatedMs = lastCalculatedAt ? new Date(lastCalculatedAt).getTime() : 0;
+    if (lastCalculatedMs && Date.now() - lastCalculatedMs < maxAgeMs) {
+      return { skipped: true, calculatedAt: lastCalculatedAt };
     }
     const entries = await recalculateKpiProgress(programId);
-    return { skipped: false, entries, calculatedAt: last };
-  } catch (e) {
-    console.warn("refreshKpiProgressIfStale:", e.message);
+    return { skipped: false, entries, calculatedAt: lastCalculatedAt };
+  } catch (error) {
+    console.warn("refreshKpiProgressIfStale:", error.message);
     return { skipped: true, calculatedAt: null };
   }
 }
@@ -236,14 +258,14 @@ export async function refreshKpiProgressIfStale(
  */
 export async function getCachedKpiProgress(programId) {
   try {
-    const res = await db.execute({
+    const result = await db.execute({
       sql: `SELECT kp.*, k.title, k.weight, k.target_value, k.auto_weight
             FROM kpi_progress kp
             JOIN v2_kpis k ON kp.kpi_id::text = k.id::text
             WHERE kp.program_id = ? AND k.program_id::text = ?`,
       args: [programId, programId],
     });
-    return res.rows || [];
+    return result.rows || [];
   } catch {
     return [];
   }

@@ -24,16 +24,16 @@ const EMPTY_OBJECT = {};
  * does not carry a field edits as an empty string, which is what the loader used
  * to write into the form itself.
  */
-const pickStoredForm = (d) =>
-  d?.success && d.venture
+const pickStoredForm = (payload) =>
+  payload?.success && payload.venture
     ? {
-        company_name: d.venture.company_name || "",
-        registration_number: d.venture.registration_number || "",
-        industry: d.venture.industry || "",
-        business_stage: d.venture.business_stage || "",
-        description: d.venture.description || "",
-        website: d.venture.website || "",
-        logo_url: d.venture.logo_url || "",
+        company_name: payload.venture.company_name || "",
+        registration_number: payload.venture.registration_number || "",
+        industry: payload.venture.industry || "",
+        business_stage: payload.venture.business_stage || "",
+        description: payload.venture.description || "",
+        website: payload.venture.website || "",
+        logo_url: payload.venture.logo_url || "",
       }
     : null;
 
@@ -110,15 +110,15 @@ export default function EditVenturePage({ params }) {
     setSuccess(null);
 
     try {
-      const res = await fetch(`/api/ventures/${id}`, {
+      const response = await fetch(`/api/ventures/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
-      if (!res.ok) {
+      if (!response.ok) {
         setSaveError(t((data.error || t("vadmin.edit.saveFailed")) || "") || (data.error || t("vadmin.edit.saveFailed")));
         return;
       }
@@ -221,7 +221,7 @@ export default function EditVenturePage({ params }) {
                 <input
                   type="text"
                   value={form.company_name}
-                  onChange={(e) => handleChange("company_name", e.target.value)}
+                  onChange={(event) => handleChange("company_name", event.target.value)}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                 />
               </div>
@@ -233,7 +233,7 @@ export default function EditVenturePage({ params }) {
                 <input
                   type="text"
                   value={form.registration_number}
-                  onChange={(e) => handleChange("registration_number", e.target.value)}
+                  onChange={(event) => handleChange("registration_number", event.target.value)}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                 />
               </div>
@@ -245,7 +245,7 @@ export default function EditVenturePage({ params }) {
                 <input
                   type="url"
                   value={form.website}
-                  onChange={(e) => handleChange("website", e.target.value)}
+                  onChange={(event) => handleChange("website", event.target.value)}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                 />
               </div>
@@ -256,7 +256,7 @@ export default function EditVenturePage({ params }) {
                 </label>
                 <select
                   value={form.industry}
-                  onChange={(e) => handleChange("industry", e.target.value)}
+                  onChange={(event) => handleChange("industry", event.target.value)}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                 >
                   {INDUSTRIES.map((ind) => (
@@ -271,7 +271,7 @@ export default function EditVenturePage({ params }) {
                 </label>
                 <select
                   value={form.business_stage}
-                  onChange={(e) => handleChange("business_stage", e.target.value)}
+                  onChange={(event) => handleChange("business_stage", event.target.value)}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                 >
                   {BUSINESS_STAGES.map((stage) => (
@@ -286,7 +286,7 @@ export default function EditVenturePage({ params }) {
                 </label>
                 <textarea
                   value={form.description}
-                  onChange={(e) => handleChange("description", e.target.value)}
+                  onChange={(event) => handleChange("description", event.target.value)}
                   rows={4}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all resize-none"
                 />

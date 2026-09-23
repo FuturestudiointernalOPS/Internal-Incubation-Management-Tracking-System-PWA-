@@ -30,6 +30,7 @@ import {
 import { uploadTaskAttachment } from "@/lib/storage";
 import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { notify } from "@/lib/notify";
 
 function cn(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -97,11 +98,6 @@ export default function TaskManager({
   const { t } = useI18n();
   const uid = userId;
 
-  // ── Toast notification helper ──
-  const notify = (type, message) => {
-    window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type, message } }));
-  };
-
   // ── Confirmation dialog state ──
   const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm } or null
   // Get current logged-in user for permission checks. The shell has already
@@ -114,14 +110,14 @@ export default function TaskManager({
   const effectiveWeekInfo = useMemo(() => {
     if (weekInfo?.week && weekInfo?.year) return weekInfo;
     const now = new Date();
-    const d = new Date(now);
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-    const week1 = new Date(d.getFullYear(), 0, 4);
+    const date = new Date(now);
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
+    const week1 = new Date(date.getFullYear(), 0, 4);
     const week =
       1 +
       Math.round(
-        ((d.getTime() - week1.getTime()) / 86400000 -
+        ((date.getTime() - week1.getTime()) / 86400000 -
           3 +
           ((week1.getDay() + 6) % 7)) /
           7,
@@ -196,10 +192,10 @@ export default function TaskManager({
   // Close project dropdown on outside click
   useEffect(() => {
     if (!showProjectDropdown) return;
-    const handler = (e) => {
+    const handler = (event) => {
       if (
         projectDropdownRef.current &&
-        !projectDropdownRef.current.contains(e.target)
+        !projectDropdownRef.current.contains(event.target)
       ) {
         setShowProjectDropdown(false);
       }
@@ -255,8 +251,8 @@ export default function TaskManager({
       });
       const data = await res.json();
       return { success: !!data?.success, error: data?.error };
-    } catch (e) {
-      console.error("Attach file to task error:", e);
+    } catch (error) {
+      console.error("Attach file to task error:", error);
       return { success: false, error: "Upload failed" };
     }
   };
@@ -275,7 +271,7 @@ export default function TaskManager({
   // watching the flag.
   const openTaskForm = useCallback(() => {
     if (mode === "project" && projectId) {
-      setForm((p) => ({ ...p, project_id: String(projectId) }));
+      setForm((previousForm) => ({ ...previousForm, project_id: String(projectId) }));
     }
     setFormOpen(true);
   }, [mode, projectId]);
@@ -283,9 +279,9 @@ export default function TaskManager({
   // Fetch available categories from API
   useEffect(() => {
     fetch("/api/categories")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.success) setAvailableCategories(d.categories.map((c) => c.name));
+      .then((response) => response.json())
+      .then((payload) => {
+        if (payload.success) setAvailableCategories(payload.categories.map((category) => category.name));
       })
       .catch(() => {});
   }, []);
@@ -332,8 +328,8 @@ export default function TaskManager({
         setResourceForm({ name: "", url: "" });
         setResourceFile(null);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setResourceAdding(false);
     }
@@ -354,8 +350,8 @@ export default function TaskManager({
         notify('success', 'Resource removed');
         if (onTasksChange) onTasksChange();
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -378,8 +374,8 @@ export default function TaskManager({
               [taskId]: data.comments || [],
             }));
           }
-        } catch (e) {
-          console.error(e);
+        } catch (error) {
+          console.error(error);
         } finally {
           setLoadingComments(false);
         }
@@ -423,8 +419,8 @@ export default function TaskManager({
           setNewComment("");
           if (onTasksChange) onTasksChange();
         }
-      } catch (e) {
-        console.error(e);
+      } catch (error) {
+        console.error(error);
       } finally {
         setPostingComment(false);
       }
@@ -460,8 +456,8 @@ export default function TaskManager({
         setBlockerNotes("");
         if (onTasksChange) onTasksChange();
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     }
     setBlockerAdding(false);
   };
@@ -480,8 +476,8 @@ export default function TaskManager({
         }),
       });
       if (onTasksChange) onTasksChange();
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -556,18 +552,18 @@ export default function TaskManager({
   const updateStatus = useCallback(
     async (taskId, newStatus) => {
       if (updatingTasks[taskId]) return;
-      setUpdatingTasks((p) => ({ ...p, [taskId]: true }));
+      setUpdatingTasks((previousUpdating) => ({ ...previousUpdating, [taskId]: true }));
       try {
         // If completing parent, cascade to sub-tasks
         if (newStatus === "completed") {
-          const task = tasks.find((t) => t.id === taskId);
+          const task = tasks.find((candidate) => candidate.id === taskId);
           if (task?.subtasks?.length > 0) {
             await Promise.all(
-              task.subtasks.map((st) =>
+              task.subtasks.map((subtask) =>
                 fetch("/api/tasks", {
                   method: "PUT",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ id: st.id, status: "completed" }),
+                  body: JSON.stringify({ id: subtask.id, status: "completed" }),
                 }),
               ),
             );
@@ -584,10 +580,10 @@ export default function TaskManager({
           window.__refreshDashboard?.();
           window.__refreshAdminDashboard?.();
         }
-      } catch (e) {
-        console.error(e);
+      } catch (error) {
+        console.error(error);
       } finally {
-        setUpdatingTasks((p) => ({ ...p, [taskId]: false }));
+        setUpdatingTasks((previousUpdating) => ({ ...previousUpdating, [taskId]: false }));
       }
     },
     [tasks, updatingTasks, onTasksChange],
@@ -664,8 +660,8 @@ export default function TaskManager({
           }
         }
         setTaskFile(null);
-        setForm((p) => ({
-          ...p,
+        setForm((previousForm) => ({
+          ...previousForm,
           name: "",
           start_date: "",
           due_date: "",
@@ -673,17 +669,17 @@ export default function TaskManager({
           due_time: "",
         }));
         setPendingParentTaskId(null);
-        setAddedCount((c) => c + 1);
+        setAddedCount((previousCount) => previousCount + 1);
         if (onTasksChange) onTasksChange();
         if (typeof window !== "undefined") {
           window.__refreshDashboard?.();
           window.__refreshAdminDashboard?.();
         }
       } else {
-        alert(t(data.error || "Failed to create task.") || data.error || "Failed to create task.");
+        notify("error", data.error || t("errors.taskCreateFailed"));
       }
-    } catch (e) {
-      console.error("Create task error:", e);
+    } catch (error) {
+      console.error("Create task error:", error);
       notify(
         "error",
         t("errors.somethingWrong") || "Something went wrong. Please try again.",
@@ -778,8 +774,8 @@ export default function TaskManager({
           window.__refreshAdminDashboard?.();
         }
       }
-    } catch (e) {
-      console.error("Add sub-task error:", e);
+    } catch (error) {
+      console.error("Add sub-task error:", error);
       notify(
         "error",
         t("errors.somethingWrong") || "Something went wrong. Please try again.",
@@ -802,20 +798,20 @@ export default function TaskManager({
 
   // ── Available projects / categories ──
   const selectedProject = projects.find(
-    (p) => String(p.id) === String(form.project_id),
+    (project) => String(project.id) === String(form.project_id),
   );
-  const filteredProjects = projects.filter((p) => {
+  const filteredProjects = projects.filter((project) => {
     if (!projectSearch) return true;
-    return p.name?.toLowerCase().includes(projectSearch.toLowerCase());
+    return project.name?.toLowerCase().includes(projectSearch.toLowerCase());
   });
 
   // ── Tasks grouped by relevance ──
   const filteredTasks = useMemo(() => {
     if (mode === "standup" && effectiveWeekInfo) {
       return tasks.filter(
-        (t) =>
-          t.created_week === effectiveWeekInfo.week &&
-          t.created_year === effectiveWeekInfo.year,
+        (task) =>
+          task.created_week === effectiveWeekInfo.week &&
+          task.created_year === effectiveWeekInfo.year,
       );
     }
     return tasks;
@@ -824,10 +820,10 @@ export default function TaskManager({
   const carryOverTasks = useMemo(
     () =>
       tasks.filter(
-        (t) =>
-          !["completed", "archived"].includes(t.status) &&
-          t.created_week !== effectiveWeekInfo?.week &&
-          !t.parent_task_id,
+        (task) =>
+          !["completed", "archived"].includes(task.status) &&
+          task.created_week !== effectiveWeekInfo?.week &&
+          !task.parent_task_id,
       ),
     [tasks, effectiveWeekInfo],
   );
@@ -836,15 +832,15 @@ export default function TaskManager({
     () =>
       filteredTasks
         .filter(
-          (t) =>
-            t.carried_over_from_task_id === null &&
-            t.status !== "carried_over" &&
-            t.status !== "archived" &&
-            !t.parent_task_id,
+          (task) =>
+            task.carried_over_from_task_id === null &&
+            task.status !== "carried_over" &&
+            task.status !== "archived" &&
+            !task.parent_task_id,
         )
         .sort(
-          (a, b) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+          (leftTask, rightTask) =>
+            new Date(leftTask.created_at).getTime() - new Date(rightTask.created_at).getTime(),
         ),
     [filteredTasks],
   );
@@ -852,13 +848,13 @@ export default function TaskManager({
   // Move task up or down in the active list
   const moveTask = useCallback(
     (taskId, direction) => {
-      const prev = tasks;
-      const idx = prev.findIndex((t) => t.id === taskId);
-      if (idx === -1) return;
-      const targetIdx = direction === "up" ? idx - 1 : idx + 1;
-      if (targetIdx < 0 || targetIdx >= prev.length) return;
-      const updated = [...prev];
-      [updated[idx], updated[targetIdx]] = [updated[targetIdx], updated[idx]];
+      const orderedTasks = tasks;
+      const index = orderedTasks.findIndex((task) => task.id === taskId);
+      if (index === -1) return;
+      const targetIdx = direction === "up" ? index - 1 : index + 1;
+      if (targetIdx < 0 || targetIdx >= orderedTasks.length) return;
+      const updated = [...orderedTasks];
+      [updated[index], updated[targetIdx]] = [updated[targetIdx], updated[index]];
       setLocalOrder({ base: taskList, list: updated });
     },
     [tasks, taskList],
@@ -868,7 +864,7 @@ export default function TaskManager({
   // Track task index for numbering in standup mode
   let taskIndex = 0;
   const renderTaskRow = (task, isSub = false) => {
-    const cfg = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
+    const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
     const isUpdating = updatingTasks[task.id];
 
     return (
@@ -942,7 +938,7 @@ export default function TaskManager({
               {(() => {
                 const total = task.subtasks.length;
                 const done = task.subtasks.filter(
-                  (s) => s.status === "completed",
+                  (subtask) => subtask.status === "completed",
                 ).length;
                 const allDone = done === total;
                 return (
@@ -1005,7 +1001,7 @@ export default function TaskManager({
               <span className="text-slate-500">
                 {task.project_id
                   ? projects.find(
-                      (p) => String(p.id) === String(task.project_id),
+                      (project) => String(project.id) === String(task.project_id),
                     )?.name
                   : task.category || ""}
               </span>
@@ -1029,13 +1025,13 @@ export default function TaskManager({
           {!isSub && (
             <select
               value={task.status || "pending"}
-              onChange={(e) => updateStatus(task.id, e.target.value)}
+              onChange={(event) => updateStatus(task.id, event.target.value)}
               disabled={readOnly}
-              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border-0 outline-none appearance-none shrink-0 ${readOnly ? "opacity-60 cursor-not-allowed" : "cursor-pointer"} ${cfg.bg} ${cfg.color}`}
+              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border-0 outline-none appearance-none shrink-0 ${readOnly ? "opacity-60 cursor-not-allowed" : "cursor-pointer"} ${statusConfig.bg} ${statusConfig.color}`}
             >
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value} className="bg-primary">
-                  {o.label}
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value} className="bg-primary">
+                  {option.label}
                 </option>
               ))}
             </select>
@@ -1046,20 +1042,20 @@ export default function TaskManager({
             onClick={() =>
               setBlockerModal({ taskId: task.id, taskTitle: task.title })
             }
-            className={`shrink-0 transition-all ${(task.blockers || []).filter((b) => b.status === "active").length > 0 ? "text-rose-400" : "text-slate-500 hover:text-rose-400"}`}
+            className={`shrink-0 transition-all ${(task.blockers || []).filter((blocker) => blocker.status === "active").length > 0 ? "text-rose-400" : "text-slate-500 hover:text-rose-400"}`}
             title={
-              (task.blockers || []).filter((b) => b.status === "active")
+              (task.blockers || []).filter((blocker) => blocker.status === "active")
                 .length > 0
-                ? `${(task.blockers || []).filter((b) => b.status === "active").length} active blocker(s)`
+                ? `${(task.blockers || []).filter((blocker) => blocker.status === "active").length} active blocker(s)`
                 : "Add blocker"
             }
           >
             <Shield className="w-3 h-3" />
-            {(task.blockers || []).filter((b) => b.status === "active").length >
+            {(task.blockers || []).filter((blocker) => blocker.status === "active").length >
               0 && (
               <span className="text-[10px] font-bold ml-0.5">
                 {
-                  (task.blockers || []).filter((b) => b.status === "active")
+                  (task.blockers || []).filter((blocker) => blocker.status === "active")
                     .length
                 }
               </span>
@@ -1251,24 +1247,24 @@ export default function TaskManager({
           <div
             className={`mt-1 flex flex-col gap-1 ${isSub ? "ml-10" : "ml-8"}`}
           >
-            {task.resources.map((r) => (
-              <div key={r.id} className="flex items-center gap-2 group">
+            {task.resources.map((resource) => (
+              <div key={resource.id} className="flex items-center gap-2 group">
                 <a
-                  href={r.url}
+                  href={resource.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[10px] text-[var(--brand-orange)] hover:underline flex items-center gap-1 max-w-[200px] truncate"
                 >
-                  {r.type === "file" ? (
+                  {resource.type === "file" ? (
                     <Paperclip className="w-2.5 h-2.5 shrink-0" />
                   ) : (
                     <LinkIcon className="w-2.5 h-2.5 shrink-0" />
                   )}
-                  {r.name || r.url}
+                  {resource.name || resource.url}
                 </a>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(r.url);
+                    navigator.clipboard.writeText(resource.url);
                     notify('info', "URL copied!");
                   }}
                   className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-emerald-400 transition-opacity"
@@ -1278,7 +1274,7 @@ export default function TaskManager({
                 </button>
                 {!readOnly && (
                   <button
-                    onClick={() => handleDeleteResource(r.id)}
+                    onClick={() => handleDeleteResource(resource.id)}
                     className="text-slate-400 hover:text-rose-400 transition-colors"
                     title="Remove resource"
                   >
@@ -1298,8 +1294,8 @@ export default function TaskManager({
               type="text"
               placeholder="Resource Name (optional)"
               value={resourceForm.name}
-              onChange={(e) =>
-                setResourceForm((p) => ({ ...p, name: e.target.value }))
+              onChange={(event) =>
+                setResourceForm((previousForm) => ({ ...previousForm, name: event.target.value }))
               }
               className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[10px] outline-none"
             />
@@ -1307,8 +1303,8 @@ export default function TaskManager({
               type="url"
               placeholder="https://..."
               value={resourceForm.url}
-              onChange={(e) =>
-                setResourceForm((p) => ({ ...p, url: e.target.value }))
+              onChange={(event) =>
+                setResourceForm((previousForm) => ({ ...previousForm, url: event.target.value }))
               }
               className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[10px] outline-none"
               autoFocus
@@ -1316,7 +1312,7 @@ export default function TaskManager({
             <input
               type="file"
               accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-              onChange={(e) => setResourceFile(e.target.files?.[0] || null)}
+              onChange={(event) => setResourceFile(event.target.files?.[0] || null)}
               className="w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-[var(--brand-orange)] file:text-black"
             />
             <div className="flex gap-1 justify-end">
@@ -1381,13 +1377,13 @@ export default function TaskManager({
               </p>
             ) : (
               <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
-                {(commentsByTask[task.id] || []).map((c) => (
-                  <div key={c.id} className="text-[10px]">
+                {(commentsByTask[task.id] || []).map((comment) => (
+                  <div key={comment.id} className="text-[10px]">
                     <span className="font-black text-[var(--text-primary)]">
-                      {c.sender_name || c.sender_id}:{" "}
+                      {comment.sender_name || comment.sender_id}:{" "}
                     </span>
                     <span className="text-[var(--text-secondary)]">
-                      {c.body}
+                      {comment.body}
                     </span>
                   </div>
                 ))}
@@ -1398,9 +1394,9 @@ export default function TaskManager({
                 <input
                   type="text"
                   value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") postComment(task.id);
+                  onChange={(event) => setNewComment(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") postComment(task.id);
                   }}
                   placeholder="Write a comment..."
                   className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[10px] outline-none"
@@ -1420,7 +1416,7 @@ export default function TaskManager({
         {/* Sub-tasks — always visible under parent */}
         {!isSub && task.subtasks?.length > 0 && (
           <div className="mt-1 ml-4 pl-3 border-l-2 border-indigo-500/20 space-y-0.5">
-            {task.subtasks.map((st) => renderTaskRow(st, true))}
+            {task.subtasks.map((subtask) => renderTaskRow(subtask, true))}
           </div>
         )}
       </div>
@@ -1438,7 +1434,7 @@ export default function TaskManager({
             {carryOverTasks.length})
           </h4>
           <div className="space-y-0.5">
-            {carryOverTasks.map((t) => renderTaskRow(t))}
+            {carryOverTasks.map((task) => renderTaskRow(task))}
           </div>
         </div>
       )}
@@ -1450,7 +1446,7 @@ export default function TaskManager({
             Tasks ({activeTasks.length})
           </h4>
           <div className="space-y-0.5">
-            {activeTasks.map((t) => renderTaskRow(t))}
+            {activeTasks.map((task) => renderTaskRow(task))}
           </div>
         </div>
       )}
@@ -1482,7 +1478,7 @@ export default function TaskManager({
           {/* Task name */}
           <input
             value={form.name}
-            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            onChange={(event) => setForm((previousForm) => ({ ...previousForm, name: event.target.value }))}
             placeholder="What are you working on?"
             className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
           />
@@ -1490,8 +1486,8 @@ export default function TaskManager({
           {/* Description */}
           <textarea
             value={form.description || ""}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, description: e.target.value }))
+            onChange={(event) =>
+              setForm((previousForm) => ({ ...previousForm, description: event.target.value }))
             }
             placeholder="Description (optional)"
             rows={2}
@@ -1512,7 +1508,7 @@ export default function TaskManager({
                       {selectedProject?.name || form.project_id}
                     </span>
                     <button
-                      onClick={() => setForm((p) => ({ ...p, project_id: "" }))}
+                      onClick={() => setForm((previousForm) => ({ ...previousForm, project_id: "" }))}
                     >
                       <X className="w-3 h-3 text-slate-500" />
                     </button>
@@ -1521,8 +1517,8 @@ export default function TaskManager({
                   <div>
                     <input
                       value={projectSearch}
-                      onChange={(e) => {
-                        setProjectSearch(e.target.value);
+                      onChange={(event) => {
+                        setProjectSearch(event.target.value);
                         setShowProjectDropdown(true);
                       }}
                       onFocus={() => setShowProjectDropdown(true)}
@@ -1536,13 +1532,13 @@ export default function TaskManager({
                             No projects
                           </p>
                         ) : (
-                          filteredProjects.map((p) => (
+                          filteredProjects.map((project) => (
                             <button
-                              key={p.id}
+                              key={project.id}
                               onClick={() => {
-                                setForm((f) => ({
-                                  ...f,
-                                  project_id: p.id,
+                                setForm((previousForm) => ({
+                                  ...previousForm,
+                                  project_id: project.id,
                                   category: "",
                                 }));
                                 setProjectSearch("");
@@ -1550,7 +1546,7 @@ export default function TaskManager({
                               }}
                               className="w-full text-left px-3 py-1.5 hover:bg-tertiary text-[10px] font-bold"
                             >
-                              {p.name}
+                              {project.name}
                             </button>
                           ))
                         )}
@@ -1567,26 +1563,26 @@ export default function TaskManager({
                 </label>
                 <select
                   value={form.category}
-                  onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      category: e.target.value,
+                  onChange={(event) =>
+                    setForm((previousForm) => ({
+                      ...previousForm,
+                      category: event.target.value,
                       // Only clear project_id when no project is already assigned
-                      project_id: (!p.project_id && e.target.value) ? "" : p.project_id,
+                      project_id: (!previousForm.project_id && event.target.value) ? "" : previousForm.project_id,
                     }))
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold text-purple-400 outline-none appearance-none cursor-pointer"
                 >
                   <option value="">—</option>
                   {availableCategories.length > 0
-                    ? availableCategories.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
+                    ? availableCategories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
                         </option>
                       ))
-                    : CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
+                    : CATEGORIES.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
                         </option>
                       ))}
                 </select>
@@ -1615,18 +1611,18 @@ export default function TaskManager({
                 </label>
                 <select
                   value={form.assigned_to || ""}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, assigned_to: e.target.value }))
+                  onChange={(event) =>
+                    setForm((previousForm) => ({ ...previousForm, assigned_to: event.target.value }))
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold text-emerald-400 outline-none appearance-none cursor-pointer"
                 >
                   <option value="">Self</option>
-                  {projectMembers.map((m) => (
+                  {projectMembers.map((member) => (
                     <option
-                      key={m.member_id || m.user_cid}
-                      value={m.member_id || m.user_cid}
+                      key={member.member_id || member.user_cid}
+                      value={member.member_id || member.user_cid}
                     >
-                      {m.name || m.member_id}
+                      {member.name || member.member_id}
                     </option>
                   ))}
                 </select>
@@ -1638,17 +1634,17 @@ export default function TaskManager({
               </label>
               <select
                 value={form.priority || "medium"}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, priority: e.target.value }))
+                onChange={(event) =>
+                  setForm((previousForm) => ({ ...previousForm, priority: event.target.value }))
                 }
                 className={cn(
                   "w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none appearance-none cursor-pointer",
                   PRIORITY_CONFIG[form.priority || "medium"]?.color,
                 )}
               >
-                {PRIORITY_OPTIONS.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
+                {PRIORITY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>
@@ -1660,8 +1656,8 @@ export default function TaskManager({
             <input
               type="date"
               value={form.start_date}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, start_date: e.target.value }))
+              onChange={(event) =>
+                setForm((previousForm) => ({ ...previousForm, start_date: event.target.value }))
               }
               min={(() => {
                 const today = new Date().toISOString().split("T")[0];
@@ -1672,10 +1668,10 @@ export default function TaskManager({
             <input
               type="date"
               value={form.due_date}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, due_date: e.target.value }))
+              onChange={(event) =>
+                setForm((previousForm) => ({ ...previousForm, due_date: event.target.value }))
               }
-              min={form.start_date || (() => { const t = new Date().toISOString().split("T")[0]; return t; })()}
+              min={form.start_date || (() => { const today = new Date().toISOString().split("T")[0]; return today; })()}
               className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none"
             />
           </div>
@@ -1688,7 +1684,7 @@ export default function TaskManager({
             <input
               type="url"
               value={form.link}
-              onChange={(e) => setForm((p) => ({ ...p, link: e.target.value }))}
+              onChange={(event) => setForm((previousForm) => ({ ...previousForm, link: event.target.value }))}
               placeholder="https://..."
               className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
             />
@@ -1701,9 +1697,9 @@ export default function TaskManager({
             </label>
             <input
               type="file"
-              onChange={(e) => {
-                setTaskFile(e.target.files?.[0] || null);
-                e.target.value = "";
+              onChange={(event) => {
+                setTaskFile(event.target.files?.[0] || null);
+                event.target.value = "";
               }}
               className="w-full text-[10px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
             />
@@ -1769,7 +1765,7 @@ export default function TaskManager({
         >
           <div
             className="card w-full max-w-md space-y-4 max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1793,44 +1789,44 @@ export default function TaskManager({
             {/* Existing sub-tasks */}
             {(() => {
               const parentTask = tasks.find(
-                (t) => String(t.id) === String(subTaskModal.id),
+                (candidate) => String(candidate.id) === String(subTaskModal.id),
               );
-              const subs = parentTask?.subtasks || [];
-              if (subs.length === 0) return null;
+              const subtasks = parentTask?.subtasks || [];
+              if (subtasks.length === 0) return null;
               return (
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">
-                    Existing sub-tasks ({subs.length})
+                    Existing sub-tasks ({subtasks.length})
                   </p>
                   <div className="space-y-1 max-h-32 overflow-y-auto">
-                    {subs.map((st) => (
+                    {subtasks.map((subtask) => (
                       <div
-                        key={st.id}
+                        key={subtask.id}
                         className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)]"
                       >
                         <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
                         <span className="text-[10px] font-bold text-[var(--text-primary)] truncate">
-                          {st.title}
+                          {subtask.title}
                         </span>
                         <span
                           className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                            st.status === "completed"
+                            subtask.status === "completed"
                               ? "bg-emerald-500/10 text-emerald-400"
                               : "bg-slate-500/10 text-slate-400"
                           }`}
                         >
-                          {st.status === "completed"
+                          {subtask.status === "completed"
                             ? "Done"
-                            : st.status?.replace(/_/g, " ") || "Pending"}
+                            : subtask.status?.replace(/_/g, " ") || "Pending"}
                         </span>
                         <button
                           onClick={() => {
                             setConfirmAction({
-                              message: `Delete subtask "${st.title}"?`,
+                              message: `Delete subtask "${subtask.title}"?`,
                               onConfirm: async () => {
                                 try {
                                   const res = await fetch(
-                                    `/api/tasks?id=${st.id}`,
+                                    `/api/tasks?id=${subtask.id}`,
                                     {
                                       method: "DELETE",
                                     },
@@ -1878,9 +1874,9 @@ export default function TaskManager({
               <input
                 type="text"
                 value={subTaskInput}
-                onChange={(e) => setSubTaskInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) addSubTaskFromModal();
+                onChange={(event) => setSubTaskInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) addSubTaskFromModal();
                 }}
                 placeholder="Enter sub-task name..."
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
@@ -1888,7 +1884,7 @@ export default function TaskManager({
               />
               <textarea
                 value={subTaskDescription}
-                onChange={(e) => setSubTaskDescription(e.target.value)}
+                onChange={(event) => setSubTaskDescription(event.target.value)}
                 placeholder="Description (optional)..."
                 rows={2}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
@@ -1897,31 +1893,31 @@ export default function TaskManager({
                 {projectMembers.length > 0 && (
                   <select
                     value={subTaskAssignedTo}
-                    onChange={(e) => setSubTaskAssignedTo(e.target.value)}
+                    onChange={(event) => setSubTaskAssignedTo(event.target.value)}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-emerald-400 outline-none appearance-none cursor-pointer"
                   >
                     <option value="">Assign: Self</option>
-                    {projectMembers.map((m) => (
+                    {projectMembers.map((member) => (
                       <option
-                        key={m.member_id || m.user_cid}
-                        value={m.member_id || m.user_cid}
+                        key={member.member_id || member.user_cid}
+                        value={member.member_id || member.user_cid}
                       >
-                        {m.name || m.member_id}
+                        {member.name || member.member_id}
                       </option>
                     ))}
                   </select>
                 )}
                 <select
                   value={subTaskPriority}
-                  onChange={(e) => setSubTaskPriority(e.target.value)}
+                  onChange={(event) => setSubTaskPriority(event.target.value)}
                   className={cn(
                     "w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none appearance-none cursor-pointer",
                     PRIORITY_CONFIG[subTaskPriority]?.color,
                   )}
                 >
-                  {PRIORITY_OPTIONS.map((p) => (
-                    <option key={p.value} value={p.value}>
-                      {p.label} Priority
+                  {PRIORITY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label} Priority
                     </option>
                   ))}
                 </select>
@@ -1930,14 +1926,14 @@ export default function TaskManager({
                 <input
                   type="date"
                   value={subTaskStartDate}
-                  onChange={(e) => setSubTaskStartDate(e.target.value)}
+                  onChange={(event) => setSubTaskStartDate(event.target.value)}
                   min={new Date().toISOString().split("T")[0]}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
                 <input
                   type="date"
                   value={subTaskEndDate}
-                  onChange={(e) => setSubTaskEndDate(e.target.value)}
+                  onChange={(event) => setSubTaskEndDate(event.target.value)}
                   min={subTaskStartDate || new Date().toISOString().split("T")[0]}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
@@ -1945,7 +1941,7 @@ export default function TaskManager({
               <input
                 type="url"
                 value={subTaskLink}
-                onChange={(e) => setSubTaskLink(e.target.value)}
+                onChange={(event) => setSubTaskLink(event.target.value)}
                 placeholder="Link (optional)..."
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
               />
@@ -1955,9 +1951,9 @@ export default function TaskManager({
                 </label>
                 <input
                   type="file"
-                  onChange={(e) => {
-                    setSubTaskFile(e.target.files?.[0] || null);
-                    e.target.value = "";
+                  onChange={(event) => {
+                    setSubTaskFile(event.target.files?.[0] || null);
+                    event.target.value = "";
                   }}
                   className="w-full text-[10px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
                 />
@@ -2007,7 +2003,7 @@ export default function TaskManager({
         >
           <div
             className="card w-full max-w-lg space-y-4 max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -2025,16 +2021,16 @@ export default function TaskManager({
               <input
                 type="text"
                 value={editForm.name}
-                onChange={(e) =>
-                  setEditForm((p) => ({ ...p, name: e.target.value }))
+                onChange={(event) =>
+                  setEditForm((previousForm) => ({ ...previousForm, name: event.target.value }))
                 }
                 placeholder="Task name"
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all font-bold"
               />
               <textarea
                 value={editForm.description}
-                onChange={(e) =>
-                  setEditForm((p) => ({ ...p, description: e.target.value }))
+                onChange={(event) =>
+                  setEditForm((previousForm) => ({ ...previousForm, description: event.target.value }))
                 }
                 placeholder="Description (optional)"
                 rows={2}
@@ -2048,8 +2044,8 @@ export default function TaskManager({
                 <input
                   type="url"
                   value={editForm.link || ""}
-                  onChange={(e) =>
-                    setEditForm((p) => ({ ...p, link: e.target.value }))
+                  onChange={(event) =>
+                    setEditForm((previousForm) => ({ ...previousForm, link: event.target.value }))
                   }
                   placeholder="https://..."
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
@@ -2062,17 +2058,17 @@ export default function TaskManager({
                 </label>
                 <select
                   value={editForm.priority || "medium"}
-                  onChange={(e) =>
-                    setEditForm((p) => ({ ...p, priority: e.target.value }))
+                  onChange={(event) =>
+                    setEditForm((previousForm) => ({ ...previousForm, priority: event.target.value }))
                   }
                   className={cn(
                     "w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all font-bold appearance-none cursor-pointer",
                     PRIORITY_CONFIG[editForm.priority || "medium"]?.color,
                   )}
                 >
-                  {PRIORITY_OPTIONS.map((p) => (
-                    <option key={p.value} value={p.value}>
-                      {p.label}
+                  {PRIORITY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -2086,21 +2082,21 @@ export default function TaskManager({
                   </label>
                   <select
                     value={editForm.assigned_to || ""}
-                    onChange={(e) =>
-                      setEditForm((p) => ({
-                        ...p,
-                        assigned_to: e.target.value,
+                    onChange={(event) =>
+                      setEditForm((previousForm) => ({
+                        ...previousForm,
+                        assigned_to: event.target.value,
                       }))
                     }
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all font-bold text-emerald-400"
                   >
                     <option value="">Self</option>
-                    {projectMembers.map((m) => (
+                    {projectMembers.map((member) => (
                       <option
-                        key={m.member_id || m.user_cid}
-                        value={m.member_id || m.user_cid}
+                        key={member.member_id || member.user_cid}
+                        value={member.member_id || member.user_cid}
                       >
-                        {m.name || m.member_id}
+                        {member.name || member.member_id}
                       </option>
                     ))}
                   </select>
@@ -2115,8 +2111,8 @@ export default function TaskManager({
                   <input
                     type="date"
                     value={editForm.start_date}
-                    onChange={(e) =>
-                      setEditForm((p) => ({ ...p, start_date: e.target.value }))
+                    onChange={(event) =>
+                      setEditForm((previousForm) => ({ ...previousForm, start_date: event.target.value }))
                     }
                     min={(() => {
                       if (
@@ -2158,8 +2154,8 @@ export default function TaskManager({
                   <input
                     type="date"
                     value={editForm.due_date}
-                    onChange={(e) =>
-                      setEditForm((p) => ({ ...p, due_date: e.target.value }))
+                    onChange={(event) =>
+                      setEditForm((previousForm) => ({ ...previousForm, due_date: event.target.value }))
                     }
                     min={editForm.start_date || ""}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold outline-none"
@@ -2203,9 +2199,9 @@ export default function TaskManager({
                     } else {
                       notify('error', t(data.error || "Failed to save task.") || data.error || "Failed to save task.");
                     }
-                  } catch (e) {
+                  } catch (error) {
                     notify('error', "Network error saving task.");
-                    console.error(e);
+                    console.error(error);
                   }
                 }}
                 disabled={!editForm.name.trim()}
@@ -2235,7 +2231,7 @@ export default function TaskManager({
         >
           <div
             className="w-full max-w-sm bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -2261,12 +2257,12 @@ export default function TaskManager({
             {/* Existing blockers */}
             {(() => {
               const taskBlockers =
-                tasks.find((t) => t.id === blockerModal.taskId)?.blockers || [];
+                tasks.find((candidate) => candidate.id === blockerModal.taskId)?.blockers || [];
               const activeBlockers = taskBlockers.filter(
-                (b) => b.status === "active",
+                (blocker) => blocker.status === "active",
               );
               const resolvedBlockers = taskBlockers.filter(
-                (b) => b.status !== "active",
+                (blocker) => blocker.status !== "active",
               );
               return (
                 <>
@@ -2275,30 +2271,30 @@ export default function TaskManager({
                       <p className="text-[10px] font-bold uppercase tracking-widest text-rose-400">
                         Active ({activeBlockers.length})
                       </p>
-                      {activeBlockers.map((b) => (
+                      {activeBlockers.map((blocker) => (
                         <div
-                          key={b.id}
+                          key={blocker.id}
                           className="flex flex-col p-2 rounded-lg bg-rose-500/10 border border-rose-500/20"
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] text-rose-400 font-bold">
-                                {b.title}
+                                {blocker.title}
                               </span>
                               <span className="text-[10px] font-bold uppercase text-rose-500/60">
-                                {b.severity || "medium"}
+                                {blocker.severity || "medium"}
                               </span>
                             </div>
                             <div className="flex items-center gap-1">
                               <button
-                                onClick={() => toggleBlockerDiscuss(b.id)}
+                                onClick={() => toggleBlockerDiscuss(blocker.id)}
                                 className="px-2 py-0.5 text-[10px] font-bold uppercase bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500 hover:text-white transition-all"
                               >
                                 Discuss
                               </button>
                               {!readOnly && (
                                 <button
-                                  onClick={() => handleResolveBlocker(b.id)}
+                                  onClick={() => handleResolveBlocker(blocker.id)}
                                   className="px-2 py-0.5 text-[10px] font-bold uppercase bg-rose-500/20 text-rose-400 rounded hover:bg-rose-500 hover:text-white transition-all"
                                 >
                                   Resolve
@@ -2306,40 +2302,40 @@ export default function TaskManager({
                               )}
                             </div>
                           </div>
-                          {(b.description || b.reference_url || b.notes) && (
+                          {(blocker.description || blocker.reference_url || blocker.notes) && (
                             <div className="mt-1.5 pt-1.5 border-t border-rose-500/10 space-y-1">
-                              {b.description && (
+                              {blocker.description && (
                                 <p className="text-[10px] font-medium text-slate-400">
-                                  {b.description}
+                                  {blocker.description}
                                 </p>
                               )}
-                              {b.reference_url && (
+                              {blocker.reference_url && (
                                 <a
-                                  href={b.reference_url}
+                                  href={blocker.reference_url}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-[10px] text-blue-400 underline break-all"
                                 >
-                                  {b.reference_url}
+                                  {blocker.reference_url}
                                 </a>
                               )}
-                              {b.notes && (
+                              {blocker.notes && (
                                 <p className="text-[10px] font-medium text-slate-500">
-                                  {b.notes}
+                                  {blocker.notes}
                                 </p>
                               )}
                             </div>
                           )}
                           {/* Discussion thread */}
-                          {openBlockerDiscuss === b.id && (
+                          {openBlockerDiscuss === blocker.id && (
                             <div className="mt-2 pt-2 border-t border-rose-500/10 space-y-1.5">
-                              {(blockerMessages[b.id] || []).map((msg) => (
-                                <div key={msg.id} className="text-[10px]">
+                              {(blockerMessages[blocker.id] || []).map((message) => (
+                                <div key={message.id} className="text-[10px]">
                                   <span className="font-black text-[var(--text-primary)]">
-                                    {msg.sender_name || msg.sender_id}:{" "}
+                                    {message.sender_name || message.sender_id}:{" "}
                                   </span>
                                   <span className="text-[var(--text-secondary)]">
-                                    {msg.body}
+                                    {message.body}
                                   </span>
                                 </div>
                               ))}
@@ -2348,18 +2344,18 @@ export default function TaskManager({
                                   <input
                                     type="text"
                                     value={newBlockerMsg}
-                                    onChange={(e) =>
-                                      setNewBlockerMsg(e.target.value)
+                                    onChange={(event) =>
+                                      setNewBlockerMsg(event.target.value)
                                     }
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter")
-                                        postBlockerMessage(b.id);
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter")
+                                        postBlockerMessage(blocker.id);
                                     }}
                                     placeholder="Reply..."
                                     className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[10px] outline-none"
                                   />
                                   <button
-                                    onClick={() => postBlockerMessage(b.id)}
+                                    onClick={() => postBlockerMessage(blocker.id)}
                                     disabled={
                                       !newBlockerMsg.trim() || postingBlockerMsg
                                     }
@@ -2380,13 +2376,13 @@ export default function TaskManager({
                       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                         Resolved ({resolvedBlockers.length})
                       </p>
-                      {resolvedBlockers.map((b) => (
+                      {resolvedBlockers.map((blocker) => (
                         <div
-                          key={b.id}
+                          key={blocker.id}
                           className="flex items-center p-2 rounded-lg bg-slate-500/10"
                         >
                           <span className="text-[10px] text-slate-400 font-bold line-through">
-                            {b.title}
+                            {blocker.title}
                           </span>
                         </div>
                       ))}
@@ -2402,14 +2398,14 @@ export default function TaskManager({
                 <input
                   type="text"
                   value={blockerTitle}
-                  onChange={(e) => setBlockerTitle(e.target.value)}
+                  onChange={(event) => setBlockerTitle(event.target.value)}
                   placeholder={t("staff.opReport.blockerTitlePlaceholder")}
                   className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold outline-none focus:border-rose-500/50"
                   autoFocus
                 />
                 <textarea
                   value={blockerDescription}
-                  onChange={(e) => setBlockerDescription(e.target.value)}
+                  onChange={(event) => setBlockerDescription(event.target.value)}
                   placeholder={t(
                     "staff.opReport.blockerDescriptionPlaceholder",
                   )}
@@ -2419,7 +2415,7 @@ export default function TaskManager({
                 <div className="flex gap-2">
                   <select
                     value={blockerPriority}
-                    onChange={(e) => setBlockerPriority(e.target.value)}
+                    onChange={(event) => setBlockerPriority(event.target.value)}
                     className="flex-1 px-2 py-1.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold outline-none"
                   >
                     <option value="low">
@@ -2438,7 +2434,7 @@ export default function TaskManager({
                   <input
                     type="url"
                     value={blockerRefUrl}
-                    onChange={(e) => setBlockerRefUrl(e.target.value)}
+                    onChange={(event) => setBlockerRefUrl(event.target.value)}
                     placeholder={t(
                       "staff.opReport.blockerReferenceUrlPlaceholder",
                     )}
@@ -2447,7 +2443,7 @@ export default function TaskManager({
                 </div>
                 <textarea
                   value={blockerNotes}
-                  onChange={(e) => setBlockerNotes(e.target.value)}
+                  onChange={(event) => setBlockerNotes(event.target.value)}
                   placeholder={t("staff.opReport.blockerNotesPlaceholder")}
                   rows={2}
                   className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] outline-none focus:border-rose-500/50 resize-none"
@@ -2475,7 +2471,7 @@ export default function TaskManager({
         >
           <div
             className="card w-full max-w-sm space-y-4 max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center gap-3">
               <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
@@ -2491,9 +2487,9 @@ export default function TaskManager({
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => {
-                  const cb = confirmAction.onConfirm;
+                  const onConfirm = confirmAction.onConfirm;
                   setConfirmAction(null);
-                  cb();
+                  onConfirm();
                 }}
                 className="flex-1 px-4 py-2.5 bg-rose-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-rose-600 transition-all"
               >

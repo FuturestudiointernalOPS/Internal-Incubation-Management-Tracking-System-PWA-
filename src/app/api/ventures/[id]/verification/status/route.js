@@ -31,11 +31,11 @@ export const PATCH = createHandler(
       return NextResponse.json({ success: false, error: "Status must be verified, rejected, or suspended." }, { status: 400 });
     }
 
-    const data = await getOrCreateVerification(id);
+    const verification = await getOrCreateVerification(id);
 
     try {
       const result = await updateVerificationStatus({
-        verificationId: data.verification.id,
+        verificationId: verification.verification.id,
         ventureId: id,
         newStatus,
         category,
@@ -44,8 +44,8 @@ export const PATCH = createHandler(
         notes,
       });
       return NextResponse.json({ success: true, ...result });
-    } catch (e) {
-      return NextResponse.json({ success: false, error: e.message }, { status: 400 });
+    } catch (error) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
   },
 );

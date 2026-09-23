@@ -64,6 +64,12 @@
     "allPrograms": "Tous les Programmes",
     "due": "Échéance :",
     "project": "Projet :",
+    "dialog": {
+      "confirmTitle": "Confirmer l'action",
+      "promptTitle": "Saisir une valeur",
+      "noticeTitle": "Information",
+      "required": "Ce champ est obligatoire."
+    },
     "workspaces": {
       "title": "Mes espaces de travail",
       "subtitle": "Programmes et modules qui vous sont affectés.",

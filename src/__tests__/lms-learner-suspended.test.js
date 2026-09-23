@@ -19,7 +19,7 @@ jest.mock("@/lib/db", () => ({
         const rows = [
           { id: 1, user_cid: "U1", course_id: "C1", status: "active", enrolled_at: "2026-01-01" },
           { id: 2, user_cid: "U1", course_id: "C2", status: "suspended", enrolled_at: "2026-01-02" },
-        ].filter((r) => !(sql.includes("status <> 'suspended'") && r.status === "suspended"));
+        ].filter((enrollment) => !(sql.includes("status <> 'suspended'") && enrollment.status === "suspended"));
         return { rows };
       }
       return { rows: [] };
@@ -48,8 +48,8 @@ test("the suspended course is never resolved (only the active one is looked up)"
   await getLearnerCourses("U1");
 
   const courseLookup = db.execute.mock.calls
-    .map(([q]) => q)
-    .find((q) => /FROM lms_courses/.test(q.sql));
+    .map(([call]) => call)
+    .find((call) => /FROM lms_courses/.test(call.sql));
 
   expect(courseLookup).toBeDefined();
   expect(courseLookup.args).toEqual(["C1"]);

@@ -12,15 +12,15 @@ function jsonToCsv(rows) {
   const headers = Object.keys(rows[0]);
   const csvRows = [headers.join(",")];
   for (const row of rows) {
-    const values = headers.map((h) => {
-      const val = row[h];
-      if (val === null || val === undefined) return "";
-      const str = String(val);
+    const values = headers.map((header) => {
+      const cellValue = row[header];
+      if (cellValue === null || cellValue === undefined) return "";
+      const stringValue = String(cellValue);
       // Escape commas and quotes
-      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-        return `"${str.replace(/"/g, '""')}"`;
+      if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
       }
-      return str;
+      return stringValue;
     });
     csvRows.push(values.join(","));
   }
@@ -85,13 +85,13 @@ export async function GET(req) {
       for (const row of rows) {
         if (!row.scheduled_date) continue;
         const dt = new Date(row.scheduled_date);
-        const d = dt.toISOString().split("T")[0].replace(/-/g, "");
+        const datePart = dt.toISOString().split("T")[0].replace(/-/g, "");
         const start = (row.start_time || "09:00").replace(/:/g, "") + "00";
         const end = (row.end_time || "12:00").replace(/:/g, "") + "00";
         const tz = row.timezone || "Europe/Paris";
         icsLines.push("BEGIN:VEVENT");
-        icsLines.push(`DTSTART;TZID=${tz}:${d}T${start}`);
-        icsLines.push(`DTEND;TZID=${tz}:${d}T${end}`);
+        icsLines.push(`DTSTART;TZID=${tz}:${datePart}T${start}`);
+        icsLines.push(`DTEND;TZID=${tz}:${datePart}T${end}`);
         icsLines.push(`SUMMARY:${row.summary || "Session"}`);
         if (row.description) icsLines.push(`DESCRIPTION:${row.description.replace(/[,\n]/g, " ")}`);
         icsLines.push("END:VEVENT");
@@ -124,8 +124,8 @@ export async function GET(req) {
         "Cache-Control": "no-cache",
       },
     });
-  } catch (e) {
-    console.error("Export error:", e);
+  } catch (error) {
+    console.error("Export error:", error);
     return NextResponse.json({ error: "Export failed" }, { status: 500 });
   }
 }

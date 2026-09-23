@@ -13,16 +13,16 @@ async function fix() {
       args: [],
     });
     console.log("  ✅ program_id constraint removed");
-  } catch (e) {
-    console.log("  ⚠️  Could not alter column:", e.message);
+  } catch (error) {
+    console.log("  ⚠️  Could not alter column:", error.message);
     console.log("  Trying alternative approach...");
     try {
       await db.execute({
         sql: "ALTER TABLE v2_projects ALTER COLUMN program_id DROP NOT NULL",
         args: [],
       });
-    } catch (e2) {
-      console.log("  ❌ Failed:", e2.message);
+    } catch (retryError) {
+      console.log("  ❌ Failed:", retryError.message);
     }
   }
   console.log("\nDone.");

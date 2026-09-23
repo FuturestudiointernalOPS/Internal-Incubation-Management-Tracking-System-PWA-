@@ -35,14 +35,14 @@ export async function GET(req) {
 
     if (workspaceId) {
       // Single workspace detail with meetings + timeline
-      const [ws, meetings, timeline] = await Promise.all([
+      const [workspaceResult, meetings, timeline] = await Promise.all([
         getRelationshipWorkspaceDetail(workspaceId),
         listWorkspaceMeetings(workspaceId),
         listWorkspaceTimeline(workspaceId),
       ]);
       return NextResponse.json({
         success: true,
-        workspace: ws.rows[0] || null,
+        workspace: workspaceResult.rows[0] || null,
         meetings: meetings.rows,
         timeline: timeline.rows,
       });
@@ -85,18 +85,18 @@ export async function POST(req) {
     }
 
     // Get pipeline info
-    const pipe = await getPipelineById(pipeline_id);
-    if (pipe.rows.length === 0) {
+    const pipelineResult = await getPipelineById(pipeline_id);
+    if (pipelineResult.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Pipeline not found" }, { status: 404 });
     }
 
-    const p = pipe.rows[0];
+    const pipeline = pipelineResult.rows[0];
 
     // Upsert workspace
     const result = await upsertRelationshipWorkspace(
       pipeline_id,
-      p.investor_id,
-      p.venture_id,
+      pipeline.investor_id,
+      pipeline.venture_id,
       relationship_manager_id || null,
       investment_manager_id || null,
     );
@@ -108,9 +108,9 @@ export async function POST(req) {
 
     // Notify investor
     try {
-      const invInfo = await getInvestorUserIdByProfileId(workspace.investor_id);
-      if (invInfo.rows.length > 0) {
-        await notifyIntroductionApproved(invInfo.rows[0].user_id);
+      const investorInfo = await getInvestorUserIdByProfileId(workspace.investor_id);
+      if (investorInfo.rows.length > 0) {
+        await notifyIntroductionApproved(investorInfo.rows[0].user_id);
       }
     } catch (_) {}
 

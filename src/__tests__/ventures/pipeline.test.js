@@ -119,7 +119,7 @@ describe("createVentureFromSubmission", () => {
     expect(result).toEqual({ success: true, venture_id: "VNT-TEST1234", source_type: "participant" });
 
     // Venture insert with the mapped data
-    const ventureInsert = db.execute.mock.calls.find(([c]) => c.sql.includes("INSERT INTO ventures"));
+    const ventureInsert = db.execute.mock.calls.find(([call]) => call.sql.includes("INSERT INTO ventures"));
     expect(ventureInsert).toBeDefined();
     const args = ventureInsert[0].args;
     expect(args[0]).toBe("VNT-TEST1234");
@@ -130,13 +130,13 @@ describe("createVentureFromSubmission", () => {
     expect(args[11]).toBe("P1"); // program_id from run assignment
 
     // Provenance row
-    const originsInsert = db.execute.mock.calls.find(([c]) => c.sql.includes("INSERT INTO venture_origins"));
+    const originsInsert = db.execute.mock.calls.find(([call]) => call.sql.includes("INSERT INTO venture_origins"));
     expect(originsInsert).toBeDefined();
     expect(originsInsert[0].args).toContain("participant");
     expect(originsInsert[0].args).toContain(42); // submission_id
 
     // Founder member: submitter is lead founder + owner (roles are SQL literals)
-    const memberInserts = db.execute.mock.calls.filter(([c]) => c.sql.includes("INSERT INTO venture_members"));
+    const memberInserts = db.execute.mock.calls.filter(([call]) => call.sql.includes("INSERT INTO venture_members"));
     expect(memberInserts.length).toBe(3);
     const founderInsert = memberInserts[0];
     expect(founderInsert[0].args.slice(0, 3)).toEqual(["VNT-TEST1234", "USR_FOUNDER", "USR_FOUNDER"]);
@@ -187,14 +187,14 @@ describe("createVentureFromSubmission", () => {
     expect(result).toEqual({ success: true, venture_id: "VNT-TEST1234", source_type: "team" });
 
     // Provenance carries the team + program from the invitation
-    const originsInsert = db.execute.mock.calls.find(([c]) => c.sql.includes("INSERT INTO venture_origins"));
+    const originsInsert = db.execute.mock.calls.find(([call]) => call.sql.includes("INSERT INTO venture_origins"));
     expect(originsInsert[0].args[1]).toBe("team");
     expect(originsInsert[0].args).toContain("P1");
     expect(originsInsert[0].args).toContain("T1");
     expect(originsInsert[0].args[9]).toBe(9); // invitation_id from the submission
 
     // Team member carried over as team_member; submitter not duplicated
-    const memberInserts = db.execute.mock.calls.filter(([c]) => c.sql.includes("INSERT INTO venture_members"));
+    const memberInserts = db.execute.mock.calls.filter(([call]) => call.sql.includes("INSERT INTO venture_members"));
     expect(memberInserts.length).toBe(4); // founder + co-founder + form team + carry-over
     const carryOverInsert = memberInserts[3][0];
     expect(carryOverInsert.args[0]).toBe("VNT-TEST1234");

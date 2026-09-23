@@ -28,17 +28,17 @@ const EMPTY_RESPONSES = {
   contactsDetailed: [],
   flaggedResponses: [],
 };
-const pickResponses = (d) =>
-  d?.success
+const pickResponses = (payload) =>
+  payload?.success
     ? {
-        ...d,
-        campaignStats: d.campaignStats || [],
-        detailedResponses: d.detailedResponses || [],
-        contactsDetailed: d.contactsDetailed || [],
-        flaggedResponses: d.flaggedResponses || [],
+        ...payload,
+        campaignStats: payload.campaignStats || [],
+        detailedResponses: payload.detailedResponses || [],
+        contactsDetailed: payload.contactsDetailed || [],
+        flaggedResponses: payload.flaggedResponses || [],
       }
     : EMPTY_RESPONSES;
-const pickGlobalContacts = (d) => (d?.success ? d.contacts || [] : []);
+const pickGlobalContacts = (payload) => (payload?.success ? payload.contacts || [] : []);
 
 export default function ResponsesPage() {
   const router = useRouter();
@@ -49,7 +49,7 @@ export default function ResponsesPage() {
   // background refresh — belong to the hook, so the screen keeps no data state
   // of its own and never sets state from an effect.
   const {
-    data,
+    data: responsesData,
     loading: responsesLoading,
     refresh: refreshResponses,
   } = useApi("/api/responses", { defaultValue: EMPTY_RESPONSES, transform: pickResponses });
@@ -71,7 +71,7 @@ export default function ResponsesPage() {
   // The first campaign is the default by derivation rather than something the
   // loader writes into state, which is also what lets the choice survive a
   // refresh: the old effect reset it to the first campaign on every load.
-  const activeCampaign = activeCampaignChoice ?? data.campaignStats[0]?.id ?? null;
+  const activeCampaign = activeCampaignChoice ?? responsesData.campaignStats[0]?.id ?? null;
   const [filterMode, setFilterMode] = useState("all"); // all | yes | no | pending_response
   const [search, setSearch] = useState("");
 
@@ -83,13 +83,13 @@ export default function ResponsesPage() {
   const resolveMatch = async (response_id, cid) => {
     if (!cid) return;
     try {
-      const res = await fetch("/api/responses/review", {
+      const response = await fetch("/api/responses/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ response_id, cid }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
             detail: { type: "success", message: t("crm.responses.matched") },
@@ -99,7 +99,7 @@ export default function ResponsesPage() {
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "error", message: t(data.error || "") || data.error },
+            detail: { type: "error", message: t(payload.error || "") || payload.error },
           }),
         );
       }
@@ -110,29 +110,29 @@ export default function ResponsesPage() {
 
   const getFilteredContacts = () => {
     if (!activeCampaign) return [];
-    let list = data.contactsDetailed.filter(
-      (c) => c.campaign_id === activeCampaign,
+    let list = responsesData.contactsDetailed.filter(
+      (contact) => contact.campaign_id === activeCampaign,
     );
     if (filterMode !== "all") {
       list = list.filter(
-        (c) =>
-          c.status === filterMode ||
-          (filterMode === "pending_response" && c.status === "sent"),
+        (contact) =>
+          contact.status === filterMode ||
+          (filterMode === "pending_response" && contact.status === "sent"),
       );
     }
     if (search) {
       list = list.filter(
-        (c) =>
-          c.name.toLowerCase().includes(search.toLowerCase()) ||
-          c.email.toLowerCase().includes(search.toLowerCase()),
+        (contact) =>
+          contact.name.toLowerCase().includes(search.toLowerCase()) ||
+          contact.email.toLowerCase().includes(search.toLowerCase()),
       );
     }
     return list;
   };
 
-  const executeRetarget = async (e) => {
-    e.preventDefault();
-    const targets = getFilteredContacts().map((c) => c.cid);
+  const executeRetarget = async (event) => {
+    event.preventDefault();
+    const targets = getFilteredContacts().map((contact) => contact.cid);
     if (targets.length === 0) {
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
@@ -144,7 +144,7 @@ export default function ResponsesPage() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/campaigns", {
+      const response = await fetch("/api/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -153,8 +153,8 @@ export default function ResponsesPage() {
           cids: targets,
         }),
       });
-      const json = await res.json();
-      if (json.success) {
+      const payload = await response.json();
+      if (payload.success) {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
             detail: { type: "success", message: t("crm.responses.followUpCampaignStarted") },
@@ -165,7 +165,7 @@ export default function ResponsesPage() {
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "error", message: t(json.error || "") || json.error },
+            detail: { type: "error", message: t(payload.error || "") || payload.error },
           }),
         );
       }
@@ -176,7 +176,7 @@ export default function ResponsesPage() {
     }
   };
 
-  const activeStats = data.campaignStats.find((c) => c.id === activeCampaign);
+  const activeStats = responsesData.campaignStats.find((campaign) => campaign.id === activeCampaign);
   const filteredList = getFilteredContacts();
 
   return (
@@ -213,9 +213,9 @@ export default function ResponsesPage() {
               className={`font-black text-[10px] tracking-widest uppercase px-6 py-3 rounded-xl transition-all flex items-center gap-2 ${view === "review" ? "bg-rose-500 text-white shadow-rose-600/20 shadow-lg" : "bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"}`}
             >
               {t("crm.responses.fixMatches")}
-              {data.flaggedResponses?.length > 0 && (
+              {responsesData.flaggedResponses?.length > 0 && (
                 <span className="bg-rose-900 border border-rose-500 px-2 rounded-full text-[10px]">
-                  {data.flaggedResponses.length}
+                  {responsesData.flaggedResponses.length}
                 </span>
               )}
             </button>
@@ -228,7 +228,7 @@ export default function ResponsesPage() {
           </div>
         ) : view === "review" ? (
           <div className="space-y-4 text-left">
-            {data.flaggedResponses?.length === 0 ? (
+            {responsesData.flaggedResponses?.length === 0 ? (
               <div className="p-20 text-center bg-white/5 border border-dashed border-emerald-500/30 rounded-[3rem]">
                 <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-6 shadow-[0_0_30px_rgba(16,185,129,0.2)] rounded-full" />
                 <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-2">
@@ -239,9 +239,9 @@ export default function ResponsesPage() {
                 </p>
               </div>
             ) : (
-              data.flaggedResponses?.map((f) => (
+              responsesData.flaggedResponses?.map((flaggedResponse) => (
                 <div
-                  key={f.response_id}
+                  key={flaggedResponse.response_id}
                   className="ios-card bg-rose-500/5 border border-rose-500/10 flex flex-col md:flex-row gap-6 justify-between items-start md:items-center p-6"
                 >
                   <div className="space-y-2">
@@ -250,18 +250,18 @@ export default function ResponsesPage() {
                         {t("crm.responses.needsMatch")}
                       </span>
                       <span className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">
-                        {t("crm.responses.similarity", { score: f.confidence_score })}
+                        {t("crm.responses.similarity", { score: flaggedResponse.confidence_score })}
                       </span>
                     </div>
                     <p className="font-extrabold text-white text-lg">
                       {t("crm.responses.input")}{" "}
-                      {(f.answers && (f.answers.name || f.answers.email)) ||
+                      {(flaggedResponse.answers && (flaggedResponse.answers.name || flaggedResponse.answers.email)) ||
                         t("crm.responses.unknown")}
                     </p>
                     <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black inline-flex items-center gap-2">
                       {t("crm.responses.dataFound")}{" "}
                       <span className="text-white border px-1.5 rounded bg-white/5">
-                        {JSON.stringify(f.answers)}
+                        {JSON.stringify(flaggedResponse.answers)}
                       </span>
                     </p>
                   </div>
@@ -270,8 +270,8 @@ export default function ResponsesPage() {
                       {t("crm.responses.matchWithPerson")}
                     </label>
                     <select
-                      onChange={(e) =>
-                        resolveMatch(f.response_id, e.target.value)
+                      onChange={(event) =>
+                        resolveMatch(flaggedResponse.response_id, event.target.value)
                       }
                       defaultValue=""
                       className="w-full md:w-[300px] bg-[#0d0d18] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 appearance-none font-bold"
@@ -279,9 +279,9 @@ export default function ResponsesPage() {
                       <option value="" disabled>
                         {t("crm.responses.choosePerson")}
                       </option>
-                      {globalContacts.map((gc) => (
-                        <option key={gc.cid} value={gc.cid}>
-                          {gc.name} ({gc.email})
+                      {globalContacts.map((contact) => (
+                        <option key={contact.cid} value={contact.cid}>
+                          {contact.name} ({contact.email})
                         </option>
                       ))}
                     </select>
@@ -290,7 +290,7 @@ export default function ResponsesPage() {
               ))
             )}
           </div>
-        ) : data.campaignStats.length === 0 ? (
+        ) : responsesData.campaignStats.length === 0 ? (
           <div className="p-20 text-center bg-white/5 border border-dashed border-white/10 rounded-[3rem]">
             <BarChart3 className="w-16 h-16 text-slate-500 mx-auto mb-6 opacity-50" />
             <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-2">
@@ -307,21 +307,21 @@ export default function ResponsesPage() {
                 {t("crm.responses.selectCampaign")}
               </h3>
               <div className="space-y-2">
-                {data.campaignStats.map((c) => (
+                {responsesData.campaignStats.map((campaign) => (
                   <button
-                    key={c.id}
+                    key={campaign.id}
                     onClick={() => {
-                      setActiveCampaignChoice(c.id);
+                      setActiveCampaignChoice(campaign.id);
                       setFilterMode("all");
                     }}
-                    className={`w-full text-left p-4 rounded-2xl border transition-all ${activeCampaign === c.id ? "bg-[#FF6600]/80/10 border-[#FF6600]/80 text-white" : "bg-white/5 border-white/5 hover:bg-white/10 text-slate-400"}`}
+                    className={`w-full text-left p-4 rounded-2xl border transition-all ${activeCampaign === campaign.id ? "bg-[#FF6600]/80/10 border-[#FF6600]/80 text-white" : "bg-white/5 border-white/5 hover:bg-white/10 text-slate-400"}`}
                   >
                     <p className="font-black uppercase tracking-tighter text-sm truncate mb-1">
-                      {c.name}
+                      {campaign.name}
                     </p>
                     <p className="text-[10px] font-bold opacity-70 border-t border-white/10 pt-2 flex items-center justify-between">
-                      <span>{t("crm.responses.totalWithCount", { count: c.total })}</span>
-                      {activeCampaign === c.id && (
+                      <span>{t("crm.responses.totalWithCount", { count: campaign.total })}</span>
+                      {activeCampaign === campaign.id && (
                         <div className="w-1.5 h-1.5 rounded-full bg-[#FF6600]/80 shadow-[0_0_8px_rgba(99,102,241,1)]" />
                       )}
                     </p>
@@ -388,7 +388,7 @@ export default function ResponsesPage() {
                           type="text"
                           placeholder={t("crm.responses.searchList")}
                           value={search}
-                          onChange={(e) => setSearch(e.target.value)}
+                          onChange={(event) => setSearch(event.target.value)}
                           className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-12 pr-4 text-sm text-white outline-none focus:border-[#FF6600]/80/50 transition-colors font-bold"
                         />
                       </div>
@@ -412,38 +412,38 @@ export default function ResponsesPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
-                          {filteredList.map((c) => (
+                          {filteredList.map((contact) => (
                             <tr
-                              key={c.cid}
+                              key={contact.cid}
                               className="hover:bg-white/[0.02] transition-colors"
                             >
                               <td className="px-6 py-5">
                                 <p className="font-black text-white text-sm uppercase -tracking-wider mb-0.5">
-                                  {c.name}
+                                  {contact.name}
                                 </p>
                                 <p className="text-[10px] text-slate-400 font-bold">
-                                  {c.email}
+                                  {contact.email}
                                 </p>
                               </td>
                               <td className="px-6 py-5">
-                                {c.status === "yes" && (
+                                {contact.status === "yes" && (
                                   <span className="text-[10px] font-bold px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
                                     {t("crm.responses.approved")}
                                   </span>
                                 )}
-                                {c.status === "no" && (
+                                {contact.status === "no" && (
                                   <span className="text-[10px] font-bold px-2 py-1 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase">
                                     {t("crm.responses.declined")}
                                   </span>
                                 )}
-                                {c.status === "sent" && (
+                                {contact.status === "sent" && (
                                   <span className="text-[10px] font-bold px-2 py-1 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase">
                                     {t("crm.responses.waiting")}
                                   </span>
                                 )}
-                                {!["yes", "no", "sent"].includes(c.status) && (
+                                {!["yes", "no", "sent"].includes(contact.status) && (
                                   <span className="text-[10px] font-bold px-2 py-1 rounded bg-white/10 text-slate-400 border border-white/20 uppercase">
-                                    {t(RESPONSE_STATUS_LABELS[c.status] || "") || c.status}
+                                    {t(RESPONSE_STATUS_LABELS[contact.status] || "") || contact.status}
                                   </span>
                                 )}
                               </td>
@@ -499,7 +499,7 @@ export default function ResponsesPage() {
                     autoFocus
                     type="text"
                     value={newCampaignName}
-                    onChange={(e) => setNewCampaignName(e.target.value)}
+                    onChange={(event) => setNewCampaignName(event.target.value)}
                     placeholder={t("crm.responses.campaignNamePlaceholder")}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-[#FF6600]/80/50 focus:bg-white/10 transition-colors font-bold"
                   />

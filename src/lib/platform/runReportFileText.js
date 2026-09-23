@@ -65,8 +65,8 @@ function decodeXmlEntities(value) {
     }
   };
   return String(value)
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => fromCode(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => fromCode(parseInt(dec, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, hexDigits) => fromCode(parseInt(hexDigits, 16)))
+    .replace(/&#(\d+);/g, (_, decimalDigits) => fromCode(parseInt(decimalDigits, 10)))
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
@@ -160,14 +160,14 @@ export async function extractReportFileText(file, { readPdf = defaultPdfReader }
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    const raw =
+    const rawText =
       kind === "pdf"
         ? await readPdf(buffer)
         : kind === "docx"
           ? docxToText(buffer)
           : buffer.toString("utf8");
 
-    const text = cleanExtractedText(raw);
+    const text = cleanExtractedText(rawText);
     if (!text) {
       return result(
         EXTRACTION_EMPTY,
@@ -185,9 +185,9 @@ export async function extractReportFileText(file, { readPdf = defaultPdfReader }
       null,
       truncated,
     );
-  } catch (e) {
-    console.error("[Run report file] extraction failed:", e?.message || e);
-    return result(EXTRACTION_FAILED, "", e?.message || "extraction failed");
+  } catch (error) {
+    console.error("[Run report file] extraction failed:", error?.message || error);
+    return result(EXTRACTION_FAILED, "", error?.message || "extraction failed");
   }
 }
 

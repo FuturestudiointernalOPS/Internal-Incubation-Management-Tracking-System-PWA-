@@ -52,10 +52,10 @@ export async function POST(req) {
 
     const report = await syncAllContextGrantsEverywhere();
     return NextResponse.json(report);
-  } catch (err) {
-    console.error("[Context Grants Sweep] error:", err);
+  } catch (error) {
+    console.error("[Context Grants Sweep] error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

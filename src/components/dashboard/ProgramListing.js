@@ -24,10 +24,10 @@ import { useApi } from "@/lib/hooks/useApi";
 // into the value so a refused payload still reaches the failure panel.
 const EMPTY_PROGRAMS = { programs: [], contact: null, failure: null };
 
-const pickPrograms = (d) =>
-  d?.success
-    ? { programs: d.programs || [], contact: d.contact, failure: null }
-    : { programs: [], contact: null, failure: d?.error || null };
+const pickPrograms = (payload) =>
+  payload?.success
+    ? { programs: payload.programs || [], contact: payload.contact, failure: null }
+    : { programs: [], contact: null, failure: payload?.error || null };
 
 // ─── Status Badge ──────────────────────────────────────────────────
 function StatusBadge({ status }) {
@@ -233,9 +233,9 @@ function ListingSkeleton() {
     <div className="space-y-8 animate-pulse">
       <div className="h-8 w-48 bg-white/10 rounded" />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {[...Array(2)].map((_, i) => (
+        {[...Array(2)].map((_, index) => (
           <div
-            key={i}
+            key={index}
             className="bg-[var(--bg-tertiary)] rounded-xl p-6 border border-[var(--border-primary)]"
           >
             <div className="flex items-start justify-between mb-4">
@@ -250,8 +250,8 @@ function ListingSkeleton() {
               <div className="h-5 w-24 bg-white/5 rounded" />
             </div>
             <div className="grid grid-cols-3 gap-3 pt-4 border-t border-white/5">
-              {[...Array(3)].map((_, j) => (
-                <div key={j} className="h-10 bg-white/5 rounded" />
+              {[...Array(3)].map((_, index) => (
+                <div key={index} className="h-10 bg-white/5 rounded" />
               ))}
             </div>
           </div>
@@ -345,10 +345,10 @@ export default function ProgramListing() {
 
   // ── Group programs by status ─────────────────────────────────────
   const activePrograms = programs.filter(
-    (p) => p.status?.toLowerCase() === "active" || !p.status,
+    (program) => program.status?.toLowerCase() === "active" || !program.status,
   );
   const otherPrograms = programs.filter(
-    (p) => p.status?.toLowerCase() !== "active" && p.status,
+    (program) => program.status?.toLowerCase() !== "active" && program.status,
   );
 
   return (

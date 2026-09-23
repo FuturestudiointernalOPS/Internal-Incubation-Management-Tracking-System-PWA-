@@ -14,10 +14,10 @@ if (fs.existsSync(envPath)) {
   for (const line of envContent.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    let value = trimmed.slice(eqIdx + 1).trim();
+    const equalsIndex = trimmed.indexOf("=");
+    if (equalsIndex === -1) continue;
+    const key = trimmed.slice(0, equalsIndex).trim();
+    let value = trimmed.slice(equalsIndex + 1).trim();
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
       (value.startsWith("'") && value.endsWith("'"))
@@ -127,21 +127,21 @@ async function seed() {
 
   // 1. Insert Contacts (staff + participants)
   console.log("[1/6] Contacts...");
-  for (const s of STAFF) {
+  for (const staffMember of STAFF) {
     try {
       await db.execute({
         sql: "INSERT INTO contacts (cid, name, email, role, group_name, status, deleted) VALUES (?, ?, ?, ?, ?, 'approved', 0)",
-        args: [s.cid, s.name, s.email, s.role, "Future Studio"],
+        args: [staffMember.cid, staffMember.name, staffMember.email, staffMember.role, "Future Studio"],
       });
     } catch {
       /* ignore duplicates */
     }
   }
-  for (const p of PARTICIPANTS) {
+  for (const participant of PARTICIPANTS) {
     try {
       await db.execute({
         sql: "INSERT INTO contacts (cid, name, email, role, group_name, status, program_id, program_name, deleted) VALUES (?, ?, ?, 'participant', ?, 'approved', ?, ?, 0)",
-        args: [p.cid, p.name, p.email, p.group, PROG_ID, PROG_NAME],
+        args: [participant.cid, participant.name, participant.email, participant.group, PROG_ID, PROG_NAME],
       });
     } catch {
       /* ignore */
@@ -165,17 +165,17 @@ async function seed() {
       ],
     });
     console.log(`  ✅ Program: ${PROG_NAME}`);
-  } catch (e) {
-    console.log(`  ⚠️  Program: ${e.message}`);
+  } catch (error) {
+    console.log(`  ⚠️  Program: ${error.message}`);
   }
 
   // 3. Insert Participants (v2_participants)
   console.log("[3/6] Participants enrollment...");
-  for (const p of PARTICIPANTS) {
+  for (const participant of PARTICIPANTS) {
     try {
       await db.execute({
         sql: "INSERT INTO v2_participants (program_id, name, email, phone, screening_status) VALUES (?, ?, ?, ?, 'approved')",
-        args: [PROG_ID, p.name, p.email, "+2335000000"],
+        args: [PROG_ID, participant.name, participant.email, "+2335000000"],
       });
     } catch {
       /* ignore */
@@ -185,9 +185,9 @@ async function seed() {
 
   // 4. Insert Sessions (weekly)
   console.log("[4/6] Sessions...");
-  for (let w = 1; w <= 4; w++) {
-    const sesId = `SES-${PROG_ID}-W${w}`;
-    const startDate = new Date(2026, 4, 4 + (w - 1) * 7);
+  for (let week = 1; week <= 4; week++) {
+    const sesId = `SES-${PROG_ID}-W${week}`;
+    const startDate = new Date(2026, 4, 4 + (week - 1) * 7);
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + 2);
 
@@ -197,27 +197,27 @@ async function seed() {
         args: [
           sesId,
           PROG_ID,
-          w,
-          WEEK_TOPICS[w - 1],
-          w <= 3 ? "completed" : "in progress",
+          week,
+          WEEK_TOPICS[week - 1],
+          week <= 3 ? "completed" : "in progress",
           startDate.toISOString().split("T")[0],
           endDate.toISOString().split("T")[0],
-          w % 2 === 0 ? STAFF[0].cid : STAFF[1].cid,
-          w % 2 === 0 ? STAFF[0].name : STAFF[1].name,
-          JSON.stringify([{ name: `Week ${w} slides`, type: "link" }]),
+          week % 2 === 0 ? STAFF[0].cid : STAFF[1].cid,
+          week % 2 === 0 ? STAFF[0].name : STAFF[1].name,
+          JSON.stringify([{ name: `Week ${week} slides`, type: "link" }]),
         ],
       });
-    } catch (e) {
-      console.log(`  ⚠️  Session W${w}: ${e.message}`);
+    } catch (error) {
+      console.log(`  ⚠️  Session W${week}: ${error.message}`);
     }
   }
   console.log(`  ✅ 4 sessions`);
 
   // 5. Insert Document Requirements + Submissions
   console.log("[5/6] Requirements & Submissions...");
-  for (let w = 1; w <= 4; w++) {
-    const reqId = `REQ-${PROG_ID}-W${w}`;
-    const sesId = `SES-${PROG_ID}-W${w}`;
+  for (let week = 1; week <= 4; week++) {
+    const reqId = `REQ-${PROG_ID}-W${week}`;
+    const sesId = `SES-${PROG_ID}-W${week}`;
     try {
       await db.execute({
         sql: "INSERT INTO v2_document_requirements (id, program_id, session_id, title, allowed_format, is_completed) VALUES (?, ?, ?, ?, ?, ?)",
@@ -225,9 +225,9 @@ async function seed() {
           reqId,
           PROG_ID,
           sesId,
-          SUBMISSION_TYPES[w - 1].title,
-          SUBMISSION_TYPES[w - 1].format,
-          w <= 3 ? 1 : 0,
+          SUBMISSION_TYPES[week - 1].title,
+          SUBMISSION_TYPES[week - 1].format,
+          week <= 3 ? 1 : 0,
         ],
       });
     } catch {
@@ -235,24 +235,24 @@ async function seed() {
     }
 
     // Submissions per participant for completed weeks
-    if (w <= 3) {
-      for (const p of PARTICIPANTS) {
+    if (week <= 3) {
+      for (const participant of PARTICIPANTS) {
         const score = Math.floor(Math.random() * 30) + 65; // 65-95
         try {
           await db.execute({
             sql: "INSERT INTO v2_submissions (program_id, participant_id, document_id, file_url, status, score, deliverable_title, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             args: [
               PROG_ID,
-              p.cid,
+              participant.cid,
               reqId,
-              STUDENT_WORK[(w + PARTICIPANTS.indexOf(p)) % STUDENT_WORK.length],
+              STUDENT_WORK[(week + PARTICIPANTS.indexOf(participant)) % STUDENT_WORK.length],
               score >= 70 ? "approved" : "pending",
               score,
-              SUBMISSION_TYPES[w - 1].title,
+              SUBMISSION_TYPES[week - 1].title,
               new Date(
                 2026,
                 4,
-                6 + (w - 1) * 7 + PARTICIPANTS.indexOf(p),
+                6 + (week - 1) * 7 + PARTICIPANTS.indexOf(participant),
               ).toISOString(),
             ],
           });
@@ -285,9 +285,9 @@ async function seed() {
     ["curriculum"],
   ];
 
-  for (let w = 1; w <= 4; w++) {
-    const weekStatus = w <= 3 ? "successful" : "partially_completed";
-    const weekRating = w <= 3 ? "good" : "fair";
+  for (let week = 1; week <= 4; week++) {
+    const weekStatus = week <= 3 ? "successful" : "partially_completed";
+    const weekRating = week <= 3 ? "good" : "fair";
     try {
       await db.execute({
         sql: `INSERT INTO v2_weekly_reports
@@ -309,45 +309,45 @@ async function seed() {
            ?, ?)`,
         args: [
           PROG_ID,
-          w,
+          week,
           "PM-001",
           "Program Manager",
-          PM_SUMMARIES[w - 1],
-          w <= 3 ? 7 : 4,
+          PM_SUMMARIES[week - 1],
+          week <= 3 ? 7 : 4,
           weekStatus,
           weekRating,
-          WEEK_TOPICS[w - 1],
-          w <= 3 ? "high" : "moderate",
-          w <= 2 ? "very_active" : w === 3 ? "active" : "passive",
-          w === 3 ? 1 : 0,
-          w === 3
+          WEEK_TOPICS[week - 1],
+          week <= 3 ? "high" : "moderate",
+          week <= 2 ? "very_active" : week === 3 ? "active" : "passive",
+          week === 3 ? 1 : 0,
+          week === 3
             ? "2 students falling behind, offering catch-up sessions"
             : null,
           weekRating,
-          w <= 3 ? "high" : "moderate",
-          w === 2 ? 1 : 0,
-          PM_BLOCKERS[w - 1],
-          w === 4 ? 1 : 0,
-          JSON.stringify(ISSUE_TYPES[w - 1]),
-          w === 4 ? 1 : 0,
-          w === 4 ? "Need certificates prepared for Friday" : null,
-          w <= 3 ? 1 : 0,
-          w === 4
+          week <= 3 ? "high" : "moderate",
+          week === 2 ? 1 : 0,
+          PM_BLOCKERS[week - 1],
+          week === 4 ? 1 : 0,
+          JSON.stringify(ISSUE_TYPES[week - 1]),
+          week === 4 ? 1 : 0,
+          week === 4 ? "Need certificates prepared for Friday" : null,
+          week <= 3 ? 1 : 0,
+          week === 4
             ? "Expedite certificate processing, follow up with admin"
             : null,
         ],
       });
-    } catch (e) {
-      console.log(`  ⚠️  PM Report W${w}: ${e.message}`);
+    } catch (error) {
+      console.log(`  ⚠️  PM Report W${week}: ${error.message}`);
     }
   }
   console.log(`  ✅ 4 PM weekly reports with blockers & issues`);
 
   // 7. Insert Attendance
   console.log("[6/6] Attendance...");
-  for (let w = 1; w <= 4; w++) {
-    const sesId = `SES-${PROG_ID}-W${w}`;
-    for (const p of PARTICIPANTS) {
+  for (let week = 1; week <= 4; week++) {
+    const sesId = `SES-${PROG_ID}-W${week}`;
+    for (const participant of PARTICIPANTS) {
       const statuses = [
         "present",
         "present",
@@ -364,9 +364,9 @@ async function seed() {
           args: [
             sesId,
             PROG_ID,
-            p.cid,
+            participant.cid,
             status,
-            new Date(2026, 4, 5 + (w - 1) * 7).toISOString().split("T")[0],
+            new Date(2026, 4, 5 + (week - 1) * 7).toISOString().split("T")[0],
           ],
         });
       } catch {

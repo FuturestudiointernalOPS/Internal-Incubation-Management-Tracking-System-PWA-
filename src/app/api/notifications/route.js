@@ -86,12 +86,12 @@ export async function GET(req) {
     try {
       const result = await getRecentNotifications(recipientId);
       rows = result.rows || [];
-      rows = rows.filter((r) => r.is_read == 0 || r.is_read == null);
+      rows = rows.filter((row) => row.is_read == 0 || row.is_read == null);
 
       // Opening the inbox marks fetched notifications as SEEN (not read).
       // Read = the user opened the item (PATCH read). Seen ≠ read is what
       // makes unread badges feel correct.
-      const ids = (rows || []).map((r) => r.id).filter((v) => v !== undefined && v !== null);
+      const ids = (rows || []).map((row) => row.id).filter((notificationId) => notificationId !== undefined && notificationId !== null);
       if (ids.length > 0) {
         try {
           await markNotificationsSeen(ids);
@@ -135,15 +135,15 @@ export async function PATCH(req) {
     const { id, action } = await req.json();
 
     if (action === "read") {
-      const nRes = await getNotificationRecipientById(parseInt(id));
-      if (!nRes.rows || nRes.rows.length === 0) {
+      const recipientResult = await getNotificationRecipientById(parseInt(id));
+      if (!recipientResult.rows || recipientResult.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Notification not found." },
           { status: 404 },
         );
       }
       if (
-        String(nRes.rows[0].recipient_id) !== String(session.cid) &&
+        String(recipientResult.rows[0].recipient_id) !== String(session.cid) &&
         !["super_admin", "staff", "program_manager"].includes(session.role)
       ) {
         return NextResponse.json(

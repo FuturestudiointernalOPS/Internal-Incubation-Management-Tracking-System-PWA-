@@ -161,7 +161,7 @@ export default function AdvancedCapabilities({
           type="checkbox"
           checked={checked}
           disabled={disabled}
-          onChange={(e) => onToggle?.(module, capability, e.target.checked, allCaps)}
+          onChange={(event) => onToggle?.(module, capability, event.target.checked, allCaps)}
           className="h-4 w-4 rounded border-[var(--border-primary)] accent-[var(--brand-orange)] cursor-pointer disabled:opacity-25"
         />
       </label>

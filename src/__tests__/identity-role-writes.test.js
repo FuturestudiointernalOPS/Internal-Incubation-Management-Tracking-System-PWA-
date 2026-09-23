@@ -26,18 +26,18 @@ function findRoleMutationFiles() {
   for (const root of SRC_DIRS) {
     (function walk(dir) {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) walk(full);
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(fullPath);
         else if (/\.(js|mjs)$/.test(entry.name)) {
-          const src = fs.readFileSync(full, "utf8");
+          const src = fs.readFileSync(fullPath, "utf8");
           if (!/UPDATE\s+contacts\s+SET/.test(src)) continue;
           // I2: role writes are either direct (the UPDATE statement itself
           // names the role column) or flag-gated via the stop-role-mutation
           // helper. Window-free: scope to the statement only.
           const statements = [...src.matchAll(/UPDATE\s+contacts\s+SET[^`;]*/g)];
-          const direct = statements.some((m) => /\brole\b/.test(m[0]));
+          const direct = statements.some((match) => /\brole\b/.test(match[0]));
           const gated = src.includes("stopRoleMutationEnabled");
-          if (direct || gated) hits.push(full.replace(/\\/g, "/"));
+          if (direct || gated) hits.push(fullPath.replace(/\\/g, "/"));
         }
       }
     })(root);
@@ -141,8 +141,8 @@ describe("I2 mutation-stop guard presence", () => {
       "src/models/venturePipeline.js",
       "src/models/platform/automation.js",
     ];
-    for (const f of sites) {
-      const src = fs.readFileSync(f, "utf8");
+    for (const file of sites) {
+      const src = fs.readFileSync(file, "utf8");
       expect(src).toContain("stopRoleMutationEnabled");
     }
   });

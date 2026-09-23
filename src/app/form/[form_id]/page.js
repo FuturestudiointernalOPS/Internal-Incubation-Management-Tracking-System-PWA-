@@ -13,7 +13,7 @@ function PublicFormContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const form_id = params.form_id;
-  const cid = searchParams.get('cid');
+  const contactId = searchParams.get('cid');
   const group_name = searchParams.get('group_name');
 
   const [answers, setAnswers] = useState({});
@@ -37,25 +37,25 @@ function PublicFormContent() {
       ? t("rootMisc.form.connectionError")
       : '';
 
-  const handleChange = (id, val) => {
-    setAnswers(prev => ({ ...prev, [id]: val }));
+  const handleChange = (fieldId, value) => {
+    setAnswers(previousAnswers => ({ ...previousAnswers, [fieldId]: value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!cid && (!publicData.name || !publicData.email)) {
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!contactId && (!publicData.name || !publicData.email)) {
       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'warning', message: t("rootMisc.form.publicFormsRequire") } }));
       return;
     }
     setSubmitting(true);
     try {
-      const res = await fetch('/api/respond', {
+      const response = await fetch('/api/respond', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ form_id, cid: cid || null, group_name, answers, publicData: cid ? null : publicData })
+        body: JSON.stringify({ form_id, cid: contactId || null, group_name, answers, publicData: contactId ? null : publicData })
       });
 
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setSubmitted(true);
       } else {
@@ -102,7 +102,7 @@ function PublicFormContent() {
           </header>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {!cid && (
+            {!contactId && (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="ios-card bg-[#0d0d18] shadow-2xl space-y-4 mb-8 border border-amber-500/20">
                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
                     <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500"><AlertCircle className="w-5 h-5" /></div>
@@ -115,11 +115,11 @@ function PublicFormContent() {
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("rootMisc.form.fullName")} <span className="text-rose-500">*</span></label>
-                      <input required type="text" value={publicData.name} onChange={e => setPublicData({...publicData, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50" />
+                      <input required type="text" value={publicData.name} onChange={event => setPublicData({...publicData, name: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50" />
                     </div>
                     <div>
                       <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("rootMisc.form.email")} <span className="text-rose-500">*</span></label>
-                      <input required type="email" value={publicData.email} onChange={e => setPublicData({...publicData, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50" />
+                      <input required type="email" value={publicData.email} onChange={event => setPublicData({...publicData, email: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50" />
                     </div>
                  </div>
                  <div>
@@ -133,8 +133,8 @@ function PublicFormContent() {
               </motion.div>
             )}
 
-            {form.schema.map((field, idx) => (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }} key={field.id} className="ios-card bg-[#0d0d18] shadow-2xl space-y-4">
+            {form.schema.map((field, index) => (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} key={field.id} className="ios-card bg-[#0d0d18] shadow-2xl space-y-4">
                  <label className="block text-lg font-black text-white">
                    {field.label} {field.required && <span className="text-rose-500 ml-1">*</span>}
                  </label>
@@ -144,7 +144,7 @@ function PublicFormContent() {
                      required={field.required}
                      rows={3}
                      value={answers[field.id] || ''}
-                     onChange={e => handleChange(field.id, e.target.value)}
+                     onChange={event => handleChange(field.id, event.target.value)}
                      placeholder={t("rootMisc.form.answerPlaceholder")}
                      className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-colors font-bold custom-scrollbar resize-none"
                    />

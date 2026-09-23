@@ -27,8 +27,8 @@ async function resolveCode(ventureId) {
   let code = ventureId;
   if (typeof ventureId === "string" && ventureId.includes("-") && !ventureId.startsWith("VNT-")) {
     try {
-      const byId = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id::text = ?", args: [ventureId] });
-      if (byId.rows?.[0]) code = byId.rows[0].venture_id;
+      const ventureByUuid = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id::text = ?", args: [ventureId] });
+      if (ventureByUuid.rows?.[0]) code = ventureByUuid.rows[0].venture_id;
     } catch (_) {}
   }
   return code;
@@ -56,11 +56,11 @@ async function scopeMatchesAssignment(assignment, note) {
 // then note-level visibility is applied per assignment scope.
 async function responsibilityAllowsNoteView(responsibilityCode) {
   try {
-    const def = await db.execute({
+    const definition = await db.execute({
       sql: "SELECT allowed FROM venture_permission_matrix WHERE responsibility_code = ? AND area = 'internal_notes' AND action = 'view'",
       args: [responsibilityCode],
     });
-    return !!def.rows?.[0]?.allowed;
+    return !!definition.rows?.[0]?.allowed;
   } catch (_) {
     return false;
   }
@@ -68,11 +68,11 @@ async function responsibilityAllowsNoteView(responsibilityCode) {
 
 async function resolveStaffAssignment(ventureCode, cid) {
   if (!cid) return null;
-  const r = await db.execute({
+  const assignmentsResult = await db.execute({
     sql: "SELECT id, scope_type, scope_ref_type, scope_ref_id, responsibility_code FROM venture_staff_assignments WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active' ORDER BY id DESC",
     args: [ventureCode, cid],
   });
-  return r.rows || [];
+  return assignmentsResult.rows || [];
 }
 
 export const GET = createHandler(
@@ -96,8 +96,8 @@ export const GET = createHandler(
     // their responsibilities (GLOBAL matrix; scope filter applies after).
     if (!global) {
       let canView = false;
-      for (const a of assignments) {
-        if (await responsibilityAllowsNoteView(a.responsibility_code)) { canView = true; break; }
+      for (const assignment of assignments) {
+        if (await responsibilityAllowsNoteView(assignment.responsibility_code)) { canView = true; break; }
       }
       if (!canView) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
@@ -118,14 +118,14 @@ export const GET = createHandler(
       notesArgs.push(String(scopeId));
     }
     notesSql += " ORDER BY created_at DESC";
-    const r = await db.execute({ sql: notesSql, args: notesArgs });
-    const all = r.rows || [];
+    const notesResult = await db.execute({ sql: notesSql, args: notesArgs });
+    const allNotes = notesResult.rows || [];
 
     // Scope filtering: global sees everything; delegated staff see notes
     // matching any of their assignments (unscoped notes included).
     const visible = global
-      ? all
-      : all.filter((n) => assignments.some((a) => scopeMatchesAssignment(a, n)));
+      ? allNotes
+      : allNotes.filter((note) => assignments.some((assignment) => scopeMatchesAssignment(assignment, note)));
 
     const canPost = global || (await hasVentureCapability(db, { ventureId: code, contactId: session.cid, area: "internal_notes", action: "create" }));
 
@@ -164,16 +164,16 @@ export const POST = createHandler(
     let attachments = null;
     if (Array.isArray(body.attachments) && body.attachments.length > 0) {
       attachments = body.attachments
-        .filter((a) => a && (a.name || a.url))
+        .filter((attachment) => attachment && (attachment.name || attachment.url))
         .slice(0, 20)
-        .map((a) => ({ name: String(a.name || "").slice(0, 255), url: String(a.url || "").slice(0, 2000), type: a.type ? String(a.type).slice(0, 100) : null, size: a.size || null }));
+        .map((attachment) => ({ name: String(attachment.name || "").slice(0, 255), url: String(attachment.url || "").slice(0, 2000), type: attachment.type ? String(attachment.type).slice(0, 100) : null, size: attachment.size || null }));
     }
 
     if (!isGlobal(session)) {
       // Scope integrity: scoped notes may only be created inside the writer's scope.
       if (scopeRefType || scopeRefId) {
         const inScope = assignments.some(
-          (a) => a.scope_type === "venture_wide" || (String(a.scope_ref_type || "") === String(scopeRefType) && String(a.scope_ref_id || "") === String(scopeRefId)),
+          (assignment) => assignment.scope_type === "venture_wide" || (String(assignment.scope_ref_type || "") === String(scopeRefType) && String(assignment.scope_ref_id || "") === String(scopeRefId)),
         );
         if (!inScope) {
           return NextResponse.json({ success: false, error: "This note is outside your assigned scope." }, { status: 403 });
@@ -185,7 +185,7 @@ export const POST = createHandler(
       }
     }
 
-    const res = await db.execute({
+    const insertResult = await db.execute({
       sql: `INSERT INTO venture_notes (venture_id, author_cid, author_name, title, body, scope_ref_type, scope_ref_id${attachments ? ", attachments" : ""})
             VALUES (?,?,?,?,?,?,?${attachments ? ", ?::jsonb" : ""}) RETURNING id`,
       args: attachments ? [code, session.cid, session.name || null, title, text, scopeRefType, scopeRefId, JSON.stringify(attachments)] : [code, session.cid, session.name || null, title, text, scopeRefType, scopeRefId],
@@ -194,7 +194,7 @@ export const POST = createHandler(
       const { addVentureHistory } = await import("@/lib/ventures");
       await addVentureHistory({ venture_id: code, event_type: "INTERNAL_NOTE_CREATED", description: `Internal note "${title}" created` });
     } catch (_) {}
-    return NextResponse.json({ success: true, id: res.rows?.[0]?.id ?? null });
+    return NextResponse.json({ success: true, id: insertResult.rows?.[0]?.id ?? null });
   },
 );
 
@@ -213,8 +213,8 @@ export const DELETE = createHandler(
     const noteId = body.note_id;
     if (!noteId) return NextResponse.json({ success: false, error: "note_id is required." }, { status: 400 });
 
-    const noteRes = await db.execute({ sql: "SELECT * FROM venture_notes WHERE id = ? AND venture_id = ?", args: [noteId, code] });
-    const note = noteRes.rows?.[0];
+    const noteResult = await db.execute({ sql: "SELECT * FROM venture_notes WHERE id = ? AND venture_id = ?", args: [noteId, code] });
+    const note = noteResult.rows?.[0];
     if (!note) return NextResponse.json({ success: false, error: "Note not found." }, { status: 404 });
 
     if (!isGlobal(session)) {

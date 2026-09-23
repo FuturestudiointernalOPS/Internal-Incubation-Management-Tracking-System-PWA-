@@ -127,16 +127,16 @@ export async function getTransactions(project) {
     "__EMPTY_4",
   ]);
   return rows
-    .map((r) => ({
-      date: excelDateToISO(r["TRIBU FUTURE STUDIO"] || r.__EMPTY),
-      supplier: r.__EMPTY || "",
-      description: r.__EMPTY_1 || "",
-      category: r.__EMPTY_2 || "",
-      amountSpent: parseFloat(r.__EMPTY_3) || 0,
-      amountReceived: parseFloat(r.__EMPTY_4) || 0,
-      code: r.__EMPTY_6 || "",
+    .map((row) => ({
+      date: excelDateToISO(row["TRIBU FUTURE STUDIO"] || row.__EMPTY),
+      supplier: row.__EMPTY || "",
+      description: row.__EMPTY_1 || "",
+      category: row.__EMPTY_2 || "",
+      amountSpent: parseFloat(row.__EMPTY_3) || 0,
+      amountReceived: parseFloat(row.__EMPTY_4) || 0,
+      code: row.__EMPTY_6 || "",
     }))
-    .filter((t) => t.date || t.supplier || t.description);
+    .filter((transaction) => transaction.date || transaction.supplier || transaction.description);
 }
 
 export async function getSummary(project) {
@@ -146,11 +146,11 @@ export async function getSummary(project) {
   let totalPlanned = 0;
   let totalActual = 0;
 
-  rows.forEach((r) => {
-    const prevu = parseFloat(r.__EMPTY_33);
-    const realise = parseFloat(r.__EMPTY_34);
-    if (!isNaN(prevu)) totalPlanned += prevu;
-    if (!isNaN(realise)) totalActual += realise;
+  rows.forEach((row) => {
+    const planned = parseFloat(row.__EMPTY_33);
+    const actual = parseFloat(row.__EMPTY_34);
+    if (!isNaN(planned)) totalPlanned += planned;
+    if (!isNaN(actual)) totalActual += actual;
   });
 
   const remaining = totalPlanned - totalActual;
@@ -167,7 +167,7 @@ export async function getMonthlyTrend(project) {
       : "Réalisations mensuelles";
 
   const rows = await getSheetData(sheetName);
-  const dataRows = rows.slice(3).filter((r) => r.some((c) => c !== ""));
+  const dataRows = rows.slice(3).filter((row) => row.some((cell) => cell !== ""));
 
   const monthNames = [
     "sept",
@@ -186,16 +186,16 @@ export async function getMonthlyTrend(project) {
   const monthlyData = {};
 
   dataRows.forEach((row) => {
-    for (let i = 0; i < monthNames.length; i++) {
-      const colIdx = i * 2 + 1;
-      const actual = parseFloat(row[colIdx]) || 0;
-      const month = monthNames[i];
+    for (let monthIndex = 0; monthIndex < monthNames.length; monthIndex++) {
+      const columnIndex = monthIndex * 2 + 1;
+      const actual = parseFloat(row[columnIndex]) || 0;
+      const month = monthNames[monthIndex];
       if (!monthlyData[month]) monthlyData[month] = 0;
       monthlyData[month] += actual;
     }
   });
 
-  return monthNames.map((m) => ({ month: m, amount: monthlyData[m] || 0 }));
+  return monthNames.map((monthName) => ({ month: monthName, amount: monthlyData[monthName] || 0 }));
 }
 
 export async function getBudgetLines(project) {
@@ -204,14 +204,14 @@ export async function getBudgetLines(project) {
 
   const lines = rows
     .slice(2)
-    .filter((r) => r[0] && typeof r[0] === "string" && r[0] !== "ELEMENTS")
-    .map((r) => ({
-      name: r[0] || "",
-      planned: parseFloat(r[33]) || 0,
-      actual: parseFloat(r[34]) || 0,
-      variance: parseFloat(r[35]) || 0,
+    .filter((row) => row[0] && typeof row[0] === "string" && row[0] !== "ELEMENTS")
+    .map((row) => ({
+      name: row[0] || "",
+      planned: parseFloat(row[33]) || 0,
+      actual: parseFloat(row[34]) || 0,
+      variance: parseFloat(row[35]) || 0,
     }))
-    .filter((l) => l.name);
+    .filter((line) => line.name);
 
   return lines;
 }

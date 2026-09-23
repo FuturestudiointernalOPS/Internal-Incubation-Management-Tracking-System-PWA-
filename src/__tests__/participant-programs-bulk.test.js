@@ -46,7 +46,7 @@ const post = (body) =>
     }),
   );
 
-const people = (n) => Array.from({ length: n }, (_, i) => `U-${i + 1}`);
+const people = (count) => Array.from({ length: count }, (_, index) => `U-${index + 1}`);
 
 beforeEach(async () => {
   mockFake.reset();
@@ -96,10 +96,10 @@ describe("POST /api/participant-programs/bulk", () => {
     // the change it was 30 x (3 + 1 per required course).
     expect(statements.length).toBeLessThanOrEqual(8);
     expect(
-      statements.filter((s) => /insert into participant_programs/i.test(s.sql)),
+      statements.filter((statement) => /insert into participant_programs/i.test(statement.sql)),
     ).toHaveLength(1);
     expect(
-      statements.filter((s) => /insert into participant_program_audit/i.test(s.sql)),
+      statements.filter((statement) => /insert into participant_program_audit/i.test(statement.sql)),
     ).toHaveLength(1);
     // Every person is assigned and enrolled exactly once.
     expect(mockFake.state.participant_programs).toHaveLength(30);
@@ -129,7 +129,7 @@ describe("POST /api/participant-programs/bulk", () => {
     // 65 is 30 + 30 + 5: three assignments, three audits and three enrolments -
     // a number that follows the CHUNKS, not the people.
     expect(
-      statements.filter((s) => /insert into participant_programs/i.test(s.sql)),
+      statements.filter((statement) => /insert into participant_programs/i.test(statement.sql)),
     ).toHaveLength(3);
     expect(mockFake.state.participant_programs).toHaveLength(65);
     expect(mockFake.state.lms_enrollments).toHaveLength(65);
@@ -156,11 +156,11 @@ describe("POST /api/participant-programs/bulk", () => {
       { participant_id: "U-2", error: "errors.roleConflictFacilitatorParticipant" },
     ]);
     // The refused person is neither assigned nor enrolled.
-    expect(mockFake.state.participant_programs.map((r) => r.participant_id)).toEqual([
+    expect(mockFake.state.participant_programs.map((row) => row.participant_id)).toEqual([
       "U-1",
       "U-3",
     ]);
-    expect(mockFake.state.lms_enrollments.map((r) => r.user_cid)).toEqual([
+    expect(mockFake.state.lms_enrollments.map((row) => row.user_cid)).toEqual([
       "U-1",
       "U-3",
     ]);
@@ -194,7 +194,7 @@ describe("POST /api/participant-programs/bulk", () => {
     expect(body.processed).toHaveLength(40);
     // 40 is 30 + 10: two deletes and two audit entries.
     expect(
-      statements.filter((s) => /delete from participant_programs/i.test(s.sql)),
+      statements.filter((statement) => /delete from participant_programs/i.test(statement.sql)),
     ).toHaveLength(2);
     expect(mockFake.state.participant_programs).toHaveLength(0);
     // Removing a person never revokes the learning already granted (Phase 6).

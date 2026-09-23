@@ -27,7 +27,7 @@ const STATUS_CFG = {
 
 function TaskDot({ status, onClick }) {
   const { t } = useI18n();
-  const cfg = STATUS_CFG[status] || STATUS_CFG.pending;
+  const statusConfig = STATUS_CFG[status] || STATUS_CFG.pending;
   const statusLabels = {
     pending: t("staffMisc.standupRetro.statusPending"),
     in_progress: t("staffMisc.standupRetro.statusActive"),
@@ -39,14 +39,14 @@ function TaskDot({ status, onClick }) {
     <button
       onClick={onClick}
       title={t("staffMisc.standupRetro.changeStatusTitle", { label: statusLabels[status] || statusLabels.pending })}
-      className={`w-3 h-3 rounded-full shrink-0 transition-transform hover:scale-125 ${cfg.dot}`}
+      className={`w-3 h-3 rounded-full shrink-0 transition-transform hover:scale-125 ${statusConfig.dot}`}
     />
   );
 }
 
 function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete, onAssign, onAddBlocker, onSetDueDate, allStaff }) {
   const { t } = useI18n();
-  const cfg = STATUS_CFG[task.status] || STATUS_CFG.pending;
+  const statusConfig = STATUS_CFG[task.status] || STATUS_CFG.pending;
   const statusLabels = {
     pending: t("staffMisc.standupRetro.statusPending"),
     in_progress: t("staffMisc.standupRetro.statusActive"),
@@ -67,12 +67,12 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
     onStatusChange(task.id, next);
   };
 
-  const filteredStaff = (allStaff || []).filter((s) =>
-    !assignSearch || (s.name || "").toLowerCase().includes(assignSearch.toLowerCase())
+  const filteredStaff = (allStaff || []).filter((staffMember) =>
+    !assignSearch || (staffMember.name || "").toLowerCase().includes(assignSearch.toLowerCase())
   ).slice(0, 5);
 
-  const handleBlockerSubmit = (e) => {
-    e.preventDefault();
+  const handleBlockerSubmit = (event) => {
+    event.preventDefault();
     if (!blockerTitle.trim()) return;
     onAddBlocker(task.id, blockerTitle.trim());
     setBlockerTitle("");
@@ -86,7 +86,7 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
         className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-colors group"
         style={{ borderBottom: "1px solid rgb(255 255 255 / 0.04)" }}
       >
-        <TaskDot status={task.status} onClick={(e) => { e.stopPropagation(); cycleStatus(); }} />
+        <TaskDot status={task.status} onClick={(event) => { event.stopPropagation(); cycleStatus(); }} />
         <span className="text-[12px] font-bold text-[var(--text-primary)] truncate flex-1"
           style={{ textDecoration: isDone ? "line-through" : "none", opacity: isDone ? 0.45 : 1 }}>
           {task.title}
@@ -108,7 +108,7 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
               {t("staffMisc.standupRetro.carryoverWeek", { week: task.created_week })}
             </span>
           )}
-          <span className={`text-[10px] font-bold uppercase tracking-widest ${cfg.text}`}>{statusLabels[task.status] || statusLabels.pending}</span>
+          <span className={`text-[10px] font-bold uppercase tracking-widest ${statusConfig.text}`}>{statusLabels[task.status] || statusLabels.pending}</span>
           <ChevronDown className={`w-3.5 h-3.5 text-[var(--text-tertiary)] ml-1 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </div>
       </div>
@@ -121,11 +121,11 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
           {task.blockers?.length > 0 && (
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-red-400 mb-1.5">{t("staffMisc.standupRetro.blockers", { count: task.blockers.length })}</p>
-              {task.blockers.map((b) => (
-                <div key={b.id} className="flex items-center gap-2 text-[10px]">
+              {task.blockers.map((blocker) => (
+                <div key={blocker.id} className="flex items-center gap-2 text-[10px]">
                   <AlertTriangle className="w-3 h-3 text-red-400" />
-                  <span className="text-[var(--text-primary)]">{b.title}</span>
-                  <span className="text-[var(--text-tertiary)]">· {b.severity}</span>
+                  <span className="text-[var(--text-primary)]">{blocker.title}</span>
+                  <span className="text-[var(--text-tertiary)]">· {blocker.severity}</span>
                 </div>
               ))}
             </div>
@@ -141,24 +141,24 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
             {/* Assign */}
             <div className="relative">
               {!showAssign ? (
-                <button onClick={(e) => { e.stopPropagation(); setShowAssign(true); }} className="text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+                <button onClick={(event) => { event.stopPropagation(); setShowAssign(true); }} className="text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
                   + {task.assigned_to ? t("staffMisc.standupRetro.reassign") : t("staffMisc.standupRetro.assign")}
                 </button>
               ) : (
                 <div className="flex items-center gap-2">
                   <input
-                    type="text" value={assignSearch} onChange={(e) => setAssignSearch(e.target.value)}
+                    type="text" value={assignSearch} onChange={(event) => setAssignSearch(event.target.value)}
                     placeholder={t("staffMisc.standupRetro.searchTeammate")} autoFocus
                     className="w-40 px-2 py-1 rounded bg-white/[0.05] border border-white/10 text-[10px] text-[var(--text-primary)] outline-none"
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => { if (e.key === "Escape") { setShowAssign(false); setAssignSearch(""); } }} />
-                  <button onClick={(e) => { e.stopPropagation(); setShowAssign(false); setAssignSearch(""); }} className="text-[10px] text-[var(--text-tertiary)]">✕</button>
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => { if (event.key === "Escape") { setShowAssign(false); setAssignSearch(""); } }} />
+                  <button onClick={(event) => { event.stopPropagation(); setShowAssign(false); setAssignSearch(""); }} className="text-[10px] text-[var(--text-tertiary)]">✕</button>
                   {assignSearch && filteredStaff.length > 0 && (
-                    <div className="absolute top-full left-0 mt-1 w-48 rounded-lg border border-white/10 bg-[#0f172a] shadow-xl z-10" onClick={(e) => e.stopPropagation()}>
-                      {filteredStaff.map((s) => (
-                        <button key={s.id} onClick={() => { onAssign(task.id, s.id); setShowAssign(false); setAssignSearch(""); }}
+                    <div className="absolute top-full left-0 mt-1 w-48 rounded-lg border border-white/10 bg-[#0f172a] shadow-xl z-10" onClick={(event) => event.stopPropagation()}>
+                      {filteredStaff.map((staffMember) => (
+                        <button key={staffMember.id} onClick={() => { onAssign(task.id, staffMember.id); setShowAssign(false); setAssignSearch(""); }}
                           className="w-full text-left px-3 py-1.5 text-[10px] text-[var(--text-primary)] hover:bg-white/10">
-                          {s.name}
+                          {staffMember.name}
                         </button>
                       ))}
                     </div>
@@ -169,26 +169,26 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
 
             {/* Due date */}
             {!showDueDate ? (
-              <button onClick={(e) => { e.stopPropagation(); setShowDueDate(true); }} className="text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+              <button onClick={(event) => { event.stopPropagation(); setShowDueDate(true); }} className="text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
                 + {task.end_date ? t("staffMisc.standupRetro.changeDue") : t("staffMisc.standupRetro.dueDateButton")}
               </button>
             ) : (
               <div className="flex items-center gap-2">
-                <input type="date" value={dueDate} onChange={(e) => { setDueDate(e.target.value); onSetDueDate(task.id, e.target.value); setShowDueDate(false); }}
+                <input type="date" value={dueDate} onChange={(event) => { setDueDate(event.target.value); onSetDueDate(task.id, event.target.value); setShowDueDate(false); }}
                   className="w-32 px-2 py-1 rounded bg-white/[0.05] border border-white/10 text-[10px] text-[var(--text-primary)] outline-none"
-                  onClick={(e) => e.stopPropagation()} />
-                <button onClick={(e) => { e.stopPropagation(); setShowDueDate(false); }} className="text-[10px] text-[var(--text-tertiary)]">✕</button>
+                  onClick={(event) => event.stopPropagation()} />
+                <button onClick={(event) => { event.stopPropagation(); setShowDueDate(false); }} className="text-[10px] text-[var(--text-tertiary)]">✕</button>
               </div>
             )}
 
             {/* Add blocker */}
             {!showBlocker ? (
-              <button onClick={(e) => { e.stopPropagation(); setShowBlocker(true); }} className="text-[10px] font-bold text-red-400/70 hover:text-red-400 transition-colors">
+              <button onClick={(event) => { event.stopPropagation(); setShowBlocker(true); }} className="text-[10px] font-bold text-red-400/70 hover:text-red-400 transition-colors">
                 + {t("staffMisc.standupRetro.blocker")}
               </button>
             ) : (
-              <form onSubmit={handleBlockerSubmit} className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                <input type="text" value={blockerTitle} onChange={(e) => setBlockerTitle(e.target.value)}
+              <form onSubmit={handleBlockerSubmit} className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
+                <input type="text" value={blockerTitle} onChange={(event) => setBlockerTitle(event.target.value)}
                   placeholder={t("staffMisc.standupRetro.whatsBlocking")} autoFocus
                   className="w-40 px-2 py-1 rounded bg-white/[0.05] border border-white/10 text-[10px] text-[var(--text-primary)] outline-none" />
                 <button type="submit" className="text-[10px] font-bold text-red-400">{t("staffMisc.standupRetro.add")}</button>
@@ -199,22 +199,22 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
 
           <div className="flex items-center gap-2 pt-2">
             {!isDone && (
-              <button onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, "completed"); }}
+              <button onClick={(event) => { event.stopPropagation(); onStatusChange(task.id, "completed"); }}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors">
                 <CheckCircle2 className="w-3 h-3" /> {t("staffMisc.standupRetro.complete")}
               </button>
             )}
             {task.status === "blocked" && (
-              <button onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, "in_progress"); }}
+              <button onClick={(event) => { event.stopPropagation(); onStatusChange(task.id, "in_progress"); }}
                 className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-white/5 text-[var(--text-secondary)] hover:bg-white/10 transition-colors">
                 {t("staffMisc.standupRetro.unblock")}
               </button>
             )}
-            <button onClick={(e) => { e.stopPropagation(); onArchive(task.id); }}
+            <button onClick={(event) => { event.stopPropagation(); onArchive(task.id); }}
               className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors">
               {t("staffMisc.standupRetro.archive")}
             </button>
-            <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
+            <button onClick={(event) => { event.stopPropagation(); onDelete(task.id); }}
               className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-red-400/60 hover:text-red-400 transition-colors">
               {t("staffMisc.standupRetro.delete")}
             </button>
@@ -231,12 +231,12 @@ const EMPTY_STANDUP = { report: null, tasks: [] };
 // The week's report and its tasks arrive together, so the read's value is both.
 // Carry-over chains are displayed as ONE row (the newest copy); older weekly
 // copies stay in the database for history/reports.
-const pickStandup = (d) =>
-  d?.success
-    ? { report: d.report ?? null, tasks: collapseChains(d.tasks || []) }
+const pickStandup = (payload) =>
+  payload?.success
+    ? { report: payload.report ?? null, tasks: collapseChains(payload.tasks || []) }
     : EMPTY_STANDUP;
 
-const pickStaffContacts = (d) => (d?.success ? d.contacts || [] : []);
+const pickStaffContacts = (payload) => (payload?.success ? payload.contacts || [] : []);
 
 const EMPTY_STANDUP_FORM = { priorities: "", deliverables: "", notes: "" };
 const EMPTY_RETRO_FORM = { wentWell: "", wentWrong: "", improve: "" };
@@ -282,7 +282,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [, setCreatingTask] = useState(false);
 
-  const ctx = context || { context_type: "staff", context_id: null };
+  const activeContext = context || { context_type: "staff", context_id: null };
   const userCid = user?.cid;
 
   // The week's report and its tasks read through the shared hook, which owns the
@@ -290,8 +290,8 @@ export default function StandupRetroView({ user, context, contextLabel }) {
   // screen keeps no copy of its own and reads during render.
   let standupUrl = null;
   if (userCid) {
-    const params = new URLSearchParams({ user_id: userCid, week: week.week, year: week.year, context_type: ctx.context_type });
-    if (ctx.context_id) params.set("context_id", ctx.context_id);
+    const params = new URLSearchParams({ user_id: userCid, week: week.week, year: week.year, context_type: activeContext.context_type });
+    if (activeContext.context_id) params.set("context_id", activeContext.context_id);
     standupUrl = `/api/standups/current?${params}`;
   }
 
@@ -326,7 +326,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       const res = await fetch("/api/tasks", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: taskId, assigned_to: assigneeId, user_id: user.cid }) });
       const data = await res.json();
       if (!data.success) setToast({ type: "error", msg: t((data.error || t("staffMisc.standupRetro.assignmentFailed")) || "") || (data.error || t("staffMisc.standupRetro.assignmentFailed")) });
-      else { setStandup((prev) => ({ ...prev, tasks: prev.tasks.map((t) => t.id === taskId ? { ...t, assigned_to: assigneeId } : t) })); setToast({ type: "success", msg: t("staffMisc.standupRetro.assigned") }); }
+      else { setStandup((prev) => ({ ...prev, tasks: prev.tasks.map((task) => task.id === taskId ? { ...task, assigned_to: assigneeId } : task) })); setToast({ type: "success", msg: t("staffMisc.standupRetro.assigned") }); }
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); }
   };
 
@@ -342,23 +342,23 @@ export default function StandupRetroView({ user, context, contextLabel }) {
   const handleSetDueDate = async (taskId, date) => {
     try {
       await fetch("/api/tasks", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: taskId, end_date: date, user_id: user.cid }) });
-      setStandup((prev) => ({ ...prev, tasks: prev.tasks.map((t) => t.id === taskId ? { ...t, end_date: date } : t) }));
+      setStandup((prev) => ({ ...prev, tasks: prev.tasks.map((task) => task.id === taskId ? { ...task, end_date: date } : task) }));
     } catch { /* silent */ }
   };
 
   const handleStatusChange = async (taskId, newStatus) => {
     try {
       await fetch("/api/tasks", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: taskId, status: newStatus, user_id: user.cid }) });
-      setStandup((prev) => ({ ...prev, tasks: prev.tasks.map((t) => t.id === taskId ? { ...t, status: newStatus } : t) }));
+      setStandup((prev) => ({ ...prev, tasks: prev.tasks.map((task) => task.id === taskId ? { ...task, status: newStatus } : task) }));
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.failedToUpdateTask") }); }
   };
 
-  const handleCreateTask = async (e) => {
-    e.preventDefault();
+  const handleCreateTask = async (event) => {
+    event.preventDefault();
     if (!newTaskTitle.trim()) return;
     setCreatingTask(true);
     try {
-      const res = await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, title: newTaskTitle.trim(), created_week: week.week, created_year: week.year, context_type: ctx.context_type, context_id: ctx.context_id || null }) });
+      const res = await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, title: newTaskTitle.trim(), created_week: week.week, created_year: week.year, context_type: activeContext.context_type, context_id: activeContext.context_id || null }) });
       const data = await res.json();
       if (data.success) { setNewTaskTitle(""); setShowNewTask(false); refresh(); }
       else setToast({ type: "error", msg: t((data.error || t("staffMisc.standupRetro.failed")) || "") || (data.error || t("staffMisc.standupRetro.failed")) });
@@ -369,36 +369,36 @@ export default function StandupRetroView({ user, context, contextLabel }) {
   const handleDelete = async (taskId) => {
     try {
       await fetch(`/api/tasks?id=${taskId}&user_id=${user.cid}`, { method: "DELETE" });
-      setStandup((prev) => ({ ...prev, tasks: prev.tasks.filter((t) => t.id !== taskId) }));
+      setStandup((prev) => ({ ...prev, tasks: prev.tasks.filter((task) => task.id !== taskId) }));
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.failedToDelete") }); }
   };
 
-  const submitStandup = async (e) => {
-    e.preventDefault(); setSaving(true);
+  const submitStandup = async (event) => {
+    event.preventDefault(); setSaving(true);
     try {
-      const res = await fetch("/api/standups/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, user_role: user.role || "staff", week_number: week.week, year: week.year, top_priorities: standupForm.priorities, expected_deliverables: standupForm.deliverables, additional_notes: standupForm.notes, context_type: ctx.context_type, context_id: ctx.context_id || null }) });
+      const res = await fetch("/api/standups/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, user_role: user.role || "staff", week_number: week.week, year: week.year, top_priorities: standupForm.priorities, expected_deliverables: standupForm.deliverables, additional_notes: standupForm.notes, context_type: activeContext.context_type, context_id: activeContext.context_id || null }) });
       const data = await res.json();
       setToast({ type: data.success ? "success" : "error", msg: data.success ? t("staffMisc.standupRetro.standupSubmitted") : (t(data.error || "") || data.error) });
       if (data.success) refresh();
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); } finally { setSaving(false); }
   };
 
-  const submitRetro = async (e) => {
-    e.preventDefault(); setSaving(true);
+  const submitRetro = async (event) => {
+    event.preventDefault(); setSaving(true);
     try {
-      const res = await fetch("/api/retros/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, user_role: user.role || "staff", week_number: week.week, year: week.year, wins: retroForm.wentWell, challenges: retroForm.wentWrong, unfinished_tasks: retroForm.improve, context_type: ctx.context_type, context_id: ctx.context_id || null }) });
+      const res = await fetch("/api/retros/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, user_role: user.role || "staff", week_number: week.week, year: week.year, wins: retroForm.wentWell, challenges: retroForm.wentWrong, unfinished_tasks: retroForm.improve, context_type: activeContext.context_type, context_id: activeContext.context_id || null }) });
       const data = await res.json();
       setToast({ type: data.success ? "success" : "error", msg: data.success ? t("staffMisc.standupRetro.retroSubmitted") : (t(data.error || "") || data.error) });
       if (data.success) refresh();
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); } finally { setSaving(false); }
   };
 
-  const changeWeek = (dir) => setWeek((prev) => { let w = prev.week + dir, y = prev.year; if (w < 1) { w = 52; y--; } if (w > 52) { w = 1; y++; } return { week: w, year: y }; });
+  const changeWeek = (direction) => setWeek((prev) => { let nextWeek = prev.week + direction, nextYear = prev.year; if (nextWeek < 1) { nextWeek = 52; nextYear--; } if (nextWeek > 52) { nextWeek = 1; nextYear++; } return { week: nextWeek, year: nextYear }; });
 
   const isSubmitted = report?.status === "submitted";
-  const active = tasks.filter((t) => !["completed", "archived"].includes(t.status));
-  const done = tasks.filter((t) => t.status === "completed");
-  const blocked = tasks.filter((t) => t.status === "blocked");
+  const active = tasks.filter((task) => !["completed", "archived"].includes(task.status));
+  const done = tasks.filter((task) => task.status === "completed");
+  const blocked = tasks.filter((task) => task.status === "blocked");
 
   if (loading) return <div className="flex justify-center py-16"><div className="w-6 h-6 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -466,9 +466,9 @@ export default function StandupRetroView({ user, context, contextLabel }) {
           </button>
         ) : (
           <form onSubmit={handleCreateTask} className="px-4 py-3 border-t border-white/[0.06]">
-            <input type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder={t("staffMisc.standupRetro.taskTitlePlaceholder")} autoFocus
+            <input type="text" value={newTaskTitle} onChange={(event) => setNewTaskTitle(event.target.value)} placeholder={t("staffMisc.standupRetro.taskTitlePlaceholder")} autoFocus
               className="w-full bg-transparent text-[12px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
-              onKeyDown={(e) => { if (e.key === "Escape") { setShowNewTask(false); setNewTaskTitle(""); } }}
+              onKeyDown={(event) => { if (event.key === "Escape") { setShowNewTask(false); setNewTaskTitle(""); } }}
               onBlur={() => { if (!newTaskTitle.trim()) { setShowNewTask(false); } }} />
           </form>
         )}
@@ -479,17 +479,17 @@ export default function StandupRetroView({ user, context, contextLabel }) {
           <>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.thisWeeksPriorities")}</label>
-              <textarea value={standupForm.priorities} onChange={(e) => editStandup("priorities", e.target.value)} rows={3} placeholder={t("staffMisc.standupRetro.prioritiesPlaceholder")}
+              <textarea value={standupForm.priorities} onChange={(event) => editStandup("priorities", event.target.value)} rows={3} placeholder={t("staffMisc.standupRetro.prioritiesPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.expectedDeliverables")}</label>
-              <textarea value={standupForm.deliverables} onChange={(e) => editStandup("deliverables", e.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.deliverablesPlaceholder")}
+              <textarea value={standupForm.deliverables} onChange={(event) => editStandup("deliverables", event.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.deliverablesPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.blockersSupportNeeded")}</label>
-              <textarea value={standupForm.notes} onChange={(e) => editStandup("notes", e.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.supportPlaceholder")}
+              <textarea value={standupForm.notes} onChange={(event) => editStandup("notes", event.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.supportPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
           </>
@@ -497,17 +497,17 @@ export default function StandupRetroView({ user, context, contextLabel }) {
           <>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.whatWentWell")}</label>
-              <textarea value={retroForm.wentWell} onChange={(e) => editRetro("wentWell", e.target.value)} rows={3} placeholder={t("staffMisc.standupRetro.wentWellPlaceholder")}
+              <textarea value={retroForm.wentWell} onChange={(event) => editRetro("wentWell", event.target.value)} rows={3} placeholder={t("staffMisc.standupRetro.wentWellPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.whatDidntGoWell")}</label>
-              <textarea value={retroForm.wentWrong} onChange={(e) => editRetro("wentWrong", e.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.wentWrongPlaceholder")}
+              <textarea value={retroForm.wentWrong} onChange={(event) => editRetro("wentWrong", event.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.wentWrongPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.whatWillImprove")}</label>
-              <textarea value={retroForm.improve} onChange={(e) => editRetro("improve", e.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.improvePlaceholder")}
+              <textarea value={retroForm.improve} onChange={(event) => editRetro("improve", event.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.improvePlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
           </>

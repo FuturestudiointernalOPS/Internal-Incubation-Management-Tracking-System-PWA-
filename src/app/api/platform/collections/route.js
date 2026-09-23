@@ -71,7 +71,7 @@ export async function GET(req) {
     // Build tree: recursively nest children at any depth
     const all = result.rows;
     const buildTree = (parentId) => {
-      const nodes = all.filter((c) => (parentId === null ? !c.parent_id : c.parent_id === parentId));
+      const nodes = all.filter((collection) => (parentId === null ? !collection.parent_id : collection.parent_id === parentId));
       return nodes.map((node) => ({
         ...node,
         children: buildTree(node.id),

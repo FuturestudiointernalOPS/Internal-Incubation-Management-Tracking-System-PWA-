@@ -39,29 +39,29 @@ export async function GET(req) {
       `&id=${encodeURIComponent(videoId)}&key=${encodeURIComponent(apiKey)}`;
     let json;
     try {
-      const res = await fetch(apiUrl, { cache: "no-store" });
-      if (!res.ok) throw new Error(`YouTube API ${res.status}`);
-      json = await res.json();
+      const response = await fetch(apiUrl, { cache: "no-store" });
+      if (!response.ok) throw new Error(`YouTube API ${response.status}`);
+      json = await response.json();
     } catch {
       throw new LmsError("lms.errors.videoInfoFailed", 502);
     }
 
-    const item = (json.items || [])[0];
-    if (!item) throw new LmsError("lms.errors.videoInfoNotFound", 404);
+    const videoItem = (json.items || [])[0];
+    if (!videoItem) throw new LmsError("lms.errors.videoInfoNotFound", 404);
 
-    const durationSeconds = parseIso8601Duration(item.contentDetails?.duration);
+    const durationSeconds = parseIso8601Duration(videoItem.contentDetails?.duration);
     return NextResponse.json({
       success: true,
       id: videoId,
-      title: item.snippet?.title || null,
+      title: videoItem.snippet?.title || null,
       durationSeconds,
       // Whole display minutes, rounded up (a 61s clip is "2 min"); the admin
       // sees the value in the field and can correct it.
       durationMinutes:
         durationSeconds != null ? Math.max(1, Math.ceil(durationSeconds / 60)) : null,
     });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }
 
@@ -71,9 +71,9 @@ export async function GET(req) {
  */
 function parseIso8601Duration(value) {
   if (value == null) return null;
-  const m = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/i.exec(String(value).trim());
-  if (!m) return null;
-  const [, d, h, min, s] = m;
-  if (!d && !h && !min && !s) return null;
-  return (Number(d || 0) * 86400) + (Number(h || 0) * 3600) + (Number(min || 0) * 60) + Number(s || 0);
+  const match = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/i.exec(String(value).trim());
+  if (!match) return null;
+  const [, days, hours, minutes, seconds] = match;
+  if (!days && !hours && !minutes && !seconds) return null;
+  return (Number(days || 0) * 86400) + (Number(hours || 0) * 3600) + (Number(minutes || 0) * 60) + Number(seconds || 0);
 }

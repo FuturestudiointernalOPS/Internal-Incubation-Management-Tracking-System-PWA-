@@ -9,8 +9,8 @@ import {
 
 
 async function resolveVentureDbId(ventureId) {
-  const r = await getPmfVentureId(ventureId);
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await getPmfVentureId(ventureId);
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 export async function GET(req, { params }) {
@@ -25,10 +25,10 @@ export async function GET(req, { params }) {
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const r = await getPmfAssessments(dbId);
-    return NextResponse.json({ success: true, assessments: r.rows || [] });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+    const assessmentsResult = await getPmfAssessments(dbId);
+    return NextResponse.json({ success: true, assessments: assessmentsResult.rows || [] });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -47,7 +47,7 @@ export async function POST(req, { params }) {
     const { customer_feedback, improvements, pmf_progress } = await req.json();
     await createPmfAssessment(dbId, customer_feedback || null, improvements || null, pmf_progress || 0, session.cid);
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

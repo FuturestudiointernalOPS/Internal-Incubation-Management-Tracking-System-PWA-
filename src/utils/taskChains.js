@@ -11,23 +11,23 @@
 
 /** Newest copy of a chain, from any member of that chain. */
 function newestOf(task, byId, childrenOf) {
-  let cur = task;
+  let currentTask = task;
   const seen = new Set();
-  while (!seen.has(cur.id)) {
-    seen.add(cur.id);
-    const clones = (childrenOf.get(cur.id) || [])
-      .filter((c) => c.status !== "archived")
+  while (!seen.has(currentTask.id)) {
+    seen.add(currentTask.id);
+    const successorCopies = (childrenOf.get(currentTask.id) || [])
+      .filter((copy) => copy.status !== "archived")
       .sort(
-        (a, b) =>
-          (b.created_year || 0) - (a.created_year || 0) ||
-          (b.created_week || 0) - (a.created_week || 0) ||
-          (b.id || 0) - (a.id || 0),
+        (first, second) =>
+          (second.created_year || 0) - (first.created_year || 0) ||
+          (second.created_week || 0) - (first.created_week || 0) ||
+          (second.id || 0) - (first.id || 0),
       );
-    const next = clones[0];
-    if (!next || !byId.has(next.id)) break;
-    cur = next;
+    const nextCopy = successorCopies[0];
+    if (!nextCopy || !byId.has(nextCopy.id)) break;
+    currentTask = nextCopy;
   }
-  return cur;
+  return currentTask;
 }
 
 /**
@@ -43,23 +43,23 @@ export function collapseChains(tasks) {
   const byId = new Map();
   const childrenOf = new Map(); // source id -> copies pointing at it
 
-  for (const t of tasks) {
-    byId.set(t.id, t);
-    if (!t.carried_over_from_task_id) continue;
-    const key = t.carried_over_from_task_id;
-    if (!childrenOf.has(key)) childrenOf.set(key, []);
-    childrenOf.get(key).push(t);
+  for (const task of tasks) {
+    byId.set(task.id, task);
+    if (!task.carried_over_from_task_id) continue;
+    const parentTaskId = task.carried_over_from_task_id;
+    if (!childrenOf.has(parentTaskId)) childrenOf.set(parentTaskId, []);
+    childrenOf.get(parentTaskId).push(task);
   }
 
   const kept = new Set();
   const result = [];
 
-  for (const t of tasks) {
-    if (t.parent_task_id) {
-      result.push(t); // sub-tasks always render under their parent
+  for (const task of tasks) {
+    if (task.parent_task_id) {
+      result.push(task); // sub-tasks always render under their parent
       continue;
     }
-    const head = newestOf(t, byId, childrenOf);
+    const head = newestOf(task, byId, childrenOf);
     if (kept.has(head.id)) continue;
     kept.add(head.id);
     result.push(head);
@@ -70,18 +70,18 @@ export function collapseChains(tasks) {
 
 /** Number of copies a task family has (including the task itself). */
 export function chainLength(task, byId, childrenOf) {
-  let n = 0;
-  let cur = task;
+  let length = 0;
+  let currentTask = task;
   const seen = new Set();
-  while (cur && !seen.has(cur.id)) {
-    seen.add(cur.id);
-    n++;
-    cur = null;
+  while (currentTask && !seen.has(currentTask.id)) {
+    seen.add(currentTask.id);
+    length++;
+    currentTask = null;
     // walk forward to newest
-    const clones = (childrenOf.get(cur ? cur.id : task.id) || []).filter(
-      (c) => c.status !== "archived",
+    const successorCopies = (childrenOf.get(currentTask ? currentTask.id : task.id) || []).filter(
+      (copy) => copy.status !== "archived",
     );
-    if (clones.length) cur = clones[0];
+    if (successorCopies.length) currentTask = successorCopies[0];
   }
-  return n;
+  return length;
 }

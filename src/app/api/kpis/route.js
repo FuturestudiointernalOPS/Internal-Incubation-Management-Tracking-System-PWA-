@@ -47,10 +47,10 @@ export async function POST(req) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("KPI POST error:", err);
+  } catch (error) {
+    console.error("KPI POST error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 }
     );
   }
@@ -93,10 +93,10 @@ export async function PUT(req) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("KPI PUT error:", err);
+  } catch (error) {
+    console.error("KPI PUT error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 }
     );
   }
@@ -138,10 +138,10 @@ export async function DELETE(req) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("KPI DELETE error:", err);
+  } catch (error) {
+    console.error("KPI DELETE error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 }
     );
   }

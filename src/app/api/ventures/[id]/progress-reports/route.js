@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
  * staff-scoped (any active assignment). Reports become part of the Venture's
  * institutional memory.
  */
-async function viewer() {
+async function getViewerSession() {
   const session = await getSession();
   if (!session) return null;
   return session;
@@ -32,7 +32,7 @@ async function viewer() {
 export async function GET(req, { params }) {
   try {
     const { id } = await params;
-    const session = await viewer();
+    const session = await getViewerSession();
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const code = await resolveVentureCode(db, id);
     if (!code) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
@@ -42,8 +42,8 @@ export async function GET(req, { params }) {
       return NextResponse.json({ success: false, error: "Staff access required." }, { status: 403 });
     }
 
-    const s = new URL(req.url).searchParams;
-    const reportId = s.get("id");
+    const searchParams = new URL(req.url).searchParams;
+    const reportId = searchParams.get("id");
     if (reportId) {
       const report = await getVentureReport(db, { code, id: parseInt(reportId) });
       if (!report) return NextResponse.json({ success: false, error: "Report not found." }, { status: 404 });
@@ -51,26 +51,26 @@ export async function GET(req, { params }) {
     }
     // Super Admin's gap view: journeys that closed WITHOUT their closing report.
     // Nothing is ever blocked on the report — the gap is simply visible.
-    if (s.get("missing_reports")) {
+    if (searchParams.get("missing_reports")) {
       const journeys = await listJourneysMissingClosingReport(db, { code });
       return NextResponse.json({ success: true, journeys_missing_report: journeys });
     }
 
     const reports = await listVentureReports(db, {
       code,
-      status: s.get("status") || null,
-      journeyStageId: s.get("journey_stage_id") || null,
+      status: searchParams.get("status") || null,
+      journeyStageId: searchParams.get("journey_stage_id") || null,
     });
     return NextResponse.json({ success: true, reports });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
 export async function POST(req, { params }) {
   try {
     const { id } = await params;
-    const session = await viewer();
+    const session = await getViewerSession();
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     const access = await resolvePlanAccess(db, id, session);
@@ -92,15 +92,15 @@ export async function POST(req, { params }) {
     } catch (_) {}
 
     return NextResponse.json({ success: true, id: result.id });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
 export async function PATCH(req, { params }) {
   try {
     const { id } = await params;
-    const session = await viewer();
+    const session = await getViewerSession();
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     const access = await resolvePlanAccess(db, id, session);
@@ -125,7 +125,7 @@ export async function PATCH(req, { params }) {
     } catch (_) {}
 
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

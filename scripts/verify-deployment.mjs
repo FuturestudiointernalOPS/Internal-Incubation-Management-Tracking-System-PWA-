@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import pg from "pg";
 
-const readUrl = (file) => {
+const readDatabaseUrl = (file) => {
   try {
     for (const line of readFileSync(resolve(process.cwd(), file), "utf-8").split("\n")) {
       if (line.startsWith("DATABASE_URL=")) {
@@ -18,11 +18,11 @@ const readUrl = (file) => {
 
 let used = null;
 for (const file of [".env.local", ".env.prod-verify", ".env.audit-staging"]) {
-  const url = readUrl(file);
-  if (!url) continue;
+  const databaseUrl = readDatabaseUrl(file);
+  if (!databaseUrl) continue;
   try {
     const pool = new pg.Pool({
-      connectionString: url,
+      connectionString: databaseUrl,
       ssl: { rejectUnauthorized: false },
       connectionTimeoutMillis: 12000,
     });
@@ -37,21 +37,21 @@ if (!used) {
   process.exit(2);
 }
 const { pool } = used;
-const q = async (label, sql, expect = null) => {
+const runQuery = async (label, sql, expect = null) => {
   try {
     const rows = (await pool.query(sql)).rows;
     const ok = expect === null || JSON.stringify(rows) === JSON.stringify(expect);
     console.log(`${ok ? "PASS" : "FAIL"}  ${label}${!ok ? ` — expected ${JSON.stringify(expect)}, got ${JSON.stringify(rows)}` : ""}`);
     return ok;
-  } catch (e) {
-    console.log(`FAIL  ${label} — ${e.message.split("\n")[0]}`);
+  } catch (error) {
+    console.log(`FAIL  ${label} — ${error.message.split("\n")[0]}`);
     return false;
   }
 };
 
 let failures = 0;
 const check = async (label, sql, expect) => {
-  if (!(await q(label, sql, expect))) failures++;
+  if (!(await runQuery(label, sql, expect))) failures++;
 };
 
 // 1. Membership schema present
@@ -107,7 +107,7 @@ await check("staff role default = Staff Default profile",
    WHERE rpd.role_name='staff' AND ap.name='Staff Default' AND ap.is_active=1`, [{ n: 1 }]);
 await check("Staff Default profile capability count = 11 (Option B)",
   "SELECT COUNT(*)::int AS n FROM access_profile_capabilities apc JOIN access_profiles ap ON ap.id=apc.profile_id WHERE ap.name='Staff Default'", [{ n: 11 }]);
-await q("Staff Default profile capabilities (informational)",
+await runQuery("Staff Default profile capabilities (informational)",
   "SELECT apc.module, apc.capability, apc.access_level FROM access_profile_capabilities apc JOIN access_profiles ap ON ap.id=apc.profile_id WHERE ap.name='Staff Default' ORDER BY apc.module, apc.capability");
 
 console.log(`\n${failures === 0 ? "VERDICT: ALL CHECKS PASSED — deployment is healthy." : `VERDICT: ${failures} CHECK(S) FAILED — investigate.`}`);
