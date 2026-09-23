@@ -25,7 +25,12 @@ jest.mock("@/lib/authorization", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
+jest.mock("@/lib/programScopedAccess", () => ({
+  requireProgramScope: jest.fn(async () => null),
+}));
+
 const { requireAuthorization } = require("@/lib/authorization");
+const { requireProgramScope } = require("@/lib/programScopedAccess");
 const { getSession } = require("@/lib/auth");
 
 const {
@@ -291,6 +296,8 @@ describe("lms coaching requests — routes", () => {
     expect(data.success).toBe(true);
     expect(data.requests).toHaveLength(1);
     expect(requireAuthorization).toHaveBeenCalledWith("lms", "view");
+    // The program queue is scoped to the caller's staffing, not just the role.
+    expect(requireProgramScope).toHaveBeenCalledWith({ programId: PROGRAM, wave: "lms" });
   });
 
   test("DELETE withdraws an owned request", async () => {

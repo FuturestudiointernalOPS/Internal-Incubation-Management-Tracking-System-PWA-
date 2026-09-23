@@ -1,7 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
-import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { sendDecisionEmail, getTemplate, getDesignedTemplate, resolveResultDelayMinutes, ensureEmailLogTable, resolvePersonName, resolveSubmissionEmail, resolveProjectName, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun, detectLanguage, getEmailLogRow } from "@/lib/email";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded, sendAcknowledgementForSubmission } from "@/lib/platform/automation";
@@ -103,7 +102,6 @@ import {
   deleteTimelineBySubmissionId,
   deleteEvaluationsBySubmissionId,
   deleteSubmissionById,
-  executeRawMigrationSql,
   getManualMessageSubmissionsByIdsInRun,
   getManualMessageFieldLabelsByRunId,
   getManualMessageGroupNameByRunId,
@@ -2270,16 +2268,10 @@ export async function POST(req) {
       return NextResponse.json({ success: true, message: "Submission deleted" });
     }
 
-    // ─── MIGRATION ACTION (super admin only) ───
-    if (action === "migrate") {
-      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuth(["super_admin"]);
-      if (authError) return authError;
-      const { sql } = body;
-      if (!sql) return NextResponse.json({ success: false, error: "sql required" }, { status: 400 });
-      await executeRawMigrationSql(sql);
-      return NextResponse.json({ success: true, message: "Migration executed" });
-    }
+    // NOTE: the former `migrate` action ran an arbitrary SQL string supplied in
+    // the request body. It was removed: raw SQL must never travel from a request
+    // into db.execute. Schema changes ship as reviewed migrations (src/migrations)
+    // or the dedicated /api/migrate/phaseN routes.
 
     // ─── SEND MANUAL MESSAGE ACTION (Room Overview → selected participants) ───
     if (action === "send_manual_message") {

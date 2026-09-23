@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuthorization } from "@/lib/authorization";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import {
   getProgramRequirements,
   attachCourseToProgram,
@@ -42,6 +43,10 @@ export async function GET(req) {
         { status: 400 },
       );
     }
+    // Program scope: `lms.view` alone is a global capability, so a delegated
+    // holder must be staffed on THIS program to read its requirements.
+    const scopeError = await requireProgramScope({ programId, wave: "lms" });
+    if (scopeError) return scopeError;
     const requirements = await getProgramRequirements(programId, {
       weekNumber: weekNumber != null ? Number(weekNumber) : undefined,
       sessionId: sessionId || undefined,
@@ -66,6 +71,12 @@ export async function POST(req) {
     if (capError) return capError;
 
     const body = await req.json();
+
+    // Program scope: attaching a course is a program action; a delegated
+    // `lms.edit` holder must be staffed on THIS program.
+    const scopeError = await requireProgramScope({ programId: body.program_id, wave: "lms" });
+    if (scopeError) return scopeError;
+
     const requirement = await attachCourseToProgram({
       programId: body.program_id,
       courseId: body.course_id,

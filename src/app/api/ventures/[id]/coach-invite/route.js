@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
 import { resolveVentureCode } from "@/lib/ventureOperatingPlans";
+import { VENTURE_SCOPE_TYPES } from "@/lib/venturePermissions";
 import { inviteCoachByEmail } from "@/lib/ventureCoach";
 
 export const dynamic = "force-dynamic";
@@ -43,13 +44,29 @@ export async function POST(req, { params }) {
     }).catch(() => ({ rows: [] }));
     const ventureName = ventureResult.rows?.[0]?.company_name || ventureResult.rows?.[0]?.name || code;
 
+    // The invitee's responsibility is a PRIVILEGE boundary: this endpoint invites
+    // a Coach / Facilitator, not a co-Lead-Manager. The code used to come from the
+    // body, so a plan-manage holder could mint a `lead_manager`.
+    const COACH_INVITE_RESPONSIBILITIES = new Set(["coach", "facilitator"]);
+    const requestedResponsibility = String(body.responsibility_code || "").trim();
+    const responsibilityCode = COACH_INVITE_RESPONSIBILITIES.has(requestedResponsibility)
+      ? requestedResponsibility
+      : "facilitator";
+    // No scope reference is carried by this flow, so only a venture-wide scope is
+    // meaningful; anything else would produce an unbound assignment.
+    const scopeCodes = new Set(VENTURE_SCOPE_TYPES.map((scope) => scope.code));
+    const requestedScope = String(body.scope_type || "").trim();
+    const scopeType = scopeCodes.has(requestedScope) && requestedScope === "venture_wide"
+      ? requestedScope
+      : "venture_wide";
+
     const result = await inviteCoachByEmail(db, {
       code,
       ventureName,
       email,
       name: body.name ? String(body.name) : null,
-      responsibilityCode: body.responsibility_code ? String(body.responsibility_code) : "facilitator",
-      scopeType: body.scope_type ? String(body.scope_type) : "venture_wide",
+      responsibilityCode,
+      scopeType,
       actorCid: session.cid || null,
       preview: body.preview === true,
     });

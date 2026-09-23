@@ -63,10 +63,13 @@ export async function POST(request) {
       );
     }
 
-    // Validate file type (MIME first, fall back to extension)
+    // Validate file type: a valid EXTENSION is required, and a declared MIME
+    // type must be one we accept (an absent/generic type is tolerated). The old
+    // OR let a file with a safe extension but a hostile content type through.
     const isMimeValid = ALLOWED_MIME_TYPES.includes(file.type);
+    const isMimeUnknown = !file.type || file.type === "application/octet-stream";
     const isExtensionValid = ALLOWED_EXTENSIONS.test(file.name || "");
-    if (!isMimeValid && !isExtensionValid) {
+    if (!isExtensionValid || (!isMimeValid && !isMimeUnknown)) {
       return NextResponse.json(
         {
           success: false,

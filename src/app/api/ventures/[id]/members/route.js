@@ -349,8 +349,24 @@ export async function PATCH(req, { params }) {
       } catch (_) {}
       const updates = [];
       const updateArgs = [];
-      if (role !== undefined) { updates.push("role = ?"); updateArgs.push(role); }
-      if (permissions !== undefined) { updates.push("permissions = ?"); updateArgs.push(permissions); }
+      // Role and permissions are server-controlled fields: downstream access
+      // facts read them, so an arbitrary client string must not be written.
+      const MEMBER_ROLES = new Set(["member", "founder", "admin", "lead"]);
+      if (role !== undefined) {
+        const nextRole = String(role).trim().toLowerCase();
+        if (!MEMBER_ROLES.has(nextRole)) {
+          return NextResponse.json({ success: false, error: "Unknown member role." }, { status: 400 });
+        }
+        updates.push("role = ?");
+        updateArgs.push(nextRole);
+      }
+      if (permissions !== undefined) {
+        if (typeof permissions !== "object" || permissions === null || Array.isArray(permissions)) {
+          return NextResponse.json({ success: false, error: "permissions must be an object." }, { status: 400 });
+        }
+        updates.push("permissions = ?");
+        updateArgs.push(permissions);
+      }
       if (updates.length === 0) {
         return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
       }

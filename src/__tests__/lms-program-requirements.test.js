@@ -25,6 +25,10 @@ jest.mock("@/lib/authorization", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
+jest.mock("@/lib/programScopedAccess", () => ({
+  requireProgramScope: jest.fn(async () => null),
+}));
+
 const {
   attachCourseToProgram,
   getProgramRequirements,

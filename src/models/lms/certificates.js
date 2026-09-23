@@ -202,14 +202,10 @@ export async function getCertificatePublic(tokenOrNumber) {
     sql: "SELECT * FROM lms_certificates WHERE verification_token = ?",
     args: [value],
   });
-  let cert = parseCertificate(byToken.rows[0]);
-  if (!cert) {
-    const byNumber = await db.execute({
-      sql: "SELECT * FROM lms_certificates WHERE certificate_number = ?",
-      args: [value],
-    });
-    cert = parseCertificate(byNumber.rows[0]);
-  }
+  const cert = parseCertificate(byToken.rows[0]);
+  // NOTE: the certificate number is SEQUENTIAL, so accepting it here made the
+  // public verification URL enumerable (name + course per guessed number). Only
+  // the random verification token is accepted now.
   if (!cert) throw new LmsError("lms.errors.certificateNotFound", 404);
 
   return toPublicCertificate(cert);

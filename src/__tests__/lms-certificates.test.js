@@ -488,14 +488,13 @@ describe("public verification (spec §19-20, §28)", () => {
     expect(data.certificate.revoked_at).toBeUndefined();
   });
 
-  test("certificate number also verifies (convenience lookup)", async () => {
+  test("the sequential certificate number is refused (not enumerable)", async () => {
     seedCertificate();
     const res = await verifyGET(new Request("http://localhost/x"), {
       params: { token: "CERT-2026-000001" },
     });
-    expect(res.status).toBe(200);
-    const data = await readJson(res);
-    expect(data.certificate.status).toBe("valid");
+    // The number is sequential, so accepting it made the public URL enumerable.
+    expect(res.status).toBe(404);
   });
 
   test("unknown token → 404, never leaks existence of other data", async () => {

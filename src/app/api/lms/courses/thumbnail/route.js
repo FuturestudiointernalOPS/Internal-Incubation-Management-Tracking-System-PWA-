@@ -34,8 +34,9 @@ export async function POST(request) {
     }
 
     const isMimeValid = ALLOWED_MIME_TYPES.includes(file.type);
+    const isMimeUnknown = !file.type || file.type === "application/octet-stream";
     const isExtensionValid = ALLOWED_EXTENSIONS.test(file.name || "");
-    if (!isMimeValid && !isExtensionValid) {
+    if (!isExtensionValid || (!isMimeValid && !isMimeUnknown)) {
       return NextResponse.json(
         { success: false, error: "lms.fields.thumbnailInvalidType" },
         { status: 400 },

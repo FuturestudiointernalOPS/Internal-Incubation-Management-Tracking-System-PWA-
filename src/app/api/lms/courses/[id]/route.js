@@ -11,6 +11,20 @@ import { lmsErrorResponse } from "@/lib/lms/errors";
 export const dynamic = "force-dynamic";
 
 /**
+ * Remove every `correct_answer` from an authoring structure. A view-only holder
+ * does not need the answer key, so it must not be handed one.
+ */
+function stripAnswerKeys(node) {
+  if (!node || typeof node !== "object") return;
+  if (Array.isArray(node)) {
+    node.forEach(stripAnswerKeys);
+    return;
+  }
+  if ("correct_answer" in node) delete node.correct_answer;
+  for (const value of Object.values(node)) stripAnswerKeys(value);
+}
+
+/**
  * GET /api/lms/courses/[id] — full authoring structure (course + sections +
  * lessons + assessments + questions). Requires lms.view.
  */
@@ -22,6 +36,9 @@ export async function GET(req, { params }) {
 
     const { id } = await params;
     const structure = await getCourseStructure(id);
+    // The answer key is an EDITOR resource: strip it unless the caller may edit.
+    const editCapError = await requireAuthorization("lms", "edit");
+    if (editCapError) stripAnswerKeys(structure);
     return NextResponse.json({ success: true, course: structure });
   } catch (error) {
     return lmsErrorResponse(error);

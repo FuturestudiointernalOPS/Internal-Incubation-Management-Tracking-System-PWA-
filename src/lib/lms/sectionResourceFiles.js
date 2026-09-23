@@ -71,9 +71,15 @@ export function assertUploadableFile(file, kind) {
   const resolvedKind = normalizeFileKind(kind);
   const mimeTypes = resolvedKind === "video" ? VIDEO_MIME_TYPES : DOCUMENT_MIME_TYPES;
 
-  const mimeOk = mimeTypes.includes(String(file.type || "").toLowerCase());
+  // A valid EXTENSION is required, and a declared MIME type must be one we
+  // accept (an absent/generic type is tolerated). The old OR let a file with a
+  // safe extension but a hostile content type through, and the declared type
+  // was then stored verbatim.
+  const rawType = String(file.type || "").toLowerCase();
+  const mimeOk = mimeTypes.includes(rawType);
+  const mimeUnknown = !rawType || rawType === "application/octet-stream";
   const extensionOk = LMS_RESOURCE_EXTENSIONS[resolvedKind].test(file.name || "");
-  if (!mimeOk && !extensionOk) {
+  if (!extensionOk || (!mimeOk && !mimeUnknown)) {
     throw new LmsError(
       resolvedKind === "video" ? "lms.errors.invalidVideoFile" : "lms.errors.invalidDocumentFile",
       400,

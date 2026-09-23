@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import { lmsErrorResponse } from "@/lib/lms/errors";
 import {
   createCoachingRequest,
@@ -34,6 +35,10 @@ export async function GET(req) {
     if (programId) {
       const capError = await requireAuthorization("lms", "view");
       if (capError) return capError;
+      // Program scope: reading a program's coaching queue is a program action, so
+      // a delegated `lms.view` holder must be staffed on THIS program.
+      const scopeError = await requireProgramScope({ programId, wave: "lms" });
+      if (scopeError) return scopeError;
       const requests = await listCoachingRequests({
         programId,
         courseId: searchParams.get("course_id") || undefined,

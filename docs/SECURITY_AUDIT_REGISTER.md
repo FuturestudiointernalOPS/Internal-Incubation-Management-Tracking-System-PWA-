@@ -31,6 +31,7 @@
 | **FIXED — Lot 1** | Corrected with the venture object-level authorization batch. |
 | **FIXED — Lot 2** | Corrected with the investor own-scope batch. |
 | **FIXED — Lot 3** | Corrected with the admin/auth/session/scope batch. |
+| **FIXED — Lot 4** | Corrected with the forms/LMS/upload batch. |
 | **OPEN** | Still present. Fix order in §4. |
 
 ---
@@ -100,6 +101,19 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | — | `group-members`, `feedback` | Unscoped membership dump (now requires `group_id`); participants can read every program's feedback (now management-only) and write feedback as anyone (now bound to their own cid). | **FIXED — Lot 3** |
 | — | Tests | `src/__tests__/security-lot3-admin-authz.test.js` | 16 source-level invariant tests. | **FIXED — Lot 3** |
 
+### 2.6 Lot 4 — forms, LMS and uploads
+
+| ID | Location | Was | Status |
+|---|---|---|---|
+| INJ-1 | `platform/form-runs` | The `migrate` action ran an arbitrary SQL string from the request body via `db.execute` (super_admin). Action and helper removed. | **FIXED — Lot 4** |
+| LMS-1 | `models/lms/certificates.js` | The public verification accepted the SEQUENTIAL certificate number, making the URL enumerable (learner name + course). Only the random token is accepted now. | **FIXED — Lot 4** |
+| AUTHZ-VEN-1 | `ventures/[id]/coach-invite` | `responsibility_code`/`scope_type` came from the body, so a plan-manage holder could mint a `lead_manager`. Allow-listed to coach/facilitator + venture-wide. | **FIXED — Lot 4** |
+| MASS-VEN-1 | `ventures/[id]/members` | Client `role`/`permissions` written unvalidated. Role allow-list, permissions must be an object. | **FIXED — Lot 4** |
+| DATA-2 | `lms/courses/[id]` | `correct_answer` returned to a `lms.view` holder. The answer key is stripped unless the caller may `lms.edit`. | **FIXED — Lot 4** |
+| SCOPE-LMS-1 | `lms/program-requirements` (GET/POST), `lms/coaching-requests` | Program scope added (`requireProgramScope`). | **FIXED — Lot 4** |
+| UPLOAD-1 (part) | `upload`, `profile/photo`, `lms/courses/thumbnail`, `lib/storage.js`, `lib/lms/sectionResourceFiles.js` | Validation was MIME **OR** extension, so a file with a safe extension and a hostile content type passed. Now requires a valid extension AND a compatible (or absent) declared type. | **FIXED — Lot 4 (part — bucket privacy below)** |
+| — | Tests | `src/__tests__/security-lot4-forms-lms.test.js` (+ 3 LMS suites updated) | 11 regression tests. | **FIXED — Lot 4** |
+
 ---
 
 ## 3. OPEN — residual register
@@ -110,7 +124,7 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 
 | ID | Category | Location | Risk | Severity | Status |
 |---|---|---|---|---|---|
-| INJ-1 | Injection | `POST /api/platform/form-runs` action `migrate` | Arbitrary SQL string from the request body executed via `db.execute` (super_admin only). | P0 | **OPEN** |
+| INJ-1 | Injection | `POST /api/platform/form-runs` action `migrate` | ✅ fixed in Lot 4 (action removed). | **FIXED** |
 
 ### 3.2 P1
 
@@ -126,12 +140,13 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | BOLA-CRM-1 | BOLA | `group-members` POST | Membership insert still has no program scope (unscoped read fixed in Lot 3). | **OPEN — Lot 3 remainder** |
 | IDOR-TASK-1 | BOLA | `tasks/carryover` | ✅ fixed in Lot 3. | **FIXED** |
 | IDOR-TASK-2 | BOLA | `tasks` | Staff/PM may list any `user_id`'s tasks; authz compares the client-supplied `user_id`; `supervisor_id` self-grant. | **OPEN — Lot 3** |
-| BOLA-FORM-2 | BOLA | `submissions` | Team sessions read other teams' submissions; score writes without program scope. | **OPEN — Lot 4** |
-| PUB-3 | Business logic | `respond` | Writes responses attributed to a caller-supplied `cid`, with no anchoring. | **OPEN — Lot 4** |
-| AUTHZ-VEN-1 | Privilege grant | `ventures/[id]/coach-invite` | Client-chosen `responsibility_code` (e.g. `lead_manager`) with only plan-manage authority. | **OPEN — Lot 4** |
-| LMS-1 | Enumeration | `verify/certificate` (`models/lms/certificates.js`) | Sequential `certificate_number` fallback exposes learner name + course. | **OPEN — Lot 4** |
-| UPLOAD-1 | Upload | `lms/section-resources/upload`, `lms/courses/thumbnail`, `upload`, `profile/photo` | MIME **OR** extension validation, client `contentType`, public buckets. | **OPEN — Lot 4** |
-| BOLA-FORM-1 | BOLA | `run-export`, `platform/form-runs` (`submission_id`), `platform/…/report-file`, `platform/ai/evaluation-scores` | Capability-only reads of any run/submission/report (participant PII). | **OPEN — Lot 4** |
+| BOLA-FORM-2 | BOLA | `submissions` | Team sessions read other teams' submissions; score writes without program scope. | **OPEN — Lot 4 remainder** |
+| PUB-3 | Business logic | `respond` | Writes responses attributed to a caller-supplied `cid`, with no anchoring. | **OPEN — Lot 4 remainder** |
+| AUTHZ-VEN-1 | Privilege grant | `ventures/[id]/coach-invite` | ✅ fixed in Lot 4. | **FIXED** |
+| LMS-1 | Enumeration | `verify/certificate` (`models/lms/certificates.js`) | ✅ fixed in Lot 4. | **FIXED** |
+| UPLOAD-1 | Upload | `upload`, `profile/photo`, `lms/*` | ✅ validation fixed in Lot 4; **still OPEN: buckets are public** (need private + signed URLs). | **OPEN — Lot 4 remainder** |
+| BOLA-FORM-1 | BOLA | `run-export`, `platform/form-runs` (`submission_id`), `platform/…/report-file`, `platform/ai/evaluation-scores` | Capability-only reads of any run/submission/report (participant PII). | **OPEN — Lot 4 remainder** |
+| SCOPE-LMS-1b | Scope | `lms/program-requirements/[id]` PUT/DELETE | Requirement id is not resolved to its program before mutation. | **OPEN — Lot 4 remainder** |
 | CSRF-1 | CSRF | state-changing **GET** routes (`engineering/permissions/seed*`, `sync-context-grants`, `program-types`) | `SameSite=Lax` lets a top-level cross-site navigation trigger mutations. | **OPEN — Lot 5** |
 | DEP-1 | Dependencies | `npm audit` | CRITICAL/HIGH `tar` via `unpdf → canvas`; no upstream fix. | **OPEN — Lot 5** |
 
@@ -152,12 +167,12 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | AUTHZ-ADM-5 | Self-assignment | `access-profiles/assign`, `responsibilities/assign` | No self-assignment guard; `allowed_roles` not enforced. | **OPEN — Lot 3** |
 | AUTHZ-CRM-1 | Scope | `notifications` (create), `contact-emails`, `team-tasks` | Forged notices to any recipient; staff manage any contact's emails; team tasks with no team scope. | **OPEN — Lot 3** |
 | PUB-CONTACTS-1 | Mass assignment | `contacts` POST | Anonymous caller may still supply `program_id`/other fields (role/status now clamped). | **OPEN — Lot 3** |
-| DATA-2 | Exposure | `lms/courses/[id]` | `correct_answer` returned to a `lms.view` holder. | **OPEN — Lot 4** |
-| SCOPE-LMS-1 | Scope | `lms/program-requirements` | Missing program scope. | **OPEN — Lot 4** |
-| MASS-VEN-1 | Mass assignment | `ventures/[id]/members` | Client `role`/`permissions` written unvalidated. | **OPEN — Lot 4** |
+| DATA-2 | Exposure | `lms/courses/[id]` | ✅ fixed in Lot 4 (answer key stripped). | **FIXED** |
+| SCOPE-LMS-1 | Scope | `lms/program-requirements` | ✅ fixed in Lot 4. | **FIXED** |
+| MASS-VEN-1 | Mass assignment | `ventures/[id]/members` | ✅ fixed in Lot 4. | **FIXED** |
 | SECRET-3 | Passwords | `teams`, `pm/teams` | Team passwords generated with `Math.random()` and stored in clear. | **OPEN — Lot 5** |
 | AUTHZ-GLOBAL-1 | Scope | `ventures/[id]/knowledge` (resource update/delete), `ventures/[id]/coaches` (PATCH/DELETE coach) | Global catalogs mutated by any venture editor; no venture dimension exists. | **OPEN — needs a platform-capability decision** |
-| PUB-2 | Business logic | `s/public-draft` | Draft answers read/overwritten by slug+email, no token. | **OPEN — Lot 4** |
+| PUB-2 | Business logic | `s/public-draft` | Draft answers read/overwritten by slug+email, no token. | **OPEN — Lot 4 remainder** |
 | WHO-1 | Webhook | `webhooks/resend` | Non-constant-time signature compare; no timestamp/replay window. | **OPEN — Lot 6** |
 
 ### 3.4 P3
@@ -189,9 +204,8 @@ Middleware           ✅ done — public API/page allowlist alignment
 Lot 1  (P1 venture)  ✅ done — object-level authorization on the venture surface
 Lot 2  (P1 investor) ✅ done — own-scope every investor route
 Lot 3  (P1 admin/authz) ✅ mostly done — impersonation, role escalation, session purge, project BOLA, task carryover; remainder: `pm/*` + `teams` + `lms/coaching-requests` program scope, `access-profiles`/`responsibilities` self-assignment, `facilitators/invite-bulk`, `admin/projects/[id]/reports/generate`, `notifications`/`contact-emails`/`team-tasks`
-Lot 4  (P1 forms/LMS/upload) ← next
-Lot 4  (P1 forms/LMS/upload)
-Lot 5  (P2 rate limiting, headers, errors, CSRF, dependencies, createHandler)
+Lot 4  (P1 forms/LMS/upload) ✅ mostly done — arbitrary SQL removed, certificate token-only, upload validation, coach-invite/members privilege allow-lists, LMS answer key, LMS program scope; remainder: public buckets, run/submission scope (`run-export`, `form-runs submission_id`, `report-file`, `evaluation-scores`, `submissions`), `respond` identity, `s/public-draft`, `program-requirements/[id]`, `pm/*` + `teams` program scope, `access-profiles`/`responsibilities` self-assignment
+Lot 5  (P2 rate limiting, headers, errors, CSRF, dependencies, createHandler) ← next
 Lot 6  (P3 hardening)
 ```
 
@@ -234,19 +248,17 @@ Everything below is **still present in the code today**. Grouped by the lot that
 - `tasks` listing — `user_id` scope, authz on the client-supplied `user_id`, `supervisor_id` self-grant (§3.2 IDOR-TASK-2).
 - `contacts` POST — anonymous `program_id` / other fields (§3.3 PUB-CONTACTS-1).
 
-### Lot 4 — forms / LMS / uploads (P1, next)
+### Lot 4 — remainder (P1)
 
-- **INJ-1** `platform/form-runs` `migrate` — remove the raw-SQL action (**P0**).
-- **LMS-1** `verify/certificate` — drop the sequential-number fallback.
-- **UPLOAD-1** `lms/section-resources/upload`, `lms/courses/thumbnail`, `upload`, `profile/photo` — MIME **AND** extension, forced content type, private buckets.
-- **BOLA-FORM-1** `run-export`, `platform/form-runs` (`submission_id`), `report-file`, `ai/evaluation-scores` — run/submission scope.
+- **UPLOAD-1 (buckets)** — `upload`, `profile/photo`, `lms/*`: buckets are public; need private buckets + signed URLs.
+- **BOLA-FORM-1** `run-export`, `platform/form-runs` (`submission_id`), `platform/…/report-file`, `platform/ai/evaluation-scores` — run/submission scope.
 - **BOLA-FORM-2** `submissions` — team-session reads + score writes.
-- **PUB-3** `respond` — identity anchoring.
-- **AUTHZ-VEN-1** `ventures/[id]/coach-invite` — allow-list `responsibility_code`/`scope_type`.
-- **PUB-2** `s/public-draft` — bind the draft to a token.
-- **DATA-2** `lms/courses/[id]` — strip `correct_answer` for `lms.view`.
-- **SCOPE-LMS-1** `lms/program-requirements` — program scope.
-- **MASS-VEN-1** `ventures/[id]/members` — validate `role`/`permissions`.
+- **PUB-3** `respond` — identity anchoring. **PUB-2** `s/public-draft` — draft token.
+- **SCOPE-LMS-1b** `lms/program-requirements/[id]` PUT/DELETE — resolve the requirement's program.
+
+### Lot 4 — done ✅
+
+- **INJ-1** arbitrary SQL removed · **LMS-1** certificate token-only · **UPLOAD-1 (validation)** extension AND type · **AUTHZ-VEN-1** coach-invite allow-list · **MASS-VEN-1** member role/permissions validated · **DATA-2** LMS answer key stripped · **SCOPE-LMS-1** program scope on program-requirements + coaching-requests.
 
 ### Lot 5 — P2
 
