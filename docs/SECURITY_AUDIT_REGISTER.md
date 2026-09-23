@@ -41,6 +41,7 @@
 | **FIXED — Lot 11** | Corrected with the team-board scope + team-credential exposure batch. |
 | **FIXED — Lot 12** | Corrected with the submission scope + LMS requirement scope batch. |
 | **FIXED — Lot 13** | Corrected with the platform Runs `submitter_id` BOLA (remainder = a governance decision). |
+| **FIXED — Lot 14** | Corrected with the ERR-1 error-handling sweep on the audit-touched surfaces. |
 | **OPEN** | Still present. Fix order in §4. |
 
 ---
@@ -207,6 +208,15 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | BOLA-FORM-1 (part) | `GET /api/platform/form-runs?submitter_id=X` | The id came straight from the query string, so any `runs.view` holder could read ANY user's submissions. The target is now bound to the session; only a Super Admin may name someone else (the self-service path is `my_submissions`). | **FIXED — Lot 13** |
 | — | Tests | `src/__tests__/security-lot13-runs.test.js` (3 tests) | The branch binds to the session, the raw id is no longer passed through, the self path still binds to `session.cid`. | **FIXED — Lot 13** |
 
+### 2.16 Lot 14 — ERR-1 error-handling sweep
+
+| ID | Location | Was | Status |
+|---|---|---|---|
+| ERR-1 (part) | `program-types`, `run-export`, `submissions`, `team-tasks`, `system/database`, `webhooks/resend` | 500 bodies returned `error.message`, which can carry driver/SQL/stack detail to the client. A shared `serverError(error, { log, status, message })` helper now logs the real error server-side and answers with `errors.somethingWrong`. | **FIXED — Lot 14 (swept surfaces)** |
+| — | Tests | `src/__tests__/security-lot14-error-handling.test.js` (8 tests) | The helper never serializes the caught error and the swept routes carry no raw `error.message`. | **FIXED — Lot 14** |
+
+> Note: the remaining ERR-1, RATE-2, CSRF-1 and AUTH-4 surfaces (`s/public-submit`, `public/courses`, `errors`, `lib/rate-limit.js`, `engineering/permissions/seed*`, `sync-context-grants`, `auth/login|reset-password|session-login`) were **being edited concurrently** (auth refactor) at the time of this batch, so they are left untouched and will be completed once that lands.
+
 ---
 
 ## 3. OPEN — residual register
@@ -250,7 +260,7 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | RATE-1 | Rate limiting | `auth/login`, `auth/session-login`, `auth/reset-password` | ✅ fixed in Lot 5 (limits are per process — a shared store is needed for multi-instance). | **FIXED** |
 | RATE-2 | Rate limiting | `s/public-submit`, `/api/public/courses`, `/api/errors` (POST), uploads, AI routes | Public/expensive endpoints still unthrottled; IP spoofable via `X-Forwarded-For`. | **OPEN — Lot 5 remainder** |
 | HDR-1 | Headers | `next.config.mjs` | ✅ fixed in Lot 5 (CSP is report-only). | **FIXED** |
-| ERR-1 | Error handling | many routes | `error.message` returned in 500s (SQL/driver detail). | **OPEN — Lot 5** |
+| ERR-1 | Error handling | many routes | `error.message` returned in 500s (SQL/driver detail). ✅ swept in Lot 14 for the audit-touched surfaces (shared `src/lib/apiError.js`). **Remainder blocked by the concurrent auth refactor.** | **OPEN — part** |
 | AUTH-4 | Enumeration | `auth/login`, `auth/reset-password` | Distinct 403/404 responses reveal account existence; timing oracle. | **OPEN — Lot 5** |
 | SECRET-1 | Passwords | `auth/login`, `auth/session-login`, team/group passwords | Clear-text comparison fallback; shared/team passwords stored in clear. | **OPEN — Lot 5** |
 | IMPL-1 | Correctness | `src/lib/api/createHandler.js` | ✅ fixed in Lot 5. | **FIXED** |
@@ -307,6 +317,7 @@ Lot 10 (P1/P2) ✅ done — task listing fails closed, supervisor reserved to st
 Lot 11 (P1/P2) ✅ done — team board scoped to its team/program; shared team credentials are management-only
 Lot 12 (P1) ✅ done — submission scope (team binding + program-scoped score writes) and LMS requirement scope
 Lot 13 (P1) ✅ done — platform Runs submitter read bound to the session (remainder = governance decision)
+Lot 14 (P2) ◻ partial — ERR-1 sweep on the audit-touched surfaces; the rest of Lot 5 is blocked by the concurrent auth refactor
 ```
 
 Each lot: `npx eslint .` · `npm test` · `npm run build`, plus a security regression test per finding.
@@ -404,11 +415,16 @@ Everything below is **still present in the code today**. Grouped by the lot that
 
 - **BOLA-FORM-1 (part)** — the platform Runs `submitter_id` read is bound to the session (a Super Admin may still name someone else). The rest of BOLA-FORM-1 is a governance decision (§6.7). 3 tests.
 
-### Remaining after Lot 13
+### Lot 14 — P2 ◻ partial
+
+- **ERR-1 (swept)** — `program-types`, `run-export`, `submissions`, `team-tasks`, `system/database`, `webhooks/resend` now answer 5xx through the shared `src/lib/apiError.js` helper. 8 tests.
+- **Blocked**: RATE-2, the remaining ERR-1, CSRF-1 (engineering routes) and AUTH-4 sit in files under the concurrent auth refactor — to complete once it lands.
+
+### Remaining after Lot 14
 
 - **BOLA-FORM-1 remainder** — platform Runs visibility (governance decision, §6.7).
 - **Lot 4 remainder** (P1) — UPLOAD-1 buckets (private + signed URLs); PUB-3 `respond` identity + PUB-2 `s/public-draft` token (client-flow changes).
-- **Lot 5 remainder** (P2) — RATE-2, ERR-1, CSRF-1, AUTH-4, SECRET-1/3, DEP-1, shared rate-limit store.
+- **Lot 5 remainder** (P2) — RATE-2, remaining ERR-1, CSRF-1 (engineering routes), AUTH-4, SECRET-1/3, DEP-1, shared rate-limit store (all currently blocked by the concurrent auth refactor).
 - **AUTHZ-CRM-1 remainder** — `contact-emails`; `notifications` create (product decision).
 - **Product decisions** — `allowed_roles` (§6.6); notification-recipient scope; platform Runs visibility (§6.7).
 - **MVC-1** (ongoing) — SQL still inline in a few routes.

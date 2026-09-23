@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { recordResendEvent } from "@/lib/email";
+import { serverError } from "@/lib/apiError";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +96,6 @@ export async function POST(req) {
     const ok = await recordResendEvent({ email_id: emailId, status, error: reason, createdAt });
     return NextResponse.json({ success: true, recorded: ok, status, email_id: emailId });
   } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return serverError(error, { log: "[resend webhook]" });
   }
 }

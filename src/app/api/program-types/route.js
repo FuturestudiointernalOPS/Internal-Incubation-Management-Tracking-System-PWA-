@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { serverError } from "@/lib/apiError";
 import {
   createProgramTypeOption,
   createProgramTypeOptionsTable,
@@ -21,7 +22,7 @@ export async function GET() {
     const result = await listProgramTypeKeys();
     return NextResponse.json({ types: result.rows.map((row) => row.type_key) });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return serverError(error, { log: "program-types GET" });
   }
 }
 
@@ -38,6 +39,6 @@ export async function POST(req) {
     await createProgramTypeOption(type_key);
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return serverError(error, { log: "program-types POST" });
   }
 }

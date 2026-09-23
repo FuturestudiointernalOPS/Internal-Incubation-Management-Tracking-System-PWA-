@@ -2,6 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
 import { requireProgramScope } from "@/lib/programScopedAccess";
+import { serverError } from "@/lib/apiError";
 import {
   getSubmissionProgramStatus,
   getParticipantProgramSubmissionStatus,
@@ -220,10 +221,7 @@ export async function POST(req) {
       },
     });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
+    return serverError(error, { log: "submissions POST" });
   }
 }
 
@@ -467,10 +465,7 @@ export async function PATCH(req) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
+    return serverError(error, { log: "submissions PATCH" });
   }
 }
 
@@ -618,11 +613,7 @@ export async function GET(req) {
 
     return NextResponse.json({ success: true, submissions });
   } catch (error) {
-    console.error("Submissions GET Error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
+    return serverError(error, { log: "submissions GET" });
   }
 }
 
@@ -678,10 +669,6 @@ export async function PUT(req) {
 
     return NextResponse.json({ success: true, message: "Evaluation updated" });
   } catch (error) {
-    console.error("Submissions PUT Error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
+    return serverError(error, { log: "submissions PUT" });
   }
 }

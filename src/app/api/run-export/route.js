@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
+import { serverError } from "@/lib/apiError";
 import writeXlsxFile from "write-excel-file/node";
 import { jsPDF } from "jspdf";
 import { getRunWithFormName, getRunSubmissions } from "@/models/workspace";
@@ -185,7 +186,6 @@ export async function GET(req) {
       },
     });
   } catch (error) {
-    console.error("Run export error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return serverError(error, { log: "Run export" });
   }
 }

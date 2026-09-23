@@ -4,6 +4,7 @@ import { getDatabaseInfo } from "@/lib/ventures";
 import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import { serverError } from "@/lib/apiError";
 import {
   platformMigrationSteps,
   runPlatformMigrationStep,
@@ -61,11 +62,7 @@ export async function POST(_req) {
       results,
     });
   } catch (err) {
-    console.error("[DB Migration] Fatal:", err.message);
-    return NextResponse.json(
-      { success: false, error: err.message },
-      { status: 500 }
-    );
+    return serverError(err, { log: "[DB Migration] Fatal" });
   }
 }
 

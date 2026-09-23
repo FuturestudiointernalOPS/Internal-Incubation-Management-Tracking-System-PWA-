@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
 import { getSession, hasProgramManagementAccess } from "@/lib/auth";
 import { requireProgramScope } from "@/lib/programScopedAccess";
+import { serverError } from "@/lib/apiError";
 import { getTeamById } from "@/models/teams";
 import {
   getTeamTasks,
@@ -70,10 +71,7 @@ export async function GET(req) {
 
     return NextResponse.json({ success: true, tasks: result.rows });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
+    return serverError(error, { log: "team-tasks GET" });
   }
 }
 
@@ -107,10 +105,7 @@ export async function POST(req) {
 
     return NextResponse.json({ success: true, task: result.rows[0] });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
+    return serverError(error, { log: "team-tasks POST" });
   }
 }
 
@@ -158,10 +153,7 @@ export async function PUT(req) {
 
     return NextResponse.json({ success: true, task: result.rows[0] });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
+    return serverError(error, { log: "team-tasks PUT" });
   }
 }
 
@@ -192,9 +184,6 @@ export async function DELETE(req) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
+    return serverError(error, { log: "team-tasks DELETE" });
   }
 }
