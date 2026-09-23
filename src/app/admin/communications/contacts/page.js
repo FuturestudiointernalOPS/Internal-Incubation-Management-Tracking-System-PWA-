@@ -351,17 +351,12 @@ function ContactsPageContent() {
   const handleArchive = async (c) => {
     setIsProcessing(true);
     try {
-      const userStr = localStorage.getItem("user");
-      const user = userStr ? JSON.parse(userStr) : {};
-      const archivedBy = user.name || user.email || "unknown";
+      // The who and the when are the server's to record: the body carries the
+      // intent only (see PUT /api/contacts).
       const res = await fetch("/api/contacts", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cid: c.cid,
-          archived_at: new Date().toISOString(),
-          archived_by: archivedBy,
-        }),
+        body: JSON.stringify({ cid: c.cid, archived: true }),
       });
       const data = await res.json();
       if (data.success) {
@@ -398,11 +393,7 @@ function ContactsPageContent() {
       const res = await fetch("/api/contacts", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cid: c.cid,
-          archived_at: null,
-          archived_by: null,
-        }),
+        body: JSON.stringify({ cid: c.cid, archived: false }),
       });
       const data = await res.json();
       if (data.success) {

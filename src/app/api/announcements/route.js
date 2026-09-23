@@ -59,7 +59,8 @@ export async function GET(req) {
 
 /**
  * POST /api/announcements
- * Body: { title, body, author_id, author_name, target_type, target_id, is_pinned }
+ * Body: { title, body, target_type, target_id, is_pinned }
+ *       The AUTHOR is read from the session, never from the request.
  * Permissions: super_admin, program_manager, project_owner, department_lead
  */
 export async function POST(req) {
@@ -87,8 +88,6 @@ export async function POST(req) {
     const {
       title,
       body,
-      author_id,
-      author_name,
       target_type,
       target_id,
       is_pinned,
@@ -101,9 +100,12 @@ export async function POST(req) {
       );
     }
 
-    const effectiveAuthorId = author_id || session.cid;
+    // The author is WHO IS SIGNED IN, never what the request claims. Someone who
+    // holds the capability to post must not be able to attribute the post to
+    // somebody else, so `author_id`/`author_name` in the body are not read at all.
+    const effectiveAuthorId = session.cid;
     const effectiveAuthorName =
-      author_name || session.name || effectiveAuthorId;
+      session.name || session.email || effectiveAuthorId;
 
     const insertRes = await createAnnouncement({
       title,

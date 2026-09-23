@@ -263,6 +263,11 @@ export async function PUT(req) {
     const fieldsToUpdate = [];
     const args = [];
 
+    // `archived_at` and `archived_by` are deliberately NOT caller-settable: they
+    // record WHO archived a contact and WHEN. The caller sends the single intent
+    // `archived: true|false` (handled below) and the server writes both, so a
+    // caller holding `contacts.edit` cannot attribute an archive to somebody else
+    // or date it themselves.
     const updatableColumns = [
       "name",
       "email",
@@ -276,8 +281,6 @@ export async function PUT(req) {
       "image",
       "status",
       "deleted",
-      "archived_at",
-      "archived_by",
       "gender",
       "mother_name",
     ];
@@ -295,15 +298,21 @@ export async function PUT(req) {
           // membership layer) so case variants can never be re-created.
           fieldsToUpdate.push("group_name = ?");
           args.push(String(val || "").trim().toUpperCase());
-        } else if (col === "archived_at" || col === "archived_by") {
-          // Allow NULL for restore, or timestamp/text for archive
-          fieldsToUpdate.push(`${col} = ?`);
-          args.push(val || null);
         } else {
           fieldsToUpdate.push(`${col} = ?`);
           args.push(col === "deleted" ? (val ? 1 : 0) : val);
         }
       }
+    }
+
+    // Archive / restore: one intent, recorded by the server. The moment is the
+    // server's clock and the actor is the session, never the request body.
+    if (data.archived !== undefined) {
+      const session = await getSession();
+      const actor = session?.name || session?.email || session?.cid || "unknown";
+      fieldsToUpdate.push("archived_at = ?", "archived_by = ?");
+      if (data.archived) args.push(new Date().toISOString(), actor);
+      else args.push(null, null);
     }
 
     if (fieldsToUpdate.length === 0) {

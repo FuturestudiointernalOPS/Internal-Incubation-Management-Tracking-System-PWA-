@@ -90,15 +90,12 @@ export default function AnnouncementsPage() {
     setSaving(true);
     setError("");
     try {
-      const savedUser = JSON.parse(localStorage.getItem("user") || "{}");
       const res = await fetch("/api/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
           body: body.trim(),
-          author_id: savedUser.cid || savedUser.id,
-          author_name: savedUser.name || savedUser.cid || "Unknown",
           target_type: targetType,
           target_id: targetType !== "all" ? targetId.trim() || null : null,
           is_pinned: isPinned,
