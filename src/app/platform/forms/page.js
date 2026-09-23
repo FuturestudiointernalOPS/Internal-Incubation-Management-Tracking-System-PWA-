@@ -1619,6 +1619,32 @@ export default function PlatformForms() {
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
                 />
+
+                {/* The result message can also be timed: the delay lives with the
+                    template it belongs to, and a run may override it. */}
+                <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                    <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{t("platformMisc.forms.templateResultDelayTitle")}</p>
+                  </div>
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.forms.templateResultDelayDesc")}</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      value={templateData.result?.delay_hours ?? ""}
+                      placeholder="0"
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        // Empty means "not set" (no automatic send), not a 0 the
+                        // resolver would have to distinguish from "inherited".
+                        updateTemplate("result", "delay_hours", raw === "" ? undefined : Math.max(0, parseInt(raw, 10) || 0));
+                      }}
+                      className="w-24 px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
+                    />
+                    <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.forms.templateResultDelayHint")}</span>
+                  </div>
+                </div>
               </div>
             );
           })()}

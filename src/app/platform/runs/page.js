@@ -7,7 +7,7 @@ import {
   ArrowLeft, Settings, Link2, Trash2, AlertTriangle, BarChart3,
   History, Calendar, Hash, EyeOff, PauseCircle,
   StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, Info, Sparkles, Mail, Key, LogIn, Download,
-  Paperclip, Upload, ExternalLink,
+  Paperclip, Upload, ExternalLink, Clock,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
@@ -4307,6 +4307,24 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     </SettingRow>
                   );
                 })}
+
+                {/* Scheduled result send — set with the result template, shown here
+                    so the timing is visible without opening the editor. */}
+                <SettingRow label={t("platformMisc.runs.resultDelayTitle")} icon={Clock} desc={t("platformMisc.runs.resultDelaySettingsDesc")}>
+                  <span className="text-[11px] font-bold text-[var(--text-primary)]">
+                    {(() => {
+                      const runDelayRaw = runSettings?.templates?.result?.delay_hours;
+                      const runDelaySet = runDelayRaw !== undefined && runDelayRaw !== null && runDelayRaw !== "";
+                      const formDelay = Number(runFormSettings?.automation?.templates?.result?.delay_hours);
+                      const effectiveDelay = runDelaySet
+                        ? Math.max(0, Math.floor(Number(runDelayRaw) || 0))
+                        : (Number.isFinite(formDelay) && formDelay > 0 ? Math.floor(formDelay) : 0);
+                      return effectiveDelay > 0
+                        ? t("platformMisc.runs.resultDelayValue", { count: effectiveDelay })
+                        : t("platformMisc.runs.resultDelayManual");
+                    })()}
+                  </span>
+                </SettingRow>
               </div>
             </div>
           )}
@@ -4333,7 +4351,10 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   Object.entries(runTemplates || {}).filter(([, template]) => {
                     const subject = (template?.subject || "").trim();
                     const body = (template?.body || "").trim();
-                    return subject || body;
+                    // A delay is a setting in its own right: an entry that only
+                    // schedules the send must survive, or the run would silently
+                    // fall back to the form's delay.
+                    return subject || body || template?.delay_hours !== undefined;
                   })
                 );
                 const response = await fetch("/api/platform/form-runs", {
@@ -4444,6 +4465,55 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
               );
             };
 
+            // The automatic send is not a copy decision but a timing one, so it
+            // gets its own control under the result template. It is stored in the
+            // SAME entry (result.delay_hours), which is what makes "run → form"
+            // resolution and "the entry survives save" both fall out naturally.
+            const ResultScheduleEditor = () => {
+              const formDelay = Number(runFormSettings?.automation?.templates?.result?.delay_hours);
+              const runDelayRaw = runTemplates.result?.delay_hours;
+              const runDelaySet = runDelayRaw !== undefined && runDelayRaw !== null && runDelayRaw !== "";
+              const inheritedDelay = Number.isFinite(formDelay) && formDelay > 0 ? Math.floor(formDelay) : 0;
+              const effectiveDelay = runDelaySet
+                ? Math.max(0, Math.floor(Number(runDelayRaw) || 0))
+                : inheritedDelay;
+              const enabled = effectiveDelay > 0;
+              const source = runDelaySet
+                ? t("platformMisc.runs.resultDelaySourceRun")
+                : inheritedDelay > 0
+                  ? t("platformMisc.runs.resultDelaySourceForm")
+                  : t("platformMisc.runs.resultDelaySourceManual");
+              return (
+                <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">{t("platformMisc.runs.resultDelayTitle")}</p>
+                    <Toggle
+                      checked={enabled}
+                      onChange={(next) => updateRunTemplate("result", "delay_hours", next ? (effectiveDelay > 0 ? effectiveDelay : 48) : 0)}
+                    />
+                  </div>
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runs.resultDelayDesc")}</p>
+                  {enabled && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        value={effectiveDelay}
+                        onChange={(event) => {
+                          const parsed = parseInt(event.target.value, 10);
+                          updateRunTemplate("result", "delay_hours", Number.isFinite(parsed) && parsed > 0 ? parsed : 0);
+                        }}
+                        className="w-24 px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
+                      />
+                      <span className="text-[10px] font-bold text-[var(--text-secondary)]">{t("platformMisc.runs.resultDelayHoursUnit")}</span>
+                    </div>
+                  )}
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runs.resultDelayEffective", { source })}</p>
+                </div>
+              );
+            };
+
             return (
               <div className="space-y-6 max-w-2xl">
                 <div className="flex items-center justify-between">
@@ -4505,6 +4575,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     vars={TEMPLATE_VARIABLES.result}
                     current={runTemplates.result || {}}
                   />
+                  <ResultScheduleEditor />
                 </div>
               </div>
             );
