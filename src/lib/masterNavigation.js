@@ -184,7 +184,6 @@ export const MASTER_NAVIGATION = [
   { id: "learning", name: "MY LEARNING", icon: "graduationCap", href: "/participant/learning" },
   { id: "certificates", name: "MY CERTIFICATES", icon: "fileText", href: "/participant/certificates" },
   { id: "timeline", name: "MY TIMELINE", icon: "clock", href: "/participant/profile#timeline" },
-  { id: "pipeline", name: "PIPELINE", icon: "barChart3", href: "/investor/pipeline" },
   { id: "portfolio", name: "PORTFOLIO", icon: "trendingUp", href: "/investor/portfolio" },
   { id: "activity", name: "ACTIVITY", icon: "clock", href: "/investor/history" },
 ];
@@ -299,7 +298,7 @@ export const ROLE_ACCESS = {
   },
 
   investor: {
-    top: ["dashboard", "pipeline", "portfolio", "activity", "profile"],
+    top: ["dashboard", "portfolio", "activity", "profile"],
     children: {},
     hrefs: {
       dashboard: "/investor/dashboard",

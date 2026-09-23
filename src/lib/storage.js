@@ -319,13 +319,3 @@ export const uploadSessionMaterial = async (file, { ventureId, milestoneId } = {
   }
 }
 
-export const deleteFile = async (bucket, path) => {
-  try {
-    const { error } = await supabase.storage.from(bucket).remove([path])
-    if (error) throw error
-    return { success: true }
-  } catch (error) {
-    console.error('Storage Error:', error.message)
-    return { success: false, error: error.message }
-  }
-}

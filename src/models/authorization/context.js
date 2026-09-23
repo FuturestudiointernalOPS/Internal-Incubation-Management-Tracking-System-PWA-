@@ -31,8 +31,6 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getAuthorizationContext, requireAuthorization } from "@/lib/authorization";
 
-export const CONTEXT_RESOURCES = ["program", "project", "venture"];
-
 /**
  * Resolve a person's assignment to a specific resource.
  * Returns { source, assignment } or null. Read-only; never fabricates access.

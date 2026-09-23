@@ -29,5 +29,3 @@ export default function Badge({ variant = "neutral", children, className = "" })
     </span>
   );
 }
-
-export { VARIANTS as BADGE_VARIANTS };

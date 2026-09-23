@@ -252,14 +252,6 @@ export async function insertDocumentReview({ document_id, reviewer_id, comment, 
 // documents/[docId]/transition/route.js — document status transition controller (6 queries)
 // ───────────────────────────────────────────────────────────────────────────
 
-/** Internal ventures.id for a VNT code — resolveVentureDbId helper (transition controller). SQL identical to getVentureIdByCode — kept per occurrence. */
-export async function getVentureIdByCodeForTransition(ventureId) {
-  return db.execute({
-    sql: "SELECT id FROM ventures WHERE venture_id = ?",
-    args: [ventureId],
-  });
-}
-
 /** VNT code for an internal ventures.id — resolveVentureCode helper (transition controller). SQL identical to getVentureCodeById — kept per occurrence. */
 export async function getVentureCodeByIdForTransition(idOrCode) {
   return db.execute({

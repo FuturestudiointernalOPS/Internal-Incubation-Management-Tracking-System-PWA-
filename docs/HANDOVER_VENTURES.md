@@ -139,13 +139,7 @@ Verified against the code, not from memory:
 | Book / move / cancel a **staff** session | matrix cell `calendar.schedule` — a **Coach cannot book** (they hold `calendar.view`) |
 | Book a session **as the Venture** | the Venture's own members — deliberately exempt from the gate above |
 | Write internal notes | **staff only** — a founder gets 404 |
-| See the unsealed roadmap | privileged role (`staff`, `super_admin`, `program_manager`, `developer`, `admin`) |
-
-> ⚠️ **Staging may disagree with this table until the pending batch lands.** The
-> `milestones.edit` cells were seeded `true` for coach and facilitator, and the
-> correction to `false` is part of the uncommitted batch (§5.1 #3). The intended
-> behaviour is the table; if you observe a Coach completing a milestone, you are
-> looking at an un-corrected database, not at a different design.
+| See the unsealed roadmap | privileged role (`staff`, `super_admin`, `program_manager`, `admin`) |
 
 Two rules worth stating on their own:
 
@@ -455,9 +449,8 @@ the four independent ones onto the matrix + the reference pattern makes the answ
 one you have to memorise. `milestones.edit` shows the shape; do the same for
 deliverables next.
 
-**3 — Land the work.** `G`, `Ventures` and `main` are all on the same commit, and
-the current batch is **uncommitted**. Until it is committed and pushed to `G`,
-staging shows the old build. *(Push to `G` only — `main` auto-deploys.)*
+**3 — Land the work.** Commit and push to `G` (push to `G` only — `main`
+auto-deploys).
 
 ## 5.2 Then
 

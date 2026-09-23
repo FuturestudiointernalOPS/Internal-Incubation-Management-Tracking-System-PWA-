@@ -33,19 +33,3 @@ export const TableSkeleton = ({ rows = 5 }) => (
   </div>
 );
 
-export const CardSkeleton = () => (
-  <div className="card space-y-6 opacity-50">
-    <div className="flex justify-between">
-      <Skeleton className="w-12 h-12" />
-      <Skeleton className="w-16 h-6" />
-    </div>
-    <div className="space-y-2">
-      <Skeleton className="h-6 w-3/4" />
-      <Skeleton className="h-3 w-1/2" />
-    </div>
-    <div className="pt-6 border-t border-[var(--border-primary)] flex justify-between">
-      <Skeleton className="h-4 w-20" />
-      <Skeleton className="h-4 w-24" />
-    </div>
-  </div>
-);

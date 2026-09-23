@@ -13,7 +13,7 @@
 ## 2. Lint & Format
 
 - `npm run lint` (ESLint 9 + `next/core-web-vitals`) must pass for touched files.
-- Follow existing formatting: 2-space indent, single quotes, trailing commas, no semicolons (observable in existing code pattern).
+- Follow existing formatting: 2-space indent, double quotes, trailing commas, semicolons.
 - Do not change formatter config mid-task.
 
 ## 3. File & Folder Conventions
@@ -34,7 +34,7 @@
 - **Every user-visible string MUST use the `t()` function.** No exceptions. No hardcoded English.
 - New strings require entries in BOTH `src/locales/en/` and `src/locales/fr/` with mirrored key structure.
 - English is the source of truth; missing French key → shows English value (graceful fallback).
-- Use existing key namespaces before creating new ones: `common.*`, `auth.*`, `navigation.*`, `admin.*`, `reports.*`, `staff.*`, `status.*`, `time.*`, `errors.*`, `pm.*`, `participant.*`.
+- Use existing key namespaces before creating new ones: `common.*`, `auth.*`, `navigation.*`, `admin.*`, `reports.*`, `staff.*`, `status.*`, `time.*`, `errors.*`, `pm.*`, `participant.*`, plus the feature namespaces (`lms.*`, `membership.*`, `venture.*`, `investor.*`, `forms.*`, `finance.*`, `messaging.*`, `crm.*`, `team.*`, …).
 - See `AGENTS.md` for the full namespace table and file structure.
 
 ## 5. Design System & Styling
@@ -54,16 +54,16 @@
 - New protected pages must call `requireAuth([allowedRoles])` or `requireSession()` at the top — no exceptions.
 - New API routes must call `requireAuth()` before any data access. Do not trust client-supplied role claims.
 - Use `requireCapability(module, capability, minLevel)` for module-level authorization beyond basic role checks.
-- Do not import `supabase-admin.js` in client components — it contains the service role key.
+- Never use the Supabase service role key (`SUPABASE_SERVICE_ROLE_KEY`) in client components — it bypasses RLS and must stay server-side.
 - Do not import `supabase.js` (anon key) for write operations that should use the service role (e.g., file uploads, admin provisioning).
-- The V2 access profile system (`requireCapabilityV2`) is the current path forward for permission enforcement.
+- The access-profile system (`requireCapability` / access profiles) is the current path for permission enforcement; every route also sits behind the central gate in `src/proxy.js`.
 
 ## 7. Data Access
 
 - All database queries go through `db.execute({sql, args})` from `src/lib/db.js`.
 - Use `?` placeholders — the executor translates to `$1, $2, …` automatically.
 - Use `db.transaction(callback)` for multi-statement operations that must be atomic.
-- **Do not write SQL inline in route handlers** going forward — use `src/lib/db/queries/` modules when they exist. If a query module doesn't exist yet for your domain, create it.
+- **Do not write SQL inline in route handlers** — put each query in a named function under `src/models/<domain>.js` (see `docs/MVC_REFACTOR.md`).
 - SQLite-isms (`datetime('now')`) are auto-translated to Postgres (`NOW()`), but prefer native Postgres syntax in new code.
 - Never write to `id` columns — rely on `gen_random_uuid()` defaults.
 
@@ -72,12 +72,12 @@
 - New schema changes go in `supabase/migrations/` with a `YYYYMMDD_description.sql` timestamp prefix.
 - Style: idempotent (`IF NOT EXISTS` / `IF EXISTS`), `gen_random_uuid()` for UUIDs, `TIMESTAMPTZ` + `NOW()`, `DECIMAL` for money/scores.
 - Destructive changes (DROP, column removal, data loss): require explicit user approval; prefer soft flags/voids.
-- After schema changes: verify the codebase for broken SQL (see `docs/SCHEMA_DRIFT_AUDIT.md` for the audit methodology).
+- After schema changes: grep the codebase for the affected table/column and fix any query that still references the old shape.
 - Do NOT create a new migration in `src/migrations/` — use `supabase/migrations/` for all new schema work.
 
 ## 9. Pages & Rendering
 
-- Every authenticated role dashboard layout (`admin/layout.js`, `staff/layout.js`, `pm/layout.js`, `participant/layout.js`, `developer/layout.js`) MUST export `dynamic = "force-dynamic"`. Never remove this.
+- Layouts that render session-derived content (`admin/layout.js`, `facilitator/layout.js`, `platform/layout.js`, the `*/messages` layouts) MUST export `dynamic = "force-dynamic"`. Never remove it where present.
 - New pages outside these layouts that use client hooks (`useI18n()`, `useTheme()`, `useRouter()`, `localStorage`) must also export `dynamic = "force-dynamic"`.
 - Public pages (login, register, forgot-password, invite, activate, setup-password) do NOT need `force-dynamic`.
 

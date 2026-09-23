@@ -14,8 +14,7 @@
  *     its current enforcement mechanism, so adding or removing enforcement
  *     fails this test until the contract is updated deliberately.
  *
- * Enforcement census (route layer, `capability:` argument of
- * requireAssignmentAccess / requireFacilitatorCapability):
+ * Enforcement census (route layer, `capability:` argument of requireAssignmentAccess):
  *
  *   ENFORCED (level-based, per program)
  *     attendance.record   api/attendance/route.js          (POST)

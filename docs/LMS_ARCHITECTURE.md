@@ -280,7 +280,8 @@ The LMS module follows the app-wide MVC layering described in `docs/ARCHITECTURE
 domain logic = `src/lib/` modules):
 
 ```
-src/lib/lms/*.js                 → MODEL   — tables 2.1–2.10, domain rules, SQL
+src/models/lms/*.js             → MODEL   — tables 2.1–2.10, domain rules, SQL
+                                  (src/lib/lms/*.js are facades re-exporting them)
 src/app/api/lms/**/route.js      → CONTROLLER — thin HTTP glue
 src/components/lms/*.js          → VIEW    — client components (fetch controllers)
 src/app/{admin/lms,participant/learning,courses,verify}/** → VIEW pages
@@ -307,7 +308,7 @@ Rules (enforced by convention + the route/service test suites):
 ## 4. Authorization
 
 - New module `lms` in `PERMISSION_MODULES` (`src/lib/auth.js`) with capabilities
-  `view, create, edit, delete, publish, enroll`.
+  `view, create, edit, delete`.
 - **Super admin**: automatically gets full LMS access through every layer — the V3 resolver's
   in-memory `buildSuperAdminMatrix()`, `hasCapabilityV2`'s SA bypass, and (after re-running the
   seeds) the `role_capabilities` / `access_profile_capabilities` rows.
@@ -316,9 +317,8 @@ Rules (enforced by convention + the route/service test suites):
   existing Permission Manager (`/admin/engineering/permissions`) — per-user grants
   (`user_capabilities`) or a custom access profile. No new global role was created.
 - **Route guard for future phases**: use `requireAuthorization("lms", "…")` from
-  `src/lib/authorization` (the canonical resolver). It is capability-only for `lms` (no
-  `feature_eligibility` entry yet — eligibility can be added in a later phase if product wants
-  responsibility-level gating; it is deliberately NOT part of this foundation).
+  `src/lib/authorization` (the canonical resolver). It is capability-only for `lms`
+  (eligibility-gated for the internal roles).
 - **Server-side only**: future mutations must call these guards in the route handler. Frontend
   visibility is never a security boundary.
 
@@ -342,7 +342,7 @@ Follow existing ImpactOS conventions (see `docs/API.md`, `docs/MODULES.md`):
 | `/api/lms/courses` + `/api/lms/courses/[id]` | ✅ Phase 2 | course + section + lesson CRUD (admin) |
 | `/api/lms/courses/[id]/publish` · `/archive` | ✅ Phase 2 | status transitions (admin) |
 | `/api/lms/sections/*` · `/lessons/*` · `/assessments/*` · `/questions/*` | ✅ Phase 2 | content authoring (admin) |
-| `/api/lms/enrollments` + `/api/lms/courses/[id]/enrollments` | ✅ Phase 3 (minimal enabler) | admin enrollment (lms.enroll) |
+| `/api/lms/enrollments` + `/api/lms/courses/[id]/enrollments` | ✅ Phase 3 (minimal enabler) | admin enrollment |
 | `/api/lms/my-learning` (+ `?exists=1`) | ✅ Phase 3 | learner's enrolled courses + progress; `exists=1` returns a lightweight `{ enrolled }` flag used by the shell to only surface "My Learning" for learners who have subscribed to or been assigned a course |
 | `/api/lms/courses/[id]/learn` | ✅ Phase 3 | learner-scoped course view (enrollment-gated) |
 | `/api/lms/lessons/[lessonId]/complete` | ✅ Phase 3 | idempotent lesson completion |
@@ -353,7 +353,7 @@ Follow existing ImpactOS conventions (see `docs/API.md`, `docs/MODULES.md`):
 | `/api/lms/certificates/[id]/revoke` | ✅ Phase 5 | minimal admin revocation (`lms.edit`) |
 | `/api/verify/certificate/[token]` | ✅ Phase 5 | PUBLIC verification — public fields only, no auth |
 | `/verify/certificate/[token]` (page) | ✅ Phase 5 | public verification page |
-| `/api/lms/program-requirements` + `[id]` | ✅ Phase 6 | Program → Course links (list/attach/update/detach; `lms.assign`) + auto-enrollment |
+| `/api/lms/program-requirements` + `[id]` | ✅ Phase 6 | Program → Course links (list/attach/update/detach) + auto-enrollment |
 | `/api/public/courses` + `[slug]` | ✅ Phase 7 | public catalogue + detail (marketing-safe) + free self-enrollment (`source 'self'`) |
 | `/api/contacts/[cid]/learning` | ✅ Phase 7 | CRM learning-journey trace (`contacts.view`) |
 | `/api/lms/section-resources` + `[id]` | ✅ Phase 8 | section material + recommendations (`lms.view` read, `lms.edit` write) |

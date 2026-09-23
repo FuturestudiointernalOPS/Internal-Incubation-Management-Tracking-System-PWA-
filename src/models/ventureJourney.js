@@ -19,120 +19,6 @@ import db from "@/lib/db";
 
 // ── GET/PATCH /api/ventures/[id]/journey ─────────────────────────────────────
 
-/** Venture internal id (UUID) resolved from the public VNT code. */
-export async function getJourneyVentureId(ventureId) {
-  return db.execute({
-    sql: "SELECT id FROM ventures WHERE venture_id = ?",
-    args: [ventureId],
-  });
-}
-
-/** Ensure the venture_journey_stages table exists. */
-export async function ensureJourneyStagesTable() {
-  return db.execute({
-    sql: `CREATE TABLE IF NOT EXISTS venture_journey_stages (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      venture_id UUID NOT NULL REFERENCES ventures(id) ON DELETE CASCADE,
-      name TEXT NOT NULL,
-      description TEXT,
-      stage_order INTEGER NOT NULL,
-      status TEXT NOT NULL DEFAULT 'locked',
-      completed_at TIMESTAMPTZ,
-      approved_by TEXT REFERENCES contacts(cid),
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      UNIQUE(venture_id, stage_order)
-    )`,
-  });
-}
-
-/** Existing journey stage count for a venture (seed check). */
-export async function countJourneyStages(ventureId) {
-  return db.execute({
-    sql: "SELECT COUNT(*) as c FROM venture_journey_stages WHERE venture_id = ?",
-    args: [ventureId],
-  });
-}
-
-/** Seed one standard journey stage (first stage is 'active'). */
-export async function insertJourneyStage(ventureId, name, description, stageOrder, status) {
-  return db.execute({
-    sql: "INSERT INTO venture_journey_stages (venture_id, name, description, stage_order, status) VALUES (?, ?, ?, ?, ?)",
-    args: [ventureId, name, description, stageOrder, status],
-  });
-}
-
-/** Highest stage_order currently seeded for a venture. */
-export async function getJourneyMaxStageOrder(ventureId) {
-  return db.execute({
-    sql: "SELECT MAX(stage_order) as max_order FROM venture_journey_stages WHERE venture_id = ?",
-    args: [ventureId],
-  });
-}
-
-/** Add a growth stage missing from an existing venture (conflict-safe). */
-export async function insertMissingJourneyStage(ventureId, name, description, stageOrder) {
-  return db.execute({
-    sql: "INSERT INTO venture_journey_stages (venture_id, name, description, stage_order, status) VALUES (?, ?, ?, ?, 'locked') ON CONFLICT (venture_id, stage_order) DO NOTHING",
-    args: [ventureId, name, description, stageOrder],
-  });
-}
-
-/** All journey stages for a venture, ordered by stage_order. */
-export async function getJourneyStages(ventureId) {
-  return db.execute({
-    sql: "SELECT * FROM venture_journey_stages WHERE venture_id = ? ORDER BY stage_order ASC",
-    args: [ventureId],
-  });
-}
-
-/** A single journey stage scoped to a venture. */
-export async function getJourneyStageById(stageId, ventureId) {
-  return db.execute({
-    sql: "SELECT * FROM venture_journey_stages WHERE id = ? AND venture_id = ?",
-    args: [stageId, ventureId],
-  });
-}
-
-/** Mark a journey stage completed, recording the approver. */
-export async function completeJourneyStage(approvedBy, stageId) {
-  return db.execute({
-    sql: "UPDATE venture_journey_stages SET status = 'completed', completed_at = NOW(), approved_by = ? WHERE id = ?",
-    args: [approvedBy, stageId],
-  });
-}
-
-/** Unlock the next locked journey stage (stage_order + 1). */
-export async function unlockJourneyStage(ventureId, stageOrder) {
-  return db.execute({
-    sql: "UPDATE venture_journey_stages SET status = 'active' WHERE venture_id = ? AND stage_order = ? AND status = 'locked'",
-    args: [ventureId, stageOrder],
-  });
-}
-
-/** Lock this stage and every later stage (reset action). */
-export async function lockJourneyStagesFrom(ventureId, stageOrder) {
-  return db.execute({
-    sql: "UPDATE venture_journey_stages SET status = 'locked', completed_at = NULL, approved_by = NULL WHERE venture_id = ? AND stage_order >= ?",
-    args: [ventureId, stageOrder],
-  });
-}
-
-/** Re-activate a reset journey stage. */
-export async function activateJourneyStage(ventureId, stageOrder) {
-  return db.execute({
-    sql: "UPDATE venture_journey_stages SET status = 'active' WHERE venture_id = ? AND stage_order = ?",
-    args: [ventureId, stageOrder],
-  });
-}
-
-/** All journey stages after a stage action (PATCH re-read). Same SQL as getJourneyStages — kept 1:1. */
-export async function getJourneyStagesAfterUpdate(ventureId) {
-  return db.execute({
-    sql: "SELECT * FROM venture_journey_stages WHERE venture_id = ? ORDER BY stage_order ASC",
-    args: [ventureId],
-  });
-}
-
 // ── GET/POST/PATCH /api/ventures/[id]/kpis ───────────────────────────────────
 
 /** Venture internal id (UUID) resolved from the public VNT code. */
@@ -480,14 +366,6 @@ export async function getVentureForHistory(ventureId) {
   return db.execute({
     sql: `SELECT * FROM ventures WHERE venture_id = ?`,
     args: [ventureId],
-  });
-}
-
-/** Active venture_members row for a contact (participant visibility check). */
-export async function isVentureMemberContact(ventureId, contactId) {
-  return db.execute({
-    sql: `SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL`,
-    args: [ventureId, contactId],
   });
 }
 

@@ -59,45 +59,6 @@ export async function listVenturesWithCounts({ effectiveContactId, assignedStaff
   return db.execute({ sql, args });
 }
 
-/** Create a venture row — retired direct-create fallback (dead code in controller). */
-export async function insertVenture(venture) {
-  const {
-    venture_id,
-    name,
-    description,
-    industry,
-    business_stage,
-    website,
-    mission,
-    vision,
-    sector,
-    program_id,
-    origin_team_id,
-  } = venture;
-  return db.execute({
-    sql: `INSERT INTO ventures (venture_id, name, description, industry, business_stage, website, mission, vision, sector, program_id, origin_team_id, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW()) RETURNING id`,
-    args: [venture_id, name, description || null, industry || null, business_stage || "idea", website || null, mission || null, vision || null, sector || null, program_id || null, origin_team_id || null],
-  });
-}
-
-/** Add the venture creator as a founder member (ON CONFLICT DO NOTHING). */
-export async function addCreatorAsVentureFounder({ venture_id, cid }) {
-  return db.execute({
-    sql: `INSERT INTO venture_members (venture_id, contact_id, user_cid, role) VALUES (?, ?, ?, 'founder') ON CONFLICT DO NOTHING`,
-    args: [venture_id, cid, cid],
-  });
-}
-
-/** contact_timeline 'venture_created' event (retired POST fallback path). */
-export async function recordVentureCreatedTimeline({ contact_cid, name, industry, venture_id }) {
-  return db.execute({
-    sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
-                VALUES (?, 'venture_created', ?, 'ventures', ?, ?, ?::jsonb)`,
-    args: [contact_cid, `Founded "${name}"`, venture_id, contact_cid, JSON.stringify({ venture_name: name, industry })],
-  });
-}
-
 /** contact_timeline 'venture_updated' event after a PUT update. */
 export async function recordVentureUpdatedTimeline({ contact_cid, venture_id, updated_fields }) {
   return db.execute({
@@ -109,233 +70,7 @@ export async function recordVentureUpdatedTimeline({ contact_cid, venture_id, up
 
 // ── GET/POST/PATCH /api/ventures/[id]/members ────────────────────────────────
 
-/** Internal ventures.id for a VNT code — members resolveDbId helper. */
-export async function getVentureInternalIdByCode(venture_id) {
-  return db.execute({
-    sql: "SELECT id FROM ventures WHERE venture_id = ?",
-    args: [venture_id],
-  });
-}
-
-/** VNT code for an internal ventures.id — members resolveVentureCode helper. */
-export async function getVentureCodeByInternalId(id) {
-  return db.execute({
-    sql: "SELECT venture_id FROM ventures WHERE id = ?",
-    args: [id],
-  });
-}
-
-/** Active founder count by VNT code — last-founder-removal guard. */
-export async function countActiveFoundersByVentureCode(venture_id) {
-  return db.execute({
-    sql: "SELECT COUNT(*) as cnt FROM venture_members WHERE venture_id = ? AND member_type = 'founder' AND removed_at IS NULL",
-    args: [venture_id],
-  });
-}
-
-/** Membership row by VNT code + contact id — view-access check. */
-export async function findActiveVentureMember(venture_id, contact_id) {
-  return db.execute({
-    sql: "SELECT id FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL LIMIT 1",
-    args: [venture_id, contact_id],
-  });
-}
-
-/** Founder membership row by VNT code + contact id — mutation-access check. */
-export async function findActiveVentureFounder(venture_id, contact_id) {
-  return db.execute({
-    sql: "SELECT id FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1",
-    args: [venture_id, contact_id],
-  });
-}
-
-/** Internal ventures.id by VNT code — GET members roster lookup. */
-export async function getVentureInternalIdByVentureCode(venture_id) {
-  return db.execute({
-    sql: "SELECT id FROM ventures WHERE venture_id = ?",
-    args: [venture_id],
-  });
-}
-
-/** Active roster with contact name/email (joins contacts). */
-export async function listVentureMembersWithContactInfo(venture_id) {
-  return db.execute({
-    sql: `
-        SELECT vm.*, c.name as contact_name, c.email as contact_email
-        FROM venture_members vm
-        LEFT JOIN contacts c ON vm.contact_id = c.cid
-        WHERE vm.venture_id = ? AND vm.removed_at IS NULL
-        ORDER BY vm.member_type, vm.joined_at DESC
-      `,
-    args: [venture_id],
-  });
-}
-
-/** Contact existence check before adding a member by contact_id. */
-export async function getContactByCid(cid) {
-  return db.execute({
-    sql: "SELECT cid FROM contacts WHERE cid = ?",
-    args: [cid],
-  });
-}
-
-/** Add a venture_members row (identity already resolved by the controller). */
-export async function insertVentureMember({ venture_id, contact_id, member_type, role, permissions, invited_by }) {
-  return db.execute({
-    sql: `INSERT INTO venture_members (venture_id, contact_id, member_type, role, permissions, invited_by)
-              VALUES (?, ?, ?, ?, ?, ?)`,
-    args: [venture_id, contact_id, member_type, role || null, permissions || "edit", invited_by || null],
-  });
-}
-
-/** Founder/role row for a member being removed (PATCH remove path). */
-export async function getVentureMemberForMutation(member_id, venture_id) {
-  return db.execute({
-    sql: "SELECT member_type, contact_id, role FROM venture_members WHERE id = ? AND venture_id = ?",
-    args: [member_id, venture_id],
-  });
-}
-
-/** Soft-remove a member by setting removed_at. */
-export async function removeVentureMember(member_id, venture_id) {
-  return db.execute({
-    sql: "UPDATE venture_members SET removed_at = NOW() WHERE id = ? AND venture_id = ?",
-    args: [member_id, venture_id],
-  });
-}
-
-/** contact_id of a member row (PATCH role/permissions update path). */
-export async function getVentureMemberContactId(member_id, venture_id) {
-  return db.execute({
-    sql: "SELECT contact_id FROM venture_members WHERE id = ? AND venture_id = ?",
-    args: [member_id, venture_id],
-  });
-}
-
-/** Apply controller-built SET clauses to a venture_members row. */
-export async function updateVentureMemberFields(updates, args) {
-  return db.execute({
-    sql: `UPDATE venture_members SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`,
-    args,
-  });
-}
-
 // ── GET /api/ventures/[id]/dashboard ─────────────────────────────────────────
-
-/** Internal ventures.id by VNT code — dashboard resolve step (dbId). */
-export async function getVentureDbIdByVentureCode(venture_id) {
-  return db.execute({
-    sql: "SELECT id FROM ventures WHERE venture_id = ?",
-    args: [venture_id],
-  });
-}
-
-/** Venture info card row (dashboard venture widget). */
-export async function getVentureInfoForDashboard(venture_id) {
-  return db.execute({
-    sql: "SELECT company_name, venture_id, industry, business_stage, status, created_at, description, website, logo_url, registration_number FROM ventures WHERE venture_id = ?",
-    args: [venture_id],
-  });
-}
-
-/** Member contact/user ids for a venture (notification recipients). */
-export async function listVentureMemberNotificationRecipients(venture_id) {
-  return db.execute({
-    sql: "SELECT contact_id, user_cid FROM venture_members WHERE venture_id = ? AND removed_at IS NULL",
-    args: [venture_id],
-  });
-}
-
-/** Recent bell notifications for the venture's member ids (+ 'sa'). */
-export async function getRecentNotificationsForMembers(recipientIds) {
-  let sql, args;
-  if (recipientIds.length > 0) {
-    sql = `SELECT id, title, message, type, is_read, created_at
-                FROM v2_notifications
-                WHERE recipient_id IN (${recipientIds.map(() => "?").join(", ")}) OR recipient_id = 'sa'
-                ORDER BY created_at DESC LIMIT 10`;
-    args = recipientIds;
-  } else {
-    sql = `SELECT id, title, message, type, is_read, created_at
-                FROM v2_notifications
-                WHERE recipient_id = 'sa'
-                ORDER BY created_at DESC LIMIT 10`;
-    args = [];
-  }
-  return db.execute({ sql, args });
-}
-
-/** Recent venture_activity_log rows for the dashboard widget. */
-export async function listRecentVentureActivity(venture_id) {
-  return db.execute({
-    sql: `SELECT id, action, actor_name, details, created_at
-                FROM venture_activity_log WHERE venture_id = ?
-                ORDER BY created_at DESC LIMIT 10`,
-    args: [venture_id],
-  });
-}
-
-/** Recent non-deleted venture_documents (dashboard data room). */
-export async function listRecentVentureDocuments(venture_id) {
-  return db.execute({
-    sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? AND is_deleted = false ORDER BY created_at DESC LIMIT 5",
-    args: [venture_id],
-  });
-}
-
-/** Recent venture_documents fallback query (no is_deleted filter). */
-export async function listRecentVentureDocumentsUnfiltered(venture_id) {
-  return db.execute({
-    sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? ORDER BY created_at DESC LIMIT 5",
-    args: [venture_id],
-  });
-}
-
-/** Upcoming calendar_events for a venture (dashboard meetings widget). */
-export async function listUpcomingVentureMeetings(venture_id) {
-  return db.execute({
-    sql: `SELECT id, title, description, event_date, event_time, status, type
-                FROM calendar_events WHERE venture_id = ? AND event_date >= CURRENT_DATE
-                ORDER BY event_date ASC LIMIT 5`,
-    args: [venture_id],
-  });
-}
-
-/** Latest venture KPI assignments joined to their definitions (by internal id). */
-export async function getVentureKpiSummary(dbId) {
-  return db.execute({
-    sql: `SELECT d.name, d.unit, d.auto_calc_source, a.target_value, a.current_value, a.updated_at
-                FROM venture_kpi_assignments a
-                JOIN venture_kpi_definitions d ON d.id = a.kpi_definition_id
-                WHERE a.venture_id::text = ?
-                ORDER BY a.updated_at DESC LIMIT 5`,
-    args: [dbId],
-  });
-}
-
-/** Advisor count for a venture (internal id). */
-export async function countVentureAdvisors(dbId) {
-  return db.execute({
-    sql: "SELECT COUNT(*) AS n FROM venture_advisors WHERE venture_id::text = ?",
-    args: [dbId],
-  });
-}
-
-/** Coaching session count for a venture (internal id). */
-export async function countVentureCoachingSessions(dbId) {
-  return db.execute({
-    sql: "SELECT COUNT(*) AS n FROM venture_coaching_sessions WHERE venture_id::text = ?",
-    args: [dbId],
-  });
-}
-
-/** Active coach assignment count for a venture (internal id). */
-export async function countActiveVentureCoachAssignments(dbId) {
-  return db.execute({
-    sql: "SELECT COUNT(*) AS n FROM venture_coach_assignments WHERE venture_id::text = ? AND status = 'active'",
-    args: [dbId],
-  });
-}
 
 // ── GET /api/ventures/[id]/progress ──────────────────────────────────────────
 
@@ -344,14 +79,6 @@ export async function getVentureDbIdForProgress(venture_id) {
   return db.execute({
     sql: "SELECT id FROM ventures WHERE venture_id = ?",
     args: [venture_id],
-  });
-}
-
-/** Venture task total/done counts for the progress widget. */
-export async function getVentureTaskCompletionCounts(dbId) {
-  return db.execute({
-    sql: "SELECT COUNT(*) as total, SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as done FROM venture_tasks WHERE venture_id = ?",
-    args: [dbId],
   });
 }
 
@@ -656,35 +383,11 @@ export async function getVentureDbIdForMilestoneList(venture_id) {
   });
 }
 
-/** All venture milestones, newest first. */
-export async function listVentureMilestones(venture_id) {
-  return db.execute({
-    sql: "SELECT * FROM venture_milestones WHERE venture_id = ? ORDER BY created_at DESC",
-    args: [venture_id],
-  });
-}
-
 /** Internal ventures.id by VNT code — milestones POST resolver. */
 export async function getVentureDbIdForMilestoneCreate(venture_id) {
   return db.execute({
     sql: "SELECT id FROM ventures WHERE venture_id = ?",
     args: [venture_id],
-  });
-}
-
-/** Insert a venture milestone (defaults: not_started / progress 0). */
-export async function insertVentureMilestone({ id, venture_id, title, description, target_date, created_by }) {
-  return db.execute({
-    sql: `INSERT INTO venture_milestones (id, venture_id, title, description, target_date, status, progress, created_by) VALUES (?, ?, ?, ?, ?, 'not_started', 0, ?)`,
-    args: [id, venture_id, title, description || null, target_date || null, created_by || null],
-  });
-}
-
-/** Apply controller-built SET clauses to a venture milestone row. */
-export async function updateVentureMilestoneFields(updates, args) {
-  return db.execute({
-    sql: `UPDATE venture_milestones SET ${updates.join(", ")} WHERE id = ?`,
-    args,
   });
 }
 

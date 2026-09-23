@@ -900,41 +900,6 @@ export async function requireProgramFacilitator(programId) {
 }
 
 /**
- * Guard: facilitator must be assigned AND have the capability at the required
- * level (individual override > program default). Assignment-derived; bypass
- * roles pass through.
- */
-export async function requireFacilitatorCapability(programId, capability, minLevel = 1) {
-  try {
-    const session = await getSession();
-    if (!session)
-      return NextResponse.json(
-        { success: false, error: "errors.authRequired" },
-        { status: 401 },
-      );
-    if (session.role === "super_admin") return null;
-    const resolved = await resolveProgramAssignment(programId, session.cid, session.email);
-    if (!resolved)
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
-    const level = await getFacilitatorPermissionLevel(programId, resolved.assignment, capability);
-    if (level < minLevel)
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
-    return null;
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "errors.authzSystemFailure" },
-      { status: 500 },
-    );
-  }
-}
-
-/**
  * Convenience guard for delivery APIs (participants, attendance, submissions,
  * sessions). Assignment-derived: access follows the v2_program_staff assignment
  * rather than the legacy global role. Bypass roles are unaffected — existing

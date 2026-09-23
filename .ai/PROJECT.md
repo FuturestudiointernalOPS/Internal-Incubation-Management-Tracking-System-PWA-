@@ -21,12 +21,15 @@
 | `/pm` | `program_manager` | Scoped to assigned programs/projects |
 | `/staff` | `staff` | Weekly op-report submission, own tasks/blockers |
 | `/participant` | `participant` | Participant-facing views, program enrollment, rituals, progress |
-| `/developer` | `developer` / `intern` | Internal engineering dashboard |
-| `/investor` | `investor` | Investor portal (in development) |
+| `/facilitator` | `facilitator` | Program facilitation |
+| `/investor` | `investor` | Investor portal |
+| `/finance` | `finance` | Finance workspace |
+| `/crm` | `crm` | Contacts, membership, timeline |
+| `/team` | `team` | Team workspace |
 | `/login`, `/register`, `/forgot-password`, `/setup-password`, `/invite`, `/activate` | public | Auth flows |
-| `/api/*` | public (gated per-route) | ~70+ API route handlers, grouped by domain |
+| `/api/*` | public (gated per-route) | 403 API route handlers, grouped by domain |
 
-**No centralized middleware.** Auth is enforced per-page/per-route via `requireAuth()`, `requireSession()`, and `requireCapability()` in `src/lib/auth.js`. Each role's top-level `layout.js` exports `dynamic = "force-dynamic"` to disable static caching for authenticated pages.
+**Central gate + per-route guards.** `src/proxy.js` (Next.js middleware) validates the session cookie on every request; `requireAuth()`, `requireSession()`, and `requireCapability()` in `src/lib/auth.js` remain the per-page/per-route layer. Session-only layouts export `dynamic = "force-dynamic"` to disable static caching.
 
 Sidebar navigation is defined once in `src/lib/masterNavigation.js` (`MASTER_NAVIGATION` structure + `ROLE_ACCESS` masks) and built for the connected user by `buildAccessNav(role, capabilities)`; `src/components/layout/DashboardLayout.js` only renders it. The section layout's `role` prop is a pre-session fallback — the effective role is always the session user's (`contacts.role`), never the visited page.
 
@@ -35,22 +38,22 @@ Sidebar navigation is defined once in `src/lib/masterNavigation.js` (`MASTER_NAV
 - **Custom cookie-session auth** (not Supabase Auth). Sessions are server-side rows in `user_sessions`, referenced by an `impactos_session` cookie, 24h expiry (extendable via "remember me").
 - `src/lib/auth.js` — issue, verify, destroy sessions. `requireSession(allowedRoles)`, `requireAuth(allowedRoles)`, `requireProjectAccess(projectId)` guard functions.
 - **Permission system** layered on top of roles: `PERMISSION_MODULES` (projects, programs, users, reports, messaging, finance, engineering, contacts, permissions, internal_comms, settings), `ACCESS_LEVELS` (NONE → FULL). `hasCapability()` / `requireCapability()` enforce fine-grained access.
-- **Access profiles V2** (`getUserEffectiveCapabilitiesV2`, `requireCapabilityV2`): role-default profiles (Super Admin, Staff, PM, Participant, Developer, etc.) with per-user overrides.
+- **Access profiles** (`getUserEffectiveCapabilities`, `requireCapability`): role-default profiles (Super Admin, Staff, PM, Participant, etc.) with per-user overrides.
 - **Responsibilities** system: named responsibilities (Finance Management, Program Management, etc.) assignable to users.
 
 ### 2.3 Data layer
 
 - **`src/lib/db.js`** — single Postgres connection pool (`pg`), lazy-initialized from `DATABASE_URL`. All DB access via `db.execute({sql, args})`. Supports `?` → `$N` parameter translation and auto-retry on connection errors. Includes `db.transaction(callback)`.
-- **SQL inline in route handlers** — no dedicated data-access layer. The same query patterns repeat across multiple routes (see known issues in MEMORY.md).
+- **Model layer** — SQL lives in named functions under `src/models/**`; API routes orchestrate them. A few legacy routes under `src/app/api/ventures/**` still query directly (see `docs/MVC_REFACTOR.md`).
 - **Migrations** in two places: `src/migrations/*.sql` (historical, manually applied) and `supabase/migrations/` (timestamped, idempotent).
-- **Model layer** — SQL lives in `src/models/**` only (MVC); thin API controllers under `src/app/api/**/route.js`. The pre-Postgres SQLite files were removed (empty).
+- **Controllers** — thin API controllers under `src/app/api/**/route.js`: auth, validation, model orchestration, response shaping.
 
 ### 2.4 Domain modules
 
 - **Operations OS** (`src/app/staff/op-report/`, `src/components/tasks/TaskManager.js`): weekly standups, retros, personal tasks, project tasks, blockers, carry-over, reporting. This is Pillar 1 — the foundation.
 - **Program OS** (`src/app/pm/`, `src/app/participant/`, `src/components/dashboard/`): program management, curriculum, sessions, deliverables, assignments, cohorts, attendance, progress tracking. Pillar 2.
 - **Venture OS** (`src/app/api/ventures/`, `src/lib/ventures.js`, `src/lib/ventureAuth.js`): startup profiles, milestones, KPIs, investment-readiness scoring. Pillar 3 — current priority.
-- **Investor OS** (`src/app/investor/`, `src/app/api/investor/`): deal pipeline, startup discovery, due diligence center, portfolio tracking. Pillar 4 — planned.
+- **Investor OS** (`src/app/investor/`, `src/app/api/investor/`): deal pipeline, startup discovery, due diligence center, portfolio tracking. Pillar 4 — built.
 - **Messaging** (`src/components/messaging/MessagingChat.js`, `src/app/api/messages/`, `internal-comms/`): DM, group, program, and broadcast messaging.
 - **Finance** (`src/lib/finance.js`, `src/app/finance/`, `src/app/api/finance/`): budget tracking, Google Sheets integration, transaction management.
 - **AI** (`src/lib/deepseek.js`): mentor feedback parsing, program insights, investor reports.
@@ -62,7 +65,7 @@ Sidebar navigation is defined once in `src/lib/masterNavigation.js` (`MASTER_NAV
 
 Core tables: `user_sessions`, `contacts`, `tasks`, `projects`, `programs` (`v2_programs`), `standups`, `retros`, `blockers`, `v2_sessions`, `v2_document_requirements`, `v2_submissions`, `v2_attendance`, `v2_teams`, `v2_kpis`, `kpi_progress`, `fin_transactions`, `fin_budgets`, `access_profiles`, `permission_grants`, `permission_restrictions`, `responsibilities`, `messages` (`v2_messages`), `notifications`, `audit_logs`, `error_logs`.
 
-**⚠️ Schema drift:** 162 confirmed broken SQL statements across the codebase (see `docs/SCHEMA_DRIFT_AUDIT.md`). Code and schema have diverged in ~12 clusters — password reset pipeline, participant enrollment, campaign emails, rituals, curriculum, and others are non-functional. Fixes are sequenced but incomplete.
+**ℹ️ Schema drift:** code and the live schema have diverged historically. Verify queries against the live schema when touching older domains; current security status is in `docs/SECURITY_AUDIT_REGISTER.md`.
 
 ## 3. Business Rules (non-negotiable)
 
@@ -85,7 +88,7 @@ Core tables: `user_sessions`, `contacts`, `tasks`, `projects`, `programs` (`v2_p
 | **Phase 1** — Foundation (Operations OS) | ✅ In place | Tasks, standups, retros, internal reporting |
 | **Phase 2** — Program Management | 🔄 In progress | Programs, cohorts, sessions, deliverables, mentorship |
 | **Phase 3** — Venture OS | 🎯 Current priority | Startup framework, milestones, investment-readiness score |
-| **Phase 4** — Investor Intelligence | 📋 Planned | Dashboard, pipeline, due diligence, portfolio |
+| **Phase 4** — Investor Intelligence | ✅ In place | Dashboard, pipeline, due diligence, portfolio |
 | **Phase 5** — Ecosystem Platform | 🔭 Long-term | Public marketplace, ecosystem intelligence |
 
 ### Sprint 01 — Operations OS Stabilization (active)

@@ -66,14 +66,6 @@ export async function listWorkspaceTimeline(workspaceId) {
   });
 }
 
-/** Investor profile id resolver (list branch). */
-export async function getInvestorProfileByUserId(userId) {
-  return db.execute({
-    sql: "SELECT id FROM investor_profiles WHERE user_id = ?",
-    args: [userId],
-  });
-}
-
 /** Relationship workspace list — investor branch or admin branch. */
 export async function listRelationshipWorkspaces({ investorId, ventureId }) {
   let sql, args;
@@ -350,41 +342,6 @@ export async function setContactRoleToInvestor(name, contactId) {
   return db.execute({
     sql: "UPDATE contacts SET role = 'investor', name = ? WHERE cid = ?",
     args: [name, contactId],
-  });
-}
-
-/** Create/refresh an investor profile for an existing contact. */
-export async function upsertInvestorProfileForRegistration(userId, organizationName, biography, website, linkedin, investmentExperience) {
-  return db.execute({
-    sql: `INSERT INTO investor_profiles (user_id, organization_name, biography, website, linkedin, approval_status, qualification_status, investment_experience, profile_completion)
-              VALUES (?, ?, ?, ?, ?, 'pending_review', 'pending_review', ?, 100)
-              ON CONFLICT (user_id) DO UPDATE
-              SET organization_name = EXCLUDED.organization_name, biography = EXCLUDED.biography,
-                  website = EXCLUDED.website, linkedin = EXCLUDED.linkedin,
-                  qualification_status = 'pending_review', investment_experience = EXCLUDED.investment_experience,
-                  approval_status = CASE WHEN investor_profiles.approval_status = 'rejected' THEN 'pending_review' ELSE investor_profiles.approval_status END,
-                  updated_at = NOW()`,
-    args: [userId, organizationName, biography, website, linkedin, investmentExperience],
-  });
-}
-
-/** Profile id resolver for existing-contact preferences (register). */
-export async function getExistingInvestorProfileId(contactId) {
-  return db.execute({
-    sql: "SELECT id FROM investor_profiles WHERE user_id = ?",
-    args: [contactId],
-  });
-}
-
-/** Upsert preferences for an existing-contact registration. */
-export async function upsertInvestorPreferences(investorId, industries, countries, startupStages, ticketSizeMin, ticketSizeMax) {
-  return db.execute({
-    sql: `INSERT INTO investor_preferences (investor_id, industries, countries, startup_stages, ticket_size_min, ticket_size_max)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT (investor_id) DO UPDATE
-                SET industries = EXCLUDED.industries, countries = EXCLUDED.countries, startup_stages = EXCLUDED.startup_stages,
-                    ticket_size_min = EXCLUDED.ticket_size_min, ticket_size_max = EXCLUDED.ticket_size_max`,
-    args: [investorId, industries, countries, startupStages, ticketSizeMin, ticketSizeMax],
   });
 }
 

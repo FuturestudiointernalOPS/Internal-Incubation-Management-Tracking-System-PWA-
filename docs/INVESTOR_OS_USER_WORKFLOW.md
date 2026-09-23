@@ -1,5 +1,9 @@
 # Investor OS — Workflow Utilisateur
 
+> Parcours **vu par l'investisseur** : ce qu'il voit et ce qu'il fait, écran par écran.
+> Pour la **procédure de test de bout en bout** (comptes de test, côté admin, due diligence multi-rôles),
+> voir [`INVESTOR_OS_TEST_GUIDE.md`](INVESTOR_OS_TEST_GUIDE.md).
+
 ## Table des matières
 1. [Onboarding](#1-onboarding)
 2. [Dashboard](#2-dashboard)
@@ -18,24 +22,17 @@
 
 ### 1.1 Comment un investisseur rejoint la plateforme ?
 
-> **L'Admin envoie un lien d'invitation** à l'investisseur par email. L'investisseur clique sur le lien, crée son compte, et son profil est mis en **Pending Review**.
+> **L'Admin copie le lien d'inscription** et le transmet à l'investisseur. Celui-ci crée son compte en 5 étapes, puis son profil passe en **Pending Review**.
 
-1. L'Admin va dans **Admin → Investors → Manage**
-2. L'Admin envoie une invitation à l'email de l'investisseur
-3. L'investisseur reçoit l'email avec un lien vers `/investor/register`
-4. L'investisseur remplit le formulaire :
-   - Nom complet
-   - Email
-   - Mot de passe
-   - Organisation (optionnel)
-   - Biographie (optionnel)
-   - Site web / LinkedIn (optionnel)
-5. L'investisseur clique **Register as Investor**
-6. Message : *"Registration submitted for review. You'll be notified once approved."*
+1. L'Admin va dans **Admin → Investors → Investor Management** (`/admin/investors`)
+2. L'Admin clique **Copy Registration Link** (le lien pointe vers `/investor/wizard`)
+3. L'investisseur ouvre le lien
+4. Il remplit le parcours en 5 étapes : **Account** (nom, email, mot de passe), **Organization** (organisation, biographie), **Preferences** (industries, pays, stages, ticket), **Experience** (expérience d'investissement), **Review**
+5. Il soumet → message *"Registration submitted for review. You'll be notified once approved."*
 
 ### 1.2 Approbation par l'Admin
 
-1. L'Admin va dans **Admin → Investors → Manage**
+1. L'Admin va dans **Admin → Investors → Review**
 2. L'investisseur apparaît avec le statut **Pending Review**
 3. L'Admin clique **Approve** (ou **Reject** / **Suspend**)
 4. L'investisseur reçoit une notification + email
@@ -62,12 +59,13 @@ Le dashboard est la page d'accueil de l'investisseur (`/investor/dashboard`).
 | **Onglet Watchlist** | Ventures sauvegardées pour plus tard |
 
 ### Sidebar :
-- **DISCOVER** → Dashboard
-- **PIPELINE** → Dashboard (onglet Pipeline)
+- **DASHBOARD** → `/investor/dashboard` (onglets Discover, Pipeline, Watchlist)
+- **PIPELINE** → `/investor/pipeline`
 - **PORTFOLIO** → `/investor/portfolio`
-- **ORGANIZATIONS** → `/investor/organizations`
-- **HISTORY** → `/investor/history`
+- **ACTIVITY** → `/investor/history`
 - **PROFILE** → `/investor/profile`
+
+> Les pages **Organisations** (`/investor/organizations`) et **Due Diligence** (`/investor/diligence`) ne figurent pas dans la barre latérale : la due diligence s'ouvre depuis l'onglet Pipeline (« Open Workspace »), et la page Organisations est accessible par son adresse.
 
 ---
 
@@ -97,7 +95,7 @@ Le dashboard est la page d'accueil de l'investisseur (`/investor/dashboard`).
 | Pays + % complétion | Ex: CD · 45% |
 | 🔄 Comparer | Ajoute/retire de la comparaison |
 | ⭐ Watchlist | Ajoute/retire de la watchlist |
-| **Express Interest** | Ajoute au pipeline avec stage "Interested" |
+| **Add to Pipeline** | Ajoute au pipeline avec stage "Interested" |
 
 ### Modale de détail d'une venture :
 
@@ -155,7 +153,7 @@ Le pipeline suit chaque venture à travers les étapes du cycle d'investissement
 
 ### Ajouter au pipeline :
 
-1. Sur une carte venture → cliquer **Express Interest** → stage = "Interested"
+1. Sur une carte venture → cliquer **Add to Pipeline** → stage = "Interested"
 2. Dans la modale de détail → dropdown pour choisir le stage → **Add to Pipeline**
 
 ### Gérer le pipeline :
@@ -275,7 +273,7 @@ En cliquant sur une venture :
 
 ### Accéder à l'historique :
 
-- Sidebar → **HISTORY** ou `/investor/history`
+- Sidebar → **ACTIVITY** ou `/investor/history`
 
 ### Ce qu'on voit :
 
@@ -325,7 +323,7 @@ Pour les investisseurs institutionnels (VC firms, Family Offices).
 
 ### Accéder :
 
-- Sidebar → **ORGANIZATIONS** ou `/investor/organizations`
+- Adresse directe : `/investor/organizations` (pas d'entrée dans la barre latérale)
 
 ### Créer une organisation :
 

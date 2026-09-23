@@ -52,7 +52,7 @@
 | `src/components/ui/CalendarPanel.js` | CalendarPanel | Reusable compact calendar component with event dots and day popup. |
 | `src/components/ui/ErrorPage.js` | ErrorPage | Next.js error boundary fallback with retry and go-back buttons. |
 | `src/components/ui/GlobalToast.js` | GlobalToast | Global toast notification system listening for custom events. |
-| `src/components/ui/Skeleton.js` | Skeleton, TableSkeleton, CardSkeleton | Skeleton loading placeholders for data-first UI. |
+| `src/components/ui/Skeleton.js` | Skeleton, TableSkeleton | Skeleton loading placeholders for data-first UI. |
 | `src/components/ui/RichTextEditor.js` | RichTextEditor | Tiptap authoring field (`immediatelyRender: false`) for course/section/lesson/assessment descriptions. |
 | `src/components/ui/RichTextContent.js` | RichTextContent | Renders an authored description — a sanitised rich fragment, or legacy plain text with its line breaks preserved. |
 
@@ -62,21 +62,19 @@
 |---|---|---|
 | `src/lib/ThemeProvider.js` | ThemeProvider, useTheme | Manages dark/light theme through React context, applying data‑theme to `<html>` and persisting the choice in localStorage; allows theme switching across the application while avoiding hydration mismatch. |
 | `src/lib/audit.js` | logAuditEvent, isTaskLocked | Audit logger for lifecycle events and task lock check (6 days). |
-| `src/lib/auth.js` | SESSION_COOKIE_NAME, createSession, getSession, setSessionCookieOnResponse, destroySession, requireSession, requireAuth, requireProjectAccess, PERMISSION_MODULES, ACCESS_LEVELS, getUserGroups, getUserEffectiveCapabilities, getUserFullPermissionMatrix, hasCapability, requireCapability, logPermissionAudit, seedDefaultRoleCapabilities, getUserEffectiveProfile, getAccessProfileCapabilities, getUserEffectiveCapabilitiesV2, getUserFullPermissionMatrixV2, hasCapabilityV2, requireCapabilityV2, seedDefaultAccessProfiles, getUserResponsibilities, assignResponsibility, removeResponsibility, getAllResponsibilities, seedDefaultResponsibilities | Authentication and authorization system with session management, permission matrix, access profiles, and responsibilities. |
-| `src/lib/constants.js` | STATUS_CONFIG, STATUS_LIST, SEVERITY_COLORS, SEVERITY_LIST, MONTHS, MONTHS_SHORT, DAYS, DAYS_SHORT, getWeekNumber, getCurrentWeek, formatDate, formatDateTime, formatLabel, formatNumber, calcPercentage, CHART_COLORS, CHART_COLORS_CSS | Shared constants and utility functions used across multiple pages. |
+| `src/lib/auth.js` | SESSION_COOKIE_NAME, createSession, getSession, setSessionCookieOnResponse, destroySession, requireSession, requireAuth, requireProjectAccess, PERMISSION_MODULES, ACCESS_LEVELS, getUserGroups, getUserEffectiveCapabilities, getUserFullPermissionMatrix, hasCapability, requireCapability, logPermissionAudit, seedDefaultRoleCapabilities, getUserEffectiveProfile, getAccessProfileCapabilities, seedDefaultAccessProfiles, getUserResponsibilities, assignResponsibility, removeResponsibility, getAllResponsibilities, seedDefaultResponsibilities | Authentication and authorization system with session management, permission matrix, access profiles, and responsibilities. |
+| `src/lib/constants.js` | STATUS_CONFIG, MONTHS, DAYS, getWeekNumber, formatDate, formatLabel | Shared constants and utility functions used across multiple pages. |
 | `src/lib/db.js` | db, initDb | PostgreSQL (Supabase) connection pool with forensic query tracing. |
-| `src/lib/deepseek.js` | aiIntelligence | DeepSeek AI integration for feedback parsing, program insights, and investor reports. |
+| `src/lib/deepseek.js` | deepseekIntelligence, DEFAULT_MODEL | DeepSeek AI integration for feedback parsing, program insights, and investor reports. |
 | `src/lib/email.js` | sendInviteEmail, sendWelcomeEmail, sendPasswordResetEmail | Email sending via Resend for invites, welcome, password reset. |
-| `src/lib/finance.js` | fetchWorkbook, getSheetData, getSheetJSON, excelDateToISO, PROJECT_SHEETS, BUDGET_SHEET_MAP, getSheetForProject, getTransactions, getSummary, getMonthlyTrend, getBudgetLines, appendTransaction | Fetch and parse Google Sheets data (budget, transactions) using read-excel-file. |
+| `src/lib/finance.js` | fetchWorkbook, getSheetData, getSheetJSON, excelDateToISO, PROJECT_SHEETS, BUDGET_SHEET_MAP, getSheetForProject, getTransactions, getSummary | Fetch and parse Google Sheets data (budget, transactions) using read-excel-file. |
 | `src/lib/i18n.js` | SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, I18nProvider, useI18n | React context–based translation engine with deep key resolution and English fallback; makes every user‑visible string translatable via a single t() function and persists language preference. |
 | `src/lib/kpi-progress.js` | recalculateKpiProgress | Recalculates and stores KPI progress for a program by counting completed sessions and document requirements linked to each KPI; supplies up‑to‑date progress percentages for the executive dashboard without internal HTTP calls. |
 | `src/lib/locales.js` | LOCALE_REGISTRY, deepMerge | Loads and deep‑merges JSON locale files for each supported language, with English as the source of truth; centralises translation data and enables automatic fallback to English when a key is missing. |
 | `src/lib/mailer.js` | sendEmail | General‑purpose email sender using Resend, with graceful fallback when Resend is not configured; exists to send transactional emails across the application. |
-| `src/lib/reportError.js` | reportError, createSafeFetch | Client‑side error reporting utility that sends structured error payloads to /api/errors; captures failures from API calls and form submissions with automatic user context and severity levels. |
 | `src/lib/spreadsheet.js` | dateToExcelSerial, normalizeCell, isBlankRow, gridWidth, buildHeaderKeys, gridToObjects, gridToRows, objectsToAoa | Pure, import-free helpers shared by every Excel reader and writer; turns a grid of rows into row objects keyed by the header row and back, reproducing the generated empty-column names and duplicate suffixes the app relies on. |
 | `src/lib/standupUpsert.js` | standupUpsert, rebuildStandupTasks | Ensures a weekly standup report exists for a user by creating or updating it when tasks are created/updated; automates standup creation so task creation populates the weekly report. |
-| `src/lib/storage.js` | uploadFile, deleteFile | High‑security asset management for uploading and deleting files in Supabase Storage; centralises file upload logic with public URL retrieval and error logging. |
-| `src/lib/supabase-admin.js` | supabaseAdmin | Creates a Supabase client with the service role key (bypasses RLS) for server‑side only; provides privileged database access for admin operations. |
+| `src/lib/storage.js` | uploadFile | High‑security asset management for uploading files in Supabase Storage; centralises file upload logic with public URL retrieval and error logging. |
 | `src/lib/supabase.js` | supabase | Initialises the Supabase client with the anonymous (anon) key for client‑side usage; provides a shared Supabase instance for basic CRUD operations that respect Row Level Security. |
 | `src/lib/taskAudit.js` | logTaskEvent, ACTION_TYPES | Immutable audit logger for task actions (create, assign, update, etc.) that writes to the task_assignment_log table; exists to maintain a write‑only history for compliance and debugging. |
 
@@ -88,7 +86,6 @@
 | `src/lib/lms/youtube.js` | extractYouTubeVideoId, isValidYouTubeVideoId, buildYouTubeEmbedUrl | Normalizes YouTube URLs / bare IDs into the canonical 11-char video ID (the only video data the LMS stores) + builds the cookie-free embed URL (`youtube-nocookie`, `rel=0`, `modestbranding`, opt-in `autoplay`) shared by every player. |
 | `src/lib/lms/validation.js` | validateCourseForPublish | Pure publish-validation rules (sections, lessons, video refs, MC/TF questions, pass mark). |
 | `src/lib/lms/errors.js` | LmsError, lmsErrorResponse | Domain error with i18n key + HTTP status; standard route error responses (never leak raw DB errors). |
-| `src/lib/lms/helpers.js` | nextPosition, groupBy | Ordering helper (max+1 position) and row grouping. |
 | `src/lib/lms/courses.js` | listCourses, getCourse, getCourseStructure, createCourse, updateCourse, deleteCourse, publishCourse, archiveCourse | Course lifecycle + authoring structure assembly (admin). |
 | `src/lib/lms/sections.js` | getSection, createSection, updateSection, moveSection, reorderSections, deleteSection | Section authoring + ordering (admin). `reorderSections` persists a full drag-and-drop order for a course. |
 | `src/lib/lms/lessons.js` | getLesson, createLesson, updateLesson, moveLesson, deleteLesson | Lesson authoring + ordering + YouTube normalization (admin). |
@@ -138,21 +135,16 @@
 
 | File | Exports | Purpose |
 |---|---|---|
-| `src/lib/integrations/calendar/google.js` | GoogleCalendarProvider | Stub for Google Calendar integration that implements the CalendarProvider interface; exists as a placeholder for future migration to Google Workspace. |
-| `src/lib/integrations/calendar/microsoft.js` | MicrosoftCalendarProvider | Real calendar integration via Microsoft Graph API (client‑credentials auth); provides create/update/delete operations on a shared mailbox for calendar sync. |
-| `src/lib/integrations/calendar/provider.js` | CalendarProvider, getCalendarProvider | Defines the abstract interface for calendar providers and resolves the active provider based on environment config; allows swapping between Microsoft and Google calendars without changing application logic. |
-| `src/lib/integrations/calendar/sync.js` | syncEvent, unsyncEvent, checkCalendarHealth | High‑level calendar sync engine that pushes local events to the external calendar provider and stores the external ID; keeps ImpactOS calendar events in sync with the organisation’s main calendar, handling creation, updates, and deletion. |
+| `src/lib/integrations/calendar/sync.js` | syncRunDeadlines, unsyncRunDeadlines, syncAllRunDeadlines, checkCalendarHealth | Facade re-exporting the platform calendar sync model (`src/models/integrations/calendar/sync.js`): pushes Platform form-run deadlines to the external provider and stores the external ID, handling creation, updates, and deletion. |
 
 ## lib/integrations/notion
 
 | File | Exports | Purpose |
 |---|---|---|
-| `src/lib/integrations/notion/client.js` | isConfigured, getDatabase, createPage, updatePage, queryDatabase, taskToProperties, projectToProperties | Low‑level Notion API client with functions to create/update/query database pages and build property objects; serves as the building block for the sync engine, encapsulating authentication and API versioning. |
-| `src/lib/integrations/notion/sync.js` | syncTask, syncProject, syncAllTasks, syncAllProjects | One‑way sync engine that pushes ImpactOS tasks and projects to Notion databases; keeps Notion boards up‑to‑date automatically without duplicate data entry. |
+| `src/lib/integrations/notion/sync.js` | syncSubmission, syncAllSubmissions, checkNotionHealth | One‑way sync engine (facade to `src/models/integrations/notion/sync.js`) that pushes Platform form submissions to Notion databases; keeps Notion boards up‑to‑date automatically without duplicate data entry. |
 
 ## utils
 
 | File | Exports | Purpose |
 |---|---|---|
 | `src/utils/impactCache.js` | IMPACT_CACHE | Standardises key‑value caching in localStorage under a unified prefix (impactos_cache_); provides zero‑latency UI loading by persisting frequently accessed data across navigations. |
-| `src/utils/prefetch.js` | `prefetchData`, `getPrefetchedData` | Implements a prefetch engine that proactively fetches API data before navigation to reduce perceived latency; stores results in an in‑memory cache for up to 30 seconds and optionally persists them to localStorage using the `impactos_cache_` key prefix. |

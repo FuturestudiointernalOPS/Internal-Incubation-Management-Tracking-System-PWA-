@@ -56,18 +56,3 @@ export async function resolveVentureDbId(scopeId) {
   return result.rows?.[0]?.id ?? null;
 }
 
-/**
- * The `venture_id = ? OR venture_id = ? OR …` fragment plus its args, for a
- * scope check that must accept several accepted identifiers (code + db id).
- * Returns null when no usable identifier was given, so the caller can refuse.
- */
-export function ventureScopeClause(ventureIds) {
-  const ids = (Array.isArray(ventureIds) ? ventureIds : [ventureIds]).filter(
-    (ventureId) => ventureId !== null && ventureId !== undefined,
-  );
-  if (ids.length === 0) return null;
-  return {
-    clause: ids.map(() => "venture_id = ?").join(" OR "),
-    ids,
-  };
-}

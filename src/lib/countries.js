@@ -12,7 +12,7 @@
  *    Intl.DisplayNames, codes from the ISO list below;
  *  - dial-code aware helpers (getCountryOptions, getCountryName,
  *    getCountryDial, getCountryFlag) used by the shared phone/country inputs
- *    (AppPhoneInput, AppCountrySelect). Dial codes are authoritative because
+ *    (AppPhoneInput). Dial codes are authoritative because
  *    they come from libphonenumber-js (E.164 calling codes).
  */
 
@@ -128,7 +128,7 @@ export function allCountries() {
 }
 
 // ── Shared UI country/phone API (ISO alpha-2 -> E.164 dial codes) ─────────
-// Restored API originally consumed by AppPhoneInput/AppCountrySelect.
+// Restored API originally consumed by AppPhoneInput.
 
 const nameCache = new Map();
 

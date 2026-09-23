@@ -4,7 +4,7 @@ How ImpactOS fits together. For setup/run instructions see the root [README](../
 
 ## Overview
 
-Next.js App Router app, one Postgres database, six role-based dashboards sharing one codebase. No separate backend service — `src/app/api/` route handlers are the backend, `src/app/<role>/` pages are the frontend, both deployed together on Vercel.
+Next.js App Router app, one Postgres database, multiple role-based dashboards sharing one codebase. No separate backend service — `src/app/api/` route handlers are the backend, `src/app/<role>/` pages are the frontend, both deployed together on Vercel.
 
 ## Authentication & Sessions
 
@@ -16,11 +16,11 @@ Custom cookie-session auth, not Supabase Auth (Supabase is used for storage/admi
 - `requireSession(allowedRoles)` / `requireAuth(allowedRoles)` — guard functions called at the top of pages/route handlers; redirect or 401 if no valid session or role mismatch.
 - `requireProjectAccess(projectId)` — additional per-resource guard for project-scoped data.
 
-No `middleware.js` at the project root — auth is enforced per-page/per-route via these functions, not centrally. Each role's top-level `layout.js` (e.g. `src/app/admin/layout.js`) sets `export const dynamic = "force-dynamic"` to disable static caching for authenticated pages, since session-derived content must never be served from a static cache.
+Every request also passes a central gate: `src/proxy.js` (Next.js middleware) validates the session cookie, redirects unauthenticated page requests to `/login` and 401s unauthenticated API calls; its `config.matcher` covers everything except static assets. The guards above remain the per-page/per-route layer on top of it. Session-derived sections export `export const dynamic = "force-dynamic"` at their layout level (e.g. `src/app/admin/layout.js`) so authenticated content is never served from a static cache.
 
 ## Permissions
 
-Beyond role (`super_admin`/`program_manager`/`staff`/`participant`/`developer`), there's a finer-grained capability system in `src/lib/auth.js`:
+Beyond role (`super_admin`/`program_manager`/`staff`/`participant`, plus `facilitator`, `investor`, `finance`, `crm`, `team`, `founder`, `member`), there's a finer-grained capability system in `src/lib/auth.js`:
 
 - `PERMISSION_MODULES` — named permission domains (e.g. finance, reports).
 - `ACCESS_LEVELS` — graded access (none → full) per module.
@@ -32,7 +32,7 @@ This is why some routes check role AND capability — role gets you in the door,
 ## Data Layer
 
 - `src/lib/db.js` — single Postgres connection pool (`pg`), lazy-initialized from `DATABASE_URL`. All DB access goes through this module's `execute()`-style query wrapper.
-- **Model layer — `src/models/`** (MVC refactor, waves 0–6): every SQL statement lives in a domain model module under `src/models/**` (files + domain folders: `lms/`, `authorization/`, `finance/`, `platform/`, `integrations/`). API route handlers (`src/app/api/**/route.js`) are thin controllers — they authenticate, validate, orchestrate model calls and shape responses; they contain **no inline SQL**. Pages/components never import the db layer. Legacy domain modules that used to live in `src/lib` now sit in `src/models` behind facades re-exported from their old `src/lib` paths (e.g. `src/lib/ventures.js`, `src/lib/taskAudit.js`), so old import paths keep working. See `docs/MVC_REFACTOR.md`.
+- **Model layer — `src/models/`** (MVC refactor, waves 0–6): every SQL statement lives in a domain model module under `src/models/**` (files + domain folders: `lms/`, `authorization/`, `finance/`, `platform/`, `integrations/`). API route handlers (`src/app/api/**/route.js`) are thin controllers — they authenticate, validate, orchestrate model calls and shape responses; they contain **no inline SQL**. Pages/components never import the db layer. Legacy domain modules that used to live in `src/lib` now sit in `src/models` behind facades re-exported from their old `src/lib` paths (e.g. `src/lib/taskAudit.js`), so old import paths keep working. See `docs/MVC_REFACTOR.md`.
 - `src/migrations/*.sql` — schema migrations, applied manually/historically.
 - `scripts/migrations/*.mjs` — Node-based migration/seed/backfill scripts, re-runnable (check for "already exists" before erroring).
 
@@ -44,7 +44,11 @@ This is why some routes check role AND capability — role gets you in the door,
 | `program_manager` | `pm/` | Scoped to assigned programs/projects |
 | `staff` | `staff/` | Weekly op-report submission, own tasks/blockers |
 | `participant` | `participant/` | Participant-facing views, also `register-participant/`, `participant/` signup flows |
-| `developer` / `intern` | `developer/` | Internal engineering dashboard |
+| `facilitator` | `facilitator/` | Program facilitation |
+| `investor` | `investor/` | Investor portal |
+| `finance` | `finance/` | Finance workspace |
+| `crm` | `crm/` | Contacts, membership, timeline |
+| `team` | `team/` | Team workspace |
 
 Sidebar navigation is defined once in `src/lib/masterNavigation.js` (`MASTER_NAVIGATION` structure + `ROLE_ACCESS` masks) and built for the connected user by `buildAccessNav(role, capabilities)`; `src/components/layout/DashboardLayout.js` only renders it. The section layout's `role` prop is a pre-session fallback — the effective role is always the session user's (`contacts.role`), never the visited page.
 
@@ -59,9 +63,8 @@ Custom translation engine (`src/lib/i18n.js`), **not** `next-intl` or similar �
 | Email | `src/lib/email.js`, `src/lib/mailer.js` | Resend (primary) + Gmail API via `googleapis`; templates rendered by `email.js` |
 | AI — mentor feedback parsing | `src/lib/deepseek.js` | DeepSeek API (`deepseek-chat`) — parses mentor recording transcriptions into structured feedback |
 | File storage | `src/lib/storage.js` | Supabase Storage |
-| Auth/admin storage | `src/lib/supabase.js`, `src/lib/supabase-admin.js` | Supabase |
+| Auth/admin storage | `src/lib/supabase.js` | Supabase |
 | Audit trail | `src/lib/audit.js`, `src/lib/taskAudit.js` | Internal — writes to an audit log table, surfaced via `/api/audit-log` |
-| Error reporting | `src/lib/reportError.js` | Internal — surfaced via `/api/errors` |
 
 ## Rendering & Caching
 

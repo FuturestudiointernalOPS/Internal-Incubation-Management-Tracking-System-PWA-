@@ -15,7 +15,7 @@
  * When adding a new t() call:
  *   1. Add the key+value to the matching file in src/locales/en/
  *   2. Add the French translation to src/locales/fr/
- *   3. See AI_AGENT_INSTRUCTIONS.md for full namespace reference
+ *   3. See docs/I18N_STANDARD.md for the full namespace reference
  *
  * ════════════════════════════════════════════════════════════════
  *
@@ -125,7 +125,7 @@ function writeLanguage(next) {
 }
 
 // ─── Deep key resolver ───
-// t('auth.login.title') → translations.en.auth.login.title
+// t('auth.login.title') → LOCALE_REGISTRY[lang].auth.login.title
 function resolveKey(obj, key) {
   if (!key || typeof key !== "string") return null;
   const parts = key.split(".");

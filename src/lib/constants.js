@@ -81,18 +81,7 @@ export const STATUS_CONFIG = {
   },
 };
 
-export const STATUS_LIST = Object.keys(STATUS_CONFIG);
-
 // ─── SEVERITY COLORS ───────────────────────────────────────────────────
-
-export const SEVERITY_COLORS = {
-  low: "text-slate-400 bg-slate-500/10",
-  medium: "text-amber-400 bg-amber-500/10",
-  high: "text-rose-400 bg-rose-500/10",
-  critical: "text-red-400 bg-red-500/10",
-};
-
-export const SEVERITY_LIST = Object.keys(SEVERITY_COLORS);
 
 // ─── MONTHS ────────────────────────────────────────────────────────────
 
@@ -111,21 +100,6 @@ export const MONTHS = [
   "December",
 ];
 
-export const MONTHS_SHORT = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
 // ─── WEEK DAYS ─────────────────────────────────────────────────────────
 
 export const DAYS = [
@@ -137,8 +111,6 @@ export const DAYS = [
   "Friday",
   "Saturday",
 ];
-
-export const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 // ─── DATE UTILITIES ────────────────────────────────────────────────────
 
@@ -153,14 +125,6 @@ export function getWeekNumber(date) {
   utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
   return Math.ceil(((utcDate - yearStart) / 86400000 + 1) / 7);
-}
-
-/**
- * Get current week number and year
- */
-export function getCurrentWeek() {
-  const now = new Date();
-  return { week: getWeekNumber(now), year: now.getFullYear() };
 }
 
 /**
@@ -210,23 +174,6 @@ export function formatDate(date, options = {}, lang = "en") {
       day: "numeric",
       year:
         parsedDate.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
-    });
-  } catch {
-    return String(date);
-  }
-}
-
-/**
- * Format a date with time
- */
-export function formatDateTime(date, lang = "en") {
-  if (!date) return "—";
-  try {
-    return new Date(date).toLocaleDateString(lang, {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
     });
   } catch {
     return String(date);
@@ -331,22 +278,6 @@ export const TEMPLATE_VARIABLES = {
 // ─── NUMBER UTILITIES ──────────────────────────────────────────────────
 
 /**
- * Format a number with comma separators
- */
-export function formatNumber(num) {
-  if (num == null) return "—";
-  return Number(num).toLocaleString();
-}
-
-/**
- * Calculate percentage
- */
-export function calcPercentage(part, total) {
-  if (!total || !part) return 0;
-  return Math.round((part / total) * 100);
-}
-
-/**
  * Weighted KPI progress — one 0–100 number for a set of KPIs.
  *
  * Each KPI contributes its own achievement rate (`progress`, itself a 0–100
@@ -375,22 +306,6 @@ export function weightedKpiProgress(kpis) {
 }
 
 // ─── COLOR CONSTANTS ───────────────────────────────────────────────────
-
-export const CHART_COLORS = [
-  "var(--chart-primary)",
-  "var(--chart-success)",
-  "var(--chart-danger)",
-  "var(--chart-warning)",
-  "var(--chart-info)",
-];
-
-export const CHART_COLORS_CSS = [
-  "#FF6600",
-  "#10B981",
-  "#EF4444",
-  "#F59E0B",
-  "#6366F1",
-];
 
 // ─── SERVER ERROR → i18n KEY MAPPING ──────────────────────────────────
 // Some API routes return hardcoded English literals (see src/lib/auth.js).

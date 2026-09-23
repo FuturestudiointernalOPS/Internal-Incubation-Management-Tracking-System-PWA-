@@ -604,34 +604,6 @@ export function JourneyTab() {
   );
 }
 
-/* Playbook Tab */
-export function PlaybookTab() {
-  const { t } = useI18n();
-  const { playbookEntries, cardStyle } = useVenture();
-  return (
-    <div className="space-y-4">
-      <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.facilitatorPlaybook') || 'Facilitator Playbook'}</h2>
-      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('venture.playbookDesc') || 'Standard review guide for each incubation stage.'}</p>
-      <div className="space-y-3">
-        {playbookEntries.map(entry => (
-          <details key={entry.id} className="rounded-xl p-4 border" style={cardStyle}>
-            <summary className="font-medium cursor-pointer">{entry.stage_order}. {entry.stage_name}</summary>
-            <div className="mt-3 space-y-2 text-sm">
-              <div><strong>{t('venture.objective') || 'Objective'}:</strong> <span style={{ color: 'var(--text-secondary)' }}>{entry.objective}</span></div>
-              <div><strong>{t('venture.expectedOutcome') || 'Expected Outcome'}:</strong> <span style={{ color: 'var(--text-secondary)' }}>{entry.expected_outcome}</span></div>
-              <div><strong>{t('venture.questions') || 'Questions to Ask'}:</strong> <span style={{ color: 'var(--text-secondary)' }}>{entry.questions}</span></div>
-              <div><strong>{t('venture.evidence') || 'Evidence Required'}:</strong> <span style={{ color: 'var(--text-secondary)' }}>{entry.evidence}</span></div>
-              <div><strong>{t('venture.requiredDocuments') || 'Required Documents'}:</strong> <span style={{ color: 'var(--text-secondary)' }}>{entry.documents}</span></div>
-              <div><strong>{t('venture.commonMistakes') || 'Common Mistakes'}:</strong> <span style={{ color: 'var(--text-secondary)' }}>{entry.mistakes}</span></div>
-              <div><strong>{t('venture.approvalCriteria') || 'Approval Criteria'}:</strong> <span style={{ color: 'var(--text-secondary)' }}>{entry.approval_criteria}</span></div>
-            </div>
-          </details>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /* Business Model Tab */
 export function BusinessModelTab() {
   const { t } = useI18n();

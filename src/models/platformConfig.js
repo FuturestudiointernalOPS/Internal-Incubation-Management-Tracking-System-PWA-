@@ -467,14 +467,6 @@ export async function findContactCidByEmail(email) {
   });
 }
 
-/** Re-activate an existing contact as a pending participant of the group. */
-export async function updateContactForRegistration(password, name, group, email) {
-  return db.execute({
-    sql: "UPDATE contacts SET password = ?, name = ?, status = 'pending', group_name = ? WHERE email = ?",
-    args: [password, name, String(group?.name || "").trim().toUpperCase(), email],
-  });
-}
-
 /** Insert a new pending participant contact. */
 export async function insertContactForRegistration(cid, name, email, phone, password, groupName) {
   return db.execute({

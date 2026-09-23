@@ -113,13 +113,6 @@ export function getRegisteredModules(role, hasCapability = null) {
 }
 
 /**
- * Returns a single module by ID.
- */
-export function getModuleById(moduleId) {
-  return REGISTERED_MODULES.find((module) => module.id === moduleId) || null;
-}
-
-/**
  * Returns only active (non-future, visible) modules for navigation.
  */
 export function getActiveModules(role, hasCapability = null) {

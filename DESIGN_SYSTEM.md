@@ -159,7 +159,7 @@ import ResultDelayEditor from "@/components/ui/ResultDelayEditor"; // Scheduled 
 import GlobalToast from "@/components/ui/GlobalToast";      // the toast host, mounted by the section layouts
 import { notify } from "@/lib/notify";                      // raise one: notify("success" | "error" | "info" | "warning", t("…"))
 import { DialogProvider, useDialogs } from "@/components/ui/DialogProvider";
-import { Skeleton, TableSkeleton, CardSkeleton } from "@/components/ui/Skeleton";
+import { Skeleton, TableSkeleton } from "@/components/ui/Skeleton";
 ```
 
 ### Usage Examples

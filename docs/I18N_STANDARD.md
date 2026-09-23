@@ -20,7 +20,7 @@ Every user-visible string in the app must go through `t("namespace.key", { param
 | Engine | `src/lib/i18n.js` | `t("ns.key", {param})`; deep-dot resolution; EN fallback; missing key → returns the key string as a visible signal |
 | Loader | `src/lib/locales.js` | Deep-merges all per-language JSON namespace files into one registry |
 | Parity gate | `scripts/i18n-parity.mjs` | Reports MISSING (EN key absent in FR), IDENTICAL (FR == EN), OBSOLETE (FR key not in EN); exits 1 on any MISSING; `--fix` prunes obsolete keys |
-| Locale files | `src/locales/en/*.json` (24) + `src/locales/fr/*.json` (24) | One file per namespace |
+| Locale files | `src/locales/en/*.json` (30) + `src/locales/fr/*.json` (30) | One file per namespace |
 
 Engine facts (do not change):
 
@@ -59,7 +59,7 @@ Worst offenders: `pm/programs/[id]/page.js` (~180), `platform/runs` (~90), `plat
 
 ### 3.2 Non-admin pages + components — ~725 findings
 
-Same categories across `staff`, `pm`, `participant`, `developer`, `investor`, `platform` root, root pages and `src/components`. Recently-wired components still have leftovers: `UnifiedDashboard`, `UnifiedOperationsView`, `StandupRetroView`, `ParticipantDashboardHome`, `ProgramDetail`, `ProgressView`, `RitualsView`, `AssignmentsView`, `SubmissionVersionHistory`, `MessagingChat` (3), `TaskDetailModal`, `TaskManager`.
+Same categories across `staff`, `pm`, `participant`, `investor`, `platform` root, root pages and `src/components`. Recently-wired components still have leftovers: `UnifiedDashboard`, `StandupRetroView`, `ParticipantDashboardHome`, `ProgramDetail`, `ProgressView`, `RitualsView`, `AssignmentsView`, `SubmissionVersionHistory`, `MessagingChat` (3), `TaskDetailModal`, `TaskManager`.
 
 ### 3.3 API routes (`src/app/api/**/route.js`, 304 files, 148 with findings) — ~330 error strings
 
@@ -100,7 +100,7 @@ status.inProgress
 time.months.january
 ```
 
-### 4.2 Namespace table (24 registered)
+### 4.2 Namespace table (30 registered)
 
 | Namespace | File | Purpose |
 |---|---|---|
@@ -118,7 +118,6 @@ time.months.january
 | `participant` | `participant.json` | Participant labels |
 | `team` | `team.json` | Team workspace: overview, deliverables, files, calendar |
 | `finance` | `finance.json` | Finance labels |
-| `developer` | `developer.json` | Developer labels |
 | `messaging` | `messaging.json` | Messages, communication |
 | `venture` | `venture.json` | Ventures (FR: `Entreprise`) |
 | `investor` | `investor.json` | Investor dashboard labels |
@@ -127,6 +126,14 @@ time.months.january
 | `crm` | `crm.json` | CRM: pipelines, timelines, duplicates, campaigns |
 | `vadmin` | `vadmin.json` | Venture admin |
 | `engineering` | `engineering.json` | Engineering ops: error levels, message types |
+| `lms` | `lms.json` | Learning management: courses, lessons, assessments, certificates |
+| `membership` | `membership.json` | Organization membership |
+| `investorMisc` | `investorMisc.json` | Investor workflows |
+| `participantMisc` | `participantMisc.json` | Participant workflows |
+| `platformMisc` | `platformMisc.json` | Platform (public forms) workflows |
+| `pmMisc` | `pmMisc.json` | Program-manager workflows |
+| `rootMisc` | `rootMisc.json` | Root/public pages |
+| `staffMisc` | `staffMisc.json` | Staff workflows |
 
 ### 4.3 Namespace selection rules
 
@@ -152,7 +159,7 @@ src/locales/
 ├── en/        ← source of truth (every key must exist here)
 │   ├── common.json
 │   ├── navigation.json
-│   └── ... (24 files)
+│   └── ... (30 files)
 └── fr/        ← mirror (subset allowed; missing falls back to EN)
     ├── common.json
     └── ...
@@ -197,7 +204,7 @@ src/locales/
 
 ### 5.4 Current key inventory
 
-~3,900 leaf keys across the 24 EN files (manual count — re-verify with a script before quoting in reports). Largest: `vadmin.json` (945), `adminMisc.json` (769), `crm.json` (392), `engineering.json` (248), `venture.json` (244), `investorAdmin.json` (263).
+~3,900 leaf keys across the EN files (manual count — re-verify with a script before quoting in reports). Largest: `vadmin.json` (945), `adminMisc.json` (769), `crm.json` (392), `engineering.json` (248), `venture.json` (244), `investorAdmin.json` (263).
 
 ## 6. Clean replacement procedure (no logic change)
 

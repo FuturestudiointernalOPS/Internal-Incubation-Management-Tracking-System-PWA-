@@ -400,20 +400,6 @@ export async function countFormRuns({ groupId, programId, formId, status }) {
   });
 }
 
-/** Page of runs matching the list filters (paginated run list). */
-export async function listFormRuns({ groupId, programId, formId, status, perPage, offset }) {
-  const { whereClause, args } = buildRunListFilter({
-    groupId,
-    programId,
-    formId,
-    status,
-  });
-  return db.execute({
-    sql: `SELECT r.*, f.name as form_name, ga.target_id as group_target_id ${RUN_LIST_FROM}${whereClause} ORDER BY r.updated_at DESC LIMIT ? OFFSET ?`,
-    args: [...args, perPage, offset],
-  });
-}
-
 /**
  * One page of runs AND the total of the same filtered set, in ONE round trip.
  *
@@ -488,11 +474,6 @@ export async function getGroupAssignedToRunById(runId) {
                 LIMIT 1`,
     args: [runId],
   });
-}
-
-/** Run form_id + form settings (rejection-automation toggle check). */
-export async function getRunFormSettingsForDecisionById(runId) {
-  return db.execute({ sql: "SELECT r.form_id, f.settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [runId] });
 }
 
 /** Run form name/settings + run settings (decision-email template selection). */
@@ -834,11 +815,6 @@ export async function deleteEvaluationsBySubmissionId(submissionId) {
 /** Delete the submission row itself (delete-submission action). */
 export async function deleteSubmissionById(submissionId) {
   return db.execute({ sql: "DELETE FROM platform_form_submissions WHERE id = ?", args: [parseInt(submissionId)] });
-}
-
-/** Super-admin migration action: run an arbitrary SQL statement as-is. */
-export async function executeRawMigrationSql(sql) {
-  return db.execute({ sql, args: [] });
 }
 
 /** Submission rows for the manual-message backend validation (scoped to a run). */

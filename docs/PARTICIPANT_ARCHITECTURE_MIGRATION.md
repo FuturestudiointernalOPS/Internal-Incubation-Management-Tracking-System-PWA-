@@ -32,12 +32,12 @@ Goal: make `participant_programs` the single source of truth for
 - All three now write `participant_programs` only.
 
 ### Phase 4a — Attendance normalization
-- Added `supabase/migrations/20260819_normalize_attendance_participant_ids.sql`
+- Added `supabase/migrations/20260819_participant_cleanup_all.sql`
   to normalize `v2_attendance.participant_id` to `contacts.cid` (idempotent,
   guarded). The write path already uses `contacts.cid`.
 
 ### Phase 4b — Submissions/Assignments normalization
-- Added `supabase/migrations/20260819_normalize_submissions_participant_ids.sql`.
+- Added `supabase/migrations/20260819_participant_cleanup_all.sql`.
   This is a schema change: `v2_submissions.participant_id` widened UUID -> TEXT
   and its FK to `v2_participants` dropped, then backfilled to `contacts.cid`.
 - Existing reader joins already tolerate `contacts.cid`, so no JS reader changes
@@ -45,7 +45,7 @@ Goal: make `participant_programs` the single source of truth for
 - Irreversible step: take a DB snapshot before applying.
 
 ### Phase 4c — Feedback normalization
-- Added `supabase/migrations/20260819_normalize_feedback_participant_ids.sql`
+- Added `supabase/migrations/20260819_participant_cleanup_all.sql`
   (same guarded schema change: UUID -> TEXT + FK drop + backfill).
 - Updated `api/feedback` GET to join `contacts` instead of `v2_participants`
   for the participant name.
@@ -100,7 +100,7 @@ Grouped into 4 phases after the dependency audit.
   backfill (step 1 program_id + step 3 facilitator link).
 
 ### Fix Phase 2 — Restore data completeness (DONE)
-- Added `supabase/migrations/20260819_add_screening_status_to_participant_programs.sql`
+- Added `supabase/migrations/20260819_participant_cleanup_all.sql`
   (adds `screening_status` to `participant_programs`).
 - `api/participants` POST now persists `screening_status` into
   `participant_programs`.

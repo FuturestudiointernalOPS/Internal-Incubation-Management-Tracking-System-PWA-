@@ -38,7 +38,6 @@ export { runAuthzMigration } from "./migrations";
 export {
   requireScopedAccess,
   resolveContextAssignment,
-  CONTEXT_RESOURCES,
 } from "./context";
 
 export {

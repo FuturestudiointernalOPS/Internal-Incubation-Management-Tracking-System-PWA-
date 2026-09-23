@@ -108,7 +108,7 @@ Log in as **John Staff**.
 2. If not, click **DASHBOARD** in the left sidebar.
 3. Scroll down. Look for the section titled **"Future Studio — Staff Operations"**.
 
-> **If you cannot see this section:** The Unified Operations View may not be loaded. Refresh the page. If still missing, record this as a bug.
+> **If you cannot see this section:** the staff dashboard failed to load. Refresh the page. If it is still missing, record this as a bug.
 
 ### Step 2: Understand What You See
 
@@ -410,40 +410,32 @@ Already tested in Part 3 Step 8. Verify again:
    - **Industry:** Clean Energy
    - **Stage:** MVP
 
-2. After opening/creating, look for operational tabs or sections like:
-   - **Standups**
-   - **Tasks**
-   - **Retros**
-   - **Blockers**
+2. After opening, the venture page shows a row of tabs: **Dashboard**, **Journey**, **KPIs**, **Investment**, **Verification**, **Profile**, **Team**, **Settings**.
 
-> **NOTE:** The Venture detail page has its own tabs. Look for **"Standups"**, **"Tasks"**, **"Retros"**, and **"Blockers"** tabs near the top of the venture page.
+> **NOTE:** The **Journey** tab is the operating workspace. Inside it, the "work materials" buttons open **Business Model**, **Discovery**, **Validation**, **PMF**, and **Documents**. Standups, tasks, retros, and blockers are internal-ops surfaces (see the Staff parts), not venture tabs.
 
-### Test Venture Standup
+### Test the Journey workspace
 
-1. Click the **Standups** tab.
-2. If there's a "Submit Now" or "Add Standup" button, click it.
-3. Fill in:
-   - **Top Priorities:** Launch MVP landing page
-   - **Expected Deliverables:** Landing page, investor pitch deck
-4. Submit.
+1. Open the **Journey** tab.
+2. Click a work-material button (e.g. **Documents**) and add an entry.
+3. Use **Back to Journey** to return.
 
-**Expected:** The standup is saved for the venture.
+**Expected:** The entry is saved and stays attached to the venture.
 
-### Test Venture Tasks
+### Test Venture KPIs
 
-1. Click the **Tasks** tab.
-2. Look for an **"Add Task"** button.
-3. Create a task: `Prepare landing page copy`.
-4. Assign it to a venture team member if available.
+1. Open the **KPIs** tab.
+2. Create a KPI definition (name, unit) and assign a target.
+3. Log a value.
 
-**Expected:** Task appears in the venture's task list.
+**Expected:** The KPI appears with its progress.
 
 ### Test Venture Visibility
 
 1. Log out and log in as a **different user** who is NOT a member of GreenTech.
 2. Try to navigate to GreenTech's venture page.
 
-**Expected:** You should NOT be able to see GreenTech's standups, tasks, or retros unless you are a member of that venture.
+**Expected:** You should NOT be able to see GreenTech's journey, KPIs, or documents unless you are a member of that venture.
 
 ---
 

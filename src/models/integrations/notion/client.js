@@ -56,13 +56,6 @@ export function isConfigured() {
 }
 
 /**
- * Get database info (for health checks)
- */
-export async function getDatabase(databaseId) {
-  return notionFetch(`/databases/${databaseId}`);
-}
-
-/**
  * Create a page (row) in a Notion database
  */
 export async function createPage(databaseId, properties) {
@@ -85,87 +78,3 @@ export async function updatePage(pageId, properties) {
   });
 }
 
-/**
- * Query a database for existing pages (by title match)
- */
-export async function queryDatabase(databaseId, filter) {
-  return notionFetch(`/databases/${databaseId}/query`, {
-    method: "POST",
-    body: JSON.stringify({ filter }),
-  });
-}
-
-/**
- * Build Notion properties for a task
- *
- * Expected DB columns in Notion:
- *   - Title (title) → task title
- *   - Status (select) → task status
- *   - Project (select) → project name
- *   - Assignee (rich_text) → user name
- *   - Due Date (date) → end_date
- *   - Week (number) → created_week
- *   - Year (number) → created_year
- */
-export function taskToProperties(task) {
-  const props = {
-    Title: { title: [{ text: { content: task.title || "Untitled Task" } }] },
-  };
-
-  if (task.status) {
-    props.Status = { select: { name: task.status.replace(/_/g, " ") } };
-  }
-
-  if (task.project_name) {
-    props.Project = { select: { name: task.project_name } };
-  }
-
-  if (task.user_name) {
-    props.Assignee = { rich_text: [{ text: { content: task.user_name } }] };
-  }
-
-  if (task.end_date) {
-    props["Due Date"] = { date: { start: task.end_date } };
-  }
-
-  if (task.created_week != null) {
-    props.Week = { number: task.created_week };
-  }
-
-  if (task.created_year != null) {
-    props.Year = { number: task.created_year };
-  }
-
-  return props;
-}
-
-/**
- * Build Notion properties for a project
- *
- * Expected DB columns in Notion:
- *   - Name (title) → project name
- *   - Status (select) → project status
- *   - Program (select) → program name
- *   - PM (rich_text) → PM name
- */
-export function projectToProperties(project) {
-  const props = {
-    Name: {
-      title: [{ text: { content: project.name || "Untitled Project" } }],
-    },
-  };
-
-  if (project.status) {
-    props.Status = { select: { name: project.status } };
-  }
-
-  if (project.program_name) {
-    props.Program = { select: { name: project.program_name } };
-  }
-
-  if (project.pm_name) {
-    props.PM = { rich_text: [{ text: { content: project.pm_name } }] };
-  }
-
-  return props;
-}

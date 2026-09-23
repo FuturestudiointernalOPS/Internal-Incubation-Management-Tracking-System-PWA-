@@ -16,10 +16,6 @@
  * keys on ventures(id)); nothing here reads Program/LMS/CRM data.
  */
 
-// Venture-facing statuses of a journey stage. Staff drive transitions
-// (activate -> complete; reset reopens). Locked = scheduled, not yet reached.
-export const JOURNEY_STATUSES = ["locked", "active", "completed"];
-
 /**
  * Create the journey stage table when missing and add the configurable
  * stage fields. Idempotent — safe on every request path that needs it.

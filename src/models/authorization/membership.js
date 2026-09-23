@@ -31,7 +31,6 @@ import db from "@/lib/db";
 
 export const INTERNAL_GROUP = "FUTURE STUDIO";
 
-export const MEMBERSHIP_STATUSES = ["active", "expired", "ended"];
 export const MEMBERSHIP_ACTIONS = [
   "joined",
   "activated",

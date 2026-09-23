@@ -1,75 +1,9 @@
 "use client";
 
-import { GraduationCap, Award, Gauge, X, Loader2 } from "lucide-react";
+import { Gauge, X, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
 import { useDialogs } from "@/components/ui/DialogProvider";
-
-/* Add Advisor Modal */
-function AddAdvisorModal() {
-  const { t } = useI18n();
-  const { showAddAdvisor, setShowAddAdvisor, params, advisorForm, setAdvisorForm, fetchAdvisors, notifyMsg, inputStyle } = useVenture();
-  if (!showAddAdvisor) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgb(0 0 0 / 0.6)' }} onClick={() => setShowAddAdvisor(false)}>
-      <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: '#0f172a', borderColor: 'rgb(255 255 255 / 0.1)', color: 'var(--text-primary)' }} onClick={event => event.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addAdvisor')}</h2><button onClick={() => setShowAddAdvisor(false)} style={{ color: 'var(--text-secondary)' }}><X size={20} /></button></div>
-        <form onSubmit={async event => { event.preventDefault(); const res = await fetch(`/api/ventures/${params.id}/advisors`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(advisorForm) }); const payload = await res.json(); if (!payload.success) notifyMsg(t(payload.error || "") || payload.error); setShowAddAdvisor(false); setAdvisorForm({}); fetchAdvisors(); }} className="space-y-3">
-          <input placeholder="Advisor contact ID (cid)" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={advisorForm.advisor_contact_id || ''} onChange={event => setAdvisorForm({ ...advisorForm, advisor_contact_id: event.target.value })} required />
-          <button type="submit" className="w-full py-2 rounded-lg text-white" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('venture.save')}</button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-/* Add Coaching Session Modal */
-function AddCoachingModal() {
-  const { t } = useI18n();
-  const { showAddCoaching, setShowAddCoaching, params, coachingForm, setCoachingForm, advisors, fetchCoaching, inputStyle } = useVenture();
-  if (!showAddCoaching) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgb(0 0 0 / 0.6)' }} onClick={() => setShowAddCoaching(false)}>
-      <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: '#0f172a', borderColor: 'rgb(255 255 255 / 0.1)', color: 'var(--text-primary)' }} onClick={event => event.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addSession')}</h2><button onClick={() => setShowAddCoaching(false)} style={{ color: 'var(--text-secondary)' }}><X size={20} /></button></div>
-        <form onSubmit={async event => { event.preventDefault(); await fetch(`/api/ventures/${params.id}/coaching`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(coachingForm) }); setShowAddCoaching(false); setCoachingForm({}); fetchCoaching(); }} className="space-y-3">
-          <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.advisor_contact_id || ''} onChange={event => setCoachingForm({ ...coachingForm, advisor_contact_id: event.target.value })}>
-            <option value="">{t('venture.advisors')}</option>
-            {advisors.map(advisor => <option key={advisor.id} value={advisor.advisor_contact_id}>{advisor.advisor_name || advisor.advisor_contact_id}</option>)}
-          </select>
-          <input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.session_date || ''} onChange={event => setCoachingForm({ ...coachingForm, session_date: event.target.value })} />
-          <input type="time" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.start_time || ''} onChange={event => setCoachingForm({ ...coachingForm, start_time: event.target.value })} placeholder="HH:MM" />
-          <input type="text" placeholder="Location" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.location || ''} onChange={event => setCoachingForm({ ...coachingForm, location: event.target.value })} />
-          <input type="url" placeholder="Meeting Link" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.meeting_link || ''} onChange={event => setCoachingForm({ ...coachingForm, meeting_link: event.target.value })} />
-          <div><label className="block text-sm mb-1">{t('venture.followUpDate') || 'Follow-up Date'}</label><input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.follow_up_date || ''} onChange={event => setCoachingForm({ ...coachingForm, follow_up_date: event.target.value })} /></div>
-          <button type="submit" className="w-full py-2 rounded-lg text-white" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('venture.save')}</button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-/* Edit Coaching Session Modal */
-function EditCoachingModal() {
-  const { t } = useI18n();
-  const { showEditCoaching, editingCoaching, setShowEditCoaching, setEditingCoaching, coachingForm, setCoachingForm, params, fetchCoaching, inputStyle } = useVenture();
-  if (!showEditCoaching || !editingCoaching) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgb(0 0 0 / 0.6)' }} onClick={() => { setShowEditCoaching(false); setEditingCoaching(null); }}>
-      <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: '#0f172a', borderColor: 'rgb(255 255 255 / 0.1)', color: 'var(--text-primary)' }} onClick={event => event.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.edit')} Session</h2><button onClick={() => { setShowEditCoaching(false); setEditingCoaching(null); }} style={{ color: 'var(--text-secondary)' }}><X size={20} /></button></div>
-        <form onSubmit={async event => { event.preventDefault(); const body = { ...coachingForm, session_date: coachingForm.session_date || editingCoaching.session_date, start_time: coachingForm.start_time || editingCoaching.start_time, location: coachingForm.location || editingCoaching.location, meeting_link: coachingForm.meeting_link || editingCoaching.meeting_link, follow_up_date: coachingForm.follow_up_date || editingCoaching.follow_up_date }; await fetch(`/api/ventures/${params.id}/coaching?id=${editingCoaching.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); setShowEditCoaching(false); setEditingCoaching(null); setCoachingForm({}); fetchCoaching(); }} className="space-y-3">
-          <input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.session_date || editingCoaching.session_date || ''} onChange={event => setCoachingForm({ ...coachingForm, session_date: event.target.value })} />
-          <input type="time" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.start_time || editingCoaching.start_time || ''} onChange={event => setCoachingForm({ ...coachingForm, start_time: event.target.value })} />
-          <input type="text" placeholder="Location" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.location || editingCoaching.location || ''} onChange={event => setCoachingForm({ ...coachingForm, location: event.target.value })} />
-          <input type="url" placeholder="Meeting Link" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.meeting_link || editingCoaching.meeting_link || ''} onChange={event => setCoachingForm({ ...coachingForm, meeting_link: event.target.value })} />
-          <div><label className="block text-sm mb-1">{t('venture.followUpDate') || 'Follow-up Date'}</label><input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.follow_up_date || editingCoaching.follow_up_date || ''} onChange={event => setCoachingForm({ ...coachingForm, follow_up_date: event.target.value })} /></div>
-          <button type="submit" className="w-full py-2 rounded-lg text-white" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('venture.save')}</button>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 /* Create KPI Definition Modal */
 function CreateKpiDefinitionModal() {
@@ -119,69 +53,10 @@ function AssignKpiModal() {
   );
 }
 
-/* Advisors Tab */
-export function AdvisorsTab() {
-  const { t } = useI18n();
-  const { advisors, setShowAddAdvisor, handleMakePrimaryAdvisor, handleRemoveAdvisor, cardStyle } = useVenture();
-  return (
-    <>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.advisors')} ({advisors.length})</h2>
-          <button onClick={() => setShowAddAdvisor(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{ backgroundColor: 'var(--brand-orange)' }}><GraduationCap size={16} /> {t('venture.addAdvisor')}</button>
-        </div>
-        {advisors.length === 0 ? (<div className="rounded-xl p-6 border text-center" style={{ ...cardStyle, color: 'var(--text-secondary)' }}>{t('venture.noEvents')}</div>) :
-          advisors.map(advisor => (
-            <div key={advisor.id} className="rounded-xl p-4 border flex items-center justify-between" style={cardStyle}>
-              <div><p className="font-medium">{advisor.advisor_name || advisor.advisor_contact_id}</p></div>
-              <div className="flex items-center gap-2">
-                {advisor.is_primary ? (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">{t('venture.primary')}</span>
-                ) : (
-                  <button onClick={() => handleMakePrimaryAdvisor(advisor.id)} className="text-xs px-3 py-1 rounded-lg" style={{ color: 'var(--text-secondary)', border: '1px solid rgb(255 255 255 / 0.15)' }}>{t('venture.makePrimary')}</button>
-                )}
-                <button onClick={() => handleRemoveAdvisor(advisor.id)} className="text-xs px-3 py-1 rounded-lg" style={{ color: '#ef4444', border: '1px solid rgb(239 68 68 / 0.3)' }}>{t('venture.remove')}</button>
-              </div>
-            </div>
-          ))
-        }
-      </div>
-      <AddAdvisorModal />
-    </>
-  );
-}
-
 /* Coaching Tab — founder-facing (scheduling only). Sessions show who, when,
    where and the follow-up date so founders know what is next. Facilitator
    notes/observations/recommendations and staff review actions are
    intentionally not rendered for founders. */
-export function CoachingTab() {
-  const { t } = useI18n();
-  const { coachingSessions, setShowAddCoaching, setEditingCoaching, setShowEditCoaching, setCoachingForm, cardStyle } = useVenture();
-  return (
-    <>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.coaching')} ({coachingSessions.length})</h2>
-          <button onClick={() => setShowAddCoaching(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{ backgroundColor: 'var(--brand-orange)' }}><Award size={16} /> {t('venture.addSession')}</button>
-        </div>
-        {coachingSessions.length === 0 ? (<div className="rounded-xl p-6 border text-center" style={{ ...cardStyle, color: 'var(--text-secondary)' }}>{t('venture.noEvents')}</div>) :
-          coachingSessions.map(session => (
-            <div key={session.id} className="rounded-xl p-4 border" style={cardStyle}>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{session.advisor_name || session.advisor_contact_id} {session.session_date && `• ${new Date(session.session_date).toLocaleDateString()}`}{session.start_time && ` at ${session.start_time}`}</p>
-                <button onClick={() => { setEditingCoaching(session); setShowEditCoaching(true); setCoachingForm({}); }} className="text-xs px-2 py-0.5 rounded" style={{ color: 'var(--brand-orange)', border: '1px solid var(--brand-orange)' }}>{t('venture.edit')}</button>
-              </div>
-              {session.location && <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>📍 {session.location}</p>}
-              {session.meeting_link && <p className="text-xs mt-1"><a href={session.meeting_link} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">🔗 {session.meeting_link}</a></p>}
-              {session.follow_up_date && <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>📅 {t('venture.followUpDate') || 'Follow-up Date'}: {new Date(session.follow_up_date).toLocaleDateString()}</p>}
-            </div>
-          ))
-        }
-      </div>
-      <AddCoachingModal />
-      <EditCoachingModal />
-    </>
-  );
-}
 
 /* KPIs Tab */
 export function KpisTab() {

@@ -218,18 +218,6 @@ export function resetAssignmentProfileColumnCache() {
   assignmentProfileColumn = null;
 }
 
-/** Program ids where the person is the named manager. */
-export async function listManagedProgramIds(cid) {
-  if (!cid) return [];
-  const result = await db.execute({
-    sql: `SELECT CAST(id AS TEXT) AS program_id
-          FROM v2_programs
-          WHERE CAST(assigned_pm_id AS TEXT) = ?`,
-    args: [String(cid)],
-  });
-  return (result.rows || []).map((row) => String(row.program_id)).filter(Boolean);
-}
-
 /**
  * Every ACTIVE program assignment for one person, with the program schedule the
  * derivation needs. Email-tolerant on `staff_id` (legacy rows hold an address).

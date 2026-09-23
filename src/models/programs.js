@@ -799,13 +799,6 @@ export async function createFacilitatorsGroupForNewProgram(programId) {
 // /api/program-types — custom program type options (4 queries)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Ensure program_type_options exists (GET path). Used by GET /api/program-types. */
-export async function ensureProgramTypeOptionsTable() {
-  return db.execute(
-    "CREATE TABLE IF NOT EXISTS program_type_options (id SERIAL PRIMARY KEY, type_key TEXT UNIQUE NOT NULL, display_name TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
-  );
-}
-
 /** All custom type_keys, oldest first. Used by GET /api/program-types. */
 export async function listProgramTypeKeys() {
   return db.execute({

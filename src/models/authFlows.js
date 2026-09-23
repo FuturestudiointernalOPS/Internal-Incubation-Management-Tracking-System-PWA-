@@ -189,14 +189,6 @@ export async function getImpersonationTargetUsingCidAsEmail(cid) {
   });
 }
 
-/** Venture id tied to a contact (founder impersonation redirect). */
-export async function getVentureIdForContact(contactId) {
-  return db.execute({
-    sql: "SELECT venture_id FROM ventures WHERE contact_id = ? LIMIT 1",
-    args: [contactId],
-  });
-}
-
 /** All active/approved contacts for the impersonation picker (GET). */
 export async function listActiveContactsForImpersonation() {
   return db.execute({

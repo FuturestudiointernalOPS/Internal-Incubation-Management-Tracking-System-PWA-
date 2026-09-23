@@ -6,7 +6,7 @@
 
 export const STAGES = ["idea", "validation", "mvp", "growth", "scale"];
 export const INDUSTRY_FALLBACK = ["Fintech", "Healthtech", "Edtech", "Cleantech", "SaaS", "E-commerce", "Agritech", "Logistics", "AI / ML", "Blockchain", "Media & Entertainment", "Real Estate", "Other"];
-export const STATUSES = ["active", "paused", "graduated", "archived"];
+
 export const VISIBILITIES = ["private", "public", "inviteOnly"];
 
 export const FOUNDER_ROLES = ["Founder", "Lead Founder", "Co-Founder", "Technical Founder", "Business Founder"];

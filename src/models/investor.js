@@ -150,14 +150,6 @@ export async function getPipelineInvestorIdByPipelineId(pipelineId) {
   });
 }
 
-/** diligence POST update_request — user id behind an investor profile. */
-export async function getInvestorProfileUserIdByProfileId(investorProfileId) {
-  return db.execute({
-    sql: "SELECT user_id FROM investor_profiles WHERE id = ?",
-    args: [investorProfileId],
-  });
-}
-
 /** diligence POST update_request — current version history + status. */
 export async function getDdRequestVersionHistoryByRequestId(request_id) {
   return db.execute({

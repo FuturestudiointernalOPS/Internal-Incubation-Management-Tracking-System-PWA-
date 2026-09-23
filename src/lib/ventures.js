@@ -615,29 +615,6 @@ export async function createFounder({
 }
 
 /**
- * Add a member to a venture.
- */
-export async function addVentureMember({
-  venture_id,
-  user_cid,
-  role = "member",
-}) {
-  await db.execute({
-    sql: `INSERT INTO venture_members (venture_id, user_cid, role)
-          VALUES (?, ?, ?)
-          ON CONFLICT (venture_id, user_cid) DO UPDATE SET role = ?`,
-    args: [
-      venture_id,
-      user_cid,
-      role,
-      role,
-    ],
-  });
-
-  return { user_cid };
-}
-
-/**
  * Log a venture activity event.
  */
 export async function logVentureActivity({
@@ -783,24 +760,6 @@ export async function notifyVentureFounders(dbId, title, message, context = {}, 
       });
     }
   } catch { /* non-blocking */ }
-}
-
-/**
- * Send invitation email to a founder.
- */
-export async function sendFounderInvitation({ email, name, venture_name, token }) {
-  // Use the existing email service
-  const { sendInviteEmail } = await import("@/lib/email");
-  const { resolveAppUrl } = await import("@/lib/appUrl");
-  const appUrl = resolveAppUrl();
-  const _activationUrl = `${appUrl}/activate?token=${token}&venture=${encodeURIComponent(venture_name)}`;
-
-  return sendInviteEmail({
-    to: email,
-    name,
-    role: "Founder",
-    token,
-  });
 }
 
 /**
@@ -1047,264 +1006,6 @@ export async function changeVentureLead({ ventureId, memberId, actorCid }) {
 // WORKFLOW A: PROGRAM-TO-VENTURE PROMOTION
 // =============================================================================
 
-/**
- * Validate promotion request data.
- * Returns { valid: boolean, errors: string[] }
- */
-export function validatePromotionData({
-  program_id,
-  company_name,
-  industry,
-  business_stage,
-}) {
-  const errors = [];
-
-  if (!program_id || !program_id.trim()) {
-    errors.push("Program ID is required");
-  }
-
-  if (!company_name || !company_name.trim()) {
-    errors.push("Company name is required");
-  }
-
-  if (!industry || !industry.trim()) {
-    errors.push("Industry is required");
-  }
-
-  if (!business_stage || !business_stage.trim()) {
-    errors.push("Business stage is required");
-  }
-
-  return { valid: errors.length === 0, errors };
-}
-
-/**
- * Check for duplicate company or registration number for promotion.
- * Returns { hasDuplicates: boolean, conflicts: string[] }
- */
-export async function checkPromotionDuplicates({ company_name, registration_number }) {
-  const conflicts = [];
-
-  try {
-    const nameCheck = await db.execute({
-      sql: "SELECT id FROM ventures WHERE LOWER(company_name) = LOWER(?)",
-      args: [company_name.trim()],
-    });
-    if (nameCheck.rows.length > 0) {
-      conflicts.push("A company with this name already exists");
-    }
-  } catch (_) {
-    try {
-      const fallbackCheck = await db.execute({
-        sql: "SELECT id FROM ventures WHERE LOWER(name) = LOWER(?)",
-        args: [company_name.trim()],
-      });
-      if (fallbackCheck.rows.length > 0) {
-        conflicts.push("A company with this name already exists");
-      }
-    } catch (_) {}
-  }
-
-  if (registration_number && registration_number.trim()) {
-    const regCheck = await db.execute({
-      sql: "SELECT id FROM ventures WHERE registration_number = ?",
-      args: [registration_number.trim()],
-    });
-    if (regCheck.rows.length > 0) {
-      conflicts.push("A company with this registration number already exists");
-    }
-  }
-
-  return { hasDuplicates: conflicts.length > 0, conflicts };
-}
-
-/**
- * Fetch program data including its teams/participants for promotion.
- * Returns the program object with teams and participants, or null.
- */
-export async function getProgramForPromotion(programId) {
-  // Get program
-  const progRes = await db.execute({
-    sql: "SELECT * FROM v2_programs WHERE id = ?",
-    args: [programId],
-  });
-  if (progRes.rows.length === 0) return null;
-
-  const program = progRes.rows[0];
-
-  // Get teams (groups) in this program
-  const teamsRes = await db.execute({
-    sql: "SELECT * FROM v2_teams WHERE program_id = ?",
-    args: [programId],
-  });
-
-  // Get participants in this program (v2_participants)
-  const participantsRes = await db.execute({
-    sql: "SELECT * FROM v2_participants WHERE program_id = ?",
-    args: [programId],
-  });
-
-  // Get contacts (users with program_id)
-  const contactsRes = await db.execute({
-    sql: "SELECT * FROM contacts WHERE program_id = ?",
-    args: [programId],
-  });
-
-  return {
-    ...program,
-    teams: teamsRes.rows,
-    participants: participantsRes.rows,
-    contacts: contactsRes.rows,
-  };
-}
-
-/**
- * Mark a program as promoted by setting its venture_id.
- */
-export async function markProgramAsPromoted(programId, ventureId) {
-  await db.execute({
-    sql: "UPDATE v2_programs SET venture_id = ? WHERE id = ?",
-    args: [ventureId, programId],
-  });
-}
-
-/**
- * Check if a program has already been promoted.
- */
-export async function isProgramAlreadyPromoted(programId) {
-  const res = await db.execute({
-    sql: "SELECT venture_id FROM v2_programs WHERE id = ?",
-    args: [programId],
-  });
-  if (res.rows.length === 0) return { promoted: false }; // program doesn't exist
-  return {
-    promoted: !!res.rows[0].venture_id,
-    venture_id: res.rows[0].venture_id || null,
-  };
-}
-
-/**
- * Copy founders from a program's participants into a venture.
- * Iterates through program contacts and participants to find founders.
- */
-export async function copyFoundersToVenture({
-  venture_id,
-  programContacts,
-  programParticipants,
-}) {
-  const founders = [];
-
-  // Collect from contacts where role is participant (they become venture founders)
-  for (const contact of programContacts) {
-    if (!contact.email) continue;
-    founders.push({
-      email: contact.email,
-      name: contact.name || contact.email.split("@")[0],
-      phone: contact.phone || null,
-      title: "Founder",
-    });
-  }
-
-  // Also collect from v2_participants (may include additional members)
-  for (const participant of programParticipants) {
-    if (!participant.email) continue;
-    // Check if this email was already added from contacts
-    const alreadyAdded = founders.some(
-      (founder) => founder.email.toLowerCase() === participant.email.toLowerCase()
-    );
-    if (alreadyAdded) continue;
-    founders.push({
-      email: participant.email,
-      name: participant.name || participant.email.split("@")[0],
-      phone: participant.phone || null,
-      title: "Founder",
-    });
-  }
-
-  // Create founders and generate invitation tokens
-  const createdFounders = [];
-  for (const founder of founders) {
-    const token = uuidv4();
-    await createFounder({
-      venture_id,
-      email: founder.email,
-      name: founder.name,
-      phone: founder.phone,
-      title: founder.title,
-      invitation_token: token,
-    });
-    createdFounders.push({ ...founder, token, status: "pending" });
-  }
-
-  return createdFounders;
-}
-
-/**
- * Copy team members from a program's contacts into a venture.
- * These are non-founder participants who become venture team members.
- */
-export async function copyMembersToVenture({
-  venture_id,
-  programContacts,
-  programParticipants,
-  founderEmails,
-}) {
-  const memberSet = new Set();
-
-  // Add contacts who are not founders as members
-  for (const contact of programContacts) {
-    if (!contact.cid) continue;
-    const email = (contact.email || "").toLowerCase();
-    if (founderEmails.has(email)) continue; // skip founders
-    memberSet.add(contact.cid);
-  }
-
-  // Add v2_participants who are not founders as members
-  // We use email to match; participants may not have a cid
-  for (const participant of programParticipants) {
-    if (!participant.id && !participant.user_id) continue;
-    const email = (participant.email || "").toLowerCase();
-    if (founderEmails.has(email)) continue; // skip founders
-
-    // Use user_id if available (links to contacts), otherwise the participant id
-    const memberCid = participant.user_id || participant.id;
-    if (memberCid) {
-      memberSet.add(memberCid);
-    }
-  }
-
-  // Insert members
-  const createdMembers = [];
-  for (const userCid of memberSet) {
-    await addVentureMember({
-      venture_id,
-      user_cid: String(userCid),
-      role: "member",
-    });
-    createdMembers.push({ user_cid: String(userCid), role: "member" });
-  }
-
-  return createdMembers;
-}
-
-/**
- * Check if a program team is "approved" for promotion.
- * A program is considered approved if:
- * - It has a status of 'Active' or 'Completed'
- * - It has participants assigned
- */
-export async function isProgramApproved(programId) {
-  const res = await db.execute({
-    sql: "SELECT status FROM v2_programs WHERE id = ?",
-    args: [programId],
-  });
-  if (res.rows.length === 0) return false;
-
-  const status = (res.rows[0].status || "").toLowerCase();
-  // "Active" and "Completed" programs are eligible for promotion
-  return status === "active" || status === "completed";
-}
-
 // =============================================================================
 // ENHANCEMENT 1.2: STARTUP PROFILE WIZARD
 // =============================================================================
@@ -1407,17 +1108,6 @@ export const ALLOWED_DOCUMENT_TYPES = [
 ];
 
 export const ALLOWED_FILE_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"];
-
-/**
- * Document type labels for UI display.
- */
-export const DOCUMENT_TYPE_LABELS = {
-  business_registration: "Business Registration",
-  pitch_deck: "Pitch Deck",
-  business_plan: "Business Plan",
-  financial_docs: "Financial Documents",
-  other: "Other Supporting Documents",
-};
 
 /**
  * Map of step number to step name for the 6-step wizard.
@@ -1843,11 +1533,6 @@ export const VENTURE_ROLE_LABELS = {
 export const MANAGEMENT_ROLES = ["founder", "co-founder"];
 
 /**
- * Roles that are read-only.
- */
-export const READ_ONLY_ROLES = ["advisor", "observer"];
-
-/**
  * Check if a user can manage founders for a venture.
  * Only the owner (is_owner), founders, and super_admin can manage.
  */
@@ -2220,20 +1905,6 @@ export const VERIFICATION_CATEGORY_LABELS = {
   financial_documents: "Financial Documents",
 };
 
-export const VERIFICATION_STATUSES = ["draft", "pending_review", "verified", "rejected", "suspended"];
-
-/**
- * Allowed document types for verification uploads.
- */
-export const VERIFICATION_DOCUMENT_TYPES = {
-  business_registration: ["certificate_of_incorporation", "business_license", "tax_registration"],
-  founder_identity: ["government_id", "passport", "drivers_license"],
-  email_verification: [],
-  phone_verification: [],
-  legal_documents: ["articles_of_association", "shareholder_agreement", "ip_assignment", "other_legal"],
-  financial_documents: ["bank_statement", "financial_statement", "tax_return", "audit_report", "other_financial"],
-};
-
 /**
  * Check if user can manage verification (review/submit for others).
  */
@@ -2565,72 +2236,12 @@ export async function addVerificationComment({ verificationId, authorType, autho
 // ENHANCEMENT 2.2: MILESTONES & DELIVERABLES
 // =============================================================================
 
-export const MILESTONE_STATUSES = ["not_started", "in_progress", "completed", "delayed", "cancelled"];
-export const DELIVERABLE_STATUSES = ["pending", "in_progress", "submitted", "approved", "rejected", "completed"];
-export const DELIVERABLE_TYPES = ["document", "presentation", "prototype", "source_code", "report", "other"];
-
-/**
- * List milestones for a venture.
- */
-export async function listMilestones(ventureId, projectId) {
-  let sql = `SELECT vm.*,
-    (SELECT COUNT(*) FROM venture_deliverables vd WHERE vd.milestone_id = vm.id) as deliverable_count,
-    (SELECT COUNT(*) FROM venture_deliverables vd WHERE vd.milestone_id = vm.id AND vd.status IN ('approved', 'completed')) as completed_count
-    FROM venture_milestones vm WHERE vm.venture_id = ?`;
-  const args = [ventureId];
-  if (projectId) { sql += " AND vm.project_id = ?"; args.push(projectId); }
-  sql += " ORDER BY vm.display_order ASC, vm.created_at ASC";
-  const res = await db.execute({ sql, args });
-  return (res.rows || []).map((milestone) => ({
-    ...milestone,
-    assigned_members: typeof milestone.assigned_members === "string" ? JSON.parse(milestone.assigned_members) : (milestone.assigned_members || []),
-  }));
-}
-
 export async function getMilestone(milestoneId) {
   const res = await db.execute({ sql: "SELECT * FROM venture_milestones WHERE id = ?", args: [milestoneId] });
   if (res.rows.length === 0) return null;
   const milestone = res.rows[0];
   milestone.assigned_members = typeof milestone.assigned_members === "string" ? JSON.parse(milestone.assigned_members) : (milestone.assigned_members || []);
   return milestone;
-}
-
-export async function createMilestone({ ventureId, projectId, title, description, priority, dueDate, ownerCid, assignedMembers, displayOrder, createdBy }) {
-  if (!displayOrder) {
-    const orderRes = await db.execute({
-      sql: "SELECT COALESCE(MAX(display_order), 0) + 1 as next FROM venture_milestones WHERE venture_id = ?",
-      args: [ventureId],
-    });
-    displayOrder = orderRes.rows[0]?.next || 1;
-  }
-  const res = await db.execute({
-    sql: `INSERT INTO venture_milestones (venture_id, project_id, title, description, priority, due_date, owner_cid, assigned_members, display_order, created_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?) RETURNING id`,
-    args: [ventureId, projectId || null, title.trim(), description?.trim() || null, priority || "medium", dueDate || null, ownerCid || null, JSON.stringify(assignedMembers || []), displayOrder, createdBy || "system"],
-  });
-  const id = res.rows[0]?.id || res.lastInsertRowid;
-  return { id };
-}
-
-export async function updateMilestone(milestoneId, updates) {
-  const allowed = ["title", "description", "status", "priority", "due_date", "owner_cid", "assigned_members", "completion_percentage", "display_order"];
-  const sets = []; const args = [];
-  for (const column of allowed) {
-    if (updates[column] !== undefined) {
-      if (column === "assigned_members") { sets.push("assigned_members = ?::jsonb"); args.push(JSON.stringify(updates[column])); }
-      else { sets.push(`${column} = ?`); args.push(updates[column]); }
-    }
-  }
-  if (sets.length === 0) return { updated: false };
-  sets.push("updated_at = NOW()");
-  args.push(milestoneId);
-  await db.execute({ sql: `UPDATE venture_milestones SET ${sets.join(", ")} WHERE id = ?`, args });
-  return { updated: true };
-}
-
-export async function deleteMilestone(milestoneId) {
-  await db.execute({ sql: "DELETE FROM venture_milestones WHERE id = ?", args: [milestoneId] });
-  return { success: true };
 }
 
 // ─── Deliverables ─────────────────────────────────────────────────────────
@@ -2712,17 +2323,9 @@ export async function updateDeliverable(deliverableId, updates, actorCid, actorN
   return { updated: true };
 }
 
-export async function deleteDeliverable(deliverableId) {
-  await db.execute({ sql: "DELETE FROM venture_deliverables WHERE id = ?", args: [deliverableId] });
-  return { success: true };
-}
-
 // =============================================================================
 // ENHANCEMENT 2.3: TASK MANAGEMENT & KANBAN
 // =============================================================================
-
-export const TASK_STATUSES = ["backlog", "todo", "in_progress", "review", "submitted", "under_review", "accepted", "rejected", "revision_requested", "done", "blocked", "cancelled"];
-export const TASK_PRIORITIES = ["low", "medium", "high", "critical"];
 
 export async function listTasks(ventureId, milestoneId, status, assignedCid) {
   let sql = `SELECT vt.*, pt.title AS parent_title FROM venture_tasks vt LEFT JOIN venture_tasks pt ON vt.parent_task_id = pt.id WHERE vt.venture_id = ?`;
@@ -3451,9 +3054,6 @@ export async function removeAssignment(assignmentId, removedBy, ventureIds = [])
 // =============================================================================
 // ENHANCEMENT 3.2: MENTORING SESSIONS & SCHEDULING
 // =============================================================================
-
-export const SESSION_TYPES = ["coaching", "mentoring", "advisory", "office_hours", "review_meeting", "pitch_review", "investor_preparation", "technical_review", "other"];
-export const SESSION_STATUSES = ["scheduled", "confirmed", "in_progress", "completed", "cancelled", "rescheduled", "no_show"];
 
 export async function listSessions(ventureId, { startDate, endDate, status, coachId, limit } = {}) {
   let sql = "SELECT * FROM venture_sessions WHERE venture_id = ?";
@@ -4388,8 +3988,6 @@ export async function updateMatchStatus(matchId, status, ventureIds = []) {
 // ENHANCEMENT 4.3: PITCH DECK & DATA ROOM
 // =============================================================================
 
-export const DOCUMENT_CATEGORIES = ["pitch_deck", "business_plan", "financial_statements", "cap_table", "legal_documents", "product_roadmap", "market_research", "customer_metrics", "revenue_reports", "technical_documentation", "other"];
-
 export async function listDocuments(ventureId, { category, isPitchDeck, search, visibility } = {}) {
   let sql = "SELECT id, name as title, name, description, document_type, category, file_name, file_size, file_type, file_url, thumbnail_url, is_pitch_deck, approval_status, created_at, updated_at, venture_id FROM venture_documents WHERE venture_id=? AND is_deleted = false";
   const args = [ventureId];
@@ -4468,15 +4066,6 @@ export async function createShareLink({ documentId, ventureId, sharedWithEmail, 
   return { id, token, expires_at: expiresAt, share_url: `/api/ventures/share/${token}` };
 }
 
-export async function getShareByToken(token) {
-  const result = await db.execute({ sql: "SELECT * FROM venture_document_shares WHERE share_token=? AND is_revoked=FALSE", args: [token] });
-  if (result.rows.length === 0) return null;
-  const share = result.rows[0];
-  if (share.expires_at && new Date(share.expires_at) < new Date()) return null;
-  if (share.max_downloads && share.download_count >= share.max_downloads) return null;
-  return share;
-}
-
 export async function revokeShare(shareId, ventureIds = []) {
   const ids = (Array.isArray(ventureIds) ? ventureIds : [ventureIds]).filter(
     (ventureId) => ventureId !== null && ventureId !== undefined,
@@ -4487,17 +4076,6 @@ export async function revokeShare(shareId, ventureIds = []) {
     sql: `UPDATE venture_document_shares SET is_revoked=TRUE, updated_at=NOW() WHERE id=? AND (${scope})`,
     args: [shareId, ...ids],
   });
-  return { success: true };
-}
-
-export async function logDocumentAccess({ shareId, documentId, ventureId, accessType, viewerEmail, viewerName }) {
-  await db.execute({
-    sql: `INSERT INTO venture_document_access_logs (share_id, document_id, venture_id, access_type, viewer_email, viewer_name) VALUES (?, ?, ?, ?, ?, ?)`,
-    args: [shareId||null, documentId, ventureId, accessType, viewerEmail||null, viewerName||null],
-  });
-  if (accessType === "download" && shareId) {
-    await db.execute({ sql: "UPDATE venture_document_shares SET download_count=download_count+1 WHERE id=?", args: [shareId] });
-  }
   return { success: true };
 }
 
@@ -4513,7 +4091,6 @@ export async function getDocumentShares(documentId) {
 // ENHANCEMENT 4.4: FUNDRAISING PIPELINE
 // =============================================================================
 
-export const PIPELINE_STAGES = ["prospect", "contacted", "meeting_scheduled", "pitch_delivered", "due_diligence", "negotiation", "term_sheet", "closed_won", "closed_lost"];
 export const ACTIVITY_TYPES = ["email", "call", "meeting", "demo", "reminder", "follow_up", "task"];
 
 /**
@@ -4838,13 +4415,6 @@ export async function updateFeatureFlag(flagKey, isEnabled, updatedBy) {
   return { success: true };
 }
 
-export async function isFeatureEnabled(flagKey) {
-  try {
-    const result = await db.execute({ sql: "SELECT is_enabled FROM feature_flags WHERE flag_key=?", args: [flagKey] });
-    return result.rows.length > 0 ? !!result.rows[0].is_enabled : true;
-  } catch { return true; }
-}
-
 // ─── Role Management ───────────────────────────────────────────────────────
 
 export async function getSystemRoles() {
@@ -4916,8 +4486,6 @@ export async function getAdminActivityLogs(limit = 50) {
 // =============================================================================
 // ENHANCEMENT 5.2: NOTIFICATION CENTER
 // =============================================================================
-
-export const NOTIFICATION_TYPES = ["system", "project", "mentoring", "investment", "verification", "knowledge", "meetings", "security", "announcements"];
 
 export async function sendNotification({ recipientId, recipientType, ventureId, type, title, body, data, priority, source, sourceId }) {
   const id = (await db.execute({
@@ -5021,16 +4589,6 @@ export async function sendTemplatedNotification({ templateKey, recipientId, reci
 // ENHANCEMENT 5.3: AUDIT LOGS & SECURITY
 // =============================================================================
 
-export const AUDIT_EVENT_TYPES = [
-  "LOGIN_SUCCESS", "LOGIN_FAILED", "LOGOUT",
-  "SESSION_CREATED", "SESSION_REVOKED",
-  "PASSWORD_CHANGED", "ROLE_CHANGED", "PERMISSION_CHANGE",
-  "STARTUP_CREATED", "STARTUP_DELETED", "PROJECT_UPDATED",
-  "DOCUMENT_DOWNLOADED", "INVESTOR_ACCESS",
-  "CONFIGURATION_UPDATED", "API_ACCESS", "EXPORT_GENERATED",
-  "AUDIT_VIEWED", "SECURITY_ALERT",
-];
-
 /**
  * Log an audit event (immutable, append-only).
  */
@@ -5096,28 +4654,6 @@ export async function getAuditLogStats(hoursAgo = 24) {
 }
 
 // ─── Security Events ────────────────────────────────────────────────────────
-
-/**
- * Log a security event.
- */
-export async function logSecurityEvent({ eventType, actorCid, actorName, targetCid, description, metadata, ipAddress, userAgent, country, device, browser, os, severity }) {
-  try {
-    const id = (await db.execute({
-      sql: `INSERT INTO venture_security_events (event_type, actor_cid, actor_name, target_cid, description, metadata, ip_address, user_agent, country, device, browser, os, severity)
-            VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-      args: [
-        eventType, actorCid||null, actorName||null, targetCid||null,
-        description||null, JSON.stringify(metadata||{}),
-        ipAddress||null, userAgent||null, country||null,
-        device||null, browser||null, os||null, severity||"warning",
-      ],
-    })).rows[0]?.id;
-    return { id };
-  } catch (error) {
-    console.error("Security event log error:", error.message);
-    return null;
-  }
-}
 
 /**
  * Query security events with filtering and pagination.
@@ -5226,26 +4762,6 @@ export async function revokeUserSessions(userCid, exceptToken, revokedBy) {
 // ─── Login History ──────────────────────────────────────────────────────────
 
 /**
- * Log a login history event.
- */
-export async function logLoginHistory({ userCid, userName, userEmail, action, ipAddress, userAgent, device, browser, os, country, city, isSuccess, failureReason, sessionId }) {
-  try {
-    await db.execute({
-      sql: `INSERT INTO venture_login_history (user_cid, user_name, user_email, action, ip_address, user_agent, device, browser, os, country, city, is_success, failure_reason, session_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [
-        userCid||null, userName||null, userEmail||null, action,
-        ipAddress||null, userAgent||null, device||null, browser||null,
-        os||null, country||null, city||null, isSuccess !== false ? 1 : 0,
-        failureReason||null, sessionId||null,
-      ],
-    });
-  } catch (error) {
-    console.error("Login history log error:", error.message);
-  }
-}
-
-/**
  * Query login history with filtering and pagination.
  */
 export async function queryLoginHistory({ userCid, action, isSuccess, limit=50, offset=0, fromDate, toDate } = {}) {
@@ -5276,98 +4792,6 @@ export async function getLoginStats(hoursAgo = 24) {
     successes: parseInt(successes.rows[0]?.c || 0),
     failures: parseInt(failures.rows[0]?.c || 0),
     unique_users: parseInt(unique.rows[0]?.c || 0),
-  };
-}
-
-// ─── Failed Login Detection & Account Lockout ───────────────────────────────┬
-
-const MAX_FAILED_ATTEMPTS = 5;
-const LOCKOUT_MINUTES = 15;
-
-/**
- * Record a failed login attempt.
- */
-export async function recordFailedLogin(identifier, ipAddress) {
-  await db.execute({
-    sql: "INSERT INTO venture_failed_logins (identifier, ip_address) VALUES (?, ?)",
-    args: [identifier, ipAddress||null],
-  });
-}
-
-/**
- * Check if an account is currently locked out.
- */
-export async function isAccountLocked(identifier) {
-  const recent = await db.execute({
-    sql: `SELECT COUNT(*) as c FROM venture_failed_logins
-          WHERE identifier=? AND attempted_at > NOW() - INTERVAL '1 minute' * ?`,
-    args: [identifier, LOCKOUT_MINUTES],
-  });
-  return parseInt(recent.rows[0]?.c || 0) >= MAX_FAILED_ATTEMPTS;
-}
-
-/**
- * Clear failed login attempts (on successful login).
- */
-export async function clearFailedLogins(identifier) {
-  await db.execute({
-    sql: "DELETE FROM venture_failed_logins WHERE identifier=?",
-    args: [identifier],
-  });
-}
-
-// ─── Trusted Devices ─────────────────────────────────────────────────────────
-
-export async function getTrustedDevices(userCid) {
-  return (await db.execute({
-    sql: "SELECT * FROM venture_trusted_devices WHERE user_cid=? ORDER BY last_used_at DESC",
-    args: [userCid],
-  })).rows || [];
-}
-
-export async function trustDevice({ userCid, deviceName, deviceType, browser, os, ipAddress, fingerprint }) {
-  await db.execute({
-    sql: `INSERT INTO venture_trusted_devices (user_cid, device_name, device_type, browser, os, ip_address, fingerprint, is_trusted)
-          VALUES (?, ?, ?, ?, ?, ?, ?, TRUE)
-          ON CONFLICT (user_cid, fingerprint) DO UPDATE SET is_trusted=TRUE, last_used_at=NOW(), device_name=COALESCE(EXCLUDED.device_name, venture_trusted_devices.device_name)`,
-    args: [userCid, deviceName||null, deviceType||null, browser||null, os||null, ipAddress||null, fingerprint||'unknown'],
-  });
-  return { success: true };
-}
-
-export async function untrustDevice(deviceId) {
-  await db.execute({ sql: "DELETE FROM venture_trusted_devices WHERE id=?", args: [deviceId] });
-  return { success: true };
-}
-
-// ─── Security Dashboard Summary ──────────────────────────────────────────────
-
-export async function getSecurityDashboardSummary() {
-  const [auditStats, securityStats, activeSessions, loginStats] = await Promise.all([
-    getAuditLogStats(24),
-    getSecurityStats(24),
-    db.execute({ sql: "SELECT COUNT(*) as c FROM user_sessions WHERE expires_at > NOW()" }).catch(() => ({ rows: [{ c: 0 }] })),
-    getLoginStats(24),
-  ]);
-
-  // Recent critical events
-  const criticalEvents = (await db.execute({
-    sql: "SELECT * FROM venture_security_events WHERE severity='critical' AND created_at > NOW() - INTERVAL '24 hours' ORDER BY created_at DESC LIMIT 5",
-  }).catch(() => ({ rows: [] }))).rows || [];
-
-  return {
-    audit_logs_24h: auditStats.total,
-    audit_by_severity: auditStats.by_severity,
-    audit_by_type: auditStats.by_type,
-    security_events_24h: securityStats.total,
-    unresolved_events: securityStats.unresolved,
-    critical_events_24h: securityStats.critical,
-    active_sessions: parseInt(activeSessions.rows[0]?.c || 0),
-    logins_24h: loginStats.total,
-    login_successes: loginStats.successes,
-    login_failures: loginStats.failures,
-    unique_users: loginStats.unique_users,
-    recent_critical: criticalEvents,
   };
 }
 
@@ -5520,91 +4944,9 @@ export async function rotateApiKey(keyId, _rotatedBy) {
   return { key_id: keyId, secret: newSecret };
 }
 
-export async function validateApiKey(keyId, secret, requiredScope, ipAddress) {
-  const key = (await db.execute({
-    sql: "SELECT * FROM api_keys WHERE key_id=? AND is_active=TRUE AND (expires_at IS NULL OR expires_at > NOW())",
-    args: [keyId],
-  })).rows[0];
-  if (!key) return { valid: false, error: "Invalid or expired API key." };
-
-  // Verify secret
-  const hash = hashApiKey(secret);
-  if (hash !== key.key_hash) return { valid: false, error: "Invalid API key secret." };
-
-  // Check IP whitelist
-  const allowedIps = typeof key.allowed_ips === "string" ? JSON.parse(key.allowed_ips) : (key.allowed_ips || []);
-  if (allowedIps.length > 0 && ipAddress && !allowedIps.includes(ipAddress)) {
-    return { valid: false, error: "IP address not allowed." };
-  }
-
-  // Check scope
-  const scopes = typeof key.scopes === "string" ? JSON.parse(key.scopes) : (key.scopes || []);
-  if (requiredScope && !scopes.includes(requiredScope) && !scopes.includes("*")) {
-    return { valid: false, error: `Scope '${requiredScope}' not permitted.` };
-  }
-
-  // Update last used
-  await db.execute({ sql: "UPDATE api_keys SET last_used_at=NOW() WHERE id=?", args: [key.id] });
-
-  return { valid: true, key };
-}
-
 // ─── API Usage Logging & Rate Limiting ──────────────────────────────────────
 
-export async function logApiUsage({ apiKeyId, endpoint, method, ipAddress, responseStatus, durationMs, userAgent }) {
-  try {
-    await db.execute({
-      sql: `INSERT INTO api_usage_logs (api_key_id, endpoint, method, ip_address, response_status, duration_ms, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      args: [apiKeyId||null, endpoint, method||null, ipAddress||null, responseStatus||null, durationMs||null, userAgent||null],
-    });
-  } catch (error) {
-    console.error("API usage log error:", error.message);
-  }
-}
-
-export async function checkRateLimit(apiKeyId, maxRequests = 100, windowMinutes = 1) {
-  const recent = await db.execute({
-    sql: `SELECT COUNT(*) as c FROM api_usage_logs WHERE api_key_id=? AND created_at > NOW() - INTERVAL '1 minute' * ?`,
-    args: [apiKeyId, windowMinutes],
-  });
-  const count = parseInt(recent.rows[0]?.c || 0);
-  return { allowed: count < maxRequests, remaining: Math.max(0, maxRequests - count), reset_after: windowMinutes * 60 };
-}
-
-export async function getApiUsageStats(apiKeyId, hoursAgo = 24) {
-  let sql = "SELECT COUNT(*) as total, COUNT(DISTINCT endpoint) as endpoints, AVG(duration_ms) as avg_duration FROM api_usage_logs WHERE 1=1";
-  const args = [];
-  if (apiKeyId) { sql += " AND api_key_id=?"; args.push(apiKeyId); }
-  sql += " AND created_at > NOW() - INTERVAL '1 hour' * ?"; args.push(hoursAgo);
-
-  const [stats, byEndpoint, byStatus] = await Promise.all([
-    db.execute({ sql, args }).catch(() => ({ rows: [{ total: 0, endpoints: 0, avg_duration: 0 }] })),
-    db.execute({
-      sql: `SELECT endpoint, COUNT(*) as c FROM api_usage_logs WHERE ${apiKeyId ? "api_key_id=? AND" : ""} created_at > NOW() - INTERVAL '1 hour' * ? GROUP BY endpoint ORDER BY c DESC LIMIT 10`,
-      args: apiKeyId ? [apiKeyId, hoursAgo] : [hoursAgo],
-    }).catch(() => ({ rows: [] })),
-    db.execute({
-      sql: `SELECT response_status, COUNT(*) as c FROM api_usage_logs WHERE ${apiKeyId ? "api_key_id=? AND" : ""} created_at > NOW() - INTERVAL '1 hour' * ? GROUP BY response_status`,
-      args: apiKeyId ? [apiKeyId, hoursAgo] : [hoursAgo],
-    }).catch(() => ({ rows: [] })),
-  ]);
-
-  return {
-    total: parseInt(stats.rows[0]?.total || 0),
-    endpoints: parseInt(stats.rows[0]?.endpoints || 0),
-    avg_duration_ms: Math.round(parseFloat(stats.rows[0]?.avg_duration || 0)),
-    by_endpoint: byEndpoint.rows || [],
-    by_status: byStatus.rows || [],
-  };
-}
-
 // ─── Webhooks ───────────────────────────────────────────────────────────────
-
-export const WEBHOOK_EVENTS = [
-  "startup.created", "project.updated", "mentoring.session_completed",
-  "investment.match_created", "document.uploaded", "notification.sent",
-  "verification.approved",
-];
 
 export async function createWebhook({ name, url, secret, events, ventureId, retryCount, timeoutMs, createdBy }) {
   if (!url || !url.startsWith("https://")) throw new Error("Webhook URL must use HTTPS.");
@@ -5640,107 +4982,6 @@ export async function deleteWebhook(id, _deletedBy) {
   if (!webhook) throw new Error("Webhook not found.");
   await db.execute({ sql: "DELETE FROM webhooks WHERE id=?", args: [id] });
   return { success: true };
-}
-
-/**
- * Trigger a webhook event — called internally when certain actions happen.
- * Looks up all active webhooks subscribed to the event and fires them.
- */
-export async function triggerWebhookEvent(eventType, payload, { ventureId } = {}) {
-  if (!WEBHOOK_EVENTS.includes(eventType)) return { triggered: 0 };
-
-  const webhooks = (await db.execute({
-    sql: `SELECT * FROM webhooks WHERE is_active=TRUE AND (venture_id IS NULL OR venture_id=?) AND events::jsonb @> ?::jsonb`,
-    args: [ventureId||"", JSON.stringify([eventType])],
-  })).rows || [];
-
-  let triggered = 0;
-  for (const webhook of webhooks) {
-    triggerWebhookDelivery(webhook, eventType, payload).catch((deliveryError) =>
-      console.error(`Webhook ${webhook.id} delivery failed:`, deliveryError.message)
-    );
-    triggered++;
-  }
-
-  return { triggered };
-}
-
-async function triggerWebhookDelivery(webhook, eventType, payload) {
-  const startTime = Date.now();
-  let status = "success";
-  let responseStatus = null;
-  let responseBody = null;
-  let errorMessage = null;
-
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), webhook.timeout_ms || 10000);
-
-    const headers = { "Content-Type": "application/json" };
-    if (webhook.secret) {
-      const signature = crypto
-        .createHmac("sha256", webhook.secret)
-        .update(JSON.stringify(payload))
-        .digest("hex");
-      headers["X-Webhook-Signature"] = signature;
-    }
-    headers["X-Webhook-Event"] = eventType;
-
-    const response = await fetch(webhook.url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ event: eventType, data: payload, timestamp: new Date().toISOString() }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-    responseStatus = response.status;
-    responseBody = await response.text().catch(() => null);
-
-    if (!response.ok) {
-      status = "failed";
-      errorMessage = `HTTP ${responseStatus}: ${responseBody?.substring(0, 200) || "Unknown"}`;
-    }
-  } catch (error) {
-    status = "failed";
-    errorMessage = error.message;
-  }
-
-  const durationMs = Date.now() - startTime;
-
-  // Log delivery
-  await db.execute({
-    sql: `INSERT INTO webhook_delivery_logs (webhook_id, event_type, payload, response_status, response_body, duration_ms, status, error_message) VALUES (?, ?, ?::jsonb, ?, ?, ?, ?, ?)`,
-    args: [webhook.id, eventType, JSON.stringify(payload), responseStatus, responseBody?.substring(0, 500) || null, durationMs, status, errorMessage],
-  }).catch(() => {});
-
-  // Update webhook status
-  const newFailureCount = status === "failed" ? (webhook.failure_count || 0) + 1 : 0;
-  await db.execute({
-    sql: `UPDATE webhooks SET last_triggered_at=NOW(), last_status=?, failure_count=? WHERE id=?`,
-    args: [status, newFailureCount, webhook.id],
-  }).catch(() => {});
-
-  // Generate notification on failure
-  if (status === "failed") {
-    await sendNotification({
-      recipientId: webhook.created_by || "system",
-      type: "system",
-      title: "Webhook Delivery Failed",
-      body: `Webhook "${webhook.name}" failed: ${errorMessage}`,
-      data: { webhook_id: webhook.id, event: eventType, error: errorMessage },
-      priority: "high",
-      source: "webhook",
-      sourceId: String(webhook.id),
-    }).catch(() => {});
-
-    await logAuditEvent({
-      eventType: "WEBHOOK_TRIGGERED", actorCid: "system",
-      entityType: "webhook", entityId: String(webhook.id),
-      description: `Webhook delivery failed: ${webhook.name} — ${errorMessage}`,
-      severity: "error",
-    }).catch(() => {});
-  }
 }
 
 // ─── Webhook Delivery Logs ──────────────────────────────────────────────────
@@ -5867,16 +5108,6 @@ export async function getOverallHealth() {
 // ─── Metrics ────────────────────────────────────────────────────────────────
 
 /**
- * Record a system metric.
- */
-export async function recordMetric(metricName, value, { unit, tags } = {}) {
-  await db.execute({
-    sql: "INSERT INTO system_metrics (metric_name, metric_value, unit, tags) VALUES (?, ?, ?, ?::jsonb)",
-    args: [metricName, value, unit||null, JSON.stringify(tags||{})],
-  }).catch(() => {});
-}
-
-/**
  * Get metrics for a given name within a time range.
  */
 export async function getMetrics(metricName, { hoursAgo=1, limit=100, aggregate } = {}) {
@@ -5932,59 +5163,6 @@ export async function getSystemStatus() {
 }
 
 // ─── Alerts Engine ──────────────────────────────────────────────────────────
-
-/**
- * Create a system alert.
- */
-export async function createSystemAlert({ alertType, severity, title, message, metricName, metricValue, threshold }) {
-  const id = (await db.execute({
-    sql: `INSERT INTO system_alerts (alert_type, severity, title, message, metric_name, metric_value, threshold) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    args: [alertType, severity, title, message||null, metricName||null, metricValue||null, threshold||null],
-  })).rows[0]?.id;
-
-  await logAuditEvent({
-    eventType: "SYSTEM_ALERT_CREATED", actorCid: "system",
-    entityType: "alert", entityId: String(id),
-    description: `Alert: ${title}`,
-    severity: severity === "critical" ? "critical" : severity === "warning" ? "warning" : "info",
-  });
-
-  await sendNotification({
-    recipientId: "sa", type: "system",
-    title, body: message || title,
-    data: { alert_id: id, alert_type: alertType, severity, metric_name: metricName },
-    priority: severity === "critical" ? "urgent" : severity === "warning" ? "high" : "normal",
-    source: "monitoring", sourceId: String(id),
-  }).catch(() => {});
-
-  return { id };
-}
-
-export async function acknowledgeAlert(alertId, acknowledgedBy) {
-  await db.execute({
-    sql: "UPDATE system_alerts SET status='acknowledged', acknowledged_by=?, acknowledged_at=NOW() WHERE id=? AND status='open'",
-    args: [acknowledgedBy, alertId],
-  });
-  return { success: true };
-}
-
-export async function resolveAlert(alertId, resolvedBy) {
-  await db.execute({
-    sql: "UPDATE system_alerts SET status='resolved', resolved_by=?, resolved_at=NOW() WHERE id=? AND status!='resolved'",
-    args: [resolvedBy, alertId],
-  });
-  return { success: true };
-}
-
-export async function getAlerts({ severity, status, alertType, limit=50, offset=0 } = {}) {
-  let sql = "SELECT * FROM system_alerts WHERE 1=1";
-  const args = [];
-  if (severity) { sql += " AND severity=?"; args.push(severity); }
-  if (status) { sql += " AND status=?"; args.push(status); }
-  if (alertType) { sql += " AND alert_type=?"; args.push(alertType); }
-  sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"; args.push(limit, offset);
-  return (await db.execute({ sql, args })).rows || [];
-}
 
 export async function getAlertStats() {
   const [open, critical, byType] = await Promise.all([
@@ -6205,6 +5383,3 @@ export async function getSystemReports({ reportType, limit=50, offset=0 } = {}) 
   return (await db.execute({ sql, args })).rows || [];
 }
 
-export async function getSystemReport(id) {
-  return (await db.execute({ sql: "SELECT * FROM system_reports WHERE id=?", args: [id] })).rows[0] || null;
-}

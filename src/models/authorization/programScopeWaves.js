@@ -62,6 +62,3 @@ export const PROGRAM_SCOPE_WAVE_INFO = {
   },
 };
 
-export function isProgramScopeWave(wave) {
-  return PROGRAM_SCOPE_WAVES.includes(wave);
-}

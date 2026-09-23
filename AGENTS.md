@@ -133,7 +133,7 @@ import AppTabs from "@/components/ui/AppTabs";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import AppPagination from "@/components/ui/AppPagination";
 import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
-import { Skeleton, TableSkeleton, CardSkeleton } from "@/components/ui/Skeleton";
+import { Skeleton, TableSkeleton } from "@/components/ui/Skeleton";
 import { useDialogs } from "@/components/ui/DialogProvider";
 ```
 
@@ -181,7 +181,7 @@ See `DESIGN_SYSTEM.md` for the full guide. Key rules:
 ```
 src/
 ├── app/                  ← Next.js App Router pages
-│   ├── admin/            ← Super Admin routes (28 pages)
+│   ├── admin/            ← Super Admin routes (91 pages)
 │   │   ├── layout.js     ← force-dynamic (DO NOT REMOVE)
 │   │   ├── page.js       ← Dashboard
 │   │   ├── op-reports/   ← Operational reports
@@ -190,7 +190,7 @@ src/
 │   ├── staff/            ← Staff routes
 │   ├── pm/               ← Program Manager routes
 │   ├── participant/      ← Participant routes
-│   └── api/              ← API routes (thin controllers, ~300 handlers)
+│   └── api/              ← API routes (thin controllers, 403 handlers)
 ├── components/
 │   ├── layout/
 │   │   └── DashboardLayout.js  ← Sidebar + header wrapper
@@ -198,7 +198,7 @@ src/
 ├── models/               ← MODEL layer — all SQL + domain logic (MVC)
 │   ├── tasks.js          ← one file per domain (blocks, projects,
 │   │                        programs, contacts, authFlows, groups,
-│   │                        authorization, ventures, investor…)
+│   │                        authorization, investor…)
 │   └── lms/              ← domain folders (lms, authorization,
 │                           finance, platform, integrations)
 ├── lib/                  ← INFRASTRUCTURE ONLY (db, auth sessions, i18n,
@@ -222,7 +222,7 @@ src/
   model orchestration, response shaping.
 - **V — pages + `src/components/`**: rendering only; fetch via controllers.
 - Legacy domain modules were relocated to `src/models/` behind facades: some
-  `src/lib/*` files (e.g. `ventures.js`, `taskAudit.js`) now only re-export
+  `src/lib/*` files (e.g. `src/lib/taskAudit.js`) now only re-export
   from `@/models/*`. New code imports from `@/models/*` directly.
 
 ### DashboardLayout — rendered by section layouts, NOT by pages
@@ -233,11 +233,10 @@ no re-fetch of the auth/badge chain on every link click):
 
 | Section | Layout | Shell role |
 |---|---|---|
-| `/admin/*` | `src/app/admin/layout.js` | `super_admin` \| `developer` (from session) |
+| `/admin/*` | `src/app/admin/layout.js` | `super_admin` (from session) |
 | `/staff/*` | `src/app/staff/layout.js` | `staff` |
 | `/pm/*` | `src/app/pm/layout.js` | `program_manager` |
 | `/participant/*` | `src/app/participant/layout.js` | `participant` |
-| `/developer/*` | `src/app/developer/layout.js` | `developer` \| `super_admin` |
 | `/facilitator/*` | `src/app/facilitator/layout.js` | `facilitator` |
 | `/investor/*` | `src/app/investor/layout.js` | `investor` |
 | `/finance/*` | `src/app/finance/layout.js` | `finance` |

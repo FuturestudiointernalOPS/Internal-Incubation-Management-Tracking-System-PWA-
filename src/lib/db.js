@@ -130,8 +130,6 @@ export const getDbMetrics = () => ({
   slow: metrics.slow,
 });
 
-export const resetDbMetrics = () => metrics.reset();
-
 // Minimum elapsed time before a FULL pool teardown is allowed after the
 // previous one. Prevents a burst of transient errors from repeatedly dropping
 // every socket (a cascade that itself thrashes Supabase). Bounded recovery:

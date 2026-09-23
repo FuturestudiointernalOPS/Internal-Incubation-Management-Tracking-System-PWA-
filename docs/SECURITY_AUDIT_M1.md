@@ -6,7 +6,7 @@
 
 ---
 
-## 0. VERIFIED METRICS (corrects the estimates in ARCHITECTURE_TECH_DEBT.md)
+## 0. VERIFIED METRICS (replaces the estimates that used to live in the deleted `ARCHITECTURE_TECH_DEBT.md`)
 
 | Metric | Claimed (DeepSeek) | **Verified** | Note |
 |---|---|---|---|
@@ -86,7 +86,7 @@ task_attachments_select  roles={anon,authenticated}  cmd=SELECT
 The app has **no Supabase Auth** — the browser Supabase client is always the `anon` role (uses `NEXT_PUBLIC_SUPABASE_ANON_KEY`, shipped to every client). Granting `anon` INSERT means **any anonymous internet caller holding the public anon key can write arbitrary files into `task-attachments`** — a storage-abuse / cost / malware-hosting vector. `SELECT` on `anon` also makes every uploaded file world-readable by key.
 
 **Fix (this is DeepSeek plan item S20, promote to HIGH):**
-1. Move upload server-side: new/updated `POST /api/tasks/resources` accepts `multipart/form-data`, uploads with `supabaseAdmin` (service role) from `src/lib/supabase-admin.js`.
+1. Move upload server-side: new/updated `POST /api/tasks/resources` accepts `multipart/form-data`, uploads with the service role key server-side (`src/lib/storage.js`).
 2. Drop the `anon` policies; keep bucket private; serve files via signed URLs or an authenticated proxy route.
 3. Client stops calling `uploadFile()` (anon) directly.
 
@@ -96,7 +96,7 @@ Until then the bucket is a public write target.
 
 ## 4. SECRETS — ✅ mostly clean
 
-- `SUPABASE_SERVICE_ROLE_KEY` used only in `src/lib/supabase-admin.js` (server) — good.
+- `SUPABASE_SERVICE_ROLE_KEY` used only server-side (upload/storage helpers) — good.
 - `.env.local` gitignored — confirmed earlier.
 - No hardcoded secrets found in tracked route files.
 - ⚠️ Watch: the anon key is `NEXT_PUBLIC_*` by necessity (client SDK). That is expected — the exposure in §3 is the RLS grant, not the key itself.

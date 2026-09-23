@@ -73,16 +73,3 @@ export function listServices() {
   }));
 }
 
-/**
- * Check if a service exists in the registry.
- */
-export function hasService(name) {
-  return !!SERVICE_DEFINITIONS[name];
-}
-
-/**
- * Get a single service definition by name.
- */
-export function getServiceDefinition(name) {
-  return SERVICE_DEFINITIONS[name] || null;
-}

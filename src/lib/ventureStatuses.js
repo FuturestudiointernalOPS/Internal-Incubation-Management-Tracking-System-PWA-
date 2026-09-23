@@ -32,14 +32,9 @@ export const MILESTONE_STATUSES = [
   "completed",
 ];
 export const MILESTONE_COMPLETED = "completed";
-export const MILESTONE_LOCKED = "locked";
 
 export function isMilestoneComplete(status) {
   return status === MILESTONE_COMPLETED;
-}
-
-export function isMilestoneLocked(status) {
-  return status === MILESTONE_LOCKED;
 }
 
 // ─── Tasks (venture_tasks.status) ──────────────────────────────────────────

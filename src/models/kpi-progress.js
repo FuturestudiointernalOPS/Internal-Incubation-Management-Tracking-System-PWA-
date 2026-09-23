@@ -253,20 +253,3 @@ export async function refreshKpiProgressIfStale(
   }
 }
 
-/**
- * Fetch cached KPI progress for fast dashboard reads.
- */
-export async function getCachedKpiProgress(programId) {
-  try {
-    const result = await db.execute({
-      sql: `SELECT kp.*, k.title, k.weight, k.target_value, k.auto_weight
-            FROM kpi_progress kp
-            JOIN v2_kpis k ON kp.kpi_id::text = k.id::text
-            WHERE kp.program_id = ? AND k.program_id::text = ?`,
-      args: [programId, programId],
-    });
-    return result.rows || [];
-  } catch {
-    return [];
-  }
-}

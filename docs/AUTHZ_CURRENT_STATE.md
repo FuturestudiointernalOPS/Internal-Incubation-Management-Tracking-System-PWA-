@@ -177,7 +177,7 @@ task's categories A–E.
 | `GET /api/platform/ai/evaluation-config` | Unauthenticated read of a form's scoring framework while PUT/DELETE required `forms.edit` | `requireAuthorization("forms", "view")` |
 | `GET /api/platform/integrations/calendar` | Unauthenticated integration health (provider identity, configured, provider error text) | `requireAuthorization("settings", "view")` |
 | `GET /api/platform/integrations/notion` | Unauthenticated config disclosure (which env vars are set) | `requireAuthorization("settings", "view")` |
-| `POST /api/errors` | Unauthenticated write to the error log | **Left public, intentionally (category A).** It is the browser error reporter (`src/lib/reportError.js`, `AppErrorBoundary`) and must work on logged-out pages. Residual risk is log flooding, not data disclosure. |
+| `POST /api/errors` | Unauthenticated write to the error log | **Left public, intentionally (category A).** It is the browser error reporter (`AppErrorBoundary` and its `reportError` method) and must work on logged-out pages. Residual risk is log flooding, not data disclosure. |
 
 ### Category D — the migration backlog (not a bug list)
 

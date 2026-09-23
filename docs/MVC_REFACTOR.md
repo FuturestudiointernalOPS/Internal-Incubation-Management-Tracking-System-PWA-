@@ -1,8 +1,9 @@
 # ImpactOS — MVC Refactoring Blueprint
 
-> Status: **in progress** — Waves 0–6 ✅ + polish ✅ (no inline SQL in API layer,
-> domain libs relocated behind facades; repo 100 % green: 39/39 suites ·
-> 623/623 tests · eslint 0 errors · build green).
+> Status: **mostly done** — Waves 0–6 ✅ for the main domains (SQL relocated to
+> `src/models/**`, legacy domain libs behind facades). Remaining: ~290 files under
+> `src/app/api` still import the db layer, so the "0 inline SQL" gate is not yet
+> met. Tests: 169 suites green, eslint 0 errors, build green.
 > This document is the master plan for refactoring the *entire* codebase into a
 > Model–View–Controller (MVC) layering that fits Next.js App Router.
 
@@ -256,13 +257,13 @@ Each wave ends with `npm test` (compare against baseline: 4 failing suites) and
       219 queries → `src/models/investor.js` (80), `investorRelations.js`
       (78), `communications.js` (60), `finance.js` (1, seed).
 - [x] **Final clusters** ✅ (2026-09-02): 78 routes / 341 queries →
-      `participantPortal.js` (72), `adminOps.js` (54), `teacher.js` (25),
-      `engineering.js` (22), `facilitation.js` (41), `workspace.js` (52),
+      `participantPortal.js` (72), `adminOps.js` (54),
+      `facilitation.js` (41), `workspace.js` (52),
       `platformConfig.js` (49), + appends to `tasks.js`/`authFlows.js`/
       `groups.js` (26).
-- [x] **Wave 5 gate ✅: 0 `db.execute` left in `src/app/api`** (audited),
-      0 pages import the db layer, 42 model files / 2,227 queries,
-      full suite 39/39 · 623/623, `npm run build` green.
+- [~] **Wave 5 gate**: the main domains are converted, but ~290 files under
+      `src/app/api` still import the db layer (28 under `api/ventures/**` plus
+      `api/calendar`, `api/platform/form-runs`, …). 58 model files today.
 
 ### Wave 6 — Lib-domain splits ✅ (2026-09-02 — 41 modules relocated behind facades)
 - [x] 15 top-level domain modules moved byte-identical to `src/models/` with

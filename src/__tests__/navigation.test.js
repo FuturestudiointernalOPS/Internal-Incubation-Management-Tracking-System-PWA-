@@ -195,7 +195,6 @@ const FIXTURE = {
 
   investor: [
     { id: "dashboard", href: "/investor/dashboard", subItems: null },
-    { id: "pipeline", href: "/investor/pipeline", subItems: null },
     { id: "portfolio", href: "/investor/portfolio", subItems: null },
     { id: "activity", href: "/investor/history", subItems: null },
     { id: "profile", href: "/investor/profile", subItems: null },

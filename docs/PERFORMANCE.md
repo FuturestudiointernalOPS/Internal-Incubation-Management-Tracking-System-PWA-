@@ -262,7 +262,7 @@ lookup follows the contacts (it is keyed on them).
 Five is the FIRST call of a process; on a warm process the report-file read (it
 is preceded by a once-per-process schema check) joins the second wave and it is
 **four**. Same statement count — the reads are the same, they no longer queue.
-`src/__tests__/db-audit-form-runs.test.js` asserts the budget.
+`src/__tests__/db-sequencing-audit.test.js` asserts the budget.
 
 ## The contacts registry — the self-heal left the read path
 
@@ -287,7 +287,7 @@ independent of each other (a second wave).
 | now                                                    |      **5** | **2** |     3 |
 
 The measurement is a REPEAT load (the case every visit but the first one is):
-the first load pays the reconciliation once. `src/__tests__/db-audit-form-runs.test.js`
+the first load pays the reconciliation once. `src/__tests__/db-sequencing-audit.test.js`
 asserts both the fall in statements and the two waves.
 
 The program Full State bundle is also measured there: **eighteen statements in

@@ -68,20 +68,3 @@ export function collapseChains(tasks) {
   return result;
 }
 
-/** Number of copies a task family has (including the task itself). */
-export function chainLength(task, byId, childrenOf) {
-  let length = 0;
-  let currentTask = task;
-  const seen = new Set();
-  while (currentTask && !seen.has(currentTask.id)) {
-    seen.add(currentTask.id);
-    length++;
-    currentTask = null;
-    // walk forward to newest
-    const successorCopies = (childrenOf.get(currentTask ? currentTask.id : task.id) || []).filter(
-      (copy) => copy.status !== "archived",
-    );
-    if (successorCopies.length) currentTask = successorCopies[0];
-  }
-  return length;
-}
