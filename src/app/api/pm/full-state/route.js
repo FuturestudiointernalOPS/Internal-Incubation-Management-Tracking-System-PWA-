@@ -11,7 +11,6 @@ import {
   getAssistantContactsByCids,
   getPersistedKpiProgress,
   getProgramFullStateData,
-  getProgramNoteAttachments,
 } from "@/models/programWorkspace";
 
 export const dynamic = "force-dynamic";
@@ -121,12 +120,12 @@ export async function GET(req) {
           });
         }
 
-        if (program.note_id) {
-          const attachmentsResult = await getProgramNoteAttachments(program.note_id);
-          program.knowledge_assets = attachmentsResult.rows;
-        } else {
-          program.knowledge_assets = [];
-        }
+        // The note's attachments ride along with the program row (see
+        // getProgramFullStateData), so listing them costs no extra read and no
+        // dependent second wave.
+        program.knowledge_assets = Array.isArray(program.knowledge_assets)
+          ? program.knowledge_assets
+          : [];
 
         const sessions = sessionsResult.rows || [];
         const documents = documentsResult.rows || [];

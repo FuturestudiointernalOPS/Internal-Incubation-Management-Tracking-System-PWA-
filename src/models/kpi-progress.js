@@ -199,6 +199,20 @@ export async function recalculateKpiProgress(programId, participantId) {
 export const KPI_PROGRESS_MAX_AGE_MS = 5 * 60 * 1000;
 
 /**
+ * How often, per process, this may even ASK whether a program's progress is
+ * stale.
+ *
+ * The read path calls this on every metrics load. The question is one cheap read,
+ * but it is still a round trip per load — and a background one, so it competes
+ * for the same limited connections the response itself needs. Asking at most once
+ * per window per program keeps the safety net (the TTL above still decides
+ * whether anything is recalculated) while removing that per-load round trip. The
+ * worst case is that a genuinely stale figure lingers one extra window.
+ */
+const KPI_PROGRESS_CHECK_INTERVAL_MS = 30 * 1000;
+const lastStaleCheckAt = new Map();
+
+/**
  * Recalculate ONLY when the persisted progress is older than `maxAgeMs`.
  *
  * A page load must not systematically trigger a write-heavy recalculation: this
@@ -213,6 +227,14 @@ export async function refreshKpiProgressIfStale(
   programId,
   maxAgeMs = KPI_PROGRESS_MAX_AGE_MS,
 ) {
+  const key = String(programId);
+  const now = Date.now();
+  if (now - (lastStaleCheckAt.get(key) || 0) < KPI_PROGRESS_CHECK_INTERVAL_MS) {
+    return { skipped: true, calculatedAt: null };
+  }
+  // Recorded before the check, so a failed read is not retried until the next
+  // window (a broken statement must not become a per-load retry storm).
+  lastStaleCheckAt.set(key, now);
   try {
     const lastRes = await db.execute({
       sql: "SELECT MAX(calculated_at) AS last FROM kpi_progress WHERE program_id = ?",

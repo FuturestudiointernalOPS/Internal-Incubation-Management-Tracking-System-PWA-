@@ -34,7 +34,14 @@ export async function getProgramFullStateData(id) {
   const queries = [
     {
       name: "program",
-      sql: `SELECT p.*, k.title as note_title, k.url as note_files, k.description as note_description, c.name as pm_name, NULL as completion_index FROM v2_programs p LEFT JOIN v2_knowledge_bank k ON CAST(p.note_id AS TEXT) = CAST(k.id AS TEXT) LEFT JOIN contacts c ON p.assigned_pm_id = c.cid WHERE p.id = ?`,
+      // The note's attachments are aggregated into this row so the screen does
+      // not pay a SECOND read (nor a dependent second wave) just to list them.
+      // `[]` when the program has no note, matching the empty case.
+      sql: `SELECT p.*, k.title as note_title, k.url as note_files, k.description as note_description, c.name as pm_name, NULL as completion_index,
+                   COALESCE((SELECT jsonb_agg(jsonb_build_object('name', ka.name, 'url', ka.url) ORDER BY ka.id)
+                               FROM v2_knowledge_attachments ka
+                              WHERE CAST(ka.note_id AS TEXT) = CAST(p.note_id AS TEXT)), '[]'::jsonb) AS knowledge_assets
+            FROM v2_programs p LEFT JOIN v2_knowledge_bank k ON CAST(p.note_id AS TEXT) = CAST(k.id AS TEXT) LEFT JOIN contacts c ON p.assigned_pm_id = c.cid WHERE p.id = ?`,
       args: [id],
     },
     {
@@ -140,14 +147,6 @@ export async function getProgramFullStateData(id) {
       }
     }),
   );
-}
-
-/** Knowledge-attachment file names/urls for a program note. */
-export async function getProgramNoteAttachments(noteId) {
-  return db.execute({
-    sql: "SELECT name, url FROM v2_knowledge_attachments WHERE CAST(note_id AS TEXT) = CAST(? AS TEXT)",
-    args: [noteId],
-  });
 }
 
 /**
