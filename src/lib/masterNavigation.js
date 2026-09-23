@@ -560,7 +560,7 @@ function projectNode(node, access, depth) {
           // the flat index would resolve that id to the section and recurse
           // forever, while the parent's children array holds the leaf.
           const child =
-            (node.children || []).find((c) => c.id === cid) || NAV_NODE_INDEX[cid];
+            (node.children || []).find((candidate) => candidate.id === cid) || NAV_NODE_INDEX[cid];
           return child ? projectNode(child, access, depth + 1) : null;
         })
         .filter(Boolean),

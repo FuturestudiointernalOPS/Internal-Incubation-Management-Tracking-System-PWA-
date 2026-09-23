@@ -10,10 +10,10 @@ export async function fetchWithRetry(url, options = {}, maxRetries = 3, delayMs 
       if (res.ok || res.status < 500) return res;
       // Server error — retry
       lastError = new Error(`Server error: ${res.status}`);
-    } catch (e) {
-      lastError = e;
+    } catch (error) {
+      lastError = error;
       if (attempt < maxRetries) {
-        await new Promise((r) => setTimeout(r, delayMs * (attempt + 1)));
+        await new Promise((resolve) => setTimeout(resolve, delayMs * (attempt + 1)));
       }
     }
   }

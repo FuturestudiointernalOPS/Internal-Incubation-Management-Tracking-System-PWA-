@@ -54,13 +54,13 @@ export async function isMilestoneLeadAuthority(db, { code, cid, role }) {
 
 /** Resolve the VNT code of a Venture from either its code or internal UUID. */
 export async function resolveVentureCode(db, id) {
-  const r = await db
+  const result = await db
     .execute({
       sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?",
       args: [id, id],
     })
     .catch(() => ({ rows: [] }));
-  const row = rowsOf(r)[0];
+  const row = rowsOf(result)[0];
   if (!row) return null;
   return row.venture_id || (typeof id === "string" && id.startsWith("VNT-") ? id : null);
 }
@@ -88,14 +88,14 @@ export async function canManageMilestones(db, { id, cid, role }) {
 export async function computeInitialMilestoneStatus(db, { dbId, stageId }) {
   if (!stageId) return "not_started";
   try {
-    const r = await db.execute({
+    const result = await db.execute({
       sql: `SELECT status FROM venture_milestones
             WHERE venture_id = ? AND journey_stage_id = ?
             ORDER BY COALESCE(display_order, 0) DESC, created_at DESC
             LIMIT 1`,
       args: [dbId, stageId],
     });
-    const last = rowsOf(r)[0];
+    const last = rowsOf(result)[0];
     if (!last) return "not_started";
     return isMilestoneComplete(last.status) ? "not_started" : "locked";
   } catch (_) {
@@ -117,25 +117,25 @@ export async function computeInitialMilestoneStatus(db, { dbId, stageId }) {
 export async function completeStageIfAllMilestonesDone(db, { dbId, stageId, cid = null }) {
   if (!stageId) return { completed: false };
   try {
-    const stageRes = await db
+    const stageResult = await db
       .execute({
         sql: "SELECT id, name, status, stage_order FROM venture_journey_stages WHERE id = ? AND venture_id = ?",
         args: [String(stageId), dbId],
       })
       .catch(() => ({ rows: [] }));
-    const stage = rowsOf(stageRes)[0];
+    const stage = rowsOf(stageResult)[0];
     if (!stage || stage.status !== "active") return { completed: false };
 
     const richSql = `SELECT id, status FROM venture_milestones
                      WHERE venture_id = ? AND journey_stage_id = ? AND COALESCE(is_archived, FALSE) = FALSE`;
     const plainSql = `SELECT id, status FROM venture_milestones WHERE venture_id = ? AND journey_stage_id = ?`;
-    const msRes = await db
+    const milestonesResult = await db
       .execute({ sql: richSql, args: [dbId, String(stageId)] })
       .catch(() => db.execute({ sql: plainSql, args: [dbId, String(stageId)] }).catch(() => ({ rows: [] })));
-    const list = rowsOf(msRes);
+    const list = rowsOf(milestonesResult);
 
     if (list.length === 0) return { completed: false };
-    if (!list.every((m) => isMilestoneComplete(m.status))) return { completed: false };
+    if (!list.every((milestone) => isMilestoneComplete(milestone.status))) return { completed: false };
 
     await db.execute({
       sql: "UPDATE venture_journey_stages SET status = 'completed', completed_at = NOW(), approved_by = ? WHERE id = ? AND venture_id = ?",
@@ -143,13 +143,13 @@ export async function completeStageIfAllMilestonesDone(db, { dbId, stageId, cid 
     });
 
     // The next journey becomes current, and its first milestone is released.
-    const nextRes = await db
+    const nextStageResult = await db
       .execute({
         sql: "SELECT id FROM venture_journey_stages WHERE venture_id = ? AND stage_order = ? AND status = 'locked'",
         args: [dbId, stage.stage_order + 1],
       })
       .catch(() => ({ rows: [] }));
-    const nextStageId = rowsOf(nextRes)[0]?.id || null;
+    const nextStageId = rowsOf(nextStageResult)[0]?.id || null;
     if (nextStageId) {
       await db.execute({
         sql: "UPDATE venture_journey_stages SET status = 'active' WHERE id = ? AND venture_id = ?",
@@ -175,11 +175,11 @@ export async function completeStageIfAllMilestonesDone(db, { dbId, stageId, cid 
 export async function releaseFirstMilestoneForStage(db, { dbId, stageId }) {
   if (!stageId) return { released_milestone_id: null };
   try {
-    const stageRes = await db.execute({
+    const stageResult = await db.execute({
       sql: "SELECT status FROM venture_journey_stages WHERE id = ? AND venture_id = ?",
       args: [String(stageId), dbId],
     }).catch(() => ({ rows: [] }));
-    const stage = rowsOf(stageRes)[0];
+    const stage = rowsOf(stageResult)[0];
     if (!stage || stage.status !== "active") return { released_milestone_id: null };
 
     // Archived milestones are not part of the chain (guarded for databases
@@ -190,12 +190,12 @@ export async function releaseFirstMilestoneForStage(db, { dbId, stageId }) {
     const plainSql = `SELECT id, status FROM venture_milestones
                       WHERE venture_id = ? AND journey_stage_id = ?
                       ORDER BY COALESCE(display_order, 0) ASC, created_at ASC`;
-    const msRes = await db
+    const milestonesResult = await db
       .execute({ sql: richSql, args: [dbId, String(stageId)] })
       .catch(() => db.execute({ sql: plainSql, args: [dbId, String(stageId)] }).catch(() => ({ rows: [] })));
-    const list = rowsOf(msRes);
+    const list = rowsOf(milestonesResult);
 
-    const firstOpen = list.find((m) => !isMilestoneComplete(m.status));
+    const firstOpen = list.find((milestone) => !isMilestoneComplete(milestone.status));
     if (!firstOpen || firstOpen.status !== "locked") return { released_milestone_id: null };
 
     await db.execute({
@@ -226,7 +226,7 @@ export async function releaseFirstMilestoneForStage(db, { dbId, stageId }) {
  */
 export async function assertBookableMilestone(db, { dbId, milestoneId }) {
   try {
-    const msRes = await db
+    const milestonesResult = await db
       .execute({
         sql: `SELECT id, title, status, journey_stage_id, is_archived
               FROM venture_milestones WHERE id::text = ? AND venture_id = ?`,
@@ -239,7 +239,7 @@ export async function assertBookableMilestone(db, { dbId, milestoneId }) {
           args: [String(milestoneId), dbId],
         }).catch(() => ({ rows: [] })),
       );
-    const milestone = rowsOf(msRes)[0];
+    const milestone = rowsOf(milestonesResult)[0];
     if (!milestone) {
       return { ok: false, reason: "This milestone no longer exists for this Venture." };
     }
@@ -254,14 +254,14 @@ export async function assertBookableMilestone(db, { dbId, milestoneId }) {
     }
 
     // The milestone must belong to the Journey that is actually current.
-    const stageRes = await db
+    const stageResult = await db
       .execute({
         sql: `SELECT id, name, status FROM venture_journey_stages
               WHERE id = ? AND venture_id = ?`,
         args: [String(milestone.journey_stage_id), dbId],
       })
       .catch(() => ({ rows: [] }));
-    const stage = rowsOf(stageRes)[0];
+    const stage = rowsOf(stageResult)[0];
     if (!stage) {
       return { ok: false, reason: "This milestone is not part of a Journey, so no session can be booked against it." };
     }
@@ -277,7 +277,7 @@ export async function assertBookableMilestone(db, { dbId, milestoneId }) {
 
     // ...and it must be the FIRST unfinished milestone of that Journey. Only one
     // milestone is open at a time; the rest are hidden from the Venture.
-    const listRes = await db
+    const listResult = await db
       .execute({
         sql: `SELECT id, title, status FROM venture_milestones
               WHERE venture_id = ? AND journey_stage_id = ? AND COALESCE(is_archived, FALSE) = FALSE
@@ -285,7 +285,7 @@ export async function assertBookableMilestone(db, { dbId, milestoneId }) {
         args: [dbId, String(milestone.journey_stage_id)],
       })
       .catch(() => ({ rows: [] }));
-    const current = rowsOf(listRes).find((m) => !isMilestoneComplete(m.status));
+    const current = rowsOf(listResult).find((milestone) => !isMilestoneComplete(milestone.status));
     if (current && String(current.id) !== String(milestone.id)) {
       return {
         ok: false,
@@ -306,11 +306,11 @@ export async function assertBookableMilestone(db, { dbId, milestoneId }) {
  * Assumes the caller already verified completion authority.
  */
 export async function completeMilestoneAndUnlockNext(db, { dbId, milestoneId }) {
-  const milestoneRes = await db.execute({
+  const milestoneResult = await db.execute({
     sql: `SELECT id, journey_stage_id FROM venture_milestones WHERE id = ? AND venture_id = ?`,
     args: [milestoneId, dbId],
   });
-  const milestone = rowsOf(milestoneRes)[0];
+  const milestone = rowsOf(milestoneResult)[0];
   if (!milestone) return { error: "Milestone not found." };
 
   await db.execute({
@@ -320,14 +320,14 @@ export async function completeMilestoneAndUnlockNext(db, { dbId, milestoneId }) 
 
   if (!milestone.journey_stage_id) return { unlocked_milestone_id: null };
 
-  const nextRes = await db.execute({
+  const nextResult = await db.execute({
     sql: `SELECT id FROM venture_milestones
           WHERE venture_id = ? AND journey_stage_id = ? AND status = 'locked'
           ORDER BY COALESCE(display_order, 0), created_at ASC
           LIMIT 1`,
     args: [dbId, milestone.journey_stage_id],
   });
-  const next = rowsOf(nextRes)[0];
+  const next = rowsOf(nextResult)[0];
   if (!next) return { unlocked_milestone_id: null };
 
   await db.execute({

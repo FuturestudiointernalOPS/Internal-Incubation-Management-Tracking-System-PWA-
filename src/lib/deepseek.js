@@ -44,7 +44,7 @@ async function chat(prompt, modelName = DEFAULT_MODEL, maxTokens = 4096, options
   const messages = Array.isArray(prompt)
     ? prompt
     : [{ role: "user", content: String(prompt ?? "") }];
-  const promptLength = messages.reduce((n, m) => n + String(m?.content ?? "").length, 0);
+  const promptLength = messages.reduce((totalLength, message) => totalLength + String(message?.content ?? "").length, 0);
   const temperature = typeof options.temperature === "number" ? options.temperature : 0.3;
 
   console.log(`[DeepSeek] Sending request — model: ${modelName}, prompt length: ${promptLength}, max_tokens: ${maxTokens}`);
@@ -64,9 +64,9 @@ async function chat(prompt, modelName = DEFAULT_MODEL, maxTokens = 4096, options
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    console.error(`[DeepSeek] API error (${res.status}):`, err.substring(0, 500));
-    throw new Error(`DeepSeek API error (${res.status}): ${err.substring(0, 200)}`);
+    const errorText = await res.text();
+    console.error(`[DeepSeek] API error (${res.status}):`, errorText.substring(0, 500));
+    throw new Error(`DeepSeek API error (${res.status}): ${errorText.substring(0, 200)}`);
   }
 
   const data = await res.json();

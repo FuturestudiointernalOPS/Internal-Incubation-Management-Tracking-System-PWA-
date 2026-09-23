@@ -72,8 +72,8 @@ export async function requireProgramScope({
     }
 
     // Super Admin — resolver semantics (unscoped authority).
-    const ctx = await getAuthorizationContext(session);
-    if (ctx?.isSuperAdmin) return null;
+    const authContext = await getAuthorizationContext(session);
+    if (authContext?.isSuperAdmin) return null;
 
     // Optional capability check, for callers whose route authorises by role
     // list and wants the capability decision centralised too.
@@ -124,8 +124,8 @@ export async function requireProgramScope({
     }
 
     return null;
-  } catch (e) {
-    console.error("[requireProgramScope] error:", e?.message);
+  } catch (error) {
+    console.error("[requireProgramScope] error:", error?.message);
     return denied(
       { success: false, error: "errors.authzSystemFailure" },
       500,

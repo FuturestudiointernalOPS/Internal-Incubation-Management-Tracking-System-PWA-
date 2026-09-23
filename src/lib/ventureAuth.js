@@ -21,8 +21,8 @@ export async function isStaffActorForVenture(db, ventureId, session) {
     // UUID (if passed) back to the code so the assignment check matches.
     let code = ventureId;
     if (typeof ventureId === "string" && ventureId.includes("-") && !ventureId.startsWith("VNT-")) {
-      const v = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [ventureId] });
-      if (v.rows?.[0]?.venture_id) code = v.rows[0].venture_id;
+      const ventureResult = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [ventureId] });
+      if (ventureResult.rows?.[0]?.venture_id) code = ventureResult.rows[0].venture_id;
     }
     return hasActiveVentureAssignment(code, session.cid, db);
   } catch (_) {
@@ -47,17 +47,17 @@ export function lifecycleIsArchived(lifecycle) {
 export async function resolveVentureLifecycle(ventureId, db) {
   try {
     if (typeof ventureId === "string" && ventureId.includes("-") && !ventureId.startsWith("VNT-")) {
-      const byId = await db.execute({
+      const byIdResult = await db.execute({
         sql: "SELECT status, is_archived FROM ventures WHERE id::text = ?",
         args: [ventureId],
       });
-      if (byId.rows?.[0]) return byId.rows[0];
+      if (byIdResult.rows?.[0]) return byIdResult.rows[0];
     }
-    const r = await db.execute({
+    const result = await db.execute({
       sql: "SELECT status, is_archived FROM ventures WHERE venture_id = ?",
       args: [ventureId],
     });
-    return r.rows?.[0] || null;
+    return result.rows?.[0] || null;
   } catch (_) {
     return null;
   }
@@ -108,11 +108,11 @@ export async function requireOperationalVentureAccess({ ventureId, db, session, 
 export async function hasActiveVentureAssignment(ventureCode, sessionCid, db) {
   if (!ventureCode || !sessionCid) return false;
   try {
-    const r = await db.execute({
+    const result = await db.execute({
       sql: "SELECT 1 FROM venture_staff_assignments WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active' LIMIT 1",
       args: [ventureCode, sessionCid],
     });
-    return (r.rows || []).length > 0;
+    return (result.rows || []).length > 0;
   } catch (_) {
     return false;
   }
@@ -134,15 +134,15 @@ export async function requireVentureAccess(ventureId, db) {
     let code = ventureId;
     try {
       if (typeof ventureId === "string" && ventureId.includes("-") && !ventureId.startsWith("VNT-")) {
-        const v = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [ventureId] });
-        if (v.rows?.[0]?.venture_id) code = v.rows[0].venture_id;
+        const ventureResult = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [ventureId] });
+        if (ventureResult.rows?.[0]?.venture_id) code = ventureResult.rows[0].venture_id;
       }
     } catch {}
-    const r = await db.execute({
+    const result = await db.execute({
       sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL LIMIT 1",
       args: [code, session.cid],
     });
-    if (r.rows?.length > 0) {
+    if (result.rows?.length > 0) {
       return { ventureId, session };
     }
     // Delegated staff: explicit Venture assignment grants access (Phase 2).

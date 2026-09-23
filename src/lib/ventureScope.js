@@ -44,11 +44,11 @@ export async function resolveVentureCode(db, ventureId) {
       ventureId.includes("-") &&
       !ventureId.startsWith("VNT-");
     if (!uuidForm) return ventureId;
-    const r = await db.execute({
+    const result = await db.execute({
       sql: "SELECT venture_id FROM ventures WHERE id = ?",
       args: [ventureId],
     });
-    return r.rows?.[0]?.venture_id || null;
+    return result.rows?.[0]?.venture_id || null;
   } catch (_) {
     return null;
   }
@@ -89,14 +89,14 @@ export async function getAssignmentScopes(db, { code, cid }) {
   const ventureCode = await resolveVentureCode(db, code);
   if (!ventureCode) return []; // unknown internal id → nothing can be in scope
   try {
-    const r = await db.execute({
+    const result = await db.execute({
       sql: `SELECT scope_type, scope_ref_type, scope_ref_id, responsibility_code
             FROM venture_staff_assignments
             WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active'
             ORDER BY id ASC`,
       args: [ventureCode, cid],
     });
-    return (r.rows || []).map(normalizeScopeRow).filter(Boolean);
+    return (result.rows || []).map(normalizeScopeRow).filter(Boolean);
   } catch (_) {
     return null;
   }
@@ -118,9 +118,9 @@ export function hasAnyVentureScope(scopes) {
 export function hasVentureWideReach(scopes) {
   if (!Array.isArray(scopes)) return false;
   return scopes.some(
-    (s) =>
-      s &&
-      (s.scope_type === "venture_wide" || s.responsibility_code === "lead_manager"),
+    (scope) =>
+      scope &&
+      (scope.scope_type === "venture_wide" || scope.responsibility_code === "lead_manager"),
   );
 }
 
@@ -145,15 +145,15 @@ export function isTaskInScope(assignmentScopes, task) {
     task.journey_stage_id != null && String(task.journey_stage_id).trim() !== ""
       ? String(task.journey_stage_id)
       : null;
-  for (const s of assignmentScopes) {
-    if (!s) continue;
-    const type = s.scope_type;
-    if (type === "venture_wide") return true;
-    if (!type || s.scope_ref_id == null) continue;
-    const ref = String(s.scope_ref_id);
-    if (type === "task" && taskId && ref === taskId) return true;
-    if (type === "milestone" && milestoneId && ref === milestoneId) return true;
-    if (type === "journey_stage" && stageId && ref === stageId) return true;
+  for (const scope of assignmentScopes) {
+    if (!scope) continue;
+    const scopeType = scope.scope_type;
+    if (scopeType === "venture_wide") return true;
+    if (!scopeType || scope.scope_ref_id == null) continue;
+    const scopeRefId = String(scope.scope_ref_id);
+    if (scopeType === "task" && taskId && scopeRefId === taskId) return true;
+    if (scopeType === "milestone" && milestoneId && scopeRefId === milestoneId) return true;
+    if (scopeType === "journey_stage" && stageId && scopeRefId === stageId) return true;
   }
   return false;
 }
@@ -165,25 +165,25 @@ export function isTaskInScope(assignmentScopes, task) {
  * stage is resolved through venture_milestones. Never throws.
  */
 export async function resolveTaskContext(db, task) {
-  const ctx = {
+  const scopeContext = {
     id: task?.id ?? null,
     milestone_id: task?.milestone_id ?? null,
     journey_stage_id: task?.journey_stage_id ?? null,
   };
   const hasStage =
-    ctx.journey_stage_id != null && String(ctx.journey_stage_id).trim() !== "";
-  if (!hasStage && ctx.milestone_id != null) {
+    scopeContext.journey_stage_id != null && String(scopeContext.journey_stage_id).trim() !== "";
+  if (!hasStage && scopeContext.milestone_id != null) {
     try {
-      const r = await db.execute({
+      const result = await db.execute({
         sql: "SELECT journey_stage_id FROM venture_milestones WHERE id::text = ?",
-        args: [String(ctx.milestone_id)],
+        args: [String(scopeContext.milestone_id)],
       });
-      ctx.journey_stage_id = r.rows?.[0]?.journey_stage_id ?? null;
+      scopeContext.journey_stage_id = result.rows?.[0]?.journey_stage_id ?? null;
     } catch (_) {
-      ctx.journey_stage_id = null;
+      scopeContext.journey_stage_id = null;
     }
   }
-  return ctx;
+  return scopeContext;
 }
 
 /**
@@ -195,20 +195,20 @@ export async function resolveTaskContext(db, task) {
 export async function listTaskScopeContexts(db, { ventureDbId }) {
   if (!ventureDbId) return [];
   try {
-    const r = await db.execute({
+    const result = await db.execute({
       sql: `SELECT t.id, t.milestone_id, m.journey_stage_id
             FROM venture_tasks t
             LEFT JOIN venture_milestones m ON m.id::text = t.milestone_id::text
             WHERE t.venture_id = ?`,
       args: [ventureDbId],
     });
-    return (r.rows || [])
+    return (result.rows || [])
       .map((row) => ({
         id: row?.id ?? null,
         milestone_id: row?.milestone_id ?? null,
         journey_stage_id: row?.journey_stage_id ?? null,
       }))
-      .filter((t) => t.id != null);
+      .filter((task) => task.id != null);
   } catch (_) {
     return null;
   }

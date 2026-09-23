@@ -164,9 +164,9 @@ export function statusWord(id) {
 
 /** Any known stored value → its word; unknown values stay visible, not renamed. */
 export function storedStatusWord(stored) {
-  const s = String(stored || "").trim().toLowerCase();
-  const id = STORED_TO_WORD[s];
-  if (!id) return { id: "unknown", key: null, tone: "not_started", raw: s };
+  const normalized = String(stored || "").trim().toLowerCase();
+  const id = STORED_TO_WORD[normalized];
+  if (!id) return { id: "unknown", key: null, tone: "not_started", raw: normalized };
   return statusWord(id);
 }
 

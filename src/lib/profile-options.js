@@ -97,7 +97,7 @@ export function getCountries(locale = "en") {
     return { value: code, label };
   }).filter(Boolean);
 
-  return options.sort((a, b) => a.label.localeCompare(b.label, locale));
+  return options.sort((first, second) => first.label.localeCompare(second.label, locale));
 }
 
 /**
@@ -117,7 +117,7 @@ export function getLanguages(locale = "en") {
     return { value: code, label };
   }).filter(Boolean);
 
-  return options.sort((a, b) => a.label.localeCompare(b.label, locale));
+  return options.sort((first, second) => first.label.localeCompare(second.label, locale));
 }
 
 /**
@@ -135,7 +135,7 @@ export function resolveCountryCode(name) {
   const target = raw.toLowerCase();
   for (const locale of ["en", "fr"]) {
     const found = getCountries(locale).find(
-      (c) => c.label.toLowerCase() === target,
+      (option) => option.label.toLowerCase() === target,
     );
     if (found) return found.value;
   }

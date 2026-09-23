@@ -63,8 +63,8 @@ export async function resolveVentureScopedDecision({
   if (!session) return { allowed: false, decision: "unauthenticated" };
 
   // Super Admin — resolver semantics (no per-record scope).
-  const ctx = await getAuthorizationContext(session);
-  if (ctx?.isSuperAdmin) {
+  const authContext = await getAuthorizationContext(session);
+  if (authContext?.isSuperAdmin) {
     return { allowed: true, path: "super-admin", decision: "super-admin" };
   }
 
@@ -163,8 +163,8 @@ export async function requireVentureScopedAccess({
           ),
         };
     }
-  } catch (e) {
-    console.error("[requireVentureScopedAccess] error:", e?.message);
+  } catch (error) {
+    console.error("[requireVentureScopedAccess] error:", error?.message);
     return {
       error: denied(
         { success: false, error: "errors.authzSystemFailure" },

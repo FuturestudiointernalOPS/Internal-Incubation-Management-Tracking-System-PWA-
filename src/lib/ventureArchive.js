@@ -20,16 +20,16 @@ function rowsOf(result) {
 export async function taskHasFiledWork(db, taskId) {
   if (taskId == null) return false;
   try {
-    const r = await db.execute({
+    const result = await db.execute({
       sql: `SELECT 1 FROM venture_task_submissions WHERE task_id = ? LIMIT 1`,
       args: [String(taskId)],
     }).catch(() => ({ rows: [] }));
-    if (rowsOf(r).length > 0) return true;
-    const rev = await db.execute({
+    if (rowsOf(result).length > 0) return true;
+    const reviewResult = await db.execute({
       sql: `SELECT 1 FROM venture_task_reviews WHERE task_id = ? LIMIT 1`,
       args: [String(taskId)],
     }).catch(() => ({ rows: [] }));
-    return rowsOf(rev).length > 0;
+    return rowsOf(reviewResult).length > 0;
   } catch (_) {
     // Fail safe on the conservative side: treat as filed.
     return true;
@@ -40,25 +40,25 @@ export async function taskHasFiledWork(db, taskId) {
 export async function milestoneHasFiledWork(db, milestoneId) {
   if (milestoneId == null) return false;
   try {
-    const del = await db.execute({
+    const deliverableResult = await db.execute({
       sql: "SELECT 1 FROM venture_deliverables WHERE milestone_id = ? LIMIT 1",
       args: [String(milestoneId)],
     }).catch(() => ({ rows: [] }));
-    if (rowsOf(del).length > 0) return true;
-    const sub = await db.execute({
+    if (rowsOf(deliverableResult).length > 0) return true;
+    const submissionResult = await db.execute({
       sql: `SELECT 1 FROM venture_task_submissions s
             JOIN venture_tasks t ON t.id = s.task_id
             WHERE t.milestone_id = ? LIMIT 1`,
       args: [String(milestoneId)],
     }).catch(() => ({ rows: [] }));
-    if (rowsOf(sub).length > 0) return true;
-    const rev = await db.execute({
+    if (rowsOf(submissionResult).length > 0) return true;
+    const reviewResult = await db.execute({
       sql: `SELECT 1 FROM venture_task_reviews vr
             JOIN venture_tasks t ON t.id = vr.task_id
             WHERE t.milestone_id = ? LIMIT 1`,
       args: [String(milestoneId)],
     }).catch(() => ({ rows: [] }));
-    return rowsOf(rev).length > 0;
+    return rowsOf(reviewResult).length > 0;
   } catch (_) {
     return true; // conservative
   }
@@ -102,8 +102,8 @@ export async function archiveMilestone(db, { milestoneId, actorCid = null }) {
     sql: "SELECT id FROM venture_tasks WHERE milestone_id = ? AND (is_archived = FALSE OR is_archived IS NULL)",
     args: [String(milestoneId)],
   }).catch(() => ({ rows: [] }));
-  for (const t of rowsOf(tasks)) {
-    await archiveTask(db, { taskId: t.id, actorCid }).catch(() => {});
+  for (const task of rowsOf(tasks)) {
+    await archiveTask(db, { taskId: task.id, actorCid }).catch(() => {});
   }
   return { archived: true };
 }
@@ -135,7 +135,7 @@ export async function applyBulk(db, { rows, actorCid = null, action = "archive",
   const blocked = [];
   for (const row of rows || []) {
     try {
-      const out =
+      const outcome =
         kind === "milestone"
           ? action === "restore"
             ? await restoreMilestone(db, { milestoneId: row.id })
@@ -143,9 +143,9 @@ export async function applyBulk(db, { rows, actorCid = null, action = "archive",
           : action === "restore"
             ? await restoreTask(db, { taskId: row.id })
             : await archiveTask(db, { taskId: row.id, actorCid });
-      if (out?.error) blocked.push({ id: row.id, title: row.title || row.id, reason: out.error });
-      else if (out?.restored) restored.push(row);
-      else if (out?.archived) archived.push(row);
+      if (outcome?.error) blocked.push({ id: row.id, title: row.title || row.id, reason: outcome.error });
+      else if (outcome?.restored) restored.push(row);
+      else if (outcome?.archived) archived.push(row);
     } catch (_) {
       blocked.push({ id: row.id, title: row.title || row.id, reason: "Could not process this item." });
     }

@@ -32,8 +32,8 @@ export async function sendEmail({ to, subject, body, isHtml, fromName }) {
     }
 
     return { success: true, data };
-  } catch (e) {
-    console.error("Mailer: Send error:", e.message);
-    return { success: false, error: e.message };
+  } catch (error) {
+    console.error("Mailer: Send error:", error.message);
+    return { success: false, error: error.message };
   }
 }

@@ -34,7 +34,7 @@ let recentPoolErrors = [];
 /** Forget failures older than the window, relative to `now`. */
 const prunePoolErrors = (now) => {
   const cutoff = now - POOL_ERROR_WINDOW_MS;
-  recentPoolErrors = recentPoolErrors.filter((at) => at > cutoff);
+  recentPoolErrors = recentPoolErrors.filter((failedAt) => failedAt > cutoff);
 };
 
 /** Record one failure; return how many recent ones remain (including it). */
@@ -86,7 +86,7 @@ const stripLeadingComments = (sql) =>
 
 const isMaintenanceDdl = (sql) => {
   const bare = stripLeadingComments(sql);
-  return MAINTENANCE_DDL_PATTERNS.some((re) => re.test(bare));
+  return MAINTENANCE_DDL_PATTERNS.some((pattern) => pattern.test(bare));
 };
 
 const SKIP_RUNTIME_SCHEMA_MAINTENANCE =
@@ -223,8 +223,8 @@ const getPool = () => {
     });
 
     return pgPool;
-  } catch (e) {
-    console.error(" forensics | DB Pool Creation Error:", e.message);
+  } catch (error) {
+    console.error(" forensics | DB Pool Creation Error:", error.message);
     return null;
   }
 };
@@ -298,7 +298,7 @@ const execute = async (queryObj) => {
 
     return {
       rows: result.rows,
-      columns: result.fields ? result.fields.map((f) => f.name) : [],
+      columns: result.fields ? result.fields.map((field) => field.name) : [],
       rowsAffected: result.rowCount,
       lastInsertRowid: result.rows[0]?.id || null,
     };
@@ -320,7 +320,7 @@ const execute = async (queryObj) => {
       // Bounded recovery: only tear down the whole pool when allowed by the
       // backoff window; otherwise this is a transient per-connection flake.
       if (!resetPool()) {
-        await new Promise((r) => setTimeout(r, 150)); // small jitter before retry
+        await new Promise((resolve) => setTimeout(resolve, 150)); // small jitter before retry
       }
       const freshPool = getPool();
       if (freshPool) {
@@ -332,7 +332,7 @@ const execute = async (queryObj) => {
           );
           return {
             rows: retryResult.rows,
-            columns: retryResult.fields ? retryResult.fields.map((f) => f.name) : [],
+            columns: retryResult.fields ? retryResult.fields.map((field) => field.name) : [],
             rowsAffected: retryResult.rowCount,
             lastInsertRowid: retryResult.rows[0]?.id || null,
           };
@@ -378,10 +378,10 @@ const applyStatementTimeout = () => {
               END $$`,
       args: [],
     })
-    .catch((e) => {
+    .catch((error) => {
       console.warn(
         " forensics | statement_timeout not applied:",
-        e.message,
+        error.message,
       );
       // Deliberately NOT reset: a privilege/DDL failure must not retry on every
       // initDb() call (retry storm). One attempt per process is enough.
@@ -411,11 +411,11 @@ db.transaction = async (callback) => {
         count++;
         return `$${count}`;
       });
-      const r = await client.query(pgSql, args);
+      const queryResult = await client.query(pgSql, args);
       return {
-        rows: r.rows,
-        rowsAffected: r.rowCount,
-        lastInsertRowid: r.rows[0]?.id || null,
+        rows: queryResult.rows,
+        rowsAffected: queryResult.rowCount,
+        lastInsertRowid: queryResult.rows[0]?.id || null,
       };
     });
     await client.query("COMMIT");

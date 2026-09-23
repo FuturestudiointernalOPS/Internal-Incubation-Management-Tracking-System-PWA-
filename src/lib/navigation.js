@@ -10,7 +10,7 @@ function getStack() {
   if (typeof window === "undefined") return [];
   try {
     const raw = JSON.parse(sessionStorage.getItem(STACK_KEY) || "[]");
-    return Array.isArray(raw) ? raw.filter((x) => typeof x === "string") : [];
+    return Array.isArray(raw) ? raw.filter((entry) => typeof entry === "string") : [];
   } catch {
     return [];
   }

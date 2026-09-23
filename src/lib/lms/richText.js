@@ -78,7 +78,7 @@ const HTML_ESCAPES = {
 };
 
 export function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
+  return String(value ?? "").replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]);
 }
 
 /** Does this string already hold formatting (as opposed to legacy plain text)? */
@@ -106,9 +106,9 @@ export function plainTextToHtml(value) {
 
 /** What the editor opens with: stored fragment as is, plain text as paragraphs. */
 export function toEditorHtml(value) {
-  const raw = String(value ?? "");
-  if (!raw.trim()) return "";
-  return isRichTextHtml(raw) ? raw : plainTextToHtml(raw);
+  const rawHtml = String(value ?? "");
+  if (!rawHtml.trim()) return "";
+  return isRichTextHtml(rawHtml) ? rawHtml : plainTextToHtml(rawHtml);
 }
 
 /** The text without any formatting — used for emptiness and short previews. */
@@ -132,29 +132,29 @@ export function isRichTextEmpty(value) {
 
 /** Remove whole blocked elements and stray comments/doctypes. */
 function stripBlockedElements(html) {
-  let out = html.replace(/<!--[\s\S]*?-->/g, "").replace(/<![^>]*>/g, "");
+  let cleanedHtml = html.replace(/<!--[\s\S]*?-->/g, "").replace(/<![^>]*>/g, "");
   for (const name of BLOCKED_ELEMENTS) {
-    out = out.replace(
+    cleanedHtml = cleanedHtml.replace(
       new RegExp(`<${name}\\b[^>]*>[\\s\\S]*?<\\/${name}\\s*>`, "gi"),
       "",
     );
-    out = out.replace(new RegExp(`<\\/?${name}\\b[^>]*>`, "gi"), "");
+    cleanedHtml = cleanedHtml.replace(new RegExp(`<\\/?${name}\\b[^>]*>`, "gi"), "");
   }
-  return out;
+  return cleanedHtml;
 }
 
 /** The href of an `<a>`, kept only when it is an absolute http(s) link. */
 function safeHref(tag) {
   const match = tag.match(/\shref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/i);
-  const raw = String(match?.[1] ?? match?.[2] ?? match?.[3] ?? "").trim();
-  if (!raw) return null;
+  const rawHref = String(match?.[1] ?? match?.[2] ?? match?.[3] ?? "").trim();
+  if (!rawHref) return null;
   try {
-    const parsed = new URL(raw);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    const parsedUrl = new URL(rawHref);
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") return null;
   } catch {
     return null;
   }
-  return raw;
+  return rawHref;
 }
 
 /**

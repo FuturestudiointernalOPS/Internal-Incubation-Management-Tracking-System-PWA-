@@ -12,7 +12,7 @@
  */
 
 function findOrCreate(list, keyField, id, seed) {
-  let node = list.find((n) => String(n[keyField]) === String(id));
+  let node = list.find((candidate) => String(candidate[keyField]) === String(id));
   if (!node) {
     node = { ...seed, [keyField]: id, count: 0 };
     list.push(node);

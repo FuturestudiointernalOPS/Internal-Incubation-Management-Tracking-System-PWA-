@@ -36,11 +36,11 @@ export async function notifyAndEmailVentureFounders(db, { dbId, title, message, 
   // Venture-facing email to founders via the centralized provider.
   let sent = 0;
   try {
-    const vRes = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [dbId] });
-    const code = vRes.rows?.[0]?.venture_id;
+    const ventureResult = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [dbId] });
+    const code = ventureResult.rows?.[0]?.venture_id;
     if (!code) return { sent: 0 };
 
-    const fRes = await db.execute({
+    const foundersResult = await db.execute({
       sql: `SELECT DISTINCT c.email, c.name
             FROM venture_members vm
             JOIN contacts c ON (c.cid = vm.contact_id OR c.cid = vm.user_cid)
@@ -50,14 +50,14 @@ export async function notifyAndEmailVentureFounders(db, { dbId, title, message, 
     });
 
     const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:24px">
-      ${(emailLines || []).map((l) => `<p style="margin:8px 0;color:#334155;font-size:15px;line-height:1.5">${l}</p>`).join("")}
+      ${(emailLines || []).map((line) => `<p style="margin:8px 0;color:#334155;font-size:15px;line-height:1.5">${line}</p>`).join("")}
       <p style="margin:22px 0 0;color:#94a3b8;font-size:12px">ImpactOS · Future Studio</p>
     </div>`;
 
-    for (const f of fRes.rows || []) {
+    for (const founder of foundersResult.rows || []) {
       try {
-        const r = await sendEmail({ to: f.email, subject: emailSubject, html });
-        if (r && r.success !== false) sent += 1;
+        const sendResult = await sendEmail({ to: founder.email, subject: emailSubject, html });
+        if (sendResult && sendResult.success !== false) sent += 1;
       } catch (_) {}
     }
   } catch (_) {}
@@ -73,11 +73,11 @@ export async function notifyAndEmailVentureFounders(db, { dbId, title, message, 
 export async function notifyVentureCoach(db, { dbId, coachContactId, title, message, emailSubject, emailLines = [], context = {}, templateKey = null, params = null, dedupeKey = null }) {
   try {
     if (!coachContactId) return { sent: 0, skipped: true };
-    const cRes = await db.execute({
+    const contactResult = await db.execute({
       sql: "SELECT cid, name, email FROM contacts WHERE cid = ? AND (deleted = 0 OR deleted IS NULL) LIMIT 1",
       args: [String(coachContactId)],
     });
-    const contact = cRes.rows?.[0];
+    const contact = contactResult.rows?.[0];
     if (!contact) return { sent: 0, skipped: true };
 
     const { createVentureNotification } = await import("@/lib/ventures");
@@ -93,11 +93,11 @@ export async function notifyVentureCoach(db, { dbId, coachContactId, title, mess
 
     if (!contact.email) return { sent: 0 };
     const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:24px">
-      ${(emailLines || []).map((l) => `<p style="margin:8px 0;color:#334155;font-size:15px;line-height:1.5">${l}</p>`).join("")}
+      ${(emailLines || []).map((line) => `<p style="margin:8px 0;color:#334155;font-size:15px;line-height:1.5">${line}</p>`).join("")}
       <p style="margin:22px 0 0;color:#94a3b8;font-size:12px">ImpactOS · Future Studio</p>
     </div>`;
-    const r = await sendEmail({ to: contact.email, subject: emailSubject, html });
-    return { sent: r && r.success !== false ? 1 : 0 };
+    const sendResult = await sendEmail({ to: contact.email, subject: emailSubject, html });
+    return { sent: sendResult && sendResult.success !== false ? 1 : 0 };
   } catch (_) {
     return { sent: 0 };
   }
@@ -122,37 +122,37 @@ export async function notifyVentureLeadManagers(db, { dbId, ventureCode, title, 
     // the founder helper does.
     let code = ventureCode || null;
     if (!code && dbId) {
-      const vRes = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [dbId] });
-      code = vRes.rows?.[0]?.venture_id || null;
+      const ventureResult = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [dbId] });
+      code = ventureResult.rows?.[0]?.venture_id || null;
     }
     if (!code) return { sent: 0, skipped: true };
 
-    const lmRes = await db.execute({
+    const leadManagersResult = await db.execute({
       sql: `SELECT staff_contact_id FROM venture_staff_assignments
             WHERE venture_id = ? AND responsibility_code = 'lead_manager' AND status = 'active'`,
       args: [code],
     });
 
-    const excluded = new Set((excludeCids || []).filter(Boolean).map((c) => String(c)));
+    const excluded = new Set((excludeCids || []).filter(Boolean).map((excludeCid) => String(excludeCid)));
     const seen = new Set();
     let sent = 0;
 
     const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:24px">
-      ${(emailLines || []).map((l) => `<p style="margin:8px 0;color:#334155;font-size:15px;line-height:1.5">${l}</p>`).join("")}
+      ${(emailLines || []).map((line) => `<p style="margin:8px 0;color:#334155;font-size:15px;line-height:1.5">${line}</p>`).join("")}
       <p style="margin:22px 0 0;color:#94a3b8;font-size:12px">ImpactOS · Future Studio</p>
     </div>`;
 
-    for (const row of lmRes.rows || []) {
+    for (const row of leadManagersResult.rows || []) {
       const cid = row?.staff_contact_id ? String(row.staff_contact_id) : null;
       if (!cid || excluded.has(cid) || seen.has(cid)) continue;
       seen.add(cid);
       // Isolated per recipient: one bad row never blocks the rest.
       try {
-        const cRes = await db.execute({
+        const contactResult = await db.execute({
           sql: "SELECT cid, name, email FROM contacts WHERE cid = ? AND (deleted = 0 OR deleted IS NULL) LIMIT 1",
           args: [cid],
         });
-        const contact = cRes.rows?.[0];
+        const contact = contactResult.rows?.[0];
         if (!contact) continue;
 
         const { createVentureNotification } = await import("@/lib/ventures");
@@ -169,8 +169,8 @@ export async function notifyVentureLeadManagers(db, { dbId, ventureCode, title, 
         });
 
         if (!contact.email) continue;
-        const r = await sendEmail({ to: contact.email, subject: emailSubject, html });
-        if (r && r.success !== false) sent += 1;
+        const sendResult = await sendEmail({ to: contact.email, subject: emailSubject, html });
+        if (sendResult && sendResult.success !== false) sent += 1;
       } catch (_) {}
     }
     return { sent };

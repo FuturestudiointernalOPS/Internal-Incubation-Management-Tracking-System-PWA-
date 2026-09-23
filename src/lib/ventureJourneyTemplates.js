@@ -20,10 +20,10 @@ function rowsOf(result) {
 function newUuid() {
   return typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
-    : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-        const r = (Math.random() * 16) | 0;
-        const v = c === "x" ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
+    : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+        const random = (Math.random() * 16) | 0;
+        const value = char === "x" ? random : (random & 0x3) | 0x8;
+        return value.toString(16);
       });
 }
 
@@ -52,13 +52,13 @@ export async function listJourneyTemplates(db) {
  * { success, template_id, name, stages, milestones, tasks }.
  */
 export async function saveJourneyAsTemplate(db, { dbId, name, description = null, actorCid = null }) {
-  const stageRes = await db.execute({
+  const stagesResult = await db.execute({
     sql: `SELECT * FROM venture_journey_stages WHERE venture_id = ?
           ORDER BY stage_order ASC`,
     args: [dbId],
   });
   // Archived (soft-deleted) journeys are never captured into a new template.
-  const stages = rowsOf(stageRes).filter((s) => s.is_archived !== true);
+  const stages = rowsOf(stagesResult).filter((stage) => stage.is_archived !== true);
   if (stages.length === 0) return { error: "This Venture has no journey stages to save yet." };
 
   const templateId = newUuid();
@@ -75,36 +75,36 @@ export async function saveJourneyAsTemplate(db, { dbId, name, description = null
 
     for (const stage of stages) {
       stageCount += 1;
-      const tplStageId = newUuid();
+      const templateStageId = newUuid();
       await query(
         `INSERT INTO venture_journey_template_stages
            (id, template_id, name, description, objective, stage_order)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [tplStageId, templateId, stage.name || "Untitled stage", stage.description || null, stage.objective || null, stageCount],
+        [templateStageId, templateId, stage.name || "Untitled stage", stage.description || null, stage.objective || null, stageCount],
       );
 
-      const msRes = await query(
+      const milestonesResult = await query(
         `SELECT * FROM venture_milestones WHERE journey_stage_id = ?
          ORDER BY COALESCE(display_order, 0), created_at ASC`,
         [stage.id],
       );
-      for (const ms of rowsOf(msRes)) {
+      for (const milestone of rowsOf(milestonesResult)) {
         milestoneCount += 1;
-        const tplMsId = newUuid();
+        const templateMilestoneId = newUuid();
         await query(
           `INSERT INTO venture_journey_template_milestones
              (id, stage_id, title, description, objective, priority, display_order)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [tplMsId, tplStageId, ms.title, ms.description || null, ms.objective || null, ms.priority || "medium", ms.display_order ?? 0],
+          [templateMilestoneId, templateStageId, milestone.title, milestone.description || null, milestone.objective || null, milestone.priority || "medium", milestone.display_order ?? 0],
         );
 
-        const taskRes = await query(
+        const tasksResult = await query(
           `SELECT * FROM venture_tasks
            WHERE milestone_id = ? AND parent_task_id IS NULL
            ORDER BY COALESCE(display_order, 0), created_at ASC`,
-          [ms.id],
+          [milestone.id],
         );
-        for (const tk of rowsOf(taskRes)) {
+        for (const task of rowsOf(tasksResult)) {
           taskCount += 1;
           await query(
             `INSERT INTO venture_journey_template_tasks
@@ -112,12 +112,12 @@ export async function saveJourneyAsTemplate(db, { dbId, name, description = null
                 review_required, required_deliverable_type, display_order)
              VALUES (?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?)`,
             [
-              newUuid(), tplMsId, tk.title || "Untitled task", tk.description || null,
-              tk.priority || "medium",
-              JSON.stringify(typeof tk.labels === "string" ? safeParse(tk.labels, []) : tk.labels || []),
-              JSON.stringify(typeof tk.checklist === "string" ? safeParse(tk.checklist, []) : tk.checklist || []),
-              tk.review_required === true || tk.review_required === 1 || tk.review_required === "true" ? "TRUE" : "FALSE",
-              tk.required_deliverable_type || null, tk.display_order ?? 0,
+              newUuid(), templateMilestoneId, task.title || "Untitled task", task.description || null,
+              task.priority || "medium",
+              JSON.stringify(typeof task.labels === "string" ? safeParse(task.labels, []) : task.labels || []),
+              JSON.stringify(typeof task.checklist === "string" ? safeParse(task.checklist, []) : task.checklist || []),
+              task.review_required === true || task.review_required === 1 || task.review_required === "true" ? "TRUE" : "FALSE",
+              task.required_deliverable_type || null, task.display_order ?? 0,
             ],
           );
         }
@@ -150,11 +150,11 @@ export async function applyJourneyTemplate(db, { dbId, templateId, actorCid = nu
     return { error: "This Venture already has journey stages. Remove them first if you want to generate the journey from a template." };
   }
 
-  const metaRes = await db.execute({
+  const templateMetaResult = await db.execute({
     sql: "SELECT id, name FROM venture_journey_templates WHERE id = ?",
     args: [templateId],
   });
-  const template = rowsOf(metaRes)[0];
+  const template = rowsOf(templateMetaResult)[0];
   if (!template) return { error: "Template not found." };
 
   let stageCount = 0;
@@ -162,36 +162,36 @@ export async function applyJourneyTemplate(db, { dbId, templateId, actorCid = nu
   let taskCount = 0;
 
   await db.transaction(async (query) => {
-    const stageRes = await query(
+    const templateStagesResult = await query(
       `SELECT * FROM venture_journey_template_stages WHERE template_id = ?
        ORDER BY stage_order ASC`,
       [templateId],
     );
-    const tplStages = rowsOf(stageRes);
-    if (tplStages.length === 0) return { error: "Template has no stages." };
+    const templateStages = rowsOf(templateStagesResult);
+    if (templateStages.length === 0) return { error: "Template has no stages." };
 
-    for (let i = 0; i < tplStages.length; i++) {
-      const ts = tplStages[i];
+    for (let i = 0; i < templateStages.length; i++) {
+      const templateStage = templateStages[i];
       stageCount += 1;
-      const stageIns = await query(
+      const stageInsertResult = await query(
         `INSERT INTO venture_journey_stages
            (venture_id, name, description, objective, stage_order, status,
             source_template_type, source_template_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        [dbId, ts.name, ts.description || null, ts.objective || null, stageCount, i === 0 ? "active" : "locked", "journey", String(templateId)],
+        [dbId, templateStage.name, templateStage.description || null, templateStage.objective || null, stageCount, i === 0 ? "active" : "locked", "journey", String(templateId)],
       );
-      const newStageId = rowsOf(stageIns)[0]?.id;
+      const newStageId = rowsOf(stageInsertResult)[0]?.id;
 
-      const msRes = await query(
+      const templateMilestonesResult = await query(
         `SELECT * FROM venture_journey_template_milestones WHERE stage_id = ?
          ORDER BY COALESCE(display_order, 0), created_at ASC`,
-        [ts.id],
+        [templateStage.id],
       );
-      const tplMs = rowsOf(msRes);
-      for (let mi = 0; mi < tplMs.length; mi++) {
-        const tms = tplMs[mi];
+      const templateMilestones = rowsOf(templateMilestonesResult);
+      for (let mi = 0; mi < templateMilestones.length; mi++) {
+        const templateMilestone = templateMilestones[mi];
         milestoneCount += 1;
-        const newMsId = newUuid();
+        const newMilestoneId = newUuid();
         // Sequential release (Phase 3): first milestone of each fresh stage is
         // available; the rest start locked until the previous one completes.
         const msStatus = mi === 0 ? "not_started" : "locked";
@@ -201,17 +201,17 @@ export async function applyJourneyTemplate(db, { dbId, templateId, actorCid = nu
               priority, display_order, journey_stage_id, created_by)
            VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
           [
-            newMsId, dbId, tms.title, tms.description || null, tms.objective || null, msStatus,
-            tms.priority || "medium", tms.display_order ?? 0, newStageId, actorCid || null,
+            newMilestoneId, dbId, templateMilestone.title, templateMilestone.description || null, templateMilestone.objective || null, msStatus,
+            templateMilestone.priority || "medium", templateMilestone.display_order ?? 0, newStageId, actorCid || null,
           ],
         );
 
-        const taskRes = await query(
+        const templateTasksResult = await query(
           `SELECT * FROM venture_journey_template_tasks WHERE milestone_id = ?
            ORDER BY COALESCE(display_order, 0), created_at ASC`,
-          [tms.id],
+          [templateMilestone.id],
         );
-        for (const ttk of rowsOf(taskRes)) {
+        for (const templateTask of rowsOf(templateTasksResult)) {
           taskCount += 1;
           await query(
             `INSERT INTO venture_tasks
@@ -220,12 +220,12 @@ export async function applyJourneyTemplate(db, { dbId, templateId, actorCid = nu
                 required_deliverable_type)
              VALUES (?, ?, ?, ?, 'backlog', ?, ?::jsonb, ?::jsonb, ?, ?, ?)`,
             [
-              dbId, newMsId, ttk.title, ttk.description || null, ttk.priority || "medium",
-              JSON.stringify(typeof ttk.labels === "string" ? safeParse(ttk.labels, []) : ttk.labels || []),
-              JSON.stringify(typeof ttk.checklist === "string" ? safeParse(ttk.checklist, []) : ttk.checklist || []),
-              ttk.display_order ?? 0,
-              ttk.review_required === true || ttk.review_required === 1 || ttk.review_required === "true" ? "TRUE" : "FALSE",
-              ttk.required_deliverable_type || null,
+              dbId, newMilestoneId, templateTask.title, templateTask.description || null, templateTask.priority || "medium",
+              JSON.stringify(typeof templateTask.labels === "string" ? safeParse(templateTask.labels, []) : templateTask.labels || []),
+              JSON.stringify(typeof templateTask.checklist === "string" ? safeParse(templateTask.checklist, []) : templateTask.checklist || []),
+              templateTask.display_order ?? 0,
+              templateTask.review_required === true || templateTask.review_required === 1 || templateTask.review_required === "true" ? "TRUE" : "FALSE",
+              templateTask.required_deliverable_type || null,
             ],
           );
         }

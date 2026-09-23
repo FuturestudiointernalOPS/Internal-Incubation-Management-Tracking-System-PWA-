@@ -178,8 +178,8 @@ export async function signSectionResourcePath(
       .createSignedUrl(path, expiresIn);
     if (error) return null;
     return data?.signedUrl || null;
-  } catch (e) {
-    console.error("[LMS] section resource signing failed:", e.message);
+  } catch (error) {
+    console.error("[LMS] section resource signing failed:", error.message);
     return null;
   }
 }
@@ -197,8 +197,8 @@ export async function removeSectionResourceFile(storagePath) {
     const { error } = await supabase.storage.from(SECTION_RESOURCE_BUCKET).remove([path]);
     if (error) throw error;
     return true;
-  } catch (e) {
-    console.error("[LMS] section resource file removal failed:", e.message);
+  } catch (error) {
+    console.error("[LMS] section resource file removal failed:", error.message);
     return false;
   }
 }

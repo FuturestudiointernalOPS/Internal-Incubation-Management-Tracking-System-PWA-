@@ -70,9 +70,9 @@ export function rowsToCsv(rows) {
     .map((cells) =>
       (cells || [])
         .map((cell) => {
-          const s = cell == null ? "" : String(cell);
-          if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
-          return s;
+          const cellText = cell == null ? "" : String(cell);
+          if (/[",\r\n]/.test(cellText)) return '"' + cellText.replace(/"/g, '""') + '"';
+          return cellText;
         })
         .join(",")
     )

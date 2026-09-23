@@ -21,8 +21,8 @@ export async function resolveVentureCode(db, ventureId) {
   let code = ventureId;
   if (typeof ventureId === "string" && ventureId.includes("-") && !ventureId.startsWith("VNT-")) {
     try {
-      const byId = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id::text = ?", args: [ventureId] });
-      if (byId.rows?.[0]) code = byId.rows[0].venture_id;
+      const lookupResult = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id::text = ?", args: [ventureId] });
+      if (lookupResult.rows?.[0]) code = lookupResult.rows[0].venture_id;
     } catch (_) {}
   }
   return code;
@@ -42,13 +42,13 @@ export async function resolvePlanAccess(db, ventureId, session) {
   const code = await resolveVentureCode(db, ventureId);
   if (isGlobalRole(session.role)) return { ok: true, code, session, global: true, assignments: [] };
   if (!session.cid) return { ok: false };
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT a.id, a.responsibility_code, a.scope_type
           FROM venture_staff_assignments a
           WHERE a.venture_id = ? AND a.staff_contact_id = ? AND a.status = 'active'`,
     args: [code, session.cid],
   });
-  const assignments = r.rows || [];
+  const assignments = result.rows || [];
   if (assignments.length === 0) return { ok: false };
   return { ok: true, code, session, global: false, assignments };
 }
@@ -56,11 +56,11 @@ export async function resolvePlanAccess(db, ventureId, session) {
 /** Cell-level check — GLOBAL matrix (single source of truth; no per-Venture overrides). */
 async function cellAllows(db, responsibilityCode, action) {
   try {
-    const def = await db.execute({
+    const matrixRow = await db.execute({
       sql: "SELECT allowed FROM venture_permission_matrix WHERE responsibility_code = ? AND area = 'operating_plan' AND action = ?",
       args: [responsibilityCode, action],
     });
-    return !!def.rows?.[0]?.allowed;
+    return !!matrixRow.rows?.[0]?.allowed;
   } catch (_) {
     return false;
   }
@@ -74,11 +74,11 @@ async function cellAllows(db, responsibilityCode, action) {
 export async function allowsPlanAction(db, access, action) {
   if (access.global) return true;
   const writeActions = ["create", "edit", "manage", "delete"];
-  for (const a of access.assignments) {
-    const cellOk = await cellAllows(db, a.responsibility_code, action);
+  for (const assignment of access.assignments) {
+    const cellOk = await cellAllows(db, assignment.responsibility_code, action);
     if (!cellOk) continue;
     if (!writeActions.includes(action)) return true;
-    if (String(a.scope_type || "") === "venture_wide") return true;
+    if (String(assignment.scope_type || "") === "venture_wide") return true;
   }
   return false;
 }
@@ -86,7 +86,7 @@ export async function allowsPlanAction(db, access, action) {
 // ── Reusable templates (Phase 5) ───────────────────────────────────────────
 
 export async function listPlanTemplates(db, { activeOnly = true } = {}) {
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT t.*,
       (SELECT COUNT(*) FROM venture_plan_template_sections s WHERE s.template_id = t.id) AS section_count
       FROM venture_plan_templates t
@@ -94,28 +94,28 @@ export async function listPlanTemplates(db, { activeOnly = true } = {}) {
       ORDER BY t.name`,
     args: [activeOnly ? 1 : 0],
   });
-  return r.rows || [];
+  return result.rows || [];
 }
 
 /** Save a live plan (structure only) as a reusable template. */
 export async function createTemplateFromPlan(db, { planId, name, description, actorCid = null }) {
-  const planRes = await db.execute({ sql: "SELECT * FROM venture_operating_plans WHERE id = ?", args: [planId] });
-  const plan = planRes.rows?.[0];
+  const planResult = await db.execute({ sql: "SELECT * FROM venture_operating_plans WHERE id = ?", args: [planId] });
+  const plan = planResult.rows?.[0];
   if (!plan) return { error: "Plan not found." };
 
-  const tRes = await db.execute({
+  const templateResult = await db.execute({
     sql: "INSERT INTO venture_plan_templates (name, description, created_by) VALUES (?,?,?) RETURNING id",
     args: [name || plan.name, description || plan.objective || null, actorCid],
   });
-  const templateId = tRes.rows?.[0]?.id;
-  const secRes = await db.execute({
+  const templateId = templateResult.rows?.[0]?.id;
+  const sectionsResult = await db.execute({
     sql: "SELECT title, objective, instructions, sort_order FROM venture_plan_sections WHERE plan_id = ? ORDER BY sort_order, id",
     args: [planId],
   });
-  for (const s of secRes.rows || []) {
+  for (const section of sectionsResult.rows || []) {
     await db.execute({
       sql: "INSERT INTO venture_plan_template_sections (template_id, title, objective, instructions, sort_order) VALUES (?,?,?,?,?)",
-      args: [templateId, s.title, s.objective, s.instructions, s.sort_order || 0],
+      args: [templateId, section.title, section.objective, section.instructions, section.sort_order || 0],
     });
   }
   return { success: true, id: templateId };
@@ -123,23 +123,23 @@ export async function createTemplateFromPlan(db, { planId, name, description, ac
 
 /** Apply a template to a Venture — copies structure ONLY (never data). */
 export async function applyTemplateToVenture(db, { templateId, ventureCode, name = null, actorCid = null }) {
-  const tRes = await db.execute({ sql: "SELECT * FROM venture_plan_templates WHERE id = ? AND is_active = TRUE", args: [templateId] });
-  const template = tRes.rows?.[0];
+  const templateResult = await db.execute({ sql: "SELECT * FROM venture_plan_templates WHERE id = ? AND is_active = TRUE", args: [templateId] });
+  const template = templateResult.rows?.[0];
   if (!template) return { error: "Template not found or inactive." };
 
-  const pRes = await db.execute({
+  const planResult = await db.execute({
     sql: "INSERT INTO venture_operating_plans (venture_id, name, objective, status, created_by) VALUES (?,?,?,?,?) RETURNING id",
     args: [ventureCode, name || template.name, template.description || null, "draft", actorCid],
   });
-  const planId = pRes.rows?.[0]?.id;
-  const secRes = await db.execute({
+  const planId = planResult.rows?.[0]?.id;
+  const sectionsResult = await db.execute({
     sql: "SELECT title, objective, instructions, sort_order FROM venture_plan_template_sections WHERE template_id = ? ORDER BY sort_order, id",
     args: [templateId],
   });
-  for (const s of secRes.rows || []) {
+  for (const section of sectionsResult.rows || []) {
     await db.execute({
       sql: "INSERT INTO venture_plan_sections (plan_id, title, objective, instructions, sort_order) VALUES (?,?,?,?,?)",
-      args: [planId, s.title, s.objective, s.instructions, s.sort_order || 0],
+      args: [planId, section.title, section.objective, section.instructions, section.sort_order || 0],
     });
   }
   return { success: true, id: planId };

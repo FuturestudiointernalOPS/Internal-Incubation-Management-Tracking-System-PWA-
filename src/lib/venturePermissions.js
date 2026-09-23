@@ -70,7 +70,7 @@ function leadManagerDefaults() {
 
 // Coach: assigned-scope operational support.
 function coachDefaults() {
-  const set = (area, actions) => actions.map((a) => [area, a, true]);
+  const set = (area, actions) => actions.map((action) => [area, action, true]);
   return [
     ...set("overview", ["view"]),
     ...set("profile", ["view"]),
@@ -91,7 +91,7 @@ function coachDefaults() {
 // Facilitator: coach scope plus plan authoring and review powers.
 function facilitatorDefaults() {
   const rows = coachDefaults();
-  const set = (area, actions) => actions.map((a) => [area, a, true]);
+  const set = (area, actions) => actions.map((action) => [area, action, true]);
   rows.push(...set("operating_plan", ["create", "edit"]));
   // Scheduling is re-stated rather than inherited: a facilitator runs sessions,
   // so a later change to the COACH default must never silently strip their
@@ -177,40 +177,40 @@ export async function correctSeedDefaults(db) {
  * otherwise never receive it — and the booking gate would read the old value.
  */
 export async function seedVenturePermissions(db) {
-  const countRes = await db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_permission_matrix", args: [] });
-  const existing = Number(countRes.rows?.[0]?.n || 0);
+  const countResult = await db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_permission_matrix", args: [] });
+  const existing = Number(countResult.rows?.[0]?.n || 0);
   const corrected = await correctSeedDefaults(db);
   if (existing > 0) return { seeded: false, corrected };
 
-  const tx = [];
-  for (const r of DEFAULT_RESPONSIBILITIES) {
-    tx.push(db.execute({
+  const queries = [];
+  for (const responsibility of DEFAULT_RESPONSIBILITIES) {
+    queries.push(db.execute({
       sql: "INSERT INTO venture_responsibilities (code, name, description) VALUES (?,?,?) ON CONFLICT (code) DO NOTHING",
-      args: [r.code, r.name, r.description],
+      args: [responsibility.code, responsibility.name, responsibility.description],
     }));
   }
-  for (const s of VENTURE_SCOPE_TYPES) {
-    tx.push(db.execute({
+  for (const scopeType of VENTURE_SCOPE_TYPES) {
+    queries.push(db.execute({
       sql: "INSERT INTO venture_scope_types (code, name, sort_order) VALUES (?,?,?) ON CONFLICT (code) DO NOTHING",
-      args: [s.code, s.name, VENTURE_SCOPE_TYPES.findIndex((x) => x.code === s.code)],
+      args: [scopeType.code, scopeType.name, VENTURE_SCOPE_TYPES.findIndex((candidate) => candidate.code === scopeType.code)],
     }));
   }
   for (const [code, rows] of Object.entries(DEFAULT_MATRIX)) {
     for (const [area, action, allowed] of rows) {
-      tx.push(db.execute({
+      queries.push(db.execute({
         sql: "INSERT INTO venture_permission_matrix (responsibility_code, area, action, allowed) VALUES (?,?,?,?) ON CONFLICT (responsibility_code, area, action) DO NOTHING",
         args: [code, area, action, allowed ? 1 : 0],
       }));
     }
   }
-  await Promise.all(tx);
+  await Promise.all(queries);
   return { seeded: true, corrected };
 }
 
 // ── Helpers used by the admin APIs ─────────────────────────────────────────
 
 export async function listResponsibilities(db, { includeInactive = false } = {}) {
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT vr.*,
       (SELECT COUNT(*) FROM venture_staff_assignments a
         WHERE a.responsibility_code = vr.code AND a.status = 'active') AS active_assignments
@@ -219,20 +219,20 @@ export async function listResponsibilities(db, { includeInactive = false } = {})
       ORDER BY vr.id`,
     args: [includeInactive ? 1 : 0],
   });
-  return r.rows || [];
+  return result.rows || [];
 }
 
 export async function listScopeTypes(db) {
-  const r = await db.execute({
+  const result = await db.execute({
     sql: "SELECT * FROM venture_scope_types WHERE is_active = TRUE ORDER BY sort_order, id",
     args: [],
   });
-  return r.rows || [];
+  return result.rows || [];
 }
 
 export async function getResponsibility(db, code) {
-  const r = await db.execute({ sql: "SELECT * FROM venture_responsibilities WHERE code = ?", args: [code] });
-  return r.rows?.[0] || null;
+  const result = await db.execute({ sql: "SELECT * FROM venture_responsibilities WHERE code = ?", args: [code] });
+  return result.rows?.[0] || null;
 }
 
 /**
@@ -253,8 +253,8 @@ export async function getGlobalMatrix(db, { responsibilityCode }) {
       byArea[area][action] = false;
     }
   }
-  for (const d of defaults.rows || []) {
-    if (byArea[d.area]?.[d.action] !== undefined) byArea[d.area][d.action] = !!d.allowed;
+  for (const cell of defaults.rows || []) {
+    if (byArea[cell.area]?.[cell.action] !== undefined) byArea[cell.area][cell.action] = !!cell.allowed;
   }
   return byArea;
 }
@@ -273,7 +273,7 @@ export async function setMatrixCell(db, { responsibilityCode, area, action, allo
 // ── Assignment helpers ─────────────────────────────────────────────────────
 
 export async function listAssignments(db, ventureId, { includeRemoved = false } = {}) {
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT a.*, c.name AS staff_name, c.email AS staff_email, vr.name AS responsibility_name
           FROM venture_staff_assignments a
           LEFT JOIN contacts c ON c.cid = a.staff_contact_id
@@ -282,19 +282,19 @@ export async function listAssignments(db, ventureId, { includeRemoved = false } 
           ORDER BY a.id DESC`,
     args: [ventureId, includeRemoved ? 1 : 0],
   });
-  return r.rows || [];
+  return result.rows || [];
 }
 
 export async function createAssignment(db, { ventureId, staffContactId, responsibilityCode, scopeType, scopeRefType = null, scopeRefId = null, assignedBy = null, notes = null }) {
-  const resp = await getResponsibility(db, responsibilityCode);
-  if (!resp || !resp.is_active) return { error: "Unknown or inactive responsibility." };
-  const r = await db.execute({
+  const responsibility = await getResponsibility(db, responsibilityCode);
+  if (!responsibility || !responsibility.is_active) return { error: "Unknown or inactive responsibility." };
+  const insertResult = await db.execute({
     sql: `INSERT INTO venture_staff_assignments
           (venture_id, staff_contact_id, responsibility_code, scope_type, scope_ref_type, scope_ref_id, assigned_by, notes)
           VALUES (?,?,?,?,?,?,?,?)`,
     args: [ventureId, staffContactId, responsibilityCode, scopeType || "venture_wide", scopeRefType, scopeRefId, assignedBy, notes],
   });
-  return { success: true, id: r.lastInsertRowid ?? null };
+  return { success: true, id: insertResult.lastInsertRowid ?? null };
 }
 
 export async function removeAssignment(db, { id }) {
@@ -326,31 +326,31 @@ export async function hasVentureCapability(db, { ventureId, contactId, area, act
   const rows = assignments.rows || [];
   if (rows.length === 0) return false;
 
-  for (const asg of rows) {
+  for (const assignment of rows) {
     // Scope gate: venture-wide always matches; typed scopes require a
     // matching scope reference on the object being acted on.
-    if (asg.scope_type !== "venture_wide") {
+    if (assignment.scope_type !== "venture_wide") {
       if (!scopeRefType || !scopeRefId) continue;
-      if (String(asg.scope_ref_type || "") !== String(scopeRefType)) continue;
-      if (String(asg.scope_ref_id || "") !== String(scopeRefId)) continue;
+      if (String(assignment.scope_ref_type || "") !== String(scopeRefType)) continue;
+      if (String(assignment.scope_ref_id || "") !== String(scopeRefId)) continue;
     }
-    const respCode = asg.responsibility_code;
+    const respCode = assignment.responsibility_code;
 
     // GLOBAL matrix (single source of truth — no per-Venture overrides).
-    const def = await db.execute({
+    const matrixRow = await db.execute({
       sql: "SELECT allowed FROM venture_permission_matrix WHERE responsibility_code = ? AND area = ? AND action = ?",
       args: [respCode, area, action],
     });
-    if (def.rows?.[0]?.allowed) return true;
+    if (matrixRow.rows?.[0]?.allowed) return true;
   }
   return false;
 }
 
 /** Convenience: any capability across the staff member's assignments on a venture. */
 export async function hasAnyVentureAssignment(db, { ventureId, contactId }) {
-  const r = await db.execute({
+  const result = await db.execute({
     sql: "SELECT 1 FROM venture_staff_assignments WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active' LIMIT 1",
     args: [ventureId, contactId],
   });
-  return (r.rows || []).length > 0;
+  return (result.rows || []).length > 0;
 }

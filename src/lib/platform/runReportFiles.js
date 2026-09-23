@@ -57,14 +57,14 @@ export function validateRunReportFile(file) {
     return { success: false, error: "platformMisc.runs.reportFileRequired" };
   }
 
-  const mime = String(file.type || "").toLowerCase();
+  const mimeType = String(file.type || "").toLowerCase();
   const name = String(file.name || "");
   // A legacy .doc is refused even though its MIME type is listed above: some
   // browsers report an empty type, and the extension is the honest signal.
   if (/\.doc$/i.test(name)) {
     return { success: false, error: "platformMisc.runs.reportFileLegacyDoc" };
   }
-  if (!RUN_REPORT_FILE_MIME_TYPES.includes(mime) && !RUN_REPORT_FILE_EXTENSIONS.test(name)) {
+  if (!RUN_REPORT_FILE_MIME_TYPES.includes(mimeType) && !RUN_REPORT_FILE_EXTENSIONS.test(name)) {
     return { success: false, error: "platformMisc.runs.reportFileTypeInvalid" };
   }
 
@@ -99,8 +99,8 @@ export function isManagedRunReportFilePath(path) {
  *                 | {success: false, error: string}>}
  */
 export async function uploadRunReportFileObject({ file, runId, fileName }) {
-  const check = validateRunReportFile(file);
-  if (!check.success) return check;
+  const validation = validateRunReportFile(file);
+  if (!validation.success) return validation;
 
   const client = storageClient();
   if (!client) return { success: false, error: "platformMisc.runs.reportFileStorageUnavailable" };
@@ -147,8 +147,8 @@ export async function signRunReportFilePath(
       .createSignedUrl(path, expiresIn);
     if (error) return null;
     return data?.signedUrl || null;
-  } catch (e) {
-    console.error("[Run report file] signing failed:", e.message);
+  } catch (error) {
+    console.error("[Run report file] signing failed:", error.message);
     return null;
   }
 }
@@ -166,8 +166,8 @@ export async function removeRunReportFileObject(storagePath) {
     const { error } = await client.storage.from(RUN_REPORT_FILE_BUCKET).remove([path]);
     if (error) throw error;
     return true;
-  } catch (e) {
-    console.error("[Run report file] removal failed:", e.message);
+  } catch (error) {
+    console.error("[Run report file] removal failed:", error.message);
     return false;
   }
 }

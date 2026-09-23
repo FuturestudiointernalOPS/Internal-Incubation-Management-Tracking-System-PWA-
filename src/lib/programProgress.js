@@ -79,7 +79,7 @@ export function addDays(day, count) {
 const isTrue = (value) =>
   value === true || value === 1 || value === "1" || value === "true";
 
-const norm = (value) => String(value ?? "").trim().toLowerCase();
+const normalizeText = (value) => String(value ?? "").trim().toLowerCase();
 
 const key = (value) => (value === null || value === undefined ? "" : String(value));
 
@@ -112,7 +112,7 @@ const SESSION_NO_OUTCOME = new Set(["", "not started"]);
 export const SYSTEM_REQUIREMENT_FORMAT = "system";
 
 const isSystemRequirement = (requirement) =>
-  norm(requirement?.allowed_format) === SYSTEM_REQUIREMENT_FORMAT;
+  normalizeText(requirement?.allowed_format) === SYSTEM_REQUIREMENT_FORMAT;
 
 /** Submission states, grouped by what they mean for the schedule. */
 const APPROVED = new Set(["approved", "completed"]);
@@ -197,16 +197,16 @@ export function computeProgramProgress({
     sessionsWithoutDate.push(session);
   }
   const sessionsDone = dueSessions.filter(
-    (entry) => norm(entry.session?.status) === SESSION_DONE,
+    (entry) => normalizeText(entry.session?.status) === SESSION_DONE,
   );
   const sessionsLate = dueSessions
-    .filter((entry) => norm(entry.session?.status) !== SESSION_DONE)
+    .filter((entry) => normalizeText(entry.session?.status) !== SESSION_DONE)
     .map((entry) => ({
       id: key(entry.session?.id),
       title: entry.session?.title || "",
       week: entry.session?.week_number ?? null,
       dueDay: entry.dueDay,
-      unrecorded: SESSION_NO_OUTCOME.has(norm(entry.session?.status)),
+      unrecorded: SESSION_NO_OUTCOME.has(normalizeText(entry.session?.status)),
     }));
 
   // ── Deliverables checked ──────────────────────────────────────────────────
@@ -283,7 +283,7 @@ export function computeProgramProgress({
     }
     const pair = `${candidate}::${key(submission?.participant_id)}`;
     if (!statusesByPair.has(pair)) statusesByPair.set(pair, new Set());
-    statusesByPair.get(pair).add(norm(submission?.status));
+    statusesByPair.get(pair).add(normalizeText(submission?.status));
   }
 
   // A participant with no enrolment date counts from the start; one enrolled
@@ -350,10 +350,10 @@ export function computeProgramProgress({
   }
 
   overdue.sort(
-    (a, b) =>
-      b.daysLate - a.daysLate ||
-      a.participantName.localeCompare(b.participantName) ||
-      a.requirementTitle.localeCompare(b.requirementTitle),
+    (first, second) =>
+      second.daysLate - first.daysLate ||
+      first.participantName.localeCompare(second.participantName) ||
+      first.requirementTitle.localeCompare(second.requirementTitle),
   );
 
   const blocks = {
@@ -415,9 +415,9 @@ export function computeProgramProgress({
     participantWork: {
       ...participantWork,
       people: [...byPerson.values()].sort(
-        (a, b) =>
-          b.missing + b.returned - (a.missing + a.returned) ||
-          a.name.localeCompare(b.name),
+        (first, second) =>
+          second.missing + second.returned - (first.missing + first.returned) ||
+          first.name.localeCompare(second.name),
       ),
     },
     overdue,

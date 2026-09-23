@@ -33,10 +33,10 @@ async function getUserInfo() {
   try {
     const saved = localStorage.getItem("user");
     if (saved) {
-      const u = JSON.parse(saved);
+      const savedUser = JSON.parse(saved);
       cachedUser = {
-        user_id: u.cid || u.id,
-        user_name: u.name,
+        user_id: savedUser.cid || savedUser.id,
+        user_name: savedUser.name,
       };
       return cachedUser;
     }
@@ -128,15 +128,15 @@ export function createSafeFetch(page, action) {
       }
 
       return res;
-    } catch (e) {
-      reportError(e, {
+    } catch (error) {
+      reportError(error, {
         page,
         action,
         severity: "error",
         endpoint: url,
         method: options.method || "GET",
       });
-      throw e;
+      throw error;
     }
   };
 }

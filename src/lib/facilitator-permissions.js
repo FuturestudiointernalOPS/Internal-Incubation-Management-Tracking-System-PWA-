@@ -34,11 +34,11 @@ export const FACILITATOR_CAPABILITY_KEYS = [
  * the program boundary. It is intentionally NOT super-admin access.
  */
 export function buildFullFacilitatorPermissions() {
-  const perms = {};
+  const permissions = {};
   for (const key of FACILITATOR_CAPABILITY_KEYS) {
-    perms[key] = key.startsWith("view") ? 1 : 2;
+    permissions[key] = key.startsWith("view") ? 1 : 2;
   }
-  return perms;
+  return permissions;
 }
 
 export function parsePermissions(value) {

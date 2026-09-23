@@ -14,14 +14,14 @@ function rowsOf(result) {
 
 /** Stage milestones in display order (NULL orders fall back to creation time). */
 export async function listStageMilestones(db, { dbId, stageId }) {
-  const res = await db.execute({
+  const result = await db.execute({
     sql: `SELECT id, title, status, progress, target_date, display_order, created_at
           FROM venture_milestones
           WHERE venture_id = ? AND journey_stage_id = ?
           ORDER BY COALESCE(display_order, 0) ASC, created_at ASC`,
     args: [dbId, String(stageId)],
   }).catch(() => ({ rows: [] }));
-  return rowsOf(res);
+  return rowsOf(result);
 }
 
 /**
@@ -37,18 +37,18 @@ export async function moveStageMilestone(db, { dbId, stageId, milestoneId, direc
       [dbId, String(stageId)],
     );
     const list = rowsOf(rows);
-    const idx = list.findIndex((r) => String(r.id) === String(milestoneId));
-    if (idx === -1) return { error: "Milestone not found in this journey." };
+    const currentIndex = list.findIndex((milestone) => String(milestone.id) === String(milestoneId));
+    if (currentIndex === -1) return { error: "Milestone not found in this journey." };
 
-    const targetIdx = direction === "up" ? idx - 1 : direction === "down" ? idx + 1 : -1;
-    if (targetIdx < 0 || targetIdx >= list.length) return { error: "Already at the edge." };
+    const targetIndex = direction === "up" ? currentIndex - 1 : direction === "down" ? currentIndex + 1 : -1;
+    if (targetIndex < 0 || targetIndex >= list.length) return { error: "Already at the edge." };
 
     // Normalize 1..n first so a swap always lands on concrete values.
     for (let i = 0; i < list.length; i += 1) {
       await query("UPDATE venture_milestones SET display_order = ? WHERE id = ?", [i + 1, list[i].id]);
     }
-    await query("UPDATE venture_milestones SET display_order = ? WHERE id = ?", [targetIdx + 1, list[idx].id]);
-    await query("UPDATE venture_milestones SET display_order = ? WHERE id = ?", [idx + 1, list[targetIdx].id]);
+    await query("UPDATE venture_milestones SET display_order = ? WHERE id = ?", [targetIndex + 1, list[currentIndex].id]);
+    await query("UPDATE venture_milestones SET display_order = ? WHERE id = ?", [currentIndex + 1, list[targetIndex].id]);
     return { success: true };
   });
 }

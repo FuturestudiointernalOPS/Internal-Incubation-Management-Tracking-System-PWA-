@@ -146,13 +146,13 @@ export const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
  * Get ISO week number for a given date
  */
 export function getWeekNumber(date) {
-  const d = new Date(
+  const utcDate = new Date(
     Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
   );
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  const dayNum = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  return Math.ceil(((utcDate - yearStart) / 86400000 + 1) / 7);
 }
 
 /**
@@ -169,11 +169,11 @@ export function getCurrentWeek() {
  * and can shift the date by one day for non-UTC timezones.
  */
 export function getLocalToday() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 // ─── FACILITATOR WEEKLY REVIEW OPTIONS ────────────────────────────────
@@ -204,12 +204,12 @@ export const FACILITATOR_REVIEW_OPTIONS = {
 export function formatDate(date, options = {}, lang = "en") {
   if (!date) return "—";
   try {
-    const d = new Date(date);
-    return d.toLocaleDateString(lang, {
+    const parsedDate = new Date(date);
+    return parsedDate.toLocaleDateString(lang, {
       month: options.short ? "short" : "long",
       day: "numeric",
       year:
-        d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+        parsedDate.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
     });
   } catch {
     return String(date);
@@ -254,8 +254,57 @@ export function formatLocaleDate(date, options = {}, lang = "en") {
 export function formatLabel(val) {
   if (!val || val === "—") return "—";
   if (typeof val !== "string") return String(val);
-  return val.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return val.replace(/[-_]/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
 }
+
+// ─── EMAIL TEMPLATE VARIABLES ──────────────────────────────────
+
+/**
+ * A message placeholder: `{{name}}`. Spaces inside the braces are tolerated
+ * (`{{ name }}`), because a hand-typed template should not fail on a space.
+ *
+ * One definition, shared by the sender (which substitutes the names it was
+ * given) and the editors (which warn about the names it will NOT provide).
+ */
+export const TEMPLATE_VARIABLE_PATTERN = /\{\{([^{}]*)\}\}/g;
+
+/** The variable names a template text uses, in first-seen order and de-duplicated. */
+export function templateVariableNames(text) {
+  const names = [];
+  const seen = new Set();
+  for (const match of String(text || "").matchAll(/\{\{([^{}]*)\}\}/g)) {
+    const name = match[1].trim();
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    names.push(name);
+  }
+  return names;
+}
+
+/**
+ * The names a template uses that the sender will NOT substitute — and
+ * therefore removes before the message goes out. `accepted` is the variable
+ * list an editor offers for that message; anything outside it is a name the
+ * author invented and no value will ever be filled in for.
+ */
+export function findUnknownTemplateVariables(text, accepted = []) {
+  const known = new Set((accepted || []).map((name) => String(name).trim()));
+  return templateVariableNames(text).filter((name) => !known.has(name));
+}
+
+/**
+ * The names each message template can use — exactly the names its sender fills
+ * in. ONE definition, so the editor's hint, its unknown-name warning and the
+ * sender cannot drift apart. Anything outside this list is deleted before the
+ * message goes out (see applyTemplate), never shipped as raw `{{text}}`.
+ */
+export const TEMPLATE_VARIABLES = {
+  acknowledgement: ["name", "form_name", "organization"],
+  approval: ["name", "form_name", "score", "group_name", "organization", "decision", "comment"],
+  rejection: ["name", "form_name", "score", "group_name", "organization", "decision", "comment"],
+  activation: ["name", "role", "organization", "activation_link", "programName", "form_name", "group_name"],
+  existing_user: ["name", "role", "organization", "login_url", "programName", "form_name", "group_name"],
+};
 
 // ─── NUMBER UTILITIES ──────────────────────────────────────────────────
 
@@ -290,13 +339,13 @@ export function weightedKpiProgress(kpis) {
   const list = (kpis || []).filter(Boolean);
   if (list.length === 0) return null;
 
-  const rawWeights = list.map((k) => parseFloat(k.weight) || 0);
-  const totalWeight = rawWeights.reduce((sum, w) => sum + w, 0);
+  const rawWeights = list.map((kpi) => parseFloat(kpi.weight) || 0);
+  const totalWeight = rawWeights.reduce((sum, weight) => sum + weight, 0);
   const weights = totalWeight > 0 ? rawWeights : list.map(() => 1);
   const weightSum = totalWeight > 0 ? totalWeight : list.length;
 
   const score = list.reduce(
-    (sum, k, i) => sum + (parseFloat(k.progress) || 0) * weights[i],
+    (sum, kpi, index) => sum + (parseFloat(kpi.progress) || 0) * weights[index],
     0,
   );
 

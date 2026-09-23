@@ -147,9 +147,9 @@ export function revalidateJson(url, apply) {
  * background, so shells and pages paint instantly on return visits.
  */
 export function fetchSwrJson(url, apply) {
-  const hit = cacheGet(url);
-  if (hit !== null && hit.success) {
-    if (typeof apply === "function") apply(hit);
+  const cachedPayload = cacheGet(url);
+  if (cachedPayload !== null && cachedPayload.success) {
+    if (typeof apply === "function") apply(cachedPayload);
     return revalidateJson(url, apply);
   }
   return revalidateJson(url, apply);
@@ -244,8 +244,8 @@ export function useApi(url, options = {}) {
     // Stale-while-revalidate: show cached data instantly, refresh in background.
     const cached = bypassCache ? null : cacheGet(url);
     if (cached !== null) {
-      const shape = transformRef.current;
-      setData(shape ? shape(cached) : cached);
+      const transformFn = transformRef.current;
+      setData(transformFn ? transformFn(cached) : cached);
       setLoading(false);
     } else {
       setLoading(true);
@@ -270,10 +270,10 @@ export function useApi(url, options = {}) {
       );
       cacheSet(url, json);
 
-      const shape = transformRef.current;
-      const result = shape ? shape(json) : json;
+      const transformFn = transformRef.current;
+      const result = transformFn ? transformFn(json) : json;
       setData(result);
-    } catch (err) {
+    } catch (fetchError) {
       if (fetchId !== fetchIdRef.current || !activeRef.current) return;
       // A request that threw never produced a response, so there is no status to
       // report: the screen reads this as "no answer", not as "the server said X".
@@ -282,8 +282,8 @@ export function useApi(url, options = {}) {
           ? previous
           : { url, status: null },
       );
-      setError(err.message || "Failed to fetch data");
-      console.error(`[useApi] Error fetching ${url}:`, err);
+      setError(fetchError.message || "Failed to fetch data");
+      console.error(`[useApi] Error fetching ${url}:`, fetchError);
     } finally {
       if (fetchId === fetchIdRef.current) {
         setLoading(false);
@@ -375,10 +375,10 @@ export function useApiMulti(endpoints, options = {}) {
         merged[key] = value;
       });
       setData(merged);
-    } catch (err) {
+    } catch (fetchError) {
       if (fetchId !== fetchIdRef.current) return;
-      setError(err.message || "Failed to fetch");
-      console.error("[useApiMulti] Error:", err);
+      setError(fetchError.message || "Failed to fetch");
+      console.error("[useApiMulti] Error:", fetchError);
     } finally {
       if (fetchId === fetchIdRef.current) {
         setLoading(false);

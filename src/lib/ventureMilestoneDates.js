@@ -45,12 +45,12 @@ export function earliestStoredDate(values) {
  */
 export function journeyTimeline(stages) {
   return (stages || [])
-    .filter((s) => s && s.is_archived !== true)
-    .flatMap((s) =>
-      (s.milestones || []).map((m) => ({
-        id: String(m.id),
-        stageId: String(s.id),
-        target_date: dateOnly(m.target_date) || null,
+    .filter((stage) => stage && stage.is_archived !== true)
+    .flatMap((stage) =>
+      (stage.milestones || []).map((milestone) => ({
+        id: String(milestone.id),
+        stageId: String(stage.id),
+        target_date: dateOnly(milestone.target_date) || null,
       })),
     );
 }
@@ -71,18 +71,18 @@ export function nextMilestoneDate(stages, { stageId = null, milestoneId = null }
   const timeline = journeyTimeline(stages);
 
   if (milestoneId) {
-    const index = timeline.findIndex((m) => m.id === String(milestoneId));
+    const index = timeline.findIndex((milestone) => milestone.id === String(milestoneId));
     if (index < 0) return null;
-    return earliestStoredDate(timeline.slice(index + 1).map((m) => m.target_date));
+    return earliestStoredDate(timeline.slice(index + 1).map((milestone) => milestone.target_date));
   }
 
   const journeyIds = (stages || [])
-    .filter((s) => s && s.is_archived !== true)
-    .map((s) => String(s.id));
+    .filter((stage) => stage && stage.is_archived !== true)
+    .map((stage) => String(stage.id));
   const journeyIndex = journeyIds.indexOf(String(stageId));
   if (journeyIndex < 0) return null;
   const laterJourneys = new Set(journeyIds.slice(journeyIndex + 1));
-  return earliestStoredDate(timeline.filter((m) => laterJourneys.has(m.stageId)).map((m) => m.target_date));
+  return earliestStoredDate(timeline.filter((milestone) => laterJourneys.has(milestone.stageId)).map((milestone) => milestone.target_date));
 }
 
 /**

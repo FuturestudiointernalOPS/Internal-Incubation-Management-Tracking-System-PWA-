@@ -24,8 +24,8 @@ function rowsOf(result) {
 export const REPORT_KINDS = ["progress", "closing"];
 
 function jsonList(value) {
-  const arr = Array.isArray(value) ? value : [];
-  return arr.slice(0, 100).map((v) => (typeof v === "string" ? v.slice(0, 500) : String(v || "").slice(0, 500)));
+  const list = Array.isArray(value) ? value : [];
+  return list.slice(0, 100).map((item) => (typeof item === "string" ? item.slice(0, 500) : String(item || "").slice(0, 500)));
 }
 
 export async function createVentureReport(db, { code, actorCid = null, fields = {} }) {
@@ -81,10 +81,10 @@ export async function listVentureReports(db, { code, status = null, journeyStage
  * where the journey table is empty, is a normal state.
  */
 export async function listJourneysMissingClosingReport(db, { code }) {
-  const v = await db
+  const ventureResult = await db
     .execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [code] })
     .catch(() => ({ rows: [] }));
-  const ventureDbId = rowsOf(v)[0]?.id;
+  const ventureDbId = rowsOf(ventureResult)[0]?.id;
   if (!ventureDbId) return [];
   const res = await db
     .execute({

@@ -7,6 +7,7 @@
 
 import { normalizeToHtml } from "@/lib/platform/ai/email-personalize";
 import { resolveAppUrl } from "@/lib/appUrl";
+import { TEMPLATE_VARIABLE_PATTERN } from "@/lib/constants";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "noreply@impactos.futurestudio.bj";
@@ -61,15 +62,15 @@ function gmailCredentialsAvailable() {
 
 /** Map provider errors to safe, non-sensitive categories (never echo raw details). */
 function classifyGmailError(err) {
-  const msg = String(err?.message || err?.response?.data?.error || "").toLowerCase();
-  if (msg.includes("invalid_grant")) return "refresh_token_invalid_or_revoked";
-  if (msg.includes("invalid_client")) return "client_id_or_secret_invalid";
-  if (msg.includes("access_denied") || msg.includes("insufficient") || msg.includes("forbidden"))
+  const errorText = String(err?.message || err?.response?.data?.error || "").toLowerCase();
+  if (errorText.includes("invalid_grant")) return "refresh_token_invalid_or_revoked";
+  if (errorText.includes("invalid_client")) return "client_id_or_secret_invalid";
+  if (errorText.includes("access_denied") || errorText.includes("insufficient") || errorText.includes("forbidden"))
     return "permission_or_scope_denied";
-  if (msg.includes("quota") || msg.includes("rate")) return "quota_or_rate_limit";
-  if (msg.includes("daily limit")) return "daily_send_limit_reached";
-  if (msg.includes("delegation") || msg.includes("send-as")) return "sender_identity_not_authorized";
-  if (msg.includes("enabled") || msg.includes("not found") || msg.includes("404")) return "gmail_api_not_enabled";
+  if (errorText.includes("quota") || errorText.includes("rate")) return "quota_or_rate_limit";
+  if (errorText.includes("daily limit")) return "daily_send_limit_reached";
+  if (errorText.includes("delegation") || errorText.includes("send-as")) return "sender_identity_not_authorized";
+  if (errorText.includes("enabled") || errorText.includes("not found") || errorText.includes("404")) return "gmail_api_not_enabled";
   return "unknown_error";
 }
 
@@ -117,7 +118,7 @@ function buildGmailRawMessage({ to, subject, html, attachments }) {
   ].join("\n");
   const altHeader = `Content-Type: multipart/alternative; boundary="${altBoundary}"`;
 
-  const list = Array.isArray(attachments) ? attachments.filter((a) => a && a.content != null) : [];
+  const list = Array.isArray(attachments) ? attachments.filter((attachment) => attachment && attachment.content != null) : [];
   if (list.length === 0) {
     return Buffer.from([outerHeaders, altHeader, "", altBody].join("\n"), "utf8").toString("base64url");
   }
@@ -164,9 +165,9 @@ async function sendViaGmail({ to, subject, html, attachments }) {
     const sendRes = await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
 
     return { success: true, provider: "gmail", data: { id: sendRes.data?.id || null } };
-  } catch (e) {
-    console.error("[Gmail] Send error:", classifyGmailError(e));
-    return { success: false, provider: "gmail", error: classifyGmailError(e) };
+  } catch (error) {
+    console.error("[Gmail] Send error:", classifyGmailError(error));
+    return { success: false, provider: "gmail", error: classifyGmailError(error) };
   }
 }
 
@@ -196,16 +197,24 @@ const DEFAULT_TEMPLATES = {
 };
 
 /**
- * Replace {{variables}} in a template string with provided values.
- * Falls back gracefully for missing values.
+ * Replace {{variables}} in a template string with provided values, then remove
+ * whatever placeholder is left over.
+ *
+ * Only the names this caller actually passes can be filled in. Any OTHER name
+ * has no value and must never reach a recipient as raw `{{text}}` — so the
+ * final sweep deletes it. The template editors warn about those names as they
+ * are typed (see findUnknownTemplateVariables), making this a safety net rather
+ * than the only line of defence.
  */
 export function applyTemplate(text, vars = {}) {
   if (!text) return "";
-  let result = text;
+  let result = String(text);
   for (const [key, val] of Object.entries(vars)) {
-    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), val != null ? String(val) : "");
+    // A name this sender provides is filled in even when the template carries
+    // extra spaces ({{ name }}), so a hand-typed placeholder is not a trap.
+    result = result.replace(new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g"), val != null ? String(val) : "");
   }
-  return result;
+  return result.replace(TEMPLATE_VARIABLE_PATTERN, "");
 }
 
 /**
@@ -218,7 +227,7 @@ export function applyTemplate(text, vars = {}) {
 export function getTemplate(formSettings, templateKey, runSettings) {
   const custom = formSettings?.automation?.templates?.[templateKey] || {};
   const runCustom = runSettings?.templates?.[templateKey] || {};
-  const text = (v) => (typeof v === "string" ? v.trim() : v);
+  const text = (value) => (typeof value === "string" ? value.trim() : value);
   // Per-field fallthrough: run value (non-blank) → form value (non-blank) → default
   const pick = (runVal, formVal) => text(runVal) || text(formVal) || "";
   const def = DEFAULT_TEMPLATES[templateKey];
@@ -241,10 +250,10 @@ export function getDefaultTemplate(templateKey) {
  * Send an invite email with activation link
  */
 function resolveGreetingName(name) {
-  const n = typeof name === "string" ? name.replace(/\s+/g, " ").trim() : "";
-  if (!n || n.includes("@")) return "";
-  if (/^(unknown|anonymous|n\/a|none|participant|null|undefined|-+|\s*)$/i.test(n)) return "";
-  return n;
+  const cleanedName = typeof name === "string" ? name.replace(/\s+/g, " ").trim() : "";
+  if (!cleanedName || cleanedName.includes("@")) return "";
+  if (/^(unknown|anonymous|n\/a|none|participant|null|undefined|-+|\s*)$/i.test(cleanedName)) return "";
+  return cleanedName;
 }
 
 export async function sendInviteEmail({ to, name, role, token, template, templateVars, programName }) {
@@ -683,9 +692,9 @@ async function sendViaResend({ to, subject, html }) {
     }
 
     return { success: true, provider: "resend", data };
-  } catch (e) {
-    console.error("Email send error:", e);
-    return { success: false, provider: "resend", error: e.message };
+  } catch (error) {
+    console.error("Email send error:", error);
+    return { success: false, provider: "resend", error: error.message };
   }
 }
 
@@ -712,8 +721,8 @@ export async function sendEmail({ to, subject, html, provider, attachments }) {
 
   const chosen = provider || EMAIL_PRIMARY_DEFAULT;
   const fallback = chosen === "gmail" ? "resend" : "gmail";
-  const sendWith = (p) =>
-    p === "gmail"
+  const sendWith = (providerName) =>
+    providerName === "gmail"
       ? sendViaGmail({ to, subject, html, attachments })
       : sendViaResend({ to, subject, html }); // Resend transport has no attachment support
 
@@ -765,8 +774,8 @@ async function ensureEmailLogTable() {
         ON platform_email_log (submission_id, email_type, COALESCE(batch_id, ''))
         WHERE status = 'sent'`);
       return true;
-    } catch (e) {
-      console.warn("[EmailLog] Could not ensure table:", e.message);
+    } catch (error) {
+      console.warn("[EmailLog] Could not ensure table:", error.message);
       emailLogTablePromise = null; // allow retry on transient failure
       return false;
     }
@@ -856,7 +865,7 @@ export async function getActivationHistory({ submission_id, contact_cid }) {
       });
       rows = res.rows;
     }
-    const sentRows = rows.filter((r) => r.status === "sent");
+    const sentRows = rows.filter((row) => row.status === "sent");
 
     let tokenValid = false;
     let tokenExpiresAt = null;
@@ -942,8 +951,8 @@ export async function ensurePasswordSetupTokensSchema() {
         END IF;
       END $$`);
       return true;
-    } catch (e) {
-      console.warn("[TokenSchema] Could not ensure password_setup_tokens schema:", e.message);
+    } catch (error) {
+      console.warn("[TokenSchema] Could not ensure password_setup_tokens schema:", error.message);
       passwordSetupTokensSchemaPromise = null; // allow retry on transient failure
       return false;
     }
@@ -957,11 +966,11 @@ export async function ensurePasswordSetupTokensSchema() {
  */
 export function isPlaceholderEmail(email) {
   if (!email || typeof email !== "string") return true;
-  const e = email.trim().toLowerCase();
-  if (!e.includes("@")) return true;
-  if (e.includes("placeholder")) return true;
-  if (e.includes("@example.") || e.includes("@test.") || e.endsWith(".local") || e.endsWith(".invalid")) return true;
-  if (e.startsWith("import-")) return true; // import-generated placeholder pattern
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail.includes("@")) return true;
+  if (normalizedEmail.includes("placeholder")) return true;
+  if (normalizedEmail.includes("@example.") || normalizedEmail.includes("@test.") || normalizedEmail.endsWith(".local") || normalizedEmail.endsWith(".invalid")) return true;
+  if (normalizedEmail.startsWith("import-")) return true; // import-generated placeholder pattern
   return false;
 }
 
@@ -978,26 +987,26 @@ export function isPlaceholderEmail(email) {
  */
 export function resolveSubmissionEmail({ submissionData, fieldLabels, contactEmail }) {
   const data = submissionData && typeof submissionData === "object" ? submissionData : {};
-  const labelOf = (k) => {
+  const labelOf = (fieldKey) => {
     const raw =
-      fieldLabels && fieldLabels[String(k)] != null
-        ? String(fieldLabels[String(k)])
-        : String(k);
+      fieldLabels && fieldLabels[String(fieldKey)] != null
+        ? String(fieldLabels[String(fieldKey)])
+        : String(fieldKey);
     return raw.toLowerCase().trim();
   };
-  const isReal = (v) =>
-    typeof v === "string" && v.includes("@") && !isPlaceholderEmail(v);
+  const isReal = (candidate) =>
+    typeof candidate === "string" && candidate.includes("@") && !isPlaceholderEmail(candidate);
   // English + French email question labels (Email, E-mail, Email Address,
   // Adresse e-mail, Courriel, Mel…). Never matches a bare "Adresse" field.
   const EMAIL_HINTS = /(e-?mail|courriel|mel|adresse\s*(e-?mail|mail))/i;
 
   const labeled = [];
   const anyReal = [];
-  for (const [k, v] of Object.entries(data)) {
-    const val = typeof v === "string" ? v.trim() : "";
-    if (!isReal(val)) continue;
-    if (EMAIL_HINTS.test(labelOf(k))) labeled.push(val);
-    else anyReal.push(val);
+  for (const [fieldKey, fieldValue] of Object.entries(data)) {
+    const value = typeof fieldValue === "string" ? fieldValue.trim() : "";
+    if (!isReal(value)) continue;
+    if (EMAIL_HINTS.test(labelOf(fieldKey))) labeled.push(value);
+    else anyReal.push(value);
   }
   if (labeled.length > 0) return labeled[0].toLowerCase();
   if (anyReal.length > 0) return anyReal[0].toLowerCase();
@@ -1056,23 +1065,23 @@ const NAME_HINTS = /^(name)$/i;
  * when a real name exists anywhere.
  */
 export function resolvePersonName({ contactName, contactFirstName, contactLastName, submitterName, submissionData, fieldLabels }) {
-  const clean = (v) =>
-    typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "";
+  const clean = (value) =>
+    typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
 
   const data = submissionData && typeof submissionData === "object" ? submissionData : {};
-  const stringify = (v) => {
-    if (typeof v !== "string") return "";
+  const stringify = (value) => {
+    if (typeof value !== "string") return "";
     try {
-      if (v.startsWith("{") && v.includes('"code"')) return ""; // phone objects
+      if (value.startsWith("{") && value.includes('"code"')) return ""; // phone objects
     } catch (_) {}
-    return v;
+    return value;
   };
   // Effective label for a data key: field id → real question label.
-  const labelOf = (k) => {
+  const labelOf = (fieldKey) => {
     const raw =
-      fieldLabels && fieldLabels[String(k)] != null
-        ? String(fieldLabels[String(k)])
-        : String(k);
+      fieldLabels && fieldLabels[String(fieldKey)] != null
+        ? String(fieldLabels[String(fieldKey)])
+        : String(fieldKey);
     return raw.toLowerCase().trim();
   };
 
@@ -1081,15 +1090,15 @@ export function resolvePersonName({ contactName, contactFirstName, contactLastNa
   const lastNames = [];
   let bareName = "";
 
-  for (const [k, v] of Object.entries(data)) {
-    const val = clean(stringify(v));
-    if (!val) continue;
-    const label = labelOf(k);
+  for (const [fieldKey, fieldValue] of Object.entries(data)) {
+    const value = clean(stringify(fieldValue));
+    if (!value) continue;
+    const label = labelOf(fieldKey);
     if (!label) continue;
-    if (FULL_NAME_HINTS.test(label)) fullNames.push(val);
-    else if (FIRST_NAME_HINTS.test(label)) firstNames.push(val);
-    else if (LAST_NAME_HINTS.test(label) || FR_LAST_NAME_HINTS.test(label)) lastNames.push(val);
-    else if (NAME_HINTS.test(label)) bareName = bareName || val;
+    if (FULL_NAME_HINTS.test(label)) fullNames.push(value);
+    else if (FIRST_NAME_HINTS.test(label)) firstNames.push(value);
+    else if (LAST_NAME_HINTS.test(label) || FR_LAST_NAME_HINTS.test(label)) lastNames.push(value);
+    else if (NAME_HINTS.test(label)) bareName = bareName || value;
   }
 
   const candidates = [];
@@ -1098,7 +1107,7 @@ export function resolvePersonName({ contactName, contactFirstName, contactLastNa
   if (clean(contactName)) candidates.push(clean(contactName));
 
   // 2. Submission full-name field(s)
-  for (const n of fullNames) candidates.push(n);
+  for (const fullName of fullNames) candidates.push(fullName);
 
   // 3. CRM first (+ last) name when stored separately
   const crmFirst = clean(contactFirstName);
@@ -1119,17 +1128,17 @@ export function resolvePersonName({ contactName, contactFirstName, contactLastNa
   if (clean(submitterName)) candidates.push(clean(submitterName));
 
   // 7. Any remaining name-ish answer (label or key contains name words)
-  for (const [k, v] of Object.entries(data)) {
-    const key = labelOf(k);
-    const val = clean(stringify(v));
-    if (!val || !key) continue;
+  for (const [fieldKey, fieldValue] of Object.entries(data)) {
+    const key = labelOf(fieldKey);
+    const value = clean(stringify(fieldValue));
+    if (!value || !key) continue;
     if (key.includes("name") || key.includes("nom") || key.includes("prénom") || key.includes("prenom")) {
-      candidates.push(val);
+      candidates.push(value);
     }
   }
 
-  for (const c of candidates) {
-    if (c && !GENERIC_NAMES.test(c)) return c;
+  for (const candidate of candidates) {
+    if (candidate && !GENERIC_NAMES.test(candidate)) return candidate;
   }
   return "";
 }
@@ -1148,20 +1157,20 @@ const PROJECT_NAME_HINTS =
  */
 export function resolveProjectName({ submissionData, fieldLabels }) {
   const data = submissionData && typeof submissionData === "object" ? submissionData : {};
-  const clean = (v) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "");
-  const labelOf = (k) =>
-    fieldLabels && fieldLabels[String(k)] != null ? String(fieldLabels[String(k)]) : String(k);
+  const clean = (value) => (typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "");
+  const labelOf = (fieldKey) =>
+    fieldLabels && fieldLabels[String(fieldKey)] != null ? String(fieldLabels[String(fieldKey)]) : String(fieldKey);
 
   let loose = "";
-  for (const [k, v] of Object.entries(data)) {
-    const val = clean(v);
-    if (!val) continue;
-    const label = labelOf(k).trim();
-    if (PROJECT_NAME_HINTS.test(label)) return val;
+  for (const [fieldKey, fieldValue] of Object.entries(data)) {
+    const value = clean(fieldValue);
+    if (!value) continue;
+    const label = labelOf(fieldKey).trim();
+    if (PROJECT_NAME_HINTS.test(label)) return value;
     // Softer net, never enough on its own: a label that merely mentions the
     // venture ("Startup Industry") must not match, hence the name/nom word.
     if (!loose && /(startup|projet|project|venture)/i.test(label) && /(name|nom)/i.test(label)) {
-      loose = val;
+      loose = value;
     }
   }
   return loose;
@@ -1176,11 +1185,11 @@ export function resolveProjectName({ submissionData, fieldLabels }) {
 export function detectLanguage(fieldLabels) {
   let fr = 0;
   let en = 0;
-  for (const v of Object.values(fieldLabels || {})) {
-    const l = String(v).toLowerCase();
-    if (/nom complet|pr[eé]nom|prenom|courriel|t[eé]l[eé]phone|date de naissance|ville|pays/.test(l)) {
+  for (const label of Object.values(fieldLabels || {})) {
+    const labelText = String(label).toLowerCase();
+    if (/nom complet|pr[eé]nom|prenom|courriel|t[eé]l[eé]phone|date de naissance|ville|pays/.test(labelText)) {
       fr++;
-    } else if (/full name|first name|last name|email address|phone|date of birth|city|country/.test(l)) {
+    } else if (/full name|first name|last name|email address|phone|date of birth|city|country/.test(labelText)) {
       en++;
     }
   }
@@ -1222,8 +1231,8 @@ export async function recordEmailStatus({ submission_id, contact_cid, email_type
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
       args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, safeStatus, provider || null, (error || "Unknown reason").substring(0, 500), to ? String(to).trim().substring(0, 300) : null],
     });
-  } catch (e) {
-    console.warn("[EmailLog] Could not record status:", e.message);
+  } catch (error) {
+    console.warn("[EmailLog] Could not record status:", error.message);
   }
 }
 
@@ -1263,8 +1272,8 @@ export async function markEmailBounced({ recipient, error }) {
       ],
     });
     return true;
-  } catch (e) {
-    console.warn("[EmailLog] markEmailBounced:", e.message);
+  } catch (error) {
+    console.warn("[EmailLog] markEmailBounced:", error.message);
     return false;
   }
 }
@@ -1284,11 +1293,11 @@ export async function recordResendEvent({ email_id, status, error, createdAt }) 
     const { default: db } = await import("@/lib/db");
     let row = null;
     if (email_id) {
-      const r = await db.execute({
+      const result = await db.execute({
         sql: "SELECT * FROM platform_email_log WHERE email_id = ? ORDER BY id DESC LIMIT 1",
         args: [String(email_id)],
       });
-      row = r.rows[0] || null;
+      row = result.rows[0] || null;
     }
     if (!row) return false; // unknown email_id — nothing to attach to
     const eventAt = createdAt ? new Date(createdAt).toISOString() : new Date().toISOString();
@@ -1309,8 +1318,8 @@ export async function recordResendEvent({ email_id, status, error, createdAt }) 
       ],
     });
     return true;
-  } catch (e) {
-    console.warn("[EmailLog] recordResendEvent:", e.message);
+  } catch (error) {
+    console.warn("[EmailLog] recordResendEvent:", error.message);
     return false;
   }
 }
@@ -1334,8 +1343,8 @@ async function recordEmailResult({ submission_id, contact_cid, email_type, succe
         args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, (error || "Unknown error").substring(0, 500), recipient, batch_id || null],
       });
     }
-  } catch (e) {
-    console.warn("[EmailLog] Could not record:", e.message);
+  } catch (error) {
+    console.warn("[EmailLog] Could not record:", error.message);
   }
 }
 
@@ -1366,8 +1375,8 @@ export async function recordEmailSent({ submission_id, contact_cid, email_type, 
       args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, note || null, recipient, emailId || null, batch_id || null],
     });
     return true;
-  } catch (e) {
-    console.warn("[EmailLog] Could not record sent email:", e.message);
+  } catch (error) {
+    console.warn("[EmailLog] Could not record sent email:", error.message);
     return false;
   }
 }
@@ -1387,8 +1396,8 @@ export async function sendTrackedEmail({ submission_id, contact_cid, email_type,
   let result;
   try {
     result = await sendFn();
-  } catch (e) {
-    result = { success: false, error: e?.message || "Send failed" };
+  } catch (error) {
+    result = { success: false, error: error?.message || "Send failed" };
   }
 
   await recordEmailResult({
@@ -1522,6 +1531,53 @@ export async function sendDecisionEmail({ to, applicantName, formName, decision,
     </body></html>`;
 
   return sendEmail({ to, subject, html, provider: provider || DECISION_EMAIL_DEFAULT });
+}
+
+/**
+ * Send the submission-confirmation (acknowledgement) email.
+ *
+ * Uses the SAME run → form → default template chain as the decision and
+ * activation emails, the same branded shell, the same footer and the same
+ * transport selection (professional mailbox first, Resend as the automatic
+ * fallback) so the confirmation is no longer pinned to a single provider.
+ */
+export async function sendConfirmationEmail({ to, applicantName, formName, organization, template, templateVars }) {
+  const tv = {
+    name: applicantName || "there",
+    form_name: formName || "application",
+    organization: organization || "ImpactOS",
+    ...(templateVars || {}),
+  };
+
+  const subject = template?.subject
+    ? applyTemplate(template.subject, tv)
+    : `Thank you for your submission — ${tv.form_name}`;
+
+  const bodyHtml = normalizeToHtml(
+    template?.body
+      ? applyTemplate(template.body, tv)
+      : `<p style="margin:0 0 8px;font-size:15px;color:#e2e8f0;">Hello ${tv.name},</p><p style="margin:0 0 8px;font-size:14px;color:#94a3b8;line-height:1.6;">We have received your submission for <strong style="color:#f8fafc;">${tv.form_name}</strong>.</p><p style="margin:0;font-size:14px;color:#94a3b8;line-height:1.6;">Our team will review it and get back to you soon.</p>`
+  );
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; margin: 0; padding: 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background: #020617;">
+        <tr><td align="center" style="padding: 40px 20px;">
+          <table width="480" cellpadding="0" cellspacing="0" style="background: #0f172a; border-radius: 16px; border: 1px solid #334155;">
+            <tr><td style="padding: 40px;">
+              <h1 style="margin: 0 0 16px; font-size: 20px; font-weight: 800;">${subject}</h1>
+              ${bodyHtml}
+              ${FUTURE_STUDIO_FOOTER}
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body></html>`;
+
+  return sendEmail({ to, subject, html });
 }
 
 // Shared inline styles for result-email paragraphs (dark card drawn by the shell).
@@ -1738,8 +1794,8 @@ export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en
       return { ...mailRes, error: mailRes.error || mailRes.note || "Email send failed" };
     }
     return mailRes;
-  } catch (e) {
-    console.error("[Email] Result delivery (hosted PDF) error:", e?.message || e);
-    return { success: false, provider: "storage", error: `Could not store the result PDF for delivery — ${e?.message || "storage error"}` };
+  } catch (error) {
+    console.error("[Email] Result delivery (hosted PDF) error:", error?.message || error);
+    return { success: false, provider: "storage", error: `Could not store the result PDF for delivery — ${error?.message || "storage error"}` };
   }
 }
