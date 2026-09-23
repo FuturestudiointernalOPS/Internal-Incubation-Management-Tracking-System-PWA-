@@ -226,4 +226,48 @@ describe("composed report PDF layout", () => {
     expect(pdf.startsWith("%PDF")).toBe(true);
     expect(outOfMargin(runs, fonts)).toEqual([]);
   });
+
+  test("the form's questions and the participant's answers are appended last", () => {
+    const { runs, fonts } = drawnRuns(
+      buildComposedReportPdf({
+        lang: "fr",
+        document: {
+          title: "Rapport personnalise",
+          sections: [{ heading: "Synthese", blocks: [{ type: "paragraph", text: "Votre projet avance bien." }] }],
+        },
+        sections: [
+          {
+            title: "Votre projet",
+            items: [
+              { label: "Nom du projet ?", value: long("Un nom de projet tres long ", 20) },
+              { label: "Probleme resolu ?", value: "Celui de la tracabilite." },
+            ],
+          },
+        ],
+      }),
+    );
+
+    // A long answer must wrap rather than run off the sheet.
+    expect(outOfMargin(runs, fonts)).toEqual([]);
+
+    // The report is the READING; the answers are the evidence it was drawn from,
+    // so they must come AFTER everything the instruction composed.
+    const lines = runs.map((run) => run.text);
+    const composed = lines.findIndex((line) => line.includes("Synthese"));
+    const answers = lines.findIndex((line) => line.includes("Vos r"));
+    expect(composed).toBeGreaterThan(-1);
+    expect(answers).toBeGreaterThan(composed);
+    expect(lines.some((line) => line.includes("Nom du projet"))).toBe(true);
+    expect(lines.some((line) => line.includes("Celui de la tracabilite"))).toBe(true);
+  });
+
+  test("without answers, no empty section is drawn", () => {
+    const { runs } = drawnRuns(
+      buildComposedReportPdf({
+        lang: "en",
+        document: { title: "Report", sections: [{ heading: "Summary", blocks: [{ type: "paragraph", text: "Body." }] }] },
+      }),
+    );
+    expect(runs.some((run) => run.text.includes("Your Responses"))).toBe(false);
+  });
 });

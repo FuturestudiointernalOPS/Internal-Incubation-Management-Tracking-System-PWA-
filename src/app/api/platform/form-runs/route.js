@@ -1191,6 +1191,9 @@ async function buildResultDocument({ submission_id, forceReport = false }) {
           applicantName: applicantName || "",
           submittedAt: row.submitted_at || row.updated_at || null,
           document: composedReport,
+          // The instruction writes the READING; the platform appends the form's
+          // questions and the participant's answers after it.
+          sections,
         })
       : buildSubmissionResultPdf({
           lang,
