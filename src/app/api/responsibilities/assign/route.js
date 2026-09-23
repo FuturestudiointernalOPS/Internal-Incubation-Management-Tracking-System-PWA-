@@ -41,6 +41,16 @@ export async function PUT(req) {
       );
     }
 
+    // Separation of duties: nobody changes their OWN responsibilities, not even
+    // a Super Admin. Self-granting a responsibility (and its base module access)
+    // is the escalation this refuses.
+    if (session?.cid && String(session.cid) === String(user_cid)) {
+      return NextResponse.json(
+        { success: false, error: "You cannot change your own responsibilities." },
+        { status: 403 },
+      );
+    }
+
     await initDb();
 
     // Get responsibility name for audit

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
 import {
   addSessionVersionColumn,
@@ -150,6 +151,25 @@ export async function POST(req) {
         { success: false, error: "Program ID missing" },
         { status: 400 },
       );
+
+    // Record scope: `programs.edit` says WHAT may be written; this says WHICH
+    // program. Creating actions write into the payload's program, but record
+    // actions (toggle/assign/anchor) target an existing row by id, so the program
+    // is resolved from THAT row — a client-supplied program_id must never
+    // authorise a foreign record.
+    let scopeProgramId = program_id;
+    if (action === "toggle_status" || action === "assign_team") {
+      const target = await getSessionProgramId(payload.id);
+      scopeProgramId = target.rows?.[0]?.program_id || null;
+    } else if (action === "anchor_material") {
+      const target = await getSessionProgramId(payload.session_id);
+      scopeProgramId = target.rows?.[0]?.program_id || null;
+    } else if (action === "toggle_deliverable") {
+      const target = await getRequirementProgramId(payload.id);
+      scopeProgramId = target.rows?.[0]?.program_id || null;
+    }
+    const scopeError = await requireProgramScope({ programId: scopeProgramId, wave: "content" });
+    if (scopeError) return scopeError;
 
     if (action === "add_session") {
       const {
@@ -453,6 +473,21 @@ export async function PUT(req) {
 
     const targetId = id || sessionId;
 
+    // Record scope: the target is an existing session (field update / legacy
+    // update) or a document requirement. The program is resolved from the record
+    // itself — never from the payload — so a forged program_id cannot authorise
+    // a foreign record.
+    let effectiveProgramId = null;
+    if (targetId) {
+      const isSession = Boolean(field) || type === "session";
+      const resolved = isSession
+        ? await getSessionProgramId(targetId)
+        : await getRequirementProgramId(targetId);
+      effectiveProgramId = resolved.rows?.[0]?.program_id || null;
+    }
+    const scopeError = await requireProgramScope({ programId: effectiveProgramId, wave: "content" });
+    if (scopeError) return scopeError;
+
     if (field && targetId) {
       const { sql, args } = buildSessionFieldUpdate(
         field,
@@ -567,24 +602,22 @@ export async function DELETE(req) {
     await initDb();
     const capError = await requireAuthorization("programs", "edit");
     if (capError) return capError;
-    const { id, type, program_id } = await req.json();
-    let targetProgramId = program_id;
+    const { id, type } = await req.json();
+
+    // Resolve the program from the record that is about to be deleted — never
+    // from the payload — so a forged program_id cannot authorise a foreign row.
+    const resolvedProgram = type === "session"
+      ? await getSessionProgramId(id)
+      : await getRequirementProgramId(id);
+    const targetProgramId = resolvedProgram.rows?.[0]?.program_id || null;
+    const scopeError = await requireProgramScope({ programId: targetProgramId, wave: "content" });
+    if (scopeError) return scopeError;
 
     if (type === "session") {
-      // If no program_id provided, fetch it from the session before deleting
-      if (!targetProgramId) {
-        const sessionProgramResult = await getSessionProgramId(id);
-        targetProgramId = sessionProgramResult.rows[0]?.program_id;
-      }
       await deleteSession(id);
       await deleteAttendanceForSession(id);
       await deleteRequirementsForSession(id);
     } else {
-      // If no program_id provided, fetch it from the doc req before deleting
-      if (!targetProgramId) {
-        const requirementProgramResult = await getRequirementProgramId(id);
-        targetProgramId = requirementProgramResult.rows[0]?.program_id;
-      }
       await deleteRequirement(id);
     }
 

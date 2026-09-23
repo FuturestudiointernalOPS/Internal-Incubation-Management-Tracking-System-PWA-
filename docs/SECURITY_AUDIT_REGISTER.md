@@ -35,6 +35,7 @@
 | **FIXED — Lot 5** | Corrected with the P2 hardening batch. |
 | **FIXED — Lot 6** | Corrected with the P3 hardening batch. |
 | **FIXED — Lot 7** | Corrected with the program-scope batch (team/group management). |
+| **FIXED — Lot 8** | Corrected with the curriculum/reports/export scope + separation-of-duties batch. |
 | **OPEN** | Still present. Fix order in §4. |
 
 ---
@@ -154,6 +155,14 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | BOLA-CRM-1 | `group-members` POST | The membership insert had no program scope, so any staff could add a participant to any group. The group's program is now resolved and scope-checked (a missing group is a 404, never a write). | **FIXED — Lot 7** |
 | — | Tests | `src/__tests__/security-lot7-program-scope.test.js` (13 behavioural tests) + `program-scope-coverage.test.js` (3 census entries) | In-scope writes and out-of-scope refusals, for both a body-supplied program and a program resolved from the record. | **FIXED — Lot 7** |
 
+### 2.10 Lot 8 — curriculum/reports/export scope + separation of duties
+
+| ID | Location | Was | Status |
+|---|---|---|---|
+| XPROG-1 (part) | `pm/curriculum`, `pm/reports`, `pm/export` | Authorised on the global `programs.edit` / `reports.export` capability without scope. Worse, `pm/curriculum`'s record actions (`toggle_status`, `toggle_deliverable`, `assign_team`, `anchor_material`) mutated a row by id while scoping on the CLIENT-supplied `program_id`, so a forged program_id could write into another program. The program is now resolved from the RECORD itself (session/requirement), never from the body, then `requireProgramScope({ wave: "content" })` is enforced. | **FIXED — Lot 8** |
+| AUTHZ-ADM-5 (part) | `access-profiles/assign`, `responsibilities/assign` | Nothing stopped an actor from granting capabilities to THEMSELVES. Both PUTs now refuse a self-target (403) — separation of duties, applied to every role including Super Admin. | **FIXED — Lot 8** |
+| — | Tests | `src/__tests__/security-lot8-scope-selfassign.test.js` (16 behavioural tests) + `program-scope-coverage.test.js` (3 census entries) | Forged-body-program refusal, record-resolution proof, self-assignment refusal, Super Admin bypass of scope (but not of the self-guard). | **FIXED — Lot 8** |
+
 ---
 
 ## 3. OPEN — residual register
@@ -176,7 +185,7 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | AUTHZ-ADM-2 | Mass assignment | `admin/bulk-upload`, `contacts` PUT | ✅ fixed in Lot 3. | **FIXED** |
 | AUTH-2 | Auth | `auth/impersonate`, `auth/quick-login` | ✅ fixed in Lot 3. | **FIXED** |
 | AUTH-3 | Session | password change/reset paths | ✅ fixed in Lot 3. | **FIXED** |
-| XPROG-1 | Scope | `pm/{teams,curriculum,reports,export}`, `teams`, `lms/coaching-requests` | Global capability without program scope; `SELECT *` team passwords. ✅ `pm/teams`, `teams` fixed in Lot 7, `lms/coaching-requests` in Lot 4. **Still OPEN: `pm/curriculum`, `pm/reports`, `pm/export` + `SELECT *` team credentials.** | **OPEN — Lot 3/7 remainder** |
+| XPROG-1 | Scope | `pm/{teams,curriculum,reports,export}`, `teams`, `lms/coaching-requests` | Global capability without program scope. ✅ fully fixed (Lots 4/7/8). **Still OPEN: `SELECT *` team credentials** in the team reads — a data-exposure item needing a decision on who may see them. | **OPEN — `SELECT *` team credentials only** |
 | BOLA-CRM-1 | BOLA | `group-members` POST | ✅ fixed in Lot 7 (program scope on the membership insert; unscoped read fixed in Lot 3). | **FIXED** |
 | IDOR-TASK-1 | BOLA | `tasks/carryover` | ✅ fixed in Lot 3. | **FIXED** |
 | IDOR-TASK-2 | BOLA | `tasks` | Staff/PM may list any `user_id`'s tasks; authz compares the client-supplied `user_id`; `supervisor_id` self-grant. | **OPEN — Lot 3** |
@@ -204,7 +213,7 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | AUTH-5 | Enumeration | `auth/setup-password/validate` (GET), `auth/activate` (GET) | ✅ fixed in Lot 5. | **FIXED** |
 | AUTHZ-ADM-3 | Token / mass assignment | `admin/approve-user` | ✅ fixed in Lot 3. | **FIXED** |
 | AUTHZ-ADM-4 | Scope | `facilitators/invite-bulk`, `programs`, `admin/projects/[id]/reports/generate` | `program_manager` skips the assignment check; staff edit any program; unscoped report write. | **OPEN — Lot 3** |
-| AUTHZ-ADM-5 | Self-assignment | `access-profiles/assign`, `responsibilities/assign` | No self-assignment guard; `allowed_roles` not enforced. | **OPEN — Lot 3** |
+| AUTHZ-ADM-5 | Self-assignment | `access-profiles/assign`, `responsibilities/assign` | ✅ self-assignment guard added in Lot 8. `allowed_roles` left advisory BY DESIGN (see §6). | **FIXED (self-guard)** |
 | AUTHZ-CRM-1 | Scope | `notifications` (create), `contact-emails`, `team-tasks` | Forged notices to any recipient; staff manage any contact's emails; team tasks with no team scope. | **OPEN — Lot 3** |
 | PUB-CONTACTS-1 | Mass assignment | `contacts` POST | Anonymous caller may still supply `program_id`/other fields (role/status now clamped). | **OPEN — Lot 3** |
 | DATA-2 | Exposure | `lms/courses/[id]` | ✅ fixed in Lot 4 (answer key stripped). | **FIXED** |
@@ -248,6 +257,7 @@ Lot 4  (P1 forms/LMS/upload) ✅ mostly done — arbitrary SQL removed, certific
 Lot 5  (P2 hardening) ✅ mostly done — headers, credential rate limits, token-probe limits, IMPL-1 (`req.session`); remainder: ERR-1 (error-message leakage), CSRF-1 (state-changing GETs), AUTH-4 (enumeration, UX decision), SECRET-1/3 (clear-text passwords), DEP-1 (`tar`)
 Lot 6  (P3 hardening) ✅ done — LOG-1 token logs, CSV-1 formula injection, IMP-1 impersonation flag, XSS-1 `sanitizeRichText`, AUD-1 session actor, SECRET-2 header secret, SYS-1/2 config, LOGIC-1/2 validation, DATA-3 prototype guard, LMS-3 source, WHO-1 constant-time webhook; remainder: MVC-1 (SQL-in-routes, ongoing)
 Lot 7  (P1 scope) ✅ partial — program scope on `pm/teams`, `teams`, `group-members`; remainder below
+Lot 8  (P1 scope) ✅ done — `pm/curriculum`/`pm/reports`/`pm/export` program scope (resolved from the record) + self-assignment guard
 ```
 
 Each lot: `npx eslint .` · `npm test` · `npm run build`, plus a security regression test per finding.
@@ -272,6 +282,7 @@ Each lot: `npx eslint .` · `npm test` · `npm run build`, plus a security regre
 3. **`tar`** has no upstream fix; reachable only through `canvas`'s native build, not the PDF read path (DEP-1).
 4. **Legacy clear-text passwords** (SECRET-1) — a data migration is required before the fallback can be removed.
 5. **Investor approval status** — `requireInvestorSelfServiceAuthorization` ignores `investor_profiles.approval_status`, and self-registration stores an `active` contact. Whether an unapproved investor should reach the portal is a product decision; resource binding is now enforced regardless (Lot 2).
+6. **`allowed_roles` is advisory by design** — `src/lib/featureAccess.js` states it "NEVER blocks an assignment": the Permission Manager shows an amber warning when a responsibility's feature cannot serve the user's role, and the assignment is allowed on purpose (an administrator can override). The self-assignment guard (Lot 8) closes the escalation path; making `allowed_roles` a hard gate would change an intended workflow, so it is left as a decision.
 
 ---
 
@@ -281,13 +292,13 @@ Everything below is **still present in the code today**. Grouped by the lot that
 
 ### Lot 3 — remainder (P1)
 
-- `pm/curriculum`, `pm/reports`, `pm/export` — program scope (§3.2 XPROG-1). ✅ done for `pm/teams`, `teams` (Lot 7) and `lms/coaching-requests` (Lot 4).
 - `SELECT *` team credentials returned by the team reads — needs a decision on who may see them (§3.2 XPROG-1). ✅ `group-members` POST program scope done (Lot 7).
-- `access-profiles/assign`, `responsibilities/assign` — self-assignment guard + `allowed_roles` enforcement (§3.3 AUTHZ-ADM-5).
 - `facilitators/invite-bulk`, `programs`, `admin/projects/[id]/reports/generate` — program scope (§3.3 AUTHZ-ADM-4).
 - `notifications` (create), `contact-emails`, `team-tasks` — scope (§3.3 AUTHZ-CRM-1).
 - `tasks` listing — `user_id` scope, authz on the client-supplied `user_id`, `supervisor_id` self-grant (§3.2 IDOR-TASK-2).
 - `contacts` POST — anonymous `program_id` / other fields (§3.3 PUB-CONTACTS-1).
+
+✅ Done in Lot 7: `pm/teams`, `teams` (program scope), `group-members` POST. ✅ Done in Lot 8: `pm/curriculum`, `pm/reports`, `pm/export` (program scope, resolved from the record), `access-profiles/assign` + `responsibilities/assign` (self-assignment guard); `allowed_roles` enforcement left as a product decision (§6).
 
 ### Lot 4 — remainder (P1)
 
@@ -323,11 +334,16 @@ Everything below is **still present in the code today**. Grouped by the lot that
 
 - **XPROG-1 (part)** — `requireProgramScope({ wave: "groups" })` on `pm/teams` (POST/PATCH/DELETE) and `teams` (POST/PUT/DELETE); **BOLA-CRM-1** — program scope on the `group-members` POST. Census extended (3 entries); 13 behavioural tests.
 
-### Remaining after Lot 7
+### Lot 8 — P1 scope ✅
 
-- **Lot 3 remainder** — `pm/curriculum`, `pm/reports`, `pm/export` program scope; `SELECT *` team credentials; `access-profiles`/`responsibilities` self-assignment; `facilitators/invite-bulk`, `programs`, `admin/projects/[id]/reports/generate`; `notifications`/`contact-emails`/`team-tasks`; `tasks` listing; `contacts` POST.
+- **XPROG-1 (part)** — program scope on `pm/curriculum`, `pm/reports`, `pm/export`, with the program resolved from the RECORD (never the body). **AUTHZ-ADM-5 (part)** — self-assignment refused on `access-profiles/assign` and `responsibilities/assign`. Census extended (3 entries); 16 behavioural tests.
+
+### Remaining after Lot 8
+
+- **Lot 3 remainder** — `SELECT *` team credentials; `facilitators/invite-bulk`, `programs`, `admin/projects/[id]/reports/generate`; `notifications`/`contact-emails`/`team-tasks`; `tasks` listing; `contacts` POST.
 - **Lot 4 remainder** (P1) — public buckets, run/submission scope, `respond` identity, `s/public-draft`, `program-requirements/[id]`.
 - **Lot 5 remainder** (P2) — RATE-2, ERR-1, CSRF-1, AUTH-4, SECRET-1/3, DEP-1, shared rate-limit store.
+- **Product decisions** — `allowed_roles` enforcement (§6); `SELECT *` team credentials visibility.
 - **MVC-1** (ongoing) — SQL still inline in a few routes.
 
 ### Product decisions required (not code fixes)

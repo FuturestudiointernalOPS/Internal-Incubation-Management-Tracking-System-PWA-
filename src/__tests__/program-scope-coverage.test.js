@@ -31,7 +31,12 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 /** Program WRITE surfaces that must consult the guard, per wave. */
 const COVERAGE = {
-  content: ["src/app/api/pm/programs/route.js"],
+  content: [
+    "src/app/api/pm/programs/route.js",
+    "src/app/api/pm/curriculum/route.js",
+    "src/app/api/pm/reports/route.js",
+    "src/app/api/pm/export/route.js",
+  ],
   enrollment: [
     "src/app/api/participant-programs/route.js",
     "src/app/api/participant-programs/bulk/route.js",

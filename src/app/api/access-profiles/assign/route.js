@@ -36,6 +36,15 @@ export async function PUT(req) {
       );
     }
 
+    // Separation of duties: nobody changes their OWN access profile, not even a
+    // Super Admin. Self-granting capabilities is the escalation this refuses.
+    if (session?.cid && String(session.cid) === String(user_cid)) {
+      return NextResponse.json(
+        { success: false, error: "You cannot change your own access profile." },
+        { status: 403 },
+      );
+    }
+
     // Verify user exists
     const user = await getContactForAssignment(user_cid);
     if (user.rows.length === 0) {

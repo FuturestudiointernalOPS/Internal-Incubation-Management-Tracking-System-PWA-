@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { getSession, requireAuth, requireAssignmentAccess } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import {
   addWeeklyReportAttachmentTypeColumn,
   addWeeklyReportAttachmentUrlColumn,
@@ -121,6 +122,11 @@ export async function POST(req) {
         { success: false, error: "Program ID missing" },
         { status: 400 },
       );
+
+    // Record scope: `programs.edit` says WHAT may be written; a delegated holder
+    // must be staffed on the program the report belongs to.
+    const scopeError = await requireProgramScope({ programId: program_id, wave: "content" });
+    if (scopeError) return scopeError;
 
     const {
       week_number,

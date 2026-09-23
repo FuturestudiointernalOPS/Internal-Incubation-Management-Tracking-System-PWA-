@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import writeXlsxFile from "write-excel-file/node";
 import { objectsToAoa } from "@/lib/spreadsheet";
 import { getProgramExportRows } from "@/models/programWorkspace";
@@ -41,6 +42,11 @@ export async function GET(req) {
     if (!programId) {
       return NextResponse.json({ error: "program_id required" }, { status: 400 });
     }
+
+    // Record scope: `reports.export` says WHAT may be read; the exported rows are
+    // participant data, so a delegated holder must be staffed on that program.
+    const scopeError = await requireProgramScope({ programId, wave: "content" });
+    if (scopeError) return scopeError;
 
     let filename;
 
