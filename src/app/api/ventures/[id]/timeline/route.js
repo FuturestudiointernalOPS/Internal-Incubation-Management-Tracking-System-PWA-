@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
+import { resolveVentureDbId } from "@/lib/ventureOwnership";
 import {
   getProjectTimeline,
   getGanttData,
@@ -68,7 +69,11 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   if (body.action === "remove_dependency") {
-    await removeDependency(parseInt(body.dependency_id));
+    // The dependency id comes from the request: only one that belongs to THIS
+    // venture may be removed (accepts both the code and the numeric id).
+    const dbId = await resolveVentureDbId(id);
+    if (!dbId) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    await removeDependency(parseInt(body.dependency_id), [id, dbId]);
     return NextResponse.json({ success: true });
   }
 

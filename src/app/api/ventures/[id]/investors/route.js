@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import db from "@/lib/db";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { resolveVentureDbId } from "@/lib/ventureOwnership";
 import {
   listInvestors, getInvestor, createInvestor,
   getVentureMatches, generateMatches, updateMatchStatus,
@@ -63,7 +64,10 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   if (body.action === "update_match") {
-    await updateMatchStatus(parseInt(body.match_id), body.status);
+    // Object-level authorization: a match id from the request is scoped to THIS
+    // venture, so another venture's match cannot be changed.
+    const dbId = await resolveVentureDbId(id);
+    await updateMatchStatus(parseInt(body.match_id), body.status, [id, dbId]);
     return NextResponse.json({ success: true });
   }
 

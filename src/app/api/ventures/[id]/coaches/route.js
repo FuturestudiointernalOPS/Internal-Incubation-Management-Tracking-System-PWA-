@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
+import { resolveVentureDbId } from "@/lib/ventureOwnership";
 import {
   listCoaches, getCoach, createCoach, updateCoach, deleteCoach,
   getVentureAssignments, assignCoachToVenture, removeAssignment,
@@ -54,7 +55,10 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   if (action === "remove_assignment") {
-    await removeAssignment(parseInt(body.assignment_id), req.session?.cid);
+    // The assignment id comes from the request: only an assignment OF THIS
+    // venture may be removed.
+    const dbId = await resolveVentureDbId(id);
+    await removeAssignment(parseInt(body.assignment_id), access.session?.cid, [id, dbId]);
     return NextResponse.json({ success: true });
   }
 

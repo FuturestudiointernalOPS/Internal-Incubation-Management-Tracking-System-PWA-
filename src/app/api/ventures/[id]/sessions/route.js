@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import db from "@/lib/db";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
+import { ventureOwned, ventureNotFound, resolveVentureDbId } from "@/lib/ventureOwnership";
 import { resolveCoachContact } from "@/lib/ventureCoach";
 import {
   listSessions, getSession, createSession, updateSession, cancelSession,
@@ -84,6 +85,17 @@ export const POST = createHandler(async (req, { params }) => {
   const body = await req.json();
   const { action } = body;
   const actor = access.session || req.session;
+
+  // Object-level authorization: any action that targets an EXISTING session must
+  // name a session OF THIS venture. Called from each such branch — placed AFTER
+  // the management gate so a denied manager still gets its own 403 — so a
+  // session id from another venture can never be updated, cancelled, deleted,
+  // annotated or used as an attendance/action-item anchor.
+  const sessionBelongsToVenture = async (sessionId) => {
+    const dbId = await resolveVentureDbId(id);
+    const targetSession = await getSession(parseInt(sessionId));
+    return ventureOwned(targetSession, id, dbId);
+  };
 
   /**
    * WHO MAY DEFINE THE CALENDAR.
@@ -337,6 +349,7 @@ export const POST = createHandler(async (req, { params }) => {
   if (action === "update_session") {
     const denied = await deniedSessionManagement();
     if (denied) return denied;
+    if (!(await sessionBelongsToVenture(body.session_id))) return ventureNotFound();
     try {
       const before = await getSession(parseInt(body.session_id));
       await updateSession(parseInt(body.session_id), body.updates);
@@ -380,7 +393,10 @@ export const POST = createHandler(async (req, { params }) => {
       return NextResponse.json({ success: false, error: "A memo is required." }, { status: 400 });
     }
     const session = await getSession(sessionId);
-    if (!session) return NextResponse.json({ success: false, error: "Session not found." }, { status: 404 });
+    // Object-level authorization: the memo is written only on a session OF THIS
+    // venture (this also covers a session that does not exist).
+    const dbId = await resolveVentureDbId(id);
+    if (!ventureOwned(session, id, dbId)) return ventureNotFound();
     await updateSession(sessionId, { description: note });
     return NextResponse.json({ success: true });
   }
@@ -388,6 +404,7 @@ export const POST = createHandler(async (req, { params }) => {
   if (action === "cancel_session") {
     const denied = await deniedSessionManagement();
     if (denied) return denied;
+    if (!(await sessionBelongsToVenture(body.session_id))) return ventureNotFound();
     const session = await getSession(parseInt(body.session_id));
     await cancelSession(parseInt(body.session_id));
     if (session) {
@@ -440,6 +457,7 @@ export const POST = createHandler(async (req, { params }) => {
   if (action === "reschedule_session") {
     const denied = await deniedSessionManagement();
     if (denied) return denied;
+    if (!(await sessionBelongsToVenture(body.session_id))) return ventureNotFound();
     try {
       await rescheduleSession(parseInt(body.session_id), body.start_time, body.end_time);
       const session = await getSession(parseInt(body.session_id));
@@ -496,33 +514,39 @@ export const POST = createHandler(async (req, { params }) => {
   if (action === "delete_session") {
     const denied = await deniedSessionManagement();
     if (denied) return denied;
+    if (!(await sessionBelongsToVenture(body.session_id))) return ventureNotFound();
     await deleteSession(parseInt(body.session_id));
     return NextResponse.json({ success: true });
   }
 
   if (action === "get_session") {
     const session = await getSession(parseInt(body.session_id));
-    if (!session) return NextResponse.json({ success: false, error: "Session not found." }, { status: 404 });
+    const dbId = await resolveVentureDbId(id);
+    if (!ventureOwned(session, id, dbId)) return ventureNotFound();
     return NextResponse.json({ success: true, session });
   }
 
   if (action === "add_note") {
+    if (!(await sessionBelongsToVenture(body.session_id))) return ventureNotFound();
     const noteResult = await addSessionNote({ sessionId: parseInt(body.session_id), noteType: body.note_type, content: body.content, authorCid: req.session?.cid, authorName: req.session?.name });
     return NextResponse.json({ success: true, note_id: noteResult.id });
   }
 
   if (action === "record_attendance") {
+    if (!(await sessionBelongsToVenture(body.session_id))) return ventureNotFound();
     await recordAttendance({ sessionId: parseInt(body.session_id), participantCid: body.participant_cid, participantName: body.participant_name, participantType: body.participant_type, status: body.status });
     return NextResponse.json({ success: true });
   }
 
   if (action === "create_action_item") {
+    if (!(await sessionBelongsToVenture(body.session_id))) return ventureNotFound();
     const actionItemResult = await createActionItem({ sessionId: parseInt(body.session_id), title: body.title, description: body.description, ownerCid: body.owner_cid, ownerName: body.owner_name, priority: body.priority, dueDate: body.due_date });
     return NextResponse.json({ success: true, action_item_id: actionItemResult.id });
   }
 
   if (action === "update_action_item") {
-    await updateActionItem(parseInt(body.action_item_id), body.updates);
+    const dbId = await resolveVentureDbId(id);
+    await updateActionItem(parseInt(body.action_item_id), body.updates, [id, dbId]);
     return NextResponse.json({ success: true });
   }
 

@@ -104,6 +104,16 @@ export const PATCH = createHandler(async (req, { params }) => {
   const milestoneId = searchParams.get("id");
   if (!milestoneId) return NextResponse.json({ success: false, error: "Milestone ID required." }, { status: 400 });
 
+  // Object-level authorization: the milestone id comes from the query string,
+  // so the UPDATE is scoped to this venture's own milestones. A milestone id
+  // belonging to another venture simply matches no row.
+  const scopeVentureResult = await db.execute({
+    sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?",
+    args: [id, id],
+  }).catch(() => ({ rows: [] }));
+  const ventureDbIdForScope = scopeVentureResult.rows?.[0]?.id ?? null;
+  if (!ventureDbIdForScope) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
+
   const body = await req.json();
   const { progress, status, title, description, target_date } = body;
   const completing = status === "completed";
@@ -155,17 +165,20 @@ export const PATCH = createHandler(async (req, { params }) => {
   }
 
   if (updates.length === 1) return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
-  args.push(milestoneId);
+  args.push(milestoneId, ventureDbIdForScope);
   try {
-    await db.execute({ sql: `UPDATE venture_milestones SET ${updates.join(", ")} WHERE id = ?`, args });
+    await db.execute({ sql: `UPDATE venture_milestones SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`, args });
   } catch (error) {
     // Safety net for older databases whose milestone table predates the
     // updated_at column: retry without it rather than failing the whole save.
+    // `updated_at = NOW()` is always the FIRST clause and takes no arg, so the
+    // value clauses line up with args[0..n-2] and the two scope args are last.
     if (!isUnknownColumnError(error)) throw error;
-    const keep = updates.map((clause, index) => [clause, args[index]]).filter(([clause]) => !clause.startsWith("updated_at"));
+    const valueClauses = updates.filter((clause) => !clause.startsWith("updated_at"));
+    const valueArgs = args.slice(0, args.length - 2);
     await db.execute({
-      sql: `UPDATE venture_milestones SET ${keep.map(([clause]) => clause).join(", ")} WHERE id = ?`,
-      args: [...keep.map(([, arg]) => arg), milestoneId],
+      sql: `UPDATE venture_milestones SET ${valueClauses.join(", ")} WHERE id = ? AND venture_id = ?`,
+      args: [...valueArgs, milestoneId, ventureDbIdForScope],
     });
   }
 

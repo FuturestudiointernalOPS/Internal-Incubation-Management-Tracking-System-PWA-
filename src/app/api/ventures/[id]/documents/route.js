@@ -11,6 +11,7 @@ import {
   getVentureIdByCode, getVentureCodeById, isFounderForDocumentVisibility,
   isFounderForDocumentStatusTransition, updateDocumentApprovalStatus,
 } from "@/models/ventureAssets";
+import { ventureOwned, ventureNotFound } from "@/lib/ventureOwnership";
 
 const ROLES = ["participant","founder","staff","program_manager","super_admin"];
 const ALLOWED = ["participant","founder","staff","program_manager","super_admin"];
@@ -66,7 +67,9 @@ export async function GET(req, { params }) {
     }
     if (type === "detail" && searchParams.get("document_id")) {
       const document = await getDocument(searchParams.get("document_id"));
-      if (!document) return NextResponse.json({ success: false, error: "Document not found." }, { status: 404 });
+      // Object-level authorization: the document id comes from the query string,
+      // so it must belong to THIS venture before its visibility is judged.
+      if (!document || !ventureOwned(document, dbId, id)) return ventureNotFound();
       // Block access to private docs for non-privileged users
       if (visibility !== null && !visibility.includes(document.approval_status)) {
         return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
@@ -74,10 +77,14 @@ export async function GET(req, { params }) {
       return NextResponse.json({ success: true, document });
     }
     if (type === "shares" && searchParams.get("document_id")) {
+      const document = await getDocument(searchParams.get("document_id"));
+      if (!document || !ventureOwned(document, dbId, id)) return ventureNotFound();
       const shares = await getDocumentShares(searchParams.get("document_id"));
       return NextResponse.json({ success: true, shares });
     }
     if (type === "access_logs" && searchParams.get("document_id")) {
+      const document = await getDocument(searchParams.get("document_id"));
+      if (!document || !ventureOwned(document, dbId, id)) return ventureNotFound();
       const logs = await getAccessLogs(searchParams.get("document_id"));
       return NextResponse.json({ success: true, logs });
     }
@@ -104,6 +111,8 @@ export async function POST(req, { params }) {
       return NextResponse.json({ success: true, document_id: result.id });
     }
     if (body.action === "update") {
+      const document = await getDocument(body.document_id);
+      if (!document || !ventureOwned(document, dbId, id)) return ventureNotFound();
       await updateDocument(body.document_id, { ...body.updates, uploaded_by: session.cid });
       return NextResponse.json({ success: true });
     }
@@ -124,10 +133,15 @@ export async function POST(req, { params }) {
       return NextResponse.json({ success: true });
     }
     if (body.action === "delete") {
+      const document = await getDocument(body.document_id);
+      if (!document || !ventureOwned(document, dbId, id)) return ventureNotFound();
       await deleteDocument(body.document_id);
       return NextResponse.json({ success: true });
     }
     if (body.action === "share") {
+      // A share row must reference a document OF THIS venture.
+      const document = await getDocument(body.document_id);
+      if (!document || !ventureOwned(document, dbId, id)) return ventureNotFound();
       const result = await createShareLink({
         documentId: body.document_id, ventureId: dbId,
         sharedWithEmail: body.email, sharedWithName: body.name,
@@ -137,7 +151,7 @@ export async function POST(req, { params }) {
       return NextResponse.json({ success: true, ...result });
     }
     if (body.action === "revoke_share") {
-      await revokeShare(body.share_id);
+      await revokeShare(body.share_id, [dbId, id]);
       return NextResponse.json({ success: true });
     }
     return NextResponse.json({ success: false, error: "Invalid action." }, { status: 400 });

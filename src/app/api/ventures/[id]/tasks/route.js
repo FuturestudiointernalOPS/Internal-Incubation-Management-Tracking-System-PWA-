@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
-  listTasks, getTask, createTask, updateTask,
+  listTasks, getTask, getMilestone, createTask, updateTask,
   listTaskComments, addTaskComment, deleteTaskComment,
   listTaskAttachments, addTaskAttachment, deleteTaskAttachment,
 } from "@/lib/ventures";
 import { archiveTask } from "@/lib/ventureArchive";
 import { TASK_BOARD_COLUMNS, TASK_REVIEW_GATED_COMPLETION_STATUSES } from "@/lib/ventureStatuses";
+import { ventureOwned, ventureNotFound } from "@/lib/ventureOwnership";
 import db from "@/lib/db";
 import {
   getVentureDbIdForTasks,
@@ -58,6 +59,12 @@ export const POST = createHandler(async (req, { params }) => {
   const body = await req.json();
   if (!body.title?.trim()) return NextResponse.json({ success: false, error: "Task title is required." }, { status: 400 });
 
+  // A task may only be attached to a milestone OF THIS venture.
+  if (body.milestone_id) {
+    const milestone = await getMilestone(parseInt(body.milestone_id));
+    if (!ventureOwned(milestone, dbId, id)) return ventureNotFound();
+  }
+
   const result = await createTask({
     ventureId: dbId, milestoneId: body.milestone_id, title: body.title, description: body.description,
     priority: body.priority, dueDate: body.due_date, estimatedHours: body.estimated_hours,
@@ -74,6 +81,8 @@ export const PATCH = createHandler(async (req, { params }) => {
   const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
   if (access.error) return access.error;
   const { session } = access;
+  const dbId = await resolveVentureDbId(id);
+  if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
   const searchParams = new URL(req.url).searchParams;
   const taskId = searchParams.get("id");
   const action = searchParams.get("action");
@@ -81,30 +90,42 @@ export const PATCH = createHandler(async (req, { params }) => {
 
   if (!taskId) return NextResponse.json({ success: false, error: "Task ID required." }, { status: 400 });
 
+  // Object-level authorization: every id below comes from the request, so the
+  // target task must be proven to belong to the venture in the URL — otherwise
+  // an editor of one venture could touch another venture's tasks.
+  const taskInVenture = async () => {
+    const task = await getTask(parseInt(taskId));
+    return ventureOwned(task, dbId, id) ? task : null;
+  };
+
   // Handle comments
   if (action === "add_comment") {
+    if (!(await taskInVenture())) return ventureNotFound();
     const result = await addTaskComment({ taskId: parseInt(taskId), parentId: body.parent_id, authorCid: session?.cid, authorName: session?.name, body: body.body });
     return NextResponse.json({ success: true, comment_id: result.id });
   }
   if (action === "delete_comment") {
-    await deleteTaskComment(parseInt(body.comment_id));
+    await deleteTaskComment(parseInt(body.comment_id), dbId);
     return NextResponse.json({ success: true });
   }
   if (action === "get_comments") {
+    if (!(await taskInVenture())) return ventureNotFound();
     const comments = await listTaskComments(parseInt(taskId));
     return NextResponse.json({ success: true, comments });
   }
 
   // Handle attachments
   if (action === "add_attachment") {
+    if (!(await taskInVenture())) return ventureNotFound();
     const result = await addTaskAttachment({ taskId: parseInt(taskId), fileName: body.file_name, fileSize: body.file_size, fileType: body.file_type, fileUrl: body.file_url, uploadedBy: session?.cid });
     return NextResponse.json({ success: true, attachment_id: result.id });
   }
   if (action === "delete_attachment") {
-    await deleteTaskAttachment(parseInt(body.attachment_id));
+    await deleteTaskAttachment(parseInt(body.attachment_id), dbId);
     return NextResponse.json({ success: true });
   }
   if (action === "get_attachments") {
+    if (!(await taskInVenture())) return ventureNotFound();
     const attachments = await listTaskAttachments(parseInt(taskId));
     return NextResponse.json({ success: true, attachments });
   }
@@ -119,9 +140,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     if (!["accepted", "rejected", "revision_requested"].includes(decision)) {
       return NextResponse.json({ success: false, error: "Decision must be accepted, rejected or revision_requested." }, { status: 400 });
     }
-    if (!(await getTask(parseInt(taskId)))) {
-      return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });
-    }
+    if (!(await taskInVenture())) return ventureNotFound();
     await insertVentureTaskReview({ task_id: taskId, reviewer_cid: session?.cid, reviewer_name: session?.name, decision, comments });
     await updateTask(parseInt(taskId), { status: decision });
     return NextResponse.json({ success: true });
@@ -131,7 +150,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   // configured with review_required, founders cannot complete it without an
   // approved submission; only the review flow marks it complete.
   const existingTask = await getTask(parseInt(taskId));
-  if (!existingTask) return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });
+  if (!ventureOwned(existingTask, dbId, id)) return ventureNotFound();
   if (body.status && TASK_REVIEW_GATED_COMPLETION_STATUSES.includes(body.status) && existingTask.review_required) {
     const submissionResult = await db.execute({
       sql: "SELECT 1 FROM venture_task_submissions WHERE task_id = ? AND review_decision = 'approved' ORDER BY version DESC LIMIT 1",
@@ -151,8 +170,14 @@ export const DELETE = createHandler(async (req, { params }) => {
   const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
   if (access.error) return access.error;
   const { session } = access;
+  const dbId = await resolveVentureDbId(id);
+  if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
   const taskId = new URL(req.url).searchParams.get("id");
   if (!taskId) return NextResponse.json({ success: false, error: "Task ID required." }, { status: 400 });
+
+  // Object-level authorization: only a task of THIS venture may be archived.
+  const task = await getTask(parseInt(taskId));
+  if (!ventureOwned(task, dbId, id)) return ventureNotFound();
 
   // Soft delete (archive): a task that already has filed work (submissions or
   // reviews) is part of the Venture's record and can never be removed.

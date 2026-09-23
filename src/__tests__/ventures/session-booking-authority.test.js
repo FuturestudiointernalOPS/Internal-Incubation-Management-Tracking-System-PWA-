@@ -274,7 +274,7 @@ describe("managing the calendar is the same act as booking it", () => {
 
   test("a granted manager may cancel", async () => {
     mockCanSchedule = true;
-    mockGetSessionRow = { id: 7, title: "Review", venture_facing: false };
+    mockGetSessionRow = { id: 7, title: "Review", venture_facing: false, venture_id: VENTURE_ID };
     const res = await act("cancel_session");
     expect(res.status).toBe(200);
     expect(mockCancelSession).toHaveBeenCalledWith(7);
@@ -287,7 +287,7 @@ describe("managing the calendar is the same act as booking it", () => {
     };
     mockIsStaffActor = true;
     mockCanSchedule = false; // the matrix would refuse...
-    mockGetSessionRow = { id: 7, title: "Review", venture_facing: false };
+    mockGetSessionRow = { id: 7, title: "Review", venture_facing: false, venture_id: VENTURE_ID };
     const res = await act("cancel_session");
     expect(res.status).toBe(200); // ...but a global actor never reads it
     expect(hasVentureCapability).not.toHaveBeenCalled();
@@ -299,7 +299,7 @@ describe("participation is not management", () => {
   test("a Coach denied booking may still write the memo — that is what a Coach is for", async () => {
     mockIsStaffActor = true;
     mockCanSchedule = false; // denied scheduling...
-    mockGetSessionRow = { id: 7, title: "Review" };
+    mockGetSessionRow = { id: 7, title: "Review", venture_id: VENTURE_ID };
     const res = await act("update_session_note", { note: "Bring the interview notes." });
     expect(res.status).toBe(200); // ...but the memo is theirs to write
     expect(mockUpdateSession).toHaveBeenCalledWith(7, {

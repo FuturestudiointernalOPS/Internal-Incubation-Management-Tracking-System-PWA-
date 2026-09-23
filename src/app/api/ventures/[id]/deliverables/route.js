@@ -53,6 +53,12 @@ export const GET = createHandler(async (req, { params }) => {
   if (!milestoneId) {
     return NextResponse.json({ success: false, error: "milestone_id is required." }, { status: 400 });
   }
+  // The milestone must belong to THIS venture; otherwise the listing would
+  // hand out another venture's deliverables. Same check the POST path uses.
+  const dbId = await resolveDbId(id);
+  if (!dbId || !(await loadMilestoneForVenture(dbId, milestoneId))) {
+    return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  }
   const deliverables = await listDeliverables(milestoneId).catch(() => []);
   return NextResponse.json({ success: true, deliverables });
 });

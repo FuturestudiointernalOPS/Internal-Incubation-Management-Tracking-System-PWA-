@@ -2800,8 +2800,14 @@ export async function addTaskComment({ taskId, parentId, authorCid, authorName, 
   return { id: res.rows[0]?.id || res.lastInsertRowid };
 }
 
-export async function deleteTaskComment(commentId) {
-  await db.execute({ sql: "UPDATE venture_task_comments SET is_deleted = TRUE, updated_at = NOW() WHERE id = ?", args: [commentId] });
+export async function deleteTaskComment(commentId, ventureId) {
+  // Scoped through the venture's tasks: a comment id belonging to another
+  // venture matches nothing, so a cross-venture delete is a no-op.
+  await db.execute({
+    sql: `UPDATE venture_task_comments SET is_deleted = TRUE, updated_at = NOW()
+          WHERE id = ? AND task_id IN (SELECT id FROM venture_tasks WHERE venture_id = ?)`,
+    args: [commentId, ventureId],
+  });
   return { success: true };
 }
 
@@ -2820,8 +2826,13 @@ export async function addTaskAttachment({ taskId, fileName, fileSize, fileType, 
   return { id: res.rows[0]?.id || res.lastInsertRowid };
 }
 
-export async function deleteTaskAttachment(attachmentId) {
-  await db.execute({ sql: "DELETE FROM venture_task_attachments WHERE id = ?", args: [attachmentId] });
+export async function deleteTaskAttachment(attachmentId, ventureId) {
+  // Scoped through the venture's tasks (see deleteTaskComment).
+  await db.execute({
+    sql: `DELETE FROM venture_task_attachments
+          WHERE id = ? AND task_id IN (SELECT id FROM venture_tasks WHERE venture_id = ?)`,
+    args: [attachmentId, ventureId],
+  });
   return { success: true };
 }
 
@@ -3045,8 +3056,18 @@ export async function addDependency({ ventureId, sourceType, sourceId, targetTyp
   return { success: true };
 }
 
-export async function removeDependency(dependencyId) {
-  await db.execute({ sql: "DELETE FROM venture_dependencies WHERE id = ?", args: [dependencyId] });
+export async function removeDependency(dependencyId, ventureIds = []) {
+  const ids = (Array.isArray(ventureIds) ? ventureIds : [ventureIds]).filter(
+    (ventureId) => ventureId !== null && ventureId !== undefined,
+  );
+  if (ids.length === 0) return { success: false };
+  // A dependency is removed only when it belongs to one of the accepted
+  // venture identifiers (the path code and/or the resolved numeric id).
+  const scope = ids.map(() => "venture_id = ?").join(" OR ");
+  await db.execute({
+    sql: `DELETE FROM venture_dependencies WHERE id = ? AND (${scope})`,
+    args: [dependencyId, ...ids],
+  });
   return { success: true };
 }
 
@@ -3396,15 +3417,25 @@ export async function assignCoachToVenture({ ventureId, coachId, coachType, isPr
   return { id: res.rows[0]?.id || res.lastInsertRowid };
 }
 
-export async function removeAssignment(assignmentId, removedBy) {
+export async function removeAssignment(assignmentId, removedBy, ventureIds = []) {
+  const ids = (Array.isArray(ventureIds) ? ventureIds : [ventureIds]).filter(
+    (ventureId) => ventureId !== null && ventureId !== undefined,
+  );
+  if (ids.length === 0) return { success: false };
+  const scope = ids.map(() => "venture_id = ?").join(" OR ");
+  // Only an assignment OF THIS VENTURE may be removed; the log row is written
+  // from the same scoped read so it can never describe another venture.
   await db.execute({
-    sql: "UPDATE venture_coach_assignments SET status = 'removed' WHERE id = ?",
-    args: [assignmentId],
+    sql: `UPDATE venture_coach_assignments SET status = 'removed' WHERE id = ? AND (${scope})`,
+    args: [assignmentId, ...ids],
   });
 
   // Log
   try {
-    const aRes = await db.execute({ sql: "SELECT * FROM venture_coach_assignments WHERE id = ?", args: [assignmentId] });
+    const aRes = await db.execute({
+      sql: `SELECT * FROM venture_coach_assignments WHERE id = ? AND (${scope})`,
+      args: [assignmentId, ...ids],
+    });
     if (aRes.rows.length > 0) {
       await db.execute({
         sql: `INSERT INTO venture_coach_activity (coach_id, venture_id, action, actor_cid, details)
@@ -3585,13 +3616,24 @@ export async function createActionItem({ sessionId, title, description, ownerCid
   return { id: res.rows[0]?.id || res.lastInsertRowid };
 }
 
-export async function updateActionItem(itemId, updates) {
+export async function updateActionItem(itemId, updates, ventureIds = []) {
   const allowed = ["title", "description", "owner_cid", "owner_name", "priority", "due_date", "status", "completed_at"];
   const sets = []; const args = [];
   for (const column of allowed) { if (updates[column] !== undefined) { sets.push(`${column} = ?`); args.push(updates[column]); } }
   if (sets.length === 0) return { updated: false };
   sets.push("updated_at = NOW()"); args.push(itemId);
-  await db.execute({ sql: `UPDATE venture_session_action_items SET ${sets.join(", ")} WHERE id = ?`, args });
+  const ids = (Array.isArray(ventureIds) ? ventureIds : [ventureIds]).filter(
+    (ventureId) => ventureId !== null && ventureId !== undefined,
+  );
+  if (ids.length === 0) return { updated: false };
+  // Scoped through the action item's session: an item of another venture's
+  // session matches no row.
+  const scope = ids.map(() => "venture_id = ?").join(" OR ");
+  await db.execute({
+    sql: `UPDATE venture_session_action_items SET ${sets.join(", ")}
+          WHERE id = ? AND session_id IN (SELECT id FROM venture_sessions WHERE ${scope})`,
+    args: [...args, ...ids],
+  });
   return { updated: true };
 }
 
@@ -4324,13 +4366,20 @@ export async function getVentureMatches(ventureId, minScore = 0) {
   }));
 }
 
-export async function updateMatchStatus(matchId, status) {
+export async function updateMatchStatus(matchId, status, ventureIds = []) {
+  const ids = (Array.isArray(ventureIds) ? ventureIds : [ventureIds]).filter(
+    (ventureId) => ventureId !== null && ventureId !== undefined,
+  );
+  if (ids.length === 0) return { success: false };
+  const scope = ids.map(() => "venture_id = ?").join(" OR ");
   const sets = ["status = ?"]; const args = [status];
   if (status === "contacted") sets.push("contacted_at = NOW()");
   if (status === "viewed") sets.push("viewed_by_founder = TRUE");
-  args.push(matchId);
-  await db.execute({ sql: `UPDATE venture_investor_matches SET ${sets.join(", ")}, updated_at=NOW() WHERE id=?`, args });
-  const matchResult = await db.execute({ sql: "SELECT venture_id, investor_id FROM venture_investor_matches WHERE id=?", args: [matchId] });
+  args.push(matchId, ...ids);
+  // The update AND the history read are scoped to this venture, so a match id
+  // from another venture changes nothing and writes no history row.
+  await db.execute({ sql: `UPDATE venture_investor_matches SET ${sets.join(", ")}, updated_at=NOW() WHERE id=? AND (${scope})`, args });
+  const matchResult = await db.execute({ sql: `SELECT venture_id, investor_id FROM venture_investor_matches WHERE id=? AND (${scope})`, args: [matchId, ...ids] });
   if (matchResult.rows.length > 0) await db.execute({ sql: `INSERT INTO venture_match_history (match_id, venture_id, investor_id, action) VALUES (?, ?, ?, ?)`, args: [matchId, matchResult.rows[0].venture_id, matchResult.rows[0].investor_id, `MATCH_${status.toUpperCase()}`] });
   return { success: true };
 }
@@ -4428,8 +4477,16 @@ export async function getShareByToken(token) {
   return share;
 }
 
-export async function revokeShare(shareId) {
-  await db.execute({ sql: "UPDATE venture_document_shares SET is_revoked=TRUE, updated_at=NOW() WHERE id=?", args: [shareId] });
+export async function revokeShare(shareId, ventureIds = []) {
+  const ids = (Array.isArray(ventureIds) ? ventureIds : [ventureIds]).filter(
+    (ventureId) => ventureId !== null && ventureId !== undefined,
+  );
+  if (ids.length === 0) return { success: false };
+  const scope = ids.map(() => "venture_id = ?").join(" OR ");
+  await db.execute({
+    sql: `UPDATE venture_document_shares SET is_revoked=TRUE, updated_at=NOW() WHERE id=? AND (${scope})`,
+    args: [shareId, ...ids],
+  });
   return { success: true };
 }
 

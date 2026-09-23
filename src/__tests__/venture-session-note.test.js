@@ -306,7 +306,7 @@ describe("POST /api/ventures/[id]/sessions — one editable memo, never filed el
   });
 
   test("a valid edit replaces the memo on the session — the only place it lives", async () => {
-    mockGetSession.mockResolvedValueOnce({ id: 7, title: "Pitch deck review", milestone_ref: "m1" });
+    mockGetSession.mockResolvedValueOnce({ id: 7, title: "Pitch deck review", milestone_ref: "m1", venture_id: VENTURE_ID });
     const res = await POST(
       request({ action: "update_session_note", session_id: 7, note: "  Sharper agenda.  " }),
       ctx,
@@ -320,6 +320,7 @@ describe("POST /api/ventures/[id]/sessions — one editable memo, never filed el
   });
 
   test("the generic update path changes the session, never a milestone note", async () => {
+    mockGetSession.mockResolvedValueOnce({ id: 7, venture_id: VENTURE_ID });
     const res = await POST(
       request({ action: "update_session", session_id: 7, updates: { description: "Changed through the generic path." } }),
       ctx,
@@ -330,6 +331,7 @@ describe("POST /api/ventures/[id]/sessions — one editable memo, never filed el
   });
 
   test("a generic update that does not touch the memo changes nothing else", async () => {
+    mockGetSession.mockResolvedValueOnce({ id: 7, venture_id: VENTURE_ID });
     const res = await POST(
       request({ action: "update_session", session_id: 7, updates: { meeting_link: "https://meet.example.com/x" } }),
       ctx,

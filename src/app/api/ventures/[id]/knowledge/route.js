@@ -16,13 +16,18 @@ export const GET = createHandler(async (req, { params }) => {
   const searchParams = new URL(req.url).searchParams;
   const type = searchParams.get("type") || "resources";
 
+  // User-scoped reads derive their identity from the SESSION, never from a
+  // `user_cid` query parameter (which let a caller read another user's
+  // bookmarks, learning progress and history).
+  const viewerCid = access.session?.cid || "sa";
+
   if (type === "categories") {
     const categories = await listCategories();
     return NextResponse.json({ success: true, categories });
   }
 
   if (type === "bookmarks") {
-    const bookmarks = await getUserBookmarks(searchParams.get("user_cid") || "sa");
+    const bookmarks = await getUserBookmarks(viewerCid);
     return NextResponse.json({ success: true, bookmarks });
   }
 
@@ -32,23 +37,23 @@ export const GET = createHandler(async (req, { params }) => {
   }
 
   if (type === "resource" && searchParams.get("resource_id")) {
-    const resource = await getResource(parseInt(searchParams.get("resource_id")), searchParams.get("user_cid") || "sa");
+    const resource = await getResource(parseInt(searchParams.get("resource_id")), viewerCid);
     if (!resource) return NextResponse.json({ success: false, error: "Resource not found." }, { status: 404 });
     return NextResponse.json({ success: true, resource });
   }
 
   if (type === "learning_progress") {
-    const progress = await getLearningProgress(id, searchParams.get("user_cid") || "sa");
+    const progress = await getLearningProgress(id, viewerCid);
     return NextResponse.json({ success: true, ...progress });
   }
 
   if (type === "recommendations") {
-    const recommendedResources = await getPersonalizedRecommendations(id, searchParams.get("user_cid") || "sa");
+    const recommendedResources = await getPersonalizedRecommendations(id, viewerCid);
     return NextResponse.json({ success: true, resources: recommendedResources });
   }
 
   if (type === "learning_history") {
-    const history = await getLearningHistory(searchParams.get("user_cid") || "sa");
+    const history = await getLearningHistory(viewerCid);
     return NextResponse.json({ success: true, history });
   }
 
@@ -102,12 +107,12 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   if (action === "bookmark") {
-    const result = await toggleBookmark(parseInt(body.resource_id), req.session?.cid || "sa");
+    const result = await toggleBookmark(parseInt(body.resource_id), access.session?.cid || "sa");
     return NextResponse.json({ success: true, bookmarked: result.bookmarked });
   }
 
   if (action === "complete") {
-    await markResourceComplete(parseInt(body.resource_id), req.session?.cid || "sa");
+    await markResourceComplete(parseInt(body.resource_id), access.session?.cid || "sa");
     return NextResponse.json({ success: true });
   }
 
