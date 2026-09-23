@@ -15,6 +15,7 @@ import {
   updateRelationshipMeeting,
 } from "@/models/investorRelations";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
+import { resolveInvestorScope, investorOwnsWorkspace } from "@/models/authorization/investorScope";
 
 /**
  * GET /api/investor/relationships/meetings
@@ -31,6 +32,13 @@ export async function GET(req) {
 
     if (!workspaceId) {
       return NextResponse.json({ success: false, error: "workspace_id required" }, { status: 400 });
+    }
+
+    // Own-scope: the workspace id comes from the request, so bind it to the
+    // caller's investor profile before returning its meetings.
+    const scope = await resolveInvestorScope(await getSession());
+    if (!scope.management && !(await investorOwnsWorkspace(workspaceId, scope.profileId))) {
+      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
 
     const result = await listMeetingsForWorkspace(workspaceId);

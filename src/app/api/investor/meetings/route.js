@@ -7,6 +7,7 @@ import {
   listInvestorMeetingEvents,
 } from "@/models/investorRelations";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
+import { resolveInvestorScope } from "@/models/authorization/investorScope";
 
 /** GET /api/investor/meetings?venture_id=X */
 export async function GET(req) {
@@ -17,6 +18,13 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
     const ventureId = searchParams.get("venture_id");
+
+    // Own-scope: without a venture filter the query returns EVERY investor's
+    // meetings platform-wide. A self-service caller must name a venture.
+    const scope = await resolveInvestorScope(await getSession());
+    if (!scope.management && !ventureId) {
+      return NextResponse.json({ success: false, error: "venture_id required" }, { status: 400 });
+    }
 
     const result = await listInvestorMeetingEvents({ ventureId });
     return NextResponse.json({ success: true, meetings: result.rows });

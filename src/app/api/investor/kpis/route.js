@@ -6,6 +6,8 @@ import {
   upsertVentureKpi,
 } from "@/models/investor";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
+import { isInvestorManagement } from "@/models/authorization/investorScope";
+import { getSession } from "@/lib/auth";
 
 export async function GET(req) {
   try {
@@ -33,6 +35,12 @@ export async function POST(req) {
     const { venture_id, kpi_key, kpi_label, kpi_value, trend } = await req.json();
     if (!venture_id || !kpi_key || !kpi_label || !kpi_value) {
       return NextResponse.json({ success: false, error: "venture_id, kpi_key, kpi_label, kpi_value required" }, { status: 400 });
+    }
+
+    // KPIs are a Venture metric: only management (staff) may write them. An
+    // investor/self-service caller could otherwise forge KPIs on any venture.
+    if (!isInvestorManagement(await getSession())) {
+      return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
     }
 
     await upsertVentureKpi({ venture_id, kpi_key, kpi_label, kpi_value, trend });

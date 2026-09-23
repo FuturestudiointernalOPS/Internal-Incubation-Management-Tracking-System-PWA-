@@ -12,8 +12,6 @@ import {
   getDiligenceWorkspaceByPipelineId,
   getDiligenceWorkspaceIdByPipelineId,
   getInvestorProfileIdByUserIdForNotes,
-  getInvestorProfileUserIdByProfileId,
-  getPipelineInvestorIdByPipelineId,
   getPipelineWithVentureById,
   getRelationshipWorkspaceAssigneesByPipelineId,
   getRelationshipWorkspaceIdByPipelineId,
@@ -31,6 +29,7 @@ import {
   upsertDiligenceWorkspace,
 } from "@/models/investor";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
+import { resolveInvestorScope, investorOwnsPipeline, investorOwnsDdRequest } from "@/models/authorization/investorScope";
 
 /** GET /api/investor/diligence?pipeline_id=X */
 export async function GET(req) {
@@ -44,6 +43,13 @@ export async function GET(req) {
 
     if (!pipelineId) {
       return NextResponse.json({ success: false, error: "pipeline_id required" }, { status: 400 });
+    }
+
+    // Own-scope: the pipeline id comes from the request, so bind it to the
+    // caller's investor profile (management callers are not bound).
+    const scope = await resolveInvestorScope(await getSession());
+    if (!scope.management && !(await investorOwnsPipeline(pipelineId, scope.profileId))) {
+      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
 
     // Workspace
@@ -89,6 +95,16 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "pipeline_id required" }, { status: 400 });
     }
 
+    // Own-scope: every action below keys on this pipeline (or on a request that
+    // resolves to it), so bind it to the caller's investor profile first.
+    const scope = await resolveInvestorScope(await getSession());
+    const ownsPipeline = scope.management || (await investorOwnsPipeline(pipeline_id, scope.profileId));
+    if (!ownsPipeline) {
+      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    }
+    const ownsRequest = async (requestId) =>
+      scope.management || (await investorOwnsDdRequest(requestId, scope.profileId));
+
     if (action === "create_workspace") {
       // Create workspace
       const workspaceResult = await upsertDiligenceWorkspace(pipeline_id);
@@ -124,8 +140,10 @@ export async function POST(req) {
 
     if (action === "update_request") {
       const { request_id, status, response_text, response_file_url } = payload;
+      if (!(await ownsRequest(request_id))) {
+        return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      }
       const session = await getSession();
-      const userCid = session?.cid || session?.id;
       const userRole = session?.role;
 
       // Get the pipeline_id and relationship workspace assignments for this request
@@ -139,23 +157,23 @@ export async function POST(req) {
       // Get relationship workspace assignments (RM, IM)
       const relationshipWorkspaceResult = await getRelationshipWorkspaceAssigneesByPipelineId(pipelineId);
       const relationshipWorkspace = relationshipWorkspaceResult.rows[0] || {};
-      const isRM = relationshipWorkspace.relationship_manager_id === userCid;
-      const isIM = relationshipWorkspace.investment_manager_id === userCid;
+      const isRM = relationshipWorkspace.relationship_manager_id === (session?.cid || session?.id);
+      const isIM = relationshipWorkspace.investment_manager_id === (session?.cid || session?.id);
       const isAdmin = userRole === "super_admin";
 
-      // Get investor profile to exclude from founder actions
-      const pipelineInfo = await getPipelineInvestorIdByPipelineId(pipelineId);
-      const investorProfileId = pipelineInfo.rows[0]?.investor_id;
-      const investorUser = await getInvestorProfileUserIdByProfileId(investorProfileId);
-      const isInvestor = investorUser.rows[0]?.user_id === userCid;
+      // A caller with investor CONTEXT (investor role, or a baseline member
+      // holding an investor profile) must not receive the Venture-side
+      // transitions. This was previously decided on the role STRING, so a
+      // member-with-profile slipped through as if they were a founder.
+      const isInvestorContext = !scope.management && scope.profileId !== null && scope.profileId !== undefined;
 
       // Role-based access control for each transition
       const allowedTransitions = {
         under_review: isAdmin || isRM,
-        documents_uploaded: isAdmin || isRM || (userRole !== "investor"),
+        documents_uploaded: isAdmin || isRM || !isInvestorContext,
         verified: isAdmin || isIM,
         completed: isAdmin || isIM,
-        responded: isAdmin || isRM || isIM || !isInvestor,
+        responded: isAdmin || isRM || isIM || !isInvestorContext,
         closed: isAdmin || isRM || isIM,
       };
 
@@ -218,6 +236,9 @@ export async function POST(req) {
     if (action === "add_followup") {
       const { request_id, question } = payload;
       if (!question) return NextResponse.json({ success: false, error: "question required" }, { status: 400 });
+      if (!(await ownsRequest(request_id))) {
+        return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      }
 
       const session = await getSession();
       const followUpQuestionsResult = await getDdRequestFollowUpQuestionsByRequestId(request_id);
@@ -239,6 +260,9 @@ export async function POST(req) {
 
     if (action === "respond_followup") {
       const { request_id, question_index, response } = payload;
+      if (!(await ownsRequest(request_id))) {
+        return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      }
       const followUpQuestionsResult = await getDdRequestFollowUpQuestionsForRespond(request_id);
 
       let questions = followUpQuestionsResult.rows[0]?.follow_up_questions || [];

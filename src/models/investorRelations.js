@@ -75,10 +75,13 @@ export async function getInvestorProfileByUserId(userId) {
 }
 
 /** Relationship workspace list — investor branch or admin branch. */
-export async function listRelationshipWorkspaces({ role, investorId, ventureId }) {
+export async function listRelationshipWorkspaces({ investorId, ventureId }) {
   let sql, args;
 
-  if (role === "investor") {
+  // Scope on the PROFILE, not the role string: a baseline member holding an
+  // investor profile is an investor too, and used to fall into the unfiltered
+  // (admin) branch — exposing every investor's workspaces.
+  if (investorId !== null && investorId !== undefined) {
     sql = `SELECT rw.*, ip.stage as pipeline_stage, p.name as venture_name, p.industry,
                     (SELECT COUNT(*) FROM relationship_meetings WHERE workspace_id = rw.id AND status = 'scheduled')::int as upcoming_meetings
              FROM relationship_workspaces rw

@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 
 import {
-  getInvestorProfileByUserId,
   getInvestorUserIdByProfileId,
   getPipelineById,
   getRelationshipWorkspaceDetail,
@@ -17,6 +16,7 @@ import {
   upsertRelationshipWorkspace,
 } from "@/models/investorRelations";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
+import { resolveInvestorScope, isSameInvestor } from "@/models/authorization/investorScope";
 
 /**
  * GET /api/investor/relationships
@@ -33,33 +33,37 @@ export async function GET(req) {
     const workspaceId = searchParams.get("id");
     const ventureId = searchParams.get("venture_id");
 
+    // Own-scope: a non-management caller may only touch their OWN investor data.
+    const scope = await resolveInvestorScope(session);
+
     if (workspaceId) {
       // Single workspace detail with meetings + timeline
-      const [workspaceResult, meetings, timeline] = await Promise.all([
-        getRelationshipWorkspaceDetail(workspaceId),
+      const workspaceResult = await getRelationshipWorkspaceDetail(workspaceId);
+      const workspace = workspaceResult.rows[0] || null;
+      // Bind the workspace to the caller before returning it (or its meetings /
+      // timeline) — the id comes from the request.
+      if (!scope.management && !isSameInvestor(workspace?.investor_id, scope.profileId)) {
+        return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      }
+      const [meetings, timeline] = await Promise.all([
         listWorkspaceMeetings(workspaceId),
         listWorkspaceTimeline(workspaceId),
       ]);
       return NextResponse.json({
         success: true,
-        workspace: workspaceResult.rows[0] || null,
+        workspace,
         meetings: meetings.rows,
         timeline: timeline.rows,
       });
     }
 
-    // List workspaces
-    let investorId;
-
-    if (session.role === "investor") {
-      const profile = await getInvestorProfileByUserId(session.cid || session.id);
-      if (profile.rows.length === 0) {
-        return NextResponse.json({ success: true, workspaces: [] });
-      }
-      investorId = profile.rows[0].id;
+    // List workspaces — scoped to the caller's profile unless they manage.
+    const investorId = scope.management ? null : scope.profileId;
+    if (!scope.management && !investorId) {
+      return NextResponse.json({ success: true, workspaces: [] });
     }
 
-    const result = await listRelationshipWorkspaces({ role: session.role, investorId, ventureId });
+    const result = await listRelationshipWorkspaces({ investorId, ventureId });
     return NextResponse.json({ success: true, workspaces: result.rows });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

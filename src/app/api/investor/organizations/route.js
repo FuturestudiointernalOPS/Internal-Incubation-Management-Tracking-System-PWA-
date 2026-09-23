@@ -13,6 +13,7 @@ import {
   upsertOrganizationMember,
 } from "@/models/investorRelations";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
+import { resolveInvestorScope, isSameInvestor } from "@/models/authorization/investorScope";
 
 /** GET /api/investor/organizations */
 export async function GET(req) {
@@ -27,8 +28,13 @@ export async function GET(req) {
     const orgId = searchParams.get("id");
 
     if (orgId) {
-      const org = await getOrganizationById(orgId);
+      // Own-scope: an organization is visible only to its members (or management).
+      const scope = await resolveInvestorScope(session);
       const members = await listOrganizationMembers(orgId);
+      if (!scope.management && !members.rows.some((member) => isSameInvestor(member.investor_id, scope.profileId))) {
+        return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      }
+      const org = await getOrganizationById(orgId);
       return NextResponse.json({
         success: true,
         organization: org.rows[0] || null,
@@ -98,6 +104,21 @@ export async function PUT(req) {
 
     if (!organization_id || !investor_profile_id) {
       return NextResponse.json({ success: false, error: "organization_id and investor_profile_id required" }, { status: 400 });
+    }
+
+    // Own-scope: only an administrator OF THAT organization (or management) may
+    // add or re-role a member — previously any investor could enroll any profile
+    // into any organization with any role, including "admin".
+    const session = await getSession();
+    const scope = await resolveInvestorScope(session);
+    if (!scope.management) {
+      const members = await listOrganizationMembers(organization_id);
+      const isOrgAdmin = members.rows.some(
+        (member) => isSameInvestor(member.investor_id, scope.profileId) && member.role === "admin",
+      );
+      if (!isOrgAdmin) {
+        return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
+      }
     }
 
     await upsertOrganizationMember(organization_id, investor_profile_id, role || "member");

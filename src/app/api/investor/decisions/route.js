@@ -11,6 +11,7 @@ import {
   updatePipelineStageAfterDecision,
 } from "@/models/investorRelations";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
+import { resolveInvestorScope, investorOwnsPipeline } from "@/models/authorization/investorScope";
 
 /** GET /api/investor/decisions — all decisions for current investor */
 export async function GET(_req) {
@@ -61,6 +62,13 @@ export async function POST(req) {
     const valid = ["invest", "decline", "continue_discussions", "revisit_later"];
     if (!valid.includes(decision_type)) {
       return NextResponse.json({ success: false, error: "Invalid decision_type" }, { status: 400 });
+    }
+
+    // Own-scope: the pipeline id comes from the request, so a decision can only
+    // be recorded on the caller's own pipeline.
+    const scope = await resolveInvestorScope(await getSession());
+    if (!scope.management && !(await investorOwnsPipeline(pipeline_id, scope.profileId))) {
+      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
 
     // Record decision

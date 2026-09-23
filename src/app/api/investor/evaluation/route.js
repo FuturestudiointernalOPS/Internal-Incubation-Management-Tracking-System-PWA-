@@ -9,6 +9,7 @@ import {
   upsertRiskAssessment,
 } from "@/models/investor";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
+import { resolveInvestorScope, investorOwnsPipeline } from "@/models/authorization/investorScope";
 
 /**
  * GET /api/investor/evaluation?pipeline_id=X
@@ -26,6 +27,12 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const pipelineId = searchParams.get("pipeline_id");
     if (!pipelineId) return NextResponse.json({ success: false, error: "pipeline_id required" }, { status: 400 });
+
+    // Own-scope: bind the pipeline to the caller before returning its evaluations.
+    const scope = await resolveInvestorScope(await getSession());
+    if (!scope.management && !(await investorOwnsPipeline(pipelineId, scope.profileId))) {
+      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    }
 
     const [founders, risks] = await Promise.all([
       listFounderEvaluationsByPipelineId(pipelineId),
@@ -54,6 +61,13 @@ export async function POST(req) {
 
     if (!pipeline_id || !type) {
       return NextResponse.json({ success: false, error: "pipeline_id and type required" }, { status: 400 });
+    }
+
+    // Own-scope: evaluations and risk assessments are written on the caller's
+    // own pipeline only.
+    const scope = await resolveInvestorScope(session);
+    if (!scope.management && !(await investorOwnsPipeline(pipeline_id, scope.profileId))) {
+      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
 
     if (type === "founder") {

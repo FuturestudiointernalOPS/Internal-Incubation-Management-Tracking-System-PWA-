@@ -13,6 +13,7 @@ import {
   markDdRequestDocumentsUploaded,
 } from "@/models/investor";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
+import { resolveInvestorScope, investorOwnsDdRequest, investorOwnsDdDocument } from "@/models/authorization/investorScope";
 
 export async function POST(req) {
   try {
@@ -29,6 +30,14 @@ export async function POST(req) {
     }
 
     const fileSize = Math.round((file_data.length * 3) / 4);
+
+    // Own-scope: the request id comes from the request body, so bind it to the
+    // caller's investor profile before attaching a document.
+    const scope = await resolveInvestorScope(await getSession());
+    if (!scope.management && !(await investorOwnsDdRequest(request_id, scope.profileId))) {
+      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    }
+
     const result = await insertDdDocument({ request_id, file_name, file_size: fileSize, file_type, file_data, uploaded_by: session?.cid || session?.id });
 
     // Auto-advance status to documents_uploaded
@@ -63,6 +72,11 @@ export async function GET(req) {
     const download = searchParams.get("download");
 
     if (download && docId) {
+      // Own-scope: a document id from the request must belong to the caller.
+      const scope = await resolveInvestorScope(await getSession());
+      if (!scope.management && !(await investorOwnsDdDocument(docId, scope.profileId))) {
+        return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      }
       const result = await getDdDocumentById(docId);
       if (result.rows.length === 0) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
@@ -74,6 +88,11 @@ export async function GET(req) {
     }
 
     if (!requestId) return NextResponse.json({ success: false, error: "request_id required" }, { status: 400 });
+
+    const scope = await resolveInvestorScope(await getSession());
+    if (!scope.management && !(await investorOwnsDdRequest(requestId, scope.profileId))) {
+      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    }
 
     const result = await listDdDocumentsByRequestId(requestId);
     return NextResponse.json({ success: true, documents: result.rows });

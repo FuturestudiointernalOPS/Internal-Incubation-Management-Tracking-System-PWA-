@@ -7,6 +7,7 @@ import {
   listVentureUpdatesByVentureId,
 } from "@/models/investor";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
+import { isInvestorManagement } from "@/models/authorization/investorScope";
 
 export async function GET(req) {
   try {
@@ -35,6 +36,12 @@ export async function POST(req) {
     const { venture_id, title, content, update_type } = await req.json();
     if (!venture_id || !title || !content) {
       return NextResponse.json({ success: false, error: "venture_id, title, and content required" }, { status: 400 });
+    }
+
+    // Publishing a Venture update is a staff act: an investor/self-service
+    // caller must not post updates onto any venture's feed.
+    if (!isInvestorManagement(session)) {
+      return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
     }
 
     const result = await createVentureUpdate({ venture_id, title, content, update_type, created_by: session.cid || session.id });
