@@ -13,7 +13,7 @@ import {
   authorize,
 } from "@/lib/authorization";
 import { requireProgramScope } from "@/lib/programScopedAccess";
-import { stripTeamCredentials } from "@/lib/teamCredentials";
+import { stripTeamCredentials, generateTeamUsername, generateTeamPassword } from "@/lib/teamCredentials";
 import {
   createTeam,
   deleteTeam,
@@ -111,14 +111,9 @@ export async function POST(req) {
     const scopeError = await requireProgramScope({ programId: program_id, wave: "groups" });
     if (scopeError) return scopeError;
 
-    // Generate Team Username and Password
-    const slug = name
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "_")
-      .substring(0, 10);
-    const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
-    const generatedUsername = `${slug}_${randomStr}`;
-    const generatedPassword = `FST${randomStr}`;
+    // Generate Team Username and Password from a cryptographic source (SECRET-3).
+    const generatedUsername = generateTeamUsername(name);
+    const generatedPassword = generateTeamPassword();
     const teamId = crypto.randomUUID(); // Use built-in crypto for UUID
 
     // 1. Create Team Record (name = sub-team, group_name = parent group, approved by default)

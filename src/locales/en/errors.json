@@ -23,6 +23,7 @@
     "programCompletedViewOnly": "This program is completed and is view-only. Submissions are closed.",
     "authSystemFailure": "Authentication system failure.",
     "authzSystemFailure": "Authorization system failure.",
+    "crossSiteRequestBlocked": "This action must be triggered from within the application.",
     "notFound": "Not found."
   }
 }

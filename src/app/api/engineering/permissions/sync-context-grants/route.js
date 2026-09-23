@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
+import { requireSameOrigin } from "@/lib/requestOrigin";
 import { syncAllContextGrantsEverywhere } from "@/models/authorization/contextGrants";
 
 export const dynamic = "force-dynamic";
@@ -26,9 +27,14 @@ export const dynamic = "force-dynamic";
  * Safe to re-run. Report shape:
  *   { success, contexts: [{ context, roleKey, evaluated, applied, revoked,
  *     changes }], evaluated, applied, revoked, changes }
+ *
+ * State-changing GET (CSRF-1) — same-origin only.
  */
-export async function GET() {
+export async function GET(req) {
   try {
+    const originError = requireSameOrigin(req);
+    if (originError) return originError;
+
     const capError = await requireAuthorization("permissions", "view_matrix");
     if (capError) return capError;
 

@@ -19,7 +19,14 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
     }
 
-    let resolvedCid = cid;
+    // PUB-3 — IDENTITY ANCHORING.
+    // This endpoint is public, so a `cid` in the request proves nothing: anyone
+    // could post someone else's id and forge a response onto their record. The
+    // attribution is therefore resolved SERVER-SIDE, from the identity the
+    // respondent actually typed (email → phone → name), never from the body.
+    // The optional `cid` is now used only to DETECT a mismatch (a link naming a
+    // different person than the typed email) and flag it for review.
+    let resolvedCid = null;
     let confidence_score = 100;
     let match_status = 'auto';
     let resolvedGroupName = group_name;
@@ -36,7 +43,7 @@ export async function POST(req) {
       }
     }
 
-    if (!resolvedCid && publicData) {
+    if (publicData) {
       const emailMatch = await findContactCidByEmail(publicData.email || '');
       if (emailMatch.rows.length > 0) {
         resolvedCid = emailMatch.rows[0].cid;
@@ -68,6 +75,16 @@ export async function POST(req) {
            groupName: resolvedGroupName || null,
          });
          confidence_score = 100;
+      }
+    }
+
+    // A supplied cid that does not match the identity the respondent typed is a
+    // red flag: the link names a different person. Never write to that id; just
+    // mark the response so a human reviews it.
+    if (cid && publicData) {
+      const confirmedCid = (await findContactCidByEmail(publicData.email || '')).rows?.[0]?.cid || null;
+      if (!confirmedCid || String(confirmedCid) !== String(cid)) {
+        match_status = 'flagged';
       }
     }
 

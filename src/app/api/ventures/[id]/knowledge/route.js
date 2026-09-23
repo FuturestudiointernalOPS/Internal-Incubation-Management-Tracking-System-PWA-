@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
+import { requireAuthorization } from "@/lib/authorization";
 import {
   listResources, getResource, createResource, updateResource, deleteResource,
   listCategories, toggleBookmark, getUserBookmarks, markResourceComplete,
@@ -84,6 +85,13 @@ export const POST = createHandler(async (req, { params }) => {
   const { action } = body;
 
   if (action === "create") {
+    // AUTHZ-GLOBAL-1 — `knowledge_resources` is a GLOBAL catalogue with no
+    // venture dimension, so "edit rights on the venture in the URL" cannot scope
+    // it. A catalogue WRITE additionally requires the platform Knowledge Base
+    // capability (the same one that gates the Knowledge section in navigation),
+    // so a coach on one venture can no longer curate the shared library.
+    const capError = await requireAuthorization("knowledge", "create");
+    if (capError) return capError;
     try {
       const result = await createResource({
         title: body.title, description: body.description, resourceType: body.resource_type,
@@ -97,11 +105,15 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   if (action === "update") {
+    const capError = await requireAuthorization("knowledge", "edit");
+    if (capError) return capError;
     await updateResource(parseInt(body.resource_id), body.updates);
     return NextResponse.json({ success: true });
   }
 
   if (action === "delete") {
+    const capError = await requireAuthorization("knowledge", "delete");
+    if (capError) return capError;
     await deleteResource(parseInt(body.resource_id));
     return NextResponse.json({ success: true });
   }

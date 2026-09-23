@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
+import { requireAuthorization } from "@/lib/authorization";
 import { resolveVentureDbId } from "@/lib/ventureOwnership";
 import {
   listCoaches, getCoach, createCoach, updateCoach, deleteCoach,
@@ -62,7 +63,12 @@ export const POST = createHandler(async (req, { params }) => {
     return NextResponse.json({ success: true });
   }
 
-  // Create a new coach
+  // Create a new coach — a write to the GLOBAL coach directory, which has no
+  // venture dimension. AUTHZ-GLOBAL-1: require the platform Ventures capability
+  // on top of venture access, so an editor of one venture cannot alter the
+  // shared directory for everyone.
+  const capError = await requireAuthorization("ventures", "edit");
+  if (capError) return capError;
   try {
     const result = await createCoach({
       coachType: body.coach_type || "coach",
@@ -94,6 +100,10 @@ export const PATCH = createHandler(async (req, { params }) => {
   const { id } = await params;
   const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
   if (access.error) return access.error;
+  // AUTHZ-GLOBAL-1 — the coach row is GLOBAL, so the catalogue capability is
+  // required in addition to venture access.
+  const capError = await requireAuthorization("ventures", "edit");
+  if (capError) return capError;
   const coachId = new URL(req.url).searchParams.get("coach_id");
   if (!coachId) return NextResponse.json({ success: false, error: "coach_id required." }, { status: 400 });
   const body = await req.json();
@@ -106,6 +116,9 @@ export const DELETE = createHandler(async (req, { params }) => {
   const { id } = await params;
   const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
   if (access.error) return access.error;
+  // AUTHZ-GLOBAL-1 — deleting a global coach row needs the catalogue capability.
+  const capError = await requireAuthorization("ventures", "edit");
+  if (capError) return capError;
   const coachId = new URL(req.url).searchParams.get("coach_id");
   if (!coachId) return NextResponse.json({ success: false, error: "coach_id required." }, { status: 400 });
   await deleteCoach(parseInt(coachId));

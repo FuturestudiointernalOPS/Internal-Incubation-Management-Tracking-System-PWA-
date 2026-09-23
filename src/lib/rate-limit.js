@@ -47,13 +47,27 @@ export function rateLimit(key, { limit = 10, windowMs = 15 * 60 * 1000 }) {
   return { allowed: true, remaining: limit - bucket.count, retryAfterMs: 0 };
 }
 
-/** Extract the best-effort client IP from a Next.js request. */
+/** Extract the best-effort client IP from a Next.js request.
+ *
+ * RATE-2 — the OLD version returned the LEFTMOST X-Forwarded-For entry, which a
+ * client controls: sending `X-Forwarded-For: 1.2.3.4` made every rate limit
+ * keyed off an attacker-chosen value. This prefers the platform-set real-IP
+ * header (a proxy overwrites it with what it actually saw), then the RIGHTMOST
+ * XFF entry — the one the nearest hop appended — never the spoofable leftmost.
+ */
 export function getClientIp(req) {
   try {
-    const forwarded = req.headers.get("x-forwarded-for");
-    if (forwarded) return forwarded.split(",")[0].trim();
     const realIp = req.headers.get("x-real-ip");
-    if (realIp) return realIp.trim();
+    if (realIp && realIp.trim()) return realIp.trim();
+
+    const forwarded = req.headers.get("x-forwarded-for");
+    if (forwarded) {
+      const hops = forwarded
+        .split(",")
+        .map((hop) => hop.trim())
+        .filter(Boolean);
+      if (hops.length > 0) return hops[hops.length - 1];
+    }
   } catch (_) {}
   return "unknown";
 }

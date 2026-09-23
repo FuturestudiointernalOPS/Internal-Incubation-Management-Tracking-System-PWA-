@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { after } from "next/server";
 import { onSubmission } from "@/lib/platform/automation";
+import { getClientIp } from "@/lib/rate-limit";
 import {
   ensurePublicSubmitInvitationColumn,
   ensurePublicSubmitInvitationIndex,
@@ -60,8 +61,9 @@ export async function POST(req) {
     await initDb();
     await ensurePublicSubmitSchema();
     
-    // Get client IP
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
+    // Get client IP (trusted hop — see getClientIp; the per-run submission limit
+    // below is only as good as the key it is counted under, RATE-2).
+    const ip = getClientIp(req);
     
     // Rate limit: check content-length
     const contentLength = parseInt(req.headers.get("content-length") || "0");

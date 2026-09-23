@@ -23,6 +23,7 @@
     "programCompletedViewOnly": "Ce programme est terminé et en lecture seule. Les soumissions sont fermées.",
     "authSystemFailure": "Échec du système d'authentification.",
     "authzSystemFailure": "Échec du système d'autorisation.",
+    "crossSiteRequestBlocked": "Cette action doit être déclenchée depuis l'application.",
     "notFound": "Introuvable."
   }
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { getSession, logPermissionAudit } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import { requireSameOrigin } from "@/lib/requestOrigin";
 import { getAccessProfileMeta, listAccessProfiles } from "@/models/authorization";
 import {
   CONTEXT_ROLE_CONTEXTS,
@@ -22,6 +23,7 @@ export const dynamic = "force-dynamic";
  *   GET  requires permissions.view_matrix
  *        → registry rows (+ mapped profile name), holder counts, profiles list
  *        Seeds the initial mapping on first read (idempotent, DO NOTHING).
+ *        State-changing GET (CSRF-1) — same-origin only.
  *
  *   PUT  requires permissions.assign_capabilities
  *        body: { context, role_key, profile_id|null, is_active?, notes?, reason? }
@@ -31,8 +33,11 @@ export const dynamic = "force-dynamic";
  * no authorization behavior changes in this phase, so no cache invalidation is
  * performed here. The phase that starts consuming the registry must add it.
  */
-export async function GET() {
+export async function GET(req) {
   try {
+    const originError = requireSameOrigin(req);
+    if (originError) return originError;
+
     await initDb();
     const capError = await requireAuthorization("permissions", "view_matrix");
     if (capError) return capError;

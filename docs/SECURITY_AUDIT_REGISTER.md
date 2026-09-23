@@ -215,7 +215,7 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | ERR-1 (part) | `program-types`, `run-export`, `submissions`, `team-tasks`, `system/database`, `webhooks/resend` | 500 bodies returned `error.message`, which can carry driver/SQL/stack detail to the client. A shared `serverError(error, { log, status, message })` helper now logs the real error server-side and answers with `errors.somethingWrong`. | **FIXED — Lot 14 (swept surfaces)** |
 | — | Tests | `src/__tests__/security-lot14-error-handling.test.js` (8 tests) | The helper never serializes the caught error and the swept routes carry no raw `error.message`. | **FIXED — Lot 14** |
 
-> Note: the remaining ERR-1, RATE-2, CSRF-1 and AUTH-4 surfaces (`s/public-submit`, `public/courses`, `errors`, `lib/rate-limit.js`, `engineering/permissions/seed*`, `sync-context-grants`, `auth/login|reset-password|session-login`) were **being edited concurrently** (auth refactor) at the time of this batch, so they are left untouched and will be completed once that lands.
+> Note: the remaining ERR-1, RATE-2, CSRF-1 and AUTH-4 surfaces (`s/public-submit`, `public/courses`, `errors`, `lib/rate-limit.js`, `engineering/permissions/seed*`, `sync-context-grants`, `auth/login|reset-password|session-login`) are the same files as the concurrent auth/rate-limit refactor — see §8.
 
 ---
 
@@ -436,3 +436,35 @@ Everything below is **still present in the code today**. Grouped by the lot that
 - **§6.5** — investor approval status / self-registration `active`.
 - **§6.4** — legacy clear-text passwords: migration needed before removing the fallback.
 - **AUTH-2 note** — impersonation is staging-only; the env flag should lose its `NEXT_PUBLIC_` variant.
+
+---
+
+## 8. Concurrent hardening — request origin, public identity and scope
+
+Applied alongside the Lot 11–15 stream. Each item names the surface it
+changed so the two streams can be told apart. Status legend as §1.
+
+| ID | Category | Location | Was | Status |
+|---|---|---|---|---|
+| CSRF-1 | CSRF | `engineering/permissions/{seed,seed-access-profiles,sync-context-grants,context-roles}` | State-changing GETs were reachable by a cross-site top-level navigation (`SameSite=Lax` still attaches the cookie). New `src/lib/requestOrigin.js` refuses anything not demonstrably same-origin (`Sec-Fetch-Site`, then `Origin`, then `Referer`; a signal-less non-browser caller passes). | **FIXED — Lot 15** |
+| SECRET-3 (part) | Passwords | `teams` POST, `pm/teams` POST | The shared team username/password came from `Math.random()`. Now generated from `crypto.randomBytes` on a 32-symbol unambiguous alphabet (`src/lib/teamCredentials.js`). Storage stays clear BY DESIGN (the console must display them, §6.4). | **FIXED — Lot 15 (generation)** |
+| AUTH-4 (part) | Enumeration | `auth/login`, `auth/reset-password` | One generic message for every credential failure, and the unknown-account path pays a bcrypt comparison so timing cannot distinguish it. The distinct 403 for inactive/pending/archived remains a UX decision. | **FIXED — Lot 15 (part)** |
+| RATE-2 (part) | Rate limiting | `src/lib/rate-limit.js`, `s/public-submit`, `public/courses`, `errors` POST | The limiter keyed on the LEFTMOST `X-Forwarded-For` entry, which the client controls. Now prefers the platform real-IP header, else the RIGHTMOST hop. Public catalogue, error log and public submit are throttled per client IP. Uploads and AI routes are still open. | **FIXED — Lot 15 (part)** |
+| PUB-3 | Business logic | `respond` | A public caller could attribute a response to any contact by posting their id. Attribution is now resolved server-side from the typed identity; a supplied cid can only flag a mismatch, never redirect the write. The public form always collects name/email. | **FIXED — Lot 15** |
+| PUB-2 | Business logic | `s/public-draft` | Unauthenticated draft read/overwrite by slug+email. The draft now carries a random token minted on first save and returned to the caller; the token (never keyed to the email) is required to read or update, and is never echoed back by a read. | **FIXED — token-gated** |
+| AUTHZ-CRM-1 (part) | Scope | `contact-emails` | Any staff-side role could manage EVERY contact's alternative emails. Now bound to a shared programme (`isContactWithinStaffedPrograms`, `models/authorization/scope.js`); Super Admin unscoped, self always allowed. | **FIXED — Lot 15** |
+| AUTHZ-GLOBAL-1 | Scope | `ventures/[id]/knowledge`, `ventures/[id]/coaches` | Global catalogs (no venture dimension) were writable by any venture editor. Knowledge writes now require `knowledge.{create,edit,delete}`; coach writes require the platform `ventures.edit` capability. | **FIXED — Lot 15** |
+
+`src/__tests__/security-request-origin-and-scope.test.js` — 26 tests pin the above.
+
+### Still open after Lot 15
+
+- **UPLOAD-1 (buckets)** — private buckets + signed URLs, plus a migration of the stored public URLs (infrastructure).
+- **BOLA-FORM-1 remainder** — platform Runs visibility (governance decision, §6.7).
+- **RATE-2 remainder** — uploads and AI routes unthrottled; shared limiter store.
+- **AUTH-4 remainder** — the inactive/pending 403 (UX decision).
+- **SECRET-1** — legacy clear-text comparison (migration); team passwords stored clear (display requirement).
+- **ERR-1 remainder** — `error.message` still returned in 5xx on the files this lot touched (the Lot 14 sweep covered other surfaces).
+- **contact-emails** — the contact→programme rule is enforced; whether staff should ALSO reach contacts who are not participants is a wider product decision.
+- **DEP-1** — `tar` via `unpdf → canvas` (no upstream fix).
+- **MVC-1** — SQL still inline in a few routes.

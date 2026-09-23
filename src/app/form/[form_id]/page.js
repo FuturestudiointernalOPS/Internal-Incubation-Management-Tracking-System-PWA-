@@ -43,7 +43,7 @@ function PublicFormContent() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!contactId && (!publicData.name || !publicData.email)) {
+    if (!publicData.name || !publicData.email) {
       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'warning', message: t("rootMisc.form.publicFormsRequire") } }));
       return;
     }
@@ -52,7 +52,7 @@ function PublicFormContent() {
       const response = await fetch('/api/respond', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ form_id, cid: contactId || null, group_name, answers, publicData: contactId ? null : publicData })
+        body: JSON.stringify({ form_id, cid: contactId || null, group_name, answers, publicData })
       });
 
       const data = await response.json();
@@ -102,8 +102,10 @@ function PublicFormContent() {
           </header>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {!contactId && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="ios-card bg-[#0d0d18] shadow-2xl space-y-4 mb-8 border border-amber-500/20">
+          {/* The respondent's own identity is always collected: it is what the
+              API anchors the response to (PUB-3), since a cid carried by the
+              link cannot prove who is filling the form. */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="ios-card bg-[#0d0d18] shadow-2xl space-y-4 mb-8 border border-amber-500/20">
                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
                     <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500"><AlertCircle className="w-5 h-5" /></div>
                     <div>
@@ -131,7 +133,6 @@ function PublicFormContent() {
                     />
                  </div>
               </motion.div>
-            )}
 
             {form.schema.map((field, index) => (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} key={field.id} className="ios-card bg-[#0d0d18] shadow-2xl space-y-4">

@@ -8,7 +8,7 @@ import {
 } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { requireProgramScope } from "@/lib/programScopedAccess";
-import { stripTeamCredentials } from "@/lib/teamCredentials";
+import { stripTeamCredentials, generateTeamUsername, generateTeamPassword } from "@/lib/teamCredentials";
 import { sendStandaloneEmail } from "@/lib/email";
 import {
   getOrgTeams,
@@ -117,14 +117,11 @@ export async function POST(req) {
     const scopeError = await requireProgramScope({ programId: program_id, wave: "groups" });
     if (scopeError) return scopeError;
 
-    // Generate Team Username (TEAM_SLUG_ID) and Password
-    const slug = name
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "_")
-      .substring(0, 10);
-    const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
-    const generatedUsername = `${slug}_${randomStr}`;
-    const generatedPassword = `FST${randomStr}`;
+    // Generate Team Username (TEAM_SLUG_ID) and Password. Both come from a
+    // cryptographic source (SECRET-3): a shared login credential must never be
+    // derivable from Math.random().
+    const generatedUsername = generateTeamUsername(name);
+    const generatedPassword = generateTeamPassword();
 
     // Generate Team ID
     const teamId = `TEAM-${Date.now().toString(36).toUpperCase()}`;

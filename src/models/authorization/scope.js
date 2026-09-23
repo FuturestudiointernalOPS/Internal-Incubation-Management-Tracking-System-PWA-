@@ -153,3 +153,31 @@ export async function isWithinScope(policyKey, userCid, resourceId, options = {}
   if (!ids) return false;
   return ids.includes(String(resourceId));
 }
+
+/**
+ * AUTHZ-CRM-1 — contact → programme rule.
+ *
+ * Staff-side management of ANOTHER person's contact record (alternative emails)
+ * must not reach every contact in the database. The relationship that justifies
+ * it is a shared programme: the target is a participant of a programme the
+ * caller is STAFFED on (`program_staffed`, the same authority the scope engine
+ * enforces — never the capability cache). Fail closed on any uncertainty.
+ */
+export async function isContactWithinStaffedPrograms(targetCid, staffCid, { email = null } = {}) {
+  if (!targetCid || !staffCid) return false;
+  try {
+    const result = await db.execute({
+      sql: `SELECT 1
+            FROM participant_programs pp
+            JOIN v2_program_staff ps ON ps.program_id = pp.program_id
+            WHERE pp.participant_id = ?
+              AND (ps.staff_id = ? OR LOWER(TRIM(ps.staff_id)) = LOWER(?))
+            LIMIT 1`,
+      args: [String(targetCid), String(staffCid), String(email || staffCid)],
+    });
+    return result.rows.length > 0;
+  } catch (error) {
+    console.warn("[Scope] isContactWithinStaffedPrograms failed:", error.message);
+    return false;
+  }
+}

@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   findRecentErrorByFingerprint,
   findRecentErrorByMessageAndPage,
@@ -67,6 +68,14 @@ function buildFingerprint({ message, page }) {
  */
 export async function POST(request) {
   try {
+    // Public write endpoint: throttle per client IP so an unauthenticated caller
+    // cannot flood the error log with rows (RATE-2).
+    const limited = enforceRateLimit(request, `errors:${getClientIp(request)}`, {
+      limit: 30,
+      windowMs: 60 * 1000,
+    });
+    if (limited) return limited;
+
     const body = await request.json();
     const { message, page } = body;
 
