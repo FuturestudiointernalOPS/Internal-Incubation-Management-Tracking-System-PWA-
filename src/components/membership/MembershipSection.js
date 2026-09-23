@@ -32,10 +32,10 @@ import {
 const MEMBERSHIP_URL = "/api/org-membership";
 const EMPTY_MEMBERSHIP = { memberships: [], protectedMap: {}, failure: "" };
 
-const pickMembership = (d) =>
-  d?.success
-    ? { memberships: d.memberships || [], protectedMap: d.protected || {}, failure: "" }
-    : { memberships: [], protectedMap: {}, failure: d?.error || "—" };
+const pickMembership = (payload) =>
+  payload?.success
+    ? { memberships: payload.memberships || [], protectedMap: payload.protected || {}, failure: "" }
+    : { memberships: [], protectedMap: {}, failure: payload?.error || "—" };
 
 /**
  * Organizational Membership section for the CRM contact profile.
@@ -71,17 +71,17 @@ export default function MembershipSection({ cid, t, lang }) {
   const [historyMember, setHistoryMember] = useState(null);
 
   const mine = useMemo(
-    () => (memberships || []).filter((m) => String(m.user_cid) === String(cid)),
+    () => (memberships || []).filter((member) => String(member.user_cid) === String(cid)),
     [memberships, cid],
   );
 
-  const current = mine.filter((m) => ["active", "expiringSoon"].includes(deriveMembershipStatus(m)));
-  const past = mine.filter((m) => ["expired", "ended"].includes(deriveMembershipStatus(m)));
+  const current = mine.filter((member) => ["active", "expiringSoon"].includes(deriveMembershipStatus(member)));
+  const past = mine.filter((member) => ["expired", "ended"].includes(deriveMembershipStatus(member)));
 
   const groups = useMemo(
     () =>
       sortGroups(
-        [...new Set((memberships || []).map((m) => m.group_name).filter(Boolean))].map((name) => ({
+        [...new Set((memberships || []).map((member) => member.group_name).filter(Boolean))].map((name) => ({
           name,
           isProtected: !!protectedMap[name],
         })),
@@ -90,11 +90,11 @@ export default function MembershipSection({ cid, t, lang }) {
   );
 
   const fmtDate = useCallback(
-    (v) => {
-      if (!v) return "—";
-      const d = new Date(v);
-      if (Number.isNaN(d.getTime())) return "—";
-      return d.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", {
+    (value) => {
+      if (!value) return "—";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "—";
+      return date.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", {
         day: "2-digit",
         month: "short",
         year: "numeric",
@@ -144,12 +144,12 @@ export default function MembershipSection({ cid, t, lang }) {
 
   const isProtected = (name) => !!protectedMap[name];
 
-  const renderCard = (m) => {
-    const derived = deriveMembershipStatus(m);
+  const renderCard = (member) => {
+    const derived = deriveMembershipStatus(member);
     const isActive = derived === "active" || derived === "expiringSoon";
     return (
       <div
-        key={`${m.user_cid}|${m.group_name}`}
+        key={`${member.user_cid}|${member.group_name}`}
         className="rounded-xl p-4"
         style={{
           background: "var(--surface-2)",
@@ -161,10 +161,10 @@ export default function MembershipSection({ cid, t, lang }) {
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4" style={{ color: "var(--text-tertiary)" }} />
             <span className="text-xs font-bold flex items-center gap-1.5" style={{ color: "var(--text-primary)" }}>
-              {m.group_name}
-              {isProtected(m.group_name) && <Shield className="w-3.5 h-3.5" style={{ color: "#F59E0B" }} />}
+              {member.group_name}
+              {isProtected(member.group_name) && <Shield className="w-3.5 h-3.5" style={{ color: "#F59E0B" }} />}
             </span>
-            {isProtected(m.group_name) && (
+            {isProtected(member.group_name) && (
               <span
                 className="px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase"
                 style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B" }}
@@ -177,14 +177,14 @@ export default function MembershipSection({ cid, t, lang }) {
           <div className="flex items-center gap-1.5">
             {isActive ? (
               <>
-                <AppButton variant="ghost" size="sm" icon={RotateCcw} onClick={() => setRenewMember(m)}>
+                <AppButton variant="ghost" size="sm" icon={RotateCcw} onClick={() => setRenewMember(member)}>
                   {t("membership.actions.renew")}
                 </AppButton>
                 <AppButton
                   variant="ghost"
                   size="sm"
                   icon={Ban}
-                  onClick={() => setConfirmState({ member: m, action: "deactivated" })}
+                  onClick={() => setConfirmState({ member, action: "deactivated" })}
                 >
                   {t("membership.actions.deactivate")}
                 </AppButton>
@@ -192,17 +192,17 @@ export default function MembershipSection({ cid, t, lang }) {
                   variant="ghost"
                   size="sm"
                   icon={UserX}
-                  onClick={() => setConfirmState({ member: m, action: "ended" })}
+                  onClick={() => setConfirmState({ member, action: "ended" })}
                 >
                   {t("membership.actions.end")}
                 </AppButton>
               </>
             ) : (
               <>
-                <AppButton variant="ghost" size="sm" icon={RotateCcw} onClick={() => setRenewMember(m)}>
-                  {m.status === "ended" ? t("membership.actions.reactivate") : t("membership.actions.renew")}
+                <AppButton variant="ghost" size="sm" icon={RotateCcw} onClick={() => setRenewMember(member)}>
+                  {member.status === "ended" ? t("membership.actions.reactivate") : t("membership.actions.renew")}
                 </AppButton>
-                <AppButton variant="ghost" size="sm" icon={History} onClick={() => setHistoryMember(m)}>
+                <AppButton variant="ghost" size="sm" icon={History} onClick={() => setHistoryMember(member)}>
                   {t("membership.actions.history")}
                 </AppButton>
               </>
@@ -211,20 +211,20 @@ export default function MembershipSection({ cid, t, lang }) {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-[10px]" style={{ color: "var(--text-secondary)" }}>
           <span>
-            {t("membership.columns.start")}: <b style={{ color: "var(--text-primary)" }}>{fmtDate(m.started_at)}</b>
+            {t("membership.columns.start")}: <b style={{ color: "var(--text-primary)" }}>{fmtDate(member.started_at)}</b>
           </span>
           <span>
             {t("membership.columns.expires")}:{" "}
             <b style={{ color: "var(--text-primary)" }}>
-              {m.expires_at ? fmtDate(m.expires_at) : t("membership.status.never")}
+              {member.expires_at ? fmtDate(member.expires_at) : t("membership.status.never")}
             </b>
           </span>
           <span>
-            {t("membership.columns.role")}: <b style={{ color: "var(--text-primary)" }}>{m.role || "—"}</b>
+            {t("membership.columns.role")}: <b style={{ color: "var(--text-primary)" }}>{member.role || "—"}</b>
           </span>
           <span>
             {t("membership.columns.accountStatus")}:{" "}
-            <b style={{ color: "var(--text-primary)" }}>{m.account_status || "—"}</b>
+            <b style={{ color: "var(--text-primary)" }}>{member.account_status || "—"}</b>
           </span>
         </div>
       </div>
@@ -252,8 +252,8 @@ export default function MembershipSection({ cid, t, lang }) {
 
       {loading ? (
         <div className="space-y-3">
-          {[0, 1].map((i) => (
-            <div key={i} className="h-24 rounded-xl animate-pulse" style={{ background: "var(--surface-3)" }} />
+          {[0, 1].map((index) => (
+            <div key={index} className="h-24 rounded-xl animate-pulse" style={{ background: "var(--surface-3)" }} />
           ))}
         </div>
       ) : error ? (

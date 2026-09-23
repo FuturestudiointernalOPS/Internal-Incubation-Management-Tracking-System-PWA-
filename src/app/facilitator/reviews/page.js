@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 // Module scope on purpose: the hook keys its internal callback on this function,
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop.
-const pickReviews = (d) => (d?.success ? d.reviews || [] : []);
+const pickReviews = (response) => (response?.success ? response.reviews || [] : []);
 
 export default function FacilitatorReviews() {
   const { t } = useI18n();
@@ -28,22 +28,22 @@ export default function FacilitatorReviews() {
     transform: pickReviews,
   });
 
-  const ratingLabel = (v) =>
-    FACILITATOR_REVIEW_OPTIONS.ratings.includes(v)
-      ? t(`pmMisc.facilitators.weeklyReview.rating_${v}`)
-      : v || "";
-  const engagementLabel = (v) =>
-    FACILITATOR_REVIEW_OPTIONS.engagement.includes(v)
-      ? t(`pmMisc.facilitators.weeklyReview.engagement_${v}`)
-      : v || "";
-  const attentionLabel = (v) =>
-    FACILITATOR_REVIEW_OPTIONS.attention.includes(v)
-      ? t(`pmMisc.facilitators.weeklyReview.attention_${v}`)
-      : v || "";
-  const statusLabel = (r) => {
-    if (r.pm_decision === "changes_requested")
+  const ratingLabel = (value) =>
+    FACILITATOR_REVIEW_OPTIONS.ratings.includes(value)
+      ? t(`pmMisc.facilitators.weeklyReview.rating_${value}`)
+      : value || "";
+  const engagementLabel = (value) =>
+    FACILITATOR_REVIEW_OPTIONS.engagement.includes(value)
+      ? t(`pmMisc.facilitators.weeklyReview.engagement_${value}`)
+      : value || "";
+  const attentionLabel = (value) =>
+    FACILITATOR_REVIEW_OPTIONS.attention.includes(value)
+      ? t(`pmMisc.facilitators.weeklyReview.attention_${value}`)
+      : value || "";
+  const statusLabel = (review) => {
+    if (review.pm_decision === "changes_requested")
       return t("pmMisc.facilitators.weeklyReview.status_changes_requested");
-    if (r.status === "decided")
+    if (review.status === "decided")
       return t("pmMisc.facilitators.weeklyReview.status_decided");
     return t("pmMisc.facilitators.weeklyReview.status_submitted");
   };
@@ -74,106 +74,106 @@ export default function FacilitatorReviews() {
           </div>
         ) : (
           <div className="space-y-3">
-            {reviews.map((r) => (
+            {reviews.map((review) => (
               <div
-                key={r.id}
+                key={review.id}
                 className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4 space-y-2"
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[10px] font-black uppercase">
-                    {t("pmMisc.facilitators.weeklyReview.title")} #{r.id}
+                    {t("pmMisc.facilitators.weeklyReview.title")} #{review.id}
                   </p>
                   <span
                     className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                      r.pm_decision === "changes_requested"
+                      review.pm_decision === "changes_requested"
                         ? "bg-rose-500/15 text-rose-400"
-                        : r.status === "decided"
+                        : review.status === "decided"
                           ? "bg-emerald-500/15 text-emerald-400"
                           : "bg-amber-500/15 text-amber-400"
                     }`}
                   >
-                    {statusLabel(r)}
+                    {statusLabel(review)}
                   </span>
                 </div>
                 <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                   {t("pmMisc.facilitators.weeklyReview.submittedAt", {
-                    date: new Date(r.created_at).toLocaleString(),
+                    date: new Date(review.created_at).toLocaleString(),
                   })}{" "}
                   · {t("pmMisc.facilitators.weeklyReview.week")}{" "}
-                  {r.week_number || "—"} · Program {r.program_id}
+                  {review.week_number || "—"} · Program {review.program_id}
                 </p>
-                {(r.overall_rating || r.participant_progress) && (
+                {(review.overall_rating || review.participant_progress) && (
                   <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                     <strong className="text-[var(--text-primary)]">
                       {t("pmMisc.facilitators.weeklyReview.overall")}:
                     </strong>{" "}
-                    {ratingLabel(r.overall_rating) || r.participant_progress}
+                    {ratingLabel(review.overall_rating) || review.participant_progress}
                   </p>
                 )}
-                {r.engagement && (
+                {review.engagement && (
                   <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                     <strong className="text-[var(--text-primary)]">
                       {t("pmMisc.facilitators.weeklyReview.engagement")}:
                     </strong>{" "}
-                    {engagementLabel(r.engagement)}
+                    {engagementLabel(review.engagement)}
                   </p>
                 )}
-                {(r.went_well || r.completed_work) && (
+                {(review.went_well || review.completed_work) && (
                   <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                     <strong className="text-[var(--text-primary)]">
                       {t("pmMisc.facilitators.weeklyReview.wentWell")}:
                     </strong>{" "}
-                    {r.went_well || r.completed_work}
+                    {review.went_well || review.completed_work}
                   </p>
                 )}
-                {(r.struggles || r.challenges) && (
+                {(review.struggles || review.challenges) && (
                   <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                     <strong className="text-[var(--text-primary)]">
                       {t("pmMisc.facilitators.weeklyReview.struggles")}:
                     </strong>{" "}
-                    {r.struggles || r.challenges}
+                    {review.struggles || review.challenges}
                   </p>
                 )}
-                {(r.needs_attention_type || r.needs_attention || r.needs_attention_note) && (
+                {(review.needs_attention_type || review.needs_attention || review.needs_attention_note) && (
                   <div className="text-[10px] font-medium text-[var(--text-secondary)]">
                     <p>
                       <strong className="text-[var(--text-primary)]">
                         {t("pmMisc.facilitators.weeklyReview.needsAttention")}:
                       </strong>{" "}
-                      {attentionLabel(r.needs_attention_type) || r.needs_attention}
+                      {attentionLabel(review.needs_attention_type) || review.needs_attention}
                     </p>
-                    {r.needs_attention_note && (
-                      <p className="mt-0.5 pl-1">{r.needs_attention_note}</p>
+                    {review.needs_attention_note && (
+                      <p className="mt-0.5 pl-1">{review.needs_attention_note}</p>
                     )}
                   </div>
                 )}
-                {(r.focus_next_week || r.recommendations) && (
+                {(review.focus_next_week || review.recommendations) && (
                   <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                     <strong className="text-[var(--text-primary)]">
                       {t("pmMisc.facilitators.weeklyReview.focusNextWeek")}:
                     </strong>{" "}
-                    {r.focus_next_week || r.recommendations}
+                    {review.focus_next_week || review.recommendations}
                   </p>
                 )}
-                {r.additional_notes && (
+                {review.additional_notes && (
                   <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                     <strong className="text-[var(--text-primary)]">
                       {t("pmMisc.facilitators.weeklyReview.additionalNotes")}:
                     </strong>{" "}
-                    {r.additional_notes}
+                    {review.additional_notes}
                   </p>
                 )}
-                {r.pm_decision && (
+                {review.pm_decision && (
                   <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
                     <p className="text-[8px] font-black uppercase text-emerald-400 mb-1">
                       {t("pmMisc.facilitators.weeklyReview.decision")}
                     </p>
                     <p className="text-[10px] font-medium text-[var(--text-primary)]">
-                      {r.pm_decision}
+                      {review.pm_decision}
                     </p>
-                    {r.pm_decision_note && (
+                    {review.pm_decision_note && (
                       <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
-                        {r.pm_decision_note}
+                        {review.pm_decision_note}
                       </p>
                     )}
                   </div>

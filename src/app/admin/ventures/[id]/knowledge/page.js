@@ -15,11 +15,11 @@ import { useApi } from "@/lib/hooks/useApi";
 
 const EMPTY_LIST = [];
 
-const pickResources = (d) => (d?.success ? d.resources || [] : []);
-const pickCategories = (d) => (d?.success ? d.categories || [] : []);
-const pickBookmarks = (d) => (d?.success ? d.bookmarks || [] : []);
-const pickPaths = (d) => (d?.success ? d.paths || [] : []);
-const pickPayload = (d) => (d?.success ? d : null);
+const pickResources = (payload) => (payload?.success ? payload.resources || [] : []);
+const pickCategories = (payload) => (payload?.success ? payload.categories || [] : []);
+const pickBookmarks = (payload) => (payload?.success ? payload.bookmarks || [] : []);
+const pickPaths = (payload) => (payload?.success ? payload.paths || [] : []);
+const pickPayload = (payload) => (payload?.success ? payload : null);
 
 const TYPE_ICONS = {
   article: FileText, video: Video, pdf: FileText, template: FileText,
@@ -95,18 +95,18 @@ export default function VentureKnowledgePage() {
   const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 4000); };
 
   const handleSearch = async () => {
-    const res = await fetch(`/api/ventures/${id}/knowledge?search=${encodeURIComponent(search)}`);
-    const d = await res.json();
-    if (d.success) setResources(d.resources || []);
+    const response = await fetch(`/api/ventures/${id}/knowledge?search=${encodeURIComponent(search)}`);
+    const payload = await response.json();
+    if (payload.success) setResources(payload.resources || []);
   };
 
   const handleBookmark = async (resourceId) => {
-    const res = await fetch(`/api/ventures/${id}/knowledge`, {
+    const response = await fetch(`/api/ventures/${id}/knowledge`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "bookmark", resource_id: resourceId }),
     });
-    const d = await res.json();
-    if (d.success) { notify(d.bookmarked ? t("vadmin.knowledge.bookmarked") : t("vadmin.knowledge.removed")); reload(); }
+    const payload = await response.json();
+    if (payload.success) { notify(payload.bookmarked ? t("vadmin.knowledge.bookmarked") : t("vadmin.knowledge.removed")); reload(); }
   };
 
   const handleComplete = async (resourceId) => {
@@ -119,22 +119,22 @@ export default function VentureKnowledgePage() {
   };
 
   const loadResource = async (resourceId) => {
-    const res = await fetch(`/api/ventures/${id}/knowledge?type=resource&resource_id=${resourceId}`);
-    const d = await res.json();
-    if (d.success) setSelectedResource(d.resource);
+    const response = await fetch(`/api/ventures/${id}/knowledge?type=resource&resource_id=${resourceId}`);
+    const payload = await response.json();
+    if (payload.success) setSelectedResource(payload.resource);
   };
 
   const createResource = async () => {
     if (!crForm.title.trim()) { notify(t("vadmin.knowledge.titleRequired"), "error"); return; }
     setSaving(true);
     try {
-      const res = await fetch(`/api/ventures/${id}/knowledge`, {
+      const response = await fetch(`/api/ventures/${id}/knowledge`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", ...crForm, category_id: crForm.category_id ? parseInt(crForm.category_id) : null, tags: crForm.tags ? crForm.tags.split(",").map((t) => t.trim()) : [] }),
+        body: JSON.stringify({ action: "create", ...crForm, category_id: crForm.category_id ? parseInt(crForm.category_id) : null, tags: crForm.tags ? crForm.tags.split(",").map((tag) => tag.trim()) : [] }),
       });
-      const d = await res.json();
-      if (d.success) { notify(t("vadmin.knowledge.resourceCreated")); setShowCreateModal(false); setCrForm({ title: "", description: "", resource_type: "article", category_id: "", url: "", tags: "" }); reload(); }
-      else notify(t((d.error || t("vadmin.knowledge.failed")) || "") || (d.error || t("vadmin.knowledge.failed")), "error");
+      const payload = await response.json();
+      if (payload.success) { notify(t("vadmin.knowledge.resourceCreated")); setShowCreateModal(false); setCrForm({ title: "", description: "", resource_type: "article", category_id: "", url: "", tags: "" }); reload(); }
+      else notify(t((payload.error || t("vadmin.knowledge.failed")) || "") || (payload.error || t("vadmin.knowledge.failed")), "error");
     } catch { notify(t("vadmin.knowledge.networkError"), "error"); }
     setSaving(false);
   };
@@ -142,9 +142,9 @@ export default function VentureKnowledgePage() {
   const filterByCategory = async (slug) => {
     setActiveCategory(slug);
     if (!slug) { refreshResources(); return; }
-    const res = await fetch(`/api/ventures/${id}/knowledge?category=${slug}`);
-    const d = await res.json();
-    if (d.success) setResources(d.resources || []);
+    const response = await fetch(`/api/ventures/${id}/knowledge?category=${slug}`);
+    const payload = await response.json();
+    if (payload.success) setResources(payload.resources || []);
   };
 
   if (loading) return (
@@ -187,7 +187,7 @@ export default function VentureKnowledgePage() {
         <div className="flex gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            <input value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => event.key === "Enter" && handleSearch()}
               placeholder={t("vadmin.knowledge.searchPlaceholder")} className="w-full pl-12 pr-4 py-3 bg-secondary border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
           </div>
           <button onClick={handleSearch} className="px-4 py-3 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-widest hover:brightness-110">{t("vadmin.knowledge.search")}</button>
@@ -219,11 +219,11 @@ export default function VentureKnowledgePage() {
               className={`w-full text-left px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${!activeCategory ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:bg-tertiary"}`}>
               {t("vadmin.knowledge.allResources")}
             </button>
-            {categories.map((cat) => (
-              <button key={cat.id} onClick={() => filterByCategory(cat.slug)}
-                className={`w-full text-left px-3 py-2 rounded-xl text-[10px] font-bold transition-all flex items-center justify-between ${activeCategory === cat.slug ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:bg-tertiary"}`}>
-                <span>{cat.name}</span>
-                <span className="text-[10px] text-[var(--text-secondary)]">{cat.resource_count}</span>
+            {categories.map((category) => (
+              <button key={category.id} onClick={() => filterByCategory(category.slug)}
+                className={`w-full text-left px-3 py-2 rounded-xl text-[10px] font-bold transition-all flex items-center justify-between ${activeCategory === category.slug ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:bg-tertiary"}`}>
+                <span>{category.name}</span>
+                <span className="text-[10px] text-[var(--text-secondary)]">{category.resource_count}</span>
               </button>
             ))}
           </div>
@@ -266,16 +266,16 @@ export default function VentureKnowledgePage() {
                   <div className="card">
                     <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-3">{t("vadmin.knowledge.learningPaths")}</h3>
                     <div className="space-y-3">
-                      {learningPaths.map((p) => (
-                        <div key={p.id} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                      {learningPaths.map((learningPath) => (
+                        <div key={learningPath.id} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                           <div className="flex items-center justify-between mb-2">
                             <div>
-                              <p className="text-xs font-bold text-[var(--text-primary)]">{p.name}</p>
-                              <p className="text-[10px] text-[var(--text-secondary)] capitalize">{p.level} · {t("vadmin.knowledge.estimatedHours", { hours: p.estimated_hours })}</p>
+                              <p className="text-xs font-bold text-[var(--text-primary)]">{learningPath.name}</p>
+                              <p className="text-[10px] text-[var(--text-secondary)] capitalize">{learningPath.level} · {t("vadmin.knowledge.estimatedHours", { hours: learningPath.estimated_hours })}</p>
                             </div>
-                            <span className="text-sm font-black">{p.completion || 0}%</span>
+                            <span className="text-sm font-black">{learningPath.completion || 0}%</span>
                           </div>
-                          {progressBar(p.completion || 0)}
+                          {progressBar(learningPath.completion || 0)}
                         </div>
                       ))}
                     </div>
@@ -287,12 +287,12 @@ export default function VentureKnowledgePage() {
                   <div className="card">
                     <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-3">{t("vadmin.knowledge.continueLearning")}</h3>
                     <div className="space-y-2">
-                      {learningProgress.pending_resources.map((r) => (
-                        <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30" onClick={() => loadResource(r.id)}>
+                      {learningProgress.pending_resources.map((resource) => (
+                        <div key={resource.id} className="flex items-center gap-3 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30" onClick={() => loadResource(resource.id)}>
                           <FileText className="w-4 h-4 text-[var(--brand-orange)]" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{r.title}</p>
-                            <p className="text-[10px] text-[var(--text-secondary)]">{r.category_name || ""} · {t("vadmin.knowledge.lastViewed")} {r.last_viewed_at ? new Date(r.last_viewed_at).toLocaleDateString() : ""}</p>
+                            <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{resource.title}</p>
+                            <p className="text-[10px] text-[var(--text-secondary)]">{resource.category_name || ""} · {t("vadmin.knowledge.lastViewed")} {resource.last_viewed_at ? new Date(resource.last_viewed_at).toLocaleDateString() : ""}</p>
                           </div>
                           <Clock className="w-3 h-3 text-slate-500" />
                         </div>
@@ -307,31 +307,31 @@ export default function VentureKnowledgePage() {
                 <p className="text-sm text-[var(--text-secondary)]">{activeView === "bookmarks" ? t("vadmin.knowledge.noBookmarksYet") : t("vadmin.knowledge.noResourcesFound")}</p>
               </div>
             ) : (
-              displayResources.map((r) => {
-                const Icon = TYPE_ICONS[r.resource_type] || FileText;
+              displayResources.map((resource) => {
+                const Icon = TYPE_ICONS[resource.resource_type] || FileText;
                 return (
-                  <div key={r.id} className="p-4 rounded-2xl bg-tertiary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all cursor-pointer"
-                    onClick={() => loadResource(r.id)}>
+                  <div key={resource.id} className="p-4 rounded-2xl bg-tertiary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all cursor-pointer"
+                    onClick={() => loadResource(resource.id)}>
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0">
                         <Icon className="w-5 h-5 text-[var(--brand-orange)]" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="text-xs font-bold text-[var(--text-primary)] truncate">{r.title}</p>
-                          {r.is_featured && <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-amber-500/10 text-amber-400">{t("vadmin.knowledge.featured")}</span>}
+                          <p className="text-xs font-bold text-[var(--text-primary)] truncate">{resource.title}</p>
+                          {resource.is_featured && <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-amber-500/10 text-amber-400">{t("vadmin.knowledge.featured")}</span>}
                         </div>
-                        {r.description && <p className="text-[10px] text-[var(--text-secondary)] mt-1 line-clamp-2">{r.description}</p>}
+                        {resource.description && <p className="text-[10px] text-[var(--text-secondary)] mt-1 line-clamp-2">{resource.description}</p>}
                         <div className="flex items-center gap-3 mt-2 text-[10px] text-[var(--text-secondary)]">
-                          <span className="capitalize">{r.resource_type?.replace(/_/g, " ")}</span>
-                          {r.category_name && <span>{r.category_name}</span>}
-                          {r.estimated_minutes && <span className="flex items-center gap-1"><Clock className="w-2.5 h-2.5" />{t("vadmin.knowledge.minutes", { minutes: r.estimated_minutes })}</span>}
-                          <span className="flex items-center gap-1"><Eye className="w-2.5 h-2.5" />{r.view_count || 0}</span>
+                          <span className="capitalize">{resource.resource_type?.replace(/_/g, " ")}</span>
+                          {resource.category_name && <span>{resource.category_name}</span>}
+                          {resource.estimated_minutes && <span className="flex items-center gap-1"><Clock className="w-2.5 h-2.5" />{t("vadmin.knowledge.minutes", { minutes: resource.estimated_minutes })}</span>}
+                          <span className="flex items-center gap-1"><Eye className="w-2.5 h-2.5" />{resource.view_count || 0}</span>
                         </div>
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); handleBookmark(r.id); }}
-                        className={`p-1.5 rounded-lg transition-all ${r.is_bookmarked || bookmarks.some((b) => b.id === r.id) ? "text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--brand-orange)]"}`}>
-                        <Bookmark className={`w-4 h-4 ${r.is_bookmarked ? "fill-current" : ""}`} />
+                      <button onClick={(event) => { event.stopPropagation(); handleBookmark(resource.id); }}
+                        className={`p-1.5 rounded-lg transition-all ${resource.is_bookmarked || bookmarks.some((bookmark) => bookmark.id === resource.id) ? "text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--brand-orange)]"}`}>
+                        <Bookmark className={`w-4 h-4 ${resource.is_bookmarked ? "fill-current" : ""}`} />
                       </button>
                     </div>
                   </div>
@@ -369,7 +369,7 @@ export default function VentureKnowledgePage() {
 
             {(selectedResource.tags || []).length > 0 && (
               <div className="flex gap-1 flex-wrap">
-                {selectedResource.tags.map((t, i) => <span key={i} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400">#{t}</span>)}
+                {selectedResource.tags.map((tag, index) => <span key={index} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400">#{tag}</span>)}
               </div>
             )}
 
@@ -382,12 +382,12 @@ export default function VentureKnowledgePage() {
             )}
 
             <div className="flex gap-3 pt-2 border-t border-[var(--border-primary)]">
-              <button onClick={() => { handleBookmark(selectedResource.id); setSelectedResource((p) => ({ ...p, is_bookmarked: !p.is_bookmarked })); }}
+              <button onClick={() => { handleBookmark(selectedResource.id); setSelectedResource((previous) => ({ ...previous, is_bookmarked: !previous.is_bookmarked })); }}
                 className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${selectedResource.is_bookmarked ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "border border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-tertiary"}`}>
                 <Bookmark className={`w-3 h-3 ${selectedResource.is_bookmarked ? "fill-current" : ""}`} /> {selectedResource.is_bookmarked ? t("vadmin.knowledge.bookmarked") : t("vadmin.knowledge.bookmark")}
               </button>
               {!selectedResource.is_completed && (
-                <button onClick={() => { handleComplete(selectedResource.id); setSelectedResource((p) => ({ ...p, is_completed: true })); }}
+                <button onClick={() => { handleComplete(selectedResource.id); setSelectedResource((previous) => ({ ...previous, is_completed: true })); }}
                   className="px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-wider hover:brightness-110 flex items-center gap-1.5">
                   <CheckCircle2 className="w-3 h-3" /> {t("vadmin.knowledge.markComplete")}
                 </button>
@@ -408,12 +408,12 @@ export default function VentureKnowledgePage() {
             <div className="space-y-4">
               <div>
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">{t("vadmin.knowledge.titleLabel")}</label>
-                <input value={crForm.title} onChange={(e) => setCrForm((p) => ({ ...p, title: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                <input value={crForm.title} onChange={(event) => setCrForm((previous) => ({ ...previous, title: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">{t("vadmin.knowledge.type")}</label>
-                  <select value={crForm.resource_type} onChange={(e) => setCrForm((p) => ({ ...p, resource_type: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
+                  <select value={crForm.resource_type} onChange={(event) => setCrForm((previous) => ({ ...previous, resource_type: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
                     <option value="article">{t("vadmin.knowledge.typeArticle")}</option><option value="video">{t("vadmin.knowledge.typeVideo")}</option><option value="pdf">{t("vadmin.knowledge.typePdf")}</option>
                     <option value="template">{t("vadmin.knowledge.typeTemplate")}</option><option value="checklist">{t("vadmin.knowledge.typeChecklist")}</option><option value="presentation">{t("vadmin.knowledge.typePresentation")}</option>
                     <option value="external_link">{t("vadmin.knowledge.typeExternalLink")}</option><option value="course">{t("vadmin.knowledge.typeCourse")}</option><option value="case_study">{t("vadmin.knowledge.typeCaseStudy")}</option>
@@ -421,23 +421,23 @@ export default function VentureKnowledgePage() {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">{t("vadmin.knowledge.category")}</label>
-                  <select value={crForm.category_id} onChange={(e) => setCrForm((p) => ({ ...p, category_id: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
+                  <select value={crForm.category_id} onChange={(event) => setCrForm((previous) => ({ ...previous, category_id: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
                     <option value="">{t("vadmin.knowledge.select")}</option>
-                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                   </select>
                 </div>
               </div>
               <div>
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">{t("vadmin.knowledge.urlLabel")}</label>
-                <input value={crForm.url} onChange={(e) => setCrForm((p) => ({ ...p, url: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                <input value={crForm.url} onChange={(event) => setCrForm((previous) => ({ ...previous, url: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
               </div>
               <div>
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">{t("vadmin.knowledge.description")}</label>
-                <textarea value={crForm.description} onChange={(e) => setCrForm((p) => ({ ...p, description: e.target.value }))} rows={2} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none resize-none" />
+                <textarea value={crForm.description} onChange={(event) => setCrForm((previous) => ({ ...previous, description: event.target.value }))} rows={2} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none resize-none" />
               </div>
               <div>
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">{t("vadmin.knowledge.tagsLabel")}</label>
-                <input value={crForm.tags} onChange={(e) => setCrForm((p) => ({ ...p, tags: e.target.value }))} placeholder={t("vadmin.knowledge.tagsPlaceholder")} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                <input value={crForm.tags} onChange={(event) => setCrForm((previous) => ({ ...previous, tags: event.target.value }))} placeholder={t("vadmin.knowledge.tagsPlaceholder")} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
               </div>
             </div>
             <div className="flex gap-3">

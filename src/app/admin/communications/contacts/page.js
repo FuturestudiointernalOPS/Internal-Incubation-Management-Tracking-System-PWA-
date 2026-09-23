@@ -64,9 +64,9 @@ const GROUP_LABELS = {
 // Internal Future Studio staff are created manually (not via an invitation/application
 // form) and therefore do not need an activation email — hide that status for them.
 const INTERNAL_ROLE_SET = new Set(INTERNAL_OPS_ROLES);
-const isInternalContact = (c) =>
-  INTERNAL_ROLE_SET.has(String(c.role || "").toLowerCase()) ||
-  String(c.group_name || "").toUpperCase() === "FUTURE STUDIO";
+const isInternalContact = (contact) =>
+  INTERNAL_ROLE_SET.has(String(contact.role || "").toLowerCase()) ||
+  String(contact.group_name || "").toUpperCase() === "FUTURE STUDIO";
 
 const PROGRAMS_URL = "/api/pm/programs";
 
@@ -81,21 +81,21 @@ const EMPTY_REGISTRY = { contacts: [], families: [], teams: [] };
  * ONE answer, so they are shaped together: one read, and the three lists the rest
  * of the screen already reads separately.
  */
-const pickRegistry = (d) => {
-  if (!d?.success) return EMPTY_REGISTRY;
+const pickRegistry = (payload) => {
+  if (!payload?.success) return EMPTY_REGISTRY;
   return {
-    contacts: (d.contacts || []).map((c) => ({
-      ...c,
+    contacts: (payload.contacts || []).map((contact) => ({
+      ...contact,
       invitation_status:
-        c.invitation_status ||
-        (c.status === "active" ? "activated" : "not_invited"),
+        contact.invitation_status ||
+        (contact.status === "active" ? "activated" : "not_invited"),
     })),
-    families: d.families || [],
-    teams: d.teams || [],
+    families: payload.families || [],
+    teams: payload.teams || [],
   };
 };
 
-const pickPrograms = (d) => (d?.success ? d.programs || [] : []);
+const pickPrograms = (payload) => (payload?.success ? payload.programs || [] : []);
 
 function ContactsPageContent() {
   const searchParams = useSearchParams();
@@ -212,26 +212,26 @@ function ContactsPageContent() {
         body: JSON.stringify(payload),
       });
       refreshAll();
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     }
   };
 
-  const handleResendActivation = async (c) => {
+  const handleResendActivation = async (contact) => {
     if (!(await confirm({ message: t("crm.contacts.confirmResendActivation") }))) return;
     setIsProcessing(true);
     try {
-      const res = await fetch("/api/auth/invite", {
+      const response = await fetch("/api/auth/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "resend", email: c.email }),
+        body: JSON.stringify({ action: "resend", email: contact.email }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         setNotification({ type: "success", text: t("crm.contacts.activationSent") || "Activation email sent" });
         refreshAll();
       } else {
-        setNotification({ type: "error", text: data.error || "Failed to send email" });
+        setNotification({ type: "error", text: payload.error || "Failed to send email" });
       }
     } catch {
       setNotification({ type: "error", text: "Error sending email" });
@@ -239,25 +239,25 @@ function ContactsPageContent() {
     setIsProcessing(false);
   };
 
-  const handleInviteContact = async (c) => {
+  const handleInviteContact = async (contact) => {
     if (!(await confirm({ message: t("crm.contacts.confirmInvite") }))) return;
     setIsProcessing(true);
     try {
-      const res = await fetch("/api/auth/invite", {
+      const response = await fetch("/api/auth/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: c.email,
-          name: c.name,
-          role: c.role || "member",
+          email: contact.email,
+          name: contact.name,
+          role: contact.role || "member",
         }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         setNotification({ type: "success", text: t("crm.contacts.invitationSent") || "Invitation sent" });
         refreshAll();
       } else {
-        setNotification({ type: "error", text: data.error || "Failed to send invitation" });
+        setNotification({ type: "error", text: payload.error || "Failed to send invitation" });
       }
     } catch {
       setNotification({ type: "error", text: "Error sending invitation" });
@@ -274,13 +274,13 @@ function ContactsPageContent() {
       const method = form.cid ? "PUT" : "POST";
       // Manual creation by super admin is implicit approval — set active
       if (method === "POST") payload.status = "active";
-      const res = await fetch("/api/contacts", {
+      const response = await fetch("/api/contacts", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (data.success) {
+      const result = await response.json();
+      if (result.success) {
         setNotification({ type: "success", message: t("crm.contacts.saved") });
         setShowManualModal(false);
         refreshAll();
@@ -296,7 +296,7 @@ function ContactsPageContent() {
     setIsProcessing(true);
     try {
       const isEdit = showGroupModal && typeof showGroupModal === "object";
-      const res = await fetch("/api/families", {
+      const response = await fetch("/api/families", {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -306,7 +306,7 @@ function ContactsPageContent() {
           program_id: newGroupProgramId || null,
         }),
       });
-      if ((await res.json()).success) {
+      if ((await response.json()).success) {
         setNotification({ type: "success", message: t("crm.contacts.saved") });
         setShowGroupModal(null);
         refreshAll();
@@ -321,7 +321,7 @@ function ContactsPageContent() {
     if (!showInviteModal || !inviteForm.email.trim()) return;
     setIsProcessing(true);
     try {
-      const res = await fetch("/api/auth/invite", {
+      const response = await fetch("/api/auth/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -331,14 +331,14 @@ function ContactsPageContent() {
           group_id: showInviteModal.name,
         }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         setNotification({ type: "success", message: t("crm.contacts.inviteSent") });
         setShowInviteModal(null);
         setInviteForm({ name: "", email: "", phone: "", role: "member" });
         refreshAll();
       } else {
-        setNotification({ type: "error", message: data.error || t("crm.contacts.inviteFailed") });
+        setNotification({ type: "error", message: payload.error || t("crm.contacts.inviteFailed") });
       }
     } catch (_) {
       setNotification({ type: "error", message: t("crm.contacts.inviteFailed") });
@@ -348,21 +348,21 @@ function ContactsPageContent() {
     }
   };
 
-  const handleArchive = async (c) => {
+  const handleArchive = async (contact) => {
     setIsProcessing(true);
     try {
       // The who and the when are the server's to record: the body carries the
       // intent only (see PUT /api/contacts).
-      const res = await fetch("/api/contacts", {
+      const response = await fetch("/api/contacts", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cid: c.cid, archived: true }),
+        body: JSON.stringify({ cid: contact.cid, archived: true }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "success", message: t("crm.contacts.archivedToast", { name: c.name }) },
+            detail: { type: "success", message: t("crm.contacts.archivedToast", { name: contact.name }) },
           }),
         );
         refreshAll();
@@ -371,7 +371,7 @@ function ContactsPageContent() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: t((data.error || t("crm.contacts.archiveFailed")) || "") || (data.error || t("crm.contacts.archiveFailed")),
+              message: t((payload.error || t("crm.contacts.archiveFailed")) || "") || (payload.error || t("crm.contacts.archiveFailed")),
             },
           }),
         );
@@ -387,19 +387,19 @@ function ContactsPageContent() {
     }
   };
 
-  const handleRestore = async (c) => {
+  const handleRestore = async (contact) => {
     setIsProcessing(true);
     try {
-      const res = await fetch("/api/contacts", {
+      const response = await fetch("/api/contacts", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cid: c.cid, archived: false }),
+        body: JSON.stringify({ cid: contact.cid, archived: false }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "success", message: t("crm.contacts.restoredToast", { name: c.name }) },
+            detail: { type: "success", message: t("crm.contacts.restoredToast", { name: contact.name }) },
           }),
         );
         refreshAll();
@@ -408,7 +408,7 @@ function ContactsPageContent() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: t((data.error || t("crm.contacts.restoreFailed")) || "") || (data.error || t("crm.contacts.restoreFailed")),
+              message: t((payload.error || t("crm.contacts.restoreFailed")) || "") || (payload.error || t("crm.contacts.restoreFailed")),
             },
           }),
         );
@@ -424,25 +424,25 @@ function ContactsPageContent() {
     }
   };
 
-  const handleSoftDelete = (c) => {
+  const handleSoftDelete = (contact) => {
     setConfirmTarget({
-      id: c.cid,
-      message: t("crm.contacts.deleteConfirm", { name: c.name }),
-      onConfirm: () => performSoftDelete(c),
+      id: contact.cid,
+      message: t("crm.contacts.deleteConfirm", { name: contact.name }),
+      onConfirm: () => performSoftDelete(contact),
     });
   };
 
-  const performSoftDelete = async (c) => {
+  const performSoftDelete = async (contact) => {
     setIsProcessing(true);
     try {
-      const res = await fetch(`/api/contacts?cid=${encodeURIComponent(c.cid)}`, {
+      const response = await fetch(`/api/contacts?cid=${encodeURIComponent(contact.cid)}`, {
         method: "DELETE",
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "success", message: t("crm.contacts.permanentlyDeletedToast", { name: c.name }) },
+            detail: { type: "success", message: t("crm.contacts.permanentlyDeletedToast", { name: contact.name }) },
           }),
         );
         refreshAll();
@@ -451,7 +451,7 @@ function ContactsPageContent() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: t((data.error || t("crm.contacts.deleteFailed")) || "") || (data.error || t("crm.contacts.deleteFailed")),
+              message: t((payload.error || t("crm.contacts.deleteFailed")) || "") || (payload.error || t("crm.contacts.deleteFailed")),
             },
           }),
         );
@@ -470,15 +470,15 @@ function ContactsPageContent() {
   const copyJoinLink = async (groupName) => {
     let link = `${window.location.origin}/register-staff?group=${encodeURIComponent(groupName)}`;
     try {
-      const gRes = await fetch(`/api/groups?search=${encodeURIComponent(groupName)}`);
-      const gData = await gRes.json();
-      if (gData.success && gData.groups && gData.groups.length > 0) {
-        const group = gData.groups[0];
-        const regId = group.registration_id || group.id;
-        const frRes = await fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(regId)}`);
-        const frData = await frRes.json();
-        if (frData.success && frData.runs && frData.runs.length > 0) {
-          link = `${window.location.origin}/s/${frData.runs[0].public_slug}`;
+      const groupsResponse = await fetch(`/api/groups?search=${encodeURIComponent(groupName)}`);
+      const groupsData = await groupsResponse.json();
+      if (groupsData.success && groupsData.groups && groupsData.groups.length > 0) {
+        const group = groupsData.groups[0];
+        const registrationId = group.registration_id || group.id;
+        const formRunsResponse = await fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(registrationId)}`);
+        const formRunsData = await formRunsResponse.json();
+        if (formRunsData.success && formRunsData.runs && formRunsData.runs.length > 0) {
+          link = `${window.location.origin}/s/${formRunsData.runs[0].public_slug}`;
         }
       }
     } catch (_) {}
@@ -509,28 +509,28 @@ function ContactsPageContent() {
       page: typeof next === "function" ? next(currentPage) : next,
     });
 
-  const filtered = contacts.filter((c) => {
+  const filtered = contacts.filter((contact) => {
     const lowerSearch = search.toLowerCase();
     const matchesSearch =
-      (c.name || "").toLowerCase().includes(lowerSearch) ||
-      (c.email || "").toLowerCase().includes(lowerSearch);
+      (contact.name || "").toLowerCase().includes(lowerSearch) ||
+      (contact.email || "").toLowerCase().includes(lowerSearch);
     const matchesGroup =
       selectedGroup === "All Contacts" ||
-      c.group_name?.toUpperCase() === selectedGroup.toUpperCase();
+      contact.group_name?.toUpperCase() === selectedGroup.toUpperCase();
 
     // Nested Sub-team Filter
     const matchesTeam =
-      selectedTeamTab === "All Teams" || c.v2_team_id === selectedTeamTab;
+      selectedTeamTab === "All Teams" || contact.v2_team_id === selectedTeamTab;
 
     let matchesStatus = true;
     if (statusFilter === "Active")
-      matchesStatus = c.status === "active";
+      matchesStatus = contact.status === "active";
     else if (statusFilter === "Approved")
-      matchesStatus = c.status === "approved";
+      matchesStatus = contact.status === "approved";
     else if (statusFilter === "Pending")
-      matchesStatus = c.status === "pending";
+      matchesStatus = contact.status === "pending";
     else if (statusFilter === "Inactive")
-      matchesStatus = c.status === "inactive";
+      matchesStatus = contact.status === "inactive";
     else if (statusFilter === "All")
       matchesStatus = true;
     // "Archived" is filtered server-side
@@ -546,16 +546,16 @@ function ContactsPageContent() {
   // Segment counts — how many contacts belong to each segment (used for the
   // sidebar badges; "All Contacts" shows the total in the current view).
   const segmentCounts = {};
-  for (const c of contacts) {
-    if (c.status === "pending") continue;
-    const key = String(c.group_name || "UNASSIGNED").toUpperCase();
+  for (const contact of contacts) {
+    if (contact.status === "pending") continue;
+    const key = String(contact.group_name || "UNASSIGNED").toUpperCase();
     segmentCounts[key] = (segmentCounts[key] || 0) + 1;
   }
 
-  const handlePivotToEntity = async (c) => {
+  const handlePivotToEntity = async (contact) => {
     setIsProcessing(true);
     try {
-      const entityName = `${c.name} Entity`;
+      const entityName = `${contact.name} Entity`;
       await fetch("/api/families", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -568,12 +568,12 @@ function ContactsPageContent() {
       await fetch("/api/contacts", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cid: c.cid, group_name: entityName }),
+        body: JSON.stringify({ cid: contact.cid, group_name: entityName }),
       });
       setNotification({ type: "success", message: t("crm.contacts.done") });
       refreshAll();
-    } catch (e) {
-      console.error("Pivot Error:", e);
+    } catch (error) {
+      console.error("Pivot Error:", error);
     } finally {
       setIsProcessing(false);
       setTimeout(() => setNotification(null), 3000);
@@ -674,8 +674,8 @@ function ContactsPageContent() {
                     <Plus className="w-3 h-3" /> {t("crm.contacts.new")}
                   </button>
                 </div>
-                {["All Contacts", ...families].map((f) => {
-                  const name = typeof f === "string" ? f : f.name;
+                {["All Contacts", ...families].map((family) => {
+                  const name = typeof family === "string" ? family : family.name;
                   const isAll = name === "All Contacts";
                   return (
                     <div key={name} className="flex gap-2 group items-center">
@@ -684,7 +684,7 @@ function ContactsPageContent() {
                         className={`flex-1 flex items-center justify-between gap-2 text-left px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${selectedGroup === name ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-primary"}`}
                       >
                         <span className="break-words whitespace-normal">
-                          {isAll ? t("crm.contacts.allContacts") : name} {!!f.is_archived && t("crm.contacts.archivedSuffix")}
+                          {isAll ? t("crm.contacts.allContacts") : name} {!!family.is_archived && t("crm.contacts.archivedSuffix")}
                         </span>
                         <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${selectedGroup === name ? "bg-black/20" : "bg-tertiary"}`}>
                           {isAll ? contacts.length : segmentCounts[String(name).toUpperCase()] || 0}
@@ -704,10 +704,10 @@ function ContactsPageContent() {
                           </button>
                           <button
                             onClick={() => {
-                              setNewGroupName(f.name);
-                              setNewGroupType(f.type);
-                              setNewGroupProgramId(f.program_id);
-                              setShowGroupModal(f);
+                              setNewGroupName(family.name);
+                              setNewGroupType(family.type);
+                              setNewGroupProgramId(family.program_id);
+                              setShowGroupModal(family);
                             }}
                             title={t("crm.contacts.editSegment")}
                             className="p-2.5 rounded-lg border border-[var(--border-primary)] bg-primary text-slate-500 hover:text-[var(--brand-orange)]"
@@ -742,7 +742,7 @@ function ContactsPageContent() {
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
                   <input
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    onChange={(event) => setSearch(event.target.value)}
                     placeholder={t("crm.contacts.filterIdentities")}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-3 pl-10 pr-10 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                   />
@@ -760,7 +760,7 @@ function ContactsPageContent() {
                 <div className="shrink-0">
                   <select
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+                    onChange={(event) => setStatusFilter(event.target.value)}
                     className="bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] uppercase tracking-widest"
                   >
                     {["All", "Active", "Approved", "Pending", "Inactive", "Archived"].map((status) => (
@@ -790,8 +790,8 @@ function ContactsPageContent() {
                 </button>
                 {teams
                   .filter(
-                    (t) =>
-                      t.group_name?.toUpperCase() ===
+                    (team) =>
+                      team.group_name?.toUpperCase() ===
                       selectedGroup.toUpperCase(),
                   )
                   .map((team) => (
@@ -826,15 +826,15 @@ function ContactsPageContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginated.map((c) => (
-                      <tr key={c.cid} className="group">
+                    {paginated.map((contact) => (
+                      <tr key={contact.cid} className="group">
                         <td>
                           <div className="flex flex-col">
                             <span className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-tight">
-                              {c.name}
+                              {contact.name}
                             </span>
                             <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                              {c.email}
+                              {contact.email}
                             </span>
                           </div>
                         </td>
@@ -842,59 +842,59 @@ function ContactsPageContent() {
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
                               <span className="px-2 py-0.5 bg-primary border border-[var(--border-primary)] rounded text-[10px] font-bold uppercase text-[var(--brand-orange)]">
-                                {t(GROUP_LABELS[c.group_name] || "") || c.group_name || t("crm.contacts.individual")}
+                                {t(GROUP_LABELS[contact.group_name] || "") || contact.group_name || t("crm.contacts.individual")}
                               </span>
-                              {c.v2_team_id && (
+                              {contact.v2_team_id && (
                                 <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-[10px] font-bold uppercase text-blue-500">
-                                  {teams.find((t) => t.id === c.v2_team_id)
+                                  {teams.find((team) => team.id === contact.v2_team_id)
                                     ?.name || t("crm.contacts.subteam")}
                                 </span>
                               )}
                             </div>
                             <span
                               className={`w-fit px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                c.status === "pending"
+                                contact.status === "pending"
                                   ? "bg-orange-500/10 text-orange-400"
-                                  : c.status === "inactive"
+                                  : contact.status === "inactive"
                                     ? "bg-rose-500/10 text-rose-400"
                                     : "bg-emerald-500/10 text-emerald-400"
                               }`}
                             >
-                              {t(CONTACT_STATUS_LABELS[c.status] || "") || c.status}
+                              {t(CONTACT_STATUS_LABELS[contact.status] || "") || contact.status}
                             </span>
                             <span
                               className={`w-fit px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                c.invitation_status === "activated"
+                                contact.invitation_status === "activated"
                                   ? "bg-emerald-500/10 text-emerald-400"
-                                  : c.invitation_status === "sent"
+                                  : contact.invitation_status === "sent"
                                     ? "bg-orange-500/10 text-orange-400"
-                                    : c.invitation_status === "expired"
+                                    : contact.invitation_status === "expired"
                                       ? "bg-rose-500/10 text-rose-400"
                                       : "bg-white/5 text-[var(--text-tertiary)]"
                               }`}
                             >
-                              {t(INVITATION_STATUS_LABELS[c.invitation_status] || "") || c.invitation_status}
+                              {t(INVITATION_STATUS_LABELS[contact.invitation_status] || "") || contact.invitation_status}
                             </span>
-                            {!isInternalContact(c) && (
+                            {!isInternalContact(contact) && (
                               <span
                                 title={
-                                  c.activation_email_status === "failed"
-                                    ? (c.activation_email_error || t("crm.contacts.activationEmailFailed"))
-                                    : c.activation_email_sent_at
-                                      ? `${t("crm.contacts.activationEmailSent")} — ${new Date(c.activation_email_sent_at).toLocaleString()}`
-                                      : (c.activation_email_error || t("crm.contacts.activationEmailNotSent"))
+                                  contact.activation_email_status === "failed"
+                                    ? (contact.activation_email_error || t("crm.contacts.activationEmailFailed"))
+                                    : contact.activation_email_sent_at
+                                      ? `${t("crm.contacts.activationEmailSent")} — ${new Date(contact.activation_email_sent_at).toLocaleString()}`
+                                      : (contact.activation_email_error || t("crm.contacts.activationEmailNotSent"))
                                 }
                                 className={`w-fit px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                  c.activation_email_status === "failed"
+                                  contact.activation_email_status === "failed"
                                     ? "bg-rose-500/10 text-rose-400"
-                                    : c.activation_email_sent_at
+                                    : contact.activation_email_sent_at
                                       ? "bg-emerald-500/10 text-emerald-400"
                                       : "bg-white/5 text-[var(--text-tertiary)]"
                                 }`}
                               >
-                                {c.activation_email_status === "failed"
+                                {contact.activation_email_status === "failed"
                                   ? t("crm.contacts.activationEmailFailed")
-                                  : c.activation_email_sent_at
+                                  : contact.activation_email_sent_at
                                     ? t("crm.contacts.activationEmailSent")
                                     : t("crm.contacts.activationEmailNotSent")}
                               </span>
@@ -906,7 +906,7 @@ function ContactsPageContent() {
                             {statusFilter === "Archived" ? (
                               <>
                                 <button
-                                  onClick={() => handleRestore(c)}
+                                  onClick={() => handleRestore(contact)}
                                   title={t("crm.contacts.restoreContact")}
                                   disabled={isProcessing}
                                   className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-emerald-500 transition-all"
@@ -914,7 +914,7 @@ function ContactsPageContent() {
                                   <RotateCcw className="w-4 h-4" />
                                 </button>
                                 <button
-                                  onClick={() => handleSoftDelete(c)}
+                                  onClick={() => handleSoftDelete(contact)}
                                   title={t("crm.contacts.permanentlyDelete")}
                                   disabled={isProcessing}
                                   className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-rose-500 transition-all"
@@ -925,24 +925,24 @@ function ContactsPageContent() {
                             ) : (
                               <>
                                 <button
-                                  onClick={() => toggleStatus(c.cid, c.status, c.group_name)}
+                                  onClick={() => toggleStatus(contact.cid, contact.status, contact.group_name)}
                                   title={
-                                    c.status === "active"
+                                    contact.status === "active"
                                       ? t("crm.contacts.deactivate")
                                       : t("crm.contacts.activate")
                                   }
                                   className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-emerald-500 transition-all"
                                 >
-                                  {c.status === "active" ? (
+                                  {contact.status === "active" ? (
                                     <UserX className="w-4 h-4" />
                                   ) : (
                                     <UserCheck className="w-4 h-4" />
                                   )}
                                 </button>
-                                {c.invitation_status !== "activated" &&
-                                  (c.invitation_status === "not_invited" ? (
+                                {contact.invitation_status !== "activated" &&
+                                  (contact.invitation_status === "not_invited" ? (
                                     <button
-                                      onClick={() => handleInviteContact(c)}
+                                      onClick={() => handleInviteContact(contact)}
                                       title={t("crm.contacts.inviteUser") || "Invite User"}
                                       disabled={isProcessing}
                                       className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-[var(--brand-orange)] transition-all"
@@ -951,7 +951,7 @@ function ContactsPageContent() {
                                     </button>
                                   ) : (
                                     <button
-                                      onClick={() => handleResendActivation(c)}
+                                      onClick={() => handleResendActivation(contact)}
                                       title={t("crm.contacts.resendActivation") || "Resend Activation Email (48h link)"}
                                       disabled={isProcessing}
                                       className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-blue-500 transition-all"
@@ -961,18 +961,18 @@ function ContactsPageContent() {
                                   ))}
                                 <button
                                   onClick={() => {
-                                    setForm(c);
-                                    setContactPrograms(c.program_ids || []);
+                                    setForm(contact);
+                                    setContactPrograms(contact.program_ids || []);
                                     // Fetch actual program assignments
                                     fetch(
                                       "/api/participant-programs?participant_id=" +
-                                        (c.cid || c.id),
+                                        (contact.cid || contact.id),
                                     )
-                                      .then((r) => r.json())
-                                      .then((d) => {
-                                        if (d.success)
+                                      .then((response) => response.json())
+                                      .then((payload) => {
+                                        if (payload.success)
                                           setContactPrograms(
-                                            d.assignments.map((a) => a.program_id),
+                                            payload.assignments.map((assignment) => assignment.program_id),
                                           );
                                       })
                                       .catch(() => {});
@@ -984,14 +984,14 @@ function ContactsPageContent() {
                                   <Edit3 className="w-4 h-4" />
                                 </button>
                                 <button
-                                  onClick={() => handlePivotToEntity(c)}
+                                  onClick={() => handlePivotToEntity(contact)}
                                   title={t("crm.contacts.pivotToEntity")}
                                   className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-emerald-500"
                                 >
                                   <TrendingUp className="w-4 h-4" />
                                 </button>
                                 <button
-                                  onClick={() => handleArchive(c)}
+                                  onClick={() => handleArchive(contact)}
                                   title={t("crm.contacts.archiveContact")}
                                   disabled={isProcessing}
                                   className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-amber-500 transition-all"
@@ -1042,7 +1042,7 @@ function ContactsPageContent() {
                 </p>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    onClick={() => setCurrentPage((previous) => Math.max(1, previous - 1))}
                     disabled={safePage === 1}
                     className="px-4 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                   >
@@ -1051,34 +1051,34 @@ function ContactsPageContent() {
 
                   {/* Page number pills */}
                   <div className="flex items-center gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1)
-                      .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 2)
-                      .reduce((acc, p, idx, arr) => {
-                        if (idx > 0 && p - arr[idx - 1] > 1) acc.push("...");
-                        acc.push(p);
-                        return acc;
+                    {Array.from({ length: totalPages }, (_, index) => index + 1)
+                      .filter((pageNumber) => pageNumber === 1 || pageNumber === totalPages || Math.abs(pageNumber - safePage) <= 2)
+                      .reduce((accumulator, pageNumber, index, pages) => {
+                        if (index > 0 && pageNumber - pages[index - 1] > 1) accumulator.push("...");
+                        accumulator.push(pageNumber);
+                        return accumulator;
                       }, [])
-                      .map((p, idx) =>
-                        p === "..." ? (
-                          <span key={`ellipsis-${idx}`} className="px-1 text-[10px] text-[var(--text-secondary)]">{p}</span>
+                      .map((pageNumber, index) =>
+                        pageNumber === "..." ? (
+                          <span key={`ellipsis-${index}`} className="px-1 text-[10px] text-[var(--text-secondary)]">{pageNumber}</span>
                         ) : (
                           <button
-                            key={p}
-                            onClick={() => setCurrentPage(p)}
+                            key={pageNumber}
+                            onClick={() => setCurrentPage(pageNumber)}
                             className={`w-8 h-8 rounded-lg text-[10px] font-black transition-all ${
-                              p === safePage
+                              pageNumber === safePage
                                 ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20"
                                 : "border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--brand-orange)]"
                             }`}
                           >
-                            {p}
+                            {pageNumber}
                           </button>
                         )
                       )}
                   </div>
 
                   <button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    onClick={() => setCurrentPage((previous) => Math.min(totalPages, previous + 1))}
                     disabled={safePage === totalPages}
                     className="px-4 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                   >
@@ -1107,35 +1107,35 @@ function ContactsPageContent() {
             <div className="space-y-4">
               <input
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                onChange={(event) => setForm({ ...form, name: event.target.value })}
                 placeholder={t("crm.contacts.fullName")}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-[var(--brand-orange)]"
               />
               <div className="grid grid-cols-2 gap-4">
                 <input
                   value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  onChange={(event) => setForm({ ...form, email: event.target.value })}
                   placeholder={t("crm.contacts.email")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-[var(--brand-orange)]"
                 />
                 <input
                   value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  onChange={(event) => setForm({ ...form, phone: event.target.value })}
                   placeholder={t("crm.contacts.phone")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-[var(--brand-orange)]"
                 />
               </div>
               <select
                 value={form.group_name}
-                onChange={(e) =>
-                  setForm({ ...form, group_name: e.target.value })
+                onChange={(event) =>
+                  setForm({ ...form, group_name: event.target.value })
                 }
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
               >
                 <option value="">{t("crm.contacts.selectSegment")}</option>
-                {families.map((f) => (
-                  <option key={f.id ?? f.name} value={f.name}>
-                    {f.name.toUpperCase()}
+                {families.map((family) => (
+                  <option key={family.id ?? family.name} value={family.name}>
+                    {family.name.toUpperCase()}
                   </option>
                 ))}
               </select>
@@ -1146,7 +1146,7 @@ function ContactsPageContent() {
                 </label>
                 <select
                   value={form.role || ""}
-                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  onChange={(event) => setForm({ ...form, role: event.target.value })}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
                 >
                   <option value="">{t("crm.contacts.autoDetect")}</option>
@@ -1170,15 +1170,15 @@ function ContactsPageContent() {
                 </p>
                 <select
                   value={contactPrograms[0] || ""}
-                  onChange={(e) =>
-                    setContactPrograms(e.target.value ? [e.target.value] : [])
+                  onChange={(event) =>
+                    setContactPrograms(event.target.value ? [event.target.value] : [])
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
                 >
                   <option value="">{t("crm.contacts.selectProgram")}</option>
-                  {programs.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
+                  {programs.map((program) => (
+                    <option key={program.id} value={program.id}>
+                      {program.name}
                     </option>
                   ))}
                 </select>
@@ -1210,13 +1210,13 @@ function ContactsPageContent() {
             <div className="space-y-4">
               <input
                 value={newGroupName}
-                onChange={(e) => setNewGroupName(e.target.value)}
+                onChange={(event) => setNewGroupName(event.target.value)}
                 placeholder={t("crm.contacts.segmentName")}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-[var(--brand-orange)]"
               />
               <select
                 value={newGroupType}
-                onChange={(e) => setNewGroupType(e.target.value)}
+                onChange={(event) => setNewGroupType(event.target.value)}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
               >
                 <option value="individual">{t("crm.contacts.individualFocus")}</option>
@@ -1224,13 +1224,13 @@ function ContactsPageContent() {
               </select>
               <select
                 value={newGroupProgramId}
-                onChange={(e) => setNewGroupProgramId(e.target.value)}
+                onChange={(event) => setNewGroupProgramId(event.target.value)}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
               >
                 <option value="">{t("crm.contacts.selectProgram")}</option>
-                {programs.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
+                {programs.map((program) => (
+                  <option key={program.id} value={program.id}>
+                    {program.name}
                   </option>
                 ))}
               </select>
@@ -1259,27 +1259,27 @@ function ContactsPageContent() {
             <div className="space-y-4">
               <input
                 value={inviteForm.name}
-                onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
+                onChange={(event) => setInviteForm({ ...inviteForm, name: event.target.value })}
                 placeholder={t("crm.contacts.fullName")}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-[var(--brand-orange)]"
               />
               <input
                 type="email"
                 value={inviteForm.email}
-                onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                onChange={(event) => setInviteForm({ ...inviteForm, email: event.target.value })}
                 placeholder={t("crm.contacts.email")}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-[var(--brand-orange)]"
               />
               <input
                 type="tel"
                 value={inviteForm.phone}
-                onChange={(e) => setInviteForm({ ...inviteForm, phone: e.target.value })}
+                onChange={(event) => setInviteForm({ ...inviteForm, phone: event.target.value })}
                 placeholder={t("crm.contacts.phone")}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-[var(--brand-orange)]"
               />
               <select
                 value={inviteForm.role}
-                onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
+                onChange={(event) => setInviteForm({ ...inviteForm, role: event.target.value })}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
               >
                 <option value="participant">{t("crm.contacts.roleParticipant")}</option>
@@ -1327,9 +1327,9 @@ function ContactsPageContent() {
                 <option value="" disabled>
                   {t("crm.contacts.selectProgram")}
                 </option>
-                {programs.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
+                {programs.map((program) => (
+                  <option key={program.id} value={program.id}>
+                    {program.name}
                   </option>
                 ))}
               </select>
@@ -1360,13 +1360,13 @@ function ContactsPageContent() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
-                      const parts = contacts.filter(
-                        (c) =>
-                          c.is_participant === true ||
-                          c.role === "participant",
+                      const participants = contacts.filter(
+                        (contact) =>
+                          contact.is_participant === true ||
+                          contact.role === "participant",
                       );
                       setBulkSelected(
-                        parts.map((c) => c.cid || c.id).filter(Boolean),
+                        participants.map((contact) => contact.cid || contact.id).filter(Boolean),
                       );
                     }}
                     className="text-[10px] font-bold text-blue-400 uppercase tracking-wide hover:underline"
@@ -1386,13 +1386,13 @@ function ContactsPageContent() {
               <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto">
                 {contacts
                   .filter(
-                    (c) =>
-                      c.is_participant === true ||
-                      c.role === "participant" ||
-                      c.role === "unassigned",
+                    (contact) =>
+                      contact.is_participant === true ||
+                      contact.role === "participant" ||
+                      contact.role === "unassigned",
                   )
-                  .map((c) => {
-                    const cid = c.cid || c.id;
+                  .map((contact) => {
+                    const cid = contact.cid || contact.id;
                     const isSelected = bulkSelected.includes(cid);
                     return (
                       <button
@@ -1425,19 +1425,19 @@ function ContactsPageContent() {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate">{c.name || t("crm.contacts.unknown")}</p>
+                          <p className="truncate">{contact.name || t("crm.contacts.unknown")}</p>
                           <p className="text-[10px] opacity-50 truncate">
-                            {c.email || cid}
+                            {contact.email || cid}
                           </p>
                         </div>
                       </button>
                     );
                   })}
                 {contacts.filter(
-                  (c) =>
-                    c.is_participant === true ||
-                    c.role === "participant" ||
-                    c.role === "unassigned",
+                  (contact) =>
+                    contact.is_participant === true ||
+                    contact.role === "participant" ||
+                    contact.role === "unassigned",
                 ).length === 0 && (
                   <p className="text-sm text-[var(--text-secondary)] col-span-2 py-8 text-center">
                     {t("crm.contacts.noParticipantsFound")}
@@ -1457,7 +1457,7 @@ function ContactsPageContent() {
                   if (!programId || !bulkSelected.length) return;
                   setIsProcessing(true);
                   try {
-                    const res = await fetch("/api/participant-programs/bulk", {
+                    const response = await fetch("/api/participant-programs/bulk", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
@@ -1468,8 +1468,8 @@ function ContactsPageContent() {
                         source: "bulk_assignment",
                       }),
                     });
-                    const data = await res.json();
-                    if (data.success) {
+                    const payload = await response.json();
+                    if (payload.success) {
                       setNotification({
                         type: "success",
                         message: t("crm.contacts.updated"),
@@ -1505,7 +1505,7 @@ function ContactsPageContent() {
       {/* Confirm Dialog */}
       {confirmTarget && (
         <div className="fixed inset-0 z-[500] bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmTarget(null)}>
-          <div className="card w-full max-w-sm space-y-6" onClick={(e) => e.stopPropagation()}>
+          <div className="card w-full max-w-sm space-y-6" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center gap-3">
               <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
               <div>

@@ -76,8 +76,8 @@ const NOTIFICATIONS_PREVIEW = 3;
 const readSeenWatermark = (key) => {
   if (typeof window === "undefined") return 0;
   const raw = localStorage.getItem(key);
-  const ts = raw ? new Date(raw).getTime() : 0;
-  return Number.isFinite(ts) ? ts : 0;
+  const timestamp = raw ? new Date(raw).getTime() : 0;
+  return Number.isFinite(timestamp) ? timestamp : 0;
 };
 
 const writeSeenWatermark = (key) => {
@@ -90,9 +90,9 @@ const writeSeenWatermark = (key) => {
 const isNewerThan = (dateValue, watermark) => {
   if (!watermark) return true;
   if (!dateValue) return true;
-  const ts = new Date(dateValue).getTime();
-  if (!Number.isFinite(ts)) return true;
-  return ts > watermark;
+  const timestamp = new Date(dateValue).getTime();
+  if (!Number.isFinite(timestamp)) return true;
+  return timestamp > watermark;
 };
 
 // Map legacy sidebar keys to new namespaced i18n keys
@@ -264,8 +264,8 @@ function navCrumb(pathname) {
     .split("#")[0]
     .replace(/\/+$/, "");
   if (CRUMB_FULL_PATH_MAP[clean]) return CRUMB_FULL_PATH_MAP[clean];
-  const seg = clean.split("/").filter(Boolean).pop() || "";
-  return CRUMB_PATH_MAP[seg] || (NAV_KEY_MAP[seg] ? NAV_KEY_MAP[seg] : seg);
+  const segment = clean.split("/").filter(Boolean).pop() || "";
+  return CRUMB_PATH_MAP[segment] || (NAV_KEY_MAP[segment] ? NAV_KEY_MAP[segment] : segment);
 }
 
 /**
@@ -283,9 +283,9 @@ function getActivePathIds(navItems, pathname) {
   const visit = (items, chain) => {
     (items || []).forEach((item) => {
       const nextChain = chain.concat(item.id);
-      const kids = item.children || item.subItems;
-      if (kids && kids.length > 0) {
-        visit(kids, nextChain);
+      const childItems = item.children || item.subItems;
+      if (childItems && childItems.length > 0) {
+        visit(childItems, nextChain);
         return;
       }
       if (!item.href || item.href.includes("?")) return;
@@ -363,9 +363,9 @@ const SidebarContent = ({
       ? item.name
       : t(tnav(item.id)) || item.name;
 
-  const openFlyout = (e, id) => {
+  const openFlyout = (event, id) => {
     clearTimeout(flyoutTimer.current);
-    setFlyout({ id, top: e.currentTarget.getBoundingClientRect().top });
+    setFlyout({ id, top: event.currentTarget.getBoundingClientRect().top });
   };
   const scheduleFlyoutClose = () => {
     clearTimeout(flyoutTimer.current);
@@ -398,16 +398,16 @@ const SidebarContent = ({
   const isHoverTarget = (item, id) => {
     if (!id) return false;
     if (item.id === id) return true;
-    const kids = item.children || item.subItems;
-    return !!kids && kids.some((k) => isHoverTarget(k, id));
+    const childItems = item.children || item.subItems;
+    return !!childItems && childItems.some((childItem) => isHoverTarget(childItem, id));
   };
 
   // Recursive nav renderer: a node with children renders as an expandable
   // group; a node without children renders as a link (leaf). showLabels forces
   // labels/chevrons visible even when the rail is collapsed (flyout usage).
   const renderNavItem = (item, depth, showLabels) => {
-    const kids = item.children || item.subItems;
-    const hasKids = Array.isArray(kids) && kids.length > 0;
+    const childItems = item.children || item.subItems;
+    const hasKids = Array.isArray(childItems) && childItems.length > 0;
     const isTop = depth === 0;
     const onPath = activePathIds.has(item.id);
     const show = !collapsed || showLabels;
@@ -432,7 +432,7 @@ const SidebarContent = ({
             aria-expanded={expanded}
             onMouseEnter={
               collapsed && !showLabels
-                ? (e) => openFlyout(e, item.id)
+                ? (event) => openFlyout(event, item.id)
                 : collapsed
                   ? undefined
                   : () => {
@@ -481,7 +481,7 @@ const SidebarContent = ({
           </button>
           {expanded && show && (
             <div className={`space-y-1 py-1 ${isTop ? "pl-8" : "pl-6"}`}>
-              {kids.map((kid) => renderNavItem(kid, depth + 1, showLabels))}
+              {childItems.map((childItem) => renderNavItem(childItem, depth + 1, showLabels))}
             </div>
           )}
         </div>
@@ -551,7 +551,7 @@ const SidebarContent = ({
             widths: beside the logo when open, under the mark when collapsed. */}
         <button
           type="button"
-          onClick={() => setCollapsed((v) => !v)}
+          onClick={() => setCollapsed((previousCollapsed) => !previousCollapsed)}
           aria-label={t(
             collapsed ? "navigation.expandSidebar" : "navigation.collapseSidebar",
           )}
@@ -584,9 +584,9 @@ const SidebarContent = ({
 
       {/* Collapsed-rail flyout: reach a section's children from the icon rail */}
       {collapsed && flyout && (() => {
-        const parent = (navItems || []).find((i) => i.id === flyout.id);
+        const parent = (navItems || []).find((navItem) => navItem.id === flyout.id);
         if (!parent) return null;
-        const kids = parent.children || parent.subItems || [];
+        const childItems = parent.children || parent.subItems || [];
         return (
           <div
             className="fixed z-[120] w-64 max-h-[70vh] overflow-y-auto rounded-xl bg-secondary border border-[var(--border-primary)] p-2 shadow-xl"
@@ -597,7 +597,7 @@ const SidebarContent = ({
             <p className="px-3 py-1.5 text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.25em] opacity-40">
               {label(parent)}
             </p>
-            {kids.map((kid) => renderNavItem(kid, 1, true))}
+            {childItems.map((childItem) => renderNavItem(childItem, 1, true))}
           </div>
         );
       })()}
@@ -737,7 +737,7 @@ function getShellUserServerSnapshot() {
 const PERSONAL_ROLES = ["member", "founder", "participant", "team"];
 
 /** Whether the connected person actually holds at least one course enrollment. */
-const pickLmsEnrollment = (d) => (d && d.success ? !!d.enrolled : false);
+const pickLmsEnrollment = (payload) => (payload && payload.success ? !!payload.enrolled : false);
 
 function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidth = false }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -765,7 +765,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       // Only keep pinned, non-archived announcements for the banner
       setPinnedAnnouncements(
         (data.announcements || []).filter(
-          (a) => a.is_pinned && !a.is_archived,
+          (announcement) => announcement.is_pinned && !announcement.is_archived,
         ),
       );
     });
@@ -793,7 +793,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       setUnreadCount(
         typeof data.unread_count === "number"
           ? data.unread_count
-          : rows.filter((n) => !n.is_read).length,
+          : rows.filter((row) => !row.is_read).length,
       );
     });
   }, []);
@@ -808,15 +808,15 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     } catch {
       return;
     }
-    const cid = parsedUser.cid || parsedUser.id;
-    if (!cid) return;
-    fetchSwrJson(`/api/internal-comms?cid=${cid}`, (data) => {
+    const userCid = parsedUser.cid || parsedUser.id;
+    if (!userCid) return;
+    fetchSwrJson(`/api/internal-comms?cid=${userCid}`, (data) => {
       const seenAt = readSeenWatermark(SEEN_KEYS.messages);
       const myMessages = data.messages.filter(
-        (m) =>
-          String(m.recipient_id) === String(cid) &&
-          (m.is_read === 0 || m.is_read === null) &&
-          isNewerThan(m.created_at, seenAt),
+        (message) =>
+          String(message.recipient_id) === String(userCid) &&
+          (message.is_read === 0 || message.is_read === null) &&
+          isNewerThan(message.created_at, seenAt),
       );
       setUnreadMessageCount(myMessages.length);
     });
@@ -837,7 +837,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       const seenAt = readSeenWatermark(SEEN_KEYS.pendingUsers);
       setPendingUsersCount(
         (data.users || data.pendingUsers || []).filter(
-          (u) => u.status === "pending" && isNewerThan(u.created_at, seenAt),
+          (user) => user.status === "pending" && isNewerThan(user.created_at, seenAt),
         ).length,
       );
     });
@@ -862,7 +862,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       (data) => {
         const seenAt = readSeenWatermark(SEEN_KEYS.submissions);
         const pending = (data.submissions || []).filter(
-          (s) => s.status === "pending" && isNewerThan(s.created_at, seenAt),
+          (submission) => submission.status === "pending" && isNewerThan(submission.created_at, seenAt),
         ).length;
         setSubmissionCount(pending);
       },
@@ -908,23 +908,23 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!pathname) return;
-    const p = pathname;
+    const currentPath = pathname;
 
     const messagesPage =
-      p === "/admin/internal-comms" || p.endsWith("/messages");
+      currentPath === "/admin/internal-comms" || currentPath.endsWith("/messages");
     if (messagesPage) {
       writeSeenWatermark(SEEN_KEYS.messages);
       fetchUnreadMessageCount();
     }
-    if (p.startsWith("/admin/pending-users")) {
+    if (currentPath.startsWith("/admin/pending-users")) {
       writeSeenWatermark(SEEN_KEYS.pendingUsers);
       fetchPendingUsersCount();
     }
-    if (p.startsWith("/admin/communications/announcements")) {
+    if (currentPath.startsWith("/admin/communications/announcements")) {
       writeSeenWatermark(SEEN_KEYS.announcements);
       fetchNotifications();
     }
-    if (p.startsWith("/admin/communications/forms")) {
+    if (currentPath.startsWith("/admin/communications/forms")) {
       writeSeenWatermark(SEEN_KEYS.forms);
       fetchNotifications();
     }
@@ -944,10 +944,10 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     } catch {
       return;
     }
-    const cid = parsedUser.cid || parsedUser.id;
-    if (!cid) return;
+    const userCid = parsedUser.cid || parsedUser.id;
+    if (!userCid) return;
     fetchSwrJson(
-      `/api/projects/invitations?invitee_id=${cid}&status=pending`,
+      `/api/projects/invitations?invitee_id=${userCid}&status=pending`,
       (data) => setPendingInvites(data.invitations || []),
     );
   }, []);
@@ -961,10 +961,10 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     } catch {
       return;
     }
-    const cid = parsedUser.cid || parsedUser.id;
-    if (!cid) return;
+    const userCid = parsedUser.cid || parsedUser.id;
+    if (!userCid) return;
     fetchSwrJson(
-      `/api/tasks/assignments?assignee_id=${cid}&status=pending`,
+      `/api/tasks/assignments?assignee_id=${userCid}&status=pending`,
       (data) => setPendingAssignments(data.assignments || []),
     );
   }, []);
@@ -1124,7 +1124,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                 setUnreadCount(
                   typeof notifData.unread_count === "number"
                     ? notifData.unread_count
-                    : (notifData.notifications || []).filter((n) => !n.is_read).length,
+                    : (notifData.notifications || []).filter((notification) => !notification.is_read).length,
                 );
               }
             } catch (_) {}
@@ -1185,7 +1185,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       .then((data) => {
         if (data.success) setPmPrograms(data.programs || []);
       })
-      .catch((e) => console.error(e));
+      .catch((error) => console.error(error));
   }, [user.role, user.cid, user.id]);
 
   // "My Learning" only appears once the learner actually holds a course
@@ -1220,15 +1220,15 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     };
     const announcementsSeenAt = readSeenWatermark(SEEN_KEYS.announcements);
     const formsSeenAt = readSeenWatermark(SEEN_KEYS.forms);
-    for (const n of notifications) {
-      if (!n.is_read) {
+    for (const notification of notifications) {
+      if (!notification.is_read) {
         if (
-          n.type === "announcement" &&
-          isNewerThan(n.created_at, announcementsSeenAt)
+          notification.type === "announcement" &&
+          isNewerThan(notification.created_at, announcementsSeenAt)
         ) {
           counts.announcements++;
         }
-        if (n.type === "form" && isNewerThan(n.created_at, formsSeenAt)) {
+        if (notification.type === "form" && isNewerThan(notification.created_at, formsSeenAt)) {
           counts.forms++;
         }
       }
@@ -1258,9 +1258,9 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     if (!user.cid) return;
     let alive = true;
     fetch("/api/me/relationships")
-      .then((r) => r.json())
-      .then((d) => {
-        if (alive && d.success) setRelationships(d);
+      .then((response) => response.json())
+      .then((payload) => {
+        if (alive && payload.success) setRelationships(payload);
       })
       .catch(() => {});
     return () => {
@@ -1276,9 +1276,9 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     if (!["staff", "program_manager"].includes(user.role)) return;
     let alive = true;
     fetch("/api/ventures/assigned")
-      .then((r) => r.json())
-      .then((d) => {
-        if (alive) setVentureAssignCount((d.assignments || []).length);
+      .then((response) => response.json())
+      .then((payload) => {
+        if (alive) setVentureAssignCount((payload.assignments || []).length);
       })
       .catch(() => setVentureAssignCount(0));
     return () => {
@@ -1333,7 +1333,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
         // additive arrangement: their venture door comes last.
         const ventureDoor = { id: "ventures", name: "MY VENTURES", icon: Rocket, href: "/participant/ventures" };
         if (rel.isFounder) {
-          const progIndex = items.findIndex((i) => i.id === "programs");
+          const progIndex = items.findIndex((navItem) => navItem.id === "programs");
           items.splice(progIndex === -1 ? 1 : progIndex + 2, 0, ventureDoor);
         } else {
           items.push(ventureDoor);
@@ -1350,8 +1350,8 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       if (typeof ventureAssignCount !== "number" || ventureAssignCount <= 0) {
         return list;
       }
-      if (list.some((i) => i.id === "ventures")) return list;
-      const dashIndex = list.findIndex((i) => i.id === "dashboard");
+      if (list.some((navItem) => navItem.id === "ventures")) return list;
+      const dashIndex = list.findIndex((navItem) => navItem.id === "dashboard");
       const insertAt = dashIndex === -1 ? 0 : dashIndex + 1;
       const next = list.slice();
       next.splice(insertAt, 0, {
@@ -1371,7 +1371,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       (activeRole === "program_manager" || activeRole === "super_admin") &&
       pmPrograms.length > 0
     ) {
-      const progIndex = items.findIndex((i) => i.id === "programs");
+      const progIndex = items.findIndex((navItem) => navItem.id === "programs");
       if (progIndex !== -1) {
         const baseSubItems =
           activeRole === "super_admin"
@@ -1468,8 +1468,8 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/session-logout", { method: "POST" });
-    } catch (e) {
-      console.error("Logout error:", e);
+    } catch (error) {
+      console.error("Logout error:", error);
     }
     localStorage.clear();
     setDashboardSession(null);
@@ -1570,21 +1570,21 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                         { value: "dark", label: "Dark", icon: Moon },
                         { value: "light", label: "Light", icon: Sun },
                         { value: "system", label: "System", icon: Monitor },
-                      ].map((opt) => (
+                      ].map((option) => (
                         <button
-                          key={opt.value}
+                          key={option.value}
                           onClick={() => {
-                            setTheme(opt.value);
+                            setTheme(option.value);
                             setThemeMenuOpen(false);
                           }}
                           className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-bold transition-colors ${
-                            theme === opt.value
+                            theme === option.value
                               ? "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10"
                               : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-primary)]"
                           }`}
                         >
-                          <opt.icon className="w-3.5 h-3.5" />
-                          {opt.label}
+                          <option.icon className="w-3.5 h-3.5" />
+                          {option.label}
                         </button>
                       ))}
                     </div>
@@ -1606,7 +1606,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                     // badge can never disagree with the server.
                     setShowAllNotifications(false);
                     if (!showNotifications) fetchNotifications();
-                    setShowNotifications((v) => !v);
+                    setShowNotifications((previousValue) => !previousValue);
                   }}
                   className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
@@ -1627,9 +1627,9 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                         (showAllNotifications
                           ? notifications
                           : notifications.slice(0, NOTIFICATIONS_PREVIEW)
-                        ).map((n) => (
+                        ).map((notification) => (
                           <div
-                            key={n.id}
+                            key={notification.id}
                             onClick={async () => {
                               // Mark as read
                               try {
@@ -1639,7 +1639,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                                     "Content-Type": "application/json",
                                   },
                                   body: JSON.stringify({
-                                    id: n.id,
+                                    id: notification.id,
                                     action: "read",
                                   }),
                                 });
@@ -1647,13 +1647,13 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                               } catch (_) {}
 
                               if (
-                                n.type === "verification" ||
-                                n.title.includes("ACCESS")
+                                notification.type === "verification" ||
+                                notification.title.includes("ACCESS")
                               ) {
                                 router.push("/admin/communications/contacts");
                                 setShowNotifications(false);
                               }
-                              if (n.type === "message") {
+                              if (notification.type === "message") {
                                 const role = user?.role || "";
                                 if (role === "super_admin")
                                   router.push("/admin/internal-comms");
@@ -1666,42 +1666,42 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                                 setShowNotifications(false);
                               }
                               if (
-                                n.type === "comment" ||
-                                n.type === "mention"
+                                notification.type === "comment" ||
+                                notification.type === "mention"
                               ) {
                                 router.push("/staff/op-report");
                                 setShowNotifications(false);
                               }
-                              if (n.type === "blocker_discussion") {
+                              if (notification.type === "blocker_discussion") {
                                 const role = user?.role || "";
                                 if (role === "super_admin")
                                   router.push("/admin/blockers");
                                 else router.push("/staff/op-report");
                                 setShowNotifications(false);
                               }
-                              if (n.type === "investor" && n.link) {
-                                router.push(n.link);
+                              if (notification.type === "investor" && notification.link) {
+                                router.push(notification.link);
                                 setShowNotifications(false);
                               }
                             }}
-                            className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!n.is_read ? "bg-[var(--brand-orange)]/5" : ""}`}
+                            className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!notification.is_read ? "bg-[var(--brand-orange)]/5" : ""}`}
                           >
                             <div className="flex items-center justify-between mb-1">
                               <p className="font-black text-[10px] uppercase tracking-tight text-[var(--text-primary)]">
-                                {n.title}
+                                {notification.title}
                               </p>
-                              {!n.is_read && (
+                              {!notification.is_read && (
                                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />
                               )}
                             </div>
                             <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed group-hover:text-[var(--text-primary)] transition-colors">
-                              {n.message}
+                              {notification.message}
                             </p>
                             {/* Accept/Decline buttons for project invitations */}
-                            {n.type === "project_invite" && (
+                            {notification.type === "project_invite" && (
                               <div
                                 className="flex gap-2 mt-2"
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(event) => event.stopPropagation()}
                               >
                                 <button
                                   onClick={async () => {
@@ -1710,9 +1710,9 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                                       const saved = JSON.parse(
                                         localStorage.getItem("user") || "{}",
                                       );
-                                      const cid = saved.cid || saved.id;
+                                      const userCid = saved.cid || saved.id;
                                       const invRes = await fetch(
-                                        `/api/projects/invitations?invitee_id=${cid}&status=pending`,
+                                        `/api/projects/invitations?invitee_id=${userCid}&status=pending`,
                                       );
                                       const invData = await invRes.json();
                                       const pendingInvite =
@@ -1739,7 +1739,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                                           "Content-Type": "application/json",
                                         },
                                         body: JSON.stringify({
-                                          id: n.id,
+                                          id: notification.id,
                                           action: "read",
                                         }),
                                       });
@@ -1757,9 +1757,9 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                                       const saved = JSON.parse(
                                         localStorage.getItem("user") || "{}",
                                       );
-                                      const cid = saved.cid || saved.id;
+                                      const userCid = saved.cid || saved.id;
                                       const invRes = await fetch(
-                                        `/api/projects/invitations?invitee_id=${cid}&status=pending`,
+                                        `/api/projects/invitations?invitee_id=${userCid}&status=pending`,
                                       );
                                       const invData = await invRes.json();
                                       const pendingInvite =
@@ -1786,7 +1786,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                                           "Content-Type": "application/json",
                                         },
                                         body: JSON.stringify({
-                                          id: n.id,
+                                          id: notification.id,
                                           action: "read",
                                         }),
                                       });
@@ -1800,10 +1800,10 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                               </div>
                             )}
                             {/* Accept/Decline for task assignments */}
-                            {n.type === "task_assignment" && (
+                            {notification.type === "task_assignment" && (
                               <div
                                 className="flex gap-2 mt-2"
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(event) => event.stopPropagation()}
                               >
                                 <button
                                   onClick={async () => {
@@ -1812,9 +1812,9 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                                       const saved = JSON.parse(
                                         localStorage.getItem("user") || "{}",
                                       );
-                                      const cid = saved.cid || saved.id;
+                                      const userCid = saved.cid || saved.id;
                                       const assRes = await fetch(
-                                        `/api/tasks/assignments?assignee_id=${cid}&status=pending`,
+                                        `/api/tasks/assignments?assignee_id=${userCid}&status=pending`,
                                       );
                                       const assData = await assRes.json();
                                       const pendingAss =
@@ -1837,7 +1837,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                                           "Content-Type": "application/json",
                                         },
                                         body: JSON.stringify({
-                                          id: n.id,
+                                          id: notification.id,
                                           action: "read",
                                         }),
                                       });
@@ -1855,9 +1855,9 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                                       const saved = JSON.parse(
                                         localStorage.getItem("user") || "{}",
                                       );
-                                      const cid = saved.cid || saved.id;
+                                      const userCid = saved.cid || saved.id;
                                       const assRes = await fetch(
-                                        `/api/tasks/assignments?assignee_id=${cid}&status=pending`,
+                                        `/api/tasks/assignments?assignee_id=${userCid}&status=pending`,
                                       );
                                       const assData = await assRes.json();
                                       const pendingAss =
@@ -1880,7 +1880,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                                           "Content-Type": "application/json",
                                         },
                                         body: JSON.stringify({
-                                          id: n.id,
+                                          id: notification.id,
                                           action: "read",
                                         }),
                                       });
@@ -1903,7 +1903,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                     </div>
                     {notifications.length > NOTIFICATIONS_PREVIEW && (
                       <button
-                        onClick={() => setShowAllNotifications((v) => !v)}
+                        onClick={() => setShowAllNotifications((previousValue) => !previousValue)}
                         className="mt-3 w-full text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-colors"
                       >
                         {t(showAllNotifications ? "common.showLess" : "common.showMore")}
@@ -1951,9 +1951,9 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
             {/* Pinned Announcements Banner */}
             {pinnedAnnouncements.length > 0 && (
               <div className="mb-6 space-y-2">
-                {pinnedAnnouncements.map((ann) => (
+                {pinnedAnnouncements.map((announcement) => (
                   <div
-                    key={ann.id}
+                    key={announcement.id}
                     className="p-4 rounded-xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 flex items-center justify-between flex-wrap gap-3 cursor-pointer hover:bg-[var(--brand-orange)]/15 transition-all"
                     onClick={() => router.push("/admin/announcements")}
                   >
@@ -1965,12 +1965,12 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                         </p>
                         <p className="text-[10px] text-[var(--text-secondary)]">
                           <span className="font-bold text-[var(--text-primary)]">
-                            {ann.title}
+                            {announcement.title}
                           </span>
                           {" — "}
-                          {ann.body.length > 120
-                            ? ann.body.substring(0, 117) + "..."
-                            : ann.body}
+                          {announcement.body.length > 120
+                            ? announcement.body.substring(0, 117) + "..."
+                            : announcement.body}
                         </p>
                       </div>
                     </div>

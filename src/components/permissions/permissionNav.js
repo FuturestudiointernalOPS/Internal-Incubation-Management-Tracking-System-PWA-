@@ -100,7 +100,7 @@ export const PERMISSION_PEOPLE_SUB_ALIASES = {
 };
 
 export function navByKey(key) {
-  return PERMISSION_NAV.find((n) => n.key === key) || null;
+  return PERMISSION_NAV.find((navItem) => navItem.key === key) || null;
 }
 
 /** Relative route segment under the Permission Center base ("" = landing). */

@@ -31,8 +31,8 @@ import { useApi } from "@/lib/hooks/useApi";
 
 const EMPTY_LIST = [];
 
-const pickVenture = (d) => (d?.success ? d.venture || null : null);
-const pickFounders = (d) => (d?.success ? d.founders || [] : []);
+const pickVenture = (payload) => (payload?.success ? payload.venture || null : null);
+const pickFounders = (payload) => (payload?.success ? payload.founders || [] : []);
 
 const VENTURE_ROLES = [
   "founder",
@@ -152,12 +152,12 @@ export default function VentureFoundersPage() {
     setInviting(true);
     setInviteResult(null);
     try {
-      const res = await fetch(`/api/ventures/${id}/founders`, {
+      const response = await fetch(`/api/ventures/${id}/founders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(inviteForm),
       });
-      const data = await res.json();
+      const data = await response.json();
 
       if (data.success) {
         notify(t("vadmin.founders.inviteSent", { name: inviteForm.name }));
@@ -179,12 +179,12 @@ export default function VentureFoundersPage() {
 
     setTransferring(true);
     try {
-      const res = await fetch(`/api/ventures/${id}/founders/transfer-ownership`, {
+      const response = await fetch(`/api/ventures/${id}/founders/transfer-ownership`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ new_owner_id: parseInt(transferTarget) }),
       });
-      const data = await res.json();
+      const data = await response.json();
 
       if (data.success) {
         notify(t("vadmin.founders.ownershipTransferredSuccess"));
@@ -205,10 +205,10 @@ export default function VentureFoundersPage() {
 
   const handleSuspend = async (founderId) => {
     try {
-      const res = await fetch(`/api/ventures/${id}/founders/${founderId}/suspend`, {
+      const response = await fetch(`/api/ventures/${id}/founders/${founderId}/suspend`, {
         method: "POST",
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("vadmin.founders.userSuspended"));
         setOpenMenuId(null);
@@ -223,10 +223,10 @@ export default function VentureFoundersPage() {
 
   const handleReactivate = async (founderId) => {
     try {
-      const res = await fetch(`/api/ventures/${id}/founders/${founderId}/reactivate`, {
+      const response = await fetch(`/api/ventures/${id}/founders/${founderId}/reactivate`, {
         method: "POST",
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("vadmin.founders.userReactivated"));
         setOpenMenuId(null);
@@ -241,10 +241,10 @@ export default function VentureFoundersPage() {
 
   const handleRemove = async (founderId) => {
     try {
-      const res = await fetch(`/api/ventures/${id}/founders/${founderId}`, {
+      const response = await fetch(`/api/ventures/${id}/founders/${founderId}`, {
         method: "DELETE",
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("vadmin.founders.founderRemoved"));
         setOpenMenuId(null);
@@ -261,12 +261,12 @@ export default function VentureFoundersPage() {
 
   const handleRoleUpdate = async (founderId, newRole) => {
     try {
-      const res = await fetch(`/api/ventures/${id}/founders/${founderId}`, {
+      const response = await fetch(`/api/ventures/${id}/founders/${founderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: newRole }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("vadmin.founders.roleUpdated"));
         setOpenMenuId(null);
@@ -283,13 +283,13 @@ export default function VentureFoundersPage() {
     return ROLE_COLORS[role] || "text-blue-400 bg-blue-500/10 border-blue-500/20";
   };
 
-  const filteredFounders = founders.filter((f) => {
+  const filteredFounders = founders.filter((founder) => {
     if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
+    const normalizedQuery = searchQuery.toLowerCase();
     return (
-      f.name?.toLowerCase().includes(q) ||
-      f.email?.toLowerCase().includes(q) ||
-      f.role?.toLowerCase().includes(q)
+      founder.name?.toLowerCase().includes(normalizedQuery) ||
+      founder.email?.toLowerCase().includes(normalizedQuery) ||
+      founder.role?.toLowerCase().includes(normalizedQuery)
     );
   });
 
@@ -320,7 +320,7 @@ export default function VentureFoundersPage() {
     );
   }
 
-  const owner = founders.find((f) => f.is_owner);
+  const owner = founders.find((founder) => founder.is_owner);
 
   return (
     <>
@@ -405,7 +405,7 @@ export default function VentureFoundersPage() {
             type="text"
             placeholder={t("vadmin.founders.searchPlaceholder")}
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(event) => setSearchQuery(event.target.value)}
             className="w-full pl-12 pr-4 py-3 bg-secondary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
           />
         </div>
@@ -521,24 +521,24 @@ export default function VentureFoundersPage() {
                                 <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">{t("vadmin.founders.changeRole")}</p>
                                 <select
                                   value={founder.role}
-                                  onChange={(e) => {
-                                    if (e.target.value !== founder.role) {
+                                  onChange={(event) => {
+                                    if (event.target.value !== founder.role) {
                                       setConfirmAction({
                                         title: t("vadmin.founders.updateRole"),
                                         message: t("vadmin.founders.updateRoleMessage", {
                                           name: founder.name,
                                           current: founder.role,
-                                          new: e.target.value,
+                                          new: event.target.value,
                                         }),
                                         confirmLabel: t("vadmin.founders.updateRole"),
-                                        onConfirm: () => handleRoleUpdate(founder.id, e.target.value),
+                                        onConfirm: () => handleRoleUpdate(founder.id, event.target.value),
                                       });
                                     }
                                   }}
                                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold text-[var(--text-primary)] outline-none"
                                 >
-                                  {VENTURE_ROLES.map((r) => (
-                                    <option key={r} value={r}>{r.replace(/_/g, " ")}</option>
+                                  {VENTURE_ROLES.map((ventureRole) => (
+                                    <option key={ventureRole} value={ventureRole}>{ventureRole.replace(/_/g, " ")}</option>
                                   ))}
                                 </select>
                               </div>
@@ -559,12 +559,12 @@ export default function VentureFoundersPage() {
                                         // Direct transfer
                                         setTransferring(true);
                                         try {
-                                          const res = await fetch(`/api/ventures/${id}/founders/transfer-ownership`, {
+                                          const response = await fetch(`/api/ventures/${id}/founders/transfer-ownership`, {
                                             method: "POST",
                                             headers: { "Content-Type": "application/json" },
                                             body: JSON.stringify({ new_owner_id: founder.id }),
                                           });
-                                          const data = await res.json();
+                                          const data = await response.json();
                                           if (data.success) {
                                             notify(t("vadmin.founders.ownershipTransferred"));
                                             setConfirmAction(null);
@@ -663,7 +663,7 @@ export default function VentureFoundersPage() {
                 <input
                   type="email"
                   value={inviteForm.email}
-                  onChange={(e) => setInviteForm((p) => ({ ...p, email: e.target.value }))}
+                  onChange={(event) => setInviteForm((previous) => ({ ...previous, email: event.target.value }))}
                   placeholder={t("vadmin.founders.emailPlaceholder")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
@@ -674,7 +674,7 @@ export default function VentureFoundersPage() {
                 <input
                   type="text"
                   value={inviteForm.name}
-                  onChange={(e) => setInviteForm((p) => ({ ...p, name: e.target.value }))}
+                  onChange={(event) => setInviteForm((previous) => ({ ...previous, name: event.target.value }))}
                   placeholder={t("vadmin.founders.namePlaceholder")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
@@ -684,11 +684,11 @@ export default function VentureFoundersPage() {
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">{t("vadmin.founders.roleLabel")}</label>
                 <select
                   value={inviteForm.role}
-                  onChange={(e) => setInviteForm((p) => ({ ...p, role: e.target.value }))}
+                  onChange={(event) => setInviteForm((previous) => ({ ...previous, role: event.target.value }))}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                 >
-                  {VENTURE_ROLES.map((r) => (
-                    <option key={r} value={r}>{r.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}</option>
+                  {VENTURE_ROLES.map((ventureRole) => (
+                    <option key={ventureRole} value={ventureRole}>{ventureRole.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase())}</option>
                   ))}
                 </select>
               </div>
@@ -735,28 +735,28 @@ export default function VentureFoundersPage() {
 
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {founders
-                .filter((f) => !f.is_owner && !f.suspended_at && f.status === "accepted")
-                .map((f) => (
+                .filter((founder) => !founder.is_owner && !founder.suspended_at && founder.status === "accepted")
+                .map((founder) => (
                   <button
-                    key={f.id}
+                    key={founder.id}
                     onClick={() => {
                       setConfirmAction({
                         title: t("vadmin.founders.transferOwnership"),
-                        message: t("vadmin.founders.transferConfirmDetailed", { name: f.name, email: f.email }),
+                        message: t("vadmin.founders.transferConfirmDetailed", { name: founder.name, email: founder.email }),
                         confirmLabel: t("vadmin.founders.transferOwnership"),
                         onConfirm: async () => {
-                          setTransferTarget(String(f.id));
+                          setTransferTarget(String(founder.id));
                           setShowTransferModal(false);
                           setTransferring(true);
                           try {
-                            const res = await fetch(`/api/ventures/${id}/founders/transfer-ownership`, {
+                            const response = await fetch(`/api/ventures/${id}/founders/transfer-ownership`, {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ new_owner_id: f.id }),
+                              body: JSON.stringify({ new_owner_id: founder.id }),
                             });
-                            const data = await res.json();
+                            const data = await response.json();
                             if (data.success) {
-                              notify(t("vadmin.founders.ownershipTransferredTo", { name: f.name }));
+                              notify(t("vadmin.founders.ownershipTransferredTo", { name: founder.name }));
                               setConfirmAction(null);
                               reload();
                             } else {
@@ -771,16 +771,16 @@ export default function VentureFoundersPage() {
                     className="w-full text-left p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-amber-500/30 transition-all flex items-center gap-4"
                   >
                     <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-sm font-black text-amber-400">
-                      {f.name?.charAt(0) || f.email?.charAt(0)}
+                      {founder.name?.charAt(0) || founder.email?.charAt(0)}
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-[var(--text-primary)]">{f.name || f.email}</p>
-                      <p className="text-[10px] text-[var(--text-secondary)]">{f.email} · {f.role}</p>
+                      <p className="text-sm font-bold text-[var(--text-primary)]">{founder.name || founder.email}</p>
+                      <p className="text-[10px] text-[var(--text-secondary)]">{founder.email} · {founder.role}</p>
                     </div>
                     <ChevronRight className="w-4 h-4 text-slate-500 ml-auto" />
                   </button>
                 ))}
-              {founders.filter((f) => !f.is_owner && !f.suspended_at && f.status === "accepted").length === 0 && (
+              {founders.filter((founder) => !founder.is_owner && !founder.suspended_at && founder.status === "accepted").length === 0 && (
                 <p className="text-sm text-[var(--text-secondary)] text-center py-8">
                   {t("vadmin.founders.noEligibleFounders")}
                 </p>

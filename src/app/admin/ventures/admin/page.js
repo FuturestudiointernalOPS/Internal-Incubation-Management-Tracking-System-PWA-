@@ -10,11 +10,11 @@ import { useApi } from "@/lib/hooks/useApi";
 // Module scope on purpose: the hook keys its internal callback on these
 // functions, so inline arrows would give them a new identity on every render and
 // refetch in a loop.
-const pickSettings = (d) => (d?.success ? d.settings : null);
-const pickFeatures = (d) => (d?.success ? d.features || [] : []);
-const pickRoles = (d) => (d?.success ? d.roles || [] : []);
-const pickSystemInfo = (d) => (d?.success ? d : null);
-const pickLogs = (d) => (d?.success ? d.logs || [] : []);
+const pickSettings = (payload) => (payload?.success ? payload.settings : null);
+const pickFeatures = (payload) => (payload?.success ? payload.features || [] : []);
+const pickRoles = (payload) => (payload?.success ? payload.roles || [] : []);
+const pickSystemInfo = (payload) => (payload?.success ? payload : null);
+const pickLogs = (payload) => (payload?.success ? payload.logs || [] : []);
 
 export default function VentureAdminPage() {
   const [activeTab, setActiveTab] = useState("settings");
@@ -55,40 +55,40 @@ export default function VentureAdminPage() {
   const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
   const updateSetting = async (key, value) => {
-    setSaving((p) => ({ ...p, [key]: true }));
+    setSaving((previous) => ({ ...previous, [key]: true }));
     await fetch("/api/admin/ventures", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "update_setting", setting_key: key, setting_value: value }),
     });
-    setSaving((p) => ({ ...p, [key]: false }));
+    setSaving((previous) => ({ ...previous, [key]: false }));
     notify("Setting updated");
   };
 
   const toggleFeature = async (flagKey, isEnabled) => {
-    setSaving((p) => ({ ...p, [flagKey]: true }));
+    setSaving((previous) => ({ ...previous, [flagKey]: true }));
     await fetch("/api/admin/ventures", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "update_feature", flag_key: flagKey, is_enabled: !isEnabled }),
     });
-    setFeatures((prev) => prev.map((f) => f.flag_key === flagKey ? { ...f, is_enabled: !isEnabled } : f));
-    setSaving((p) => ({ ...p, [flagKey]: false }));
+    setFeatures((prev) => prev.map((feature) => feature.flag_key === flagKey ? { ...feature, is_enabled: !isEnabled } : feature));
+    setSaving((previous) => ({ ...previous, [flagKey]: false }));
     notify(`Feature ${!isEnabled ? "enabled" : "disabled"}`);
   };
 
-  const renderInput = (key, cfg) => {
-    if (cfg.type === "boolean") {
+  const renderInput = (key, config) => {
+    if (config.type === "boolean") {
       return (
-        <button onClick={() => updateSetting(key, cfg.value ? "false" : "true")}
-          className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${cfg.value ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-500/10 text-slate-500"}`}>
-          {cfg.value ? "Enabled" : "Disabled"}
+        <button onClick={() => updateSetting(key, config.value ? "false" : "true")}
+          className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${config.value ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-500/10 text-slate-500"}`}>
+          {config.value ? "Enabled" : "Disabled"}
         </button>
       );
     }
-    if (cfg.type === "integer") {
+    if (config.type === "integer") {
       return (
         <div className="flex gap-2">
-          <input type="number" defaultValue={cfg.value}
-            onBlur={(e) => updateSetting(key, e.target.value)}
+          <input type="number" defaultValue={config.value}
+            onBlur={(event) => updateSetting(key, event.target.value)}
             className="w-24 bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none" />
           {saving[key] && <Loader2 className="w-3 h-3 animate-spin mt-1.5" />}
         </div>
@@ -96,8 +96,8 @@ export default function VentureAdminPage() {
     }
     return (
       <div className="flex gap-2">
-        <input type="text" defaultValue={cfg.value}
-          onBlur={(e) => updateSetting(key, e.target.value)}
+        <input type="text" defaultValue={config.value}
+          onBlur={(event) => updateSetting(key, event.target.value)}
           className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none" />
         {saving[key] && <Loader2 className="w-3 h-3 animate-spin mt-1.5" />}
       </div>
@@ -154,13 +154,13 @@ export default function VentureAdminPage() {
               <div key={category} className="card">
                 <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{categoryLabels[category] || category}</h3>
                 <div className="space-y-3">
-                  {Object.entries(items).map(([key, cfg]) => (
+                  {Object.entries(items).map(([key, config]) => (
                     <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                       <div>
-                        <p className="text-[10px] font-bold text-[var(--text-primary)]">{key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}</p>
-                        {cfg.description && <p className="text-[8px] text-slate-500">{cfg.description}</p>}
+                        <p className="text-[10px] font-bold text-[var(--text-primary)]">{key.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase())}</p>
+                        {config.description && <p className="text-[8px] text-slate-500">{config.description}</p>}
                       </div>
-                      <div className="flex items-center gap-2">{renderInput(key, cfg)}</div>
+                      <div className="flex items-center gap-2">{renderInput(key, config)}</div>
                     </div>
                   ))}
                 </div>
@@ -174,17 +174,17 @@ export default function VentureAdminPage() {
           <div className="card">
             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Feature Flags</h3>
             <div className="space-y-2">
-              {features.map((f) => (
-                <div key={f.id} className="flex items-center justify-between p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+              {features.map((feature) => (
+                <div key={feature.id} className="flex items-center justify-between p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                   <div>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">{f.flag_name}</p>
-                    <p className="text-[8px] text-slate-500">{f.description}</p>
+                    <p className="text-xs font-bold text-[var(--text-primary)]">{feature.flag_name}</p>
+                    <p className="text-[8px] text-slate-500">{feature.description}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${f.is_enabled ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-500"}`}>{f.is_enabled ? "ON" : "OFF"}</span>
-                    <button onClick={() => toggleFeature(f.flag_key, f.is_enabled)} disabled={saving[f.flag_key]}
-                      className={`w-10 h-5 rounded-full transition-all relative ${f.is_enabled ? "bg-emerald-500" : "bg-slate-600"}`}>
-                      <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${f.is_enabled ? "left-5" : "left-0.5"}`} />
+                    <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${feature.is_enabled ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-500"}`}>{feature.is_enabled ? "ON" : "OFF"}</span>
+                    <button onClick={() => toggleFeature(feature.flag_key, feature.is_enabled)} disabled={saving[feature.flag_key]}
+                      className={`w-10 h-5 rounded-full transition-all relative ${feature.is_enabled ? "bg-emerald-500" : "bg-slate-600"}`}>
+                      <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${feature.is_enabled ? "left-5" : "left-0.5"}`} />
                     </button>
                   </div>
                 </div>

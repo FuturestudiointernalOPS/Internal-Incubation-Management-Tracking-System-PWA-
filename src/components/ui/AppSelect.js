@@ -42,9 +42,9 @@ export default function AppSelect({
           <option value="" disabled style={{ background: "var(--surface-1)", color: "var(--text-tertiary)" }}>
             {placeholder}
           </option>
-          {options.map((opt) => (
-            <option key={opt.value || opt} value={opt.value || opt} style={{ background: "var(--surface-1)", color: "var(--text-primary)" }}>
-              {opt.label || opt}
+          {options.map((option) => (
+            <option key={option.value || option} value={option.value || option} style={{ background: "var(--surface-1)", color: "var(--text-primary)" }}>
+              {option.label || option}
             </option>
           ))}
         </select>

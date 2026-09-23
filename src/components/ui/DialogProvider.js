@@ -218,13 +218,13 @@ export function DialogProvider({ children }) {
                 placeholder={request.placeholder}
                 error={entryError}
                 autoFocus
-                onChange={(e) => {
-                  setEntry(e.target.value);
+                onChange={(event) => {
+                  setEntry(event.target.value);
                   if (entryError) setEntryError("");
                 }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
                     accept();
                   }
                 }}

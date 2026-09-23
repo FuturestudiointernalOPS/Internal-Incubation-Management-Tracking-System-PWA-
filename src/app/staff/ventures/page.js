@@ -18,11 +18,11 @@ export default function StaffVenturesList() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/ventures/assigned");
-        const d = await res.json();
-        if (d.success) setAssignments(d.assignments || []);
-      } catch (e) {
-        console.error("Failed to load my Venture assignments:", e);
+        const response = await fetch("/api/ventures/assigned");
+        const data = await response.json();
+        if (data.success) setAssignments(data.assignments || []);
+      } catch (error) {
+        console.error("Failed to load my Venture assignments:", error);
       } finally {
         setLoading(false);
       }
@@ -58,12 +58,12 @@ export default function StaffVenturesList() {
         </div>
       ) : (
         <div className="space-y-3">
-          {assignments.map((a) => {
-            const displayName = a.company_name || a.name || a.venture_id;
+          {assignments.map((assignment) => {
+            const displayName = assignment.company_name || assignment.name || assignment.venture_id;
             return (
               <button
-                key={a.id}
-                onClick={() => router.push(`/staff/ventures/${a.venture_id}`)}
+                key={assignment.id}
+                onClick={() => router.push(`/staff/ventures/${assignment.venture_id}`)}
                 className="w-full card hover:border-[var(--brand-orange)]/40 transition-all text-left"
               >
                 <div className="flex items-center justify-between gap-4">
@@ -73,18 +73,18 @@ export default function StaffVenturesList() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-black text-[var(--text-primary)] truncate">{displayName}</p>
-                      <p className="text-[10px] text-slate-500 font-mono">{a.venture_id}</p>
+                      <p className="text-[10px] text-slate-500 font-mono">{assignment.venture_id}</p>
                       <div className="flex flex-wrap items-center gap-2 mt-1.5">
                         <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
-                          {a.responsibility_name || a.responsibility_code}
+                          {assignment.responsibility_name || assignment.responsibility_code}
                         </span>
-                        {a.scope_type !== "venture_wide" && (
+                        {assignment.scope_type !== "venture_wide" && (
                           <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">
-                            {a.scope_type}{a.scope_ref_id ? ` · ${a.scope_ref_id}` : ""}
+                            {assignment.scope_type}{assignment.scope_ref_id ? ` · ${assignment.scope_ref_id}` : ""}
                           </span>
                         )}
                         <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">
-                          {a.status}
+                          {assignment.status}
                         </span>
                       </div>
                     </div>

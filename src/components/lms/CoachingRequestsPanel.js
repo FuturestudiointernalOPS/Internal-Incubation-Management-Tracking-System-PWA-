@@ -53,10 +53,10 @@ const EMPTY_REQUESTS = { list: [], failure: null };
  * refusal carries the server's own message, or the same key the loader's toast
  * fell back to; a request that never answered is reported where it is shown.
  */
-const pickRequests = (d) =>
-  d?.success
-    ? { list: d.requests || [], failure: null }
-    : { list: [], failure: d?.error || "lms.errors.loadFailed" };
+const pickRequests = (data) =>
+  data?.success
+    ? { list: data.requests || [], failure: null }
+    : { list: [], failure: data?.error || "lms.errors.loadFailed" };
 
 export default function CoachingRequestsPanel({ programId, canEdit = false }) {
   const { t } = useI18n();
@@ -109,20 +109,20 @@ export default function CoachingRequestsPanel({ programId, canEdit = false }) {
       setDecision(null);
       setNote("");
       refresh();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     } finally {
       setSaving(false);
     }
   };
 
-  const pendingCount = requests.filter((r) => r.status === "pending").length;
+  const pendingCount = requests.filter((request) => request.status === "pending").length;
 
   return (
     <div className="card border border-[var(--border-primary)] !p-0 overflow-hidden">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen((prev) => !prev)}
         className="w-full flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-[var(--surface-2)] transition-all"
       >
         <div className="flex items-center gap-3">
@@ -267,7 +267,7 @@ export default function CoachingRequestsPanel({ programId, canEdit = false }) {
           <textarea
             rows={3}
             value={note}
-            onChange={(e) => setNote(e.target.value)}
+            onChange={(event) => setNote(event.target.value)}
             placeholder={t("lms.coaching.notePlaceholder")}
             className="w-full px-3 py-2 rounded-lg outline-none border text-xs"
             style={{

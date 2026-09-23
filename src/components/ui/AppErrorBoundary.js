@@ -26,11 +26,11 @@ export default class AppErrorBoundary extends Component {
   componentDidMount() {
     if (typeof window !== "undefined") {
       this.handleGlobalError = (event) => {
-        const msg = event?.message || event?.reason?.message || "";
+        const message = event?.message || event?.reason?.message || "";
         if (
-          msg.includes("ChunkLoadError") ||
-          msg.includes("is not a function") ||
-          msg.includes("Unexpected token '<'")
+          message.includes("ChunkLoadError") ||
+          message.includes("is not a function") ||
+          message.includes("Unexpected token '<'")
         ) {
           const hasReloaded = sessionStorage.getItem("app_chunk_reloaded");
           if (!hasReloaded) {

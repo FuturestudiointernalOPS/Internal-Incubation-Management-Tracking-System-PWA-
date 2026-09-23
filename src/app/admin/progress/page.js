@@ -36,14 +36,14 @@ export default function SuperAdminProgressHub() {
           setIsLoaded(true);
         }
       }
-      const res = await fetch(url);
-      const data = await res.json();
+      const response = await fetch(url);
+      const data = await response.json();
       if (data.success) {
         cacheSet(url, data);
         apply(data);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsLoaded(true);
     }
@@ -52,8 +52,8 @@ export default function SuperAdminProgressHub() {
   useEffect(() => {
     async function checkAuth() {
       try {
-        const res = await fetch("/api/auth/session");
-        const data = await res.json();
+        const response = await fetch("/api/auth/session");
+        const data = await response.json();
         if (!data.authenticated) {
           router.push("/login");
           return;
@@ -69,8 +69,8 @@ export default function SuperAdminProgressHub() {
     checkAuth();
   }, [router]);
 
-  const filteredPrograms = programs.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()),
+  const filteredPrograms = programs.filter((program) =>
+    program.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -101,7 +101,7 @@ export default function SuperAdminProgressHub() {
                 type="text"
                 placeholder={t("adminMisc.progress.searchPlaceholder")}
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(event) => setSearch(event.target.value)}
                 className="w-full bg-white/5 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-sm font-bold text-white outline-none focus:border-[#FF6600]/40 focus:bg-white/[0.08] transition-all"
               />
             </div>
@@ -110,15 +110,15 @@ export default function SuperAdminProgressHub() {
 
         {/* REGISTRY LIST */}
         <div className="grid grid-cols-1 gap-6">
-          {filteredPrograms.map((prog, idx) => {
-            const progress = prog.completion_index || 0;
+          {filteredPrograms.map((program, index) => {
+            const progress = program.completion_index || 0;
             return (
               <motion.div
-                key={prog.id}
+                key={program.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                onClick={() => router.push(`/admin/programs/${prog.id}`)}
+                transition={{ delay: index * 0.05 }}
+                onClick={() => router.push(`/admin/programs/${program.id}`)}
                 className="ios-card bg-white/[0.01] border-white/5 !p-10 group hover:border-[#FF6600]/30 hover:bg-white/[0.02] cursor-pointer transition-all flex flex-col lg:flex-row items-center gap-12"
               >
                 <div className="flex-1 space-y-6 w-full text-left">
@@ -128,13 +128,13 @@ export default function SuperAdminProgressHub() {
                     </div>
                     <div>
                       <h3 className="text-2xl font-black text-white uppercase tracking-tighter leading-none">
-                        {prog.name}
+                        {program.name}
                       </h3>
                       <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mt-2">
-                        {prog.sessions_count || 0} {t("adminMisc.progress.tacticalNodes")} •{" "}
-                        {prog.participants_count || 0} {t("adminMisc.progress.personnel")} •{" "}
-                        {prog.reports_count || 0} {t("adminMisc.progress.reports")} • {t("adminMisc.progress.lead")}{" "}
-                        {prog.pm_name || t("adminMisc.progress.unassigned")}
+                        {program.sessions_count || 0} {t("adminMisc.progress.tacticalNodes")} •{" "}
+                        {program.participants_count || 0} {t("adminMisc.progress.personnel")} •{" "}
+                        {program.reports_count || 0} {t("adminMisc.progress.reports")} • {t("adminMisc.progress.lead")}{" "}
+                        {program.pm_name || t("adminMisc.progress.unassigned")}
                       </p>
                     </div>
                   </div>
@@ -167,7 +167,7 @@ export default function SuperAdminProgressHub() {
                       {t("adminMisc.progress.deliverables")}
                     </p>
                     <p className="text-xl font-black text-white">
-                      {prog.docs_completed || 0}/{prog.docs_total || 0}
+                      {program.docs_completed || 0}/{program.docs_total || 0}
                     </p>
                   </div>
                   <div className="w-px h-8 bg-white/5" />
@@ -176,7 +176,7 @@ export default function SuperAdminProgressHub() {
                       {t("adminMisc.progress.status")}
                     </p>
                     <p className="text-xs font-black text-[#FF6600] uppercase tracking-tighter">
-                      {prog.status || "Active"}
+                      {program.status || "Active"}
                     </p>
                   </div>
                 </div>

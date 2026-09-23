@@ -8,7 +8,7 @@ import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
 import { notify } from "./notify";
 
-const letter = (i) => String.fromCharCode(65 + i);
+const letter = (index) => String.fromCharCode(65 + index);
 
 /**
  * Question authoring modal. The question type is NOT chosen here — it is set
@@ -23,8 +23,8 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
   const [text, setText] = useState(question?.question || "");
   const [options, setOptions] = useState(() => {
     if (question && mcType) {
-      const opts = question.options || [];
-      if (opts.length > 0) return opts.map((o) => ({ text: o.text || "" }));
+      const savedOptions = question.options || [];
+      if (savedOptions.length > 0) return savedOptions.map((option) => ({ text: option.text || "" }));
     }
     return [{ text: "" }, { text: "" }];
   });
@@ -40,9 +40,9 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
 
   const addOption = () => setOptions((prev) => [...prev, { text: "" }]);
   const updateOption = (index, value) =>
-    setOptions((prev) => prev.map((o, i) => (i === index ? { text: value } : o)));
+    setOptions((prev) => prev.map((option, optionIndex) => (optionIndex === index ? { text: value } : option)));
   const removeOption = (index) => {
-    setOptions((prev) => prev.filter((_, i) => i !== index));
+    setOptions((prev) => prev.filter((_, optionIndex) => optionIndex !== index));
     const removedLetter = letter(index);
     setCorrect((prev) => (prev === removedLetter ? "" : prev));
   };
@@ -51,7 +51,7 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
     const next = {};
     if (!text.trim()) next.text = "lms.errors.questionTextRequired";
     if (mcType) {
-      if (options.filter((o) => o.text.trim()).length < 2) next.options = "lms.errors.mcOptionsRequired";
+      if (options.filter((option) => option.text.trim()).length < 2) next.options = "lms.errors.mcOptionsRequired";
       if (!correct) next.correct = "lms.errors.correctAnswerRequired";
     } else if (!correct) {
       next.correct = "lms.errors.correctAnswerRequired";
@@ -78,7 +78,7 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
     try {
       const payload = {
         question: text,
-        options: mcType ? options.map((o, i) => ({ key: letter(i), text: o.text })) : [],
+        options: mcType ? options.map((option, optionIndex) => ({ key: letter(optionIndex), text: option.text })) : [],
         correctAnswer: correct ? [correct] : [],
         points: points || 1,
       };
@@ -100,8 +100,8 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
       } else {
         onClose();
       }
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     } finally {
       setSaving(false);
     }
@@ -121,7 +121,7 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
         <AppInput
           label={t("lms.questions.text")}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(event) => setText(event.target.value)}
           placeholder={t("lms.questions.textPlaceholder")}
           error={errors.text ? t(errors.text) : undefined}
         />
@@ -141,7 +141,7 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
                 </span>
                 <AppInput
                   value={option.text}
-                  onChange={(e) => updateOption(index, e.target.value)}
+                  onChange={(event) => updateOption(index, event.target.value)}
                   placeholder={t("lms.questions.optionTextPlaceholder")}
                   className="flex-1"
                 />
@@ -208,25 +208,25 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
               {t("lms.questions.correctAnswer")}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {["true", "false"].map((val) => (
+              {["true", "false"].map((choice) => (
                 <label
-                  key={val}
+                  key={choice}
                   className="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer border"
                   style={{
                     background: "var(--surface-2)",
-                    borderColor: correct === val ? "var(--brand-orange)" : "var(--border-primary)",
+                    borderColor: correct === choice ? "var(--brand-orange)" : "var(--border-primary)",
                   }}
                 >
                   <input
                     type="radio"
                     name="correct-tf"
-                    checked={correct === val}
-                    onChange={() => setCorrect(val)}
+                    checked={correct === choice}
+                    onChange={() => setCorrect(choice)}
                     className="w-4 h-4"
                     style={{ accentColor: "var(--brand-orange)" }}
                   />
                   <span className="text-xs font-black uppercase tracking-wider" style={{ color: "var(--text-primary)" }}>
-                    {t(`lms.questions.${val}`)}
+                    {t(`lms.questions.${choice}`)}
                   </span>
                 </label>
               ))}
@@ -244,7 +244,7 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
           type="number"
           min="1"
           value={points}
-          onChange={(e) => setPoints(e.target.value)}
+          onChange={(event) => setPoints(event.target.value)}
         />
 
         <div className="flex flex-wrap justify-end gap-3 pt-2">

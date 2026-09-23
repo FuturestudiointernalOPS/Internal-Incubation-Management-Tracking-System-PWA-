@@ -11,7 +11,7 @@ import { useApi } from "@/lib/hooks/useApi";
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop. This read is kept raw because both the rejection reason and the plain
 // success flag behind it are shown on screen.
-const pickVentureInvite = (d) => d;
+const pickVentureInvite = (ventureInvite) => ventureInvite;
 
 function RegisterVentureContent() {
   const { t } = useI18n();
@@ -54,8 +54,8 @@ function RegisterVentureContent() {
         : "";
   const error = submitError || linkError;
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function handleSubmit(event) {
+    event.preventDefault();
     setSubmitError("");
     if (form.founder_password.length < 6) {
       setSubmitError(t("rootMisc.registerVenture.passwordTooShort"));
@@ -67,13 +67,13 @@ function RegisterVentureContent() {
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/venture-invites/consume", {
+      const response = await fetch("/api/venture-invites/consume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, ...form, founder_password_confirm: undefined }),
       });
-      const d = await res.json();
-      if (d.success) {
+      const payload = await response.json();
+      if (payload.success) {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
             detail: {
@@ -85,7 +85,7 @@ function RegisterVentureContent() {
         );
         setTimeout(() => router.push("/login"), 2500);
       } else {
-        setSubmitError(t((d.error || t("rootMisc.registerVenture.createFailed")) || "") || (d.error || t("rootMisc.registerVenture.createFailed")));
+        setSubmitError(t((payload.error || t("rootMisc.registerVenture.createFailed")) || "") || (payload.error || t("rootMisc.registerVenture.createFailed")));
         setSubmitting(false);
       }
     } catch {
@@ -131,17 +131,17 @@ function RegisterVentureContent() {
             {error && token && !tokenValid && <p className="text-sm" style={{ color: "#ef4444" }}>{error}</p>}
             <div>
               <label className="block text-sm font-medium mb-1">{t("rootMisc.registerVenture.ventureName")}</label>
-              <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              <input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })}
                 className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} placeholder={t("rootMisc.registerVenture.ventureNamePlaceholder")} />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">{t("rootMisc.registerVenture.description")}</label>
-              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+              <textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })}
                 className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={3} />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">{t("rootMisc.registerVenture.industry")}</label>
-              <input required value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })}
+              <input required value={form.industry} onChange={(event) => setForm({ ...form, industry: event.target.value })}
                 className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} placeholder={t("rootMisc.registerVenture.industryPlaceholder")} />
             </div>
             <div className="border-t pt-4" style={{ borderColor: "rgb(255 255 255 / 0.1)" }}>
@@ -149,24 +149,24 @@ function RegisterVentureContent() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">{t("rootMisc.registerVenture.fullName")}</label>
-                  <input required value={form.founder_name} onChange={(e) => setForm({ ...form, founder_name: e.target.value })}
+                  <input required value={form.founder_name} onChange={(event) => setForm({ ...form, founder_name: event.target.value })}
                     className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">{t("rootMisc.registerVenture.email")}</label>
-                  <input required type="email" value={form.founder_email} onChange={(e) => setForm({ ...form, founder_email: e.target.value })}
+                  <input required type="email" value={form.founder_email} onChange={(event) => setForm({ ...form, founder_email: event.target.value })}
                     className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">{t("rootMisc.registerVenture.password")}</label>
-                  <input required type="password" minLength={6} value={form.founder_password} onChange={(e) => setForm({ ...form, founder_password: e.target.value })}
+                  <input required type="password" minLength={6} value={form.founder_password} onChange={(event) => setForm({ ...form, founder_password: event.target.value })}
                     className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} placeholder={t("rootMisc.registerVenture.passwordMinHint")} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">{t("rootMisc.registerVenture.confirmPassword")}</label>
-                  <input required type="password" minLength={6} value={form.founder_password_confirm} onChange={(e) => setForm({ ...form, founder_password_confirm: e.target.value })}
+                  <input required type="password" minLength={6} value={form.founder_password_confirm} onChange={(event) => setForm({ ...form, founder_password_confirm: event.target.value })}
                     className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} />
                 </div>
               </div>

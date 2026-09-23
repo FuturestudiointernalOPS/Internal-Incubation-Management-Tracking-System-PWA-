@@ -29,13 +29,13 @@ export default function SetupPasswordPage({ params }) {
   useEffect(() => {
     const validateToken = async () => {
       try {
-        const res = await fetch(`/api/auth/setup-password/validate?token=${token}`);
-        const data = await res.json();
+        const response = await fetch(`/api/auth/setup-password/validate?token=${token}`);
+        const payload = await response.json();
 
-        if (data.valid) {
+        if (payload.valid) {
           setState("valid");
-          setUserName(data.user.name);
-          setUserEmail(data.user.email);
+          setUserName(payload.user.name);
+          setUserEmail(payload.user.email);
         } else {
           setState("expired");
         }
@@ -47,8 +47,8 @@ export default function SetupPasswordPage({ params }) {
     validateToken();
   }, [token, t]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError("");
 
     if (password.length < 4) {
@@ -64,21 +64,21 @@ export default function SetupPasswordPage({ params }) {
     setSubmitting(true);
 
     try {
-      const res = await fetch("/api/auth/setup-password", {
+      const response = await fetch("/api/auth/setup-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),
       });
 
-      const data = await res.json();
+      const payload = await response.json();
 
-      if (data.success) {
+      if (payload.success) {
         setState("success");
         setTimeout(() => {
           router.push("/login");
         }, 2500);
       } else {
-        setError(t((data.error || t("rootMisc.setupPassword.errorSetFailed")) || "") || (data.error || t("rootMisc.setupPassword.errorSetFailed")));
+        setError(t((payload.error || t("rootMisc.setupPassword.errorSetFailed")) || "") || (payload.error || t("rootMisc.setupPassword.errorSetFailed")));
         setSubmitting(false);
       }
     } catch {
@@ -212,7 +212,7 @@ export default function SetupPasswordPage({ params }) {
                   type={showPassword ? "text" : "password"}
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(event) => setPassword(event.target.value)}
                   placeholder={t("rootMisc.setupPassword.passwordPlaceholder")}
                   minLength={4}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-3 px-4 text-sm font-medium outline-none focus:border-[var(--brand-orange)] transition-all pr-12"
@@ -236,7 +236,7 @@ export default function SetupPasswordPage({ params }) {
                   type={showConfirm ? "text" : "password"}
                   required
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
                   placeholder={t("rootMisc.setupPassword.confirmPasswordPlaceholder")}
                   minLength={4}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-3 px-4 text-sm font-medium outline-none focus:border-[var(--brand-orange)] transition-all pr-12"

@@ -44,8 +44,8 @@ export default function SuperAdminStandardization() {
       const data = await res.json();
       if (data.success) cacheSet(url, data);
       apply(data);
-    } catch (e) {
-      if (!painted) console.error(e);
+    } catch (error) {
+      if (!painted) console.error(error);
     }
   };
 
@@ -113,7 +113,7 @@ export default function SuperAdminStandardization() {
                           type="text" 
                           className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#FF6600] transition-all font-black text-lg uppercase"
                           value={editingItem.label}
-                          onChange={e => setEditingItem({ ...editingItem, label: e.target.value })}
+                          onChange={event => setEditingItem({ ...editingItem, label: event.target.value })}
                        />
                        <div className="grid grid-cols-2 gap-4">
                           <button 
@@ -195,7 +195,7 @@ export default function SuperAdminStandardization() {
                        placeholder={t("adminMisc.standardization.enterNamePlaceholder", { category: activeTab === 'deliverable' ? t("adminMisc.standardization.deliverableName") : t("adminMisc.standardization.taskName"), example: activeTab === 'deliverable' ? t("adminMisc.standardization.pitchDeck") : t("adminMisc.standardization.workshop") })}
                        className="w-full bg-white/5 border border-white/10 p-6 rounded-2xl text-white outline-none font-black text-2xl uppercase placeholder:text-slate-700 tracking-widest focus:border-[#FF6600] transition-all"
                        value={newType.label}
-                       onChange={e => setNewType({ category: activeTab, label: e.target.value })}
+                       onChange={event => setNewType({ category: activeTab, label: event.target.value })}
                     />
                  </div>
                  <button 
@@ -224,7 +224,7 @@ export default function SuperAdminStandardization() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
-                 {types.filter(t => t.category === activeTab).map(item => {
+                 {types.filter(type => type.category === activeTab).map(item => {
                     const label = item.label.toLowerCase();
                     const IconComponent = activeTab === 'task' ? Target : (
                        label.includes('link') || label.includes('url') ? Globe :
@@ -257,7 +257,7 @@ export default function SuperAdminStandardization() {
                  })}
               </div>
               
-              {types.filter(t => t.category === activeTab).length === 0 && (
+              {types.filter(type => type.category === activeTab).length === 0 && (
                  <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem] opacity-30">
                     <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.standardization.registryEmpty")}</p>
                  </div>

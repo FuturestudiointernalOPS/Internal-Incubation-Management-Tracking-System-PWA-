@@ -31,10 +31,10 @@ export default function AppPhoneInput({
 
     // E.164-ish value: strip the dial prefix.
     if (str.startsWith("+")) {
-      for (const c of countries) {
-        const d = c.dial.replace(/\D/g, "");
-        if (d && digits.startsWith(d)) {
-          return { country: c.iso, national: digits.slice(d.length) };
+      for (const country of countries) {
+        const dialDigits = country.dial.replace(/\D/g, "");
+        if (dialDigits && digits.startsWith(dialDigits)) {
+          return { country: country.iso, national: digits.slice(dialDigits.length) };
         }
       }
       return { country: defaultCountry, national: digits };
@@ -43,11 +43,11 @@ export default function AppPhoneInput({
     // Legacy JSON value: { country, code, number }.
     if (str.startsWith("{")) {
       try {
-        const p = JSON.parse(str);
-        const code = String(p.code || "").trim();
-        const num = String(p.number || "").replace(/\D/g, "");
-        const byCode = countries.find((c) => c.dial === code);
-        const byIso = countries.find((c) => c.iso === p.country);
+        const parsed = JSON.parse(str);
+        const code = String(parsed.code || "").trim();
+        const num = String(parsed.number || "").replace(/\D/g, "");
+        const byCode = countries.find((country) => country.dial === code);
+        const byIso = countries.find((country) => country.iso === parsed.country);
         return {
           country: byCode ? byCode.iso : byIso ? byIso.iso : defaultCountry,
           national: num,
@@ -80,7 +80,7 @@ export default function AppPhoneInput({
     <div className={`flex gap-2 ${className}`}>
       <select
         value={country}
-        onChange={(e) => emit(e.target.value, national)}
+        onChange={(event) => emit(event.target.value, national)}
         disabled={disabled}
         className={selectClassName || "shrink-0 w-[120px] sm:w-[150px] rounded-xl px-2 py-3 text-sm font-medium outline-none border cursor-pointer"}
         style={{
@@ -89,9 +89,9 @@ export default function AppPhoneInput({
           color: "var(--text-primary)",
         }}
       >
-        {countries.map((c) => (
-          <option key={c.iso} value={c.iso}>
-            {c.flag} {c.iso} {c.dial}
+        {countries.map((country) => (
+          <option key={country.iso} value={country.iso}>
+            {country.flag} {country.iso} {country.dial}
           </option>
         ))}
       </select>
@@ -101,7 +101,7 @@ export default function AppPhoneInput({
         inputMode="tel"
         autoComplete="tel"
         value={national}
-        onChange={(e) => emit(country, e.target.value)}
+        onChange={(event) => emit(country, event.target.value)}
         placeholder={placeholder}
         disabled={disabled}
         className={`min-w-0 flex-1 cursor-text ${inputClassName || "rounded-xl px-4 py-3 text-sm font-medium outline-none border"}`}

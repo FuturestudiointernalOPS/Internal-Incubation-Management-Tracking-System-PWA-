@@ -105,13 +105,13 @@ export default function PermissionManager({
       if (!data.success) throw new Error(data.error || `HTTP ${res.status}`);
       setModules(data.modules || {});
       setModuleToFeature(data.moduleToFeature || {});
-    } catch (e) {
-      console.error("Failed to fetch modules", e);
+    } catch (error) {
+      console.error("Failed to fetch modules", error);
       // The catalogue is what the grid is built from: without it there is no
       // section and no right to show, so the failure is stated where the grid
       // would be instead of looking like an empty screen.
       setModulesError(
-        e?.message || t("engineering.permissions.catalogLoadFailed"),
+        error?.message || t("engineering.permissions.catalogLoadFailed"),
       );
     }
   }, [t]);
@@ -133,7 +133,7 @@ export default function PermissionManager({
         .map((section) => ({
           ...section,
           modules: section.modules.filter(
-            (m) => crudCapabilities(availableModules[m]?.capabilities || []).length > 0,
+            (module) => crudCapabilities(availableModules[module]?.capabilities || []).length > 0,
           ),
         }))
         .filter((section) => section.modules.length > 0),
@@ -199,11 +199,11 @@ export default function PermissionManager({
         expanded[key] = true;
       });
       setExpandedModules(expanded);
-    } catch (e) {
-      console.error("Failed to fetch user permissions", e);
+    } catch (error) {
+      console.error("Failed to fetch user permissions", error);
       if (!personLoad.current.isCurrent(token)) return;
       setLoadError(
-        e?.message || t("engineering.permissions.personAccessLoadFailed"),
+        error?.message || t("engineering.permissions.personAccessLoadFailed"),
       );
     } finally {
       if (personLoad.current.isCurrent(token)) setLoadingPerms(false);
@@ -222,8 +222,8 @@ export default function PermissionManager({
       const res = await fetch("/api/access-profiles");
       const data = await res.json();
       if (data.success) setAssignProfiles(data.profiles || []);
-    } catch (e) {
-      console.error("Failed to load profiles", e);
+    } catch (error) {
+      console.error("Failed to load profiles", error);
     }
   };
 
@@ -310,11 +310,11 @@ export default function PermissionManager({
     const restrictions = userPerms?.individualRestrictions || [];
     if (
       restrictions.some(
-        (r) => r.module === module && r.capability === capability,
+        (restriction) => restriction.module === module && restriction.capability === capability,
       )
     )
       return "restricted";
-    if (grants.some((g) => g.module === module && g.capability === capability))
+    if (grants.some((grant) => grant.module === module && grant.capability === capability))
       return "granted";
     return "inherited";
   };
@@ -378,11 +378,11 @@ export default function PermissionManager({
     if (action === "grant") {
       // Add to individual grants
       const existing = newPerms.individualGrants || [];
-      const idx = existing.findIndex(
-        (g) => g.module === module && g.capability === capability,
+      const existingIndex = existing.findIndex(
+        (grant) => grant.module === module && grant.capability === capability,
       );
-      if (idx >= 0) {
-        existing[idx].access_level = level;
+      if (existingIndex >= 0) {
+        existing[existingIndex].access_level = level;
       } else {
         existing.push({
           module,
@@ -399,12 +399,12 @@ export default function PermissionManager({
       // Remove from restrictions if present
       newPerms.individualRestrictions = (
         newPerms.individualRestrictions || []
-      ).filter((r) => !(r.module === module && r.capability === capability));
+      ).filter((restriction) => !(restriction.module === module && restriction.capability === capability));
     }
 
     if (action === "revoke") {
       newPerms.individualGrants = (newPerms.individualGrants || []).filter(
-        (g) => !(g.module === module && g.capability === capability),
+        (grant) => !(grant.module === module && grant.capability === capability),
       );
       // Revert effective to 0 (or re-calculate by removing from effective)
       if (newPerms.effectivePermissions[module]) {
@@ -416,7 +416,7 @@ export default function PermissionManager({
       newPerms.individualRestrictions = newPerms.individualRestrictions || [];
       if (
         !newPerms.individualRestrictions.some(
-          (r) => r.module === module && r.capability === capability,
+          (restriction) => restriction.module === module && restriction.capability === capability,
         )
       ) {
         newPerms.individualRestrictions.push({
@@ -433,7 +433,7 @@ export default function PermissionManager({
     if (action === "unrestrict") {
       newPerms.individualRestrictions = (
         newPerms.individualRestrictions || []
-      ).filter((r) => !(r.module === module && r.capability === capability));
+      ).filter((restriction) => !(restriction.module === module && restriction.capability === capability));
       // Restore default level (will be corrected by background refresh)
       if (newPerms.effectivePermissions[module]) {
         newPerms.effectivePermissions[module][capability] = level || 1;
@@ -696,17 +696,17 @@ export default function PermissionManager({
                       <div className="space-y-3">
                         <select
                           value={assignProfileId}
-                          onChange={(e) => setAssignProfileId(e.target.value)}
+                          onChange={(event) => setAssignProfileId(event.target.value)}
                           className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                         >
                           <option value="">
                             {t("engineering.permissions.selectProfile")}
                           </option>
                           {assignProfiles
-                            .filter((p) => p.is_active)
-                            .map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.name}
+                            .filter((profile) => profile.is_active)
+                            .map((profile) => (
+                              <option key={profile.id} value={profile.id}>
+                                {profile.name}
                               </option>
                             ))}
                         </select>
@@ -1170,12 +1170,12 @@ function buildEditableModules(permissionModules) {
  * defeat that memoisation.
  */
 function capsToObject(rows) {
-  const o = {};
-  for (const r of rows || []) {
-    o[r.module] ??= {};
-    o[r.module][r.capability] = Number(r.access_level);
+  const capsByModule = {};
+  for (const row of rows || []) {
+    capsByModule[row.module] ??= {};
+    capsByModule[row.module][row.capability] = Number(row.access_level);
   }
-  return o;
+  return capsByModule;
 }
 
 function AccessProfilesView({ initialProfileId = null }) {
@@ -1259,8 +1259,8 @@ function AccessProfilesView({ initialProfileId = null }) {
       // snapshots; mutation flows pass bypassCache=true so the list always
       // reflects the last action.
       if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
+        const cached = urls.map((url) => cacheGet(url));
+        if (cached.every((cachedEntry) => cachedEntry !== null && cachedEntry.success)) {
           apply(cached[0], cached[1]);
           setLoading(false);
         }
@@ -1272,8 +1272,8 @@ function AccessProfilesView({ initialProfileId = null }) {
       const eligData = await eligRes.json();
       if (eligData.success) cacheSet(urls[1], eligData);
       apply(data, eligData);
-    } catch (e) {
-      console.error("Failed to load profiles", e);
+    } catch (error) {
+      console.error("Failed to load profiles", error);
     } finally {
       setLoading(false);
     }
@@ -1303,15 +1303,15 @@ function AccessProfilesView({ initialProfileId = null }) {
         setSavedCaps(saved);
         setDraftCaps(JSON.parse(JSON.stringify(saved)));
       }
-    } catch (e) {
-      console.error("Failed to load profile capabilities", e);
+    } catch (error) {
+      console.error("Failed to load profile capabilities", error);
     }
   }, []);
 
   // Picker → selection + deep link. `replaceState` keeps the URL shareable
   // (?profile=<id>) without importing next/navigation into this file.
-  const handleProfilePick = (e) => {
-    const id = e.target.value;
+  const handleProfilePick = (event) => {
+    const id = event.target.value;
     if (!id) {
       setSelectedProfile(null);
       setProfileCaps([]);
@@ -1326,7 +1326,7 @@ function AccessProfilesView({ initialProfileId = null }) {
       }
       return;
     }
-    const profile = profiles.find((p) => String(p.id) === String(id));
+    const profile = profiles.find((profile) => String(profile.id) === String(id));
     if (!profile) return;
     selectProfile(profile);
     try {
@@ -1349,7 +1349,7 @@ function AccessProfilesView({ initialProfileId = null }) {
     ) {
       return;
     }
-    const hit = profiles.find((p) => String(p.id) === String(initialProfileId));
+    const hit = profiles.find((profile) => String(profile.id) === String(initialProfileId));
     // Deferred: the mount effect must not perform a synchronous state update.
     if (hit) defer(() => selectProfile(hit));
   }, [initialProfileId, profiles, selectedProfile, selectProfile]);
@@ -1367,8 +1367,8 @@ function AccessProfilesView({ initialProfileId = null }) {
         const res = await fetch(
           `/api/engineering/permissions/impact?profile_id=${encodeURIComponent(selectedProfile.id)}`,
         );
-        const d = await res.json();
-        if (alive) setImpactTotal(d.success ? Number(d.impact?.total || 0) : null);
+        const data = await res.json();
+        if (alive) setImpactTotal(data.success ? Number(data.impact?.total || 0) : null);
       } catch {
         if (alive) setImpactTotal(null);
       }
@@ -1427,9 +1427,9 @@ function AccessProfilesView({ initialProfileId = null }) {
 
       // Build capabilities object from response
       const caps = {};
-      for (const c of data.capabilities) {
-        if (!caps[c.module]) caps[c.module] = {};
-        caps[c.module][c.capability] = c.access_level;
+      for (const capability of data.capabilities) {
+        if (!caps[capability.module]) caps[capability.module] = {};
+        caps[capability.module][capability.capability] = capability.access_level;
       }
 
       // Create copy
@@ -1550,7 +1550,7 @@ function AccessProfilesView({ initialProfileId = null }) {
   // ── Draft-based matrix editing: changes are staged, then saved explicitly. ──
   const defaultRolesFor = (profileId) =>
     Object.entries(roleDefaults)
-      .filter(([, v]) => v.profileId === profileId)
+      .filter(([, defaultsEntry]) => defaultsEntry.profileId === profileId)
       .map(([role]) => role);
 
   const isChanged = (mod, cap) =>
@@ -1815,7 +1815,7 @@ function AccessProfilesView({ initialProfileId = null }) {
             {[
               ...new Set(
                 saveViolations.violations.map(
-                  (v) => `${v.module}.${v.capability} → ${v.feature}`,
+                  (violation) => `${violation.module}.${violation.capability} → ${violation.feature}`,
                 ),
               ),
             ].map((line) => (
@@ -1854,16 +1854,16 @@ function AccessProfilesView({ initialProfileId = null }) {
               <div className="space-y-3">
                 <input
                   value={newProfile.name}
-                  onChange={(e) =>
-                    setNewProfile({ ...newProfile, name: e.target.value })
+                  onChange={(event) =>
+                    setNewProfile({ ...newProfile, name: event.target.value })
                   }
                   placeholder={t("engineering.permissions.profileNamePlaceholder")}
                   className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                 />
                 <input
                   value={newProfile.description}
-                  onChange={(e) =>
-                    setNewProfile({ ...newProfile, description: e.target.value })
+                  onChange={(event) =>
+                    setNewProfile({ ...newProfile, description: event.target.value })
                   }
                   placeholder={t("engineering.permissions.descriptionOptional")}
                   className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
@@ -1930,7 +1930,7 @@ function AccessProfilesView({ initialProfileId = null }) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <input
                         value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
+                        onChange={(event) => setRenameValue(event.target.value)}
                         placeholder={t("engineering.permissions.renamePlaceholder")}
                         className="w-56 bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50"
                       />
@@ -2095,9 +2095,9 @@ function AccessProfilesView({ initialProfileId = null }) {
                 )}
                 {changesCount > 0 && (
                   <PendingChangesList
-                    items={diffCapabilities(savedCaps, draftCaps).map((c) => ({
-                      label: c.label,
-                      level: c.to,
+                    items={diffCapabilities(savedCaps, draftCaps).map((change) => ({
+                      label: change.label,
+                      level: change.to,
                     }))}
                   />
                 )}
@@ -2130,7 +2130,7 @@ function AccessProfilesView({ initialProfileId = null }) {
                 </div>
                 <input
                   value={reason}
-                  onChange={(e) => setReason(e.target.value)}
+                  onChange={(event) => setReason(event.target.value)}
                   placeholder={t("engineering.permissions.reasonPlaceholder")}
                   className="w-full rounded-lg border border-[var(--border-primary)] bg-secondary px-3 py-2 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] placeholder:opacity-60 focus:outline-none focus:border-[var(--brand-orange)]"
                 />
@@ -2328,7 +2328,7 @@ function AccessProfilesView({ initialProfileId = null }) {
             <div className="flex flex-wrap items-center gap-2 mt-4">
               <select
                 value={defaultRoleChoice}
-                onChange={(e) => setDefaultRoleChoice(e.target.value)}
+                onChange={(event) => setDefaultRoleChoice(event.target.value)}
                 aria-label={t("engineering.permissions.defaultForTitle")}
                 className="bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
               >
@@ -2336,10 +2336,10 @@ function AccessProfilesView({ initialProfileId = null }) {
                   {t("engineering.permissions.defaultForPick")}
                 </option>
                 {(allRoles || [])
-                  .filter((r) => !selectedIsDefaultFor.includes(r))
-                  .map((r) => (
-                    <option key={r} value={r}>
-                      {r.replace(/_/g, " ")}
+                  .filter((role) => !selectedIsDefaultFor.includes(role))
+                  .map((role) => (
+                    <option key={role} value={role}>
+                      {role.replace(/_/g, " ")}
                     </option>
                   ))}
               </select>
@@ -2456,8 +2456,8 @@ function ResponsibilitiesView() {
     const url = "/api/contacts";
     const apply = (data) => {
       if (!data.success) return;
-      const sorted = (data.contacts || []).sort((a, b) =>
-        (a.name || "").localeCompare(b.name || ""),
+      const sorted = (data.contacts || []).sort((first, second) =>
+        (first.name || "").localeCompare(second.name || ""),
       );
       setAllUsers(sorted);
       setSearchResults(sorted);
@@ -2475,8 +2475,8 @@ function ResponsibilitiesView() {
         cacheSet(url, data);
         apply(data);
       }
-    } catch (e) {
-      console.error("Failed to fetch users", e);
+    } catch (error) {
+      console.error("Failed to fetch users", error);
     }
   };
 
@@ -2497,8 +2497,8 @@ function ResponsibilitiesView() {
       if (data.success) {
         setResponsibilities(data.responsibilities || []);
       }
-    } catch (e) {
-      console.error("Failed to fetch responsibilities", e);
+    } catch (error) {
+      console.error("Failed to fetch responsibilities", error);
     } finally {
       setLoading(false);
     }
@@ -2511,7 +2511,7 @@ function ResponsibilitiesView() {
 
     // Optimistic update
     setResponsibilities((prev) =>
-      prev.map((r) => (r.id === resp.id ? { ...r, assigned: !r.assigned } : r)),
+      prev.map((responsibility) => (responsibility.id === resp.id ? { ...responsibility, assigned: !responsibility.assigned } : responsibility)),
     );
 
     try {
@@ -2530,16 +2530,16 @@ function ResponsibilitiesView() {
       } else {
         // Revert
         setResponsibilities((prev) =>
-          prev.map((r) =>
-            r.id === resp.id ? { ...r, assigned: !r.assigned } : r,
+          prev.map((responsibility) =>
+            responsibility.id === resp.id ? { ...responsibility, assigned: !responsibility.assigned } : responsibility,
           ),
         );
         setActionError(t((data.error || t("engineering.permissions.actionFailed")) || "") || (data.error || t("engineering.permissions.actionFailed")));
       }
     } catch {
       setResponsibilities((prev) =>
-        prev.map((r) =>
-          r.id === resp.id ? { ...r, assigned: !r.assigned } : r,
+        prev.map((responsibility) =>
+          responsibility.id === resp.id ? { ...responsibility, assigned: !responsibility.assigned } : responsibility,
         ),
       );
       setActionError(t("engineering.permissions.networkError"));
@@ -2552,13 +2552,13 @@ function ResponsibilitiesView() {
       setSearchResults(allUsers);
       return;
     }
-    const q = query.toLowerCase();
+    const lowerQuery = query.toLowerCase();
     setSearchResults(
       allUsers.filter(
-        (u) =>
-          (u.name || "").toLowerCase().includes(q) ||
-          (u.email || "").toLowerCase().includes(q) ||
-          (u.cid || "").toLowerCase().includes(q),
+        (user) =>
+          (user.name || "").toLowerCase().includes(lowerQuery) ||
+          (user.email || "").toLowerCase().includes(lowerQuery) ||
+          (user.cid || "").toLowerCase().includes(lowerQuery),
       ),
     );
   };
@@ -2574,7 +2574,7 @@ function ResponsibilitiesView() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
         <input
           value={searchQuery}
-          onChange={(e) => searchUsers(e.target.value)}
+          onChange={(event) => searchUsers(event.target.value)}
           placeholder={t("engineering.permissions.responsibilitiesSearchPlaceholder")}
           className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
         />
@@ -2583,10 +2583,10 @@ function ResponsibilitiesView() {
       {/* User List */}
       {!selectedUser && (
         <div className="space-y-1 max-w-md">
-          {searchResults.slice(0, 20).map((u) => (
+          {searchResults.slice(0, 20).map((user) => (
             <button
-              key={u.cid}
-              onClick={() => selectUser(u)}
+              key={user.cid}
+              onClick={() => selectUser(user)}
               className="w-full ios-card !p-3 border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
@@ -2595,10 +2595,10 @@ function ResponsibilitiesView() {
                 </div>
                 <div>
                   <p className="text-[11px] font-black text-[var(--text-primary)] uppercase">
-                    {u.name}
+                    {user.name}
                   </p>
                   <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                    {u.role}
+                    {user.role}
                   </p>
                 </div>
               </div>
@@ -2660,12 +2660,12 @@ function ResponsibilitiesView() {
 
           {(() => {
             const blockedAssigned = responsibilities.filter(
-              (r) =>
-                r.assigned &&
+              (responsibility) =>
+                responsibility.assigned &&
                 isResponsibilityBlockedForRole(
                   selectedUser.role,
-                  r.key,
-                  r.allowed_roles,
+                  responsibility.key,
+                  responsibility.allowed_roles,
                 ),
             );
             if (blockedAssigned.length === 0) return null;
@@ -2678,7 +2678,7 @@ function ResponsibilitiesView() {
                 <p className="text-[10px] font-bold text-amber-400/90 mt-1">
                   {t("engineering.permissions.responsibilityRoleWarningBody", {
                     role: selectedUser.role,
-                    features: blockedAssigned.map((r) => r.name).join(", "),
+                    features: blockedAssigned.map((responsibility) => responsibility.name).join(", "),
                   })}
                 </p>
               </div>
@@ -2808,8 +2808,8 @@ function ResponsibilityAccessView() {
         cacheSet(url, data);
         apply(data);
       }
-    } catch (e) {
-      console.error("Failed to fetch responsibilities", e);
+    } catch (error) {
+      console.error("Failed to fetch responsibilities", error);
     } finally {
       setLoading(false);
     }
@@ -2857,8 +2857,8 @@ function ResponsibilityAccessView() {
     setSaveError("");
     // Optimistic update
     setResponsibilities((prev) =>
-      prev.map((r) =>
-        r.id === resp.id ? { ...r, allowed_roles: [...allowedRoles] } : r,
+      prev.map((responsibility) =>
+        responsibility.id === resp.id ? { ...responsibility, allowed_roles: [...allowedRoles] } : responsibility,
       ),
     );
     try {
@@ -2886,7 +2886,7 @@ function ResponsibilityAccessView() {
   const toggleRole = (resp, role) => {
     const current = effectiveRoles(resp);
     const next = current.includes(role)
-      ? current.filter((r) => r !== role)
+      ? current.filter((existingRole) => existingRole !== role)
       : [...current, role];
     saveAccess(resp, next);
   };
@@ -2904,8 +2904,8 @@ function ResponsibilityAccessView() {
       const data = await res.json();
       if (data.success) {
         setResponsibilities((prev) =>
-          prev.map((r) =>
-            r.id === resp.id ? { ...r, allowed_roles: null } : r,
+          prev.map((responsibility) =>
+            responsibility.id === resp.id ? { ...responsibility, allowed_roles: null } : responsibility,
           ),
         );
         setSaveMsg(t("engineering.permissions.accessReset"));
@@ -3035,7 +3035,7 @@ function EligibilityView() {
   const [identityValue, setIdentityValue] = useState("");
   const [draft, setDraft] = useState({});
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState("");
+  const [message, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [viewMode, setViewMode] = useState("identity"); // identity | matrix
   // C2 — impacted templates reported by a 409 before a downgrade is applied.
@@ -3043,9 +3043,9 @@ function EligibilityView() {
 
   const load = useCallback(async (bypassCache = false) => {
     const url = "/api/engineering/permissions/eligibility";
-    const apply = (d) => {
-      if (!d.success) return;
-      setData(d);
+    const apply = (data) => {
+      if (!data.success) return;
+      setData(data);
       setErr("");
     };
     let painted = false;
@@ -3062,12 +3062,12 @@ function EligibilityView() {
         }
       }
       const res = await fetch(url);
-      const d = await res.json();
-      if (d.success) {
-        cacheSet(url, d);
-        apply(d);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
       } else if (!painted) {
-        setErr(t(d.error || "errors.somethingWrong"));
+        setErr(t(data.error || "errors.somethingWrong"));
       }
     } catch {
       if (!painted) setErr(t("engineering.permissions.networkError"));
@@ -3085,12 +3085,12 @@ function EligibilityView() {
     defer(() => {
       if (!data) return;
       const rows = (data.rows || []).filter(
-        (r) =>
-          r.identity_type === identityType &&
-          r.identity_value === identityValue,
+        (row) =>
+          row.identity_type === identityType &&
+          row.identity_value === identityValue,
       );
       const next = {};
-      for (const r of rows) next[r.feature_key] = Number(r.eligible);
+      for (const row of rows) next[row.feature_key] = Number(row.eligible);
       setDraft(next);
       setMsg("");
       setErr("");
@@ -3112,19 +3112,19 @@ function EligibilityView() {
 
   const currentRows = {};
   if (data && selected) {
-    for (const r of data.rows || []) {
+    for (const row of data.rows || []) {
       if (
-        r.identity_type === identityType &&
-        r.identity_value === selected
+        row.identity_type === identityType &&
+        row.identity_value === selected
       ) {
-        currentRows[r.feature_key] = Number(r.eligible);
+        currentRows[row.feature_key] = Number(row.eligible);
       }
     }
   }
 
-  const hasChanges = (data?.features || []).some((f) => {
-    const cur = currentRows[f] ?? null;
-    const next = draft[f] ?? null;
+  const hasChanges = (data?.features || []).some((featureKey) => {
+    const cur = currentRows[featureKey] ?? null;
+    const next = draft[featureKey] ?? null;
     return cur !== next;
   });
 
@@ -3137,12 +3137,12 @@ function EligibilityView() {
     setSaving(true);
     setErr("");
     const changes = [];
-    for (const f of data.features || []) {
-      const cur = currentRows[f] ?? null;
-      const next = draft[f] ?? null;
+    for (const featureKey of data.features || []) {
+      const cur = currentRows[featureKey] ?? null;
+      const next = draft[featureKey] ?? null;
       if (cur !== next) {
         changes.push({
-          feature_key: f,
+          feature_key: featureKey,
           identity_type: identityType,
           identity_value: selected,
           eligible: next,
@@ -3155,21 +3155,21 @@ function EligibilityView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ changes, confirm: confirmed }),
       });
-      const d = await res.json();
-      if (d.success) {
-        setData((prev) => ({ ...prev, rows: d.rows }));
+      const data = await res.json();
+      if (data.success) {
+        setData((prev) => ({ ...prev, rows: data.rows }));
         setPendingImpacts(null);
         setMsg(t("engineering.permissions.eligibilitySaved"));
         setTimeout(() => setMsg(""), 2500);
-      } else if (res.status === 409 && d.requiresConfirmation) {
+      } else if (res.status === 409 && data.requiresConfirmation) {
         // C2 — the downgrade would strand capabilities that role-default
         // templates still grant. Nothing was persisted: show the impact and let
         // the admin confirm explicitly.
-        setPendingImpacts(d.impacts || []);
+        setPendingImpacts(data.impacts || []);
       } else if (res.status === 403) {
         setErr(t("engineering.permissions.eligibilityNoPermission"));
       } else {
-        setErr(t(d.error || "engineering.permissions.eligibilitySaveFailed"));
+        setErr(t(data.error || "engineering.permissions.eligibilitySaveFailed"));
       }
     } catch {
       setErr(t("engineering.permissions.networkError"));
@@ -3209,8 +3209,8 @@ function EligibilityView() {
   // curated list omits. Both are rows of the matrix: an enforced ceiling must
   // never be invisible to the administrator who has to configure it.
   const matrixRoles = [
-    ...(data?.roles || []).filter((r) => !contextRoles.has(r)),
-    ...(data?.extraRoles || []).filter((r) => !contextRoles.has(r)),
+    ...(data?.roles || []).filter((role) => !contextRoles.has(role)),
+    ...(data?.extraRoles || []).filter((role) => !contextRoles.has(role)),
   ];
   const isDatabaseRole = (role) => (data?.extraRoles || []).includes(role);
 
@@ -3218,10 +3218,10 @@ function EligibilityView() {
   // can never disagree about what a cell shows.
   const stateFor = (role, feature) => {
     const row = (data?.rows || []).find(
-      (r) =>
-        r.identity_type === "role" &&
-        r.identity_value === role &&
-        r.feature_key === feature,
+      (row) =>
+        row.identity_type === "role" &&
+        row.identity_value === role &&
+        row.feature_key === feature,
     );
     const value = row ? Number(row.eligible) : null;
     return {
@@ -3279,12 +3279,12 @@ function EligibilityView() {
                   <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] sticky left-0 bg-secondary">
                     {t("engineering.permissions.eligibilityIdentity")}
                   </th>
-                  {(data.features || []).map((f) => (
+                  {(data.features || []).map((featureKey) => (
                     <th
-                      key={f}
+                      key={featureKey}
                       className="px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] whitespace-nowrap"
                     >
-                      {f}
+                      {featureKey}
                     </th>
                   ))}
                 </tr>
@@ -3303,10 +3303,10 @@ function EligibilityView() {
                         </span>
                       )}
                     </td>
-                    {(data.features || []).map((f) => {
-                      const state = stateFor(role, f);
+                    {(data.features || []).map((featureKey) => {
+                      const state = stateFor(role, featureKey);
                       return (
-                        <td key={f} className="px-2 py-1.5 text-center">
+                        <td key={featureKey} className="px-2 py-1.5 text-center">
                           <button
                             onClick={() => {
                               setIdentityType("role");
@@ -3341,11 +3341,11 @@ function EligibilityView() {
                   )}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
-                  {(data.features || []).map((f) => {
-                    const state = stateFor(role, f);
+                  {(data.features || []).map((featureKey) => {
+                    const state = stateFor(role, featureKey);
                     return (
                       <button
-                        key={f}
+                        key={featureKey}
                         onClick={() => {
                           setIdentityType("role");
                           setIdentityValue(role);
@@ -3355,7 +3355,7 @@ function EligibilityView() {
                         className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border border-transparent text-left ${state.className}`}
                       >
                         <span className="block text-[9px] tracking-widest opacity-70">
-                          {f}
+                          {featureKey}
                         </span>
                         <span>{state.label}</span>
                       </button>
@@ -3416,7 +3416,7 @@ function EligibilityView() {
           </p>
           <select
             value={identityValue}
-            onChange={(e) => setIdentityValue(e.target.value)}
+            onChange={(event) => setIdentityValue(event.target.value)}
             className="w-full px-3 py-2.5 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]"
           >
             <option value="">
@@ -3452,9 +3452,9 @@ function EligibilityView() {
                 )}
               </p>
               <div className="flex items-center gap-2 flex-wrap">
-                {msg && (
+                {message && (
                   <span className="text-[10px] font-bold text-emerald-400">
-                    {msg}
+                    {message}
                   </span>
                 )}
                 {err && (
@@ -3666,7 +3666,7 @@ function AccessExplanationPanel({ explanation, t }) {
   return (
     <div className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden">
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen((prev) => !prev)}
         className="w-full flex items-center justify-between px-4 py-3 bg-tertiary/30 hover:bg-tertiary/50 transition-all"
       >
         <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] flex items-center gap-2">
@@ -3709,7 +3709,7 @@ function AccessExplanationPanel({ explanation, t }) {
                         {(info.sources || []).length > 0 &&
                           ` — ${info.sources
                             .map(
-                              (s) => `${s.identity_type}:${s.identity_value}${Number(s.eligible) === 0 ? " (deny)" : ""}`,
+                              (row) => `${row.identity_type}:${row.identity_value}${Number(row.eligible) === 0 ? " (deny)" : ""}`,
                             )
                             .join(", ")}`}
                       </p>
@@ -3833,8 +3833,8 @@ function AuditView() {
     if (!ready) return;
     let cancelled = false;
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-    for (const [k, v] of Object.entries(applied)) {
-      if (v) params.set(k, v);
+    for (const [key, value] of Object.entries(applied)) {
+      if (value) params.set(key, value);
     }
     const url = `/api/engineering/permissions/audit?${params.toString()}`;
     const apply = (data) => {
@@ -3878,11 +3878,11 @@ function AuditView() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const moduleOptions = Object.keys(CAPABILITY_CATALOG).sort();
 
-  const fmtDate = (v) => {
-    if (!v) return "—";
-    const d = new Date(v);
-    if (Number.isNaN(d.getTime())) return "—";
-    return d.toLocaleString("en-GB", {
+  const fmtDate = (value) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleString("en-GB", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -3900,8 +3900,8 @@ function AuditView() {
         <div className="flex-1 min-w-[200px]">
           <input
             value={filters.q}
-            onChange={(e) => updateFilter("q", e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+            onChange={(event) => updateFilter("q", event.target.value)}
+            onKeyDown={(event) => event.key === "Enter" && applyFilters()}
             placeholder={t("engineering.permissions.auditSearch")}
             aria-label={t("engineering.permissions.auditSearch")}
             className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40 transition-all"
@@ -3909,51 +3909,51 @@ function AuditView() {
         </div>
         <input
           value={filters.actor}
-          onChange={(e) => updateFilter("actor", e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+          onChange={(event) => updateFilter("actor", event.target.value)}
+          onKeyDown={(event) => event.key === "Enter" && applyFilters()}
           placeholder={t("engineering.permissions.auditFilterActor")}
           aria-label={t("engineering.permissions.auditFilterActor")}
           className="w-40 bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
         />
         <input
           value={filters.target}
-          onChange={(e) => updateFilter("target", e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+          onChange={(event) => updateFilter("target", event.target.value)}
+          onKeyDown={(event) => event.key === "Enter" && applyFilters()}
           placeholder={t("engineering.permissions.auditFilterTarget")}
           aria-label={t("engineering.permissions.auditFilterTarget")}
           className="w-40 bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
         />
         <input
           value={filters.capability}
-          onChange={(e) => updateFilter("capability", e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+          onChange={(event) => updateFilter("capability", event.target.value)}
+          onKeyDown={(event) => event.key === "Enter" && applyFilters()}
           placeholder={t("engineering.permissions.auditFilterCapability")}
           aria-label={t("engineering.permissions.auditFilterCapability")}
           className="w-40 bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
         />
         <select
           value={filters.action}
-          onChange={(e) => updateFilter("action", e.target.value)}
+          onChange={(event) => updateFilter("action", event.target.value)}
           aria-label={t("engineering.permissions.auditFilterActionAria")}
           className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
         >
           <option value="">{t("engineering.permissions.auditAllActions")}</option>
-          {AUDIT_ACTIONS.map((a) => (
-            <option key={a} value={a}>
-              {a}
+          {AUDIT_ACTIONS.map((action) => (
+            <option key={action} value={action}>
+              {action}
             </option>
           ))}
         </select>
         <select
           value={filters.module}
-          onChange={(e) => updateFilter("module", e.target.value)}
+          onChange={(event) => updateFilter("module", event.target.value)}
           aria-label={t("engineering.permissions.auditFilterModuleAria")}
           className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
         >
           <option value="">{t("engineering.permissions.auditAllModules")}</option>
-          {moduleOptions.map((m) => (
-            <option key={m} value={m}>
-              {m}
+          {moduleOptions.map((module) => (
+            <option key={module} value={module}>
+              {module}
             </option>
           ))}
         </select>
@@ -3968,7 +3968,7 @@ function AuditView() {
           <input
             type="date"
             value={filters.from}
-            onChange={(e) => updateFilter("from", e.target.value)}
+            onChange={(event) => updateFilter("from", event.target.value)}
             className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
           />
         </label>
@@ -3979,7 +3979,7 @@ function AuditView() {
           <input
             type="date"
             value={filters.to}
-            onChange={(e) => updateFilter("to", e.target.value)}
+            onChange={(event) => updateFilter("to", event.target.value)}
             className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
           />
         </label>
@@ -4022,8 +4022,8 @@ function AuditView() {
         </div>
         {loading ? (
           <div className="p-8 space-y-3">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="h-10 rounded-lg animate-pulse" style={{ background: "var(--surface-3)" }} />
+            {[0, 1, 2, 3].map((index) => (
+              <div key={index} className="h-10 rounded-lg animate-pulse" style={{ background: "var(--surface-3)" }} />
             ))}
           </div>
         ) : entries.length === 0 ? (
@@ -4049,31 +4049,31 @@ function AuditView() {
                 </tr>
               </thead>
               <tbody>
-                {entries.map((e) => (
-                  <tr key={e.id} className="border-b border-[var(--border-primary)]/50 last:border-b-0 hover:bg-tertiary/20 transition-all">
+                {entries.map((entry) => (
+                  <tr key={entry.id} className="border-b border-[var(--border-primary)]/50 last:border-b-0 hover:bg-tertiary/20 transition-all">
                     <td className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-secondary)] whitespace-nowrap">
-                      {fmtDate(e.created_at)}
+                      {fmtDate(entry.created_at)}
                     </td>
                     <td className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-primary)]">
-                      {e.actor_name || e.actor_cid || "—"}
+                      {entry.actor_name || entry.actor_cid || "—"}
                     </td>
                     <td className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-primary)]">
-                      {e.target_name || e.target_cid || "—"}
+                      {entry.target_name || entry.target_cid || "—"}
                     </td>
                     <td className="px-4 py-2.5">
                       <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-blue-500/10 text-blue-400">
-                        {e.action}
+                        {entry.action}
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-secondary)]">
-                      {e.module ? `${e.module}.${e.capability || "*"}` : e.details ? String(e.details).slice(0, 48) : "—"}
+                      {entry.module ? `${entry.module}.${entry.capability || "*"}` : entry.details ? String(entry.details).slice(0, 48) : "—"}
                     </td>
                     <td className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-secondary)] whitespace-nowrap">
-                      {e.previous_value || e.new_value ? (
+                      {entry.previous_value || entry.new_value ? (
                         <span>
-                          <span className="text-slate-500 line-through">{e.previous_value || "—"}</span>
+                          <span className="text-slate-500 line-through">{entry.previous_value || "—"}</span>
                           {" → "}
-                          <span className="text-emerald-400">{e.new_value || "—"}</span>
+                          <span className="text-emerald-400">{entry.new_value || "—"}</span>
                         </span>
                       ) : (
                         <span className="text-slate-500">—</span>
@@ -4081,7 +4081,7 @@ function AuditView() {
                     </td>
                     <td className="px-4 py-2.5">
                       <button
-                        onClick={() => setDetail(e)}
+                        onClick={() => setDetail(entry)}
                         className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
                       >
                         {t("engineering.permissions.auditViewDetail")}
@@ -4095,14 +4095,14 @@ function AuditView() {
 
           {/* Small screens: one card per record — same fields, same drawer. */}
           <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
-            {entries.map((e) => (
-              <div key={e.id} className="p-3 space-y-2">
+            {entries.map((entry) => (
+              <div key={entry.id} className="p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-blue-500/10 text-blue-400">
-                    {e.action}
+                    {entry.action}
                   </span>
                   <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                    {fmtDate(e.created_at)}
+                    {fmtDate(entry.created_at)}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -4111,7 +4111,7 @@ function AuditView() {
                       {t("engineering.permissions.auditActor")}
                     </p>
                     <p className="text-[10px] font-bold text-[var(--text-primary)]">
-                      {e.actor_name || e.actor_cid || "—"}
+                      {entry.actor_name || entry.actor_cid || "—"}
                     </p>
                   </div>
                   <div>
@@ -4119,7 +4119,7 @@ function AuditView() {
                       {t("engineering.permissions.auditTarget")}
                     </p>
                     <p className="text-[10px] font-bold text-[var(--text-primary)]">
-                      {e.target_name || e.target_cid || "—"}
+                      {entry.target_name || entry.target_cid || "—"}
                     </p>
                   </div>
                   <div className="col-span-2">
@@ -4127,10 +4127,10 @@ function AuditView() {
                       {t("engineering.permissions.auditObject")}
                     </p>
                     <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                      {e.module
-                        ? `${e.module}.${e.capability || "*"}`
-                        : e.details
-                          ? String(e.details).slice(0, 48)
+                      {entry.module
+                        ? `${entry.module}.${entry.capability || "*"}`
+                        : entry.details
+                          ? String(entry.details).slice(0, 48)
                           : "—"}
                     </p>
                   </div>
@@ -4139,13 +4139,13 @@ function AuditView() {
                       {t("engineering.permissions.auditChange")}
                     </p>
                     <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                      {e.previous_value || e.new_value ? (
+                      {entry.previous_value || entry.new_value ? (
                         <span>
                           <span className="text-slate-500 line-through">
-                            {e.previous_value || "—"}
+                            {entry.previous_value || "—"}
                           </span>
                           {" → "}
-                          <span className="text-emerald-400">{e.new_value || "—"}</span>
+                          <span className="text-emerald-400">{entry.new_value || "—"}</span>
                         </span>
                       ) : (
                         <span className="text-slate-500">—</span>
@@ -4154,7 +4154,7 @@ function AuditView() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setDetail(e)}
+                  onClick={() => setDetail(entry)}
                   className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
                 >
                   {t("engineering.permissions.auditViewDetail")}
@@ -4270,8 +4270,8 @@ export function GovernanceView() {
       try {
         // Cache-first paint: returning to this tab renders instantly from
         // fresh snapshots; the network refresh below converges.
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
+        const cached = urls.map((url) => cacheGet(url));
+        if (cached.every((cachedEntry) => cachedEntry !== null && cachedEntry.success)) {
           apply(cached[0], cached[1], cached[2]);
           setLoading(false);
         }
@@ -4300,19 +4300,19 @@ export function GovernanceView() {
     };
   }, []);
 
-  const fs = (memberships || []).filter((m) => m.group_name === "FUTURE STUDIO");
+  const futureStudioMemberships = (memberships || []).filter((membership) => membership.group_name === "FUTURE STUDIO");
   const stats = { active: 0, expiringSoon: 0, expired: 0, ended: 0 };
-  for (const m of fs) {
-    const s = deriveMembershipStatus(m);
-    stats[s] = (stats[s] || 0) + 1;
+  for (const membership of futureStudioMemberships) {
+    const status = deriveMembershipStatus(membership);
+    stats[status] = (stats[status] || 0) + 1;
   }
 
   const protectedGroups = Object.entries(protectedMap)
-    .filter(([, p]) => p)
+    .filter(([, isProtected]) => isProtected)
     .map(([name]) => name);
-  const defaultProfiles = Object.entries(roleDefaults).map(([role, v]) => ({
+  const defaultProfiles = Object.entries(roleDefaults).map(([role, defaultsEntry]) => ({
     role,
-    profileName: v?.profileName || v?.profileId,
+    profileName: defaultsEntry?.profileName || defaultsEntry?.profileId,
   }));
 
   const statCard = (label, value, tone) => (
@@ -4327,8 +4327,8 @@ export function GovernanceView() {
 
       {loading ? (
         <div className="space-y-3">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="h-20 rounded-xl animate-pulse" style={{ background: "var(--surface-3)" }} />
+          {[0, 1, 2].map((index) => (
+            <div key={index} className="h-20 rounded-xl animate-pulse" style={{ background: "var(--surface-3)" }} />
           ))}
         </div>
       ) : (
@@ -4367,23 +4367,23 @@ export function GovernanceView() {
                 className="rounded-xl divide-y overflow-hidden"
                 style={{ background: "var(--surface-2)", border: "1px solid var(--border-primary)" }}
               >
-                {recent.map((e) => (
-                  <div key={e.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                {recent.map((entry) => (
+                  <div key={entry.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
-                        {e.actor_name || e.actor_cid} → {e.target_name || e.target_cid}
+                        {entry.actor_name || entry.actor_cid} → {entry.target_name || entry.target_cid}
                       </p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <Badge variant="neutral">{e.action}</Badge>
-                        {e.module && (
+                        <Badge variant="neutral">{entry.action}</Badge>
+                        {entry.module && (
                           <span className="text-[10px] font-bold text-[var(--text-tertiary)]">
-                            {e.module}.{e.capability || "*"}
+                            {entry.module}.{entry.capability || "*"}
                           </span>
                         )}
                       </div>
                     </div>
                     <span className="text-[10px] font-bold text-[var(--text-tertiary)] whitespace-nowrap">
-                      {e.created_at ? new Date(e.created_at).toLocaleDateString("en-GB") : "—"}
+                      {entry.created_at ? new Date(entry.created_at).toLocaleDateString("en-GB") : "—"}
                     </span>
                   </div>
                 ))}
@@ -4408,12 +4408,12 @@ export function GovernanceView() {
                   <p className="text-[10px] text-[var(--text-tertiary)]">—</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
-                    {protectedGroups.map((g) => (
+                    {protectedGroups.map((group) => (
                       <span
-                        key={g}
+                        key={group}
                         className="px-2 py-1 rounded-md text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400"
                       >
-                        {g}
+                        {group}
                       </span>
                     ))}
                   </div>
@@ -4430,12 +4430,12 @@ export function GovernanceView() {
                   <p className="text-[10px] text-[var(--text-tertiary)]">—</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
-                    {defaultProfiles.map((p) => (
+                    {defaultProfiles.map((profile) => (
                       <span
-                        key={p.role}
+                        key={profile.role}
                         className="px-2 py-1 rounded-md text-[10px] font-bold uppercase bg-teal-500/10 text-teal-400"
                       >
-                        {p.role} → {p.profileName}
+                        {profile.role} → {profile.profileName}
                       </span>
                     ))}
                   </div>
@@ -4459,9 +4459,9 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
     if (!cid) return;
     let cancelled = false;
     fetch(`/api/org-membership?user_cid=${encodeURIComponent(cid)}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (!cancelled && d.success) setMemberships(d.memberships || []);
+      .then((response) => response.json())
+      .then((data) => {
+        if (!cancelled && data.success) setMemberships(data.memberships || []);
       })
       .catch(() => {});
     return () => {
@@ -4477,9 +4477,9 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
   const sources = userPerms.explanation?.sources || {};
   const baseLevel = sources.profile?.[module]?.[capability] || 0;
   const groupLevel = sources.groups?.[module]?.[capability] || 0;
-  const grant = (userPerms.individualGrants || []).find((g) => g.module === module && g.capability === capability);
+  const grant = (userPerms.individualGrants || []).find((grant) => grant.module === module && grant.capability === capability);
   const restriction = (userPerms.individualRestrictions || []).find(
-    (r) => r.module === module && r.capability === capability,
+    (restriction) => restriction.module === module && restriction.capability === capability,
   );
   const effective = userPerms.effectivePermissions?.[module]?.[capability] || 0;
   const allowed = effective > 0;
@@ -4488,11 +4488,11 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
   const levelLabel = (lvl) =>
     t(ACCESS_LEVEL_KEYS[lvl] || "engineering.permissions.accessLevelNone");
 
-  const fmtDate = (v) => {
-    if (!v) return "—";
-    const d = new Date(v);
-    if (Number.isNaN(d.getTime())) return "—";
-    return d.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", {
+  const fmtDate = (value) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -4500,11 +4500,11 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
   };
 
   const memberRows = memberships || [];
-  const activeMembers = memberRows.filter((m) =>
-    ["active", "expiringSoon"].includes(deriveMembershipStatus(m)),
+  const activeMembers = memberRows.filter((membership) =>
+    ["active", "expiringSoon"].includes(deriveMembershipStatus(membership)),
   );
-  const inactiveMembers = memberRows.filter((m) =>
-    ["expired", "ended"].includes(deriveMembershipStatus(m)),
+  const inactiveMembers = memberRows.filter((membership) =>
+    ["expired", "ended"].includes(deriveMembershipStatus(membership)),
   );
 
   const row = (label, value, toneClass) => (
@@ -4554,7 +4554,7 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
           {/* Identity */}
           <div className="py-2">
             {row(t("engineering.permissions.whyIdentity"), user.role || "—")}
-            {(userPerms.groups || []).map((g) => row(t("engineering.permissions.whyMembership"), g))}
+            {(userPerms.groups || []).map((group) => row(t("engineering.permissions.whyMembership"), group))}
           </div>
 
           {/* Eligibility */}
@@ -4569,7 +4569,7 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
             {(eligibility.sources || []).length > 0 && (
               <p className="text-[10px] font-bold text-[var(--text-tertiary)] text-right">
                 {eligibility.sources
-                  .map((s) => `${s.identity_type}:${s.identity_value}${Number(s.eligible) === 0 ? " (deny)" : ""}`)
+                  .map((row) => `${row.identity_type}:${row.identity_value}${Number(row.eligible) === 0 ? " (deny)" : ""}`)
                   .join(", ")}
               </p>
             )}
@@ -4581,23 +4581,23 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
               row(t("engineering.permissions.whyMembership"), "—")
             ) : (
               <>
-                {activeMembers.map((m) => (
-                  <div key={`${m.user_cid}|${m.group_name}`} className="text-right mb-1">
+                {activeMembers.map((membership) => (
+                  <div key={`${membership.user_cid}|${membership.group_name}`} className="text-right mb-1">
                     <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                      {m.group_name}{" "}
+                      {membership.group_name}{" "}
                       <span className="text-emerald-400">
                         {t("engineering.permissions.whyMembershipActive")}
                       </span>
                     </span>
                     <p className="text-[10px] font-bold text-[var(--text-tertiary)]">
-                      {t("engineering.permissions.whyExpires")}: {m.expires_at ? fmtDate(m.expires_at) : t("membership.status.never")}
+                      {t("engineering.permissions.whyExpires")}: {membership.expires_at ? fmtDate(membership.expires_at) : t("membership.status.never")}
                     </p>
                   </div>
                 ))}
-                {inactiveMembers.map((m) => (
-                  <div key={`${m.user_cid}|${m.group_name}`} className="text-right mb-1">
+                {inactiveMembers.map((membership) => (
+                  <div key={`${membership.user_cid}|${membership.group_name}`} className="text-right mb-1">
                     <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                      {m.group_name}{" "}
+                      {membership.group_name}{" "}
                       <span className="text-red-400">
                         {t("engineering.permissions.whyMembershipExpired")}
                       </span>

@@ -40,17 +40,17 @@ import { useSessionUser } from "@/lib/hooks/useSessionUser";
 // The curriculum as the screen shows it: the "attendance" deliverables are not
 // part of what a participant submits, so they come out of the answer here rather
 // than being filtered again on every render.
-function shapeCurriculum(d) {
-  const weeks = d.curriculum?.weeks;
-  if (!weeks) return d;
+function shapeCurriculum(payload) {
+  const weeks = payload.curriculum?.weeks;
+  if (!weeks) return payload;
   return {
-    ...d,
+    ...payload,
     curriculum: {
-      ...d.curriculum,
-      weeks: weeks.map((w) => ({
-        ...w,
-        deliverables: (w.deliverables || []).filter(
-          (x) => !x.title?.toLowerCase().includes("attendance"),
+      ...payload.curriculum,
+      weeks: weeks.map((week) => ({
+        ...week,
+        deliverables: (week.deliverables || []).filter(
+          (deliverable) => !deliverable.title?.toLowerCase().includes("attendance"),
         ),
       })),
     },
@@ -59,10 +59,10 @@ function shapeCurriculum(d) {
 
 const EMPTY_DETAIL = { payload: null, failure: null };
 
-const pickProgramDetail = (d) =>
-  d?.success
-    ? { payload: shapeCurriculum(d), failure: null }
-    : { payload: null, failure: d?.error || null };
+const pickProgramDetail = (response) =>
+  response?.success
+    ? { payload: shapeCurriculum(response), failure: null }
+    : { payload: null, failure: response?.error || null };
 
 /** The message for a refused payload: its own key when one is known. */
 function detailError(failure, t) {
@@ -89,12 +89,12 @@ function StatusBadge({ status }) {
     pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
     rejected: "bg-rose-500/10 text-rose-400 border-rose-500/20",
   };
-  const c =
+  const classes =
     config[status?.toLowerCase()] ||
     "bg-white/5 text-[var(--text-tertiary)] border-white/10";
   return (
     <span
-      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${c}`}
+      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${classes}`}
     >
       {translateStatus(status || "draft", t)}
     </span>
@@ -104,7 +104,7 @@ function StatusBadge({ status }) {
 // ─── Week Card (simplified) ────────────────────────────────────────
 function WeekCard({ week, isExpanded, onToggle, onSubmit, t }) {
   const completedCount = week.deliverables.filter(
-    (d) => d.submission?.status === "approved",
+    (deliverable) => deliverable.submission?.status === "approved",
   ).length;
   const totalCount = week.deliverables.length;
 
@@ -153,7 +153,7 @@ function WeekCard({ week, isExpanded, onToggle, onSubmit, t }) {
             </div>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
               {week.sessions.length > 0
-                ? week.sessions.map((s) => s.title).join(", ")
+                ? week.sessions.map((session) => session.title).join(", ")
                 : `${totalCount} ${t("participant.deliverables").toLowerCase()}`
             }
           </p>
@@ -198,27 +198,27 @@ function WeekCard({ week, isExpanded, onToggle, onSubmit, t }) {
                     )}
                     {/* Weekly Materials from PM */}
                     {(() => {
-                      let mats = [];
+                      let materials = [];
                       try {
                         const raw = session.extra_materials;
-                        mats =
+                        materials =
                           typeof raw === "string"
                             ? JSON.parse(raw || "[]")
                             : raw || [];
                       } catch (_) {}
-                      if (mats.length === 0) return null;
+                      if (materials.length === 0) return null;
                       return (
                         <div className="mt-2 flex flex-wrap gap-1.5">
-                          {mats.map((m, mi) => (
+                          {materials.map((material, materialIndex) => (
                             <a
-                              key={mi}
-                              href={m.url || "#"}
+                              key={materialIndex}
+                              href={material.url || "#"}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold uppercase tracking-wide text-blue-400 hover:bg-blue-500/20 transition-colors cursor-pointer"
                             >
                               <FileText className="w-2.5 h-2.5" />
-                              {m.name || m.title || t("participant.resource")}
+                              {material.name || material.title || t("participant.resource")}
                             </a>
                           ))}
                         </div>
@@ -260,53 +260,53 @@ function WeekCard({ week, isExpanded, onToggle, onSubmit, t }) {
               <h4 className="text-xs font-semibold text-[var(--text-secondary)]">
                 {t("participant.deliverables")}
               </h4>
-              {week.deliverables.map((del) => (
+              {week.deliverables.map((deliverable) => (
                 <div
-                  key={del.id}
+                  key={deliverable.id}
                   className="flex items-center justify-between py-2 px-3 rounded-lg bg-[var(--surface-2)]"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium text-[var(--text-primary)]">
-                          {del.title}
+                          {deliverable.title}
                         </p>
-                        {del.submission && (
-                          <StatusBadge status={del.submission.status} />
+                        {deliverable.submission && (
+                          <StatusBadge status={deliverable.submission.status} />
                         )}
-                        {!del.submission && !week.locked && del.allowedFormat && (
+                        {!deliverable.submission && !week.locked && deliverable.allowedFormat && (
                           <span className="text-xs text-[var(--text-tertiary)]">
-                            ({del.allowedFormat})
+                            ({deliverable.allowedFormat})
                           </span>
                         )}
                       </div>
-                      {!del.submission && del.dueDate && (
+                      {!deliverable.submission && deliverable.dueDate && (
                         <p className="text-[10px] text-amber-500/80 font-medium mt-0.5 flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> {t("participant.due")} {new Date(del.dueDate).toLocaleDateString()}
+                          <Clock className="w-3 h-3" /> {t("participant.due")} {new Date(deliverable.dueDate).toLocaleDateString()}
                         </p>
                       )}
                     </div>
-                    {del.submission && (
+                    {deliverable.submission && (
                       <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
                         {t("participant.submitted")}{" "}
-                        {del.submission.submittedAt
+                        {deliverable.submission.submittedAt
                           ? new Date(
-                              del.submission.submittedAt,
+                              deliverable.submission.submittedAt,
                             ).toLocaleDateString()
                           : ""}
-                        {del.submission.score > 0 &&
-                          ` · ${t("participant.score")}: ${del.submission.score}`}
+                        {deliverable.submission.score > 0 &&
+                          ` · ${t("participant.score")}: ${deliverable.submission.score}`}
                       </p>
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-3">
-                    {del.submission?.fileUrl &&
+                    {deliverable.submission?.fileUrl &&
                       (() => {
                         const isExternal =
-                          del.submission.fileUrl.startsWith("http");
+                          deliverable.submission.fileUrl.startsWith("http");
                         return (
                           <a
-                            href={del.submission.fileUrl}
+                            href={deliverable.submission.fileUrl}
                             target={isExternal ? "_blank" : "_self"}
                             rel={isExternal ? "noopener noreferrer" : ""}
                             className="text-xs text-[var(--brand-orange)] hover:underline"
@@ -315,11 +315,11 @@ function WeekCard({ week, isExpanded, onToggle, onSubmit, t }) {
                           </a>
                         );
                       })()}
-                    {!del.submission && !week.locked && (
+                    {!deliverable.submission && !week.locked && (
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSubmit?.(del.id, week.number, del);
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSubmit?.(deliverable.id, week.number, deliverable);
                         }}
                         className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-xs font-medium hover:brightness-110"
                       >
@@ -346,7 +346,7 @@ function WeekCard({ week, isExpanded, onToggle, onSubmit, t }) {
                     : item.course?.id
                       ? `/participant/learning/${item.course.id}`
                       : null;
-                const pct = item.progress?.percent || 0;
+                const percent = item.progress?.percent || 0;
                 return (
                   <div
                     key={item.id}
@@ -388,13 +388,13 @@ function WeekCard({ week, isExpanded, onToggle, onSubmit, t }) {
                             <div
                               className="h-full rounded-full transition-all"
                               style={{
-                                width: `${pct}%`,
+                                width: `${percent}%`,
                                 background: "var(--brand-orange)",
                               }}
                             />
                           </div>
                           <span className="text-[9px] font-bold text-[var(--text-tertiary)] shrink-0">
-                            {pct}% · {item.progress.completedLessons} / {item.progress.totalLessons}{" "}
+                            {percent}% · {item.progress.completedLessons} / {item.progress.totalLessons}{" "}
                             {t("participant.lessons").toLowerCase()}
                           </span>
                         </div>
@@ -531,7 +531,7 @@ function SubmitForm({ programId, deliverableId, deliverable, onDone, readOnly })
           </label>
           <input
             type="file"
-            onChange={(e) => setFile(e.target.files[0])}
+            onChange={(event) => setFile(event.target.files[0])}
             disabled={readOnly}
             className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[var(--brand-orange)] file:text-black file:cursor-pointer disabled:opacity-40 text-[var(--text-primary)]"
           />
@@ -552,7 +552,7 @@ function SubmitForm({ programId, deliverableId, deliverable, onDone, readOnly })
           <input
             type="url"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(event) => setUrl(event.target.value)}
             disabled={readOnly}
             placeholder="https://..."
             className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none focus:border-[var(--brand-orange)] disabled:opacity-40 text-[var(--text-primary)]"
@@ -658,9 +658,9 @@ function DetailSkeleton() {
           <div className="h-5 w-24 bg-white/5 rounded" />
         </div>
       </div>
-      {[...Array(3)].map((_, i) => (
+      {[...Array(3)].map((_, index) => (
         <div
-          key={i}
+          key={index}
           className="h-20 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]"
         />
       ))}
@@ -860,14 +860,14 @@ export default function ProgramDetail({ programId }) {
                 </span>
               </div>
             )}
-            {program.facilitators.map((f) => (
+            {program.facilitators.map((facilitator) => (
               <div
-                key={f.id}
+                key={facilitator.id}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20"
               >
                 <User className="w-3 h-3 text-blue-400" />
                 <span className="text-[10px] font-bold text-blue-400">
-                  {f.name} {f.role ? `(${f.role})` : ""}
+                  {facilitator.name} {facilitator.role ? `(${facilitator.role})` : ""}
                 </span>
               </div>
             ))}
@@ -928,7 +928,7 @@ export default function ProgramDetail({ programId }) {
       {/* ═══ Tab: Assignments ═══ */}
       {activeTab === "assignments" && (
         <div className="space-y-4">
-          {curriculum.weeks.filter(w => !w.locked).map((week) => (
+          {curriculum.weeks.filter((week) => !week.locked).map((week) => (
             <div key={week.number} className="space-y-2">
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 Week {week.number}
@@ -936,39 +936,39 @@ export default function ProgramDetail({ programId }) {
               {week.deliverables.length === 0 ? (
                 <p className="text-sm text-[var(--text-secondary)]">{t("participant.noAssignmentsThisWeek")}</p>
               ) : (
-                week.deliverables.map((d) => (
+                week.deliverables.map((deliverable) => (
                   <div
-                    key={d.id}
+                    key={deliverable.id}
                     className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                        d.submission?.status === "approved" ? "bg-emerald-500/10" :
-                        d.submission ? "bg-amber-500/10" : "bg-white/5"
+                        deliverable.submission?.status === "approved" ? "bg-emerald-500/10" :
+                        deliverable.submission ? "bg-amber-500/10" : "bg-white/5"
                       }`}>
                         <FileText className={`w-4 h-4 ${
-                          d.submission?.status === "approved" ? "text-emerald-400" :
-                          d.submission ? "text-amber-400" : "text-[var(--text-tertiary)]"
+                          deliverable.submission?.status === "approved" ? "text-emerald-400" :
+                          deliverable.submission ? "text-amber-400" : "text-[var(--text-tertiary)]"
                         }`} />
                       </div>
                       <div className="min-w-0">
                         <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                          {d.title}
+                          {deliverable.title}
                         </p>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                          {d.allowedFormat} {d.dueDate ? `· ${t("participant.due")}: ${new Date(d.dueDate).toLocaleDateString()}` : ""}
+                          {deliverable.allowedFormat} {deliverable.dueDate ? `· ${t("participant.due")}: ${new Date(deliverable.dueDate).toLocaleDateString()}` : ""}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {d.submission ? (
-                        <StatusBadge status={d.submission.status} />
+                      {deliverable.submission ? (
+                        <StatusBadge status={deliverable.submission.status} />
                       ) : (
                         <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("participant.pending")}</span>
                       )}
-                      {d.submission?.score != null && (
+                      {deliverable.submission?.score != null && (
                         <span className="text-[10px] font-bold text-[var(--brand-orange)]">
-                          {d.submission.score}/100
+                          {deliverable.submission.score}/100
                         </span>
                       )}
                     </div>
@@ -977,7 +977,7 @@ export default function ProgramDetail({ programId }) {
               )}
             </div>
           ))}
-          {curriculum.weeks.filter(w => !w.locked).length === 0 && (
+          {curriculum.weeks.filter((week) => !week.locked).length === 0 && (
             <div className="text-center py-12">
               <FileText className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3" />
               <p className="text-sm text-[var(--text-secondary)]">
@@ -994,15 +994,15 @@ export default function ProgramDetail({ programId }) {
           {/* Resources by week */}
           {Object.entries(resourcesByWeek).length > 0
             ? Object.entries(resourcesByWeek)
-                .sort(([a], [b]) => Number(a) - Number(b))
-                .map(([weekNum, items]) => (
-                  <div key={weekNum}>
+                .sort(([leftWeek], [rightWeek]) => Number(leftWeek) - Number(rightWeek))
+                .map(([weekNumber, items]) => (
+                  <div key={weekNumber}>
                     <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-3">
-                      {Number(weekNum) > 0 ? `${t("participant.week")} ${weekNum}` : t("participant.general")}
+                      {Number(weekNumber) > 0 ? `${t("participant.week")} ${weekNumber}` : t("participant.general")}
                     </h3>
                     <div className="space-y-2">
-                      {items.map((r) => (
-                        <ResourceCard key={r.id} resource={r} />
+                      {items.map((resource) => (
+                        <ResourceCard key={resource.id} resource={resource} />
                       ))}
                     </div>
                   </div>
@@ -1016,8 +1016,8 @@ export default function ProgramDetail({ programId }) {
                 {t("participant.generalResources")}
               </h3>
               <div className="space-y-2">
-                {generalResources.map((r) => (
-                  <ResourceCard key={r.id} resource={r} />
+                {generalResources.map((resource) => (
+                  <ResourceCard key={resource.id} resource={resource} />
                 ))}
               </div>
             </div>
@@ -1141,16 +1141,16 @@ export default function ProgramDetail({ programId }) {
                 {t("participant.followUps")}
               </h3>
               <div className="space-y-2">
-                {followups.slice(0, 5).map((f) => (
+                {followups.slice(0, 5).map((followup) => (
                   <div
-                    key={f.id}
+                    key={followup.id}
                     className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]"
                   >
                     <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                      {t("participant.week")} {f.week_number}
+                      {t("participant.week")} {followup.week_number}
                     </p>
                     <p className="text-sm text-[var(--text-secondary)] mt-1">
-                      {f.comment}
+                      {followup.comment}
                     </p>
                   </div>
                 ))}
@@ -1260,7 +1260,7 @@ export default function ProgramDetail({ programId }) {
         >
           <div
             className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl w-full max-w-md space-y-5 p-6 max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black text-[var(--text-primary)] tracking-tight">

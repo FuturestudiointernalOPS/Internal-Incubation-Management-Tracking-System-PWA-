@@ -9,7 +9,7 @@ import { useApi } from "@/lib/hooks/useApi";
 // Module scope on purpose: the hook keys its internal callback on this function,
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop.
-const pickMetricsPrograms = (d) => (d?.success ? d.programs || [] : []);
+const pickMetricsPrograms = (payload) => (payload?.success ? payload.programs || [] : []);
 
 export default function AdminMetricsDashboard() {
   const { t } = useI18n();
@@ -21,17 +21,17 @@ export default function AdminMetricsDashboard() {
     transform: pickMetricsPrograms,
   });
 
-  const formatPct = (v) => (v !== null && v !== undefined ? `${Math.round(v)}%` : "—");
+  const formatPct = (value) => (value !== null && value !== undefined ? `${Math.round(value)}%` : "—");
 
-  const getHealthColor = (val) => {
-    if (val >= 80) return "text-emerald-500";
-    if (val >= 50) return "text-amber-500";
+  const getHealthColor = (percentage) => {
+    if (percentage >= 80) return "text-emerald-500";
+    if (percentage >= 50) return "text-amber-500";
     return "text-rose-500";
   };
 
-  const getHealthLabel = (val) => {
-    if (val >= 80) return t("adminMisc.metrics.healthy");
-    if (val >= 50) return t("adminMisc.metrics.atRisk");
+  const getHealthLabel = (percentage) => {
+    if (percentage >= 80) return t("adminMisc.metrics.healthy");
+    if (percentage >= 50) return t("adminMisc.metrics.atRisk");
     return t("adminMisc.metrics.critical");
   };
 

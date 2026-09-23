@@ -15,8 +15,8 @@
  */
 
 /** Run a callback after the current commit (next microtask). */
-export function defer(fn) {
-  Promise.resolve().then(fn);
+export function defer(callback) {
+  Promise.resolve().then(callback);
 }
 
 /**

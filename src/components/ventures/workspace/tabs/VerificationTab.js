@@ -78,7 +78,7 @@ const documentHref = (doc) => {
 
 // The payload is kept whole, refusal included: when the server refuses the read
 // its own wording is what the panel has to show.
-const pickVerification = (d) => (d && typeof d === "object" ? d : null);
+const pickVerification = (payload) => (payload && typeof payload === "object" ? payload : null);
 
 export function VerificationTab() {
   const { t } = useI18n();
@@ -93,8 +93,8 @@ export function VerificationTab() {
   const [sendingComment, setSendingComment] = useState(false);
 
   const notify = useCallback(
-    (msg, type = "success") => {
-      if (typeof notifyMsg === "function") notifyMsg(msg, type);
+    (message, type = "success") => {
+      if (typeof notifyMsg === "function") notifyMsg(message, type);
     },
     [notifyMsg],
   );
@@ -164,8 +164,8 @@ export function VerificationTab() {
         if (!result?.success) throw new Error(messageFor(result?.error, fallbackKey));
         await refresh();
         return result;
-      } catch (e) {
-        setActionError(e?.message || t(fallbackKey));
+      } catch (caughtError) {
+        setActionError(caughtError?.message || t(fallbackKey));
         return null;
       }
     },
@@ -254,14 +254,14 @@ export function VerificationTab() {
     () =>
       VERIFICATION_STEPS.filter((step) => {
         if (step.key === "email_verification" || step.key === "phone_verification") return false;
-        const item = items.find((i) => i.category === step.key);
+        const item = items.find((stepItem) => stepItem.category === step.key);
         if (item?.status === "not_applicable") return false;
-        return !documents.some((d) => d.category === step.key);
+        return !documents.some((doc) => doc.category === step.key);
       }).map((step) => t(step.label)),
     [items, documents, t],
   );
 
-  const statusCfg = VERIFICATION_STATUS[verification?.status] || VERIFICATION_STATUS.draft;
+  const statusConfig = VERIFICATION_STATUS[verification?.status] || VERIFICATION_STATUS.draft;
 
   if (loading) {
     return (
@@ -294,7 +294,7 @@ export function VerificationTab() {
           {t("vadmin.verification.progress")}
         </h2>
         {verification && (
-          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${statusCfg.cls}`}>{t(statusCfg.label)}</span>
+          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${statusConfig.cls}`}>{t(statusConfig.label)}</span>
         )}
       </div>
 
@@ -333,12 +333,12 @@ export function VerificationTab() {
           )}
 
           {VERIFICATION_STEPS.map((step) => {
-            const item = items.find((i) => i.category === step.key);
-            const stepDocs = documents.filter((d) => d.category === step.key);
+            const item = items.find((stepItem) => stepItem.category === step.key);
+            const stepDocs = documents.filter((doc) => doc.category === step.key);
             const StepIcon = step.icon;
             const isUploading = uploadingCategory === step.key;
             const isEmailOrPhone = step.key === "email_verification" || step.key === "phone_verification";
-            const itemCfg = ITEM_STATUS[item?.status] || ITEM_STATUS.pending;
+            const itemConfig = ITEM_STATUS[item?.status] || ITEM_STATUS.pending;
 
             return (
               <div key={step.key} className="rounded-xl p-4 border border-[var(--border-primary)] bg-surface-2">
@@ -350,8 +350,8 @@ export function VerificationTab() {
                     </span>
                   </div>
                   {item && (
-                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${itemCfg.cls}`}>
-                      {t(itemCfg.label)}
+                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${itemConfig.cls}`}>
+                      {t(itemConfig.label)}
                     </span>
                   )}
                 </div>
@@ -439,9 +439,9 @@ export function VerificationTab() {
                       accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
                       className="hidden"
                       disabled={isUploading}
-                      onChange={(e) => {
-                        if (e.target.files[0]) handleUpload(step.key, e.target.files[0]);
-                        e.target.value = "";
+                      onChange={(event) => {
+                        if (event.target.files[0]) handleUpload(step.key, event.target.files[0]);
+                        event.target.value = "";
                       }}
                     />
                   </label>
@@ -489,18 +489,18 @@ export function VerificationTab() {
           <p className="text-[11px] text-[var(--text-secondary)] mb-3">{t("vadmin.verification.noCommentsYet")}</p>
         )}
         <div className="space-y-2 mb-3">
-          {comments.map((c, i) => {
-            const fromReviewer = Boolean(c.author_type) && c.author_type !== "founder" && c.author_type !== "system";
+          {comments.map((commentEntry, index) => {
+            const fromReviewer = Boolean(commentEntry.author_type) && commentEntry.author_type !== "founder" && commentEntry.author_type !== "system";
             return (
               <div
-                key={c.id || i}
+                key={commentEntry.id || index}
                 className={`rounded-xl border p-3 ${
                   fromReviewer ? "border-amber-500/30 bg-amber-500/5" : "border-[var(--border-primary)] bg-surface-3"
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className="text-[10px] font-bold text-[var(--text-primary)]">{c.author_name || c.author_cid}</span>
-                  {c.author_type === "system" && (
+                  <span className="text-[10px] font-bold text-[var(--text-primary)]">{commentEntry.author_name || commentEntry.author_cid}</span>
+                  {commentEntry.author_type === "system" && (
                     <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-white/10 text-slate-400">
                       {t("vadmin.verification.system")}
                     </span>
@@ -511,10 +511,10 @@ export function VerificationTab() {
                     </span>
                   )}
                   <span className="text-[10px] text-[var(--text-secondary)] ml-auto">
-                    {new Date(c.created_at).toLocaleString()}
+                    {new Date(commentEntry.created_at).toLocaleString()}
                   </span>
                 </div>
-                <p className="text-[11px] text-[var(--text-secondary)] break-words">{c.message}</p>
+                <p className="text-[11px] text-[var(--text-secondary)] break-words">{commentEntry.message}</p>
               </div>
             );
           })}
@@ -523,7 +523,7 @@ export function VerificationTab() {
           <input
             type="text"
             value={comment}
-            onChange={(e) => setComment(e.target.value)}
+            onChange={(event) => setComment(event.target.value)}
             placeholder={t("vadmin.verification.addCommentPlaceholder")}
             className="flex-1 rounded-xl px-3 py-2 text-[11px] text-[var(--text-primary)] outline-none border border-[var(--border-primary)] bg-[var(--bg-primary)] focus:border-[var(--brand-orange)] transition-colors"
           />

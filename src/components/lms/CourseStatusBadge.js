@@ -18,12 +18,12 @@ const STYLES = {
  */
 export default function CourseStatusBadge({ status }) {
   const { t } = useI18n();
-  const s = STYLES[status] || STYLES.draft;
+  const style = STYLES[status] || STYLES.draft;
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${s.bg} ${s.color}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${style.bg} ${style.color}`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+      <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
       {t(`lms.status.${status}`)}
     </span>
   );

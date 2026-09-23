@@ -69,9 +69,9 @@ export default function StaffVentureWorkspace() {
   // Attention: submissions awaiting this staff member's review (Coach view).
   const loadReviewQueue = useCallback(async () => {
     try {
-      const res = await fetch(`/api/ventures/${id}/submissions/review-queue`);
-      const d = await res.json();
-      if (d.success) setReviewQueue(d.items || []);
+      const response = await fetch(`/api/ventures/${id}/submissions/review-queue`);
+      const data = await response.json();
+      if (data.success) setReviewQueue(data.items || []);
     } catch (_) {}
     finally { setQueueLoading(false); }
   }, [id]);
@@ -82,14 +82,14 @@ export default function StaffVentureWorkspace() {
         ? (await prompt({ message: t("staff.ventureReview.commentPrompt"), required: false })) || ""
         : "";
     try {
-      const res = await fetch(`/api/ventures/${id}/tasks/${item.task_id}/submissions`, {
+      const response = await fetch(`/api/ventures/${id}/tasks/${item.task_id}/submissions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "review", submission_id: item.submission_id, decision, comment: comment || null }),
       });
-      const d = await res.json();
-      if (d.success) await loadReviewQueue();
-      else notify("error", d.error || t("staff.ventureReview.reviewFailed"));
+      const data = await response.json();
+      if (data.success) await loadReviewQueue();
+      else notify("error", data.error || t("staff.ventureReview.reviewFailed"));
     } catch (_) {
       notify("error", t("staff.ventureReview.reviewFailed"));
     }
@@ -98,7 +98,7 @@ export default function StaffVentureWorkspace() {
   useEffect(() => {
     (async () => {
       try {
-        const [vRes, rRes, mRes, msRes, tRes, sRes] = await Promise.all([
+        const [ventureResponse, rolesResponse, membersResponse, milestonesResponse, tasksResponse, sessionsResponse] = await Promise.all([
           fetch(`/api/ventures/${id}`),
           fetch(`/api/ventures/assigned?venture=${id}`),
           fetch(`/api/ventures/${id}/members`),
@@ -106,26 +106,26 @@ export default function StaffVentureWorkspace() {
           fetch(`/api/ventures/${id}/tasks`),
           fetch(`/api/ventures/${id}/sessions`),
         ]);
-        const v = await vRes.json();
-        const roles = await rRes.json();
-        const m = await mRes.json();
-        const ms = await msRes.json();
-        const tk = await tRes.json();
-        const s = await sRes.json();
-        if (!v.success) { setNotFound(true); return; }
-        setVenture(v.venture);
-        setMyRoles((roles.assignments || []).filter((r) => r.venture_id === id));
-        setMembers((m.members || m.rows || []));
-        setMilestones((ms.milestones || []).slice(0, 8));
-        const fullTasks = tk.tasks || [];
+        const ventureData = await ventureResponse.json();
+        const rolesData = await rolesResponse.json();
+        const membersData = await membersResponse.json();
+        const milestonesData = await milestonesResponse.json();
+        const tasksData = await tasksResponse.json();
+        const sessionsData = await sessionsResponse.json();
+        if (!ventureData.success) { setNotFound(true); return; }
+        setVenture(ventureData.venture);
+        setMyRoles((rolesData.assignments || []).filter((role) => role.venture_id === id));
+        setMembers((membersData.members || membersData.rows || []));
+        setMilestones((milestonesData.milestones || []).slice(0, 8));
+        const fullTasks = tasksData.tasks || [];
         setTasks(fullTasks.slice(0, 8));
         const taskMap = {};
-        for (const x of fullTasks) if (x.id != null && x.title) taskMap[String(x.id)] = x.title;
+        for (const task of fullTasks) if (task.id != null && task.title) taskMap[String(task.id)] = task.title;
         setTaskTitleById(taskMap);
-        setSessions((s.sessions || s.coaching_sessions || []).slice(0, 8));
+        setSessions((sessionsData.sessions || sessionsData.coaching_sessions || []).slice(0, 8));
         loadReviewQueue();
-      } catch (e) {
-        console.error("Failed to load staff venture workspace:", e);
+      } catch (error) {
+        console.error("Failed to load staff venture workspace:", error);
         setNotFound(true);
       } finally {
         setLoading(false);
@@ -139,15 +139,15 @@ export default function StaffVentureWorkspace() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`/api/ventures/${id}/journey`);
-        const d = await res.json();
-        if (!d.success || !Array.isArray(d.stages)) return;
+        const response = await fetch(`/api/ventures/${id}/journey`);
+        const data = await response.json();
+        if (!data.success || !Array.isArray(data.stages)) return;
         const stageMap = {};
         const milestoneMap = {};
-        for (const st of d.stages) {
-          if (st.id) stageMap[String(st.id)] = st.name;
-          for (const m of st.milestones || []) {
-            if (m.id && m.title) milestoneMap[String(m.id)] = m.title;
+        for (const stage of data.stages) {
+          if (stage.id) stageMap[String(stage.id)] = stage.name;
+          for (const milestone of stage.milestones || []) {
+            if (milestone.id && milestone.title) milestoneMap[String(milestone.id)] = milestone.title;
           }
         }
         setStageNameById(stageMap);
@@ -237,10 +237,10 @@ export default function StaffVentureWorkspace() {
           <p className="text-xs text-slate-500">{t("staff.ventureWorkspace.noAssignment")}</p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {myRoles.map((r) => (
-              <span key={r.id} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
-                {r.responsibility_name || r.responsibility_code}
-                {r.scope_type !== "venture_wide" && ` · ${r.scope_type}${r.scope_ref_id ? `: ${r.scope_ref_id}` : ""}`}
+            {myRoles.map((role) => (
+              <span key={role.id} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                {role.responsibility_name || role.responsibility_code}
+                {role.scope_type !== "venture_wide" && ` · ${role.scope_type}${role.scope_ref_id ? `: ${role.scope_ref_id}` : ""}`}
               </span>
             ))}
           </div>
@@ -258,25 +258,25 @@ export default function StaffVentureWorkspace() {
           <p className="text-xs text-slate-500">{t("staff.ventureWorkspace.nothingToReview")}</p>
         ) : (
           <div className="space-y-2">
-            {reviewQueue.map((q) => (
-              <div key={q.submission_id} className="rounded-lg border border-[var(--border-primary)] p-3 flex flex-col md:flex-row md:items-center gap-3">
+            {reviewQueue.map((submission) => (
+              <div key={submission.submission_id} className="rounded-lg border border-[var(--border-primary)] p-3 flex flex-col md:flex-row md:items-center gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-[var(--text-primary)] truncate">{q.task_title}</p>
+                  <p className="text-xs font-bold text-[var(--text-primary)] truncate">{submission.task_title}</p>
                   <p className="text-[10px] text-slate-500">
-                    {q.milestone_title ? `${q.milestone_title} · ` : ""}{t("staff.ventureWorkspace.submissionMeta", { version: q.version, name: q.submitted_by_name || t("venture.label") })} · {new Date(q.created_at).toLocaleDateString()}
+                    {submission.milestone_title ? `${submission.milestone_title} · ` : ""}{t("staff.ventureWorkspace.submissionMeta", { version: submission.version, name: submission.submitted_by_name || t("venture.label") })} · {new Date(submission.created_at).toLocaleDateString()}
                   </p>
-                  {q.notes && <p className="text-[10px] text-slate-400 mt-0.5 truncate">{q.notes}</p>}
+                  {submission.notes && <p className="text-[10px] text-slate-400 mt-0.5 truncate">{submission.notes}</p>}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {q.file_url && (
-                    <a href={q.file_url} target="_blank" rel="noreferrer" className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]">
+                  {submission.file_url && (
+                    <a href={submission.file_url} target="_blank" rel="noreferrer" className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]">
                       {t("venture.personal.open")}
                     </a>
                   )}
-                  <button onClick={() => decideSubmission(q, "approved")} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25">
+                  <button onClick={() => decideSubmission(submission, "approved")} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25">
                     {t("venture.manager.approveDeliverable")}
                   </button>
-                  <button onClick={() => decideSubmission(q, "changes_requested")} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-amber-500/15 text-amber-400 hover:bg-amber-500/25">
+                  <button onClick={() => decideSubmission(submission, "changes_requested")} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-amber-500/15 text-amber-400 hover:bg-amber-500/25">
                     {t("venture.manager.requestChanges")}
                   </button>
                 </div>
@@ -296,10 +296,10 @@ export default function StaffVentureWorkspace() {
             <p className="text-xs text-slate-500">{t("venture.manager.noMilestones")}</p>
           ) : (
             <div className="space-y-2">
-              {milestones.map((m) => (
-                <div key={m.id} className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border-primary)]">
-                  <p className="text-xs font-medium text-[var(--text-primary)]">{m.title}</p>
-                  <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">{m.status || "not_started"}</span>
+              {milestones.map((milestone) => (
+                <div key={milestone.id} className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border-primary)]">
+                  <p className="text-xs font-medium text-[var(--text-primary)]">{milestone.title}</p>
+                  <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">{milestone.status || "not_started"}</span>
                 </div>
               ))}
             </div>
@@ -314,10 +314,10 @@ export default function StaffVentureWorkspace() {
             <p className="text-xs text-slate-500">{t("venture.noTasksYet")}</p>
           ) : (
             <div className="space-y-2">
-              {tasks.map((tk) => (
-                <div key={tk.id} className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border-primary)]">
-                  <p className="text-xs font-medium text-[var(--text-primary)] truncate">{tk.title}</p>
-                  <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">{tk.status || "backlog"}</span>
+              {tasks.map((task) => (
+                <div key={task.id} className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border-primary)]">
+                  <p className="text-xs font-medium text-[var(--text-primary)] truncate">{task.title}</p>
+                  <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">{task.status || "backlog"}</span>
                 </div>
               ))}
             </div>
@@ -332,10 +332,10 @@ export default function StaffVentureWorkspace() {
             <p className="text-xs text-slate-500">{t("staff.ventureWorkspace.noMembers")}</p>
           ) : (
             <div className="space-y-2">
-              {members.slice(0, 6).map((mem) => (
-                <div key={mem.id} className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border-primary)]">
-                  <p className="text-xs font-medium text-[var(--text-primary)]">{mem.contact_name || mem.contact_id}</p>
-                  <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">{mem.member_type || "member"}</span>
+              {members.slice(0, 6).map((member) => (
+                <div key={member.id} className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border-primary)]">
+                  <p className="text-xs font-medium text-[var(--text-primary)]">{member.contact_name || member.contact_id}</p>
+                  <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">{member.member_type || "member"}</span>
                 </div>
               ))}
             </div>
@@ -365,10 +365,10 @@ export default function StaffVentureWorkspace() {
             <p className="text-xs text-slate-500">{t("staff.ventureWorkspace.noSessions")}</p>
           ) : (
             <div className="space-y-2">
-              {sessions.map((s) => (
+              {sessions.map((session) => (
                 <CoachSessionPanel
-                  key={s.id}
-                  session={s}
+                  key={session.id}
+                  session={session}
                   ventureId={id}
                   myCid={myCid}
                   myName={myName}

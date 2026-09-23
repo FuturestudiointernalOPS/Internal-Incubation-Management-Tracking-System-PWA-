@@ -15,10 +15,10 @@ import { useSessionUser } from "@/lib/hooks/useSessionUser";
 // Module scope on purpose: the hook keys its internal callback on these functions,
 // so inline arrows would give them a new identity on every render and refetch in
 // a loop.
-const pickStaffAssignments = (d) => (d?.success ? d.assignments || [] : []);
-const pickStaffTasks = (d) => (d?.success ? d.tasks || [] : []);
-const pickPendingSubmissions = (d) =>
-  d?.success ? (d.submissions || []).filter((s) => s.status === "pending") : [];
+const pickStaffAssignments = (payload) => (payload?.success ? payload.assignments || [] : []);
+const pickStaffTasks = (payload) => (payload?.success ? payload.tasks || [] : []);
+const pickPendingSubmissions = (payload) =>
+  payload?.success ? (payload.submissions || []).filter((submission) => submission.status === "pending") : [];
 
 export default function StaffDashboard() {
   const { t } = useI18n();
@@ -149,26 +149,26 @@ export default function StaffDashboard() {
               </span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {assignments.map((assign) => (
+              {assignments.map((assignment) => (
                 <div
-                  key={assign.id}
+                  key={assignment.id}
                   className="ios-card bg-white/[0.01] border-white/5 p-8 space-y-8 group hover:border-[#FF6600]/20 transition-all cursor-pointer"
                 >
                   <div className="flex justify-between items-start">
                     <div
-                      className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase border ${assign.role === "group_leader" ? "bg-[#FF6600]/80/10 text-indigo-400 border-[#FF6600]/80/20" : "bg-[#FF6600]/10 text-[#FF6600] border-[#FF6600]/20"}`}
+                      className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase border ${assignment.role === "group_leader" ? "bg-[#FF6600]/80/10 text-indigo-400 border-[#FF6600]/80/20" : "bg-[#FF6600]/10 text-[#FF6600] border-[#FF6600]/20"}`}
                     >
-                      {assign.role.replace("_", " ")}
+                      {assignment.role.replace("_", " ")}
                     </div>
                     <Activity className="w-5 h-5 text-slate-800 group-hover:text-[#FF6600] transition-colors" />
                   </div>
                   <div>
                     <h4 className="text-3xl font-black text-white uppercase tracking-tighter leading-none mb-4">
-                      {assign.program_name}
+                      {assignment.program_name}
                     </h4>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                       {t("staffMisc.dashboard.statusLabel", {
-                        status: assign.program_status,
+                        status: assignment.program_status,
                       })}
                     </p>
                   </div>
@@ -189,9 +189,9 @@ export default function StaffDashboard() {
               {t("staffMisc.dashboard.pendingSignals")}
             </h3>
             <div className="space-y-4">
-              {pendingSubmissions.map((sub) => (
+              {pendingSubmissions.map((submission) => (
                 <div
-                  key={sub.id}
+                  key={submission.id}
                   className="ios-card bg-white/[0.02] border-white/10 p-6 space-y-4 group hover:bg-[#FF6600]/5 transition-all"
                 >
                   <div className="flex justify-between items-center">
@@ -202,12 +202,12 @@ export default function StaffDashboard() {
                       </span>
                     </div>
                     <span className="text-[10px] font-medium text-slate-700">
-                      {timeAgo(sub.created_at)}
+                      {timeAgo(submission.created_at)}
                     </span>
                   </div>
                   <p className="text-[12px] font-bold text-slate-400 leading-relaxed">
                     {t("staffMisc.dashboard.submissionPrompt", {
-                      cid: sub.participant_id.slice(0, 8),
+                      cid: submission.participant_id.slice(0, 8),
                     })}
                   </p>
                   <button className="w-full py-4 bg-white/5 text-white font-bold uppercase text-sm tracking-wide rounded-xl group-hover:bg-[#FF6600] group-hover:text-black transition-all">

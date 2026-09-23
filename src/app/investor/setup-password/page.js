@@ -25,12 +25,12 @@ function SetupPasswordForm() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/investor/setup-password", {
+      const response = await fetch("/api/investor/setup-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) setSuccess(true);
       else setError(t((data.error || t("investorMisc.setupPassword.errorFailed")) || "") || (data.error || t("investorMisc.setupPassword.errorFailed")));
     } catch (_) { setError(t("investorMisc.setupPassword.errorNetwork")); }
@@ -82,13 +82,13 @@ function SetupPasswordForm() {
         <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl p-6 space-y-4">
           <div>
             <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.setupPassword.newPasswordLabel")}</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+            <input type="password" value={password} onChange={event => setPassword(event.target.value)}
               placeholder={t("investorMisc.setupPassword.passwordPlaceholder")}
               className="w-full mt-1 px-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
           </div>
           <div>
             <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.setupPassword.confirmPasswordLabel")}</label>
-            <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+            <input type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)}
               placeholder={t("investorMisc.setupPassword.confirmPasswordPlaceholder")}
               className="w-full mt-1 px-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
           </div>

@@ -42,18 +42,18 @@ export default function JourneyReportsPage() {
 
   const load = useCallback(
     async (filterId) => {
-      const status = FILTERS.find((f) => f.id === filterId)?.status || null;
+      const status = FILTERS.find((filterOption) => filterOption.id === filterId)?.status || null;
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/journey-reports${status ? `?status=${status}` : ""}`);
-        const d = await res.json();
-        if (!d.success) {
-          setError(d.error || t("vadmin.journeyReports.loadFailed"));
+        const response = await fetch(`/api/journey-reports${status ? `?status=${status}` : ""}`);
+        const payload = await response.json();
+        if (!payload.success) {
+          setError(payload.error || t("vadmin.journeyReports.loadFailed"));
           return;
         }
-        setReports(d.reports || []);
-        setMissing(d.journeys_missing_report || []);
+        setReports(payload.reports || []);
+        setMissing(payload.journeys_missing_report || []);
       } catch (_) {
         setError(t("vadmin.journeyReports.loadFailed"));
       } finally {
@@ -91,18 +91,18 @@ export default function JourneyReportsPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {FILTERS.map((f) => (
+        {FILTERS.map((filterOption) => (
           <button
-            key={f.id}
+            key={filterOption.id}
             type="button"
-            onClick={() => setFilter(f.id)}
+            onClick={() => setFilter(filterOption.id)}
             className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors ${
-              filter === f.id
+              filter === filterOption.id
                 ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
                 : "border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
-            {t(f.labelKey)}
+            {t(filterOption.labelKey)}
           </button>
         ))}
       </div>
@@ -120,18 +120,18 @@ export default function JourneyReportsPage() {
             <AlertTriangle className="w-3.5 h-3.5" /> {t("vadmin.journeyReports.missingTitle", { n: missing.length })}
           </p>
           <div className="space-y-1.5">
-            {missing.map((j) => (
-              <div key={j.journey_id} className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="font-bold text-[var(--text-primary)]">{j.venture_name || j.venture_code}</span>
-                <span style={{ color: "var(--text-secondary)" }}>· {j.journey_name}</span>
-                {j.completed_at && (
+            {missing.map((journey) => (
+              <div key={journey.journey_id} className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="font-bold text-[var(--text-primary)]">{journey.venture_name || journey.venture_code}</span>
+                <span style={{ color: "var(--text-secondary)" }}>· {journey.journey_name}</span>
+                {journey.completed_at && (
                   <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
-                    {t("vadmin.journeyReports.closedOn", { date: new Date(j.completed_at).toLocaleDateString(lang) })}
+                    {t("vadmin.journeyReports.closedOn", { date: new Date(journey.completed_at).toLocaleDateString(lang) })}
                   </span>
                 )}
                 <button
                   type="button"
-                  onClick={() => openJourney(j.venture_code)}
+                  onClick={() => openJourney(journey.venture_code)}
                   className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)]"
                 >
                   {t("vadmin.journeyReports.openJourney")}
@@ -151,26 +151,26 @@ export default function JourneyReportsPage() {
           <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{t("vadmin.journeyReports.noReports")}</p>
         ) : (
           <div className="space-y-2">
-            {reports.map((rep) => (
-              <div key={rep.id} className="flex flex-wrap items-center gap-2 text-xs border-b border-[var(--border-primary)] last:border-0 pb-2 last:pb-0">
-                <span className="font-bold text-[var(--text-primary)]">{rep.venture_name || rep.venture_code}</span>
-                <span style={{ color: "var(--text-secondary)" }}>· {rep.journey_name || t("vadmin.journeyReports.noJourney")}</span>
-                <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-white/10 text-slate-400">{kindLabel(rep.report_kind)}</span>
-                <span className="flex-1 min-w-[140px] truncate text-[var(--text-primary)]">{rep.title}</span>
-                {rep.reporting_period && (
-                  <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>{rep.reporting_period}</span>
+            {reports.map((report) => (
+              <div key={report.id} className="flex flex-wrap items-center gap-2 text-xs border-b border-[var(--border-primary)] last:border-0 pb-2 last:pb-0">
+                <span className="font-bold text-[var(--text-primary)]">{report.venture_name || report.venture_code}</span>
+                <span style={{ color: "var(--text-secondary)" }}>· {report.journey_name || t("vadmin.journeyReports.noJourney")}</span>
+                <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-white/10 text-slate-400">{kindLabel(report.report_kind)}</span>
+                <span className="flex-1 min-w-[140px] truncate text-[var(--text-primary)]">{report.title}</span>
+                {report.reporting_period && (
+                  <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>{report.reporting_period}</span>
                 )}
-                <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${STATUS_CHIP[rep.status] || STATUS_CHIP.draft}`}>
-                  {statusLabel(rep.status)}
+                <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${STATUS_CHIP[report.status] || STATUS_CHIP.draft}`}>
+                  {statusLabel(report.status)}
                 </span>
-                {rep.submitted_at && (
+                {report.submitted_at && (
                   <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
-                    {t("vadmin.journeyReports.submittedOn", { date: new Date(rep.submitted_at).toLocaleDateString(lang) })}
+                    {t("vadmin.journeyReports.submittedOn", { date: new Date(report.submitted_at).toLocaleDateString(lang) })}
                   </span>
                 )}
                 <button
                   type="button"
-                  onClick={() => openJourney(rep.venture_code)}
+                  onClick={() => openJourney(report.venture_code)}
                   className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)]"
                 >
                   {t("vadmin.journeyReports.openJourney")}

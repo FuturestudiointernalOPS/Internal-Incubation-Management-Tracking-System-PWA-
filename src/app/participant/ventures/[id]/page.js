@@ -33,26 +33,26 @@ const JOURNEY_TOOLS = [
 // The venture record, and the profile form it fills in. The form is the shape
 // the Venture's stored values take in the profile editor; it is built at module
 // scope because it is a pure shaping of the answer.
-const pickVenture = (d) => (d?.success ? d.venture : null);
+const pickVenture = (payload) => (payload?.success ? payload.venture : null);
 
-const ventureToForm = (v) => ({
-  name: v.name || "",
-  description: v.description || "",
-  mission: v.mission || "",
-  vision: v.vision || "",
-  industry: v.industry || "",
-  sector: v.sector || "",
-  business_stage: v.business_stage || "idea",
-  website: v.website || "",
-  twitter: v.social_media?.twitter || "",
-  linkedin: v.social_media?.linkedin || "",
-  instagram: v.social_media?.instagram || "",
-  facebook: v.social_media?.facebook || "",
-  status: v.status || "active",
-  visibility: v.visibility || "private",
-  language: v.language || "en",
-  brandColor: v.branding?.color || "#f60",
-  country_code: v.country_code || "",
+const ventureToForm = (venture) => ({
+  name: venture.name || "",
+  description: venture.description || "",
+  mission: venture.mission || "",
+  vision: venture.vision || "",
+  industry: venture.industry || "",
+  sector: venture.sector || "",
+  business_stage: venture.business_stage || "idea",
+  website: venture.website || "",
+  twitter: venture.social_media?.twitter || "",
+  linkedin: venture.social_media?.linkedin || "",
+  instagram: venture.social_media?.instagram || "",
+  facebook: venture.social_media?.facebook || "",
+  status: venture.status || "active",
+  visibility: venture.visibility || "private",
+  language: venture.language || "en",
+  brandColor: venture.branding?.color || "#f60",
+  country_code: venture.country_code || "",
 });
 
 // ── The answer shapers for this screen's reads ─────────────────────────────
@@ -63,8 +63,8 @@ const ventureToForm = (v) => ({
 // A shaper reports the EMPTY value on a refusal, not on a success that happens
 // to be missing its field: a read that failed must not leave the previous
 // screenful standing as though it were still the answer.
-const pickList = (key) => (d) => (d?.success ? d[key] || [] : []);
-const pickThing = (key) => (d) => (d?.success ? d[key] : null);
+const pickList = (key) => (payload) => (payload?.success ? payload[key] || [] : []);
+const pickThing = (key) => (payload) => (payload?.success ? payload[key] : null);
 
 const pickMembers = pickList("members");
 const pickInvitations = pickList("invitations");
@@ -80,15 +80,15 @@ const pickDocuments = pickList("documents");
 const pickKpis = pickList("kpis");
 const pickKpiDefinitions = pickList("kpi_definitions");
 const pickJourney = pickList("stages");
-const pickInvestmentReadiness = (d) =>
-  d?.success
-    ? { ...d.investment_readiness, roadmap_readiness: d.roadmap_readiness }
+const pickInvestmentReadiness = (payload) =>
+  payload?.success
+    ? { ...payload.investment_readiness, roadmap_readiness: payload.roadmap_readiness }
     : null;
-const pickOptionLists = (d) => {
-  if (!d?.success) return {};
+const pickOptionLists = (payload) => {
+  if (!payload?.success) return {};
   const byType = {};
-  for (const o of d.options || []) {
-    (byType[o.option_type] = byType[o.option_type] || []).push(o.value);
+  for (const option of payload.options || []) {
+    (byType[option.option_type] = byType[option.option_type] || []).push(option.value);
   }
   return byType;
 };
@@ -208,10 +208,10 @@ export default function VentureDetail() {
 
   // Navigate top-level sections. Re-entering Journey resets to the milestone
   // timeline so the primary tab always behaves predictably.
-  function openSection(sec) {
-    if (sec === activeTab && sec !== "journey") return;
-    setActiveTab(sec);
-    if (sec === "journey") setJourneySub("timeline");
+  function openSection(section) {
+    if (section === activeTab && section !== "journey") return;
+    setActiveTab(section);
+    if (section === "journey") setJourneySub("timeline");
   }
 
   // ── The screen's reads ───────────────────────────────────────────────────
@@ -291,51 +291,51 @@ export default function VentureDetail() {
   );
   async function fetchActionPlans(bypassCache = false) {
     const url = `/api/ventures/${params.id}/action-plans`;
-    const apply = (d) => { if (d.success) setActionPlans(d.action_plans); };
+    const apply = (payload) => { if (payload.success) setActionPlans(payload.action_plans); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
     } catch{}
   }
   async function fetchTasks(bypassCache = false) {
     const url = `/api/ventures/${params.id}/tasks`;
-    const apply = (d) => { if (d.success) setTasks(d.tasks || []); };
+    const apply = (payload) => { if (payload.success) setTasks(payload.tasks || []); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
     } catch{}
   }
   async function fetchStandups(bypassCache = false) {
     const url = `/api/ventures/${params.id}/standups`;
-    const apply = (d) => { if (d.success) { setStandups(d.standups || []); setCurrentWeekStandup(d.current_week_submitted !== false); setCurrentWeekNum(d.current_week); setCurrentWeekYear(d.current_year); } };
+    const apply = (payload) => { if (payload.success) { setStandups(payload.standups || []); setCurrentWeekStandup(payload.current_week_submitted !== false); setCurrentWeekNum(payload.current_week); setCurrentWeekYear(payload.current_year); } };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
     } catch{}
   }
   async function fetchRetros(bypassCache = false) {
     const url = `/api/ventures/${params.id}/retros`;
-    const apply = (d) => { if (d.success) { setRetros(d.retros || []); setCurrentWeekRetro(d.current_week_submitted !== false); setCurrentWeekNum(d.current_week); setCurrentWeekYear(d.current_year); } };
+    const apply = (payload) => { if (payload.success) { setRetros(payload.retros || []); setCurrentWeekRetro(payload.current_week_submitted !== false); setCurrentWeekNum(payload.current_week); setCurrentWeekYear(payload.current_year); } };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
     } catch{}
   }
   async function fetchBlockers(bypassCache = false) {
     const url = `/api/ventures/${params.id}/blockers`;
-    const apply = (d) => { if (d.success) setBlockers(d.blockers || []); };
+    const apply = (payload) => { if (payload.success) setBlockers(payload.blockers || []); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
     } catch{}
   }
   // (progressData and calendarEvents are read above, with the section they
   // belong to.)
   async function handleTaskStatusChange(taskId, newStatus) {
     try {
-      const r = await fetch(`/api/ventures/${params.id}/tasks?id=${taskId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
-      const d = await r.json();
-      if (d.success) { fetchTasks(true); fetchProgress(true); }
+      const response = await fetch(`/api/ventures/${params.id}/tasks?id=${taskId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
+      const data = await response.json();
+      if (data.success) { fetchTasks(true); fetchProgress(true); }
     } catch {}
   }
   // The document list is ADDRESSED on the two filters, so writing in the search
@@ -353,18 +353,18 @@ export default function VentureDetail() {
   );
   async function fetchAdvisors(bypassCache = false) {
     const url = `/api/ventures/${params.id}/advisors`;
-    const apply = (d) => { if (d.success) setAdvisors(d.advisors || []); };
+    const apply = (payload) => { if (payload.success) setAdvisors(payload.advisors || []); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
     } catch{}
   }
   async function fetchCoaching(bypassCache = false) {
     const url = `/api/ventures/${params.id}/coaching`;
-    const apply = (d) => { if (d.success) setCoachingSessions(d.sessions || d.coaching_sessions || []); };
+    const apply = (payload) => { if (payload.success) setCoachingSessions(payload.sessions || payload.coaching_sessions || []); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
     } catch{}
   }
   const { data: kpis, refresh: fetchKpis } = useApi(
@@ -405,8 +405,8 @@ export default function VentureDetail() {
     setShowVersions(false); fetchDocuments(null, null, true);
   }
   async function handleReview(docId) {
-    const r = await fetch(`/api/ventures/${params.id}/documents/${docId}/reviews`);
-    const d = await r.json(); if (d.success) setReviews(d.reviews);
+    const response = await fetch(`/api/ventures/${params.id}/documents/${docId}/reviews`);
+    const data = await response.json(); if (data.success) setReviews(data.reviews);
     setReviewDoc({id: docId}); setShowReview(true);
   }
   async function handleSubmitReview(docId, decision) {
@@ -415,14 +415,14 @@ export default function VentureDetail() {
   }
   async function handlePermissions(docId) {
     try {
-      const r = await fetch(`/api/ventures/${params.id}/documents/${docId}/permissions`);
-      const d = await r.json();
-      if (d.success) {
+      const response = await fetch(`/api/ventures/${params.id}/documents/${docId}/permissions`);
+      const data = await response.json();
+      if (data.success) {
         // Ensure all roles are present
-        const existing = d.permissions || [];
+        const existing = data.permissions || [];
         const roles = ['founder','team','advisor','administrator','investor'];
         const merged = roles.map(role => {
-          const found = existing.find(p => p.role_scope === role);
+          const found = existing.find(permission => permission.role_scope === role);
           return found || { role_scope: role, access_level: 'view' };
         });
         setPermissions(merged);
@@ -436,10 +436,10 @@ export default function VentureDetail() {
   }
   async function fetchPlaybook(bypassCache = false) {
     const url = `/api/ventures/${params.id}/playbook`;
-    const apply = (d) => { if (d.success) setPlaybookEntries(d.playbook || []); };
+    const apply = (payload) => { if (payload.success) setPlaybookEntries(payload.playbook || []); };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
     } catch{}
   }
   const { data: investmentReadiness, refresh: fetchInvestmentReadiness } = useApi(
@@ -461,8 +461,8 @@ export default function VentureDetail() {
     fetchKpis(true);
   }
 
-  async function handleSave(e) {
-    e.preventDefault();
+  async function handleSave(event) {
+    event.preventDefault();
     setSaving(true);
     try {
       const payload = {
@@ -477,13 +477,13 @@ export default function VentureDetail() {
         status: form.status, visibility: form.visibility, language: form.language,
         branding: { color: form.brandColor || "#f60" },
       };
-      const res = await fetch("/api/ventures", {
+      const response = await fetch("/api/ventures", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const d = await res.json();
-      notifyMsg(d.success ? t("venture.updateSuccess") : (d.error || t("venture.updateError")));
+      const data = await response.json();
+      notifyMsg(data.success ? t("venture.updateSuccess") : (data.error || t("venture.updateError")));
     } catch {
       notifyMsg(t("venture.updateError"));
     } finally { setSaving(false); }
@@ -491,15 +491,15 @@ export default function VentureDetail() {
 
   async function handleUpdateMemberRole(memberId, newRole) {
     try {
-      const res = await fetch(`/api/ventures/${params.id}/members`, {
+      const response = await fetch(`/api/ventures/${params.id}/members`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ member_id: memberId, role: newRole }),
       });
-      const d = await res.json();
-      if (!d.success) notifyMsg(t(d.error || "") || d.error);
+      const data = await response.json();
+      if (!data.success) notifyMsg(t(data.error || "") || data.error);
       else loadMembers(true);
-    } catch (e) { notifyMsg(t(e.message || "") || e.message); }
+    } catch (error) { notifyMsg(t(error.message || "") || error.message); }
   }
 
   // Invite (not add): the person is emailed a link and joins by accepting it.
@@ -511,19 +511,19 @@ export default function VentureDetail() {
     }
     setInviting(true);
     try {
-      const res = await fetch(`/api/ventures/${params.id}/members`, {
+      const response = await fetch(`/api/ventures/${params.id}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, member_type: addMemberType }),
       });
-      const d = await res.json();
-      if (d.success) {
+      const data = await response.json();
+      if (data.success) {
         setShowAddMember(false);
         setInviteEmail("");
         notifyMsg(t("venture.invitationSent"));
         await loadInvitations();
       } else {
-        notifyMsg(t(d.error || "") || d.error || t("venture.inviteFailed"));
+        notifyMsg(t(data.error || "") || data.error || t("venture.inviteFailed"));
       }
     } catch {
       notifyMsg(t("venture.inviteFailed"));
@@ -534,39 +534,39 @@ export default function VentureDetail() {
 
   async function handleRemoveMember(memberId) {
     try {
-      const res = await fetch(`/api/ventures/${params.id}/members`, {
+      const response = await fetch(`/api/ventures/${params.id}/members`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ member_id: memberId, action: "remove" }),
       });
-      const d = await res.json();
-      if (d.success) {
+      const data = await response.json();
+      if (data.success) {
         setRemoveConfirm(null);
         await loadMembers(true);
       } else {
-        notifyMsg(t((d.error || t("venture.removeError")) || "") || (d.error || t("venture.removeError")));
+        notifyMsg(t((data.error || t("venture.removeError")) || "") || (data.error || t("venture.removeError")));
       }
     } catch { notifyMsg(t("venture.removeError")); }
   }
 
   async function handleRevokeInvitation(invitationId) {
     try {
-      const res = await fetch(`/api/ventures/${params.id}/member-invitations?id=${invitationId}`, {
+      const response = await fetch(`/api/ventures/${params.id}/member-invitations?id=${invitationId}`, {
         method: "DELETE",
       });
-      const d = await res.json();
-      if (d.success) {
+      const data = await response.json();
+      if (data.success) {
         notifyMsg(t("venture.invitationRevoked"));
         await loadInvitations();
       } else {
-        notifyMsg(t(d.error || "") || d.error || t("venture.inviteFailed"));
+        notifyMsg(t(data.error || "") || data.error || t("venture.inviteFailed"));
       }
     } catch {
       notifyMsg(t("venture.inviteFailed"));
     }
   }
 
-  const notifyMsg = (msg, type = "info") => window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type, message: String(msg || ""), duration: 4000 } }));
+  const notifyMsg = (message, type = "info") => window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type, message: String(message || ""), duration: 4000 } }));
 
   const inputStyle = { backgroundColor: "rgb(15 23 42)", borderColor: "rgb(255 255 255 / 0.15)", color: "var(--text-primary)" };
   const cardStyle = { backgroundColor: "rgb(255 255 255 / 0.05)", borderColor: "rgb(255 255 255 / 0.1)" };

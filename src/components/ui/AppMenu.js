@@ -25,11 +25,11 @@ export default function AppMenu({
 
   useEffect(() => {
     if (!open) return undefined;
-    const onPointerDown = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    const onPointerDown = (event) => {
+      if (wrapRef.current && !wrapRef.current.contains(event.target)) setOpen(false);
     };
-    const onKeyDown = (e) => {
-      if (e.key === "Escape") setOpen(false);
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setOpen(false);
     };
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -49,7 +49,7 @@ export default function AppMenu({
         aria-expanded={open}
         aria-label={label}
         title={label}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen((previousOpen) => !previousOpen)}
         className={`p-1.5 rounded-lg text-slate-400 hover:text-[var(--text-primary)] hover:bg-white/5 transition-colors ${buttonClassName}`}
       >
         <MoreVertical className="w-4 h-4" />
@@ -62,12 +62,12 @@ export default function AppMenu({
             align === "left" ? "left-0" : "right-0"
           }`}
         >
-          {items.map((item, idx) =>
+          {items.map((item, index) =>
             item.separator ? (
-              <div key={`sep-${idx}`} className="my-1 h-px bg-[var(--border-primary)]/60" />
+              <div key={`sep-${index}`} className="my-1 h-px bg-[var(--border-primary)]/60" />
             ) : (
               <button
-                key={item.key || idx}
+                key={item.key || index}
                 type="button"
                 role="menuitem"
                 disabled={item.disabled}

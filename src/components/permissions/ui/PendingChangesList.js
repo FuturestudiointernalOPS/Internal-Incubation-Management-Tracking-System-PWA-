@@ -15,11 +15,11 @@ export default function PendingChangesList({ items = [], maxHeight = "10rem" }) 
   if (!items.length) return null;
   return (
     <ul className="space-y-1 overflow-y-auto" style={{ maxHeight }}>
-      {items.map((item, i) => {
+      {items.map((item, index) => {
         const level = Number(item.level ?? item.to ?? 0);
         return (
           <li
-            key={`${item.label}-${i}`}
+            key={`${item.label}-${index}`}
             className="flex items-center justify-between gap-3 text-xs"
           >
             <span className="font-bold text-[var(--text-primary)] truncate">

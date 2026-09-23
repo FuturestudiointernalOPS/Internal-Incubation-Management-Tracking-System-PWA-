@@ -30,13 +30,13 @@ import { useSessionUser } from "@/lib/hooks/useSessionUser";
 const EMPTY_LIST = [];
 
 /** The project, whole: the payload carries both the project and its refusal. */
-const pickProject = (d) => (d?.success ? d : null);
+const pickProject = (payload) => (payload?.success ? payload : null);
 
 // The list shapers are built HERE rather than at their call sites, which is the
 // habit the file's own note above claims: a factory called inside the component
 // returns a new function on every render.
-const pickUpdates = (d) => (d?.success ? d.updates || [] : []);
-const pickMessages = (d) => (d?.success ? d.messages || [] : []);
+const pickUpdates = (payload) => (payload?.success ? payload.updates || [] : []);
+const pickMessages = (payload) => (payload?.success ? payload.messages || [] : []);
 import TaskManager from "@/components/tasks/TaskManager";
 
 const STATUS_COLORS = {
@@ -140,7 +140,7 @@ export default function StaffProjectDetail() {
     if (!newDiscussion.trim()) return;
     setPostingDiscussion(true);
     try {
-      const res = await fetch("/api/projects/discuss", {
+      const response = await fetch("/api/projects/discuss", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -150,7 +150,7 @@ export default function StaffProjectDetail() {
           body: newDiscussion.trim(),
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setNewDiscussion("");
         refreshDiscussions();
@@ -163,7 +163,7 @@ export default function StaffProjectDetail() {
     if (!updateForm.accomplishments && !updateForm.current_focus) return;
     setSavingUpdate(true);
     try {
-      const res = await fetch(`/api/admin/projects/${projectId}/updates`, {
+      const response = await fetch(`/api/admin/projects/${projectId}/updates`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -172,7 +172,7 @@ export default function StaffProjectDetail() {
           user_name: user?.name || "Staff",
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         refreshUpdates();
         setUpdateForm({
@@ -221,13 +221,13 @@ export default function StaffProjectDetail() {
   const members = project.members || [];
   const timeline = project.timeline || [];
   const activeBlockersCount = blockers.filter(
-    (b) => b.status === "active",
+    (blocker) => blocker.status === "active",
   ).length;
 
   const filteredBlockers =
     blockerFilter === "all"
       ? blockers
-      : blockers.filter((b) => b.status === blockerFilter);
+      : blockers.filter((blocker) => blocker.status === blockerFilter);
 
   return (
     <>
@@ -471,7 +471,7 @@ export default function StaffProjectDetail() {
                   bg: "bg-amber-500/10",
                 },
               ].map(({ label, key, color, bg }) => {
-                const count = tasks.filter((t) => t.status === key).length;
+                const count = tasks.filter((task) => task.status === key).length;
                 return (
                   <div key={key} className={`card p-4 ${bg}`}>
                     <p className={`text-2xl font-black ${color}`}>{count}</p>
@@ -539,22 +539,22 @@ export default function StaffProjectDetail() {
                 {
                   id: "active",
                   label: t("staffMisc.projectDetail.blockerFilterActive", {
-                    count: blockers.filter((b) => b.status === "active").length,
+                    count: blockers.filter((blocker) => blocker.status === "active").length,
                   }),
                 },
                 {
                   id: "resolved",
                   label: t("staffMisc.projectDetail.blockerFilterResolved", {
-                    count: blockers.filter((b) => b.status === "resolved").length,
+                    count: blockers.filter((blocker) => blocker.status === "resolved").length,
                   }),
                 },
-              ].map((f) => (
+              ].map((filter) => (
                 <button
-                  key={f.id}
-                  onClick={() => setBlockerFilter(f.id)}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${blockerFilter === f.id ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                  key={filter.id}
+                  onClick={() => setBlockerFilter(filter.id)}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${blockerFilter === filter.id ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
                 >
-                  {f.label}
+                  {filter.label}
                 </button>
               ))}
             </div>
@@ -621,27 +621,27 @@ export default function StaffProjectDetail() {
                 </p>
               </div>
             ) : (
-              members.map((m, i) => (
-                <div key={i} className="card flex items-center gap-3 p-4">
+              members.map((member, index) => (
+                <div key={index} className="card flex items-center gap-3 p-4">
                   <div className="w-8 h-8 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase text-[var(--text-primary)]">
-                    {(m.name || "?").charAt(0).toUpperCase()}
+                    {(member.name || "?").charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1">
                     <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                      {m.name || m.member_id || t("staffMisc.projectDetail.unknown")}
+                      {member.name || member.member_id || t("staffMisc.projectDetail.unknown")}
                     </p>
-                    {m.email && (
+                    {member.email && (
                       <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                        {m.email}
+                        {member.email}
                       </p>
                     )}
                   </div>
                   <span
-                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${m.member_role === "lead" ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "bg-slate-500/10 text-slate-500"}`}
+                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${member.member_role === "lead" ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "bg-slate-500/10 text-slate-500"}`}
                   >
                     {t(
-                      MEMBER_ROLE_LABELS[m.member_role] ||
-                        m.member_role ||
+                      MEMBER_ROLE_LABELS[member.member_role] ||
+                        member.member_role ||
                         "staffMisc.projectDetail.roleMember",
                     )}
                   </span>
@@ -664,10 +664,10 @@ export default function StaffProjectDetail() {
                 </label>
                 <select
                   value={updateForm.overall_status}
-                  onChange={(e) =>
-                    setUpdateForm((p) => ({
-                      ...p,
-                      overall_status: e.target.value,
+                  onChange={(event) =>
+                    setUpdateForm((prev) => ({
+                      ...prev,
+                      overall_status: event.target.value,
                     }))
                   }
                   className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none"
@@ -699,8 +699,8 @@ export default function StaffProjectDetail() {
                   </label>
                   <textarea
                     value={updateForm[key]}
-                    onChange={(e) =>
-                      setUpdateForm((p) => ({ ...p, [key]: e.target.value }))
+                    onChange={(event) =>
+                      setUpdateForm((prev) => ({ ...prev, [key]: event.target.value }))
                     }
                     rows={2}
                     className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none resize-none"
@@ -728,35 +728,35 @@ export default function StaffProjectDetail() {
                     count: updates.length,
                   })}
                 </h3>
-                {updates.map((u) => (
-                  <div key={u.id} className="card p-4 space-y-2">
+                {updates.map((update) => (
+                  <div key={update.id} className="card p-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-bold text-[var(--text-primary)]">
                         {t("staffMisc.projectDetail.weekLabel", {
-                          week: u.week_number,
-                          year: u.year,
+                          week: update.week_number,
+                          year: update.year,
                         })}
                       </span>
                       <span
-                        className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${u.overall_status === "on_track" ? "bg-emerald-500/10 text-emerald-500" : u.overall_status === "at_risk" ? "bg-amber-500/10 text-amber-500" : "bg-rose-500/10 text-rose-500"}`}
+                        className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${update.overall_status === "on_track" ? "bg-emerald-500/10 text-emerald-500" : update.overall_status === "at_risk" ? "bg-amber-500/10 text-amber-500" : "bg-rose-500/10 text-rose-500"}`}
                       >
-                        {t(UPDATE_STATUS_LABELS[u.overall_status] || u.overall_status)}
+                        {t(UPDATE_STATUS_LABELS[update.overall_status] || update.overall_status)}
                       </span>
                     </div>
-                    {u.accomplishments && (
+                    {update.accomplishments && (
                       <p className="text-[10px] text-[var(--text-secondary)]">
                         <span className="font-bold text-[var(--text-primary)]">
                           {t("staffMisc.projectDetail.doneLabel")}
                         </span>{" "}
-                        {u.accomplishments}
+                        {update.accomplishments}
                       </p>
                     )}
-                    {u.current_focus && (
+                    {update.current_focus && (
                       <p className="text-[10px] text-[var(--text-secondary)]">
                         <span className="font-bold text-[var(--text-primary)]">
                           {t("staffMisc.projectDetail.focusLabel")}
                         </span>{" "}
-                        {u.current_focus}
+                        {update.current_focus}
                       </p>
                     )}
                   </div>
@@ -777,13 +777,13 @@ export default function StaffProjectDetail() {
               <div className="flex gap-2">
                 <textarea
                   value={newDiscussion}
-                  onChange={(e) => setNewDiscussion(e.target.value)}
+                  onChange={(event) => setNewDiscussion(event.target.value)}
                   placeholder={t("messaging.typeDiscussion")}
                   rows={2}
                   className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none resize-none"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
                       handlePostDiscussion();
                     }
                   }}
@@ -816,17 +816,17 @@ export default function StaffProjectDetail() {
               </div>
             ) : (
               <div className="space-y-2">
-                {discussions.map((msg) => (
-                  <div key={msg.id} className="card p-4 space-y-1.5">
+                {discussions.map((message) => (
+                  <div key={message.id} className="card p-4 space-y-1.5">
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase text-[var(--text-primary)]">
-                        {(msg.sender_name || "?").charAt(0).toUpperCase()}
+                        {(message.sender_name || "?").charAt(0).toUpperCase()}
                       </div>
                       <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                        {msg.sender_name || t("staffMisc.projectDetail.unknown")}
+                        {message.sender_name || t("staffMisc.projectDetail.unknown")}
                       </span>
                       <span className="text-[10px] font-medium text-[var(--text-secondary)] ml-auto">
-                        {new Date(msg.created_at).toLocaleDateString(
+                        {new Date(message.created_at).toLocaleDateString(
                           undefined,
                           {
                             month: "short",
@@ -838,7 +838,7 @@ export default function StaffProjectDetail() {
                       </span>
                     </div>
                     <p className="text-[11px] text-[var(--text-secondary)] whitespace-pre-wrap">
-                      {msg.body}
+                      {message.body}
                     </p>
                   </div>
                 ))}
@@ -861,9 +861,9 @@ export default function StaffProjectDetail() {
                 </p>
               </div>
             ) : (
-              timeline.map((entry, i) => (
+              timeline.map((entry, index) => (
                 <div
-                  key={entry.id || i}
+                  key={entry.id || index}
                   className="card flex items-start gap-3 p-4"
                 >
                   <div className="w-2 h-2 mt-1.5 rounded-full bg-[var(--brand-orange)] shrink-0" />

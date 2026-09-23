@@ -8,7 +8,7 @@ import { useApi } from "@/lib/hooks/useApi";
 // Module scope on purpose: the hook keys its internal callback on this function,
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop.
-const pickBudgetLines = (d) => (d?.success ? d.lines || [] : []);
+const pickBudgetLines = (response) => (response?.success ? response.lines || [] : []);
 
 export default function FinanceEntryPage() {
   const { t } = useI18n();
@@ -39,10 +39,10 @@ export default function FinanceEntryPage() {
   // disagreed.
   const filteredLines = !lineSearch
     ? budgetLines
-    : budgetLines.filter((l) => l.name.toLowerCase().includes(lineSearch.toLowerCase()));
+    : budgetLines.filter((line) => line.name.toLowerCase().includes(lineSearch.toLowerCase()));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     if (!form.project || !form.budgetLine || !form.date || !form.amount) {
       setError("Please fill all required fields.");
       return;
@@ -50,12 +50,12 @@ export default function FinanceEntryPage() {
     setSubmitting(true);
     setError("");
     try {
-      const res = await fetch("/api/finance/transaction", {
+      const response = await fetch("/api/finance/transaction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setSuccess(true);
         setForm({ project: "", budgetLine: "", date: "", supplier: "", description: "", amount: "", type: "expense" });
@@ -101,7 +101,7 @@ export default function FinanceEntryPage() {
               <select
                 required
                 value={form.project}
-                onChange={(e) => setForm({ ...form, project: e.target.value, budgetLine: "" })}
+                onChange={(event) => setForm({ ...form, project: event.target.value, budgetLine: "" })}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-sm font-bold text-[var(--text-primary)] outline-none"
               >
                 <option value="">{t("rootMisc.finance.selectProject")}</option>
@@ -118,7 +118,7 @@ export default function FinanceEntryPage() {
                 type="date"
                 required
                 value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                onChange={(event) => setForm({ ...form, date: event.target.value })}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-sm font-bold text-[var(--text-primary)] outline-none"
               />
             </div>
@@ -131,14 +131,14 @@ export default function FinanceEntryPage() {
                 required
                 placeholder={t("rootMisc.finance.searchBudgetLine")}
                 value={lineSearch}
-                onChange={(e) => setLineSearch(e.target.value)}
+                onChange={(event) => setLineSearch(event.target.value)}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-sm font-bold text-[var(--text-primary)] outline-none"
               />
               {filteredLines.length > 0 && lineSearch && (
                 <div className="max-h-32 overflow-y-auto bg-primary border border-[var(--border-primary)] rounded-xl mt-1">
-                  {filteredLines.slice(0, 10).map((line, i) => (
+                  {filteredLines.slice(0, 10).map((line, index) => (
                     <button
-                      key={i}
+                      key={index}
                       type="button"
                       onClick={() => { setForm({ ...form, budgetLine: line.name }); setLineSearch(line.name); }}
                       className="w-full text-left px-4 py-2 text-sm font-bold text-[var(--text-primary)] hover:bg-tertiary transition-colors"
@@ -157,7 +157,7 @@ export default function FinanceEntryPage() {
                 type="text"
                 placeholder={t("rootMisc.finance.supplierPlaceholder")}
                 value={form.supplier}
-                onChange={(e) => setForm({ ...form, supplier: e.target.value })}
+                onChange={(event) => setForm({ ...form, supplier: event.target.value })}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-sm font-bold text-[var(--text-primary)] outline-none"
               />
             </div>
@@ -171,7 +171,7 @@ export default function FinanceEntryPage() {
                 min="0"
                 placeholder="0"
                 value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                onChange={(event) => setForm({ ...form, amount: event.target.value })}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-sm font-bold text-[var(--text-primary)] outline-none"
               />
             </div>
@@ -181,7 +181,7 @@ export default function FinanceEntryPage() {
               <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("rootMisc.finance.typeLabel")}</label>
               <select
                 value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value })}
+                onChange={(event) => setForm({ ...form, type: event.target.value })}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-sm font-bold text-[var(--text-primary)] outline-none"
               >
                 <option value="expense">{t("rootMisc.finance.expense")}</option>
@@ -197,7 +197,7 @@ export default function FinanceEntryPage() {
               placeholder={t("rootMisc.finance.descriptionPlaceholder")}
               rows={3}
               value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              onChange={(event) => setForm({ ...form, description: event.target.value })}
               className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-sm font-bold text-[var(--text-primary)] outline-none resize-none"
             />
           </div>

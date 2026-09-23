@@ -23,8 +23,8 @@ import { formatLocaleDate } from "@/lib/constants";
 // Module scope on purpose: the hook keys its internal callback on these
 // functions, so inline arrows would give them a new identity on every render and
 // refetch in a loop.
-const pickForms = (d) => (d?.success ? d.forms || [] : []);
-const pickFamilies = (d) => (d?.success ? d.families || [] : []);
+const pickForms = (payload) => (payload?.success ? payload.forms || [] : []);
+const pickFamilies = (payload) => (payload?.success ? payload.families || [] : []);
 
 export default function FormsPage() {
   const { t, lang } = useI18n();
@@ -70,11 +70,11 @@ export default function FormsPage() {
   };
 
   const updateField = (id, key, value) => {
-    setSchema(schema.map((f) => (f.id === id ? { ...f, [key]: value } : f)));
+    setSchema(schema.map((field) => (field.id === id ? { ...field, [key]: value } : field)));
   };
 
   const removeField = (id) => {
-    setSchema(schema.filter((f) => f.id !== id));
+    setSchema(schema.filter((field) => field.id !== id));
   };
 
   const submitForm = async () => {
@@ -109,7 +109,7 @@ export default function FormsPage() {
         refreshFamilies();
       }
 
-      const res = await fetch("/api/forms", {
+      const response = await fetch("/api/forms", {
         method: editFormId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -119,8 +119,8 @@ export default function FormsPage() {
           group_name: finalGroupName || null,
         }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         setView("list");
         setEditFormId(null);
         setFormName("");
@@ -137,7 +137,7 @@ export default function FormsPage() {
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "error", message: t(data.error || "") || data.error },
+            detail: { type: "error", message: t(payload.error || "") || payload.error },
           }),
         );
       }
@@ -150,13 +150,13 @@ export default function FormsPage() {
 
   const deleteForm = async (formId) => {
     try {
-      const res = await fetch("/api/forms", {
+      const response = await fetch("/api/forms", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ form_id: formId }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         refreshForms();
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
@@ -168,13 +168,13 @@ export default function FormsPage() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: t((data.error || t("crm.forms.archiveFailed")) || "") || (data.error || t("crm.forms.archiveFailed")),
+              message: t((payload.error || t("crm.forms.archiveFailed")) || "") || (payload.error || t("crm.forms.archiveFailed")),
             },
           }),
         );
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -183,30 +183,30 @@ export default function FormsPage() {
   // out rather than given a second flag that nothing would read.
   const fetchResponses = async (formId) => {
     try {
-      const res = await fetch(`/api/responses?form_id=${formId}`);
-      const data = await res.json();
-      if (data.success) {
-        const filtered = data.detailedResponses.filter(
-          (r) => r.form_id === formId,
+      const response = await fetch(`/api/responses?form_id=${formId}`);
+      const payload = await response.json();
+      if (payload.success) {
+        const filtered = payload.detailedResponses.filter(
+          (responseRecord) => responseRecord.form_id === formId,
         );
         setResponses(filtered);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     }
   };
 
-  const openResponses = (f) => {
-    setSelectedForm(f);
-    fetchResponses(f.form_id);
+  const openResponses = (form) => {
+    setSelectedForm(form);
+    fetchResponses(form.form_id);
     setView("responses");
   };
 
-  const handleEdit = (f) => {
-    setEditFormId(f.form_id);
-    setFormName(f.name);
-    setSchema(f.schema);
-    setSelectedGroupName(f.group_name || "");
+  const handleEdit = (form) => {
+    setEditFormId(form.form_id);
+    setFormName(form.name);
+    setSchema(form.schema);
+    setSelectedGroupName(form.group_name || "");
     setView("builder");
   };
 
@@ -223,9 +223,9 @@ export default function FormsPage() {
   };
 
   const filteredForms = forms.filter(
-    (f) =>
-      f.name.toLowerCase().includes(searchForms.toLowerCase()) ||
-      f.form_id.toLowerCase().includes(searchForms.toLowerCase()),
+    (form) =>
+      form.name.toLowerCase().includes(searchForms.toLowerCase()) ||
+      form.form_id.toLowerCase().includes(searchForms.toLowerCase()),
   );
 
   return (
@@ -279,7 +279,7 @@ export default function FormsPage() {
               type="text"
               placeholder={t("crm.forms.searchForms")}
               value={searchForms}
-              onChange={(e) => setSearchForms(e.target.value)}
+              onChange={(event) => setSearchForms(event.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 text-white outline-none focus:border-[#FF6600]/80/30 transition-colors font-bold placeholder:text-slate-600"
             />
           </div>
@@ -301,22 +301,22 @@ export default function FormsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredForms.map((f) => (
+            {filteredForms.map((form) => (
               <div
-                key={f.form_id}
+                key={form.form_id}
                 className="ios-card group hover:border-[#FF6600]/30 transition-all duration-300"
               >
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleEdit(f)}
+                      onClick={() => handleEdit(form)}
                       className="p-2 rounded-lg bg-white/5 border border-white/5 text-slate-500 hover:text-[#FF6600] transition-all"
                       title={t("crm.forms.editStructure")}
                     >
                       <Edit3 className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => deleteForm(f.form_id)}
+                      onClick={() => deleteForm(form.form_id)}
                       className="p-2 rounded-lg bg-white/5 border border-white/5 text-slate-500 hover:text-rose-500 transition-all"
                       title={t("crm.forms.archiveForm")}
                     >
@@ -329,10 +329,10 @@ export default function FormsPage() {
                 </div>
 
                 <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-1 truncate">
-                  {f.name}
+                  {form.name}
                 </h3>
                 <p className="text-xs text-slate-500 font-bold mb-6">
-                  {t("crm.forms.idLabel")} {f.form_id}
+                  {t("crm.forms.idLabel")} {form.form_id}
                 </p>
 
                 <div className="grid grid-cols-2 gap-4 mb-6">
@@ -341,11 +341,11 @@ export default function FormsPage() {
                       {t("crm.forms.questions")}
                     </p>
                     <p className="text-lg font-black text-white">
-                      {f.schema.length}
+                      {form.schema.length}
                     </p>
                   </div>
                   <button
-                    onClick={() => openResponses(f)}
+                    onClick={() => openResponses(form)}
                     className="bg-[#FF6600]/10 border border-[#FF6600]/20 rounded-2xl p-4 flex flex-col hover:bg-[#FF6600]/20 transition-all group/resp"
                   >
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 group-hover/resp:text-[#FF6600]">
@@ -356,15 +356,15 @@ export default function FormsPage() {
                 </div>
 
                 <button
-                  onClick={() => copyLink(f.form_id)}
+                  onClick={() => copyLink(form.form_id)}
                   className="w-full flex items-center justify-center gap-2 py-3 bg-white/5 hover:bg-white/10 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-colors border border-white/10"
                 >
-                  {copiedLink === f.form_id ? (
+                  {copiedLink === form.form_id ? (
                     <CheckCircle className="w-4 h-4 text-emerald-400" />
                   ) : (
                     <Copy className="w-4 h-4" />
                   )}
-                  {copiedLink === f.form_id
+                  {copiedLink === form.form_id
                     ? t("crm.forms.linkCopied")
                     : t("crm.forms.copyFormLink")}
                 </button>
@@ -413,33 +413,33 @@ export default function FormsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {responses.map((r) => (
+                  {responses.map((response) => (
                     <tr
-                      key={r.id}
+                      key={response.id}
                       className="group hover:bg-white/[0.01] border-b border-white/[0.02]"
                     >
                       <td className="px-8 py-6">
                         <p className="font-bold text-white uppercase">
-                          {r.name || t("crm.forms.anonymous")}
+                          {response.name || t("crm.forms.anonymous")}
                         </p>
                         <p className="text-[10px] font-bold text-slate-500 font-mono">
-                          {r.email || r.cid || t("crm.forms.na")}
+                          {response.email || response.cid || t("crm.forms.na")}
                         </p>
                       </td>
                       <td className="px-8 py-6">
                         <p className="text-[10px] font-bold text-white uppercase">
-                          {r.group_name || t("crm.forms.individual")}
+                          {response.group_name || t("crm.forms.individual")}
                         </p>
                       </td>
                       <td className="px-8 py-6">
                         <p className="text-xs font-bold text-slate-400">
-                          {formatLocaleDate(r.created_at, { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }, lang)}
+                          {formatLocaleDate(response.created_at, { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }, lang)}
                         </p>
                       </td>
                       <td className="px-8 py-6 text-right">
                         <button
                           onClick={() => {
-                            setSelectedResponse(r);
+                            setSelectedResponse(response);
                             setShowResponseDetails(true);
                           }}
                           className="px-4 py-2 bg-white/5 hover:bg-[#FF6600]/10 rounded-lg text-slate-400 hover:text-[#FF6600] transition-all border border-white/5 text-[10px] font-bold uppercase tracking-widest"
@@ -490,14 +490,14 @@ export default function FormsPage() {
               </header>
               <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
                 {Object.entries(selectedResponse.answers).map(
-                  ([, val], idx) => (
-                    <div key={idx} className="space-y-2">
+                  ([, answer], index) => (
+                    <div key={index} className="space-y-2">
                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                        {t("crm.forms.questionNumber", { n: idx + 1 })}
+                        {t("crm.forms.questionNumber", { n: index + 1 })}
                       </p>
                       <div className="p-4 bg-white/5 border border-white/5 rounded-2xl">
                         <p className="text-sm font-bold text-white leading-relaxed">
-                          {val}
+                          {answer}
                         </p>
                       </div>
                     </div>
@@ -544,7 +544,7 @@ export default function FormsPage() {
                       type="text"
                       placeholder={t("crm.forms.formNamePlaceholder")}
                       value={formName}
-                      onChange={(e) => setFormName(e.target.value)}
+                      onChange={(event) => setFormName(event.target.value)}
                       className="w-full bg-transparent border-b-2 border-white/10 py-2 text-3xl font-black text-white outline-none focus:border-[#FF6600]/80/50 transition-colors placeholder:text-slate-700 mb-6"
                     />
                   </div>
@@ -557,25 +557,25 @@ export default function FormsPage() {
                       <select
                         className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none font-bold appearance-none cursor-pointer"
                         value={showNewGroupInput ? "NEW" : selectedGroupName}
-                        onChange={(e) => {
-                          if (e.target.value === "NEW") {
+                        onChange={(event) => {
+                          if (event.target.value === "NEW") {
                             setShowNewGroupInput(true);
                           } else {
                             setShowNewGroupInput(false);
-                            setSelectedGroupName(e.target.value);
+                            setSelectedGroupName(event.target.value);
                           }
                         }}
                       >
                         <option value="" className="bg-[#0f0f1a]">
                           {t("crm.forms.generalNoSpecificGroup")}
                         </option>
-                        {families.map((f) => (
+                        {families.map((family) => (
                           <option
-                            key={f.id}
-                            value={f.name}
+                            key={family.id}
+                            value={family.name}
                             className="bg-[#0f0f1a]"
                           >
-                            {f.name.toUpperCase()}
+                            {family.name.toUpperCase()}
                           </option>
                         ))}
                         <option
@@ -591,7 +591,7 @@ export default function FormsPage() {
                           placeholder={t("crm.forms.newGroupNamePlaceholder")}
                           className="flex-1 bg-[#FF6600]/5 border border-[#FF6600]/20 rounded-2xl px-6 py-4 text-white outline-none font-bold"
                           value={newGroupName}
-                          onChange={(e) => setNewGroupName(e.target.value)}
+                          onChange={(event) => setNewGroupName(event.target.value)}
                           autoFocus
                         />
                       )}
@@ -632,8 +632,8 @@ export default function FormsPage() {
                               <input
                                 type="text"
                                 value={field.label}
-                                onChange={(e) =>
-                                  updateField(field.id, "label", e.target.value)
+                                onChange={(event) =>
+                                  updateField(field.id, "label", event.target.value)
                                 }
                                 className="flex-1 bg-transparent border-none text-lg font-bold text-white outline-none placeholder:text-slate-600 focus:ring-0"
                               />
@@ -657,11 +657,11 @@ export default function FormsPage() {
                               <input
                                 type="checkbox"
                                 checked={field.required}
-                                onChange={(e) =>
+                                onChange={(event) =>
                                   updateField(
                                     field.id,
                                     "required",
-                                    e.target.checked,
+                                    event.target.checked,
                                   )
                                 }
                                 className="accent-[#FF6600]/80"

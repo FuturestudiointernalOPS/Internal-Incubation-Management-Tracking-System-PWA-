@@ -34,16 +34,16 @@ export default function CertificateCard({ certificate }) {
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${certificate.certificate_number}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      const downloadLink = document.createElement("a");
+      downloadLink.href = url;
+      downloadLink.download = `${certificate.certificate_number}.pdf`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
       URL.revokeObjectURL(url);
       notify("success", "lms.certificate.downloaded");
-    } catch (e) {
-      notify("error", e.message || "lms.certificate.downloadFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.certificate.downloadFailed");
     } finally {
       setDownloading(false);
     }
@@ -105,14 +105,14 @@ export default function CertificateCard({ certificate }) {
 
 function formatDate(value, lang) {
   if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
   try {
     return new Intl.DateTimeFormat(lang || "en", {
       year: "numeric",
       month: "long",
       day: "numeric",
-    }).format(d);
+    }).format(date);
   } catch {
     return "";
   }

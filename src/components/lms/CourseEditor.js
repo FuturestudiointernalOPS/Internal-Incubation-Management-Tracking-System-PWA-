@@ -38,10 +38,10 @@ const EMPTY_COURSE_READ = { payload: null, failure: null };
  * server's own key and both it and a request that never answered are translated
  * where they are shown.
  */
-const pickCourse = (d) =>
-  d?.success
-    ? { payload: d, failure: null }
-    : { payload: null, failure: d?.error || null };
+const pickCourse = (data) =>
+  data?.success
+    ? { payload: data, failure: null }
+    : { payload: null, failure: data?.error || null };
 
 /**
  * The values the metadata form starts from. The form shows these with the
@@ -126,8 +126,8 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
       setEditing(false);
       setEdits({});
       await refresh();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     } finally {
       setSaving(false);
     }
@@ -141,7 +141,7 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
       const data = await res.json();
       if (!data.success) {
         if (data.details && data.details.length) {
-          setValidationErrors(data.details.map((d) => d.key));
+          setValidationErrors(data.details.map((detail) => detail.key));
           notify("error", "lms.errors.publishValidationFailed");
         } else {
           throw new Error(data.error || "lms.errors.saveFailed");
@@ -150,8 +150,8 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
       }
       notify("success", "lms.courses.published");
       refresh();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     }
   };
 
@@ -163,8 +163,8 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.courses.archived");
       refresh();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     }
   };
 
@@ -176,8 +176,8 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.courses.deleted");
       router.push(basePath);
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     }
   };
 

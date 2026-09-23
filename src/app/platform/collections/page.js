@@ -30,9 +30,9 @@ import { useApi } from "@/lib/hooks/useApi";
 // reaches an `Object.entries` / tree-walk read. Module scope keeps both values
 // stable for the hook (an inline literal would refetch on every render).
 const EMPTY_COLLECTIONS = { collections: [], tree: [] };
-const pickCollections = (d) =>
-  d?.success
-    ? { collections: d.collections || [], tree: d.tree || [] }
+const pickCollections = (response) =>
+  response?.success
+    ? { collections: response.collections || [], tree: response.tree || [] }
     : EMPTY_COLLECTIONS;
 
 const STATUS_CONFIG = {
@@ -94,17 +94,17 @@ export default function CollectionsPage() {
 
   const [notification, setNotification] = useState(null);
 
-  const notify = (msg) => {
-    setNotification(msg);
+  const notify = (message) => {
+    setNotification(message);
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const toggleExpand = (id) => {
-    setCollapsedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+  const toggleExpand = (nodeId) => {
+    setCollapsedIds((previousIds) => {
+      const nextIds = new Set(previousIds);
+      if (nextIds.has(nodeId)) nextIds.delete(nodeId);
+      else nextIds.add(nodeId);
+      return nextIds;
     });
   };
 
@@ -114,14 +114,14 @@ export default function CollectionsPage() {
     try {
       const method = editing ? "PUT" : "POST";
       const body = editing
-        ? { id: editing.id, ...form, tags: form.tags ? form.tags.split(",").map((t) => t.trim()) : [] }
-        : { ...form, tags: form.tags ? form.tags.split(",").map((t) => t.trim()) : [] };
-      const res = await fetch("/api/platform/collections", {
+        ? { id: editing.id, ...form, tags: form.tags ? form.tags.split(",").map((tag) => tag.trim()) : [] }
+        : { ...form, tags: form.tags ? form.tags.split(",").map((tag) => tag.trim()) : [] };
+      const response = await fetch("/api/platform/collections", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(editing ? t("platformMisc.collections.updated") : t("platformMisc.collections.created"));
         setShowCreate(false);
@@ -135,16 +135,16 @@ export default function CollectionsPage() {
     setSaving(false);
   };
 
-  const handleArchive = async (id) => {
-    const col = collections.find((c) => c.id === id);
-    if (!col) return;
-    setArchiveConfirm({ id, name: col.name, action: "archive" });
+  const handleArchive = async (collectionId) => {
+    const collection = collections.find((entry) => entry.id === collectionId);
+    if (!collection) return;
+    setArchiveConfirm({ id: collectionId, name: collection.name, action: "archive" });
   };
 
-  const handleUnarchive = async (id) => {
-    const col = collections.find((c) => c.id === id);
-    if (!col) return;
-    setArchiveConfirm({ id, name: col.name, action: "unarchive" });
+  const handleUnarchive = async (collectionId) => {
+    const collection = collections.find((entry) => entry.id === collectionId);
+    if (!collection) return;
+    setArchiveConfirm({ id: collectionId, name: collection.name, action: "unarchive" });
   };
 
   const confirmArchiveAction = async () => {
@@ -167,23 +167,23 @@ export default function CollectionsPage() {
     setArchiveConfirm(null);
   };
 
-  const handleEdit = (col) => {
-    setEditing(col);
+  const handleEdit = (collection) => {
+    setEditing(collection);
     setForm({
-      name: col.name || "",
-      description: col.description || "",
-      parent_id: col.parent_id ? String(col.parent_id) : "",
-      visibility: col.visibility || "internal",
-      tags: Array.isArray(col.tags) ? col.tags.join(", ") : "",
-      category: col.category || "",
-      color: col.color || "#FF6600",
-      status: col.status || "active",
+      name: collection.name || "",
+      description: collection.description || "",
+      parent_id: collection.parent_id ? String(collection.parent_id) : "",
+      visibility: collection.visibility || "internal",
+      tags: Array.isArray(collection.tags) ? collection.tags.join(", ") : "",
+      category: collection.category || "",
+      color: collection.color || "#FF6600",
+      status: collection.status || "active",
     });
     setShowCreate(true);
   };
 
   const renderTreeNode = (node, depth = 0) => {
-    const cfg = STATUS_CONFIG[node.status] || STATUS_CONFIG.active;
+    const statusConfig = STATUS_CONFIG[node.status] || STATUS_CONFIG.active;
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = !collapsedIds.has(node.id);
     return (
@@ -218,8 +218,8 @@ export default function CollectionsPage() {
               </p>
             )}
           </div>
-          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", cfg.color, cfg.bg)}>
-            {t(cfg.label)}
+          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", statusConfig.color, statusConfig.bg)}>
+            {t(statusConfig.label)}
           </span>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button onClick={() => handleEdit(node)} className="p-1 text-[var(--text-secondary)] hover:text-[var(--brand-orange)]">
@@ -280,13 +280,13 @@ export default function CollectionsPage() {
             type="text"
             placeholder={t("platformMisc.collections.searchPlaceholder")}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
             className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)] transition-all"
           />
         </div>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(event) => setStatusFilter(event.target.value)}
           className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
         >
           <option value="all">{t("platformMisc.collections.allStatus")}</option>
@@ -356,36 +356,36 @@ export default function CollectionsPage() {
               </p>
             </div>
           ) : (
-            collections.map((col) => {
-              const cfg = STATUS_CONFIG[col.status] || STATUS_CONFIG.active;
-              const parent = col.parent_id
-                ? collections.find((c) => c.id === col.parent_id)
+            collections.map((collection) => {
+              const statusConfig = STATUS_CONFIG[collection.status] || STATUS_CONFIG.active;
+              const parent = collection.parent_id
+                ? collections.find((entry) => entry.id === collection.parent_id)
                 : null;
               return (
                 <div
-                  key={col.id}
+                  key={collection.id}
                   className="p-5 rounded-2xl bg-secondary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all group"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <span
                       className="w-10 h-10 rounded-xl flex items-center justify-center"
-                      style={{ backgroundColor: (col.color || "#FF6600") + "20" }}
+                      style={{ backgroundColor: (collection.color || "#FF6600") + "20" }}
                     >
                       <FolderKanban
                         className="w-5 h-5"
-                        style={{ color: col.color || "#FF6600" }}
+                        style={{ color: collection.color || "#FF6600" }}
                       />
                     </span>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        onClick={() => handleEdit(col)}
+                        onClick={() => handleEdit(collection)}
                         className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:bg-tertiary"
                       >
                         <Edit3 className="w-3 h-3" />
                       </button>
-                      {col.status !== "archived" ? (
+                      {collection.status !== "archived" ? (
                         <button
-                          onClick={() => handleArchive(col.id)}
+                          onClick={() => handleArchive(collection.id)}
                           className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary"
                           title={t("platformMisc.collections.archiveTitle")}
                         >
@@ -393,7 +393,7 @@ export default function CollectionsPage() {
                         </button>
                       ) : (
                         <button
-                          onClick={() => handleUnarchive(col.id)}
+                          onClick={() => handleUnarchive(collection.id)}
                           className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-tertiary"
                           title={t("platformMisc.collections.restoreTitle")}
                         >
@@ -404,11 +404,11 @@ export default function CollectionsPage() {
                   </div>
 
                   <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                    {col.name}
+                    {collection.name}
                   </h3>
-                  {col.description && (
+                  {collection.description && (
                     <p className="text-[10px] text-[var(--text-secondary)] mt-1 leading-relaxed">
-                      {col.description}
+                      {collection.description}
                     </p>
                   )}
 
@@ -419,11 +419,11 @@ export default function CollectionsPage() {
                   )}
 
                   <div className="flex items-center gap-2 mt-3 flex-wrap">
-                    <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", cfg.color, cfg.bg)}>
-                      {t(cfg.label)}
+                    <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", statusConfig.color, statusConfig.bg)}>
+                      {t(statusConfig.label)}
                     </span>
-                    {Array.isArray(col.tags) &&
-                      col.tags.slice(0, 3).map((tag) => (
+                    {Array.isArray(collection.tags) &&
+                      collection.tags.slice(0, 3).map((tag) => (
                         <span
                           key={tag}
                           className="px-2 py-0.5 rounded bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold"
@@ -434,16 +434,16 @@ export default function CollectionsPage() {
                   </div>
 
                   <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[var(--border-primary)] text-[10px] text-[var(--text-secondary)]">
-                    {col.owner_name && (
+                    {collection.owner_name && (
                       <span className="flex items-center gap-1">
                         <User className="w-3 h-3" />
-                        {col.owner_name}
+                        {collection.owner_name}
                       </span>
                     )}
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      {col.updated_at
-                        ? new Date(col.updated_at).toLocaleDateString()
+                      {collection.updated_at
+                        ? new Date(collection.updated_at).toLocaleDateString()
                         : "—"}
                     </span>
                   </div>
@@ -465,7 +465,7 @@ export default function CollectionsPage() {
         >
           <div
             className="card w-full max-w-xl space-y-5 max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
@@ -488,7 +488,7 @@ export default function CollectionsPage() {
                 </label>
                 <input
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  onChange={(event) => setForm({ ...form, name: event.target.value })}
                   placeholder={t("platformMisc.collections.namePlaceholder")}
                   className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]"
                 />
@@ -500,7 +500,7 @@ export default function CollectionsPage() {
                 </label>
                 <textarea
                   value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  onChange={(event) => setForm({ ...form, description: event.target.value })}
                   rows={2}
                   placeholder={t("platformMisc.collections.descriptionPlaceholder")}
                   className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)] resize-none"
@@ -514,15 +514,15 @@ export default function CollectionsPage() {
                   </label>
                   <select
                     value={form.parent_id}
-                    onChange={(e) => setForm({ ...form, parent_id: e.target.value })}
+                    onChange={(event) => setForm({ ...form, parent_id: event.target.value })}
                     className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]"
                   >
                     <option value="">{t("platformMisc.collections.noParent")}</option>
                     {collections
-                      .filter((c) => c.id !== editing?.id)
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
+                      .filter((entry) => entry.id !== editing?.id)
+                      .map((entry) => (
+                        <option key={entry.id} value={entry.id}>
+                          {entry.name}
                         </option>
                       ))}
                   </select>
@@ -533,7 +533,7 @@ export default function CollectionsPage() {
                   </label>
                   <select
                     value={form.visibility}
-                    onChange={(e) => setForm({ ...form, visibility: e.target.value })}
+                    onChange={(event) => setForm({ ...form, visibility: event.target.value })}
                     className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]"
                   >
                     <option value="internal">{t("platformMisc.collections.visibilityInternal")}</option>
@@ -549,7 +549,7 @@ export default function CollectionsPage() {
                 </label>
                 <input
                   value={form.tags}
-                  onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                  onChange={(event) => setForm({ ...form, tags: event.target.value })}
                   placeholder={t("platformMisc.collections.tagsPlaceholder")}
                   className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]"
                 />
@@ -562,7 +562,7 @@ export default function CollectionsPage() {
                   </label>
                   <select
                     value={form.status}
-                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                    onChange={(event) => setForm({ ...form, status: event.target.value })}
                     className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]"
                   >
                     <option value="active">{t("platformMisc.collections.statusActive")}</option>
@@ -576,7 +576,7 @@ export default function CollectionsPage() {
                   </label>
                   <input
                     value={form.category}
-                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                    onChange={(event) => setForm({ ...form, category: event.target.value })}
                     placeholder={t("platformMisc.collections.categoryPlaceholder")}
                     className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]"
                   />
@@ -588,7 +588,7 @@ export default function CollectionsPage() {
                   <input
                     type="color"
                     value={form.color}
-                    onChange={(e) => setForm({ ...form, color: e.target.value })}
+                    onChange={(event) => setForm({ ...form, color: event.target.value })}
                     className="w-full h-[42px] rounded-xl cursor-pointer border border-[var(--border-primary)]"
                   />
                 </div>
@@ -620,7 +620,7 @@ export default function CollectionsPage() {
       {/* Archive Confirmation Modal */}
       {archiveConfirm && (
         <div className="fixed inset-0 z-[500] bg-black/50 flex items-center justify-center p-6" onClick={() => setArchiveConfirm(null)}>
-          <div className="card w-full max-w-sm space-y-5" onClick={(e) => e.stopPropagation()}>
+          <div className="card w-full max-w-sm space-y-5" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5 text-rose-500" />

@@ -44,25 +44,25 @@ export default function CrmDashboardPage() {
         // Cache-first paint: returning to the CRM overview renders instantly
         // from fresh snapshots of both queries.
         if (!bypassCache) {
-          const cached = urls.map((u) => cacheGet(u));
-          if (cached.every((c) => c !== null && c.success)) {
+          const cached = urls.map((url) => cacheGet(url));
+          if (cached.every((snapshot) => snapshot !== null && snapshot.success)) {
             apply(cached[0], cached[1]);
             setLoading(false);
           }
         }
         const responses = await Promise.all(
-          urls.map((u) =>
-            fetch(u)
-              .then((r) => r.json())
+          urls.map((url) =>
+            fetch(url)
+              .then((response) => response.json())
               .catch(() => ({ success: false })),
           ),
         );
-        urls.forEach((u, i) => {
-          if (responses[i]?.success) cacheSet(u, responses[i]);
+        urls.forEach((url, index) => {
+          if (responses[index]?.success) cacheSet(url, responses[index]);
         });
         apply(responses[0], responses[1]);
-      } catch (e) {
-        console.error("CRM dashboard fetch error:", e);
+      } catch (error) {
+        console.error("CRM dashboard fetch error:", error);
       } finally {
         setLoading(false);
       }
@@ -144,18 +144,18 @@ export default function CrmDashboardPage() {
             </p>
           ) : (
             <div className="space-y-2">
-              {recentContacts.slice(0, 8).map((c) => (
+              {recentContacts.slice(0, 8).map((contact) => (
                 <Link
-                  key={c.cid}
-                  href={`/admin/crm/timeline?cid=${c.cid}`}
+                  key={contact.cid}
+                  href={`/admin/crm/timeline?cid=${contact.cid}`}
                   className="flex items-center justify-between p-3 rounded-xl hover:bg-tertiary transition-colors"
                 >
                   <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">{c.name}</p>
-                    <p className="text-[10px] font-medium text-[var(--text-secondary)]">{c.email}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">{contact.name}</p>
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)]">{contact.email}</p>
                   </div>
                   <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full bg-tertiary text-[var(--text-primary)]">
-                    {t(ROLE_LABELS[c.role] || "") || c.role || t("crm.roles.unassigned")}
+                    {t(ROLE_LABELS[contact.role] || "") || contact.role || t("crm.roles.unassigned")}
                   </span>
                 </Link>
               ))}

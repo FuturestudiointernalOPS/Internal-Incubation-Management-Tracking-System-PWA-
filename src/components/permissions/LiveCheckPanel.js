@@ -37,23 +37,23 @@ export default function LiveCheckPanel() {
         // so the suggestion list was silently always empty.)
         const url = "/api/contacts";
         const cached = cacheGet(url);
-        const d = cached?.success
+        const data = cached?.success
           ? await settled(cached)
           : await (await fetch(url)).json();
         if (!alive) return;
-        if (!d?.success) throw new Error(d?.error || "HTTP error");
-        cacheSet(url, d);
+        if (!data?.success) throw new Error(data?.error || "HTTP error");
+        cacheSet(url, data);
         setUsers(
-          (d.contacts || [])
+          (data.contacts || [])
             .slice()
-            .sort((a, b) => (a.name || "").localeCompare(b.name || "")),
+            .sort((first, second) => (first.name || "").localeCompare(second.name || "")),
         );
         setListErr("");
-      } catch (e) {
+      } catch (error) {
         // The picker is a convenience — a raw cid still works — but the user
         // is told the list is unavailable instead of being left guessing.
         if (alive) {
-          setListErr(e?.message || t("engineering.permissions.liveCheckListFailed"));
+          setListErr(error?.message || t("engineering.permissions.liveCheckListFailed"));
         }
       }
     })();
@@ -73,11 +73,11 @@ export default function LiveCheckPanel() {
       const res = await fetch(
         `/api/engineering/permissions/scope-check?${params.toString()}`,
       );
-      const d = await res.json();
-      if (!d.success) throw new Error(d.error || "scope check failed");
-      setResult(d);
-    } catch (e) {
-      setErr(e.message);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "scope check failed");
+      setResult(data);
+    } catch (error) {
+      setErr(error.message);
     } finally {
       setBusy(false);
     }
@@ -104,7 +104,7 @@ export default function LiveCheckPanel() {
           </span>
           <select
             value={policy}
-            onChange={(e) => setPolicy(e.target.value)}
+            onChange={(event) => setPolicy(event.target.value)}
             className="bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
           >
             {SCOPE_POLICY_KEYS.map((key) => (
@@ -121,15 +121,15 @@ export default function LiveCheckPanel() {
           </span>
           <input
             value={cid}
-            onChange={(e) => setCid(e.target.value)}
+            onChange={(event) => setCid(event.target.value)}
             list="live-check-users"
             placeholder={t("engineering.permissions.liveCheckUserPlaceholder")}
             className="w-56 bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
           />
           <datalist id="live-check-users">
-            {users.slice(0, 200).map((u) => (
-              <option key={u.cid} value={u.cid}>
-                {u.name || u.email || u.cid}
+            {users.slice(0, 200).map((user) => (
+              <option key={user.cid} value={user.cid}>
+                {user.name || user.email || user.cid}
               </option>
             ))}
           </datalist>
@@ -146,7 +146,7 @@ export default function LiveCheckPanel() {
           </span>
           <input
             value={resourceId}
-            onChange={(e) => setResourceId(e.target.value)}
+            onChange={(event) => setResourceId(event.target.value)}
             placeholder={t("engineering.permissions.liveCheckResourcePlaceholder")}
             className="w-56 bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
           />

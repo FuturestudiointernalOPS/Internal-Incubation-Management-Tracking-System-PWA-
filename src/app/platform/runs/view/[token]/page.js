@@ -10,13 +10,13 @@ export default function RunViewPage({ params }) {
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
 
-  const handleVerify = async (e) => {
-    e.preventDefault();
+  const handleVerify = async (event) => {
+    event.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/platform/runs/view?token=" + token + "&email=" + encodeURIComponent(email));
-      const json = await res.json();
+      const response = await fetch("/api/platform/runs/view?token=" + token + "&email=" + encodeURIComponent(email));
+      const json = await response.json();
       if (json.success) { setData(json); }
       else { setError(json.error || "Access denied."); }
     } catch (_) { setError("Failed to load. Please try again."); }
@@ -38,7 +38,7 @@ export default function RunViewPage({ params }) {
           </div>
           <p className="text-sm text-white/60">Enter the email address you were invited with to view the responses.</p>
           <form onSubmit={handleVerify} className="space-y-4">
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-orange-500/60" />
+            <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="your@email.com" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-orange-500/60" />
             {error && <p className="text-[11px] font-bold text-rose-400 text-center">{error}</p>}
             <button type="submit" disabled={loading} className="w-full py-3 bg-orange-500 text-black text-sm font-bold uppercase tracking-wide rounded-xl hover:brightness-110 disabled:opacity-40 transition-all">{loading ? "Verifying..." : "View Responses"}</button>
           </form>
@@ -60,21 +60,21 @@ export default function RunViewPage({ params }) {
         </div>
         {submissions.length === 0 ? (
           <div className="text-center py-20 text-white/30 text-sm">No responses yet.</div>
-        ) : submissions.map((sub) => (
-          <div key={sub.id} className="bg-[#1a1d27] rounded-2xl border border-white/10 p-6 space-y-4">
+        ) : submissions.map((submission) => (
+          <div key={submission.id} className="bg-[#1a1d27] rounded-2xl border border-white/10 p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-bold text-white">{sub.respondent_name || "Anonymous"}</p>
-                <p className="text-[10px] font-medium text-white/40">{sub.respondent_email}</p>
+                <p className="text-[11px] font-bold text-white">{submission.respondent_name || "Anonymous"}</p>
+                <p className="text-[10px] font-medium text-white/40">{submission.respondent_email}</p>
               </div>
-              {sub.score != null && <span className="px-2 py-1 rounded-lg bg-orange-500/10 text-orange-400 text-[10px] font-bold uppercase">{sub.score}</span>}
+              {submission.score != null && <span className="px-2 py-1 rounded-lg bg-orange-500/10 text-orange-400 text-[10px] font-bold uppercase">{submission.score}</span>}
             </div>
-            {sub.answers && sub.answers.length > 0 && (
+            {submission.answers && submission.answers.length > 0 && (
               <div className="space-y-3 pt-2 border-t border-white/5">
-                {sub.answers.map((a, ai) => (
-                  <div key={ai}>
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-0.5">{a.question_text}</p>
-                    <p className="text-sm text-white/80">{a.answer_text || "-"}</p>
+                {submission.answers.map((answer, answerIndex) => (
+                  <div key={answerIndex}>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-0.5">{answer.question_text}</p>
+                    <p className="text-sm text-white/80">{answer.answer_text || "-"}</p>
                   </div>
                 ))}
               </div>

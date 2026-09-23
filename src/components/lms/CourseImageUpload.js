@@ -23,9 +23,9 @@ export default function CourseImageUpload({ value = "", onChange }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = ""; // allow re-selecting the same file
+  const handleFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = ""; // allow re-selecting the same file
     if (!file) return;
 
     if (!ACCEPTED_TYPES.includes(file.type) && !ACCEPTED_EXT.test(file.name || "")) {

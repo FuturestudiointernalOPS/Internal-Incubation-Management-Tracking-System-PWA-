@@ -42,20 +42,20 @@ function RemovalList({ t, removals, whyLabel }) {
         <MinusCircle className="h-3 w-3" />
         {t("engineering.permissions.programScopeRemovalsTitle")}
       </p>
-      {removals.map((r) => (
+      {removals.map((removal) => (
         <div
-          key={`${r.module}.${r.capability}`}
+          key={`${removal.module}.${removal.capability}`}
           className="flex flex-wrap items-center gap-2"
         >
           <span className="text-[11px] font-bold text-[var(--text-primary)]">
-            {r.module}.{r.capability}
+            {removal.module}.{removal.capability}
           </span>
           <span className="text-[10px] text-[var(--text-secondary)]">
-            {whyLabel(r)}
+            {whyLabel(removal)}
           </span>
           <span className="text-[10px] font-bold text-amber-400">
             {t("engineering.permissions.programScopeRemovalHolders", {
-              n: r.holders ?? 0,
+              n: removal.holders ?? 0,
             })}
           </span>
         </div>
@@ -177,11 +177,11 @@ export default function ProgramPortfolioDefaultAction({ onRefresh }) {
       }
 
       setImpact(data.impact || {});
-    } catch (e) {
+    } catch (error) {
       setReadError({
         titleKey: "engineering.permissions.programPortfolioDefaultFailedTitle",
         message:
-          e.message ||
+          error.message ||
           t("engineering.permissions.programPortfolioDefaultLoadFailed"),
       });
     } finally {
@@ -270,11 +270,11 @@ export default function ProgramPortfolioDefaultAction({ onRefresh }) {
       // The default just moved: re-read the report above so its counts and
       // template rows are the truth after the change.
       onRefresh?.();
-    } catch (e) {
+    } catch (error) {
       setOutcome({
         titleKey: "engineering.permissions.programPortfolioDefaultFailedTitle",
         message:
-          e.message ||
+          error.message ||
           t("engineering.permissions.programPortfolioDefaultFailed"),
       });
     } finally {

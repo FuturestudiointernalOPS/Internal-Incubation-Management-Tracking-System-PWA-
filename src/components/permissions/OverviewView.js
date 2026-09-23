@@ -23,9 +23,9 @@ import { summarizeContextRoles } from "./overviewHelpers";
 
 /** Deterministic, locale-independent timestamp for the audit preview. */
 function formatStamp(value) {
-  const s = String(value || "");
-  if (s.length < 16) return s;
-  return `${s.slice(0, 10)} ${s.slice(11, 16)}`;
+  const stamp = String(value || "");
+  if (stamp.length < 16) return stamp;
+  return `${stamp.slice(0, 10)} ${stamp.slice(11, 16)}`;
 }
 
 export default function OverviewView({ hideRecent = false }) {
@@ -41,11 +41,11 @@ export default function OverviewView({ hideRecent = false }) {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const [cr, ap, au] = await Promise.allSettled([
-        fetch("/api/engineering/permissions/context-roles").then((r) => r.json()),
-        fetch("/api/access-profiles").then((r) => r.json()),
-        fetch("/api/engineering/permissions/audit?page=1&pageSize=5").then((r) =>
-          r.json(),
+      const [contextRolesResult, profilesResult, auditResult] = await Promise.allSettled([
+        fetch("/api/engineering/permissions/context-roles").then((response) => response.json()),
+        fetch("/api/access-profiles").then((response) => response.json()),
+        fetch("/api/engineering/permissions/audit?page=1&pageSize=5").then((response) =>
+          response.json(),
         ),
       ]);
       if (!alive) return;
@@ -56,9 +56,9 @@ export default function OverviewView({ hideRecent = false }) {
       const next = {
         loading: false,
         error: "",
-        contextRoles: pick(cr),
-        profiles: pick(ap),
-        audit: pick(au),
+        contextRoles: pick(contextRolesResult),
+        profiles: pick(profilesResult),
+        audit: pick(auditResult),
       };
       if (!next.contextRoles && !next.profiles && !next.audit) {
         next.error = t("engineering.permissions.overviewLoadFailed");
@@ -86,7 +86,7 @@ export default function OverviewView({ hideRecent = false }) {
     ? Object.keys(state.profiles.roleDefaults).length
     : null;
   const implementedPolicies = SCOPE_POLICY_KEYS.filter(
-    (k) => SCOPE_POLICIES[k]?.implemented,
+    (policyKey) => SCOPE_POLICIES[policyKey]?.implemented,
   ).length;
   const entries = state.audit?.entries || [];
 
@@ -107,9 +107,9 @@ export default function OverviewView({ hideRecent = false }) {
             { key: "profile", label: t("engineering.permissions.modelStripProfile"), href: `${PERMISSION_BASE}/profiles` },
             { key: "context", label: t("engineering.permissions.modelStripContext"), href: `${PERMISSION_BASE}/context-scope?sub=roles` },
             { key: "scope", label: t("engineering.permissions.modelStripScope"), href: `${PERMISSION_BASE}/context-scope?sub=policies` },
-          ].map((chip, i) => (
+          ].map((chip, index) => (
             <React.Fragment key={chip.key}>
-              {i > 0 && <span className="text-[var(--text-secondary)] opacity-50">→</span>}
+              {index > 0 && <span className="text-[var(--text-secondary)] opacity-50">→</span>}
               {chip.href ? (
                 <Link
                   href={chip.href}
@@ -202,9 +202,9 @@ export default function OverviewView({ hideRecent = false }) {
           </p>
         ) : (
           <ul className="divide-y divide-[var(--border-primary)]">
-            {entries.map((entry, i) => (
+            {entries.map((entry, index) => (
               <li
-                key={entry.id ?? i}
+                key={entry.id ?? index}
                 className="py-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
               >
                 <span className="font-mono text-[10px] text-[var(--text-secondary)]">
@@ -230,7 +230,7 @@ export default function OverviewView({ hideRecent = false }) {
 
       <SectionCard title={t("engineering.permissions.overviewQuickLinks")}>
         <div className="flex flex-wrap gap-2">
-          {PERMISSION_NAV.filter((n) => n.key !== "overview").map((item) => (
+          {PERMISSION_NAV.filter((navItem) => navItem.key !== "overview").map((item) => (
             <Link
               key={item.key}
               href={item.href}

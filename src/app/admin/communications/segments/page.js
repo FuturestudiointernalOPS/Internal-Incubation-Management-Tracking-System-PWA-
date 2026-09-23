@@ -10,9 +10,9 @@ import { useApi } from '@/lib/hooks/useApi';
 // Module scope on purpose: the hook keys its internal callback on these
 // functions, so inline arrows would give them a new identity on every render and
 // refetch in a loop.
-const pickSegments = (d) => (d?.success ? d.segments || [] : []);
-const pickCampaigns = (d) => (d?.success ? d.campaigns || [] : []);
-const pickForms = (d) => (d?.success ? d.forms || [] : []);
+const pickSegments = (payload) => (payload?.success ? payload.segments || [] : []);
+const pickCampaigns = (payload) => (payload?.success ? payload.campaigns || [] : []);
+const pickForms = (payload) => (payload?.success ? payload.forms || [] : []);
 
 const SEGMENT_KEY_LABELS = {
   campaign_id: 'crm.segments.filterKeyCampaign',
@@ -71,14 +71,14 @@ export default function SegmentsPage() {
   const runPreview = async (currentFilters) => {
     setIsPreviewing(true);
     try {
-      const res = await fetch('/api/segments/run', {
+      const response = await fetch('/api/segments/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filters: currentFilters })
       });
-      const data = await res.json();
-      if (data.success) {
-        setPreviewContacts(data.contacts);
+      const payload = await response.json();
+      if (payload.success) {
+        setPreviewContacts(payload.contacts);
       }
     } catch (err) {
       console.error(err);
@@ -87,8 +87,8 @@ export default function SegmentsPage() {
     }
   };
 
-  const handleFilterChange = (key, val) => {
-    const nextFilters = { ...filters, [key]: val };
+  const handleFilterChange = (key, value) => {
+    const nextFilters = { ...filters, [key]: value };
     setFilters(nextFilters);
     runPreview(nextFilters);
   };
@@ -108,13 +108,13 @@ export default function SegmentsPage() {
     }
     
     try {
-      const res = await fetch('/api/segments', {
+      const response = await fetch('/api/segments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: segmentName, filters })
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         refreshAll();
         setShowBuilder(false);
         setFilters({ campaign_id: '', status: '' });
@@ -129,20 +129,20 @@ export default function SegmentsPage() {
 
   const openLauncher = async (segment) => {
     setActiveSegment(segment);
-    const res = await fetch('/api/segments/run', {
+    const response = await fetch('/api/segments/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filters: segment.filters })
     });
-    const data = await res.json();
-    if (data.success) {
-      setPreviewContacts(data.contacts);
+    const payload = await response.json();
+    if (payload.success) {
+      setPreviewContacts(payload.contacts);
       setShowLauncher(true);
     }
   };
 
-  const launchCampaign = async (e) => {
-    e.preventDefault();
+  const launchCampaign = async (event) => {
+    event.preventDefault();
     if (!campaignConfig.name || previewContacts.length === 0) {
       window.dispatchEvent(new CustomEvent('impactos:notify', { 
          detail: { type: 'error', message: t("crm.segments.nameCampaignFirst") } 
@@ -151,25 +151,25 @@ export default function SegmentsPage() {
     }
     setIsLaunching(true);
     try {
-      const res = await fetch('/api/campaigns', {
+      const response = await fetch('/api/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           name: campaignConfig.name, 
           form_id: campaignConfig.form_id, 
-          cids: previewContacts.map(c => c.cid),
+          cids: previewContacts.map(contact => contact.cid),
           segment_id: activeSegment.id
         })
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
            detail: { type: 'success', message: t("crm.segments.campaignStarted") } 
         }));
         router.push('/admin/communications/campaigns');
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
-           detail: { type: 'error', message: t(data.error || "") || data.error } 
+           detail: { type: 'error', message: t(payload.error || "") || payload.error } 
         }));
       }
     } catch (err) { console.error(err); } finally {
@@ -215,24 +215,24 @@ export default function SegmentsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {segments.map(s => (
-              <div key={s.id} className="ios-card group hover:border-[#FF6600]/80/30 transition-all duration-300 flex flex-col justify-between text-left">
+            {segments.map(segment => (
+              <div key={segment.id} className="ios-card group hover:border-[#FF6600]/80/30 transition-all duration-300 flex flex-col justify-between text-left">
                 <div>
                   <div className="flex justify-between items-start mb-6">
                     <div className="p-3 rounded-xl bg-[#FF6600]/80/10 border border-[#FF6600]/80/20 text-indigo-400">
                       <Filter className="w-6 h-6" />
                     </div>
                   </div>
-                  <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-2 group-hover:text-indigo-400 transition-colors">{s.name}</h3>
+                  <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-2 group-hover:text-indigo-400 transition-colors">{segment.name}</h3>
                   <div className="text-xs text-slate-400 font-bold flex flex-wrap gap-2 mb-6">
-                    {Object.entries(s.filters).map(([k, v]) => v && (
-                      <span key={k} className="px-2 py-1 bg-white/5 rounded-md border border-white/10 uppercase tracking-widest">{t(SEGMENT_KEY_LABELS[k] || '') || k}: {t(SEGMENT_VALUE_LABELS[v] || '') || v}</span>
+                    {Object.entries(segment.filters).map(([filterKey, filterValue]) => filterValue && (
+                      <span key={filterKey} className="px-2 py-1 bg-white/5 rounded-md border border-white/10 uppercase tracking-widest">{t(SEGMENT_KEY_LABELS[filterKey] || '') || filterKey}: {t(SEGMENT_VALUE_LABELS[filterValue] || '') || filterValue}</span>
                     ))}
                   </div>
                 </div>
                 <div className="pt-4 border-t border-white/5 mt-auto">
                   <button 
-                    onClick={() => openLauncher(s)}
+                    onClick={() => openLauncher(segment)}
                     className="w-full flex items-center justify-center gap-2 py-3 bg-[#FF6600]/80/10 hover:bg-[#FF6600]/80 text-indigo-400 hover:text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-[#FF6600]/80/20 group-hover:border-[#FF6600]/80/50"
                   >
                     <Rocket className="w-4 h-4" /> {t("crm.segments.startCampaign")}
@@ -258,20 +258,20 @@ export default function SegmentsPage() {
                  <div className="w-full md:w-1/2 p-8 border-b md:border-b-0 md:border-r border-white/5 space-y-6">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">{t("crm.segments.segmentName")}</label>
-                      <input type="text" value={segmentName} onChange={e => setSegmentName(e.target.value)} placeholder={t("crm.segments.segmentNamePlaceholder")} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 font-bold" />
+                      <input type="text" value={segmentName} onChange={event => setSegmentName(event.target.value)} placeholder={t("crm.segments.segmentNamePlaceholder")} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 font-bold" />
                     </div>
                     <div className="space-y-4">
                       <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest pt-4 border-t border-white/5">{t("crm.segments.filters")}</label>
                       <div>
                         <label className="block text-xs font-bold text-slate-400 mb-1">{t("crm.segments.fromCampaign")}</label>
-                        <select value={filters.campaign_id} onChange={e => handleFilterChange('campaign_id', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 appearance-none font-bold">
+                        <select value={filters.campaign_id} onChange={event => handleFilterChange('campaign_id', event.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 appearance-none font-bold">
                            <option value="" className="bg-[#080810]">{t("crm.segments.anyCampaign")}</option>
-                           {campaigns.map(c => <option key={c.id} value={c.id} className="bg-[#080810]">{c.name}</option>)}
+                           {campaigns.map(campaign => <option key={campaign.id} value={campaign.id} className="bg-[#080810]">{campaign.name}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-400 mb-1">{t("crm.segments.status")}</label>
-                        <select value={filters.status} onChange={e => handleFilterChange('status', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 appearance-none font-bold">
+                        <select value={filters.status} onChange={event => handleFilterChange('status', event.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 appearance-none font-bold">
                            <option value="" className="bg-[#080810]">{t("crm.segments.statusEveryone")}</option>
                            <option value="yes" className="bg-[#080810]">{t("crm.segments.statusYes")}</option>
                            <option value="no" className="bg-[#080810]">{t("crm.segments.statusNo")}</option>
@@ -296,10 +296,10 @@ export default function SegmentsPage() {
                       <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-2 pr-2">
                          {previewContacts.length === 0 ? (
                            <p className="text-xs text-slate-500 font-bold text-center py-10">{t("crm.segments.noMatches")}</p>
-                         ) : previewContacts.map(c => (
-                           <div key={c.cid} className="p-3 bg-white/5 border border-white/5 rounded-xl flex items-center justify-between">
-                              <span className="font-bold text-sm text-white">{c.name}</span>
-                              <span className="text-[10px] text-slate-400 uppercase tracking-widest">{c.email}</span>
+                         ) : previewContacts.map(contact => (
+                           <div key={contact.cid} className="p-3 bg-white/5 border border-white/5 rounded-xl flex items-center justify-between">
+                              <span className="font-bold text-sm text-white">{contact.name}</span>
+                              <span className="text-[10px] text-slate-400 uppercase tracking-widest">{contact.email}</span>
                            </div>
                          ))}
                       </div>
@@ -323,13 +323,13 @@ export default function SegmentsPage() {
               <form onSubmit={launchCampaign} className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">{t("crm.segments.campaignName")}</label>
-                  <input required autoFocus type="text" value={campaignConfig.name} onChange={e => setCampaignConfig({...campaignConfig, name: e.target.value})} placeholder={t("crm.segments.campaignNamePlaceholder")} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-[#FF6600]/80/50 focus:bg-white/10 transition-colors font-bold" />
+                  <input required autoFocus type="text" value={campaignConfig.name} onChange={event => setCampaignConfig({...campaignConfig, name: event.target.value})} placeholder={t("crm.segments.campaignNamePlaceholder")} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-[#FF6600]/80/50 focus:bg-white/10 transition-colors font-bold" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">{t("crm.segments.formOptional")}</label>
-                  <select value={campaignConfig.form_id} onChange={e => setCampaignConfig({...campaignConfig, form_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-[#FF6600]/80/50 focus:bg-white/10 transition-colors font-bold appearance-none">
+                  <select value={campaignConfig.form_id} onChange={event => setCampaignConfig({...campaignConfig, form_id: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-[#FF6600]/80/50 focus:bg-white/10 transition-colors font-bold appearance-none">
                      <option value="" className="bg-[#080810]">{t("crm.segments.noForm")}</option>
-                     {forms.map(f => <option key={f.form_id} value={f.form_id} className="bg-[#080810]">{f.name}</option>)}
+                     {forms.map(form => <option key={form.form_id} value={form.form_id} className="bg-[#080810]">{form.name}</option>)}
                   </select>
                 </div>
                 <div className="pt-4">

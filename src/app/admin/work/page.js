@@ -29,7 +29,7 @@ import { useSessionUser } from "@/lib/hooks/useSessionUser";
 
 const EMPTY_LIST = [];
 
-const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
+const pickList = (field) => (payload) => (payload?.success ? payload[field] || [] : []);
 
 const WORK_BOARD_ENDPOINTS = [
   { key: "programs", url: "/api/programs", transform: pickList("programs") },
@@ -124,31 +124,31 @@ export default function ProjectKanbanBoard() {
   const [dragOverCol, setDragOverCol] = useState(null);
 
   // ── Drag handlers ──
-  const handleDragStart = (e, taskId) => {
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(taskId));
+  const handleDragStart = (event, taskId) => {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(taskId));
     requestAnimationFrame(() => {
-      e.target.style.opacity = "0.4";
+      event.target.style.opacity = "0.4";
     });
   };
 
-  const handleDragEnd = (e) => {
-    e.target.style.opacity = "1";
+  const handleDragEnd = (event) => {
+    event.target.style.opacity = "1";
     setDragOverCol(null);
   };
 
-  const handleDragOver = (e, colId) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
+  const handleDragOver = (event, colId) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
     if (dragOverCol !== colId) setDragOverCol(colId);
   };
 
   const handleDragLeave = () => setDragOverCol(null);
 
-  const handleDrop = async (e, targetColId) => {
-    e.preventDefault();
+  const handleDrop = async (event, targetColId) => {
+    event.preventDefault();
     setDragOverCol(null);
-    const taskId = parseInt(e.dataTransfer.getData("text/plain"));
+    const taskId = parseInt(event.dataTransfer.getData("text/plain"));
     if (!taskId) return;
 
     const newStatus = COLUMN_TO_STATUS[targetColId];
@@ -159,8 +159,8 @@ export default function ProjectKanbanBoard() {
     // accept.
     setData((prev) => ({
       ...prev,
-      tasks: (prev.tasks ?? EMPTY_LIST).map((t) =>
-        t.id === taskId ? { ...t, status: newStatus } : t,
+      tasks: (prev.tasks ?? EMPTY_LIST).map((task) =>
+        task.id === taskId ? { ...task, status: newStatus } : task,
       ),
     }));
 
@@ -170,8 +170,8 @@ export default function ProjectKanbanBoard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: taskId, status: newStatus }),
       });
-    } catch (e) {
-      console.error("Move failed:", e);
+    } catch (error) {
+      console.error("Move failed:", error);
       refresh();
     }
   };
@@ -182,18 +182,18 @@ export default function ProjectKanbanBoard() {
   const handleDeleteTask = useCallback(async (taskId) => {
     setDeletingTaskId(taskId);
     try {
-      const res = await fetch(`/api/tasks?id=${taskId}`, { method: "DELETE" });
-      const data = await res.json();
+      const response = await fetch(`/api/tasks?id=${taskId}`, { method: "DELETE" });
+      const data = await response.json();
       if (data.success) {
         setData((prev) => ({
           ...prev,
-          tasks: (prev.tasks ?? EMPTY_LIST).filter((t) => t.id !== taskId),
+          tasks: (prev.tasks ?? EMPTY_LIST).filter((task) => task.id !== taskId),
         }));
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || t("adminMisc.work.deleteTaskFailed")) || "") || (data.error || t("adminMisc.work.deleteTaskFailed")) } }));
       }
-    } catch (e) {
-      console.error("Delete error:", e);
+    } catch (error) {
+      console.error("Delete error:", error);
       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t("adminMisc.work.deleteTaskNetworkError") } }));
     } finally {
       setDeletingTaskId(null);
@@ -213,16 +213,16 @@ export default function ProjectKanbanBoard() {
       };
     });
 
-    const filteredTasks = allTasks.filter((t) => {
+    const filteredTasks = allTasks.filter((task) => {
       if (!search) return true;
-      const q = search.toLowerCase();
-      return (t.title || "").toLowerCase().includes(q);
+      const query = search.toLowerCase();
+      return (task.title || "").toLowerCase().includes(query);
     });
 
     // Build program → project → task tree
     const programMap = {};
-    programs.forEach((p) => {
-      programMap[p.id] = p;
+    programs.forEach((program) => {
+      programMap[program.id] = program;
     });
 
     for (const task of filteredTasks) {
@@ -231,7 +231,7 @@ export default function ProjectKanbanBoard() {
           ? "pending_approval"
           : COLUMN_TO_STATUS[task.status]
             ? Object.entries(COLUMN_TO_STATUS).find(
-                ([, v]) => v === task.status,
+                ([, status]) => status === task.status,
               )?.[0]
             : "planning";
 
@@ -240,7 +240,7 @@ export default function ProjectKanbanBoard() {
 
       // Find the task's project
       const project = projects.find(
-        (p) => String(p.id) === String(task.project_id),
+        (projectOption) => String(projectOption.id) === String(task.project_id),
       );
 
       if (!project) {
@@ -275,10 +275,10 @@ export default function ProjectKanbanBoard() {
         noProjectTasks: data.noProjectTasks,
         total:
           Object.values(data.programTree).reduce(
-            (sum, p) =>
+            (sum, program) =>
               sum +
-              Object.values(p.projects).reduce(
-                (s, pr) => s + pr.tasks.length,
+              Object.values(program.projects).reduce(
+                (total, project) => total + project.tasks.length,
                 0,
               ),
             0,
@@ -291,16 +291,16 @@ export default function ProjectKanbanBoard() {
 
   // ── Toggle expand ──
   const toggleProgram = (id) =>
-    setExpandedPrograms((p) => ({ ...p, [id]: !p[id] }));
+    setExpandedPrograms((previous) => ({ ...previous, [id]: !previous[id] }));
   const toggleProject = (id) =>
-    setExpandedProjects((p) => ({ ...p, [id]: !p[id] }));
+    setExpandedProjects((previous) => ({ ...previous, [id]: !previous[id] }));
 
   // ── Render a single task card ──
   const renderTaskCard = (task) => (
     <div
       key={task.id}
       draggable
-      onDragStart={(e) => handleDragStart(e, task.id)}
+      onDragStart={(event) => handleDragStart(event, task.id)}
       onDragEnd={handleDragEnd}
       className={`p-2 rounded-lg border border-[var(--border-primary)] bg-tertiary/50 cursor-grab active:cursor-grabbing hover:border-[var(--brand-orange)]/30 transition-colors ${
         task.status === "completed" ? "opacity-60" : ""
@@ -385,7 +385,7 @@ export default function ProjectKanbanBoard() {
                 type="text"
                 placeholder={t("adminMisc.work.searchPlaceholder")}
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(event) => setSearch(event.target.value)}
                 className="w-56 pl-9 pr-4 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-medium text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)] transition-all"
               />
             </div>
@@ -408,9 +408,9 @@ export default function ProjectKanbanBoard() {
                   ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/5"
                   : "border-[var(--border-primary)] bg-tertiary/30"
               }`}
-              onDragOver={(e) => handleDragOver(e, col.id)}
+              onDragOver={(event) => handleDragOver(event, col.id)}
               onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, col.id)}
+              onDrop={(event) => handleDrop(event, col.id)}
             >
               {/* Column Header */}
               <div

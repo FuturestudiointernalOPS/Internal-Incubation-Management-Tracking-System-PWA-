@@ -14,9 +14,9 @@ import { useApi } from "@/lib/hooks/useApi";
 
 const EMPTY_LIST = [];
 
-const pickVenture = (d) => (d?.success ? d.venture || null : null);
-const pickMatches = (d) => (d?.success ? d.matches || [] : []);
-const pickInvestors = (d) => (d?.success ? d.investors || [] : []);
+const pickVenture = (payload) => (payload?.success ? payload.venture || null : null);
+const pickMatches = (payload) => (payload?.success ? payload.matches || [] : []);
+const pickInvestors = (payload) => (payload?.success ? payload.investors || [] : []);
 
 export default function VentureInvestorsPage() {
   const { id } = useParams();
@@ -85,7 +85,7 @@ export default function VentureInvestorsPage() {
     setSaving(true);
     await fetch(`/api/ventures/${id}/investors`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "create_investor", ...invForm, industries: invForm.industries ? invForm.industries.split(",").map((s) => s.trim()) : [] }),
+      body: JSON.stringify({ action: "create_investor", ...invForm, industries: invForm.industries ? invForm.industries.split(",").map((tag) => tag.trim()) : [] }),
     });
     setSaving(false);
     setShowCreateModal(false);
@@ -103,10 +103,10 @@ export default function VentureInvestorsPage() {
     <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
-  const filteredMatches = matches.filter((m) => {
+  const filteredMatches = matches.filter((match) => {
     if (!search) return true;
-    const q = search.toLowerCase();
-    return m.investor_name?.toLowerCase().includes(q) || m.organization?.toLowerCase().includes(q);
+    const query = search.toLowerCase();
+    return match.investor_name?.toLowerCase().includes(query) || match.organization?.toLowerCase().includes(query);
   });
 
   return (
@@ -154,7 +154,7 @@ export default function VentureInvestorsPage() {
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search investors..."
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search investors..."
             className="w-full pl-12 pr-4 py-3 bg-secondary border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
         </div>
 
@@ -164,46 +164,46 @@ export default function VentureInvestorsPage() {
             {filteredMatches.length === 0 ? (
               <div className="text-center py-16"><Target className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-[var(--text-secondary)]">No matches yet. Click &quot;Generate Matches&quot; to find investors.</p></div>
             ) : (
-              filteredMatches.map((m) => (
-                <div key={m.id} className="p-5 rounded-2xl bg-tertiary border border-[var(--border-primary)]">
+              filteredMatches.map((match) => (
+                <div key={match.id} className="p-5 rounded-2xl bg-tertiary border border-[var(--border-primary)]">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-4 min-w-0">
                       <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-black shrink-0 ${
-                        m.match_score >= 70 ? "bg-emerald-500/20 text-emerald-400" :
-                        m.match_score >= 40 ? "bg-amber-500/20 text-amber-400" :
+                        match.match_score >= 70 ? "bg-emerald-500/20 text-emerald-400" :
+                        match.match_score >= 40 ? "bg-amber-500/20 text-amber-400" :
                         "bg-slate-500/10 text-slate-400"
-                      }`}>{m.investor_name?.charAt(0) || "?"}</div>
+                      }`}>{match.investor_name?.charAt(0) || "?"}</div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-bold text-[var(--text-primary)]">{m.investor_name}</p>
-                          {m.organization && <span className="text-[10px] text-[var(--text-secondary)]">{m.organization}</span>}
+                          <p className="text-sm font-bold text-[var(--text-primary)]">{match.investor_name}</p>
+                          {match.organization && <span className="text-[10px] text-[var(--text-secondary)]">{match.organization}</span>}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-2xl font-black">{m.match_score}</span>
+                          <span className="text-2xl font-black">{match.match_score}</span>
                           <span className="text-[10px] text-[var(--text-secondary)]">/100 match</span>
                         </div>
-                        {progressBar(m.match_score)}
+                        {progressBar(match.match_score)}
                         {/* Match reasons */}
-                        {(m.match_reasons || []).length > 0 && (
+                        {(match.match_reasons || []).length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-2">
-                            {m.match_reasons.map((r, i) => <span key={i} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">{r}</span>)}
+                            {match.match_reasons.map((reason, index) => <span key={index} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">{reason}</span>)}
                           </div>
                         )}
                         {/* Ticket range */}
-                        {m.min_ticket && m.max_ticket && (
-                          <p className="text-[10px] text-[var(--text-secondary)] mt-1">Ticket: ${parseInt(m.min_ticket).toLocaleString()} — ${parseInt(m.max_ticket).toLocaleString()}</p>
+                        {match.min_ticket && match.max_ticket && (
+                          <p className="text-[10px] text-[var(--text-secondary)] mt-1">Ticket: ${parseInt(match.min_ticket).toLocaleString()} — ${parseInt(match.max_ticket).toLocaleString()}</p>
                         )}
                       </div>
                     </div>
                     <div className="flex gap-2 shrink-0">
-                      {m.status === "pending" && (
+                      {match.status === "pending" && (
                         <>
-                          <button onClick={() => handleUpdateMatch(m.id, "contacted")} className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg text-[10px] font-bold uppercase hover:brightness-110">Contact</button>
-                          <button onClick={() => handleUpdateMatch(m.id, "rejected")} className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[10px] font-bold uppercase hover:brightness-110">Pass</button>
+                          <button onClick={() => handleUpdateMatch(match.id, "contacted")} className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg text-[10px] font-bold uppercase hover:brightness-110">Contact</button>
+                          <button onClick={() => handleUpdateMatch(match.id, "rejected")} className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[10px] font-bold uppercase hover:brightness-110">Pass</button>
                         </>
                       )}
-                      {m.status === "contacted" && <span className="text-[10px] font-bold text-amber-400">Contacted</span>}
-                      {m.status === "accepted" && <span className="text-[10px] font-bold text-emerald-400">Accepted</span>}
+                      {match.status === "contacted" && <span className="text-[10px] font-bold text-amber-400">Contacted</span>}
+                      {match.status === "accepted" && <span className="text-[10px] font-bold text-emerald-400">Accepted</span>}
                     </div>
                   </div>
                 </div>
@@ -218,22 +218,22 @@ export default function VentureInvestorsPage() {
             {allInvestors.length === 0 ? (
               <div className="text-center py-16"><Building2 className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-[var(--text-secondary)]">No investors in directory</p></div>
             ) : (
-              allInvestors.map((inv) => (
-                <div key={inv.id} className="flex items-center justify-between p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+              allInvestors.map((investor) => (
+                <div key={investor.id} className="flex items-center justify-between p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-sm font-black text-[var(--brand-orange)]">{inv.name?.charAt(0)}</div>
+                    <div className="w-10 h-10 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-sm font-black text-[var(--brand-orange)]">{investor.name?.charAt(0)}</div>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-[var(--text-primary)]">{inv.name}</p>
-                      <p className="text-[10px] text-[var(--text-secondary)]">{inv.organization || inv.email}</p>
+                      <p className="text-xs font-bold text-[var(--text-primary)]">{investor.name}</p>
+                      <p className="text-[10px] text-[var(--text-secondary)]">{investor.organization || investor.email}</p>
                       <div className="flex gap-1 mt-1 flex-wrap">
-                        {(inv.industries || []).slice(0, 3).map((ind, i) => <span key={i} className="text-[10px] font-bold px-1 rounded bg-slate-500/10 text-slate-400">{ind}</span>)}
-                        {inv.preferred_stage && <span className="text-[10px] font-bold px-1 rounded bg-amber-500/10 text-amber-400 capitalize">{inv.preferred_stage}</span>}
+                        {(investor.industries || []).slice(0, 3).map((ind, i) => <span key={i} className="text-[10px] font-bold px-1 rounded bg-slate-500/10 text-slate-400">{ind}</span>)}
+                        {investor.preferred_stage && <span className="text-[10px] font-bold px-1 rounded bg-amber-500/10 text-amber-400 capitalize">{investor.preferred_stage}</span>}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {inv.website_url && <a href={inv.website_url} target="_blank" className="p-1.5 text-slate-500 hover:text-[var(--brand-orange)]" rel="noreferrer"><Globe className="w-3.5 h-3.5" /></a>}
-                    {inv.linkedin_url && <a href={inv.linkedin_url} target="_blank" className="p-1.5 text-slate-500 hover:text-[var(--brand-orange)]" rel="noreferrer"><Linkedin className="w-3.5 h-3.5" /></a>}
+                    {investor.website_url && <a href={investor.website_url} target="_blank" className="p-1.5 text-slate-500 hover:text-[var(--brand-orange)]" rel="noreferrer"><Globe className="w-3.5 h-3.5" /></a>}
+                    {investor.linkedin_url && <a href={investor.linkedin_url} target="_blank" className="p-1.5 text-slate-500 hover:text-[var(--brand-orange)]" rel="noreferrer"><Linkedin className="w-3.5 h-3.5" /></a>}
                   </div>
                 </div>
               ))
@@ -254,25 +254,25 @@ export default function VentureInvestorsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">Name *</label>
-                  <input value={invForm.name} onChange={(e) => setInvForm((p) => ({ ...p, name: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                  <input value={invForm.name} onChange={(event) => setInvForm((previous) => ({ ...previous, name: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">Email *</label>
-                  <input type="email" value={invForm.email} onChange={(e) => setInvForm((p) => ({ ...p, email: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                  <input type="email" value={invForm.email} onChange={(event) => setInvForm((previous) => ({ ...previous, email: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
               </div>
               <div>
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">Organization</label>
-                <input value={invForm.organization} onChange={(e) => setInvForm((p) => ({ ...p, organization: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                <input value={invForm.organization} onChange={(event) => setInvForm((previous) => ({ ...previous, organization: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">Industries (comma-separated)</label>
-                  <input value={invForm.industries} onChange={(e) => setInvForm((p) => ({ ...p, industries: e.target.value }))} placeholder="fintech, saas" className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                  <input value={invForm.industries} onChange={(event) => setInvForm((previous) => ({ ...previous, industries: event.target.value }))} placeholder="fintech, saas" className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">Preferred Stage</label>
-                  <select value={invForm.preferred_stage} onChange={(e) => setInvForm((p) => ({ ...p, preferred_stage: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
+                  <select value={invForm.preferred_stage} onChange={(event) => setInvForm((previous) => ({ ...previous, preferred_stage: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
                     <option value="">Any</option><option value="idea">Idea</option><option value="validation">Validation</option>
                     <option value="early_traction">Early Traction</option><option value="growth">Growth</option><option value="scaling">Scaling</option>
                   </select>

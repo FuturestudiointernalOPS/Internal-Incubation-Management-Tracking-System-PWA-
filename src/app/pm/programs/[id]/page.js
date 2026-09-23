@@ -55,9 +55,9 @@ export const dynamic = "force-dynamic";
 // Shapes the assigned registration-form read: the active Form Run becomes the
 // public link shown in the header, or null when there is none to show.
 // Module scope on purpose - the read keys on the address, never on this.
-function pickRegForm(d) {
-  const run = (d?.success ? d.runs || [] : []).find(
-    (x) => x.status === "active" && x.public_slug,
+function pickRegForm(payload) {
+  const run = (payload?.success ? payload.runs || [] : []).find(
+    (entry) => entry.status === "active" && entry.public_slug,
   );
   return run
     ? {
@@ -69,8 +69,8 @@ function pickRegForm(d) {
 
 // Shapes the facilitator-reviews read: the list, or empty when the server
 // refused - the screen shows its empty state for that, as its first load did.
-function pickReviews(d) {
-  return d?.success ? d.reviews || [] : [];
+function pickReviews(payload) {
+  return payload?.success ? payload.reviews || [] : [];
 }
 
 function ProgramWorkspace() {
@@ -156,24 +156,24 @@ function ProgramWorkspace() {
   const programTeamMembers = React.useMemo(() => {
     if (!assignedAssistantId) return [];
     try {
-      const raw = assignedAssistantId;
+      const rawAssistantIds = assignedAssistantId;
       let approvedIds = [];
       // Handle both JSON array string and single CID string
-      if (typeof raw === "string") {
-        if (raw.startsWith("[")) {
-          approvedIds = JSON.parse(raw);
+      if (typeof rawAssistantIds === "string") {
+        if (rawAssistantIds.startsWith("[")) {
+          approvedIds = JSON.parse(rawAssistantIds);
         } else {
-          approvedIds = [raw];
+          approvedIds = [rawAssistantIds];
         }
-      } else if (Array.isArray(raw)) {
-        approvedIds = raw;
+      } else if (Array.isArray(rawAssistantIds)) {
+        approvedIds = rawAssistantIds;
       }
       if (!Array.isArray(approvedIds)) return [];
       const allAvailable = [...staffList, ...assignedStaff];
       const unique = Array.from(
-        new Map(allAvailable.map((s) => [s.cid, s])).values(),
+        new Map(allAvailable.map((member) => [member.cid, member])).values(),
       );
-      return unique.filter((s) => approvedIds.includes(s.cid) && s.role !== "investor");
+      return unique.filter((member) => approvedIds.includes(member.cid) && member.role !== "investor");
     } catch {
       return [];
     }
@@ -184,7 +184,7 @@ function ProgramWorkspace() {
   const oversightCandidates = React.useMemo(() => {
     const merged = [...assignedStaff, ...facilitators];
     return Array.from(
-      new Map(merged.map((s) => [s.cid ?? s.email ?? s.id, s])).values(),
+      new Map(merged.map((member) => [member.cid ?? member.email ?? member.id, member])).values(),
     );
   }, [assignedStaff, facilitators]);
 
@@ -228,14 +228,14 @@ function ProgramWorkspace() {
     if (!showAttendanceModal || !selectedSessionForAttendance || !attendanceDate) return;
     const loadAttendance = async () => {
       try {
-        const res = await fetch(
+        const response = await fetch(
           `/api/attendance?session_id=${selectedSessionForAttendance.id}&program_id=${id}&date=${attendanceDate}`
         );
-        const data = await res.json();
+        const data = await response.json();
         if (data.success && data.attendance) {
           const records = {};
-          data.attendance.forEach((a) => {
-            records[a.participant_id] = a.status;
+          data.attendance.forEach((record) => {
+            records[record.participant_id] = record.status;
           });
           setAttendanceRecords(records);
           setAttendanceLoaded(records);
@@ -341,14 +341,14 @@ function ProgramWorkspace() {
   const configEndRef = useRef(null);
   const configGradingRef = useRef(null);
 
-  const notify = (msg, type = "success") => {
-    window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type, message: msg } }));
+  const notify = (message, type = "success") => {
+    window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type, message } }));
   };
 
   const saveConfig = async () => {
     setIsSaving(true);
     try {
-      const res = await fetch("/api/pm/programs", {
+      const response = await fetch("/api/pm/programs", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -370,7 +370,7 @@ function ProgramWorkspace() {
           grading_mode: configGradingRef.current?.value || "graded",
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("pmMisc.workspace.saved"));
         fetchProgramData(true);
@@ -393,10 +393,10 @@ function ProgramWorkspace() {
       const method = teamAssignmentMode === "new" ? "POST" : "PATCH";
 
       // Auto-detect group_name from selected participants
-      const firstPar = participants.find(
-        (p) => p.id === selectedParticipants[0],
+      const firstParticipant = participants.find(
+        (participant) => participant.id === selectedParticipants[0],
       );
-      const detectedGroupName = firstPar?.group_name || "Individual";
+      const detectedGroupName = firstParticipant?.group_name || "Individual";
 
       const payload =
         teamAssignmentMode === "new"
@@ -415,13 +415,13 @@ function ProgramWorkspace() {
             member_ids: selectedParticipants,
           };
 
-      const res = await fetch(endpoint, {
+      const response = await fetch(endpoint, {
         method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(
           teamAssignmentMode === "new"
@@ -454,7 +454,7 @@ function ProgramWorkspace() {
     if (!participantId || !newTeamId) return;
     setIsSaving(true);
     try {
-      const res = await fetch("/api/pm/teams", {
+      const response = await fetch("/api/pm/teams", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -462,7 +462,7 @@ function ProgramWorkspace() {
           member_ids: [participantId],
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("pmMisc.workspace.participantMoved"));
         fetchProgramData(true);
@@ -480,12 +480,12 @@ function ProgramWorkspace() {
   const changeTeamHandler = async (teamId, handlerId) => {
     if (!teamId) return;
     const staff = oversightCandidates.find(
-      (s) => String(s.cid) === String(handlerId || ""),
+      (member) => String(member.cid) === String(handlerId || ""),
     );
     const handlerName = handlerId ? staff?.name || "" : "";
     setIsSaving(true);
     try {
-      const res = await fetch("/api/pm/teams", {
+      const response = await fetch("/api/pm/teams", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -495,7 +495,7 @@ function ProgramWorkspace() {
           handler_name: handlerName,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("pmMisc.workspace.facilitatorUpdated"));
         setShowFacilitatorSelect(false);
@@ -521,7 +521,7 @@ function ProgramWorkspace() {
     if (!selectedTeam || !participantId) return;
     setIsSaving(true);
     try {
-      const res = await fetch("/api/pm/teams", {
+      const response = await fetch("/api/pm/teams", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -530,7 +530,7 @@ function ProgramWorkspace() {
           member_id: participantId,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("pmMisc.workspace.memberRemoved"));
         fetchProgramData(true);
@@ -549,23 +549,23 @@ function ProgramWorkspace() {
   const addEmailsToSelection = () => {
     const emails = emailInput
       .split(/[,;\n]+/)
-      .map((e) => e.trim().toLowerCase())
+      .map((email) => email.trim().toLowerCase())
       .filter(Boolean);
     if (emails.length === 0) return;
 
     const emailSet = new Set(emails);
     const matched = new Set();
     const matchedEmails = new Set();
-    participants.forEach((p) => {
+    participants.forEach((participant) => {
       if (
-        p.email &&
-        emailSet.has(String(p.email).trim().toLowerCase())
+        participant.email &&
+        emailSet.has(String(participant.email).trim().toLowerCase())
       ) {
-        matched.add(p.id);
-        matchedEmails.add(String(p.email).trim().toLowerCase());
+        matched.add(participant.id);
+        matchedEmails.add(String(participant.email).trim().toLowerCase());
       }
     });
-    const notFound = emails.filter((e) => !matchedEmails.has(e));
+    const notFound = emails.filter((email) => !matchedEmails.has(email));
 
     setSelectedParticipants((prev) =>
       Array.from(new Set([...prev, ...matched])),
@@ -601,7 +601,7 @@ function ProgramWorkspace() {
     }
     setIsSaving(true);
     try {
-      const res = await fetch("/api/pm/curriculum", {
+      const response = await fetch("/api/pm/curriculum", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -621,7 +621,7 @@ function ProgramWorkspace() {
           requirements: newSession.requirements || [],
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("pmMisc.workspace.added"));
         setShowSessionModal(false);
@@ -629,7 +629,7 @@ function ProgramWorkspace() {
           title: "",
           week_number:
             sessions.length > 0
-              ? Math.max(...sessions.map((s) => s.week_number || 0)) + 1
+              ? Math.max(...sessions.map((session) => session.week_number || 0)) + 1
               : 1,
           status: "pending",
           kpi_ids: [],
@@ -660,12 +660,12 @@ function ProgramWorkspace() {
     setIsSaving(true);
     try {
       // Derive grading from linked KPIs
-      const linkedKpis = kpis.filter(k => (newRequirement.kpi_ids || []).includes(k.id));
+      const linkedKpis = kpis.filter(kpi => (newRequirement.kpi_ids || []).includes(kpi.id));
       const avgWeight = linkedKpis.length > 0
-        ? parseFloat((linkedKpis.reduce((s, k) => s + (parseFloat(k.weight) || 0), 0) / linkedKpis.length).toFixed(2))
+        ? parseFloat((linkedKpis.reduce((sum, kpi) => sum + (parseFloat(kpi.weight) || 0), 0) / linkedKpis.length).toFixed(2))
         : 1;
 
-      const res = await fetch("/api/pm/curriculum", {
+      const response = await fetch("/api/pm/curriculum", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -684,7 +684,7 @@ function ProgramWorkspace() {
           weight: avgWeight,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("pmMisc.workspace.added"));
         if (shouldClose) setShowRequirementModal(false);
@@ -712,11 +712,11 @@ function ProgramWorkspace() {
     // Optimistic Update
     const previousSessions = [...sessions];
     setSessions((prev) =>
-      prev.map((s) => (s.id === sessionId ? { ...s, status } : s)),
+      prev.map((session) => (session.id === sessionId ? { ...session, status } : session)),
     );
 
     try {
-      const res = await fetch("/api/pm/curriculum", {
+      const response = await fetch("/api/pm/curriculum", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -726,7 +726,7 @@ function ProgramWorkspace() {
           status,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("pmMisc.workspace.statusUpdatedTo", { status: status.toUpperCase() }));
         // Sync with server just in case
@@ -749,13 +749,13 @@ function ProgramWorkspace() {
   ) => {
     // Optimistic update: apply to local state immediately
     setSessions((prev) =>
-      prev.map((s) =>
-        s.id === sessionId ? { ...s, [field]: value } : s,
+      prev.map((session) =>
+        session.id === sessionId ? { ...session, [field]: value } : session,
       ),
     );
 
     try {
-      const res = await fetch("/api/pm/curriculum", {
+      const response = await fetch("/api/pm/curriculum", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -766,7 +766,7 @@ function ProgramWorkspace() {
           handlerName,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         const silentFields = ["title", "description", "notes"];
         if (!silentFields.includes(field)) {
@@ -776,7 +776,7 @@ function ProgramWorkspace() {
 
         // When a staff member is assigned, create a task for their calendar
         if (field === "handler_id" && value && handlerName) {
-          const session = sessions.find((s) => s.id === sessionId);
+          const session = sessions.find((candidate) => candidate.id === sessionId);
           if (session) {
             const now = new Date();
             const weekNumber = getWeekNumber(now);
@@ -801,7 +801,7 @@ function ProgramWorkspace() {
           }
         }
       } else {
-        if (res.status === 401) {
+        if (response.status === 401) {
           notify(t("pmMisc.workspace.sessionExpired"), "error");
         } else {
           notify(t((data.error || t("pmMisc.workspace.fieldSyncFailed")) || "") || (data.error || t("pmMisc.workspace.fieldSyncFailed")), "error");
@@ -813,22 +813,22 @@ function ProgramWorkspace() {
   };
 
   // Upload a PDF attachment for the weekly report (stored in Supabase storage).
-  const handleReportAttachmentUpload = async (e) => {
-    const file = e.target.files?.[0];
+  const handleReportAttachmentUpload = async (event) => {
+    const file = event.target.files?.[0];
     if (!file) return;
     if (file.type !== "application/pdf" && !/\.pdf$/i.test(file.name)) {
       notify(t("pmMisc.workspace.attachmentPdfOnly"), "error");
-      e.target.value = "";
+      event.target.value = "";
       return;
     }
     setIsSaving(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await response.json();
       if (data.success && data.url) {
-        setPmReportAttachments((p) => ({ ...p, type: "file", url: data.url }));
+        setPmReportAttachments((prev) => ({ ...prev, type: "file", url: data.url }));
         notify(t("pmMisc.workspace.attachmentUploaded"));
       } else {
         notify(t((data.error || t("pmMisc.workspace.attachmentUploadFailed")) || "") || (data.error || t("pmMisc.workspace.attachmentUploadFailed")), "error");
@@ -837,7 +837,7 @@ function ProgramWorkspace() {
       notify(t("pmMisc.workspace.attachmentUploadFailed"), "error");
     } finally {
       setIsSaving(false);
-      e.target.value = "";
+      event.target.value = "";
     }
   };
 
@@ -860,7 +860,7 @@ function ProgramWorkspace() {
         action: "submit_pm_report",
         program_id: id,
         session_id: selectedSessionId,
-        week_number: sessions.find((s) => s.id === selectedSessionId)
+        week_number: sessions.find((session) => session.id === selectedSessionId)
           ?.week_number,
         summary: newPMReport.summary,
         status: newPMReport.status,
@@ -895,12 +895,12 @@ function ProgramWorkspace() {
         attachment_type: pmReportAttachments.type || null,
         attachment_url: pmReportAttachments.url || null,
       };
-      const res = await fetch("/api/pm/reports", {
+      const response = await fetch("/api/pm/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("pmMisc.workspace.reportTransmitted"));
         setShowPMReportModal(false);
@@ -949,12 +949,12 @@ function ProgramWorkspace() {
     if (!newKPI.title.trim()) return;
     setIsSaving(true);
     try {
-      const res = await fetch("/api/v2/kpis", {
+      const response = await fetch("/api/v2/kpis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...newKPI, program_id: id }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("pmMisc.workspace.kpiDefined"));
         setShowKPIModal(false);
@@ -995,12 +995,12 @@ function ProgramWorkspace() {
     if (!newStaff.staff_id) return;
     setIsSaving(true);
     try {
-      const res = await fetch("/api/v2/program-staff", {
+      const response = await fetch("/api/v2/program-staff", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...newStaff, program_id: id }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("pmMisc.workspace.personnelAssigned"));
         setShowStaffModal(false);
@@ -1024,7 +1024,7 @@ function ProgramWorkspace() {
 
   const performRemoveStaff = async (staffId) => {
     try {
-      const record = assignedStaff.find((s) => s.cid === staffId);
+      const record = assignedStaff.find((member) => member.cid === staffId);
       if (record && record.id) {
         await fetch("/api/v2/program-staff", {
           method: "DELETE",
@@ -1046,12 +1046,12 @@ function ProgramWorkspace() {
 
   const performDeleteTeam = async (teamId) => {
     try {
-      const res = await fetch("/api/pm/teams", {
+      const response = await fetch("/api/pm/teams", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: teamId }),
       });
-      if ((await res.json()).success) {
+      if ((await response.json()).success) {
         notify(t("pmMisc.workspace.groupDecommissioned"));
         fetchProgramData(true);
       }
@@ -1091,7 +1091,7 @@ function ProgramWorkspace() {
     if (!selectedSubmission) return;
     setIsSaving(true);
     try {
-      const res = await fetch("/api/submissions", {
+      const response = await fetch("/api/submissions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1101,7 +1101,7 @@ function ProgramWorkspace() {
           feedback: "Graded via PM Dashboard",
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("pmMisc.workspace.submissionGraded"));
         setShowReviewModal(false);
@@ -1125,7 +1125,7 @@ function ProgramWorkspace() {
     }
     setIsSaving(true);
     try {
-      const res = await fetch("/api/submissions", {
+      const response = await fetch("/api/submissions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1134,7 +1134,7 @@ function ProgramWorkspace() {
           feedback: reviewFeedback.trim(),
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("pmMisc.workspace.submissionGraded"));
         setShowReviewModal(false);
@@ -1154,7 +1154,7 @@ function ProgramWorkspace() {
     if (!selectedSubmission) return;
     setIsSaving(true);
     try {
-      const res = await fetch("/api/submissions", {
+      const response = await fetch("/api/submissions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1164,7 +1164,7 @@ function ProgramWorkspace() {
           feedback: reviewFeedback.trim() || "Rejected",
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("pmMisc.workspace.submissionGraded"));
         setShowReviewModal(false);
@@ -1192,27 +1192,27 @@ function ProgramWorkspace() {
     { defaultValue: [], transform: pickReviews },
   );
 
-  const reviewRatingLabel = (v) =>
-    FACILITATOR_REVIEW_OPTIONS.ratings.includes(v)
-      ? t(`pmMisc.facilitators.weeklyReview.rating_${v}`)
-      : v || "";
-  const reviewEngagementLabel = (v) =>
-    FACILITATOR_REVIEW_OPTIONS.engagement.includes(v)
-      ? t(`pmMisc.facilitators.weeklyReview.engagement_${v}`)
-      : v || "";
-  const reviewAttentionLabel = (v) =>
-    FACILITATOR_REVIEW_OPTIONS.attention.includes(v)
-      ? t(`pmMisc.facilitators.weeklyReview.attention_${v}`)
-      : v || "";
+  const reviewRatingLabel = (value) =>
+    FACILITATOR_REVIEW_OPTIONS.ratings.includes(value)
+      ? t(`pmMisc.facilitators.weeklyReview.rating_${value}`)
+      : value || "";
+  const reviewEngagementLabel = (value) =>
+    FACILITATOR_REVIEW_OPTIONS.engagement.includes(value)
+      ? t(`pmMisc.facilitators.weeklyReview.engagement_${value}`)
+      : value || "";
+  const reviewAttentionLabel = (value) =>
+    FACILITATOR_REVIEW_OPTIONS.attention.includes(value)
+      ? t(`pmMisc.facilitators.weeklyReview.attention_${value}`)
+      : value || "";
 
   const handleReviewDecision = async (reviewId, decision) => {
     try {
-      const res = await fetch("/api/facilitator-reviews", {
+      const response = await fetch("/api/facilitator-reviews", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: reviewId, pm_decision: decision }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("pmMisc.workspace.reviewDecided") || "Review updated");
         refreshReviews();
@@ -1232,7 +1232,7 @@ function ProgramWorkspace() {
     }
     setIsSaving(true);
     try {
-      const res = await fetch("/api/submissions", {
+      const response = await fetch("/api/submissions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1247,7 +1247,7 @@ function ProgramWorkspace() {
           followup_notes: followupNotes || null,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("pmMisc.workspace.followupScheduled"));
         setShowReviewModal(false);
@@ -1264,12 +1264,12 @@ function ProgramWorkspace() {
   };
 
   // Open a submission's attachment: PDFs open in the built-in viewer, anything else in a new tab.
-  const handleViewSubmission = (sub) => {
+  const handleViewSubmission = (submission) => {
     const url =
-      sub.file_url ||
-      sub.submission_url ||
-      sub.submission_link ||
-      sub.supporting_url ||
+      submission.file_url ||
+      submission.submission_url ||
+      submission.submission_link ||
+      submission.supporting_url ||
       null;
     if (!url) {
       notify(t("pmMisc.workspace.noSubmissionFile"), "error");
@@ -1280,7 +1280,7 @@ function ProgramWorkspace() {
       setActivePDF({
         url,
         name:
-          sub.deliverable_title ||
+          submission.deliverable_title ||
           t("pmMisc.workspace.submissionDocument"),
       });
     } else {
@@ -1296,7 +1296,7 @@ function ProgramWorkspace() {
     }
     setIsSaving(true);
     try {
-      const res = await fetch("/api/submissions", {
+      const response = await fetch("/api/submissions", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1305,7 +1305,7 @@ function ProgramWorkspace() {
           score: numericScore,
         }),
       });
-      if ((await res.json()).success) {
+      if ((await response.json()).success) {
         notify(t("pmMisc.workspace.scoresSynced", { score: numericScore }));
         setEditingScoreFor(null);
         setScoreDraft("");
@@ -1323,21 +1323,21 @@ function ProgramWorkspace() {
   const fetchProgramData = useCallback(
     async (bypassCache = false) => {
       const url = `/api/pm/full-state?id=${id}&metrics=true`;
-      const apply = (res) => {
-        if (res?.success) {
-          setProgram(res.program);
-          setSessions(res.sessions || []);
-          setTeams(res.teams || []);
-          setParticipants(res.participants || []);
-          setSubmissions(res.submissions || []);
-          setRequirements(res.documents || []);
-          setKpis(res.kpis || []);
-          setEvents(res.events || []);
-          setAssignedStaff(res.assignedStaff || []);
-          setFacilitators(res.facilitators || []);
-          setStaffList(res.staffList || []);
-          setReports(res.reports || []);
-          setFamilies(res.families || []);
+      const apply = (payload) => {
+        if (payload?.success) {
+          setProgram(payload.program);
+          setSessions(payload.sessions || []);
+          setTeams(payload.teams || []);
+          setParticipants(payload.participants || []);
+          setSubmissions(payload.submissions || []);
+          setRequirements(payload.documents || []);
+          setKpis(payload.kpis || []);
+          setEvents(payload.events || []);
+          setAssignedStaff(payload.assignedStaff || []);
+          setFacilitators(payload.facilitators || []);
+          setStaffList(payload.staffList || []);
+          setReports(payload.reports || []);
+          setFamilies(payload.families || []);
         }
       };
       let painted = false;
@@ -1356,10 +1356,10 @@ function ProgramWorkspace() {
             painted = true;
           }
         }
-        const res = await fetch(url).then((res) => res.json());
-        if (res?.success) {
-          cacheSet(url, res);
-          apply(res);
+        const payload = await fetch(url).then((response) => response.json());
+        if (payload?.success) {
+          cacheSet(url, payload);
+          apply(payload);
         }
       } catch (error) {
         if (!painted) console.error("Operational Fetch Failure:", error);
@@ -1388,7 +1388,7 @@ function ProgramWorkspace() {
   }
 
   const pendingSubmissionCount = submissions.filter(
-    (s) => s.status === "pending",
+    (submission) => submission.status === "pending",
   ).length;
 
   const allTabs = [
@@ -1421,7 +1421,7 @@ function ProgramWorkspace() {
 
   // Assistants / associates listed in assigned_assistant_id are "team members"
   const isTeamMember = programTeamMembers.some(
-    (m) => m.cid === (user.cid || user.id),
+    (member) => member.cid === (user.cid || user.id),
   );
 
   // A staff member who is the program's assigned PM, OR a team member
@@ -1660,7 +1660,7 @@ function ProgramWorkspace() {
                   onClick={() => setActiveSubTab("individuals")}
                   className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === "individuals" ? "border-[var(--brand-orange)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100"}`}
                 >
-                  {t("pmMisc.workspace.subTabIndividuals")} ({participants.filter(p => p.status !== 'archived').length})
+                  {t("pmMisc.workspace.subTabIndividuals")} ({participants.filter(participant => participant.status !== 'archived').length})
                 </button>
                 <button
                   onClick={() => setActiveSubTab("groups")}
@@ -1690,7 +1690,7 @@ function ProgramWorkspace() {
                     <div className="flex gap-2">
                       <button
                         onClick={() =>
-                          setSelectedParticipants(participants.filter(p => p.status !== 'archived').map((p) => p.id))
+                          setSelectedParticipants(participants.filter(participant => participant.status !== 'archived').map((participant) => participant.id))
                         }
                         className="text-[10px] font-bold uppercase text-blue-500 hover:underline"
                       >
@@ -1738,13 +1738,13 @@ function ProgramWorkspace() {
                         </tr>
                       </thead>
                       <tbody>
-                        {participants.filter(p => p.status !== 'archived').map((p) => {
+                        {participants.filter(participant => participant.status !== 'archived').map((participant) => {
                           const isSelected = selectedParticipants.includes(
-                            p.id,
+                            participant.id,
                           );
                           return (
                             <tr
-                              key={p.id}
+                              key={participant.id}
                               className={isSelected ? "bg-orange-500/5" : ""}
                             >
                               <td className="text-center">
@@ -1753,13 +1753,13 @@ function ProgramWorkspace() {
                                     if (isSelected)
                                       setSelectedParticipants(
                                         selectedParticipants.filter(
-                                          (id) => id !== p.id,
+                                          (id) => id !== participant.id,
                                         ),
                                       );
                                     else
                                       setSelectedParticipants([
                                         ...selectedParticipants,
-                                        p.id,
+                                        participant.id,
                                       ]);
                                   }}
                                   className={`p-2 transition-colors ${isSelected ? "text-[var(--brand-orange)]" : "text-slate-500 opacity-20 hover:opacity-100"}`}
@@ -1773,19 +1773,19 @@ function ProgramWorkspace() {
                               </td>
                               <td className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center font-bold text-xs border border-[var(--border-primary)]">
-                                  {p.name.charAt(0)}
+                                  {participant.name.charAt(0)}
                                 </div>
-                                <span className="font-bold">{p.name}</span>
+                                <span className="font-bold">{participant.name}</span>
                               </td>
-                              <td>{p.email}</td>
+                              <td>{participant.email}</td>
                               <td>
                                 <div className="flex flex-col">
                                   <span className="text-[10px] font-bold uppercase text-blue-500 tracking-widest">
-                                    {teams.find((t) => t.id === p.v2_team_id)
+                                    {teams.find((team) => team.id === participant.v2_team_id)
                                       ?.name || t("pmMisc.workspace.individual")}
                                   </span>
                                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
-                                    {t("pmMisc.workspace.segment")}: {p.group_name || t("pmMisc.workspace.na")}
+                                    {t("pmMisc.workspace.segment")}: {participant.group_name || t("pmMisc.workspace.na")}
                                   </span>
                                 </div>
                               </td>
@@ -1801,18 +1801,18 @@ function ProgramWorkspace() {
                                 <div className="flex justify-end gap-2 items-center">
                                   <select
                                     className="text-[10px] font-black uppercase bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1"
-                                    value={p.v2_team_id || ""}
-                                    onChange={(e) => {
-                                      const newTeamId = e.target.value;
-                                      if (newTeamId && newTeamId !== (p.v2_team_id || "")) {
-                                        changeParticipantTeam(p.id, newTeamId);
+                                    value={participant.v2_team_id || ""}
+                                    onChange={(event) => {
+                                      const newTeamId = event.target.value;
+                                      if (newTeamId && newTeamId !== (participant.v2_team_id || "")) {
+                                        changeParticipantTeam(participant.id, newTeamId);
                                       }
                                     }}
                                   >
                                     <option value="">{t("pmMisc.workspace.teamNoTeam")}</option>
-                                    {teams.map((t) => (
-                                      <option key={t.id} value={t.id}>
-                                        {t.name}
+                                    {teams.map((team) => (
+                                      <option key={team.id} value={team.id}>
+                                        {team.name}
                                       </option>
                                     ))}
                                   </select>
@@ -1861,20 +1861,20 @@ function ProgramWorkspace() {
                       <div className="flex items-center gap-3 mb-6">
                         <div className="flex -space-x-2">
                           {participants
-                            .filter((p) => p.v2_team_id === team.id)
+                            .filter((participant) => participant.v2_team_id === team.id)
                             .slice(0, 3)
-                            .map((p) => (
+                            .map((participant) => (
                               <div
-                                key={p.id}
+                                key={participant.id}
                                 className="w-6 h-6 rounded-full bg-tertiary border-2 border-[var(--bg-secondary)] flex items-center justify-center text-[10px] font-bold uppercase"
                               >
-                                {p.name.charAt(0)}
+                                {participant.name.charAt(0)}
                               </div>
                             ))}
                         </div>
                         <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
                           {
-                            participants.filter((p) => p.v2_team_id === team.id)
+                            participants.filter((participant) => participant.v2_team_id === team.id)
                               .length
                           }{" "}
                           {t("pmMisc.workspace.members")}
@@ -2007,7 +2007,7 @@ function ProgramWorkspace() {
                 </h3>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setShowArchivedSessions((p) => !p)}
+                    onClick={() => setShowArchivedSessions((prev) => !prev)}
                     className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg border transition-all ${showArchivedSessions
                       ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
                       : "bg-transparent border-white/10 text-slate-600 hover:text-slate-400"
@@ -2018,15 +2018,15 @@ function ProgramWorkspace() {
                   {canEdit && (
                     <button
                       onClick={() => {
-                        const nextWK =
+                        const nextWeekNumber =
                           sessions.length > 0
                             ? Math.max(
-                              ...sessions.map((s) => s.week_number || 0),
+                              ...sessions.map((session) => session.week_number || 0),
                             ) + 1
                             : 1;
                         setNewSession({
                           title: "",
-                          week_number: nextWK,
+                          week_number: nextWeekNumber,
                           status: "pending",
                           kpi_ids: [],
                           handler_ids: [],
@@ -2052,7 +2052,7 @@ function ProgramWorkspace() {
               <div className="flex flex-col gap-4 mt-4">
                 {(sessions || [])
                   .filter(
-                    (s) => showArchivedSessions || s.status !== "archived",
+                    (session) => showArchivedSessions || session.status !== "archived",
                   )
                   .map((session) => (
                     <div
@@ -2097,18 +2097,18 @@ function ProgramWorkspace() {
                                   displayStatus = "locked";
                                   statusColor = "bg-rose-500";
                                 } else if (session.scheduled_date) {
-                                  const schedDate = new Date(
+                                  const scheduledDate = new Date(
                                     session.scheduled_date,
                                   );
-                                  const schedDay = new Date(
-                                    schedDate.getFullYear(),
-                                    schedDate.getMonth(),
-                                    schedDate.getDate(),
+                                  const scheduledDay = new Date(
+                                    scheduledDate.getFullYear(),
+                                    scheduledDate.getMonth(),
+                                    scheduledDate.getDate(),
                                   );
                                   if (session.status === "completed") {
                                     displayStatus = "completed";
                                     statusColor = "bg-emerald-500";
-                                  } else if (schedDay <= today && session.status !== "not started") {
+                                  } else if (scheduledDay <= today && session.status !== "not started") {
                                     displayStatus = "active";
                                     statusColor = "bg-indigo-500";
                                   } else if (session.status === "not started") {
@@ -2188,13 +2188,13 @@ function ProgramWorkspace() {
                                       ? JSON.parse(session.kpi_ids)
                                       : session.kpi_ids || [];
                                   return kpis
-                                    .filter((k) => ids.includes(k.id))
-                                    .map((k) => (
+                                    .filter((kpi) => ids.includes(kpi.id))
+                                    .map((kpi) => (
                                       <span
-                                        key={k.id}
+                                        key={kpi.id}
                                         className="px-2 py-0.5 bg-[#FF6600]/10 border border-[#FF6600]/20 text-[#FF6600] text-[10px] font-bold uppercase rounded-md"
                                       >
-                                        {k.title}
+                                        {kpi.title}
                                       </span>
                                     ));
                                 } catch {
@@ -2207,8 +2207,8 @@ function ProgramWorkspace() {
 
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={(event) => {
+                              event.stopPropagation();
                               setExpandedSessionId(
                                 expandedSessionId === session.id
                                   ? null
@@ -2225,11 +2225,11 @@ function ProgramWorkspace() {
 
                         <div
                           className="flex items-center gap-3"
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(event) => event.stopPropagation()}
                         >
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={(event) => {
+                              event.stopPropagation();
                               setSelectedSessionId(session.id);
                               setSelectedSessionForAttendance(session);
                               setShowAttendanceModal(true);
@@ -2243,8 +2243,8 @@ function ProgramWorkspace() {
                           </button>
                           {canContribute && (
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              onClick={(event) => {
+                                event.stopPropagation();
                                 setSelectedSessionId(session.id);
                                 setShowPMReportModal(true);
                               }}
@@ -2258,8 +2258,8 @@ function ProgramWorkspace() {
                           )}
                           {canEdit && (
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              onClick={(event) => {
+                                event.stopPropagation();
                                 const newStatus = session.status === "locked" ? "not started" : "locked";
                                 updateSessionStatus(session.id, newStatus);
                               }}
@@ -2278,8 +2278,8 @@ function ProgramWorkspace() {
                           )}
                           {canEdit && (
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              onClick={(event) => {
+                                event.stopPropagation();
                                 deleteSession(session.id);
                               }}
                               className="p-2 text-rose-500/20 hover:text-rose-500 transition-all"
@@ -2314,11 +2314,11 @@ function ProgramWorkspace() {
                                 <input
                                   type="text"
                                   value={session.title || ""}
-                                  onChange={(e) =>
+                                  onChange={(event) =>
                                     updateSessionField(
                                       session.id,
                                       "title",
-                                      e.target.value,
+                                      event.target.value,
                                     )
                                   }
                                   disabled={session.status === "locked"}
@@ -2333,16 +2333,16 @@ function ProgramWorkspace() {
                                 </label>
                                 <textarea
                                   value={session.description || ""}
-                                  onBlur={(e) =>
+                                  onBlur={(event) =>
                                     updateSessionField(
                                       session.id,
                                       "description",
-                                      e.target.value,
+                                      event.target.value,
                                     )
                                   }
-                                  onChange={(e) => {
+                                  onChange={(event) => {
                                     // Update local state only, save on blur
-                                    const updated = sessions.map(s => s.id === session.id ? {...s, description: e.target.value} : s);
+                                    const updated = sessions.map(item => item.id === session.id ? {...item, description: event.target.value} : item);
                                     setSessions(updated);
                                   }}
                                   rows={2}
@@ -2360,11 +2360,11 @@ function ProgramWorkspace() {
                                     type="number"
                                     min={1}
                                     value={session.week_number || 1}
-                                    onChange={(e) =>
+                                    onChange={(event) =>
                                       updateSessionField(
                                         session.id,
                                         "week_number",
-                                        e.target.value,
+                                        event.target.value,
                                       )
                                     }
                                     className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
@@ -2377,11 +2377,11 @@ function ProgramWorkspace() {
                                   <input
                                     type="time"
                                     value={session.start_time || ""}
-                                    onChange={(e) =>
+                                    onChange={(event) =>
                                       updateSessionField(
                                         session.id,
                                         "start_time",
-                                        e.target.value,
+                                        event.target.value,
                                       )
                                     }
                                     className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
@@ -2394,11 +2394,11 @@ function ProgramWorkspace() {
                                   <input
                                     type="time"
                                     value={session.end_time || ""}
-                                    onChange={(e) =>
+                                    onChange={(event) =>
                                       updateSessionField(
                                         session.id,
                                         "end_time",
-                                        e.target.value,
+                                        event.target.value,
                                       )
                                     }
                                     className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
@@ -2413,13 +2413,13 @@ function ProgramWorkspace() {
                                 </label>
                                 <select
                                   value={session.timezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC')}
-                                  onChange={(e) =>
-                                    updateSessionField(session.id, "timezone", e.target.value)
+                                  onChange={(event) =>
+                                    updateSessionField(session.id, "timezone", event.target.value)
                                   }
                                   className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
                                 >
-                                  {["UTC", "Africa/Porto-Novo", "Europe/Paris", "America/New_York", "Asia/Dubai", "Europe/London"].map(tz => (
-                                    <option key={tz} value={tz}>{tz}</option>
+                                  {["UTC", "Africa/Porto-Novo", "Europe/Paris", "America/New_York", "Asia/Dubai", "Europe/London"].map(timezone => (
+                                    <option key={timezone} value={timezone}>{timezone}</option>
                                   ))}
                                 </select>
                               </div>
@@ -2432,8 +2432,8 @@ function ProgramWorkspace() {
                                   {(programTeamMembers.length > 0
                                     ? programTeamMembers
                                     : assignedStaff
-                                  ).map((s) => {
-                                    const stringId = String(s.cid);
+                                  ).map((staffMember) => {
+                                    const stringId = String(staffMember.cid);
                                     let isSelected = false;
                                     try {
                                       const ids = JSON.parse(
@@ -2447,14 +2447,14 @@ function ProgramWorkspace() {
                                     }
                                     return (
                                       <label
-                                        key={s.cid}
+                                        key={staffMember.cid}
                                         className="flex items-center gap-2 cursor-pointer"
                                       >
                                         <input
                                           type="checkbox"
                                           checked={isSelected}
-                                          onChange={(e) => {
-                                            const checked = e.target.checked;
+                                          onChange={(event) => {
+                                            const checked = event.target.checked;
                                             let currentIds = [];
                                             try {
                                               currentIds = JSON.parse(
@@ -2503,7 +2503,7 @@ function ProgramWorkspace() {
                                           className="rounded border-[var(--border-primary)] bg-[var(--surface-2)] text-indigo-500"
                                         />
                                         <span className="text-[11px] font-bold text-[var(--text-primary)]">
-                                          {s.name} ({s.role})
+                                          {staffMember.name} ({staffMember.role})
                                         </span>
                                       </label>
                                     );
@@ -2526,11 +2526,11 @@ function ProgramWorkspace() {
                                           .split("T")[0]
                                         : ""
                                     }
-                                    onChange={(e) =>
+                                    onChange={(event) =>
                                       updateSessionField(
                                         session.id,
                                         "scheduled_date",
-                                        e.target.value,
+                                        event.target.value,
                                       )
                                     }
                                     className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
@@ -2550,11 +2550,11 @@ function ProgramWorkspace() {
                                           .split("T")[0]
                                         : ""
                                     }
-                                    onChange={(e) =>
+                                    onChange={(event) =>
                                       updateSessionField(
                                         session.id,
                                         "end_date",
-                                        e.target.value,
+                                        event.target.value,
                                       )
                                     }
                                     className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
@@ -2568,10 +2568,10 @@ function ProgramWorkspace() {
                                 </label>
                                 <select
                                   value={session.status}
-                                  onChange={(e) =>
+                                  onChange={(event) =>
                                     updateSessionStatus(
                                       session.id,
-                                      e.target.value,
+                                      event.target.value,
                                     )
                                   }
                                   disabled={session.status === "locked"}
@@ -2633,7 +2633,7 @@ function ProgramWorkspace() {
                                       try { sessionKpiIds = JSON.parse(sessionKpiIds); } catch (_) { sessionKpiIds = []; }
                                     }
                                     if (!Array.isArray(sessionKpiIds)) sessionKpiIds = [];
-                                    setNewRequirement((p) => ({ ...p, kpi_ids: sessionKpiIds }));
+                                    setNewRequirement((prev) => ({ ...prev, kpi_ids: sessionKpiIds }));
                                     setShowRequirementModal(true);
                                   }}
                                   className="text-[9px] font-black text-[var(--brand-orange)] uppercase hover:underline flex items-center gap-1"
@@ -2645,10 +2645,10 @@ function ProgramWorkspace() {
 
                             <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
                               {requirements
-                                .filter((r) => r.session_id === session.id)
-                                .map((req) => (
+                                .filter((requirement) => requirement.session_id === session.id)
+                                .map((requirement) => (
                                   <div
-                                    key={req.id}
+                                    key={requirement.id}
                                     className="flex items-center justify-between p-4 bg-primary rounded-2xl border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all shadow-sm"
                                   >
                                     <div className="flex items-center gap-4">
@@ -2657,13 +2657,13 @@ function ProgramWorkspace() {
                                       </div>
                                       <div>
                                         <p className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">
-                                          {req.title}
+                                          {requirement.title}
                                         </p>
                                         <p className="text-[8px] text-[var(--text-secondary)] font-black uppercase tracking-widest mt-0.5 italic flex items-center gap-2">
-                                          <span>{t("pmMisc.workspace.requirement")}: {req.allowed_format || "PDF"}</span>
-                                          {req.due_date && (() => {
+                                          <span>{t("pmMisc.workspace.requirement")}: {requirement.allowed_format || "PDF"}</span>
+                                          {requirement.due_date && (() => {
                                             const now = new Date();
-                                            const due = new Date(req.due_date);
+                                            const due = new Date(requirement.due_date);
                                             const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
                                             const isOverdue = diffDays < 0;
                                             const isDueSoon = diffDays >= 0 && diffDays <= 3;
@@ -2686,25 +2686,25 @@ function ProgramWorkspace() {
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                      {req.due_date && canEdit && (
+                                      {requirement.due_date && canEdit && (
                                         <button
                                           onClick={async () => {
                                             try {
-                                              const res = await fetch("/api/pm/curriculum", {
+                                              const response = await fetch("/api/pm/curriculum", {
                                                 method: "POST",
                                                 headers: { "Content-Type": "application/json" },
                                                 body: JSON.stringify({
                                                   action: "send_reminder",
-                                                  requirement_id: req.id,
+                                                  requirement_id: requirement.id,
                                                   program_id: id,
                                                 }),
                                               });
-                                              const data = await res.json();
+                                              const data = await response.json();
                                               if (data.success) {
-                                                const msg = data.sent > 0
+                                                const message = data.sent > 0
                                                   ? t("pmMisc.workspace.reminderSentTo", { count: data.sent })
                                                   : t("pmMisc.workspace.reminderSent");
-                                                notify(msg);
+                                                notify(message);
                                               } else {
                                                 notify(t("pmMisc.workspace.reminderFailed"));
                                               }
@@ -2728,7 +2728,7 @@ function ProgramWorkspace() {
                                   </div>
                                 ))}
                               {requirements.filter(
-                                (r) => r.session_id === session.id,
+                                (requirement) => requirement.session_id === session.id,
                               ).length === 0 && (
                                   <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
                                     <Shield className="w-10 h-10 mb-2" />
@@ -2774,8 +2774,8 @@ function ProgramWorkspace() {
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {sessions
-                  .filter((s) => s.type === "session")
-                  .sort((a, b) => (a.week_number || 0) - (b.week_number || 0))
+                  .filter((session) => session.type === "session")
+                  .sort((first, second) => (first.week_number || 0) - (second.week_number || 0))
                   .map((session) => (
                     <div
                       key={session.id}
@@ -2810,7 +2810,7 @@ function ProgramWorkspace() {
                       </button>
                     </div>
                   ))}
-                {sessions.filter((s) => s.type === "session").length === 0 && (
+                {sessions.filter((session) => session.type === "session").length === 0 && (
                   <div className="col-span-3 py-12 text-center">
                     <p className="text-[11px] text-slate-500">{t("pmMisc.workspace.noSessionsYet")}</p>
                   </div>
@@ -2836,46 +2836,46 @@ function ProgramWorkspace() {
                       <div className="grid grid-cols-1 gap-3">
                         {(() => {
                           let materials = [];
-                          const raw = program?.materials;
-                          const kbAssets = program?.knowledge_assets || [];
+                          const rawMaterials = program?.materials;
+                          const knowledgeAssets = program?.knowledge_assets || [];
 
-                          if (raw) {
-                            if (Array.isArray(raw))
-                              materials = raw.filter(
-                                (i) => i && i !== "[]" && i !== "",
+                          if (rawMaterials) {
+                            if (Array.isArray(rawMaterials))
+                              materials = rawMaterials.filter(
+                                (entry) => entry && entry !== "[]" && entry !== "",
                               );
-                            else if (typeof raw === "string") {
-                              if (raw.startsWith("[") || raw.startsWith("{")) {
+                            else if (typeof rawMaterials === "string") {
+                              if (rawMaterials.startsWith("[") || rawMaterials.startsWith("{")) {
                                 try {
-                                  let parsed = JSON.parse(raw);
+                                  let parsed = JSON.parse(rawMaterials);
                                   if (typeof parsed === "string")
                                     parsed = JSON.parse(parsed);
                                   materials = Array.isArray(parsed)
                                     ? parsed.filter(
-                                      (i) => i && i !== "[]" && i !== "",
+                                      (entry) => entry && entry !== "[]" && entry !== "",
                                     )
                                     : [parsed];
                                 } catch {
-                                  materials = raw === "[]" ? [] : [raw];
+                                  materials = rawMaterials === "[]" ? [] : [rawMaterials];
                                 }
                               } else {
                                 materials =
-                                  raw === "" || raw === "[]" ? [] : [raw];
+                                  rawMaterials === "" || rawMaterials === "[]" ? [] : [rawMaterials];
                               }
                             }
                           }
 
                           // Merge with Knowledge Base Assets with safe mapping
                           const allMaterials = [
-                            ...materials.map((m) => {
-                              let item = m;
+                            ...materials.map((material) => {
+                              let item = material;
                               // Handle stringified JSON inside array items
                               if (typeof item === "string") {
                                 try {
-                                  let p = JSON.parse(item);
-                                  if (typeof p === "string") p = JSON.parse(p);
-                                  if (Array.isArray(p)) item = p[0];
-                                  else item = p;
+                                  let parsed = JSON.parse(item);
+                                  if (typeof parsed === "string") parsed = JSON.parse(parsed);
+                                  if (Array.isArray(parsed)) item = parsed[0];
+                                  else item = parsed;
                                 } catch { }
                               }
                               if (Array.isArray(item)) item = item[0];
@@ -2896,21 +2896,21 @@ function ProgramWorkspace() {
                                   source: "curriculum",
                                 };
                               }
-                              if (typeof m === "string" && m.trim())
+                              if (typeof material === "string" && material.trim())
                                 return {
-                                  url: m,
-                                  name: m.split("/").pop(),
+                                  url: material,
+                                  name: material.split("/").pop(),
                                   source: "curriculum",
                                 };
                               return null;
                             }),
-                            ...kbAssets.map((a) => {
-                              if (typeof a === "object" && a !== null)
-                                return { ...a, source: "knowledge" };
-                              if (typeof a === "string" && a.trim())
+                            ...knowledgeAssets.map((asset) => {
+                              if (typeof asset === "object" && asset !== null)
+                                return { ...asset, source: "knowledge" };
+                              if (typeof asset === "string" && asset.trim())
                                 return {
-                                  url: a,
-                                  name: a.split("/").pop(),
+                                  url: asset,
+                                  name: asset.split("/").pop(),
                                   source: "knowledge",
                                 };
                               return null;
@@ -2928,7 +2928,7 @@ function ProgramWorkspace() {
                             );
                           }
 
-                          return allMaterials.map((file, idx) => {
+                          return allMaterials.map((file, index) => {
                             const url =
                               typeof file === "object"
                                 ? file.url || file.URL || file.path || ""
@@ -2953,14 +2953,14 @@ function ProgramWorkspace() {
                               .replace(/\s+/g, " ") // collapse extra spaces
                               .trim()
                               .toLowerCase()
-                              .replace(/\b\w/g, (c) => c.toUpperCase()); // Title Case
+                              .replace(/\b\w/g, (char) => char.toUpperCase()); // Title Case
                             const isKB = file.source === "knowledge";
 
                             // Items without valid URL will still show name, OPEN will use in-app viewer
 
                             return (
                               <div
-                                key={idx}
+                                key={index}
                                 className={`w-full flex items-center justify-between p-4 bg-tertiary rounded-xl border transition-all group text-left ${isKB ? "border-emerald-500/30 hover:border-emerald-500" : "border-[var(--border-primary)] hover:border-blue-500/50"}`}
                               >
                                 <div className="flex items-center gap-3">
@@ -2983,9 +2983,9 @@ function ProgramWorkspace() {
                                   </div>
                                 </div>
                                 <button
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
+                                  onClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
                                     setActivePDF({ url: url || "#", name });
                                   }}
                                   className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${isKB ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black border border-emerald-500/20" : "bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-black border border-blue-500/20"}`}
@@ -3145,10 +3145,10 @@ function ProgramWorkspace() {
                     <button
                       onClick={async () => {
                         try {
-                          const res = await fetch(
+                          const response = await fetch(
                             `/api/kpi-progress?program_id=${id}`,
                           );
-                          const data = await res.json();
+                          const data = await response.json();
                           if (data.success) {
                             notify(t("pmMisc.workspace.kpiRecalculated"));
                             fetchProgramData(true);
@@ -3176,9 +3176,9 @@ function ProgramWorkspace() {
                           {program.note_description}
                         </p>
                         <div className="space-y-2 pt-2 border-t border-emerald-500/10">
-                          {program.knowledge_assets?.map((asset, idx) => (
+                          {program.knowledge_assets?.map((asset, index) => (
                             <button
-                              key={idx}
+                              key={index}
                               onClick={() =>
                                 setActivePDF({
                                   url: asset.url,
@@ -3198,7 +3198,7 @@ function ProgramWorkspace() {
                     )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {kpis.map((kpi, kpiIdx) => {
-                        const progPct = kpi.progress || 0;
+                        const kpiProgress = kpi.progress || 0;
                         return (
                           <div
                             key={kpi.id}
@@ -3209,7 +3209,7 @@ function ProgramWorkspace() {
                                 {t("pmMisc.workspace.kpi")} {kpiIdx + 1}
                               </span>
                               <span className="text-sm font-black text-[var(--brand-orange)]">
-                                {progPct}%
+                                {kpiProgress}%
                               </span>
                             </div>
                             <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-tight mb-3 group-hover:text-[var(--brand-orange)] transition-colors">
@@ -3218,7 +3218,7 @@ function ProgramWorkspace() {
                             <div className="w-full h-2 bg-[var(--border-primary)]/20 rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full transition-all duration-700"
-                                style={{ width: `${progPct}%` }}
+                                style={{ width: `${kpiProgress}%` }}
                               />
                             </div>
                             <div className="flex items-center gap-3 mt-2">
@@ -3277,112 +3277,112 @@ function ProgramWorkspace() {
                   No facilitator reviews submitted yet.
                 </p>
               ) : (
-                facilitatorReviews.map((r) => (
-                  <div key={r.id} className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4 space-y-2">
+                facilitatorReviews.map((review) => (
+                  <div key={review.id} className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4 space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <div>
-                        <p className="text-[11px] font-black uppercase">{r.facilitator_name || r.facilitator_id || "Facilitator"}</p>
+                        <p className="text-[11px] font-black uppercase">{review.facilitator_name || review.facilitator_id || "Facilitator"}</p>
                         <p className="text-[10px] text-[var(--text-secondary)]">
-                          {t("pmMisc.facilitators.weeklyReview.week")} {r.week_number || "—"} ·{" "}
+                          {t("pmMisc.facilitators.weeklyReview.week")} {review.week_number || "—"} ·{" "}
                           {t("pmMisc.facilitators.weeklyReview.submittedAt", {
-                            date: new Date(r.created_at).toLocaleDateString(),
+                            date: new Date(review.created_at).toLocaleDateString(),
                           })}
                         </p>
                       </div>
                       <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                        r.pm_decision === "changes_requested"
+                        review.pm_decision === "changes_requested"
                           ? "bg-rose-500/15 text-rose-400"
-                          : r.status === "decided"
+                          : review.status === "decided"
                             ? "bg-emerald-500/15 text-emerald-400"
                             : "bg-amber-500/15 text-amber-400"
                       }`}>
-                        {r.pm_decision === "changes_requested"
+                        {review.pm_decision === "changes_requested"
                           ? t("pmMisc.facilitators.weeklyReview.status_changes_requested")
-                          : r.status === "decided"
+                          : review.status === "decided"
                             ? t("pmMisc.facilitators.weeklyReview.status_decided")
                             : t("pmMisc.facilitators.weeklyReview.status_submitted")}
                       </span>
                     </div>
 
-                    {(r.overall_rating || r.participant_progress) && (
+                    {(review.overall_rating || review.participant_progress) && (
                       <p className="text-[10px] text-[var(--text-secondary)]">
                         <strong className="text-[var(--text-primary)]">
                           {t("pmMisc.facilitators.weeklyReview.overall")}:
                         </strong>{" "}
-                        {reviewRatingLabel(r.overall_rating) || r.participant_progress}
+                        {reviewRatingLabel(review.overall_rating) || review.participant_progress}
                       </p>
                     )}
-                    {r.engagement && (
+                    {review.engagement && (
                       <p className="text-[10px] text-[var(--text-secondary)]">
                         <strong className="text-[var(--text-primary)]">
                           {t("pmMisc.facilitators.weeklyReview.engagement")}:
                         </strong>{" "}
-                        {reviewEngagementLabel(r.engagement)}
+                        {reviewEngagementLabel(review.engagement)}
                       </p>
                     )}
-                    {(r.went_well || r.completed_work) && (
+                    {(review.went_well || review.completed_work) && (
                       <p className="text-[10px] text-[var(--text-secondary)]">
                         <strong className="text-[var(--text-primary)]">
                           {t("pmMisc.facilitators.weeklyReview.wentWell")}:
                         </strong>{" "}
-                        {r.went_well || r.completed_work}
+                        {review.went_well || review.completed_work}
                       </p>
                     )}
-                    {(r.struggles || r.challenges) && (
+                    {(review.struggles || review.challenges) && (
                       <p className="text-[10px] text-[var(--text-secondary)]">
                         <strong className="text-[var(--text-primary)]">
                           {t("pmMisc.facilitators.weeklyReview.struggles")}:
                         </strong>{" "}
-                        {r.struggles || r.challenges}
+                        {review.struggles || review.challenges}
                       </p>
                     )}
-                    {(r.needs_attention_type || r.needs_attention || r.needs_attention_note) && (
+                    {(review.needs_attention_type || review.needs_attention || review.needs_attention_note) && (
                       <div className="text-[10px] text-[var(--text-secondary)]">
                         <p>
                           <strong className="text-[var(--text-primary)]">
                             {t("pmMisc.facilitators.weeklyReview.needsAttention")}:
                           </strong>{" "}
-                          {reviewAttentionLabel(r.needs_attention_type) || r.needs_attention}
+                          {reviewAttentionLabel(review.needs_attention_type) || review.needs_attention}
                         </p>
-                        {r.needs_attention_note && (
-                          <p className="mt-0.5 pl-1">{r.needs_attention_note}</p>
+                        {review.needs_attention_note && (
+                          <p className="mt-0.5 pl-1">{review.needs_attention_note}</p>
                         )}
                       </div>
                     )}
-                    {(r.focus_next_week || r.recommendations) && (
+                    {(review.focus_next_week || review.recommendations) && (
                       <p className="text-[10px] text-[var(--text-secondary)]">
                         <strong className="text-[var(--text-primary)]">
                           {t("pmMisc.facilitators.weeklyReview.focusNextWeek")}:
                         </strong>{" "}
-                        {r.focus_next_week || r.recommendations}
+                        {review.focus_next_week || review.recommendations}
                       </p>
                     )}
-                    {r.additional_notes && (
+                    {review.additional_notes && (
                       <p className="text-[10px] text-[var(--text-secondary)]">
                         <strong className="text-[var(--text-primary)]">
                           {t("pmMisc.facilitators.weeklyReview.additionalNotes")}:
                         </strong>{" "}
-                        {r.additional_notes}
+                        {review.additional_notes}
                       </p>
                     )}
 
-                    {r.pm_decision && (
+                    {review.pm_decision && (
                       <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
                         <p className="text-[10px] font-bold uppercase text-emerald-400 mb-1">
                           {t("pmMisc.facilitators.weeklyReview.decision")}
                         </p>
-                        <p className="text-[10px] font-medium text-[var(--text-primary)]">{r.pm_decision}</p>
-                        {r.pm_decision_note && (
-                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">{r.pm_decision_note}</p>
+                        <p className="text-[10px] font-medium text-[var(--text-primary)]">{review.pm_decision}</p>
+                        {review.pm_decision_note && (
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">{review.pm_decision_note}</p>
                         )}
                       </div>
                     )}
-                    {r.status !== "decided" && (
+                    {review.status !== "decided" && (
                       <div className="flex gap-2">
-                        <button onClick={() => handleReviewDecision(r.id, "acknowledged")} className="text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25">
+                        <button onClick={() => handleReviewDecision(review.id, "acknowledged")} className="text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25">
                           {t("pmMisc.facilitators.weeklyReview.acknowledge")}
                         </button>
-                        <button onClick={() => handleReviewDecision(r.id, "changes_requested")} className="text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25">
+                        <button onClick={() => handleReviewDecision(review.id, "changes_requested")} className="text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25">
                           {t("pmMisc.facilitators.weeklyReview.requestChanges")}
                         </button>
                       </div>
@@ -3423,42 +3423,42 @@ function ProgramWorkspace() {
                     key={`${type}-${format}`}
                     onClick={async () => {
                       try {
-                        const res = await fetch(`/api/pm/export?type=${type}&program_id=${id}&format=${format}`, {
+                        const response = await fetch(`/api/pm/export?type=${type}&program_id=${id}&format=${format}`, {
                           credentials: "include",
                         });
-                        if (!res.ok) throw new Error("Export failed");
+                        if (!response.ok) throw new Error("Export failed");
                         if (format === "pdf") {
-                          const { rows: data, filename } = await res.json();
+                          const { rows: data, filename } = await response.json();
                           const { default: jsPDF } = await import("jspdf");
                           const doc = new jsPDF({ orientation: "landscape" });
                           doc.setFontSize(12);
                           doc.text(`${type.toUpperCase()} - Talent for Startups`, 10, 10);
                           if (data && data.length > 0) {
                             const headers = Object.keys(data[0]);
-                            let y = 20;
+                            let lineY = 20;
                             doc.setFontSize(7);
                             // Header row
-                            headers.forEach((h, i) => doc.text(String(h), 10 + i * 35, y));
-                            y += 5;
+                            headers.forEach((header, columnIndex) => doc.text(String(header), 10 + columnIndex * 35, lineY));
+                            lineY += 5;
                             // Data rows (max 40 rows per page)
                             data.slice(0, 80).forEach((row, _ri) => {
-                              if (y > 180) { doc.addPage(); y = 15; }
-                              headers.forEach((h, i) => {
-                                const val = String(row[h] ?? "").substring(0, 20);
-                                doc.text(val, 10 + i * 35, y);
+                              if (lineY > 180) { doc.addPage(); lineY = 15; }
+                              headers.forEach((header, columnIndex) => {
+                                const cellValue = String(row[header] ?? "").substring(0, 20);
+                                doc.text(cellValue, 10 + columnIndex * 35, lineY);
                               });
-                              y += 4;
+                              lineY += 4;
                             });
                           }
                           doc.save(filename);
                         } else {
-                          const blob = await res.blob();
+                          const blob = await response.blob();
                           const url = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          const ext = format === "xlsx" ? "xlsx" : "csv";
-                          a.href = url;
-                          a.download = `${type}-${id}.${ext}`;
-                          a.click();
+                          const anchor = document.createElement("a");
+                          const fileExtension = format === "xlsx" ? "xlsx" : "csv";
+                          anchor.href = url;
+                          anchor.download = `${type}-${id}.${fileExtension}`;
+                          anchor.click();
                           URL.revokeObjectURL(url);
                         }
                         notify(t("pmMisc.workspace.exported", { label }));
@@ -3492,9 +3492,9 @@ function ProgramWorkspace() {
               </div>
 
               <div className="grid grid-cols-1 gap-4">
-                {reports.map((report, i) => (
+                {reports.map((report, index) => (
                   <div
-                    key={report.id || i}
+                    key={report.id || index}
                     className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all"
                   >
                     <div className="p-4 bg-tertiary flex justify-between items-center border-b border-[var(--border-primary)]">
@@ -3585,11 +3585,11 @@ function ProgramWorkspace() {
                   </tr>
                 </thead>
                 <tbody>
-                  {submissions.map((sub) => (
+                  {submissions.map((submission) => (
                     <tr
-                      key={sub.id}
+                      key={submission.id}
                       className={
-                        sub.status === "pending" && !submissionsSeen
+                        submission.status === "pending" && !submissionsSeen
                           ? "bg-[var(--brand-orange)]/5"
                           : ""
                       }
@@ -3597,25 +3597,25 @@ function ProgramWorkspace() {
                       <td>
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
-                            {sub.status === "pending" && !submissionsSeen && (
+                            {submission.status === "pending" && !submissionsSeen && (
                               <span className="w-2 h-2 rounded-full bg-[var(--brand-orange)] shrink-0" />
                             )}
                             <span className="font-black text-[var(--text-primary)]">
-                              {sub.participant_name || t("pmMisc.workspace.na")}
+                              {submission.participant_name || t("pmMisc.workspace.na")}
                             </span>
                           </div>
                           <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">
-                            {sub.group_name || t("pmMisc.workspace.individual")}
+                            {submission.group_name || t("pmMisc.workspace.individual")}
                           </span>
                         </div>
                       </td>
-                      <td>{sub.deliverable_title}</td>
+                      <td>{submission.deliverable_title}</td>
                       <td className="text-[10px] opacity-60 font-bold">
-                        {new Date(sub.created_at).toLocaleDateString()}
+                        {new Date(submission.created_at).toLocaleDateString()}
                       </td>
                       <td>
                         <span
-                          className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${sub.status === "approved" ? "bg-emerald-500/10 text-emerald-500" : "bg-orange-500/10 text-orange-500"}`}
+                          className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${submission.status === "approved" ? "bg-emerald-500/10 text-emerald-500" : "bg-orange-500/10 text-orange-500"}`}
                         >
                           {{
                             approved: t("pmMisc.workspace.submissionStatusApproved"),
@@ -3624,21 +3624,21 @@ function ProgramWorkspace() {
                             rejected: t("pmMisc.workspace.submissionStatusRejected"),
                             revision_requested: t("pmMisc.workspace.submissionStatusRevision"),
                             pending_followup: t("pmMisc.workspace.submissionStatusFollowup"),
-                          }[sub.status] || sub.status}
+                          }[submission.status] || submission.status}
                         </span>
                       </td>
                       <td className="text-right">
                         <div className="flex items-center justify-end gap-4">
                           <button
-                            onClick={() => handleViewSubmission(sub)}
+                            onClick={() => handleViewSubmission(submission)}
                             className="text-[var(--brand-orange)] text-[10px] font-bold uppercase"
                           >
                             {t("pmMisc.workspace.viewSubmission")}
                           </button>
                           <button
                             onClick={() => {
-                              setSelectedSubmission(sub);
-                              setReviewScore(sub.score || 0);
+                              setSelectedSubmission(submission);
+                              setReviewScore(submission.score || 0);
                               setShowReviewModal(true);
                             }}
                             className="text-[var(--brand-blue)] text-[10px] font-bold uppercase"
@@ -3675,7 +3675,7 @@ function ProgramWorkspace() {
           >
             <div
               className="card w-full max-w-5xl h-[90vh] flex flex-col space-y-4 shadow-2xl border-[var(--border-primary)]"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-[var(--border-primary)] pb-4">
                 <div className="flex items-center gap-3">
@@ -3751,7 +3751,7 @@ function ProgramWorkspace() {
           >
             <div
               className="card w-full max-w-sm space-y-6"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
             >
               <div className="flex justify-between items-center">
                 <div className="space-y-1">
@@ -3795,8 +3795,8 @@ function ProgramWorkspace() {
                     </label>
                     <input
                       value={newTeam.name}
-                      onChange={(e) =>
-                        setNewTeam((p) => ({ ...p, name: e.target.value }))
+                      onChange={(event) =>
+                        setNewTeam((prev) => ({ ...prev, name: event.target.value }))
                       }
                       className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
                       style={{
@@ -3820,8 +3820,8 @@ function ProgramWorkspace() {
                     </label>
                     <select
                       value={selectedExistingTeamId}
-                      onChange={(e) =>
-                        setSelectedExistingTeamId(e.target.value)
+                      onChange={(event) =>
+                        setSelectedExistingTeamId(event.target.value)
                       }
                       className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
                       style={{
@@ -3831,9 +3831,9 @@ function ProgramWorkspace() {
                       }}
                     >
                       <option value="">{t("pmMisc.workspace.selectExistingTeam")}</option>
-                      {teams.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name.toUpperCase()} ({t("pmMisc.workspace.group")}: {t.group_name})
+                      {teams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name.toUpperCase()} ({t("pmMisc.workspace.group")}: {team.group_name})
                         </option>
                       ))}
                     </select>
@@ -3849,7 +3849,7 @@ function ProgramWorkspace() {
                   </label>
                   <textarea
                     value={emailInput}
-                    onChange={(e) => setEmailInput(e.target.value)}
+                    onChange={(event) => setEmailInput(event.target.value)}
                     rows={3}
                     className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold resize-none"
                     style={{
@@ -3885,8 +3885,8 @@ function ProgramWorkspace() {
                   </label>
                   <select
                     value={newTeam.leader_id}
-                    onChange={(e) =>
-                      setNewTeam((p) => ({ ...p, leader_id: e.target.value }))
+                    onChange={(event) =>
+                      setNewTeam((prev) => ({ ...prev, leader_id: event.target.value }))
                     }
                     className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
                     style={{
@@ -3897,10 +3897,10 @@ function ProgramWorkspace() {
                   >
                     <option value="">{t("pmMisc.workspace.selectLead")}</option>
                     {participants
-                      .filter((p) => newTeam.member_ids.includes(p.id))
-                      .map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
+                      .filter((participant) => newTeam.member_ids.includes(participant.id))
+                      .map((participant) => (
+                        <option key={participant.id} value={participant.id}>
+                          {participant.name}
                         </option>
                       ))}
                   </select>
@@ -3915,13 +3915,13 @@ function ProgramWorkspace() {
                   </label>
                   <select
                     value={newTeam.staff_id}
-                    onChange={(e) => {
+                    onChange={(event) => {
                       const staff = oversightCandidates.find(
-                        (s) => String(s.cid) === e.target.value,
+                        (member) => String(member.cid) === event.target.value,
                       );
-                      setNewTeam((p) => ({
-                        ...p,
-                        staff_id: e.target.value,
+                      setNewTeam((prev) => ({
+                        ...prev,
+                        staff_id: event.target.value,
                         handler_name: staff?.name || "",
                       }));
                     }}
@@ -3933,13 +3933,13 @@ function ProgramWorkspace() {
                     }}
                   >
                     <option value="">{t("pmMisc.workspace.noStaffAssignedOptional")}</option>
-                    {oversightCandidates.map((s) => (
-                      <option key={s.cid ?? s.email ?? s.id} value={s.cid}>
+                    {oversightCandidates.map((member) => (
+                      <option key={member.cid ?? member.email ?? member.id} value={member.cid}>
                         {/* Backward compatibility for legacy rows: an assignment
                             saved before the teacher persona was retired may still
                             carry that stored role, so label it as an instructor on
                             purpose instead of falling through to the raw value. */}
-                        {s.name} ({s.role === "teacher" ? t("pmMisc.workspace.instructor") : s.role}
+                        {member.name} ({member.role === "teacher" ? t("pmMisc.workspace.instructor") : member.role}
                         )
                       </option>
                     ))}
@@ -3973,7 +3973,7 @@ function ProgramWorkspace() {
           >
             <div
               className="card w-full max-w-lg space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
             >
               <div className="flex justify-between items-center pb-4 border-b border-[var(--border-primary)]">
                 <div className="flex items-center gap-3">
@@ -4012,8 +4012,8 @@ function ProgramWorkspace() {
                   </label>
                   <input
                     value={newSession.title}
-                    onChange={(e) =>
-                      setNewSession((p) => ({ ...p, title: e.target.value }))
+                    onChange={(event) =>
+                      setNewSession((prev) => ({ ...prev, title: event.target.value }))
                     }
                     className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold transition-all focus:border-[var(--brand-orange)]"
                     style={{
@@ -4036,10 +4036,10 @@ function ProgramWorkspace() {
                     <input
                       type="date"
                       value={newSession.scheduled_date}
-                      onChange={(e) =>
-                        setNewSession((p) => ({
-                          ...p,
-                          scheduled_date: e.target.value,
+                      onChange={(event) =>
+                        setNewSession((prev) => ({
+                          ...prev,
+                          scheduled_date: event.target.value,
                         }))
                       }
                       className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
@@ -4060,10 +4060,10 @@ function ProgramWorkspace() {
                     <input
                       type="date"
                       value={newSession.end_date}
-                      onChange={(e) =>
-                        setNewSession((p) => ({
-                          ...p,
-                          end_date: e.target.value,
+                      onChange={(event) =>
+                        setNewSession((prev) => ({
+                          ...prev,
+                          end_date: event.target.value,
                         }))
                       }
                       className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
@@ -4087,10 +4087,10 @@ function ProgramWorkspace() {
                     <input
                       type="time"
                       value={newSession.start_time}
-                      onChange={(e) =>
-                        setNewSession((p) => ({
-                          ...p,
-                          start_time: e.target.value,
+                      onChange={(event) =>
+                        setNewSession((prev) => ({
+                          ...prev,
+                          start_time: event.target.value,
                         }))
                       }
                       className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
@@ -4111,10 +4111,10 @@ function ProgramWorkspace() {
                     <input
                       type="time"
                       value={newSession.end_time}
-                      onChange={(e) =>
-                        setNewSession((p) => ({
-                          ...p,
-                          end_time: e.target.value,
+                      onChange={(event) =>
+                        setNewSession((prev) => ({
+                          ...prev,
+                          end_time: event.target.value,
                         }))
                       }
                       className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
@@ -4144,23 +4144,23 @@ function ProgramWorkspace() {
                           key={staff.cid}
                           type="button"
                           onClick={() => {
-                            const ids = newSession.handler_ids || [];
-                            const names = newSession.handler_names || [];
-                            const cidStr = String(staff.cid);
-                            if (ids.includes(cidStr)) {
-                              const idx = ids.indexOf(cidStr);
-                              setNewSession((p) => ({
-                                ...p,
-                                handler_ids: ids.filter((id) => id !== cidStr),
-                                handler_names: names.filter(
-                                  (_, i) => i !== idx,
+                            const handlerIds = newSession.handler_ids || [];
+                            const handlerNames = newSession.handler_names || [];
+                            const staffCid = String(staff.cid);
+                            if (handlerIds.includes(staffCid)) {
+                              const index = handlerIds.indexOf(staffCid);
+                              setNewSession((prev) => ({
+                                ...prev,
+                                handler_ids: handlerIds.filter((id) => id !== staffCid),
+                                handler_names: handlerNames.filter(
+                                  (_, nameIndex) => nameIndex !== index,
                                 ),
                               }));
                             } else {
-                              setNewSession((p) => ({
-                                ...p,
-                                handler_ids: [...ids, cidStr],
-                                handler_names: [...names, staff.name],
+                              setNewSession((prev) => ({
+                                ...prev,
+                                handler_ids: [...handlerIds, staffCid],
+                                handler_names: [...handlerNames, staff.name],
                               }));
                             }
                           }}
@@ -4193,10 +4193,10 @@ function ProgramWorkspace() {
                   </label>
                   <textarea
                     value={newSession.notes}
-                    onChange={(e) =>
-                      setNewSession((p) => ({
-                        ...p,
-                        notes: e.target.value,
+                    onChange={(event) =>
+                      setNewSession((prev) => ({
+                        ...prev,
+                        notes: event.target.value,
                       }))
                     }
                     rows={3}
@@ -4250,10 +4250,10 @@ function ProgramWorkspace() {
                     {newSessionMaterial.type === "text" && (
                       <input
                         value={newSessionMaterial.content}
-                        onChange={(e) =>
-                          setNewSessionMaterial((p) => ({
-                            ...p,
-                            content: e.target.value,
+                        onChange={(event) =>
+                          setNewSessionMaterial((prev) => ({
+                            ...prev,
+                            content: event.target.value,
                             name: "Text Note",
                           }))
                         }
@@ -4270,12 +4270,12 @@ function ProgramWorkspace() {
                       <input
                         type="url"
                         value={newSessionMaterial.content}
-                        onChange={(e) =>
-                          setNewSessionMaterial((p) => ({
-                            ...p,
-                            content: e.target.value,
+                        onChange={(event) =>
+                          setNewSessionMaterial((prev) => ({
+                            ...prev,
+                            content: event.target.value,
                             name:
-                              e.target.value.split("/").pop() ||
+                              event.target.value.split("/").pop() ||
                               "External Link",
                           }))
                         }
@@ -4293,11 +4293,11 @@ function ProgramWorkspace() {
                         <input
                           type="file"
                           accept=".pdf,.doc,.docx"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
                             if (file)
-                              setNewSessionMaterial((p) => ({
-                                ...p,
+                              setNewSessionMaterial((prev) => ({
+                                ...prev,
                                 content: file.name,
                                 name: file.name,
                               }));
@@ -4321,10 +4321,10 @@ function ProgramWorkspace() {
                       type="button"
                       onClick={() => {
                         if (!newSessionMaterial.content.trim()) return;
-                        setNewSession((p) => ({
-                          ...p,
+                        setNewSession((prev) => ({
+                          ...prev,
                           extra_materials: [
-                            ...(p.extra_materials || []),
+                            ...(prev.extra_materials || []),
                             { ...newSessionMaterial },
                           ],
                         }));
@@ -4343,9 +4343,9 @@ function ProgramWorkspace() {
                   {/* Added materials list */}
                   {(newSession.extra_materials || []).length > 0 && (
                     <div className="space-y-1.5 mt-2">
-                      {(newSession.extra_materials || []).map((mat, idx) => (
+                      {(newSession.extra_materials || []).map((material, index) => (
                         <div
-                          key={idx}
+                          key={index}
                           className="flex items-center justify-between p-2 rounded-lg"
                           style={{
                             background: "var(--bg-tertiary)",
@@ -4353,27 +4353,27 @@ function ProgramWorkspace() {
                           }}
                         >
                           <div className="flex items-center gap-2 min-w-0">
-                            {mat.type === "text" && (
+                            {material.type === "text" && (
                               <FileText className="w-3 h-3 text-blue-500 shrink-0" />
                             )}
-                            {mat.type === "link" && (
+                            {material.type === "link" && (
                               <Plus className="w-3 h-3 text-emerald-500 shrink-0" />
                             )}
-                            {mat.type === "upload" && (
+                            {material.type === "upload" && (
                               <Paperclip className="w-3 h-3 text-[#FF6600] shrink-0" />
                             )}
                             <span className="text-[10px] font-bold truncate text-[var(--text-primary)]">
-                              {mat.name || mat.content}
+                              {material.name || material.content}
                             </span>
                           </div>
                           <button
                             type="button"
                             onClick={() =>
-                              setNewSession((p) => ({
-                                ...p,
+                              setNewSession((prev) => ({
+                                ...prev,
                                 extra_materials: (
-                                  p.extra_materials || []
-                                ).filter((_, i) => i !== idx),
+                                  prev.extra_materials || []
+                                ).filter((_, materialIndex) => materialIndex !== index),
                               }))
                             }
                             className="text-rose-500 hover:scale-110 transition-all shrink-0"
@@ -4418,18 +4418,18 @@ function ProgramWorkspace() {
                   {/* List of added requirements */}
                   {(newSession.requirements || []).length > 0 && (
                     <div className="space-y-2 mb-3">
-                      {(newSession.requirements || []).map((req, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] shadow-sm">
+                      {(newSession.requirements || []).map((requirement, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] shadow-sm">
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-black text-[var(--text-primary)] uppercase">{req.title}</span>
+                              <span className="text-[11px] font-black text-[var(--text-primary)] uppercase">{requirement.title}</span>
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] uppercase">
-                                {req.allowed_format}
+                                {requirement.allowed_format}
                               </span>
                             </div>
-                            {req.due_date && <span className="text-[10px] text-[var(--text-secondary)]">Due: {req.due_date}</span>}
+                            {requirement.due_date && <span className="text-[10px] text-[var(--text-secondary)]">Due: {requirement.due_date}</span>}
                           </div>
-                          <button type="button" onClick={() => setNewSession(p => ({ ...p, requirements: p.requirements.filter((_, i) => i !== idx) }))} className="text-rose-500 hover:bg-rose-500/10 p-2 rounded-md transition-all">
+                          <button type="button" onClick={() => setNewSession(prev => ({ ...prev, requirements: prev.requirements.filter((_, requirementIndex) => requirementIndex !== index) }))} className="text-rose-500 hover:bg-rose-500/10 p-2 rounded-md transition-all">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -4446,7 +4446,7 @@ function ProgramWorkspace() {
                       <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.reqTypeLabel")}</label>
                       <select
                         value={newRequirement.allowed_format}
-                        onChange={(e) => setNewRequirement(p => ({ ...p, allowed_format: e.target.value }))}
+                        onChange={(event) => setNewRequirement(prev => ({ ...prev, allowed_format: event.target.value }))}
                         className="w-full rounded-lg px-3 py-2 text-xs font-bold outline-none transition-colors"
                         style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
                       >
@@ -4462,7 +4462,7 @@ function ProgramWorkspace() {
                       <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.titleLabel")}</label>
                       <input
                         value={newRequirement.title}
-                        onChange={(e) => setNewRequirement(p => ({ ...p, title: e.target.value }))}
+                        onChange={(event) => setNewRequirement(prev => ({ ...prev, title: event.target.value }))}
                         placeholder={t("pmMisc.workspace.requirementTitlePlaceholder")}
                         className="w-full rounded-lg px-3 py-2 text-xs font-bold outline-none transition-colors"
                         style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
@@ -4474,7 +4474,7 @@ function ProgramWorkspace() {
                       <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.descLabel")}</label>
                       <textarea
                         value={newRequirement.description || ""}
-                        onChange={(e) => setNewRequirement(p => ({ ...p, description: e.target.value }))}
+                        onChange={(event) => setNewRequirement(prev => ({ ...prev, description: event.target.value }))}
                         placeholder={t("pmMisc.workspace.instructionsPlaceholder")}
                         rows={2}
                         className="w-full rounded-lg px-3 py-2 text-xs font-medium outline-none transition-colors"
@@ -4490,7 +4490,7 @@ function ProgramWorkspace() {
                           <input
                             type="text"
                             value={newRequirement.resource_url || ""}
-                            onChange={(e) => setNewRequirement(p => ({ ...p, resource_url: e.target.value }))}
+                            onChange={(event) => setNewRequirement(prev => ({ ...prev, resource_url: event.target.value }))}
                             placeholder={t("pmMisc.workspace.resourceUrlPlaceholder")}
                             className="w-full rounded-lg px-3 py-2 text-xs font-medium outline-none transition-colors"
                             style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
@@ -4501,7 +4501,7 @@ function ProgramWorkspace() {
                           <input
                             type="text"
                             value={newRequirement.resource_label || ""}
-                            onChange={(e) => setNewRequirement(p => ({ ...p, resource_label: e.target.value }))}
+                            onChange={(event) => setNewRequirement(prev => ({ ...prev, resource_label: event.target.value }))}
                             placeholder={t("pmMisc.workspace.resourceLabelPlaceholder")}
                             className="w-full rounded-lg px-3 py-2 text-xs font-medium outline-none transition-colors"
                             style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
@@ -4517,7 +4517,7 @@ function ProgramWorkspace() {
                         <input
                           type="date"
                           value={newRequirement.due_date || ""}
-                          onChange={(e) => setNewRequirement(p => ({ ...p, due_date: e.target.value }))}
+                          onChange={(event) => setNewRequirement(prev => ({ ...prev, due_date: event.target.value }))}
                           className="w-full rounded-lg px-3 py-2 text-xs font-medium outline-none transition-colors"
                           style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
                         />
@@ -4526,7 +4526,7 @@ function ProgramWorkspace() {
                         <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.targetAudienceLabel")}</label>
                         <select
                           value={newRequirement.assignee_type || "all"}
-                          onChange={(e) => setNewRequirement(p => ({ ...p, assignee_type: e.target.value, assignee_id: "" }))}
+                          onChange={(event) => setNewRequirement(prev => ({ ...prev, assignee_type: event.target.value, assignee_id: "" }))}
                           className="w-full rounded-lg px-3 py-2 text-xs font-bold outline-none transition-colors"
                           style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
                         >
@@ -4542,7 +4542,7 @@ function ProgramWorkspace() {
                         type="button"
                         disabled={!newRequirement.title.trim()}
                         onClick={() => {
-                          setNewSession(p => ({ ...p, requirements: [...(p.requirements || []), { ...newRequirement, kpi_ids: p.kpi_ids || [] }] }));
+                          setNewSession(prev => ({ ...prev, requirements: [...(prev.requirements || []), { ...newRequirement, kpi_ids: prev.kpi_ids || [] }] }));
                           setNewRequirement({ title: "", description: "", allowed_format: "pdf", kpi_ids: [], due_date: "", assignee_type: "all", assignee_id: "", resource_url: "", resource_label: "" });
                         }}
                         className="w-full py-2.5 rounded-lg bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--border-primary)] text-xs font-black uppercase tracking-widest hover:bg-[var(--surface-3)] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
@@ -4580,7 +4580,7 @@ function ProgramWorkspace() {
           >
             <div
               className="card w-full max-w-md max-h-[85vh] overflow-y-auto space-y-6"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
             >
               <div className="flex justify-between items-center">
                 <h3
@@ -4624,7 +4624,7 @@ function ProgramWorkspace() {
                     min="0"
                     max="100"
                     value={reviewScore}
-                    onChange={(e) => setReviewScore(e.target.value)}
+                    onChange={(event) => setReviewScore(event.target.value)}
                     className="w-full rounded-lg px-4 py-3 text-2xl outline-none font-black text-center text-[var(--brand-orange)]"
                     style={{
                       background: "var(--bg-primary)",
@@ -4642,7 +4642,7 @@ function ProgramWorkspace() {
                   </label>
                   <textarea
                     value={reviewFeedback}
-                    onChange={(e) => setReviewFeedback(e.target.value)}
+                    onChange={(event) => setReviewFeedback(event.target.value)}
                     rows={2}
                     placeholder="Optional feedback or rejection reason"
                     className="w-full rounded-lg px-3 py-2 text-xs font-bold outline-none"
@@ -4699,7 +4699,7 @@ function ProgramWorkspace() {
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.dateRequired")}</label>
                       <input type="date" value={followupDate}
-                        onChange={(e) => setFollowupDate(e.target.value)}
+                        onChange={(event) => setFollowupDate(event.target.value)}
                         className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
                         style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
                       />
@@ -4707,7 +4707,7 @@ function ProgramWorkspace() {
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.timeRequired")}</label>
                       <input type="time" value={followupTime}
-                        onChange={(e) => setFollowupTime(e.target.value)}
+                        onChange={(event) => setFollowupTime(event.target.value)}
                         className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
                         style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
                       />
@@ -4715,7 +4715,7 @@ function ProgramWorkspace() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.durationMinutes")}</label>
-                    <select value={followupDuration} onChange={(e) => setFollowupDuration(e.target.value)}
+                    <select value={followupDuration} onChange={(event) => setFollowupDuration(event.target.value)}
                       className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
                       style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
                     >
@@ -4728,7 +4728,7 @@ function ProgramWorkspace() {
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.meetingLinkOptional")}</label>
                     <input type="url" value={followupMeetingLink}
-                      onChange={(e) => setFollowupMeetingLink(e.target.value)}
+                      onChange={(event) => setFollowupMeetingLink(event.target.value)}
                       placeholder="https://meet.google.com/..."
                       className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
                       style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
@@ -4737,7 +4737,7 @@ function ProgramWorkspace() {
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.notesOptional")}</label>
                     <textarea value={followupNotes}
-                      onChange={(e) => setFollowupNotes(e.target.value)}
+                      onChange={(event) => setFollowupNotes(event.target.value)}
                       placeholder={t("pmMisc.workspace.followupNotesPlaceholder")} rows={2}
                       className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold resize-none"
                       style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
@@ -4770,7 +4770,7 @@ function ProgramWorkspace() {
           >
             <div
               className="card w-full max-w-sm space-y-6"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
             >
               <div className="flex justify-between items-center">
                 <h3
@@ -4793,8 +4793,8 @@ function ProgramWorkspace() {
                   </label>
                   <select
                     value={newStaff.staff_id}
-                    onChange={(e) =>
-                      setNewStaff((p) => ({ ...p, staff_id: e.target.value }))
+                    onChange={(event) =>
+                      setNewStaff((prev) => ({ ...prev, staff_id: event.target.value }))
                     }
                     className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
                     style={{
@@ -4805,10 +4805,10 @@ function ProgramWorkspace() {
                   >
                     <option value="">{t("pmMisc.workspace.selectMember")}</option>
                     {staffList
-                      .filter((s) => s.role !== "super_admin")
-                      .map((s) => (
-                        <option key={s.cid} value={s.cid}>
-                          {s.name} ({s.role})
+                      .filter((member) => member.role !== "super_admin")
+                      .map((member) => (
+                        <option key={member.cid} value={member.cid}>
+                          {member.name} ({member.role})
                         </option>
                       ))}
                   </select>
@@ -4822,8 +4822,8 @@ function ProgramWorkspace() {
                   </label>
                   <select
                     value={newStaff.role}
-                    onChange={(e) =>
-                      setNewStaff((p) => ({ ...p, role: e.target.value }))
+                    onChange={(event) =>
+                      setNewStaff((prev) => ({ ...prev, role: event.target.value }))
                     }
                     className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
                     style={{
@@ -4866,7 +4866,7 @@ function ProgramWorkspace() {
           >
             <div
               className="card w-full max-w-sm space-y-6"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
             >
               <div className="flex justify-between items-center">
                 <h3
@@ -4889,8 +4889,8 @@ function ProgramWorkspace() {
                   </label>
                   <input
                     value={newKPI.title}
-                    onChange={(e) =>
-                      setNewKPI((p) => ({ ...p, title: e.target.value }))
+                    onChange={(event) =>
+                      setNewKPI((prev) => ({ ...prev, title: event.target.value }))
                     }
                     className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
                     style={{
@@ -4929,7 +4929,7 @@ function ProgramWorkspace() {
           >
             <div
               className="card w-full max-w-sm space-y-6 max-h-[85vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
             >
               <div className="flex justify-between items-center">
                 <h3
@@ -4952,10 +4952,10 @@ function ProgramWorkspace() {
                   </label>
                   <input
                     value={newRequirement.title}
-                    onChange={(e) =>
-                      setNewRequirement((p) => ({
-                        ...p,
-                        title: e.target.value,
+                    onChange={(event) =>
+                      setNewRequirement((prev) => ({
+                        ...prev,
+                        title: event.target.value,
                       }))
                     }
                     className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
@@ -4977,10 +4977,10 @@ function ProgramWorkspace() {
                   </label>
                   <textarea
                     value={newRequirement.description || ""}
-                    onChange={(e) =>
-                      setNewRequirement((p) => ({
-                        ...p,
-                        description: e.target.value,
+                    onChange={(event) =>
+                      setNewRequirement((prev) => ({
+                        ...prev,
+                        description: event.target.value,
                       }))
                     }
                     rows={3}
@@ -5004,10 +5004,10 @@ function ProgramWorkspace() {
                     </label>
                     <select
                       value={newRequirement.allowed_format}
-                      onChange={(e) =>
-                        setNewRequirement((p) => ({
-                          ...p,
-                          allowed_format: e.target.value,
+                      onChange={(event) =>
+                        setNewRequirement((prev) => ({
+                          ...prev,
+                          allowed_format: event.target.value,
                         }))
                       }
                       className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
@@ -5033,10 +5033,10 @@ function ProgramWorkspace() {
                     <input
                       type="date"
                       value={newRequirement.due_date || ""}
-                      onChange={(e) =>
-                        setNewRequirement((p) => ({
-                          ...p,
-                          due_date: e.target.value,
+                      onChange={(event) =>
+                        setNewRequirement((prev) => ({
+                          ...prev,
+                          due_date: event.target.value,
                         }))
                       }
                       className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
@@ -5059,10 +5059,10 @@ function ProgramWorkspace() {
                   <input
                     type="text"
                     value={newRequirement.resource_url || ""}
-                    onChange={(e) =>
-                      setNewRequirement((p) => ({
-                        ...p,
-                        resource_url: e.target.value,
+                    onChange={(event) =>
+                      setNewRequirement((prev) => ({
+                        ...prev,
+                        resource_url: event.target.value,
                       }))
                     }
                     className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
@@ -5088,10 +5088,10 @@ function ProgramWorkspace() {
                   <input
                     type="text"
                     value={newRequirement.resource_label || ""}
-                    onChange={(e) =>
-                      setNewRequirement((p) => ({
-                        ...p,
-                        resource_label: e.target.value,
+                    onChange={(event) =>
+                      setNewRequirement((prev) => ({
+                        ...prev,
+                        resource_label: event.target.value,
                       }))
                     }
                     className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
@@ -5110,11 +5110,11 @@ function ProgramWorkspace() {
                     <Target className="w-3 h-3 inline mr-1" /> {t("pmMisc.workspace.gradingFromKpis")}
                   </p>
                   {(() => {
-                    const linked = kpis.filter(k => (newRequirement.kpi_ids || []).includes(k.id));
+                    const linked = kpis.filter(kpi => (newRequirement.kpi_ids || []).includes(kpi.id));
                     if (linked.length === 0) {
                       return <p className="text-[8px] text-slate-500 italic">{t("pmMisc.workspace.gradingKpiHint")}</p>;
                     }
-                    const avgWeight = (linked.reduce((s, k) => s + (parseFloat(k.weight) || 0), 0) / linked.length).toFixed(1);
+                    const avgWeight = (linked.reduce((sum, kpi) => sum + (parseFloat(kpi.weight) || 0), 0) / linked.length).toFixed(1);
                     return <div className="grid grid-cols-2 gap-2 text-[10px]">
                       <div><span className="text-slate-500">{t("pmMisc.workspace.kpisLinked")}</span> <span className="font-bold text-purple-400">{linked.length}</span></div>
                       <div><span className="text-slate-500">{t("pmMisc.workspace.avgWeight")}</span> <span className="font-bold text-purple-400">{avgWeight}%</span></div>
@@ -5131,10 +5131,10 @@ function ProgramWorkspace() {
                   </label>
                   <select
                     value={newRequirement.assignee_type || "all"}
-                    onChange={(e) =>
-                      setNewRequirement((p) => ({
-                        ...p,
-                        assignee_type: e.target.value,
+                    onChange={(event) =>
+                      setNewRequirement((prev) => ({
+                        ...prev,
+                        assignee_type: event.target.value,
                         assignee_id: "",
                       }))
                     }
@@ -5155,10 +5155,10 @@ function ProgramWorkspace() {
                   <div className="space-y-1">
                     <select
                       value={newRequirement.assignee_id || ""}
-                      onChange={(e) =>
-                        setNewRequirement((p) => ({
-                          ...p,
-                          assignee_id: e.target.value,
+                      onChange={(event) =>
+                        setNewRequirement((prev) => ({
+                          ...prev,
+                          assignee_id: event.target.value,
                         }))
                       }
                       className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
@@ -5169,9 +5169,9 @@ function ProgramWorkspace() {
                       }}
                     >
                       <option value="">{t("pmMisc.workspace.selectTeam")}</option>
-                      {teams.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
+                      {teams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name}
                         </option>
                       ))}
                     </select>
@@ -5182,10 +5182,10 @@ function ProgramWorkspace() {
                   <div className="space-y-1">
                     <select
                       value={newRequirement.assignee_id || ""}
-                      onChange={(e) =>
-                        setNewRequirement((p) => ({
-                          ...p,
-                          assignee_id: e.target.value,
+                      onChange={(event) =>
+                        setNewRequirement((prev) => ({
+                          ...prev,
+                          assignee_id: event.target.value,
                         }))
                       }
                       className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
@@ -5196,9 +5196,9 @@ function ProgramWorkspace() {
                       }}
                     >
                       <option value="">{t("pmMisc.workspace.selectParticipant")}</option>
-                      {participants.slice(0, 50).map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.email})
+                      {participants.slice(0, 50).map((participant) => (
+                        <option key={participant.id} value={participant.id}>
+                          {participant.name} ({participant.email})
                         </option>
                       ))}
                     </select>
@@ -5266,7 +5266,7 @@ function ProgramWorkspace() {
           >
             <div
               className="card w-full max-w-2xl space-y-6 max-h-[85vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
             >
               <div className="flex justify-between items-center">
                 <h3
@@ -5289,7 +5289,7 @@ function ProgramWorkspace() {
                   <input
                     type="date"
                     value={attendanceDate}
-                    onChange={(e) => setAttendanceDate(e.target.value)}
+                    onChange={(event) => setAttendanceDate(event.target.value)}
                     className="w-full bg-transparent text-sm font-bold text-[var(--text-primary)] outline-none"
                     max={getLocalToday()}
                     min={getLocalToday()}
@@ -5298,32 +5298,32 @@ function ProgramWorkspace() {
               </div>
 
               <div className="space-y-3">
-                {participants.filter(p => p.status !== 'archived').map((p) => {
-                  const status = attendanceRecords[p.id] || "";
+                {participants.filter(participant => participant.status !== 'archived').map((participant) => {
+                  const status = attendanceRecords[participant.id] || "";
                   return (
                     <div
-                      key={p.id}
+                      key={participant.id}
                       className="flex items-center justify-between p-4 bg-primary rounded-xl border border-[var(--border-primary)]"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-black uppercase">
-                          {p.name?.charAt(0)}
+                          {participant.name?.charAt(0)}
                         </div>
                         <div>
                           <p className="text-sm font-bold text-[var(--text-primary)]">
-                            {p.name}
+                            {participant.name}
                           </p>
                           <p className="text-[9px] text-[var(--text-secondary)]">
-                            {p.email}
+                            {participant.email}
                           </p>
                         </div>
                       </div>
                       <select
                         value={status}
-                        onChange={(e) =>
+                        onChange={(event) =>
                           setAttendanceRecords((prev) => ({
                             ...prev,
-                            [p.id]: e.target.value,
+                            [participant.id]: event.target.value,
                           }))
                         }
                         className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border outline-none ${!status
@@ -5365,35 +5365,35 @@ function ProgramWorkspace() {
                       // recorded by a facilitator for their team — are left
                       // exactly as they are.
                       const records = participants
-                        .map((p) => {
-                          const pid = p.user_id || p.cid || p.id;
+                        .map((participant) => {
+                          const participantId = participant.user_id || participant.cid || participant.id;
                           return {
                             session_id: selectedSessionForAttendance.id,
                             program_id: id,
-                            participant_id: pid,
-                            status: attendanceRecords[pid] || "",
+                            participant_id: participantId,
+                            status: attendanceRecords[participantId] || "",
                             date: attendanceDate,
                           };
                         })
                         .filter(
-                          (r) =>
-                            r.participant_id &&
-                            r.status !== (attendanceLoaded[r.participant_id] || ""),
+                          (record) =>
+                            record.participant_id &&
+                            record.status !== (attendanceLoaded[record.participant_id] || ""),
                         );
-                      const res = await fetch("/api/attendance", {
+                      const response = await fetch("/api/attendance", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(records),
                       });
-                      const data = await res.json();
+                      const data = await response.json();
                       if (!data.success) throw new Error(t(data.error || "Unknown error") || data.error || "Unknown error");
                       notify(t("pmMisc.workspace.attendanceRecorded", { count: data.upserted }));
                       setShowAttendanceModal(false);
                       setAttendanceRecords({});
                       setAttendanceLoaded({});
-                    } catch (e) {
+                    } catch (error) {
                       notify(
-                        (e && e.message) ||
+                        (error && error.message) ||
                           t("pmMisc.workspace.attendanceSaveFailed"),
                         "error",
                       );
@@ -5419,7 +5419,7 @@ function ProgramWorkspace() {
           >
             <div
               className="card w-full max-w-lg space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
             >
               <div className="flex justify-between items-center sticky top-0 bg-secondary z-10 pb-4 border-b border-[var(--border-primary)]">
                 <h3
@@ -5461,8 +5461,8 @@ function ProgramWorkspace() {
                             key={opt}
                             type="button"
                             onClick={() =>
-                              setNewPMReport((p) => ({
-                                ...p,
+                              setNewPMReport((prev) => ({
+                                ...prev,
                                 week_status: opt,
                               }))
                             }
@@ -5493,8 +5493,8 @@ function ProgramWorkspace() {
                             key={opt}
                             type="button"
                             onClick={() =>
-                              setNewPMReport((p) => ({
-                                ...p,
+                              setNewPMReport((prev) => ({
+                                ...prev,
                                 week_rating: opt,
                               }))
                             }
@@ -5529,10 +5529,10 @@ function ProgramWorkspace() {
                       <input
                         type="text"
                         value={newPMReport.main_topic}
-                        onChange={(e) =>
-                          setNewPMReport((p) => ({
-                            ...p,
-                            main_topic: e.target.value,
+                        onChange={(event) =>
+                          setNewPMReport((prev) => ({
+                            ...prev,
+                            main_topic: event.target.value,
                           }))
                         }
                         placeholder={t("pmMisc.workspace.mainTopicPlaceholder")}
@@ -5564,8 +5564,8 @@ function ProgramWorkspace() {
                         <button
                           type="button"
                           onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
+                            setNewPMReport((prev) => ({
+                              ...prev,
                               assignment_given: true,
                             }))
                           }
@@ -5579,8 +5579,8 @@ function ProgramWorkspace() {
                         <button
                           type="button"
                           onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
+                            setNewPMReport((prev) => ({
+                              ...prev,
                               assignment_given: false,
                               assignment_kpi_ids: [],
                               assignment_objective: "",
@@ -5611,12 +5611,12 @@ function ProgramWorkspace() {
                             </p>
                           ) : (
                             <div className="grid grid-cols-1 gap-1.5 max-h-[160px] overflow-y-auto p-1 custom-scrollbar">
-                              {kpis.map((kpi, kpiIdx2) => {
-                                const kpiShare2 = Math.floor(100 / kpis.length);
-                                const kpiPct2 =
-                                  kpiIdx2 === kpis.length - 1
-                                    ? 100 - kpiShare2 * (kpis.length - 1)
-                                    : kpiShare2;
+                              {kpis.map((kpi, kpiIndex) => {
+                                const kpiShare = Math.floor(100 / kpis.length);
+                                const kpiPercent =
+                                  kpiIndex === kpis.length - 1
+                                    ? 100 - kpiShare * (kpis.length - 1)
+                                    : kpiShare;
                                 const isSelected = (
                                   newPMReport.assignment_kpi_ids || []
                                 ).includes(kpi.id);
@@ -5625,13 +5625,13 @@ function ProgramWorkspace() {
                                     key={kpi.id}
                                     type="button"
                                     onClick={() =>
-                                      setNewPMReport((p) => ({
-                                        ...p,
+                                      setNewPMReport((prev) => ({
+                                        ...prev,
                                         assignment_kpi_ids: isSelected
-                                          ? p.assignment_kpi_ids.filter(
+                                          ? prev.assignment_kpi_ids.filter(
                                             (id) => id !== kpi.id,
                                           )
-                                          : [...p.assignment_kpi_ids, kpi.id],
+                                          : [...prev.assignment_kpi_ids, kpi.id],
                                       }))
                                     }
                                     className={`flex items-center justify-between p-2.5 rounded-lg border text-[10px] font-bold uppercase tracking-tight transition-all text-left ${isSelected
@@ -5641,7 +5641,7 @@ function ProgramWorkspace() {
                                   >
                                     <span>{kpi.title}</span>
                                     <span className="text-[10px] opacity-50">
-                                      {kpiPct2}%
+                                      {kpiPercent}%
                                     </span>
                                   </button>
                                 );
@@ -5659,10 +5659,10 @@ function ProgramWorkspace() {
                           <input
                             type="text"
                             value={newPMReport.assignment_objective}
-                            onChange={(e) =>
-                              setNewPMReport((p) => ({
-                                ...p,
-                                assignment_objective: e.target.value,
+                            onChange={(event) =>
+                              setNewPMReport((prev) => ({
+                                ...prev,
+                                assignment_objective: event.target.value,
                               }))
                             }
                             placeholder={t("pmMisc.workspace.assignmentObjectivePlaceholder")}
@@ -5677,10 +5677,10 @@ function ProgramWorkspace() {
                           </label>
                           <textarea
                             value={newPMReport.assignment_outcome}
-                            onChange={(e) =>
-                              setNewPMReport((p) => ({
-                                ...p,
-                                assignment_outcome: e.target.value,
+                            onChange={(event) =>
+                              setNewPMReport((prev) => ({
+                                ...prev,
+                                assignment_outcome: event.target.value,
                               }))
                             }
                             rows={2}
@@ -5716,8 +5716,8 @@ function ProgramWorkspace() {
                             key={opt}
                             type="button"
                             onClick={() =>
-                              setNewPMReport((p) => ({
-                                ...p,
+                              setNewPMReport((prev) => ({
+                                ...prev,
                                 attendance_level: opt,
                               }))
                             }
@@ -5747,8 +5747,8 @@ function ProgramWorkspace() {
                             key={opt}
                             type="button"
                             onClick={() =>
-                              setNewPMReport((p) => ({
-                                ...p,
+                              setNewPMReport((prev) => ({
+                                ...prev,
                                 participation_level: opt,
                               }))
                             }
@@ -5776,10 +5776,10 @@ function ProgramWorkspace() {
                         <button
                           type="button"
                           onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
+                            setNewPMReport((prev) => ({
+                              ...prev,
                               participants_need_attention:
-                                !p.participants_need_attention,
+                                !prev.participants_need_attention,
                             }))
                           }
                           className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.participants_need_attention
@@ -5798,10 +5798,10 @@ function ProgramWorkspace() {
                       {newPMReport.participants_need_attention && (
                         <textarea
                           value={newPMReport.participants_attention_notes}
-                          onChange={(e) =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              participants_attention_notes: e.target.value,
+                          onChange={(event) =>
+                            setNewPMReport((prev) => ({
+                              ...prev,
+                              participants_attention_notes: event.target.value,
                             }))
                           }
                           rows={2}
@@ -5820,9 +5820,9 @@ function ProgramWorkspace() {
                         <button
                           type="button"
                           onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              standout_participants: !p.standout_participants,
+                            setNewPMReport((prev) => ({
+                              ...prev,
+                              standout_participants: !prev.standout_participants,
                             }))
                           }
                           className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.standout_participants
@@ -5841,10 +5841,10 @@ function ProgramWorkspace() {
                       {newPMReport.standout_participants && (
                         <textarea
                           value={newPMReport.standout_notes}
-                          onChange={(e) =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              standout_notes: e.target.value,
+                          onChange={(event) =>
+                            setNewPMReport((prev) => ({
+                              ...prev,
+                              standout_notes: event.target.value,
                             }))
                           }
                           rows={2}
@@ -5879,8 +5879,8 @@ function ProgramWorkspace() {
                             key={opt}
                             type="button"
                             onClick={() =>
-                              setNewPMReport((p) => ({
-                                ...p,
+                              setNewPMReport((prev) => ({
+                                ...prev,
                                 delivery_quality: opt,
                               }))
                             }
@@ -5917,8 +5917,8 @@ function ProgramWorkspace() {
                             key={opt}
                             type="button"
                             onClick={() =>
-                              setNewPMReport((p) => ({
-                                ...p,
+                              setNewPMReport((prev) => ({
+                                ...prev,
                                 participant_understanding: opt,
                               }))
                             }
@@ -5946,9 +5946,9 @@ function ProgramWorkspace() {
                         <button
                           type="button"
                           onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              delivery_challenges: !p.delivery_challenges,
+                            setNewPMReport((prev) => ({
+                              ...prev,
+                              delivery_challenges: !prev.delivery_challenges,
                             }))
                           }
                           className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.delivery_challenges
@@ -5967,10 +5967,10 @@ function ProgramWorkspace() {
                       {newPMReport.delivery_challenges && (
                         <textarea
                           value={newPMReport.delivery_challenge_note}
-                          onChange={(e) =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              delivery_challenge_note: e.target.value,
+                          onChange={(event) =>
+                            setNewPMReport((prev) => ({
+                              ...prev,
+                              delivery_challenge_note: event.target.value,
                             }))
                           }
                           rows={2}
@@ -6003,9 +6003,9 @@ function ProgramWorkspace() {
                         <button
                           type="button"
                           onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              had_issues: !p.had_issues,
+                            setNewPMReport((prev) => ({
+                              ...prev,
+                              had_issues: !prev.had_issues,
                             }))
                           }
                           className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.had_issues
@@ -6043,13 +6043,13 @@ function ProgramWorkspace() {
                                     key={type}
                                     type="button"
                                     onClick={() =>
-                                      setNewPMReport((p) => ({
-                                        ...p,
+                                      setNewPMReport((prev) => ({
+                                        ...prev,
                                         issue_types: isSelected
-                                          ? p.issue_types.filter(
-                                            (t) => t !== type,
+                                          ? prev.issue_types.filter(
+                                            (issueType) => issueType !== type,
                                           )
-                                          : [...p.issue_types, type],
+                                          : [...prev.issue_types, type],
                                       }))
                                     }
                                     className={`px-3 py-1.5 rounded-lg border text-[8px] font-black uppercase tracking-widest transition-all ${isSelected
@@ -6079,10 +6079,10 @@ function ProgramWorkspace() {
                             <button
                               type="button"
                               onClick={() =>
-                                setNewPMReport((p) => ({
-                                  ...p,
+                                setNewPMReport((prev) => ({
+                                  ...prev,
                                   requires_admin_attention:
-                                    !p.requires_admin_attention,
+                                    !prev.requires_admin_attention,
                                 }))
                               }
                               className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.requires_admin_attention
@@ -6102,10 +6102,10 @@ function ProgramWorkspace() {
                           {/* Additional Note */}
                           <textarea
                             value={newPMReport.additional_issue_note}
-                            onChange={(e) =>
-                              setNewPMReport((p) => ({
-                                ...p,
-                                additional_issue_note: e.target.value,
+                            onChange={(event) =>
+                              setNewPMReport((prev) => ({
+                                ...prev,
+                                additional_issue_note: event.target.value,
                               }))
                             }
                             rows={2}
@@ -6140,8 +6140,8 @@ function ProgramWorkspace() {
                         <button
                           type="button"
                           onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
+                            setNewPMReport((prev) => ({
+                              ...prev,
                               program_on_track: true,
                             }))
                           }
@@ -6155,8 +6155,8 @@ function ProgramWorkspace() {
                         <button
                           type="button"
                           onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
+                            setNewPMReport((prev) => ({
+                              ...prev,
                               program_on_track: false,
                             }))
                           }
@@ -6177,10 +6177,10 @@ function ProgramWorkspace() {
                       </label>
                       <textarea
                         value={newPMReport.planned_adjustments}
-                        onChange={(e) =>
-                          setNewPMReport((p) => ({
-                            ...p,
-                            planned_adjustments: e.target.value,
+                        onChange={(event) =>
+                          setNewPMReport((prev) => ({
+                            ...prev,
+                            planned_adjustments: event.target.value,
                           }))
                         }
                         rows={2}
@@ -6205,10 +6205,10 @@ function ProgramWorkspace() {
                     </label>
                     <select
                       value={newPMReport.status}
-                      onChange={(e) =>
-                        setNewPMReport((p) => ({
-                          ...p,
-                          status: e.target.value,
+                      onChange={(event) =>
+                        setNewPMReport((prev) => ({
+                          ...prev,
+                          status: event.target.value,
                         }))
                       }
                       className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
@@ -6231,10 +6231,10 @@ function ProgramWorkspace() {
                     </label>
                     <textarea
                       value={newPMReport.summary}
-                      onChange={(e) =>
-                        setNewPMReport((p) => ({
-                          ...p,
-                          summary: e.target.value,
+                      onChange={(event) =>
+                        setNewPMReport((prev) => ({
+                          ...prev,
+                          summary: event.target.value,
                         }))
                       }
                       rows={3}
@@ -6252,9 +6252,9 @@ function ProgramWorkspace() {
                       <button
                         type="button"
                         onClick={() =>
-                          setPmReportAttachments((p) => ({
+                          setPmReportAttachments((prev) => ({
                             type: "link",
-                            url: p.type === "link" ? p.url : "",
+                            url: prev.type === "link" ? prev.url : "",
                           }))
                         }
                         className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all ${pmReportAttachments.type === "link"
@@ -6267,9 +6267,9 @@ function ProgramWorkspace() {
                       <button
                         type="button"
                         onClick={() =>
-                          setPmReportAttachments((p) => ({
+                          setPmReportAttachments((prev) => ({
                             type: "file",
-                            url: p.type === "file" ? p.url : "",
+                            url: prev.type === "file" ? prev.url : "",
                           }))
                         }
                         className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all ${pmReportAttachments.type === "file"
@@ -6297,10 +6297,10 @@ function ProgramWorkspace() {
                       <input
                         type="url"
                         value={pmReportAttachments.url}
-                        onChange={(e) =>
-                          setPmReportAttachments((p) => ({
-                            ...p,
-                            url: e.target.value,
+                        onChange={(event) =>
+                          setPmReportAttachments((prev) => ({
+                            ...prev,
+                            url: event.target.value,
                           }))
                         }
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
@@ -6369,7 +6369,7 @@ function ProgramWorkspace() {
           >
             <div
               className="card w-full max-w-5xl max-h-[85vh] flex flex-col p-0 overflow-hidden shadow-2xl border-indigo-500/30"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
             >
               <div className="p-8 border-b border-[var(--border-primary)] bg-gradient-to-r from-[var(--bg-secondary)] to-[var(--bg-tertiary)] flex justify-between items-center">
                 <div>
@@ -6410,7 +6410,7 @@ function ProgramWorkspace() {
                       <div className="flex items-center gap-2">
                         <select
                           value={facilitatorDraftId}
-                          onChange={(e) => setFacilitatorDraftId(e.target.value)}
+                          onChange={(event) => setFacilitatorDraftId(event.target.value)}
                           className="rounded-lg px-3 py-2 text-xs font-bold outline-none"
                           style={{
                             background: "var(--bg-primary)",
@@ -6419,9 +6419,9 @@ function ProgramWorkspace() {
                           }}
                         >
                           <option value="">{t("pmMisc.workspace.unassigned")}</option>
-                          {oversightCandidates.map((s) => (
-                            <option key={s.cid ?? s.email ?? s.id} value={s.cid}>
-                              {s.name}
+                          {oversightCandidates.map((member) => (
+                            <option key={member.cid ?? member.email ?? member.id} value={member.cid}>
+                              {member.name}
                             </option>
                           ))}
                         </select>
@@ -6473,58 +6473,58 @@ function ProgramWorkspace() {
                       </thead>
                       <tbody>
                         {participants
-                          .filter((p) => p.v2_team_id === selectedTeam.id)
-                          .map((p) => {
-                            const pid = String(p.cid || p.id);
+                          .filter((participant) => participant.v2_team_id === selectedTeam.id)
+                          .map((participant) => {
+                            const participantId = String(participant.cid || participant.id);
                             // Match submissions made by the participant directly
                             // OR by their team (team-level submissions carry team_id).
                             const participantSubmissions = submissions.filter(
-                              (s) =>
-                                String(s.participant_id) === pid ||
+                              (submission) =>
+                                String(submission.participant_id) === participantId ||
                                 (selectedTeam.id &&
-                                  String(s.team_id) === String(selectedTeam.id)),
+                                  String(submission.team_id) === String(selectedTeam.id)),
                             );
                             const scoredSubmissions = participantSubmissions.filter(
-                              (s) =>
-                                (s.score ?? s.evaluation_score ?? null) != null,
+                              (submission) =>
+                                (submission.score ?? submission.evaluation_score ?? null) != null,
                             );
                             const avgScore =
                               scoredSubmissions.length > 0
                                 ? Math.round(
                                   scoredSubmissions.reduce(
-                                    (acc, s) =>
-                                      acc + (s.score ?? s.evaluation_score ?? 0),
+                                    (acc, submission) =>
+                                      acc + (submission.score ?? submission.evaluation_score ?? 0),
                                     0,
                                   ) / scoredSubmissions.length,
                                 )
                                 : 0;
-                            const isEditing = editingScoreFor === pid;
+                            const isEditing = editingScoreFor === participantId;
 
                             return (
                               <tr
-                                key={p.id}
+                                key={participant.id}
                                 className="hover:bg-indigo-500/5 transition-colors"
                               >
                                 <td className="py-6">
                                   <div className="flex items-center gap-4">
                                     <div className="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-black text-sm border border-indigo-500/20">
-                                      {p.name.charAt(0)}
+                                      {participant.name.charAt(0)}
                                     </div>
                                     <div>
                                       <p className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                                        {p.name}
+                                        {participant.name}
                                       </p>
                                       <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase opacity-60">
-                                        {p.email}
+                                        {participant.email}
                                       </p>
                                     </div>
                                     {canEdit && (
                                       <button
                                         onClick={() =>
                                           setConfirmTarget({
-                                            id: p.id,
-                                            message: t("pmMisc.workspace.confirmRemoveMember", { name: p.name }),
-                                            onConfirm: () => removeParticipantFromTeam(p.id),
+                                            id: participant.id,
+                                            message: t("pmMisc.workspace.confirmRemoveMember", { name: participant.name }),
+                                            onConfirm: () => removeParticipantFromTeam(participant.id),
                                           })
                                         }
                                         className="ml-auto p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all"
@@ -6537,32 +6537,32 @@ function ProgramWorkspace() {
                                 </td>
                                 <td>
                                   <div className="flex flex-wrap gap-2">
-                                    {participantSubmissions.map((sub) => (
+                                    {participantSubmissions.map((submission) => (
                                       <div
-                                        key={sub.id}
+                                        key={submission.id}
                                         className="group relative"
                                       >
                                         <button
                                           onClick={() =>
                                             setActivePDF({
                                               url:
-                                                sub.file_url ||
-                                                sub.submission_url ||
-                                                sub.submission_link ||
+                                                submission.file_url ||
+                                                submission.submission_url ||
+                                                submission.submission_link ||
                                                 "#",
                                               name:
-                                                sub.deliverable_title ||
-                                                `Submission_${sub.id}`,
+                                                submission.deliverable_title ||
+                                                `Submission_${submission.id}`,
                                             })
                                           }
                                           className="flex items-center gap-1.5 px-3 py-1.5 bg-tertiary rounded-lg border border-[var(--border-primary)] hover:border-emerald-500/50 transition-all"
                                         >
                                           <FileText className="w-3.5 h-3.5 text-emerald-500" />
                                           <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                                            {sub.deliverable_title || t("pmMisc.workspace.artifact")}
+                                            {submission.deliverable_title || t("pmMisc.workspace.artifact")}
                                           </span>
                                           <span className="text-[10px] font-black text-emerald-500">
-                                            [{(sub.score ?? sub.evaluation_score ?? "—")}]
+                                            [{(submission.score ?? submission.evaluation_score ?? "—")}]
                                           </span>
                                         </button>
                                       </div>
@@ -6588,13 +6588,13 @@ function ProgramWorkspace() {
                                           min={0}
                                           max={100}
                                           value={scoreDraft}
-                                          onChange={(e) =>
-                                            setScoreDraft(e.target.value)
+                                          onChange={(event) =>
+                                            setScoreDraft(event.target.value)
                                           }
-                                          onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
+                                          onKeyDown={(event) => {
+                                            if (event.key === "Enter") {
                                               updateParticipantScores(
-                                                pid,
+                                                participantId,
                                                 scoreDraft,
                                               );
                                             }
@@ -6605,7 +6605,7 @@ function ProgramWorkspace() {
                                         <button
                                           onClick={() =>
                                             updateParticipantScores(
-                                              pid,
+                                              participantId,
                                               scoreDraft,
                                             )
                                           }
@@ -6629,7 +6629,7 @@ function ProgramWorkspace() {
                                     ) : (
                                       <button
                                         onClick={() => {
-                                          setEditingScoreFor(pid);
+                                          setEditingScoreFor(participantId);
                                           setScoreDraft(String(avgScore || ""));
                                         }}
                                         className="flex items-center gap-1.5 px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] rounded-lg hover:border-indigo-500/50 transition-all"
@@ -6650,7 +6650,7 @@ function ProgramWorkspace() {
                   </div>
 
                   {participants.filter(
-                    (p) => p.v2_team_id === selectedTeam.id,
+                    (participant) => participant.v2_team_id === selectedTeam.id,
                   ).length === 0 && (
                       <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
                         <Users className="w-12 h-12 mb-4" />
@@ -6688,7 +6688,7 @@ function ProgramWorkspace() {
         >
           <div
             className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-md mx-4"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="p-6">
               {promoteTarget.action === "approve" ? (
@@ -6716,7 +6716,7 @@ function ProgramWorkspace() {
                         const team = promoteTarget.team;
                         setPromoteTarget(null);
                         try {
-                          const res = await fetch("/api/pm/teams", {
+                          const response = await fetch("/api/pm/teams", {
                             method: "PATCH",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
@@ -6725,7 +6725,7 @@ function ProgramWorkspace() {
                               is_venture_ready: true,
                             }),
                           });
-                          const data = await res.json();
+                          const data = await response.json();
                           if (data.success) {
                             notify(t("pmMisc.workspace.teamApproved"));
                             fetchProgramData(true);
@@ -6767,12 +6767,12 @@ function ProgramWorkspace() {
                         const team = promoteTarget.team;
                         setPromoteTarget(null);
                         try {
-                          const res = await fetch("/api/ventures/promote", {
+                          const response = await fetch("/api/ventures/promote", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ team_id: team.id }),
                           });
-                          const data = await res.json();
+                          const data = await response.json();
                           if (data.success) {
                             notify(t("pmMisc.workspace.venturePromoted"));
                             fetchProgramData(true);
@@ -6803,7 +6803,7 @@ function ProgramWorkspace() {
         >
           <div
             className="card w-full max-w-sm space-y-5"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center flex-shrink-0">

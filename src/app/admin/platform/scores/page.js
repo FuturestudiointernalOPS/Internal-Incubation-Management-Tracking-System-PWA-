@@ -56,15 +56,15 @@ export default function ScoresPage() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [notification, setNotification] = useState(null);
 
-  const notify = (msg) => {
-    setNotification(msg);
+  const notify = (message) => {
+    setNotification(message);
     setTimeout(() => setNotification(null), 4000);
   };
 
   const fetchForms = async (bypassCache = false) => {
     const url = "/api/platform/forms?status=all";
-    const apply = (d) => {
-      if (d.success) setForms(d.forms || []);
+    const apply = (payload) => {
+      if (payload.success) setForms(payload.forms || []);
     };
     try {
       // Cache-first paint: the form dropdown renders instantly from a fresh
@@ -73,11 +73,11 @@ export default function ScoresPage() {
         const cached = cacheGet(url);
         if (cached !== null && cached.success) apply(cached);
       }
-      const res = await fetch(url);
-      const d = await res.json();
-      if (d.success) {
-        cacheSet(url, d);
-        apply(d);
+      const response = await fetch(url);
+      const payload = await response.json();
+      if (payload.success) {
+        cacheSet(url, payload);
+        apply(payload);
       }
     } catch (_) {}
   };
@@ -88,9 +88,9 @@ export default function ScoresPage() {
 
   const fetchRuns = async (formId) => {
     try {
-      const res = await fetch(`/api/platform/form-runs?form_id=${formId}`);
-      const d = await res.json();
-      if (d.success) setRuns(d.runs || []);
+      const response = await fetch(`/api/platform/form-runs?form_id=${formId}`);
+      const payload = await response.json();
+      if (payload.success) setRuns(payload.runs || []);
     } catch (_) {}
   };
 
@@ -109,8 +109,8 @@ export default function ScoresPage() {
       sort,
     });
     const url = `/api/platform/ai/evaluation-scores?${params.toString()}`;
-    const apply = (d) => {
-      setData(d);
+    const apply = (payload) => {
+      setData(payload);
       setSelected({});
     };
     let painted = false;
@@ -126,13 +126,13 @@ export default function ScoresPage() {
           painted = true;
         }
       }
-      const res = await fetch(url);
-      const d = await res.json();
-      if (d.success) {
-        cacheSet(url, d);
-        apply(d);
+      const response = await fetch(url);
+      const payload = await response.json();
+      if (payload.success) {
+        cacheSet(url, payload);
+        apply(payload);
       } else {
-        setError(t((d.error || t("adminMisc.platformScores.fetchFailed")) || "") || (d.error || t("adminMisc.platformScores.fetchFailed")));
+        setError(t((payload.error || t("adminMisc.platformScores.fetchFailed")) || "") || (payload.error || t("adminMisc.platformScores.fetchFailed")));
       }
     } catch {
       if (!painted) setError(t("adminMisc.platformScores.networkError"));
@@ -144,8 +144,8 @@ export default function ScoresPage() {
     setLoading(false);
   }, [selectedRunId, selectedFormId, sort, t]);
 
-  const toggleExpand = (idx) => {
-    setExpanded((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  const toggleExpand = (rowIndex) => {
+    setExpanded((prev) => ({ ...prev, [rowIndex]: !prev[rowIndex] }));
   };
 
   const toggleSelect = (submissionId) => {
@@ -162,7 +162,7 @@ export default function ScoresPage() {
 
   const filteredRespondents = useMemo(() => {
     const rows = data?.respondents || [];
-    const q = search.trim().toLowerCase();
+    const normalizedQuery = search.trim().toLowerCase();
     const v1 = parseFloat(scoreVal);
     const v2 = parseFloat(scoreVal2);
     const hasScore = !!scoreOp && !isNaN(v1);
@@ -178,26 +178,26 @@ export default function ScoresPage() {
         default: return true;
       }
     };
-    const activeFieldFilters = Object.entries(fieldFilters).filter(([, v]) => v);
+    const activeFieldFilters = Object.entries(fieldFilters).filter(([, value]) => value);
 
-    return rows.filter((r) => {
-      if (q) {
+    return rows.filter((respondent) => {
+      if (normalizedQuery) {
         const hay = [
-          r.name || "",
-          r.email || "",
-          ...Object.values(r.answers || {}),
+          respondent.name || "",
+          respondent.email || "",
+          ...Object.values(respondent.answers || {}),
         ]
           .join(" ")
           .toLowerCase();
-        if (!hay.includes(q)) return false;
+        if (!hay.includes(normalizedQuery)) return false;
       }
-      const score = Number(r.score);
+      const score = Number(respondent.score);
       if (!scorePass(isNaN(score) ? 0 : score)) return false;
-      if (statusFilter && r.status !== statusFilter) return false;
-      if (rankingFilter && (r.ranking || "") !== rankingFilter) return false;
-      for (const [label, val] of activeFieldFilters) {
-        const actual = String(r.answers?.[label] ?? "").trim().toLowerCase();
-        if (actual !== String(val).trim().toLowerCase()) return false;
+      if (statusFilter && respondent.status !== statusFilter) return false;
+      if (rankingFilter && (respondent.ranking || "") !== rankingFilter) return false;
+      for (const [label, value] of activeFieldFilters) {
+        const actual = String(respondent.answers?.[label] ?? "").trim().toLowerCase();
+        if (actual !== String(value).trim().toLowerCase()) return false;
       }
       return true;
     });
@@ -206,7 +206,7 @@ export default function ScoresPage() {
   const filteredStats = useMemo(() => {
     const rows = filteredRespondents;
     if (rows.length === 0) return { qualifying: 0, average: 0 };
-    const sum = rows.reduce((s, r) => s + (Number(r.score) || 0), 0);
+    const sum = rows.reduce((total, respondent) => total + (Number(respondent.score) || 0), 0);
     return {
       qualifying: rows.length,
       average: Math.round((sum / rows.length) * 10) / 10,
@@ -229,23 +229,23 @@ export default function ScoresPage() {
       t("adminMisc.platformScores.csvRecommendation"),
       t("adminMisc.platformScores.csvStatus"),
     ];
-    const bodyRows = rows.map((r) =>
+    const bodyRows = rows.map((respondent) =>
       [
-        `"${(r.name || "").replace(/"/g, '""')}"`,
-        `"${(r.email || "").replace(/"/g, '""')}"`,
-        r.score ?? "",
-        `"${(r.ranking || "").replace(/"/g, '""')}"`,
-        `"${(r.recommendation || "").replace(/"/g, '""')}"`,
-        r.status || "",
+        `"${(respondent.name || "").replace(/"/g, '""')}"`,
+        `"${(respondent.email || "").replace(/"/g, '""')}"`,
+        respondent.score ?? "",
+        `"${(respondent.ranking || "").replace(/"/g, '""')}"`,
+        `"${(respondent.recommendation || "").replace(/"/g, '""')}"`,
+        respondent.status || "",
       ].join(",")
     );
     const csv = [headers.join(","), ...bodyRows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `evaluation_scores_run_${selectedRunId || selectedFormId}.csv`;
-    a.click();
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `evaluation_scores_run_${selectedRunId || selectedFormId}.csv`;
+    link.click();
     URL.revokeObjectURL(url);
   };
 
@@ -271,17 +271,17 @@ export default function ScoresPage() {
   const handleDecision = async (submissionId, decision) => {
     setDeciding({ submission_id: submissionId, decision });
     try {
-      const res = await fetch("/api/platform/form-runs?action=review", {
+      const response = await fetch("/api/platform/form-runs?action=review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ submission_id: submissionId, decision }),
       });
-      const d = await res.json();
-      if (d.success) {
+      const payload = await response.json();
+      if (payload.success) {
         notify(decision === "approved" ? t("adminMisc.platformScores.approvedToast") : t("adminMisc.platformScores.rejectedToast"));
         fetchScores(true);
       } else {
-        notify(t((d.error || t("adminMisc.platformScores.decisionFailed")) || "") || (d.error || t("adminMisc.platformScores.decisionFailed")));
+        notify(t((payload.error || t("adminMisc.platformScores.decisionFailed")) || "") || (payload.error || t("adminMisc.platformScores.decisionFailed")));
       }
     } catch (_) {
       notify(t("adminMisc.platformScores.networkError"));
@@ -290,10 +290,10 @@ export default function ScoresPage() {
   };
 
   // Bulk decision
-  const selectedIds = Object.keys(selected).filter((k) => selected[k]);
+  const selectedIds = Object.keys(selected).filter((submissionId) => selected[submissionId]);
   const pendingSelectedIds = selectedIds.filter(
-    (sid) =>
-      filteredRespondents.find((r) => String(r.submission_id) === sid)?.status ===
+    (submissionId) =>
+      filteredRespondents.find((respondent) => String(respondent.submission_id) === submissionId)?.status ===
       "submitted"
   );
 
@@ -302,12 +302,12 @@ export default function ScoresPage() {
     const { decision } = showBulkConfirm;
     setBulkLoading(true);
     let done = 0;
-    for (const sid of pendingSelectedIds) {
+    for (const submissionId of pendingSelectedIds) {
       try {
         await fetch("/api/platform/form-runs?action=review", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ submission_id: parseInt(sid), decision }),
+          body: JSON.stringify({ submission_id: parseInt(submissionId), decision }),
         });
         done++;
       } catch (_) {}
@@ -338,7 +338,7 @@ export default function ScoresPage() {
         {/* Bulk confirm modal */}
         {showBulkConfirm && (
           <div className="fixed inset-0 z-[600] bg-black/70 flex items-center justify-center p-6" onClick={() => setShowBulkConfirm(null)}>
-            <div className="card w-full max-w-md p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
+            <div className="card w-full max-w-md p-6 space-y-5" onClick={(event) => event.stopPropagation()}>
               <div className="flex items-center gap-3">
                 <ShieldAlert className={`w-6 h-6 ${showBulkConfirm.decision === "approved" ? "text-emerald-500" : "text-rose-500"}`} />
                 <h3 className="text-lg font-black text-[var(--text-primary)] tracking-tight">
@@ -406,21 +406,21 @@ export default function ScoresPage() {
             </label>
             <select
               value={selectedFormId}
-              onChange={(e) => {
-                setSelectedFormId(e.target.value);
+              onChange={(event) => {
+                setSelectedFormId(event.target.value);
                 setSelectedRunId("");
                 setRuns([]);
                 setData(null);
                 setError("");
                 clearFilters();
-                if (e.target.value) fetchRuns(e.target.value);
+                if (event.target.value) fetchRuns(event.target.value);
               }}
               className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-sm font-bold outline-none focus:border-[var(--brand-orange)]"
             >
               <option value="">{t("adminMisc.platformScores.chooseForm")}</option>
-              {forms.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
+              {forms.map((form) => (
+                <option key={form.id} value={form.id}>
+                  {form.name}
                 </option>
               ))}
             </select>
@@ -434,8 +434,8 @@ export default function ScoresPage() {
               </label>
               <select
                 value={selectedRunId}
-                onChange={(e) => {
-                  setSelectedRunId(e.target.value);
+                onChange={(event) => {
+                  setSelectedRunId(event.target.value);
                   setData(null);
                   setError("");
                   clearFilters();
@@ -443,9 +443,9 @@ export default function ScoresPage() {
                 className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-sm font-bold outline-none focus:border-[var(--brand-orange)]"
               >
                 <option value="">{t("adminMisc.platformScores.chooseRun")}</option>
-                {runs.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name || `${t("adminMisc.platformScores.runFallback")} #${r.id}`} ({r.status})
+                {runs.map((run) => (
+                  <option key={run.id} value={run.id}>
+                    {run.name || `${t("adminMisc.platformScores.runFallback")} #${run.id}`} ({run.status})
                   </option>
                 ))}
               </select>
@@ -459,7 +459,7 @@ export default function ScoresPage() {
             </label>
             <select
               value={sort}
-              onChange={(e) => setSort(e.target.value)}
+              onChange={(event) => setSort(event.target.value)}
               className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
             >
               <option value="desc">{t("adminMisc.platformScores.sortDesc")}</option>
@@ -551,7 +551,7 @@ export default function ScoresPage() {
                   <input
                     type="text"
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    onChange={(event) => setSearch(event.target.value)}
                     placeholder="Search respondents (name, email, answers)..."
                     className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                   />
@@ -566,7 +566,7 @@ export default function ScoresPage() {
                   <div className="flex items-center gap-1.5">
                     <select
                       value={scoreOp}
-                      onChange={(e) => setScoreOp(e.target.value)}
+                      onChange={(event) => setScoreOp(event.target.value)}
                       className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
                     >
                       <option value="">Score: All</option>
@@ -584,7 +584,7 @@ export default function ScoresPage() {
                           min="0"
                           max="100"
                           value={scoreVal}
-                          onChange={(e) => setScoreVal(e.target.value)}
+                          onChange={(event) => setScoreVal(event.target.value)}
                           placeholder="80"
                           className="w-16 px-2 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
                         />
@@ -594,7 +594,7 @@ export default function ScoresPage() {
                             min="0"
                             max="100"
                             value={scoreVal2}
-                            onChange={(e) => setScoreVal2(e.target.value)}
+                            onChange={(event) => setScoreVal2(event.target.value)}
                             placeholder="90"
                             className="w-16 px-2 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
                           />
@@ -607,13 +607,13 @@ export default function ScoresPage() {
                   {/* Status filter */}
                   <select
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+                    onChange={(event) => setStatusFilter(event.target.value)}
                     className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
                   >
                     <option value="">Status: All</option>
-                    {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                    {Object.entries(STATUS_CONFIG).map(([key, config]) => (
                       <option key={key} value={key}>
-                        Status: {t(cfg.label)}
+                        Status: {t(config.label)}
                       </option>
                     ))}
                   </select>
@@ -622,32 +622,32 @@ export default function ScoresPage() {
                   {(data.rankings || []).length > 0 && (
                     <select
                       value={rankingFilter}
-                      onChange={(e) => setRankingFilter(e.target.value)}
+                      onChange={(event) => setRankingFilter(event.target.value)}
                       className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
                     >
                       <option value="">Result: All</option>
-                      {data.rankings.map((rk) => (
-                        <option key={rk} value={rk}>
-                          Result: {rk}
+                      {data.rankings.map((ranking) => (
+                        <option key={ranking} value={ranking}>
+                          Result: {ranking}
                         </option>
                       ))}
                     </select>
                   )}
 
                   {/* Dynamic field filters — from the form's actual columns */}
-                  {(data.filterable_fields || []).map((f) => (
+                  {(data.filterable_fields || []).map((field) => (
                     <select
-                      key={f.label}
-                      value={fieldFilters[f.label] || ""}
-                      onChange={(e) =>
-                        setFieldFilters((prev) => ({ ...prev, [f.label]: e.target.value }))
+                      key={field.label}
+                      value={fieldFilters[field.label] || ""}
+                      onChange={(event) =>
+                        setFieldFilters((prev) => ({ ...prev, [field.label]: event.target.value }))
                       }
                       className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
                     >
-                      <option value="">{f.label}: All</option>
-                      {f.options.map((o, idx) => (
-                        <option key={`${f.label}-${idx}`} value={String(o)}>
-                          {f.label}: {String(o)}
+                      <option value="">{field.label}: All</option>
+                      {field.options.map((option, optionIndex) => (
+                        <option key={`${field.label}-${optionIndex}`} value={String(option)}>
+                          {field.label}: {String(option)}
                         </option>
                       ))}
                     </select>
@@ -678,17 +678,17 @@ export default function ScoresPage() {
                     <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase">
                       <input
                         type="checkbox"
-                        checked={pendingSelectedIds.length === filteredRespondents.filter((r) => r.status === "submitted").length && filteredRespondents.some((r) => r.status === "submitted")}
-                        onChange={(e) => {
+                        checked={pendingSelectedIds.length === filteredRespondents.filter((respondent) => respondent.status === "submitted").length && filteredRespondents.some((respondent) => respondent.status === "submitted")}
+                        onChange={(event) => {
                           const next = {};
-                          filteredRespondents.forEach((r) => {
-                            if (r.status === "submitted") next[r.submission_id] = e.target.checked;
+                          filteredRespondents.forEach((respondent) => {
+                            if (respondent.status === "submitted") next[respondent.submission_id] = event.target.checked;
                           });
                           setSelected(next);
                         }}
                         className="accent-[var(--brand-orange)]"
                       />
-                      {t("adminMisc.platformScores.selectAllPending", { count: filteredRespondents.filter((r) => r.status === "submitted").length })}
+                      {t("adminMisc.platformScores.selectAllPending", { count: filteredRespondents.filter((respondent) => respondent.status === "submitted").length })}
                     </label>
                   </div>
                   {pendingSelectedIds.length > 0 && (
@@ -746,68 +746,68 @@ export default function ScoresPage() {
                     )}
                   </div>
                 ) : (
-                  filteredRespondents.map((r, i) => (
-                    <div key={i}>
+                  filteredRespondents.map((respondent, index) => (
+                    <div key={index}>
                       <div
-                        onClick={() => toggleExpand(i)}
+                        onClick={() => toggleExpand(index)}
                         className="w-full p-4 flex items-center gap-4 hover:bg-[var(--bg-primary)] transition-colors text-left cursor-pointer"
                       >
                         {/* S/N — continuous row number over the filtered result set */}
                         <div className="w-8 flex-shrink-0 text-center">
-                          <span className="text-[10px] font-bold text-[var(--text-secondary)]">{i + 1}</span>
+                          <span className="text-[10px] font-bold text-[var(--text-secondary)]">{index + 1}</span>
                         </div>
                         <div className="w-4 flex-shrink-0 flex items-center justify-center">
-                          {r.status === "submitted" && (
+                          {respondent.status === "submitted" && (
                             <input
                               type="checkbox"
-                              checked={!!selected[r.submission_id]}
-                              onChange={() => toggleSelect(r.submission_id)}
-                              onClick={(e) => e.stopPropagation()}
+                              checked={!!selected[respondent.submission_id]}
+                              onChange={() => toggleSelect(respondent.submission_id)}
+                              onClick={(event) => event.stopPropagation()}
                               className="accent-[var(--brand-orange)]"
                             />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                            {r.name}
+                            {respondent.name}
                           </p>
                           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                            {r.ranking || "—"}
+                            {respondent.ranking || "—"}
                           </p>
                         </div>
                         {/* Email column — the address that receives the emails */}
                         <div className="hidden md:block w-56 min-w-0 flex-shrink-0">
                           <p
                             className="text-[10px] font-medium text-[var(--text-secondary)] truncate"
-                            title={r.email || "No email"}
+                            title={respondent.email || "No email"}
                           >
-                            {r.email || "—"}
+                            {respondent.email || "—"}
                           </p>
                         </div>
                         <div className="flex-shrink-0 w-16 sm:w-20 flex items-center justify-center">
-                          {(STATUS_CONFIG[r.status] || STATUS_CONFIG.submitted) && (
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${STATUS_CONFIG[r.status].bg} ${STATUS_CONFIG[r.status].color}`}>
-                              {t(STATUS_CONFIG[r.status].label)}
+                          {(STATUS_CONFIG[respondent.status] || STATUS_CONFIG.submitted) && (
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${STATUS_CONFIG[respondent.status].bg} ${STATUS_CONFIG[respondent.status].color}`}>
+                              {t(STATUS_CONFIG[respondent.status].label)}
                             </span>
                           )}
                         </div>
                         <div className="text-right flex-shrink-0 w-12 sm:w-16">
                           <p
                             className={`text-sm font-black ${
-                              r.score >= 70
+                              respondent.score >= 70
                                 ? "text-emerald-500"
-                                : r.score >= 40
+                                : respondent.score >= 40
                                 ? "text-amber-500"
                                 : "text-rose-500"
                             }`}
                           >
-                            {r.score}
+                            {respondent.score}
                           </p>
                           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                             {t("adminMisc.platformScores.detailScore")}
                           </p>
                         </div>
-                        {expanded[i] ? (
+                        {expanded[index] ? (
                           <ChevronDown className="w-4 h-4 text-[var(--text-secondary)] flex-shrink-0" />
                         ) : (
                           <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] flex-shrink-0" />
@@ -815,7 +815,7 @@ export default function ScoresPage() {
                       </div>
 
                       <AnimatePresence>
-                        {expanded[i] && (
+                        {expanded[index] && (
                           <motion.div
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: "auto", opacity: 1 }}
@@ -828,7 +828,7 @@ export default function ScoresPage() {
                                   {t("adminMisc.platformScores.detailScore")}
                                 </span>
                                 <p className="text-sm font-bold text-[var(--text-primary)]">
-                                  {r.score}
+                                  {respondent.score}
                                 </p>
                               </div>
                               <div>
@@ -836,44 +836,44 @@ export default function ScoresPage() {
                                   {t("adminMisc.platformScores.detailRanking")}
                                 </span>
                                 <p className="text-sm font-bold text-[var(--text-primary)]">
-                                  {r.ranking || t("adminMisc.platformScores.na")}
+                                  {respondent.ranking || t("adminMisc.platformScores.na")}
                                 </p>
                               </div>
-                              {r.recommendation && (
+                              {respondent.recommendation && (
                                 <div>
                                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                     {t("adminMisc.platformScores.detailRecommendation")}
                                   </span>
                                   <p className="text-sm text-[var(--text-primary)] mt-1 leading-relaxed">
-                                    {r.recommendation}
+                                    {respondent.recommendation}
                                   </p>
                                 </div>
                               )}
 
                               {/* Decision actions */}
-                              {r.status === "submitted" ? (
+                              {respondent.status === "submitted" ? (
                                 <div className="flex items-center gap-2 pt-2">
                                   <button
-                                    onClick={() => handleDecision(r.submission_id, "approved")}
-                                    disabled={deciding?.submission_id === r.submission_id}
+                                    onClick={() => handleDecision(respondent.submission_id, "approved")}
+                                    disabled={deciding?.submission_id === respondent.submission_id}
                                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-40"
                                   >
                                     <CheckCircle2 className="w-3 h-3" />
-                                    {deciding?.submission_id === r.submission_id && deciding?.decision === "approved" ? "..." : t("adminMisc.platformScores.approve")}
+                                    {deciding?.submission_id === respondent.submission_id && deciding?.decision === "approved" ? "..." : t("adminMisc.platformScores.approve")}
                                   </button>
                                   <button
-                                    onClick={() => handleDecision(r.submission_id, "rejected")}
-                                    disabled={deciding?.submission_id === r.submission_id}
+                                    onClick={() => handleDecision(respondent.submission_id, "rejected")}
+                                    disabled={deciding?.submission_id === respondent.submission_id}
                                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 text-white text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-40"
                                   >
                                     <XCircle className="w-3 h-3" />
-                                    {deciding?.submission_id === r.submission_id && deciding?.decision === "rejected" ? "..." : t("adminMisc.platformScores.reject")}
+                                    {deciding?.submission_id === respondent.submission_id && deciding?.decision === "rejected" ? "..." : t("adminMisc.platformScores.reject")}
                                   </button>
                                 </div>
                               ) : (
                                 <div className="pt-2">
-                                  <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_CONFIG[r.status]?.bg} ${STATUS_CONFIG[r.status]?.color}`}>
-                                    {t(STATUS_CONFIG[r.status]?.label) || r.status}
+                                  <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_CONFIG[respondent.status]?.bg} ${STATUS_CONFIG[respondent.status]?.color}`}>
+                                    {t(STATUS_CONFIG[respondent.status]?.label) || respondent.status}
                                   </span>
                                 </div>
                               )}

@@ -51,7 +51,7 @@ export default function AppButton({
   type = "button",
   ...props
 }) {
-  const v = VARIANTS[variant] || VARIANTS.primary;
+  const variantStyle = VARIANTS[variant] || VARIANTS.primary;
   return (
     <button
       type={type}
@@ -67,20 +67,20 @@ export default function AppButton({
         ${className}
       `}
       style={{
-        background: v.background,
-        color: v.color,
-        border: v.border,
+        background: variantStyle.background,
+        color: variantStyle.color,
+        border: variantStyle.border,
       }}
-      onMouseEnter={(e) => {
-        if (v.hover.startsWith("brightness")) {
-          e.currentTarget.style.filter = v.hover;
+      onMouseEnter={(event) => {
+        if (variantStyle.hover.startsWith("brightness")) {
+          event.currentTarget.style.filter = variantStyle.hover;
         } else {
-          e.currentTarget.style.background = v.hover;
+          event.currentTarget.style.background = variantStyle.hover;
         }
       }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.filter = "none";
-        e.currentTarget.style.background = v.background;
+      onMouseLeave={(event) => {
+        event.currentTarget.style.filter = "none";
+        event.currentTarget.style.background = variantStyle.background;
       }}
       {...props}
     >

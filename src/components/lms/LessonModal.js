@@ -39,10 +39,10 @@ const EMPTY_VIDEO_INFO = { minutes: null, available: null };
  * `available === false` is the server reporting that the lookup is not
  * configured, which is a different hint from a lookup that failed.
  */
-const pickVideoInfo = (d) =>
-  d?.success && d.durationMinutes != null
-    ? { minutes: d.durationMinutes, available: true }
-    : { minutes: null, available: d?.available === false ? false : null };
+const pickVideoInfo = (data) =>
+  data?.success && data.durationMinutes != null
+    ? { minutes: data.durationMinutes, available: true }
+    : { minutes: null, available: data?.available === false ? false : null };
 
 export default function LessonModal({ isOpen, onClose, onSaved, mode, sectionId, lesson }) {
   const { t } = useI18n();
@@ -132,8 +132,8 @@ export default function LessonModal({ isOpen, onClose, onSaved, mode, sectionId,
       notify("success", mode === "edit" ? "lms.courses.saved" : "lms.lessons.title");
       onSaved();
       onClose();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     } finally {
       setSaving(false);
     }
@@ -150,7 +150,7 @@ export default function LessonModal({ isOpen, onClose, onSaved, mode, sectionId,
         <AppInput
           label={t("lms.lessons.name")}
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(event) => setTitle(event.target.value)}
           placeholder={t("lms.lessons.namePlaceholder")}
           error={errors.title ? t(errors.title) : undefined}
         />
@@ -175,7 +175,7 @@ export default function LessonModal({ isOpen, onClose, onSaved, mode, sectionId,
             label={t("lms.lessons.video")}
             icon={Film}
             value={video}
-            onChange={(e) => setVideo(e.target.value)}
+            onChange={(event) => setVideo(event.target.value)}
             placeholder={t("lms.lessons.videoPlaceholder")}
             error={errors.video ? t(errors.video) : videoInvalid ? t("lms.lessons.videoInvalid") : undefined}
           />
@@ -218,10 +218,10 @@ export default function LessonModal({ isOpen, onClose, onSaved, mode, sectionId,
               type="number"
               min="0"
               value={duration}
-              onChange={(e) => {
+              onChange={(event) => {
                 // The admin's own value: it sits over the detected one and the
                 // lookup stops being asked for, so nothing replaces it later.
-                setDurationEdit(e.target.value);
+                setDurationEdit(event.target.value);
               }}
             />
             {detectStatus === "loading" && (
@@ -254,7 +254,7 @@ export default function LessonModal({ isOpen, onClose, onSaved, mode, sectionId,
             <input
               type="checkbox"
               checked={isRequired}
-              onChange={(e) => setIsRequired(e.target.checked)}
+              onChange={(event) => setIsRequired(event.target.checked)}
               className="w-4 h-4"
               style={{ accentColor: "var(--brand-orange)" }}
             />

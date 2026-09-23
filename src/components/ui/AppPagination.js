@@ -35,7 +35,7 @@ export default function AppPagination({
     const totalPageNumbers = siblingCount * 2 + 5; // siblings + first + last + current + 2 dots
 
     if (totalPageNumbers >= totalPages) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
     }
 
     const leftSiblingIndex = Math.max(currentPage - siblingCount, 1);
@@ -46,7 +46,7 @@ export default function AppPagination({
 
     if (!showLeftDots && showRightDots) {
       const leftItemCount = 3 + 2 * siblingCount;
-      const leftRange = Array.from({ length: leftItemCount }, (_, i) => i + 1);
+      const leftRange = Array.from({ length: leftItemCount }, (_, index) => index + 1);
       return [...leftRange, "...", totalPages];
     }
 
@@ -54,14 +54,14 @@ export default function AppPagination({
       const rightItemCount = 3 + 2 * siblingCount;
       const rightRange = Array.from(
         { length: rightItemCount },
-        (_, i) => totalPages - rightItemCount + i + 1,
+        (_, index) => totalPages - rightItemCount + index + 1,
       );
       return [1, "...", ...rightRange];
     }
 
     const middleRange = Array.from(
       { length: rightSiblingIndex - leftSiblingIndex + 1 },
-      (_, i) => leftSiblingIndex + i,
+      (_, index) => leftSiblingIndex + index,
     );
     return [1, "...", ...middleRange, "...", totalPages];
   }, [currentPage, totalPages, siblingCount]);
@@ -109,10 +109,10 @@ export default function AppPagination({
         <ChevronLeft className="w-4 h-4" style={{ color: "var(--text-secondary)" }} />
       </button>
 
-      {pages.map((page, i) =>
+      {pages.map((page, index) =>
         page === "..." ? (
           <span
-            key={`ellipsis-${i}`}
+            key={`ellipsis-${index}`}
             className="px-2 text-[10px]"
             style={{ color: "var(--text-tertiary)" }}
           >

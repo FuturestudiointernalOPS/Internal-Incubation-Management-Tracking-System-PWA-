@@ -110,11 +110,11 @@ function MilestoneItem({ milestone }) {
 // ─── Week History Bar ───────────────────────────────────────────────
 function WeekHistoryBar({ week }) {
   const { t } = useI18n();
-  const delPct =
+  const deliverablesPercent =
     week.deliverablesTotal > 0
       ? (week.deliverablesCompleted / week.deliverablesTotal) * 100
       : 0;
-  const sesPct =
+  const sessionsPercent =
     week.sessionsTotal > 0
       ? (week.sessionsAttended / week.sessionsTotal) * 100
       : 0;
@@ -132,7 +132,7 @@ function WeekHistoryBar({ week }) {
           <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full bg-[var(--brand-orange)]"
-              style={{ width: `${delPct}%` }}
+              style={{ width: `${deliverablesPercent}%` }}
             />
           </div>
           <span className="text-[10px] font-bold text-[var(--text-secondary)] w-10 text-right">
@@ -146,7 +146,7 @@ function WeekHistoryBar({ week }) {
           <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full bg-emerald-400"
-              style={{ width: `${sesPct}%` }}
+              style={{ width: `${sessionsPercent}%` }}
             />
           </div>
           <span className="text-[10px] font-bold text-[var(--text-secondary)] w-10 text-right">
@@ -165,17 +165,17 @@ function ProgressSkeleton() {
     <div className="space-y-6 animate-pulse">
       <div className="h-8 w-48 bg-white/10 rounded" />
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        {[...Array(5)].map((_, i) => (
+        {[...Array(5)].map((_, index) => (
           <div
-            key={i}
+            key={index}
             className="h-32 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]"
           />
         ))}
       </div>
       <div className="h-6 w-32 bg-white/10 rounded" />
-      {[...Array(3)].map((_, i) => (
+      {[...Array(3)].map((_, index) => (
         <div
-          key={i}
+          key={index}
           className="h-16 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]"
         />
       ))}
@@ -190,10 +190,10 @@ function ProgressSkeleton() {
 // the failure panel.
 const EMPTY_PROGRESS = { payload: null, failure: null };
 
-const pickProgress = (d) =>
-  d?.success
-    ? { payload: d, failure: null }
-    : { payload: null, failure: d?.error || null };
+const pickProgress = (response) =>
+  response?.success
+    ? { payload: response, failure: null }
+    : { payload: null, failure: response?.error || null };
 
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ProgressView({ programId: _filterProgramId }) {
@@ -247,12 +247,12 @@ export default function ProgressView({ programId: _filterProgramId }) {
   const activeProgram =
     selectedProgram === "all"
       ? null
-      : data.programs.find((p) => p.id === selectedProgram);
+      : data.programs.find((program) => program.id === selectedProgram);
 
   const metrics = activeProgram ? activeProgram.metrics : data.overall;
   const milestones = activeProgram
     ? activeProgram.milestones
-    : data.programs.flatMap((p) => p.milestones);
+    : data.programs.flatMap((program) => program.milestones);
   const history = activeProgram ? activeProgram.history : null;
 
   return (
@@ -284,17 +284,17 @@ export default function ProgressView({ programId: _filterProgramId }) {
         >
           {t("participantMisc.progress.allPrograms")}
         </button>
-        {data.programs.map((p) => (
+        {data.programs.map((program) => (
           <button
-            key={p.id}
-            onClick={() => setSelectedProgram(p.id)}
+            key={program.id}
+            onClick={() => setSelectedProgram(program.id)}
             className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
-              selectedProgram === p.id
+              selectedProgram === program.id
                 ? "bg-[var(--brand-orange)] text-black"
                 : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
             }`}
           >
-            {p.name}
+            {program.name}
           </button>
         ))}
       </div>
@@ -406,7 +406,7 @@ export default function ProgressView({ programId: _filterProgramId }) {
           >
             <Award className="w-4 h-4" />
             {t("participantMisc.progress.milestonesCount", {
-              achieved: milestones.filter((m) => m.achieved).length,
+              achieved: milestones.filter((milestone) => milestone.achieved).length,
               total: milestones.length,
             })}
           </button>
@@ -422,7 +422,7 @@ export default function ProgressView({ programId: _filterProgramId }) {
               ) : (
                 milestones
                   .slice(0, 20)
-                  .map((m) => <MilestoneItem key={m.id} milestone={m} />)
+                  .map((milestone) => <MilestoneItem key={milestone.id} milestone={milestone} />)
               )}
             </div>
           )}

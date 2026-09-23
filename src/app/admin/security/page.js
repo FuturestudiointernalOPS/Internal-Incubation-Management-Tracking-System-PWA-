@@ -22,9 +22,9 @@ const SEVERITY_COLORS = {
   critical: "text-rose-400 bg-rose-500/10",
 };
 
-function formatDate(d) {
-  if (!d) return "";
-  return new Date(d).toLocaleString("fr-FR", {
+function formatDate(dateValue) {
+  if (!dateValue) return "";
+  return new Date(dateValue).toLocaleString("fr-FR", {
     day: "2-digit", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
@@ -35,10 +35,10 @@ function formatDate(d) {
 // refetch in a loop. The four summary reads keep their payload because the
 // summary combines parts of each; a failed one reports null, which is what keeps
 // the summary from being assembled out of a half-failed set.
-const pickPayload = (d) => (d?.success ? d : null);
-const pickSessions = (d) => (d?.success ? d.sessions || [] : []);
-const pickEvents = (d) => (d?.success ? d.events || [] : []);
-const pickLoginHistory = (d) => (d?.success ? d.history || [] : []);
+const pickPayload = (payload) => (payload?.success ? payload : null);
+const pickSessions = (payload) => (payload?.success ? payload.sessions || [] : []);
+const pickEvents = (payload) => (payload?.success ? payload.events || [] : []);
+const pickLoginHistory = (payload) => (payload?.success ? payload.history || [] : []);
 
 // The seven reads this console needs, at module scope for the same reason as the
 // transformations above.
@@ -132,35 +132,35 @@ export default function SecurityPage() {
 
   const handleRevokeSession = async (token) => {
     try {
-      const res = await fetch("/api/security/sessions", {
+      const response = await fetch("/api/security/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "revoke", session_token: token }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
-        setSessions((prev) => prev.filter((s) => s.token !== token));
+        setSessions((prev) => prev.filter((session) => session.token !== token));
         setConfirmAction(null);
       }
-    } catch (err) {
-      console.error("Revoke error:", err);
+    } catch (error) {
+      console.error("Revoke error:", error);
     }
   };
 
   const handleResolveEvent = async (eventId) => {
     try {
-      const res = await fetch("/api/security/events", {
+      const response = await fetch("/api/security/events", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "resolve", event_id: eventId, resolution_notes: "Reviewed and resolved" }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         refreshEvents();
         setConfirmAction(null);
       }
-    } catch (err) {
-      console.error("Resolve error:", err);
+    } catch (error) {
+      console.error("Resolve error:", error);
     }
   };
 
@@ -269,15 +269,15 @@ export default function SecurityPage() {
                   <p className="text-gray-500 text-sm">{t("adminMisc.security.noSecurityEvents24h")}</p>
                 ) : (
                   <div className="space-y-2">
-                    {events.slice(0, 5).map((evt) => (
-                      <div key={evt.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-white/5">
-                        <AlertTriangle size={14} className={`mt-0.5 ${evt.severity === "critical" ? "text-rose-400" : evt.severity === "warning" ? "text-amber-400" : "text-blue-400"}`} />
+                    {events.slice(0, 5).map((securityEvent) => (
+                      <div key={securityEvent.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-white/5">
+                        <AlertTriangle size={14} className={`mt-0.5 ${securityEvent.severity === "critical" ? "text-rose-400" : securityEvent.severity === "warning" ? "text-amber-400" : "text-blue-400"}`} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-300 truncate">{evt.description || evt.event_type?.replace(/_/g, " ")}</p>
-                          <p className="text-xs text-gray-500">{formatDate(evt.created_at)}</p>
+                          <p className="text-sm text-gray-300 truncate">{securityEvent.description || securityEvent.event_type?.replace(/_/g, " ")}</p>
+                          <p className="text-xs text-gray-500">{formatDate(securityEvent.created_at)}</p>
                         </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${SEVERITY_COLORS[evt.severity] || SEVERITY_COLORS.info}`}>
-                          {evt.severity}
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${SEVERITY_COLORS[securityEvent.severity] || SEVERITY_COLORS.info}`}>
+                          {securityEvent.severity}
                         </span>
                       </div>
                     ))}
@@ -292,20 +292,20 @@ export default function SecurityPage() {
                   <p className="text-gray-500 text-sm">{t("adminMisc.security.noLoginActivity24h")}</p>
                 ) : (
                   <div className="space-y-2">
-                    {loginHistory.slice(0, 5).map((h) => (
-                      <div key={h.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-white/5">
-                        {h.is_success ? (
+                    {loginHistory.slice(0, 5).map((loginEntry) => (
+                      <div key={loginEntry.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-white/5">
+                        {loginEntry.is_success ? (
                           <CheckCircle2 size={14} className="mt-0.5 text-emerald-400" />
                         ) : (
                           <XCircle size={14} className="mt-0.5 text-red-400" />
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-300">{h.user_name || h.user_cid || t("adminMisc.security.unknown")}</p>
+                          <p className="text-sm text-gray-300">{loginEntry.user_name || loginEntry.user_cid || t("adminMisc.security.unknown")}</p>
                           <p className="text-xs text-gray-500">
-                            {h.action?.replace(/_/g, " ")} {h.ip_address ? t("adminMisc.security.fromIp", { ip: h.ip_address }) : ""}
+                            {loginEntry.action?.replace(/_/g, " ")} {loginEntry.ip_address ? t("adminMisc.security.fromIp", { ip: loginEntry.ip_address }) : ""}
                           </p>
                         </div>
-                        <p className="text-xs text-gray-500 whitespace-nowrap">{formatDate(h.created_at)}</p>
+                        <p className="text-xs text-gray-500 whitespace-nowrap">{formatDate(loginEntry.created_at)}</p>
                       </div>
                     ))}
                   </div>
@@ -340,36 +340,36 @@ export default function SecurityPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {sessions.map((s) => (
-                        <tr key={s.token} className="border-b border-gray-800/50 hover:bg-white/[0.02]">
+                      {sessions.map((session) => (
+                        <tr key={session.token} className="border-b border-gray-800/50 hover:bg-white/[0.02]">
                           <td className="p-4">
-                            <p className="text-sm text-white">{s.user_name || s.user_cid}</p>
-                            <p className="text-xs text-gray-500">{s.user_email || ""}</p>
+                            <p className="text-sm text-white">{session.user_name || session.user_cid}</p>
+                            <p className="text-xs text-gray-500">{session.user_email || ""}</p>
                           </td>
                           <td className="p-4">
                             <div className="flex items-center gap-2">
-                              {s.browser && <span className="text-xs text-gray-400">{s.browser}</span>}
-                              {s.os && <span className="text-xs text-gray-500">{s.os}</span>}
-                              {s.device && <span className="text-xs text-gray-500">({s.device})</span>}
+                              {session.browser && <span className="text-xs text-gray-400">{session.browser}</span>}
+                              {session.os && <span className="text-xs text-gray-500">{session.os}</span>}
+                              {session.device && <span className="text-xs text-gray-500">({session.device})</span>}
                             </div>
                           </td>
                           <td className="p-4">
-                            {s.ip_address && <p className="text-sm font-mono text-gray-300">{s.ip_address}</p>}
-                            {s.country && <p className="text-xs text-gray-500">{s.country}</p>}
+                            {session.ip_address && <p className="text-sm font-mono text-gray-300">{session.ip_address}</p>}
+                            {session.country && <p className="text-xs text-gray-500">{session.country}</p>}
                           </td>
-                          <td className="p-4 text-sm text-gray-400">{formatDate(s.created_at)}</td>
+                          <td className="p-4 text-sm text-gray-400">{formatDate(session.created_at)}</td>
                           <td className="p-4">
                             <span className={`text-xs px-2.5 py-1 rounded-full ${
-                              s.session_status === "active" || (!s.session_status && new Date(s.expires_at) > new Date())
+                              session.session_status === "active" || (!session.session_status && new Date(session.expires_at) > new Date())
                                 ? "bg-emerald-500/10 text-emerald-400"
                                 : "bg-gray-500/10 text-gray-400"
                             }`}>
-                              {s.session_status === "revoked" ? t("adminMisc.security.revoked") : s.session_status === "expired" || new Date(s.expires_at) <= new Date() ? t("adminMisc.security.expired") : t("adminMisc.security.active")}
+                              {session.session_status === "revoked" ? t("adminMisc.security.revoked") : session.session_status === "expired" || new Date(session.expires_at) <= new Date() ? t("adminMisc.security.expired") : t("adminMisc.security.active")}
                             </span>
                           </td>
                           <td className="p-4">
                             <button
-                              onClick={() => setConfirmAction({ type: "revoke", session: s })}
+                              onClick={() => setConfirmAction({ type: "revoke", session })}
                               className="p-2 hover:bg-red-500/10 rounded-lg text-gray-400 hover:text-red-400 transition-colors"
                               title={t("adminMisc.security.revokeSession")}
                             >
@@ -411,29 +411,29 @@ export default function SecurityPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {events.map((evt) => (
-                        <tr key={evt.id} className="border-b border-gray-800/50 hover:bg-white/[0.02]">
-                          <td className="p-4 text-sm text-gray-400 whitespace-nowrap">{formatDate(evt.created_at)}</td>
+                      {events.map((securityEvent) => (
+                        <tr key={securityEvent.id} className="border-b border-gray-800/50 hover:bg-white/[0.02]">
+                          <td className="p-4 text-sm text-gray-400 whitespace-nowrap">{formatDate(securityEvent.created_at)}</td>
                           <td className="p-4">
-                            <span className="text-sm text-white">{evt.event_type?.replace(/_/g, " ")}</span>
+                            <span className="text-sm text-white">{securityEvent.event_type?.replace(/_/g, " ")}</span>
                           </td>
-                          <td className="p-4 text-sm text-gray-400 max-w-[300px] truncate">{evt.description || "-"}</td>
+                          <td className="p-4 text-sm text-gray-400 max-w-[300px] truncate">{securityEvent.description || "-"}</td>
                           <td className="p-4">
-                            <span className={`text-xs px-2.5 py-1 rounded-full ${SEVERITY_COLORS[evt.severity] || SEVERITY_COLORS.info}`}>
-                              {evt.severity}
+                            <span className={`text-xs px-2.5 py-1 rounded-full ${SEVERITY_COLORS[securityEvent.severity] || SEVERITY_COLORS.info}`}>
+                              {securityEvent.severity}
                             </span>
                           </td>
                           <td className="p-4">
                             <span className={`text-xs px-2.5 py-1 rounded-full ${
-                              evt.is_resolved ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+                              securityEvent.is_resolved ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
                             }`}>
-                              {evt.is_resolved ? t("adminMisc.security.resolved") : t("adminMisc.security.open")}
+                              {securityEvent.is_resolved ? t("adminMisc.security.resolved") : t("adminMisc.security.open")}
                             </span>
                           </td>
                           <td className="p-4">
-                            {!evt.is_resolved && (
+                            {!securityEvent.is_resolved && (
                               <button
-                                onClick={() => setConfirmAction({ type: "resolve", eventId: evt.id })}
+                                onClick={() => setConfirmAction({ type: "resolve", eventId: securityEvent.id })}
                                 className="p-2 hover:bg-emerald-500/10 rounded-lg text-gray-400 hover:text-emerald-400 transition-colors"
                                 title={t("adminMisc.security.markResolved")}
                               >
@@ -476,33 +476,33 @@ export default function SecurityPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {loginHistory.map((h) => (
-                        <tr key={h.id} className="border-b border-gray-800/50 hover:bg-white/[0.02]">
-                          <td className="p-4 text-sm text-gray-400 whitespace-nowrap">{formatDate(h.created_at)}</td>
+                      {loginHistory.map((loginEntry) => (
+                        <tr key={loginEntry.id} className="border-b border-gray-800/50 hover:bg-white/[0.02]">
+                          <td className="p-4 text-sm text-gray-400 whitespace-nowrap">{formatDate(loginEntry.created_at)}</td>
                           <td className="p-4">
-                            <p className="text-sm text-white">{h.user_name || h.user_cid || t("adminMisc.security.unknown")}</p>
-                            {h.user_email && <p className="text-xs text-gray-500">{h.user_email}</p>}
+                            <p className="text-sm text-white">{loginEntry.user_name || loginEntry.user_cid || t("adminMisc.security.unknown")}</p>
+                            {loginEntry.user_email && <p className="text-xs text-gray-500">{loginEntry.user_email}</p>}
                           </td>
                           <td className="p-4">
-                            <span className="text-sm text-white">{h.action?.replace(/_/g, " ")}</span>
+                            <span className="text-sm text-white">{loginEntry.action?.replace(/_/g, " ")}</span>
                           </td>
                           <td className="p-4">
                             <div className="flex items-center gap-2">
-                              {h.browser && <span className="text-xs text-gray-400">{h.browser}</span>}
-                              {h.os && <span className="text-xs text-gray-500">{h.os}</span>}
-                              {h.device && <span className="text-xs text-gray-500">({h.device})</span>}
+                              {loginEntry.browser && <span className="text-xs text-gray-400">{loginEntry.browser}</span>}
+                              {loginEntry.os && <span className="text-xs text-gray-500">{loginEntry.os}</span>}
+                              {loginEntry.device && <span className="text-xs text-gray-500">({loginEntry.device})</span>}
                             </div>
                           </td>
                           <td className="p-4">
-                            {h.ip_address && <p className="text-sm font-mono text-gray-300">{h.ip_address}</p>}
-                            {h.country && <p className="text-xs text-gray-500">{h.country}</p>}
+                            {loginEntry.ip_address && <p className="text-sm font-mono text-gray-300">{loginEntry.ip_address}</p>}
+                            {loginEntry.country && <p className="text-xs text-gray-500">{loginEntry.country}</p>}
                           </td>
                           <td className="p-4">
                             <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full ${
-                              h.is_success ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+                              loginEntry.is_success ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
                             }`}>
-                              {h.is_success ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
-                              {h.is_success ? t("adminMisc.security.success") : h.failure_reason || t("adminMisc.security.failed")}
+                              {loginEntry.is_success ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
+                              {loginEntry.is_success ? t("adminMisc.security.success") : loginEntry.failure_reason || t("adminMisc.security.failed")}
                             </span>
                           </td>
                         </tr>
@@ -518,7 +518,7 @@ export default function SecurityPage() {
         {/* Confirmation Dialog */}
         {confirmAction && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setConfirmAction(null)}>
-            <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-md m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-md m-4" onClick={(event) => event.stopPropagation()}>
               <div className="p-6">
                 {confirmAction.type === "revoke" ? (
                   <>

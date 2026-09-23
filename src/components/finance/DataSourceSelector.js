@@ -55,7 +55,7 @@ export default function DataSourceSelector({
       </label>
       <select
         value={selectedId || ""}
-        onChange={(e) => onSelect(e.target.value)}
+        onChange={(event) => onSelect(event.target.value)}
         className="rounded-lg px-4 py-2 text-xs font-bold outline-none transition-all cursor-pointer"
         style={{
           background: "var(--surface-2)",
@@ -64,9 +64,9 @@ export default function DataSourceSelector({
         }}
         aria-label={t("finance.selector.label")}
       >
-        {sources.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name} ({s.fiscalYear})
+        {sources.map((source) => (
+          <option key={source.id} value={source.id}>
+            {source.name} ({source.fiscalYear})
           </option>
         ))}
       </select>

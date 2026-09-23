@@ -14,17 +14,17 @@ function AddMemberModal() {
   if (!showAddMember) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: "rgb(0 0 0 / 0.6)" }} onClick={() => setShowAddMember(false)}>
-      <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: "#0f172a", borderColor: "rgb(255 255 255 / 0.1)", color: "var(--text-primary)" }} onClick={e => e.stopPropagation()}>
+      <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: "#0f172a", borderColor: "rgb(255 255 255 / 0.1)", color: "var(--text-primary)" }} onClick={event => event.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">{t("venture.inviteMember")}</h2>
           <button onClick={() => setShowAddMember(false)} style={{ color: "var(--text-secondary)" }}><X size={20} /></button>
         </div>
-        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleInviteMember(); }}>
+        <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); handleInviteMember(); }}>
           <div>
             <label className="block text-sm font-medium mb-1">{t("venture.memberRoleInVenture") || "Role in Venture"}</label>
             <select
               value={addMemberType}
-              onChange={e => setAddMemberType(e.target.value)}
+              onChange={event => setAddMemberType(event.target.value)}
               className="w-full px-3 py-2 rounded-lg outline-none border mb-1"
               style={inputStyle}
             >
@@ -43,7 +43,7 @@ function AddMemberModal() {
               type="email"
               required
               value={inviteEmail}
-              onChange={e => setInviteEmail(e.target.value)}
+              onChange={event => setInviteEmail(event.target.value)}
               className="w-full px-3 py-2 rounded-lg outline-none border"
               style={inputStyle}
               placeholder={t("venture.inviteEmailPlaceholder")}
@@ -73,7 +73,7 @@ function RemoveConfirmModal() {
   if (!removeConfirm) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: "rgb(0 0 0 / 0.6)" }} onClick={() => setRemoveConfirm(null)}>
-      <div className="rounded-2xl p-6 w-full max-w-sm mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: "#0f172a", borderColor: "rgb(255 255 255 / 0.1)", color: "var(--text-primary)" }} onClick={e => e.stopPropagation()}>
+      <div className="rounded-2xl p-6 w-full max-w-sm mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: "#0f172a", borderColor: "rgb(255 255 255 / 0.1)", color: "var(--text-primary)" }} onClick={event => event.stopPropagation()}>
         <h2 className="text-lg font-bold mb-2">{t("venture.confirmRemove")}</h2>
         <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
           {removeConfirm.contact_name || removeConfirm.contact_id}
@@ -100,9 +100,9 @@ function MemberRow({ member, roleOptions, handleRoleChange, onRemove }) {
       <div>
         <p className="font-medium">{member.contact_name || member.contact_id}</p>
         <p className="text-xs flex items-center gap-2" style={{ color: "var(--text-secondary)" }}>
-          <select value={member.role || roleOptions[0]} onChange={e => handleRoleChange(member.id, e.target.value)}
+          <select value={member.role || roleOptions[0]} onChange={event => handleRoleChange(member.id, event.target.value)}
             className="text-xs px-1 py-0.5 rounded" style={{ backgroundColor: "transparent", border: "1px solid rgb(255 255 255 / 0.15)", color: "var(--text-secondary)" }}>
-            {roleOptions.map(r => <option key={r} value={r}>{r}</option>)}
+            {roleOptions.map(roleOption => <option key={roleOption} value={roleOption}>{roleOption}</option>)}
           </select>
           • {t("venture.memberSince")} {new Date(member.joined_at).toLocaleDateString()}
         </p>
@@ -147,16 +147,16 @@ export function TeamTab() {
                 {t("venture.pendingInvitations")} ({pending.length})
               </span>
             </div>
-            {pending.map(inv => (
-              <div key={inv.id} className="flex items-center justify-between p-4 border-b last:border-0" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
+            {pending.map(invitation => (
+              <div key={invitation.id} className="flex items-center justify-between p-4 border-b last:border-0" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
                 <div>
-                  <p className="font-medium">{inv.display_name || inv.name || inv.email}</p>
+                  <p className="font-medium">{invitation.display_name || invitation.name || invitation.email}</p>
                   <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                    {inv.email} • {inv.member_type === "founder" ? t("venture.founders") : t("venture.teamMembers")}
-                    {inv.is_expired ? ` • ${t("venture.invitationExpired")}` : ""}
+                    {invitation.email} • {invitation.member_type === "founder" ? t("venture.founders") : t("venture.teamMembers")}
+                    {invitation.is_expired ? ` • ${t("venture.invitationExpired")}` : ""}
                   </p>
                 </div>
-                <button onClick={() => handleRevokeInvitation(inv.id)}
+                <button onClick={() => handleRevokeInvitation(invitation.id)}
                   className="text-xs px-3 py-1 rounded-lg transition-colors"
                   style={{ color: "var(--text-secondary)", border: "1px solid rgb(255 255 255 / 0.15)" }}>
                   {t("venture.revokeInvitation")}
@@ -173,13 +173,13 @@ export function TeamTab() {
                 {t("venture.founders")} ({founders.length})
               </span>
             </div>
-            {founders.map(m => (
+            {founders.map(member => (
               <MemberRow
-                key={m.id}
-                member={m}
+                key={member.id}
+                member={member}
                 roleOptions={FOUNDER_ROLES}
                 handleRoleChange={handleUpdateMemberRole}
-                onRemove={(x) => setRemoveConfirm(x)}
+                onRemove={(memberToRemove) => setRemoveConfirm(memberToRemove)}
               />
             ))}
           </div>
@@ -192,13 +192,13 @@ export function TeamTab() {
                 {t("venture.teamMembers")} ({team.length})
               </span>
             </div>
-            {team.map(m => (
+            {team.map(member => (
               <MemberRow
-                key={m.id}
-                member={m}
+                key={member.id}
+                member={member}
                 roleOptions={TEAM_ROLES}
                 handleRoleChange={handleUpdateMemberRole}
-                onRemove={(x) => setRemoveConfirm(x)}
+                onRemove={(memberToRemove) => setRemoveConfirm(memberToRemove)}
               />
             ))}
           </div>

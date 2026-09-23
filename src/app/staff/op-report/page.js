@@ -39,13 +39,13 @@ import { formatLocaleDate } from "@/lib/constants";
  */
 
 function getWeekNumber(date) {
-  const d = new Date(
+  const weekDate = new Date(
     Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
   );
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  const dayNum = weekDate.getUTCDay() || 7;
+  weekDate.setUTCDate(weekDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(weekDate.getUTCFullYear(), 0, 1));
+  return Math.ceil(((weekDate - yearStart) / 86400000 + 1) / 7);
 }
 
 function getCurrentWeek() {
@@ -61,7 +61,7 @@ const REPORT_TABS = ["standup", "retro", "summary"];
 // rather than rebuilt on every render.
 
 const EMPTY_LIST = [];
-const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
+const pickList = (field) => (payload) => (payload?.success ? payload[field] || [] : []);
 
 // ─── The op-report read, and the form it fills ───────────────────────────
 
@@ -152,9 +152,9 @@ function shapeReport(report) {
 
 // A refusal is reported as "not answered" rather than as an empty week: the form
 // then keeps the shape it has always had while the read is outstanding.
-const pickReport = (d) =>
-  d?.success
-    ? { report: shapeReport(d.reports?.[0] || null), answered: true }
+const pickReport = (payload) =>
+  payload?.success
+    ? { report: shapeReport(payload.reports?.[0] || null), answered: true }
     : EMPTY_REPORT;
 
 /** The form values a stored report — or no report at all — produces. */
@@ -183,28 +183,28 @@ const reportToForm = (report) =>
     : EMPTY_REPORT_FORM;
 
 /** Every project this person is on, deduplicated: the flat list the picker uses. */
-const pickAssignments = (d) => {
-  if (!d?.success) return EMPTY_LIST;
-  const all = [...(d.owned || []), ...(d.collab || []), ...(d.all_active || [])];
+const pickAssignments = (payload) => {
+  if (!payload?.success) return EMPTY_LIST;
+  const all = [...(payload.owned || []), ...(payload.collab || []), ...(payload.all_active || [])];
   const seen = new Set();
-  return all.filter((p) => {
-    if (seen.has(String(p.id))) return false;
-    seen.add(String(p.id));
+  return all.filter((project) => {
+    if (seen.has(String(project.id))) return false;
+    seen.add(String(project.id));
     return true;
   });
 };
 
 /** The Future Studio staff the collaborator picker offers. */
-const pickStudioStaff = (d) =>
-  (d?.success ? d.contacts || [] : [])
+const pickStudioStaff = (payload) =>
+  (payload?.success ? payload.contacts || [] : [])
     .filter(
-      (c) =>
-        c.status === "active" &&
-        c.role !== "super_admin" &&
-        c.group_name?.toUpperCase() === "FUTURE STUDIO",
+      (contact) =>
+        contact.status === "active" &&
+        contact.role !== "super_admin" &&
+        contact.group_name?.toUpperCase() === "FUTURE STUDIO",
     )
-    .map((c) => ({ id: c.cid || c.id, name: c.name, email: c.email }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .map((contact) => ({ id: contact.cid || contact.id, name: contact.name, email: contact.email }))
+    .sort((first, second) => first.name.localeCompare(second.name));
 
 // Returns true when a stand-up draft actually contains something the user
 // typed/added (a non-empty field or at least one task row). Empty drafts are
@@ -221,8 +221,8 @@ function hasDraftContent(form, taskRows) {
     "wins",
     "carryover_items",
   ];
-  for (const f of arrayFields) {
-    if (Array.isArray(form[f]) && form[f].length > 0) return true;
+  for (const field of arrayFields) {
+    if (Array.isArray(form[field]) && form[field].length > 0) return true;
   }
 
   const stringFields = [
@@ -238,8 +238,8 @@ function hasDraftContent(form, taskRows) {
     "major_achievement",
     "retro_notes",
   ];
-  for (const f of stringFields) {
-    if (typeof form[f] === "string" && form[f].trim() !== "") return true;
+  for (const field of stringFields) {
+    if (typeof form[field] === "string" && form[field].trim() !== "") return true;
   }
 
   return false;
@@ -248,11 +248,11 @@ function hasDraftContent(form, taskRows) {
 function formatDate(dateStr) {
   if (!dateStr) return "—";
   try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    const day = String(d.getDate()).padStart(2, "0");
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const year = d.getFullYear();
+    const parsedDate = new Date(dateStr);
+    if (isNaN(parsedDate.getTime())) return dateStr;
+    const day = String(parsedDate.getDate()).padStart(2, "0");
+    const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+    const year = parsedDate.getFullYear();
     return `${day}/${month}/${year}`;
   } catch {
     return dateStr;
@@ -293,14 +293,14 @@ const STATUS_CONFIG = {
 };
 
 const statusLabelKey = (status) => {
-  const map = {
+  const labelKeys = {
     pending: "status.pending",
     in_progress: "status.inProgress",
     blocked: "status.blocked",
     completed: "status.completed",
     carried_over: "status.carriedOver",
   };
-  return map[status] || "status.pending";
+  return labelKeys[status] || "status.pending";
 };
 
 function StaffOpReport() {
@@ -401,9 +401,9 @@ function StaffOpReport() {
     () =>
       userId
         ? [
-            ...TASK_STATUSES.map((s) => ({
-              key: s,
-              url: `/api/tasks?user_id=${userId}&status=${s}`,
+            ...TASK_STATUSES.map((status) => ({
+              key: status,
+              url: `/api/tasks?user_id=${userId}&status=${status}`,
               transform: pickList("tasks"),
             })),
             {
@@ -654,8 +654,8 @@ function StaffOpReport() {
   const summaryLoading =
     summaryTasksLoading || summaryBlockersLoading || summaryProjectsLoading;
 
-  const notify = (msg, type = "success") => {
-    setToast({ msg, type });
+  const notify = (message, type = "success") => {
+    setToast({ msg: message, type });
     setTimeout(() => setToast(null), 3500);
   };
 
@@ -683,9 +683,9 @@ function StaffOpReport() {
       // Map local row IDs to real DB IDs for parent_task_id resolution
       const idMapping = {};
       // Sort: parents before children so real IDs are available for sub-tasks
-      const sortedRows = [...taskRows].sort((a, b) => {
-        if (a.parent_task_id && !b.parent_task_id) return 1;
-        if (!a.parent_task_id && b.parent_task_id) return -1;
+      const sortedRows = [...taskRows].sort((first, second) => {
+        if (first.parent_task_id && !second.parent_task_id) return 1;
+        if (!first.parent_task_id && second.parent_task_id) return -1;
         return 0;
       });
       for (const row of sortedRows) {
@@ -707,7 +707,7 @@ function StaffOpReport() {
 
         // Use shared carry-over API if this row has an original DB task to migrate
         if (row.carried_over_from_task_id) {
-          const coRes = await fetch("/api/tasks/carryover", {
+          const carryoverResponse = await fetch("/api/tasks/carryover", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -718,12 +718,12 @@ function StaffOpReport() {
               user_name: user.name || "",
             }),
           });
-          const coData = await coRes.json();
-          if (coData.success) {
-            idMapping[row.id] = coData.id;
+          const carryoverData = await carryoverResponse.json();
+          if (carryoverData.success) {
+            idMapping[row.id] = carryoverData.id;
           }
         } else {
-          const taskRes = await fetch("/api/tasks", {
+          const taskResponse = await fetch("/api/tasks", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -747,7 +747,7 @@ function StaffOpReport() {
                 : null,
             }),
           });
-          const taskData = await taskRes.json();
+          const taskData = await taskResponse.json();
           if (taskData.success) {
             idMapping[row.id] = taskData.id;
           }
@@ -782,12 +782,12 @@ function StaffOpReport() {
         carryover_items: JSON.stringify(form.carryover_items || []),
         retro_notes: form.retro_notes || null,
       };
-      const res = await fetch("/api/op-reports", {
+      const response = await fetch("/api/op-reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(
           status === "submitted"
@@ -813,35 +813,35 @@ function StaffOpReport() {
 
   // ─── BULLET-LIST ITEM HANDLERS (priorities / deliverables / wins / carryover) ───
   const _addPriority = () => {
-    const v = newPriority.trim();
-    if (!v) return;
-    setForm((p) => ({ ...p, top_priorities: [...(p.top_priorities || []), v] }));
+    const value = newPriority.trim();
+    if (!value) return;
+    setForm((prev) => ({ ...prev, top_priorities: [...(prev.top_priorities || []), value] }));
     setNewPriority("");
   };
 
   const _addDeliverable = () => {
-    const v = newDeliverable.trim();
-    if (!v) return;
-    setForm((p) => ({
-      ...p,
-      expected_deliverables: [...(p.expected_deliverables || []), v],
+    const value = newDeliverable.trim();
+    if (!value) return;
+    setForm((prev) => ({
+      ...prev,
+      expected_deliverables: [...(prev.expected_deliverables || []), value],
     }));
     setNewDeliverable("");
   };
 
   const _addWin = () => {
-    const v = newWin.trim();
-    if (!v) return;
-    setForm((p) => ({ ...p, wins: [...(p.wins || []), v] }));
+    const value = newWin.trim();
+    if (!value) return;
+    setForm((prev) => ({ ...prev, wins: [...(prev.wins || []), value] }));
     setNewWin("");
   };
 
   const _addCarryover = () => {
-    const v = newCarryover.trim();
-    if (!v) return;
-    setForm((p) => ({
-      ...p,
-      carryover_items: [...(p.carryover_items || []), v],
+    const value = newCarryover.trim();
+    if (!value) return;
+    setForm((prev) => ({
+      ...prev,
+      carryover_items: [...(prev.carryover_items || []), value],
     }));
     setNewCarryover("");
   };
@@ -862,8 +862,8 @@ function StaffOpReport() {
         id: Date.now(),
         name,
         description: "",
-        project_id: prev.find((r) => r.id === parentId)?.project_id || null,
-        category: prev.find((r) => r.id === parentId)?.category || "",
+        project_id: prev.find((row) => row.id === parentId)?.project_id || null,
+        category: prev.find((row) => row.id === parentId)?.category || "",
         start_date: "",
         start_time: "",
         due_date: "",
@@ -874,7 +874,7 @@ function StaffOpReport() {
         status: null,
         uncompleted_reason: "",
       };
-      const parentIdx = prev.findIndex((r) => r.id === parentId);
+      const parentIdx = prev.findIndex((row) => row.id === parentId);
       if (parentIdx !== -1) {
         const updated = [...prev];
         updated.splice(parentIdx + 1, 0, newRow);
@@ -936,7 +936,7 @@ function StaffOpReport() {
     try {
       const week = weekInfo || getCurrentWeek();
       const userId = user?.cid || user?.id;
-      const res = await fetch("/api/tasks", {
+      const response = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -951,7 +951,7 @@ function StaffOpReport() {
           end_date: newTaskForm.due_date || null,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setTaskCreationOpen(false);
         setNewTaskForm({
@@ -975,8 +975,8 @@ function StaffOpReport() {
           "error",
         );
       }
-    } catch (e) {
-      console.error("Create task error:", e);
+    } catch (error) {
+      console.error("Create task error:", error);
       notify(
         t("errors.somethingWrong") || "Something went wrong. Please try again.",
         "error",
@@ -997,7 +997,7 @@ function StaffOpReport() {
   const _removeTaskRow = (index) => {
     const row = taskRows[index];
     if (!row?.status) {
-      setTaskRows((prev) => prev.filter((_, i) => i !== index));
+      setTaskRows((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
       return;
     }
     setConfirmTarget({
@@ -1010,7 +1010,7 @@ function StaffOpReport() {
   const performArchiveTask = async (index) => {
     const row = taskRows[index];
     try {
-      const res = await fetch("/api/tasks", {
+      const response = await fetch("/api/tasks", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1019,12 +1019,12 @@ function StaffOpReport() {
           user_id: user?.cid || user?.id,
         }),
       });
-      if (!res.ok) throw new Error("Failed to archive task");
+      if (!response.ok) throw new Error("Failed to archive task");
     } catch (err) {
       console.error(err);
       return;
     }
-    setTaskRows((prev) => prev.filter((_, i) => i !== index));
+    setTaskRows((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
   };
 
   const addBlockerToRow = (rowIndex, description) => {
@@ -1052,8 +1052,8 @@ function StaffOpReport() {
       const updated = [...prev];
       updated[rowIndex] = {
         ...updated[rowIndex],
-        blockers: (updated[rowIndex]?.blockers || []).map((b) =>
-          b.id === blockerId ? { ...b, ...updates } : b,
+        blockers: (updated[rowIndex]?.blockers || []).map((blocker) =>
+          blocker.id === blockerId ? { ...blocker, ...updates } : blocker,
         ),
       };
       return updated;
@@ -1066,7 +1066,7 @@ function StaffOpReport() {
       updated[rowIndex] = {
         ...updated[rowIndex],
         blockers: (updated[rowIndex]?.blockers || []).filter(
-          (b) => b.id !== blockerId,
+          (blocker) => blocker.id !== blockerId,
         ),
       };
       return updated;
@@ -1078,14 +1078,14 @@ function StaffOpReport() {
       const updated = [...prev];
       updated[rowIndex] = {
         ...updated[rowIndex],
-        blockers: (updated[rowIndex]?.blockers || []).map((b) =>
-          b.id === blockerId
+        blockers: (updated[rowIndex]?.blockers || []).map((blocker) =>
+          blocker.id === blockerId
             ? {
-                ...b,
+                ...blocker,
                 status: "Resolved",
                 resolved_at: new Date().toISOString(),
               }
-            : b,
+            : blocker,
         ),
       };
       return updated;
@@ -1227,10 +1227,10 @@ function StaffOpReport() {
                       </div>
                       <button
                         onClick={async () => {
-                          const cw = getCurrentWeek();
+                          const currentWeek = getCurrentWeek();
                           const isPastWeek =
-                            weekInfo.week !== cw.week ||
-                            weekInfo.year !== cw.year;
+                            weekInfo.week !== currentWeek.week ||
+                            weekInfo.year !== currentWeek.year;
                           setReadOnly(isPastWeek);
                           setIsHistorical(isPastWeek);
                           openStandupModal();
@@ -1247,10 +1247,10 @@ function StaffOpReport() {
                           // ─── Fetch ALL tasks for user and filter past incomplete tasks ───
                           const userId = user?.cid || user?.id;
                           try {
-                            const res = await fetch(
+                            const response = await fetch(
                               `/api/tasks?user_id=${userId}&sort=oldest`,
                             );
-                            const data = await res.json();
+                            const data = await response.json();
                             const allTasks = data.tasks || [];
 
                             // ── Collapse carry-over chains to their LATEST open copy ──
@@ -1260,49 +1260,49 @@ function StaffOpReport() {
                             // earlier copies (even completed ones) to 'carried_over'.
                             // Only the newest open copy may be carried, and only once.
                             const cloneIndex = new Map(); // source id -> clones
-                            for (const t of allTasks) {
-                              if (!t.carried_over_from_task_id) continue;
+                            for (const task of allTasks) {
+                              if (!task.carried_over_from_task_id) continue;
                               const list =
-                                cloneIndex.get(t.carried_over_from_task_id) ||
+                                cloneIndex.get(task.carried_over_from_task_id) ||
                                 [];
-                              list.push(t);
-                              cloneIndex.set(t.carried_over_from_task_id, list);
+                              list.push(task);
+                              cloneIndex.set(task.carried_over_from_task_id, list);
                             }
                             const latestOpenCopy = (task) => {
-                              let cur = task;
+                              let current = task;
                               const seen = new Set();
-                              while (!seen.has(cur.id)) {
-                                seen.add(cur.id);
-                                const next = (cloneIndex.get(cur.id) || [])
+                              while (!seen.has(current.id)) {
+                                seen.add(current.id);
+                                const next = (cloneIndex.get(current.id) || [])
                                   .filter(
-                                    (c) =>
+                                    (clone) =>
                                       !["archived", "completed"].includes(
-                                        c.status,
+                                        clone.status,
                                       ),
                                   )
                                   .sort(
-                                    (a, b) =>
-                                      b.created_year - a.created_year ||
-                                      b.created_week - a.created_week ||
-                                      b.id - a.id,
+                                    (first, second) =>
+                                      second.created_year - first.created_year ||
+                                      second.created_week - first.created_week ||
+                                      second.id - first.id,
                                   )[0];
                                 if (!next) break;
-                                cur = next;
+                                current = next;
                               }
-                              return cur;
+                              return current;
                             };
 
                             const chainsToCarry = new Map(); // head id -> task
-                            for (const t of allTasks) {
+                            for (const task of allTasks) {
                               // Only open, top-level tasks from earlier weeks can start a carry.
                               if (
-                                ["archived", "completed"].includes(t.status) ||
-                                t.parent_task_id ||
-                                (t.created_week === curWeek &&
-                                  t.created_year === curYear)
+                                ["archived", "completed"].includes(task.status) ||
+                                task.parent_task_id ||
+                                (task.created_week === curWeek &&
+                                  task.created_year === curYear)
                               )
                                 continue;
-                              const head = latestOpenCopy(t);
+                              const head = latestOpenCopy(task);
                               // Already carried into the current week — nothing to do.
                               if (
                                 head.created_week === curWeek &&
@@ -1319,28 +1319,28 @@ function StaffOpReport() {
                               // Subtasks are NOT pre-filled individually: they follow
                               // their parent clone automatically (the carry-over API
                               // re-parents them), which keeps the hierarchy intact.
-                              const allTaskRows = prevWeekTasks.map((t) => ({
-                                id: t.id,
+                              const allTaskRows = prevWeekTasks.map((task) => ({
+                                id: task.id,
                                 is_carryover: true,
-                                carried_over_from_task_id: t.id,
-                                name: t.title,
-                                description: t.description || "",
-                                project_id: t.project_id || null,
-                                category: t.category || "",
-                                start_date: t.start_date || "",
+                                carried_over_from_task_id: task.id,
+                                name: task.title,
+                                description: task.description || "",
+                                project_id: task.project_id || null,
+                                category: task.category || "",
+                                start_date: task.start_date || "",
                                 start_time: "",
-                                due_date: t.end_date || "",
+                                due_date: task.end_date || "",
                                 due_time: "",
                                 blockers:
-                                  t.blockers?.map((b) => ({
-                                    id: b.id,
-                                    description: b.title,
-                                    severity: b.severity || "medium",
-                                    status: b.status || "Active",
-                                    created_at: b.created_at,
+                                  task.blockers?.map((blocker) => ({
+                                    id: blocker.id,
+                                    description: blocker.title,
+                                    severity: blocker.severity || "medium",
+                                    status: blocker.status || "Active",
+                                    created_at: blocker.created_at,
                                   })) || [],
                                 parent_task_id: null,
-                                status: t.status,
+                                status: task.status,
                                 collaborators: [],
                                 uncompleted_reason: "",
                               }));
@@ -1349,10 +1349,10 @@ function StaffOpReport() {
                               return;
                             }
                             setShowTaskForm(false);
-                          } catch (e) {
+                          } catch (error) {
                             console.error(
                               "Failed to fetch previous week tasks:",
-                              e,
+                              error,
                             );
                           }
                           setShowTaskForm(true);
@@ -1362,10 +1362,10 @@ function StaffOpReport() {
                         <>
                           <Plus className="w-4 h-4" />{" "}
                           {history.some(
-                            (r) =>
-                              r.report_type === "standup" &&
-                              r.week_number === weekInfo.week &&
-                              r.year === weekInfo.year,
+                            (entry) =>
+                              entry.report_type === "standup" &&
+                              entry.week_number === weekInfo.week &&
+                              entry.year === weekInfo.year,
                           )
                             ? t("staff.opReport.editStandup")
                             : t("staff.opReport.createNewStandup")}
@@ -1397,17 +1397,17 @@ function StaffOpReport() {
                     </thead>
                     <tbody>
                       {history
-                        .filter((r) => r.report_type === "standup")
+                        .filter((historyEntry) => historyEntry.report_type === "standup")
                         .map((report) => {
                           const weekTasks = tasks.filter(
-                            (t) =>
-                              t.created_week === report.week_number &&
-                              t.created_year === report.year &&
-                              !t.parent_task_id, // subtasks are counted via the parent
+                            (task) =>
+                              task.created_week === report.week_number &&
+                              task.created_year === report.year &&
+                              !task.parent_task_id, // subtasks are counted via the parent
                           );
                           const taskCount = weekTasks.reduce(
-                            (sum, t) =>
-                              sum + 1 + (t.subtasks?.length || 0),
+                            (sum, task) =>
+                              sum + 1 + (task.subtasks?.length || 0),
                             0,
                           );
                           return (
@@ -1445,9 +1445,9 @@ function StaffOpReport() {
                                 <td className="px-4 py-3 text-right">
                                   <button
                                     onClick={() => {
-                                      const key = `${report.week_number}-${report.year}`;
+                                      const weekKey = `${report.week_number}-${report.year}`;
                                       setExpandedWeek((prev) =>
-                                        prev === key ? null : key,
+                                        prev === weekKey ? null : weekKey,
                                       );
                                     }}
                                     className="text-[11px] font-medium text-[var(--brand-orange)] hover:underline flex items-center gap-1 ml-auto"
@@ -1496,61 +1496,61 @@ function StaffOpReport() {
                                               });
                                               // Load tasks for that week into taskRows
                                               const weekTasks = tasks.filter(
-                                                (t) =>
+                                                (task) =>
                                                   [
                                                     "archived",
                                                     "completed",
-                                                  ].includes(t.status) &&
-                                                  !t.parent_task_id,
+                                                  ].includes(task.status) &&
+                                                  !task.parent_task_id,
                                               );
                                               const allTaskRows = [];
-                                              for (const t of weekTasks) {
+                                              for (const task of weekTasks) {
                                                 allTaskRows.push({
-                                                  id: t.id,
-                                                  name: t.title,
+                                                  id: task.id,
+                                                  name: task.title,
                                                   description:
-                                                    t.description || "",
+                                                    task.description || "",
                                                   project_id:
-                                                    t.project_id || null,
-                                                  category: t.category || "",
+                                                    task.project_id || null,
+                                                  category: task.category || "",
                                                   start_date:
-                                                    t.start_date || "",
+                                                    task.start_date || "",
                                                   start_time: "",
-                                                  due_date: t.end_date || "",
+                                                  due_date: task.end_date || "",
                                                   due_time: "",
                                                   blockers:
-                                                    t.blockers?.map((b) => ({
-                                                      id: b.id,
-                                                      description: b.title,
+                                                    task.blockers?.map((blocker) => ({
+                                                      id: blocker.id,
+                                                      description: blocker.title,
                                                       severity:
-                                                        b.severity || "medium",
+                                                        blocker.severity || "medium",
                                                       status:
-                                                        b.status || "Active",
-                                                      created_at: b.created_at,
+                                                        blocker.status || "Active",
+                                                      created_at: blocker.created_at,
                                                     })) || [],
                                                   parent_task_id:
-                                                    t.parent_task_id || null,
-                                                  status: t.status,
+                                                    task.parent_task_id || null,
+                                                  status: task.status,
                                                   collaborators: [],
                                                   uncompleted_reason: "",
                                                 });
-                                                if (t.subtasks?.length > 0) {
-                                                  for (const st of t.subtasks) {
+                                                if (task.subtasks?.length > 0) {
+                                                  for (const subtask of task.subtasks) {
                                                     allTaskRows.push({
-                                                      id: st.id,
-                                                      name: st.title,
+                                                      id: subtask.id,
+                                                      name: subtask.title,
                                                       description: "",
                                                       project_id:
-                                                        t.project_id || null,
+                                                        task.project_id || null,
                                                       category:
-                                                        t.category || "",
+                                                        task.category || "",
                                                       start_date: "",
                                                       start_time: "",
                                                       due_date: "",
                                                       due_time: "",
                                                       blockers: [],
-                                                      parent_task_id: t.id,
-                                                      status: st.status,
+                                                      parent_task_id: task.id,
+                                                      status: subtask.status,
                                                       collaborators: [],
                                                       uncompleted_reason: "",
                                                     });
@@ -1581,10 +1581,10 @@ function StaffOpReport() {
                                           </button>
                                         </div>
                                         {tasks.filter(
-                                          (t) =>
-                                            t.created_week ===
+                                          (task) =>
+                                            task.created_week ===
                                               report.week_number &&
-                                            t.created_year === report.year,
+                                            task.created_year === report.year,
                                         ).length === 0 ? (
                                           <p className="text-[11px] text-[var(--text-secondary)] text-center py-4">
                                             {t("reports.noTasksFound")}
@@ -1616,19 +1616,19 @@ function StaffOpReport() {
                                                 {(() => {
                                                   const weekTasks =
                                                     tasks.filter(
-                                                      (t) =>
-                                                        t.created_week ===
+                                                      (task) =>
+                                                        task.created_week ===
                                                           report.week_number &&
-                                                        t.created_year ===
+                                                        task.created_year ===
                                                           report.year,
                                                     );
                                                   const mainTasks =
                                                     weekTasks.filter(
-                                                      (t) => !t.parent_task_id,
+                                                      (task) => !task.parent_task_id,
                                                     );
                                                   const subTasks =
                                                     weekTasks.filter(
-                                                      (t) => t.parent_task_id,
+                                                      (task) => task.parent_task_id,
                                                     );
 
                                                   const rowsToRender = [];
@@ -1643,31 +1643,31 @@ function StaffOpReport() {
                                                       });
                                                       const children =
                                                         subTasks.filter(
-                                                          (st) =>
-                                                            st.parent_task_id ===
+                                                          (subtask) =>
+                                                            subtask.parent_task_id ===
                                                             mainTask.id,
                                                         );
-                                                      children.forEach((st) => {
+                                                      children.forEach((subtask) => {
                                                         rowsToRender.push({
-                                                          ...st,
+                                                          ...subtask,
                                                           isSubtask: true,
                                                         });
                                                         renderedSubTaskIds.add(
-                                                          st.id,
+                                                          subtask.id,
                                                         );
                                                       });
                                                     },
                                                   );
 
                                                   // Catch any orphaned subtasks (parent not in this week)
-                                                  subTasks.forEach((st) => {
+                                                  subTasks.forEach((subtask) => {
                                                     if (
                                                       !renderedSubTaskIds.has(
-                                                        st.id,
+                                                        subtask.id,
                                                       )
                                                     ) {
                                                       rowsToRender.push({
-                                                        ...st,
+                                                        ...subtask,
                                                         isSubtask: true,
                                                         isOrphan: true,
                                                       });
@@ -1676,7 +1676,7 @@ function StaffOpReport() {
 
                                                   return rowsToRender.map(
                                                     (task) => {
-                                                      const config =
+                                                      const statusConfig =
                                                         STATUS_CONFIG[
                                                           task.status
                                                         ] ||
@@ -1684,8 +1684,8 @@ function StaffOpReport() {
                                                       const activeBlockers = (
                                                         task.blockers || []
                                                       ).filter(
-                                                        (b) =>
-                                                          b.status === "active",
+                                                        (blocker) =>
+                                                          blocker.status === "active",
                                                       );
                                                       return (
                                                         <tr
@@ -1705,7 +1705,7 @@ function StaffOpReport() {
                                                                 <CornerDownRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                                                               )}
                                                               <div
-                                                                className={`w-1.5 h-1.5 rounded-full ${config.color.replace("text-", "bg-")} shrink-0`}
+                                                                className={`w-1.5 h-1.5 rounded-full ${statusConfig.color.replace("text-", "bg-")} shrink-0`}
                                                               />
                                                               <span
                                                                 className="text-[12px] font-medium text-[var(--text-primary)] cursor-pointer hover:text-[var(--brand-orange)]"
@@ -1741,9 +1741,9 @@ function StaffOpReport() {
                                                           <td className="px-3 py-2.5 text-[11px] text-[var(--text-secondary)]">
                                                             {task.project_id
                                                               ? assignedProjects.find(
-                                                                  (p) =>
+                                                                  (project) =>
                                                                     String(
-                                                                      p.id,
+                                                                      project.id,
                                                                     ) ===
                                                                     String(
                                                                       task.project_id,
@@ -1777,7 +1777,7 @@ function StaffOpReport() {
                                                           </td>
                                                           <td className="px-3 py-2.5">
                                                             <span
-                                                              className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}
+                                                              className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${statusConfig.bg} ${statusConfig.color}`}
                                                             >
                                                               {t(
                                                                 statusLabelKey(
@@ -1813,8 +1813,8 @@ function StaffOpReport() {
                                                     week: report.week_number,
                                                     year: report.year,
                                                   });
-                                                  setNewTaskForm((p) => ({
-                                                    ...p,
+                                                  setNewTaskForm((prev) => ({
+                                                    ...prev,
                                                     name: "",
                                                     project_id: "",
                                                     start_date: "",
@@ -1838,7 +1838,7 @@ function StaffOpReport() {
                             </React.Fragment>
                           );
                         })}
-                      {history.filter((r) => r.report_type === "standup")
+                      {history.filter((entry) => entry.report_type === "standup")
                         .length === 0 && (
                         <tr>
                           <td colSpan={4} className="px-4 py-8 text-center">
@@ -1855,10 +1855,10 @@ function StaffOpReport() {
                             </p>
                             <button
                               onClick={() => {
-                                const cw = getCurrentWeek();
+                                const currentWeek = getCurrentWeek();
                                 const isPastWeek =
-                                  weekInfo.week !== cw.week ||
-                                  weekInfo.year !== cw.year;
+                                  weekInfo.week !== currentWeek.week ||
+                                  weekInfo.year !== currentWeek.year;
                                 setReadOnly(isPastWeek);
                                 setIsHistorical(isPastWeek);
                                 openStandupModal();
@@ -1915,41 +1915,41 @@ function StaffOpReport() {
                     <tbody>
                       {history
                         .filter(
-                          (r) =>
-                            r.report_type === "standup" ||
-                            r.report_type === "retro",
+                          (entry) =>
+                            entry.report_type === "standup" ||
+                            entry.report_type === "retro",
                         )
-                        .reduce((unique, r) => {
+                        .reduce((unique, entry) => {
                           if (
                             !unique.find(
-                              (x) =>
-                                x.week_number === r.week_number &&
-                                x.year === r.year,
+                              (existingReport) =>
+                                existingReport.week_number === entry.week_number &&
+                                existingReport.year === entry.year,
                             )
                           )
-                            unique.push(r);
+                            unique.push(entry);
                           return unique;
                         }, [])
                         .map((report) => {
                           const weekKey =
                             report.week_number + "-" + report.year;
                           const weekTasks = tasks.filter(
-                            (t) =>
-                              t.created_week === report.week_number &&
-                              t.created_year === report.year &&
-                              !t.parent_task_id, // exclude sub-tasks (rendered inside parent)
+                            (task) =>
+                              task.created_week === report.week_number &&
+                              task.created_year === report.year &&
+                              !task.parent_task_id, // exclude sub-tasks (rendered inside parent)
                           );
                           const totalTasks = weekTasks.reduce(
-                            (sum, t) =>
-                              sum + 1 + (t.subtasks?.length || 0),
+                            (sum, task) =>
+                              sum + 1 + (task.subtasks?.length || 0),
                             0,
                           );
                           const completed = weekTasks.reduce(
-                            (sum, t) =>
+                            (sum, task) =>
                               sum +
-                              (t.status === "completed" ? 1 : 0) +
-                              (t.subtasks?.filter(
-                                (st) => st.status === "completed",
+                              (task.status === "completed" ? 1 : 0) +
+                              (task.subtasks?.filter(
+                                (subtask) => subtask.status === "completed",
                               ).length || 0),
                             0,
                           );
@@ -2040,46 +2040,46 @@ function StaffOpReport() {
                                             </thead>
                                             <tbody>
                                               {weekTasks
-                                                .sort((a, b) => {
+                                                .sort((first, second) => {
                                                   if (
-                                                    a.status === "completed" &&
-                                                    b.status !== "completed"
+                                                    first.status === "completed" &&
+                                                    second.status !== "completed"
                                                   )
                                                     return 1;
                                                   if (
-                                                    a.status !== "completed" &&
-                                                    b.status === "completed"
+                                                    first.status !== "completed" &&
+                                                    second.status === "completed"
                                                   )
                                                     return -1;
 
-                                                  const aCarryover =
-                                                    a.carried_over_from_task_id !==
+                                                  const firstCarryover =
+                                                    first.carried_over_from_task_id !==
                                                       null ||
-                                                    a.status === "carried_over";
-                                                  const bCarryover =
-                                                    b.carried_over_from_task_id !==
+                                                    first.status === "carried_over";
+                                                  const secondCarryover =
+                                                    second.carried_over_from_task_id !==
                                                       null ||
-                                                    b.status === "carried_over";
-                                                  if (aCarryover && !bCarryover)
+                                                    second.status === "carried_over";
+                                                  if (firstCarryover && !secondCarryover)
                                                     return -1;
-                                                  if (!aCarryover && bCarryover)
+                                                  if (!firstCarryover && secondCarryover)
                                                     return 1;
 
                                                   return (
                                                     new Date(
-                                                      a.created_at,
+                                                      first.created_at,
                                                     ).getTime() -
                                                     new Date(
-                                                      b.created_at,
+                                                      second.created_at,
                                                     ).getTime()
                                                   );
                                                 })
                                                 .map((task) => {
-                                                  const ab = (
+                                                  const activeBlockers = (
                                                     task.blockers || []
                                                   ).filter(
-                                                    (b) =>
-                                                      b.status === "active",
+                                                    (blocker) =>
+                                                      blocker.status === "active",
                                                   );
                                                   return (
                                                     <tr
@@ -2096,8 +2096,8 @@ function StaffOpReport() {
                                                             )
                                                               return;
                                                             setUpdatingTasks(
-                                                              (p) => ({
-                                                                ...p,
+                                                              (prev) => ({
+                                                                ...prev,
                                                                 [task.id]: true,
                                                               }),
                                                             );
@@ -2119,9 +2119,9 @@ function StaffOpReport() {
                                                                   await Promise.all(
                                                                     task.subtasks.map(
                                                                       async (
-                                                                        st,
+                                                                        subtask,
                                                                       ) => {
-                                                                        const r =
+                                                                        const response =
                                                                           await fetch(
                                                                             "/api/tasks",
                                                                             {
@@ -2134,7 +2134,7 @@ function StaffOpReport() {
                                                                                 },
                                                                               body: JSON.stringify(
                                                                                 {
-                                                                                  id: st.id,
+                                                                                  id: subtask.id,
                                                                                   status:
                                                                                     "completed",
                                                                                 },
@@ -2143,16 +2143,16 @@ function StaffOpReport() {
                                                                           );
                                                                         return {
                                                                           subtaskId:
-                                                                            st.id,
-                                                                          data: await r.json(),
+                                                                            subtask.id,
+                                                                          data: await response.json(),
                                                                         };
                                                                       },
                                                                     ),
                                                                   );
                                                                 const blockedSubtasks =
                                                                   subtaskResults.filter(
-                                                                    (r) =>
-                                                                      r.data
+                                                                    (result) =>
+                                                                      result.data
                                                                         ?.hasActiveBlockers,
                                                                   );
                                                                 if (
@@ -2169,7 +2169,7 @@ function StaffOpReport() {
                                                                 }
                                                               }
                                                               if (!blocked) {
-                                                                const res =
+                                                                const response =
                                                                   await fetch(
                                                                     "/api/tasks",
                                                                     {
@@ -2189,7 +2189,7 @@ function StaffOpReport() {
                                                                     },
                                                                   );
                                                                 const data =
-                                                                  await res.json();
+                                                                  await response.json();
                                                                 if (
                                                                   data.success ===
                                                                     false &&
@@ -2205,12 +2205,12 @@ function StaffOpReport() {
                                                                   refreshTasks();
                                                                 }
                                                               }
-                                                            } catch (e) {
-                                                              console.error(e);
+                                                            } catch (error) {
+                                                              console.error(error);
                                                             } finally {
                                                               setUpdatingTasks(
-                                                                (p) => ({
-                                                                  ...p,
+                                                                (prev) => ({
+                                                                  ...prev,
                                                                   [task.id]: false,
                                                                 }),
                                                               );
@@ -2300,10 +2300,10 @@ function StaffOpReport() {
                                                               ?.length > 0 && (
                                                               <div className="mt-2 ml-3 pl-3 border-l-2 border-indigo-500/30 space-y-1">
                                                                 {task.subtasks.map(
-                                                                  (st) => (
+                                                                  (subtask) => (
                                                                     <div
                                                                       key={
-                                                                        st.id
+                                                                        subtask.id
                                                                       }
                                                                       className="flex items-center gap-2 py-0.5"
                                                                     >
@@ -2311,21 +2311,21 @@ function StaffOpReport() {
                                                                         onClick={async () => {
                                                                           if (
                                                                             updatingTasks[
-                                                                              st
+                                                                              subtask
                                                                                 .id
                                                                             ]
                                                                           )
                                                                             return;
                                                                           setUpdatingTasks(
                                                                             (
-                                                                              p,
+                                                                              prev,
                                                                             ) => ({
-                                                                              ...p,
-                                                                              [st.id]: true,
+                                                                              ...prev,
+                                                                              [subtask.id]: true,
                                                                             }),
                                                                           );
                                                                           try {
-                                                                            const stRes =
+                                                                            const subtaskResponse =
                                                                               await fetch(
                                                                                 "/api/tasks",
                                                                                 {
@@ -2338,9 +2338,9 @@ function StaffOpReport() {
                                                                                     },
                                                                                   body: JSON.stringify(
                                                                                     {
-                                                                                      id: st.id,
+                                                                                      id: subtask.id,
                                                                                       status:
-                                                                                        st.status ===
+                                                                                        subtask.status ===
                                                                                         "completed"
                                                                                           ? "in_progress"
                                                                                           : "completed",
@@ -2348,12 +2348,12 @@ function StaffOpReport() {
                                                                                   ),
                                                                                 },
                                                                               );
-                                                                            const stData =
-                                                                              await stRes.json();
+                                                                            const subtaskData =
+                                                                              await subtaskResponse.json();
                                                                             if (
-                                                                              stData.success ===
+                                                                              subtaskData.success ===
                                                                                 false &&
-                                                                              stData.hasActiveBlockers
+                                                                              subtaskData.hasActiveBlockers
                                                                             ) {
                                                                               notify(
                                                                                 t(
@@ -2364,41 +2364,41 @@ function StaffOpReport() {
                                                                             } else {
                                                                               refreshTasks();
                                                                             }
-                                                                          } catch (e) {
+                                                                          } catch (error) {
                                                                             console.error(
-                                                                              e,
+                                                                              error,
                                                                             );
                                                                           } finally {
                                                                             setUpdatingTasks(
                                                                               (
-                                                                                p,
+                                                                                prev,
                                                                               ) => ({
-                                                                                ...p,
-                                                                                [st.id]: false,
+                                                                                ...prev,
+                                                                                [subtask.id]: false,
                                                                               }),
                                                                             );
                                                                           }
                                                                         }}
-                                                                        className={`w-3 h-3 rounded-full border-2 shrink-0 ${st.status === "completed" ? "bg-emerald-500 border-emerald-500" : "border-slate-600"}`}
+                                                                        className={`w-3 h-3 rounded-full border-2 shrink-0 ${subtask.status === "completed" ? "bg-emerald-500 border-emerald-500" : "border-slate-600"}`}
                                                                       >
-                                                                        {st.status ===
+                                                                        {subtask.status ===
                                                                           "completed" && (
                                                                           <CheckCircle2 className="w-2 h-2 text-white" />
                                                                         )}
                                                                       </button>
                                                                       <span
-                                                                        className={`text-[10px] ${st.status === "completed" ? "line-through text-[var(--text-secondary)]" : "text-[var(--text-primary)]"}`}
+                                                                        className={`text-[10px] ${subtask.status === "completed" ? "line-through text-[var(--text-secondary)]" : "text-[var(--text-primary)]"}`}
                                                                       >
                                                                         {
-                                                                          st.title
+                                                                          subtask.title
                                                                         }
                                                                       </span>
                                                                       <span
-                                                                        className={`text-[10px] font-bold uppercase px-1 py-0.5 rounded-full ${STATUS_CONFIG[st.status]?.bg || "bg-slate-500/10"} ${STATUS_CONFIG[st.status]?.color || "text-slate-400"}`}
+                                                                        className={`text-[10px] font-bold uppercase px-1 py-0.5 rounded-full ${STATUS_CONFIG[subtask.status]?.bg || "bg-slate-500/10"} ${STATUS_CONFIG[subtask.status]?.color || "text-slate-400"}`}
                                                                       >
                                                                         {t(
                                                                           statusLabelKey(
-                                                                            st.status,
+                                                                            subtask.status,
                                                                           ),
                                                                         )}
                                                                       </span>
@@ -2412,8 +2412,8 @@ function StaffOpReport() {
                                                       <td className="px-3 py-2.5 text-[10px] text-[var(--text-secondary)]">
                                                         {task.project_id
                                                           ? assignedProjects.find(
-                                                              (p) =>
-                                                                String(p.id) ===
+                                                              (project) =>
+                                                                String(project.id) ===
                                                                 String(
                                                                   task.project_id,
                                                                 ),
@@ -2439,12 +2439,12 @@ function StaffOpReport() {
                                                           }
                                                           className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-white/5 transition-all text-[10px] font-bold"
                                                         >
-                                                          {ab.length > 0 ? (
+                                                          {activeBlockers.length > 0 ? (
                                                             <span className="text-rose-400 font-medium flex items-center gap-1">
                                                               <Shield className="w-3 h-3" />
-                                                              {ab.length}{" "}
+                                                              {activeBlockers.length}{" "}
                                                               Blocker
-                                                              {ab.length > 1
+                                                              {activeBlockers.length > 1
                                                                 ? "s"
                                                                 : ""}
                                                             </span>
@@ -2463,10 +2463,10 @@ function StaffOpReport() {
                                                             "pending"
                                                           }
                                                           onChange={async (
-                                                            e,
+                                                            event,
                                                           ) => {
                                                             const newStatus =
-                                                              e.target.value;
+                                                              event.target.value;
                                                             if (
                                                               updatingTasks[
                                                                 task.id
@@ -2474,8 +2474,8 @@ function StaffOpReport() {
                                                             )
                                                               return;
                                                             setUpdatingTasks(
-                                                              (p) => ({
-                                                                ...p,
+                                                              (prev) => ({
+                                                                ...prev,
                                                                 [task.id]: true,
                                                               }),
                                                             );
@@ -2504,8 +2504,8 @@ function StaffOpReport() {
                                                               );
                                                             } finally {
                                                               setUpdatingTasks(
-                                                                (p) => ({
-                                                                  ...p,
+                                                                (prev) => ({
+                                                                  ...prev,
                                                                   [task.id]: false,
                                                                 }),
                                                               );
@@ -2561,9 +2561,9 @@ function StaffOpReport() {
                           );
                         })}
                       {history.filter(
-                        (r) =>
-                          r.report_type === "standup" ||
-                          r.report_type === "retro",
+                        (entry) =>
+                          entry.report_type === "standup" ||
+                          entry.report_type === "retro",
                       ).length === 0 && (
                         <tr>
                           <td colSpan={5} className="px-4 py-8 text-center">
@@ -2599,22 +2599,22 @@ function StaffOpReport() {
                     {(() => {
                       const planned = summaryTasks.length;
                       const completed = summaryTasks.filter(
-                        (t) => t.status === "completed",
+                        (task) => task.status === "completed",
                       ).length;
                       const carriedOver = summaryTasks.filter(
-                        (t) => t.status === "carried_over",
+                        (task) => task.status === "carried_over",
                       ).length;
                       const blockersCreated = summaryBlockers.length;
                       const blockersResolved = summaryBlockers.filter(
-                        (b) => b.status === "resolved",
+                        (blocker) => blocker.status === "resolved",
                       ).length;
                       const activeBlockers = summaryBlockers.filter(
-                        (b) => b.status === "active",
+                        (blocker) => blocker.status === "active",
                       ).length;
                       const projectsCount = new Set(
                         summaryTasks
-                          .filter((t) => t.project_id)
-                          .map((t) => t.project_id),
+                          .filter((task) => task.project_id)
+                          .map((task) => task.project_id),
                       ).size;
 
                       // Calculate date range
@@ -2750,12 +2750,12 @@ function StaffOpReport() {
                             </thead>
                             <tbody>
                               {summaryTasks.map((task) => {
-                                const cfg =
+                                const statusConfig =
                                   STATUS_CONFIG[task.status] ||
                                   STATUS_CONFIG.pending;
                                 const projectName = summaryProjects.find(
-                                  (p) =>
-                                    String(p.id) === String(task.project_id),
+                                  (project) =>
+                                    String(project.id) === String(task.project_id),
                                 )?.name;
                                 return (
                                   <React.Fragment key={task.id}>
@@ -2777,7 +2777,7 @@ function StaffOpReport() {
                                       </td>
                                       <td className="px-3 py-2.5">
                                         <span
-                                          className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}
+                                          className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${statusConfig.bg} ${statusConfig.color}`}
                                         >
                                           {t(statusLabelKey(task.status))}
                                         </span>
@@ -2791,27 +2791,27 @@ function StaffOpReport() {
                                       <tr className="bg-tertiary/30">
                                         <td colSpan={7} className="px-6 py-2">
                                           <div className="space-y-1">
-                                            {task.subtasks.map((sub) => {
-                                              const subCfg =
-                                                STATUS_CONFIG[sub.status] ||
+                                            {task.subtasks.map((subtask) => {
+                                              const subtaskStatusConfig =
+                                                STATUS_CONFIG[subtask.status] ||
                                                 STATUS_CONFIG.pending;
                                               return (
                                                 <div
-                                                  key={sub.id}
+                                                  key={subtask.id}
                                                   className="flex items-center gap-2 text-[10px]"
                                                 >
                                                   <span className="text-[var(--text-secondary)]">
                                                     ↳
                                                   </span>
                                                   <span className="font-medium text-[var(--text-primary)]">
-                                                    {sub.title}
+                                                    {subtask.title}
                                                   </span>
                                                   <span
-                                                    className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${subCfg.bg} ${subCfg.color}`}
+                                                    className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${subtaskStatusConfig.bg} ${subtaskStatusConfig.color}`}
                                                   >
                                                     {t(
                                                       statusLabelKey(
-                                                        sub.status,
+                                                        subtask.status,
                                                       ),
                                                     )}
                                                   </span>
@@ -2862,20 +2862,20 @@ function StaffOpReport() {
                             : null;
                           const projectName = isProject
                             ? summaryProjects.find(
-                                (p) => String(p.id) === String(projectId),
+                                (project) => String(project.id) === String(projectId),
                               )?.name || t("staff.table.projectFallback")
                             : key.replace("category_", "");
                           const completedCount = projectTasks.filter(
-                            (t) => t.status === "completed",
+                            (task) => task.status === "completed",
                           ).length;
                           const carriedCount = projectTasks.filter(
-                            (t) => t.status === "carried_over",
+                            (task) => task.status === "carried_over",
                           ).length;
                           const activeBlockersCount = projectTasks.reduce(
-                            (sum, t) =>
+                            (sum, task) =>
                               sum +
-                              (t.blockers || []).filter(
-                                (b) => b.status === "active",
+                              (task.blockers || []).filter(
+                                (blocker) => blocker.status === "active",
                               ).length,
                             0,
                           );
@@ -2913,7 +2913,7 @@ function StaffOpReport() {
                               {expanded && (
                                 <div className="space-y-1.5 pt-2 border-t border-[var(--border-primary)]/30">
                                   {projectTasks.map((projTask) => {
-                                    const tCfg =
+                                    const statusConfig =
                                       STATUS_CONFIG[projTask.status] ||
                                       STATUS_CONFIG.pending;
                                     return (
@@ -2925,7 +2925,7 @@ function StaffOpReport() {
                                           {projTask.title}
                                         </span>
                                         <span
-                                          className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${tCfg.bg} ${tCfg.color}`}
+                                          className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${statusConfig.bg} ${statusConfig.color}`}
                                         >
                                           {t(statusLabelKey(projTask.status))}
                                         </span>
@@ -2945,10 +2945,10 @@ function StaffOpReport() {
                     {/* ═══════════════════════════════════ */}
                     {(() => {
                       const assignedTasks = summaryTasks.filter(
-                        (t) =>
-                          t.user_id &&
+                        (task) =>
+                          task.user_id &&
                           user?.cid &&
-                          String(t.user_id) !== String(user.cid),
+                          String(task.user_id) !== String(user.cid),
                       );
                       if (assignedTasks.length === 0) return null;
                       return (
@@ -2959,7 +2959,7 @@ function StaffOpReport() {
                           </h3>
                           <div className="space-y-2">
                             {assignedTasks.map((task) => {
-                              const cfg =
+                              const statusConfig =
                                 STATUS_CONFIG[task.status] ||
                                 STATUS_CONFIG.pending;
                               return (
@@ -2979,7 +2979,7 @@ function StaffOpReport() {
                                     </p>
                                   </div>
                                   <span
-                                    className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${cfg.bg} ${cfg.color}`}
+                                    className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${statusConfig.bg} ${statusConfig.color}`}
                                   >
                                     {t(statusLabelKey(task.status))}
                                   </span>
@@ -3007,7 +3007,7 @@ function StaffOpReport() {
                         <>
                           {/* Resolved Blockers */}
                           {summaryBlockers.filter(
-                            (b) => b.status === "resolved",
+                            (blocker) => blocker.status === "resolved",
                           ).length > 0 && (
                             <div className="space-y-2">
                               <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
@@ -3033,28 +3033,28 @@ function StaffOpReport() {
                                   </thead>
                                   <tbody>
                                     {summaryBlockers
-                                      .filter((b) => b.status === "resolved")
-                                      .map((b) => (
+                                      .filter((blocker) => blocker.status === "resolved")
+                                      .map((blocker) => (
                                         <tr
-                                          key={b.id}
+                                          key={blocker.id}
                                           className="border-b border-[var(--border-primary)]/40"
                                         >
                                           <td className="px-3 py-2 text-[10px] font-bold text-emerald-400">
-                                            {b.title}
+                                            {blocker.title}
                                           </td>
                                           <td className="px-3 py-2 text-[10px] text-[var(--text-secondary)]">
                                             {summaryTasks.find(
-                                              (t) => t.id === b.task_id,
+                                              (task) => task.id === blocker.task_id,
                                             )?.title ||
                                               t("staff.table.taskLabel") +
                                                 " #" +
-                                                b.task_id}
+                                                blocker.task_id}
                                           </td>
                                           <td className="px-3 py-2 text-[10px] text-[var(--text-secondary)]">
-                                            {formatDate(b.created_at)}
+                                            {formatDate(blocker.created_at)}
                                           </td>
                                           <td className="px-3 py-2 text-[10px] text-[var(--text-secondary)]">
-                                            {formatDate(b.resolved_at)}
+                                            {formatDate(blocker.resolved_at)}
                                           </td>
                                         </tr>
                                       ))}
@@ -3064,7 +3064,7 @@ function StaffOpReport() {
                             </div>
                           )}
                           {/* Active Blockers */}
-                          {summaryBlockers.filter((b) => b.status === "active")
+                          {summaryBlockers.filter((blocker) => blocker.status === "active")
                             .length > 0 && (
                             <div className="space-y-2">
                               <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest">
@@ -3090,31 +3090,31 @@ function StaffOpReport() {
                                   </thead>
                                   <tbody>
                                     {summaryBlockers
-                                      .filter((b) => b.status === "active")
-                                      .map((b) => {
+                                      .filter((blocker) => blocker.status === "active")
+                                      .map((blocker) => {
                                         const weeksOpen = Math.floor(
                                           (now -
-                                            new Date(b.created_at).getTime()) /
+                                            new Date(blocker.created_at).getTime()) /
                                             (7 * 24 * 60 * 60 * 1000),
                                         );
                                         return (
                                           <tr
-                                            key={b.id}
+                                            key={blocker.id}
                                             className={`border-b border-[var(--border-primary)]/40 ${weeksOpen > 2 ? "bg-rose-500/5" : ""}`}
                                           >
                                             <td className="px-3 py-2 text-[10px] font-bold text-rose-400">
-                                              {b.title}
+                                              {blocker.title}
                                             </td>
                                             <td className="px-3 py-2 text-[10px] text-[var(--text-secondary)]">
                                               {summaryTasks.find(
-                                                (t) => t.id === b.task_id,
+                                                (task) => task.id === blocker.task_id,
                                               )?.title ||
                                                 t("staff.table.taskLabel") +
                                                   " #" +
-                                                  b.task_id}
+                                                  blocker.task_id}
                                             </td>
                                             <td className="px-3 py-2 text-[10px] text-[var(--text-secondary)]">
-                                              {formatDate(b.created_at)}
+                                              {formatDate(blocker.created_at)}
                                             </td>
                                             <td className="px-3 py-2">
                                               <span
@@ -3175,21 +3175,21 @@ function StaffOpReport() {
                               </div>
                               {summaryCollapsed[name] && (
                                 <div className="mt-2 pt-2 border-t border-[var(--border-primary)]/30 space-y-1">
-                                  {sharedTasks.map((t) => (
+                                  {sharedTasks.map((task) => (
                                     <div
-                                      key={t.id}
+                                      key={task.id}
                                       className="flex justify-between text-[10px] py-0.5"
                                     >
                                       <span className="font-medium text-[var(--text-primary)]">
-                                        {t.title}
+                                        {task.title}
                                       </span>
                                       <span className="text-[var(--text-secondary)]">
                                         {summaryProjects.find(
-                                          (p) =>
-                                            String(p.id) ===
-                                            String(t.project_id),
+                                          (project) =>
+                                            String(project.id) ===
+                                            String(task.project_id),
                                         )?.name ||
-                                          t.category ||
+                                          task.category ||
                                           "—"}
                                       </span>
                                     </div>
@@ -3212,9 +3212,9 @@ function StaffOpReport() {
                       </h3>
                       {(() => {
                         const carryOverTasks = summaryTasks.filter(
-                          (t) =>
+                          (task) =>
                             ["pending", "in_progress", "blocked"].includes(
-                              t.status,
+                              task.status,
                             ),
                         );
                         if (carryOverTasks.length === 0)
@@ -3240,8 +3240,8 @@ function StaffOpReport() {
                                       <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                                         {t("staff.opReport.project")}:{" "}
                                         {summaryProjects.find(
-                                          (p) =>
-                                            String(p.id) ===
+                                          (project) =>
+                                            String(project.id) ===
                                             String(task.project_id),
                                         )?.name || "—"}{" "}
                                         | {t("staff.table.due")}:{" "}
@@ -3264,10 +3264,10 @@ function StaffOpReport() {
                                     <input
                                       type="text"
                                       value={taskReasons[task.id] || ""}
-                                      onChange={(e) =>
+                                      onChange={(event) =>
                                         setTaskReasons((prev) => ({
                                           ...prev,
-                                          [task.id]: e.target.value,
+                                          [task.id]: event.target.value,
                                         }))
                                       }
                                       placeholder="Why wasn't this completed? e.g. Waiting for feedback, dependency blocked..."
@@ -3284,13 +3284,13 @@ function StaffOpReport() {
                                     </div>
                                   )}
                                   {(task.blockers || []).filter(
-                                    (b) => b.status === "active",
+                                    (blocker) => blocker.status === "active",
                                   ).length > 0 && (
                                     <div className="flex items-center gap-1 mt-2 text-rose-400 text-[10px]">
                                       <Shield className="w-3 h-3" />
                                       {
                                         (task.blockers || []).filter(
-                                          (b) => b.status === "active",
+                                          (blocker) => blocker.status === "active",
                                         ).length
                                       }{" "}
                                       {t("staff.opReport.activeBlockersCount")}
@@ -3309,7 +3309,7 @@ function StaffOpReport() {
                     {/* ═══════════════════════════════════ */}
                     {(() => {
                       const ownedProjects = summaryProjects.filter(
-                        (p) => p.member_role === "lead",
+                        (project) => project.member_role === "lead",
                       );
                       if (ownedProjects.length === 0) return null;
                       return (
@@ -3320,31 +3320,31 @@ function StaffOpReport() {
                           </h3>
                           {ownedProjects.map((project) => {
                             const projectTasks = summaryTasks.filter(
-                              (t) =>
-                                String(t.project_id) === String(project.id),
+                              (task) =>
+                                String(task.project_id) === String(project.id),
                             );
                             const completed = projectTasks.filter(
-                              (t) => t.status === "completed",
+                              (task) => task.status === "completed",
                             ).length;
                             const active = projectTasks.filter(
-                              (t) =>
-                                t.status === "in_progress" ||
-                                t.status === "blocked",
+                              (task) =>
+                                task.status === "in_progress" ||
+                                task.status === "blocked",
                             ).length;
                             const carried = projectTasks.filter(
-                              (t) => t.status === "carried_over",
+                              (task) => task.status === "carried_over",
                             ).length;
                             const blockerCount = projectTasks.reduce(
-                              (sum, t) =>
+                              (sum, task) =>
                                 sum +
-                                (t.blockers || []).filter(
-                                  (b) => b.status === "active",
+                                (task.blockers || []).filter(
+                                  (blocker) => blocker.status === "active",
                                 ).length,
                               0,
                             );
                             const collaborators = new Set(
                               projectTasks
-                                .map((t) => t.user_name)
+                                .map((task) => task.user_name)
                                 .filter(Boolean),
                             );
                             const total = projectTasks.length;
@@ -3446,8 +3446,8 @@ function StaffOpReport() {
                         if (task.status === "completed")
                           timeline[day].completed++;
                       });
-                      summaryBlockers.forEach((b) => {
-                        const day = b.created_at?.split("T")[0];
+                      summaryBlockers.forEach((blocker) => {
+                        const day = blocker.created_at?.split("T")[0];
                         if (!day) return;
                         if (!timeline[day])
                           timeline[day] = {
@@ -3458,18 +3458,18 @@ function StaffOpReport() {
                           };
                         timeline[day].blockerAdded =
                           (timeline[day].blockerAdded || 0) + 1;
-                        if (b.status === "resolved" && b.resolved_at) {
-                          const rd = b.resolved_at?.split("T")[0];
-                          if (rd) {
-                            if (!timeline[rd])
-                              timeline[rd] = {
+                        if (blocker.status === "resolved" && blocker.resolved_at) {
+                          const resolvedDay = blocker.resolved_at?.split("T")[0];
+                          if (resolvedDay) {
+                            if (!timeline[resolvedDay])
+                              timeline[resolvedDay] = {
                                 created: 0,
                                 completed: 0,
                                 blockerAdded: 0,
                                 blockerResolved: 0,
                               };
-                            timeline[rd].blockerResolved =
-                              (timeline[rd].blockerResolved || 0) + 1;
+                            timeline[resolvedDay].blockerResolved =
+                              (timeline[resolvedDay].blockerResolved || 0) + 1;
                           }
                         }
                       });
@@ -3483,30 +3483,30 @@ function StaffOpReport() {
                           </h3>
                           <div className="space-y-3">
                             {sortedDays.map((day) => {
-                              const d = timeline[day];
+                              const dayStats = timeline[day];
                               const events = [];
-                              if (d.created > 0)
+                              if (dayStats.created > 0)
                                 events.push(
                                   t("staff.opReport.tasksCreated", {
-                                    count: d.created,
+                                    count: dayStats.created,
                                   }),
                                 );
-                              if (d.completed > 0)
+                              if (dayStats.completed > 0)
                                 events.push(
                                   t("staff.opReport.tasksCompleted", {
-                                    count: d.completed,
+                                    count: dayStats.completed,
                                   }),
                                 );
-                              if (d.blockerAdded > 0)
+                              if (dayStats.blockerAdded > 0)
                                 events.push(
                                   t("staff.opReport.blockersAdded", {
-                                    count: d.blockerAdded,
+                                    count: dayStats.blockerAdded,
                                   }),
                                 );
-                              if (d.blockerResolved > 0)
+                              if (dayStats.blockerResolved > 0)
                                 events.push(
                                   t("staff.opReport.blockersResolved", {
-                                    count: d.blockerResolved,
+                                    count: dayStats.blockerResolved,
                                   }),
                                 );
                               const dayLabel = formatLocaleDate(
@@ -3521,12 +3521,12 @@ function StaffOpReport() {
                                     <p className="text-[10px] text-[var(--text-secondary)]">
                                       {dayLabel}
                                     </p>
-                                    {events.map((ev, i) => (
+                                    {events.map((event, index) => (
                                       <p
-                                        key={i}
+                                        key={index}
                                         className="text-xs font-bold text-[var(--text-primary)]"
                                       >
-                                        {ev}
+                                        {event}
                                       </p>
                                     ))}
                                   </div>
@@ -3551,7 +3551,7 @@ function StaffOpReport() {
         >
           <div
             className="w-full max-w-sm bg-secondary border border-[var(--border-primary)] rounded-xl p-6 space-y-4"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -3569,8 +3569,8 @@ function StaffOpReport() {
               <input
                 type="text"
                 value={newTaskForm.name}
-                onChange={(e) =>
-                  setNewTaskForm((p) => ({ ...p, name: e.target.value }))
+                onChange={(event) =>
+                  setNewTaskForm((prev) => ({ ...prev, name: event.target.value }))
                 }
                 placeholder={t("staff.opReport.taskNamePlaceholder")}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
@@ -3578,15 +3578,15 @@ function StaffOpReport() {
               />
               <select
                 value={newTaskForm.project_id}
-                onChange={(e) =>
-                  setNewTaskForm((p) => ({ ...p, project_id: e.target.value }))
+                onChange={(event) =>
+                  setNewTaskForm((prev) => ({ ...prev, project_id: event.target.value }))
                 }
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] outline-none"
               >
                 <option value="">{t("common.none")}</option>
-                {(assignedProjects || []).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
+                {(assignedProjects || []).map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
                   </option>
                 ))}
               </select>
@@ -3594,10 +3594,10 @@ function StaffOpReport() {
                 <input
                   type="date"
                   value={newTaskForm.start_date}
-                  onChange={(e) =>
-                    setNewTaskForm((p) => ({
-                      ...p,
-                      start_date: e.target.value,
+                  onChange={(event) =>
+                    setNewTaskForm((prev) => ({
+                      ...prev,
+                      start_date: event.target.value,
                     }))
                   }
                   className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] outline-none"
@@ -3605,10 +3605,10 @@ function StaffOpReport() {
                 <input
                   type="date"
                   value={newTaskForm.due_date}
-                  onChange={(e) =>
-                    setNewTaskForm((p) => ({
-                      ...p,
-                      due_date: e.target.value,
+                  onChange={(event) =>
+                    setNewTaskForm((prev) => ({
+                      ...prev,
+                      due_date: event.target.value,
                     }))
                   }
                   className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] outline-none"
@@ -3636,7 +3636,7 @@ function StaffOpReport() {
         >
           <div
             className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-secondary border border-[var(--border-primary)] rounded-2xl shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             {/* Header */}
             <div className="sticky top-0 z-10 bg-primary border-b border-[var(--border-primary)]">
@@ -3745,7 +3745,7 @@ function StaffOpReport() {
         >
           <div
             className="card w-full max-w-md space-y-4 border-rose-500/30"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
@@ -3763,7 +3763,7 @@ function StaffOpReport() {
               {t("staff.table.task")}:{" "}
               <span className="font-bold text-[var(--text-primary)]">
                 {blockerModal.type === "api"
-                  ? tasks.find((t) => t.id === blockerModal.taskId)?.title ||
+                  ? tasks.find((task) => task.id === blockerModal.taskId)?.title ||
                     t("staff.table.task")
                   : taskRows[blockerModal]?.name || t("common.untitled")}
               </span>
@@ -3772,21 +3772,21 @@ function StaffOpReport() {
             {/* Existing blockers */}
             <div className="space-y-1.5 max-h-40 overflow-y-auto">
               {(() => {
-                const bs =
+                const blockers =
                   blockerModal.type === "api"
-                    ? tasks.find((t) => t.id === blockerModal.taskId)
+                    ? tasks.find((task) => task.id === blockerModal.taskId)
                         ?.blockers || []
                     : taskRows[blockerModal]?.blockers || [];
-                return bs.length === 0 ? (
+                return blockers.length === 0 ? (
                   <p className="text-sm text-[var(--text-secondary)] text-center py-4">
                     {t("staff.opReport.noBlockersDeclared")}
                   </p>
                 ) : (
-                  bs.map((b) => (
+                  blockers.map((blocker) => (
                     <div
-                      key={b.id}
+                      key={blocker.id}
                       className={`flex items-center justify-between p-2.5 rounded-lg border ${
-                        b.status === "Resolved"
+                        blocker.status === "Resolved"
                           ? "border border-emerald-500/30 bg-emerald-500/[0.08]"
                           : "border border-rose-500/30 bg-rose-500/[0.08]"
                       }`}
@@ -3794,40 +3794,40 @@ function StaffOpReport() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                            {b.title || b.description}
+                            {blocker.title || blocker.description}
                           </p>
                           <span className="text-[10px] font-bold uppercase text-rose-500/60 shrink-0">
-                            {b.severity || "medium"}
+                            {blocker.severity || "medium"}
                           </span>
                         </div>
-                        {b.description && b.description !== b.title && (
+                        {blocker.description && blocker.description !== blocker.title && (
                           <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
-                            {b.description}
+                            {blocker.description}
                           </p>
                         )}
-                        {b.reference_url && (
+                        {blocker.reference_url && (
                           <a
-                            href={b.reference_url}
+                            href={blocker.reference_url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-[10px] text-blue-400 underline break-all"
                           >
-                            {b.reference_url}
+                            {blocker.reference_url}
                           </a>
                         )}
-                        {b.notes && (
+                        {blocker.notes && (
                           <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
-                            {b.notes}
+                            {blocker.notes}
                           </p>
                         )}
-                        {b.resolved_at && (
+                        {blocker.resolved_at && (
                           <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                             Resolved{" "}
-                            {new Date(b.resolved_at).toLocaleDateString()}
+                            {new Date(blocker.resolved_at).toLocaleDateString()}
                           </p>
                         )}
                       </div>
-                      {b.status?.toLowerCase() === "active" ? (
+                      {blocker.status?.toLowerCase() === "active" ? (
                         <button
                           onClick={async () => {
                             if (blockerModal.type === "api") {
@@ -3835,7 +3835,7 @@ function StaffOpReport() {
                                 method: "PUT",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
-                                  id: b.id,
+                                  id: blocker.id,
                                   user_id: user?.cid || user?.id,
                                   status: "resolved",
                                   resolved_by: user?.cid || user?.id,
@@ -3843,7 +3843,7 @@ function StaffOpReport() {
                               });
                               refreshTasks();
                             } else {
-                              resolveBlocker(blockerModal, b.id);
+                              resolveBlocker(blockerModal, blocker.id);
                             }
                             setBlockerModal(null);
                           }}
@@ -3866,7 +3866,7 @@ function StaffOpReport() {
             {(() => {
               const taskStatus =
                 blockerModal.type === "api"
-                  ? tasks.find((t) => t.id === blockerModal.taskId)?.status
+                  ? tasks.find((task) => task.id === blockerModal.taskId)?.status
                   : null;
               const closedStatuses = ["completed", "archived", "carried_over"];
               const isClosed =
@@ -3885,13 +3885,13 @@ function StaffOpReport() {
                   <input
                     type="text"
                     value={newBlockerTitle}
-                    onChange={(e) => setNewBlockerTitle(e.target.value)}
+                    onChange={(event) => setNewBlockerTitle(event.target.value)}
                     placeholder={t("staff.opReport.blockerTitlePlaceholder")}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all"
                   />
                   <textarea
                     value={newBlockerDescription}
-                    onChange={(e) => setNewBlockerDescription(e.target.value)}
+                    onChange={(event) => setNewBlockerDescription(event.target.value)}
                     placeholder={t(
                       "staff.opReport.blockerDescriptionPlaceholder",
                     )}
@@ -3901,7 +3901,7 @@ function StaffOpReport() {
                   <div className="flex gap-2">
                     <select
                       value={newBlockerPriority}
-                      onChange={(e) => setNewBlockerPriority(e.target.value)}
+                      onChange={(event) => setNewBlockerPriority(event.target.value)}
                       className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)]"
                     >
                       <option value="low">
@@ -3920,7 +3920,7 @@ function StaffOpReport() {
                     <input
                       type="url"
                       value={newBlockerRefUrl}
-                      onChange={(e) => setNewBlockerRefUrl(e.target.value)}
+                      onChange={(event) => setNewBlockerRefUrl(event.target.value)}
                       placeholder={t(
                         "staff.opReport.blockerReferenceUrlPlaceholder",
                       )}
@@ -3929,7 +3929,7 @@ function StaffOpReport() {
                   </div>
                   <textarea
                     value={newBlockerNotes}
-                    onChange={(e) => setNewBlockerNotes(e.target.value)}
+                    onChange={(event) => setNewBlockerNotes(event.target.value)}
                     placeholder={t("staff.opReport.blockerNotesPlaceholder")}
                     rows={2}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
@@ -3985,7 +3985,7 @@ function StaffOpReport() {
       {/* Confirm Dialog */}
       {confirmTarget && (
         <div className="fixed inset-0 z-[500] bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmTarget(null)}>
-          <div className="card w-full max-w-sm space-y-6" onClick={(e) => e.stopPropagation()}>
+          <div className="card w-full max-w-sm space-y-6" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center gap-3">
               <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
               <div>

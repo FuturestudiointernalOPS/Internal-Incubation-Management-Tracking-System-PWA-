@@ -16,19 +16,19 @@ import { stageStatusWord, statusLabel, statusChipClass } from "@/lib/ventureStat
 
 const EMPTY_LIST = [];
 
-const pickVenture = (d) => (d?.success ? d.venture || null : null);
-const pickPayload = (d) => (d?.success ? d : null);
-const pickMilestones = (d) => (d?.success ? d.milestones || [] : []);
-const pickTasks = (d) => (d?.success ? d.tasks || [] : []);
-const pickTeam = (d) => (d?.success ? d.team || [] : []);
+const pickVenture = (payload) => (payload?.success ? payload.venture || null : null);
+const pickPayload = (payload) => (payload?.success ? payload : null);
+const pickMilestones = (payload) => (payload?.success ? payload.milestones || [] : []);
+const pickTasks = (payload) => (payload?.success ? payload.tasks || [] : []);
+const pickTeam = (payload) => (payload?.success ? payload.team || [] : []);
 
 // The journey progression report degrades gracefully: the screen distinguishes
 // "the read failed" from "there is no report yet", which is why the failure
 // travels beside the report rather than collapsing into a null report.
 const EMPTY_JOURNEY_REPORT = { report: null, failed: false };
-const pickJourneyReport = (d) => ({
-  report: d?.success ? d.journey_report || null : null,
-  failed: !d?.success,
+const pickJourneyReport = (payload) => ({
+  report: payload?.success ? payload.journey_report || null : null,
+  failed: !payload?.success,
 });
 
 export default function VentureReportsPage() {
@@ -100,15 +100,15 @@ export default function VentureReportsPage() {
 
   const handleExport = async (format) => {
     try {
-      const res = await fetch(`/api/ventures/${id}/reports?type=export&format=${format}&export_type=tasks`);
+      const response = await fetch(`/api/ventures/${id}/reports?type=export&format=${format}&export_type=tasks`);
       if (format === "csv") {
-        const blob = await res.blob();
+        const blob = await response.blob();
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = `venture-tasks-${id}.csv`; a.click();
+        const link = document.createElement("a"); link.href = url; link.download = `venture-tasks-${id}.csv`; link.click();
         URL.revokeObjectURL(url);
       } else {
-        const d = await res.json();
-        console.log("Export data:", d);
+        const payload = await response.json();
+        console.log("Export data:", payload);
       }
     } catch {}
   };
@@ -229,13 +229,13 @@ export default function VentureReportsPage() {
               <div className="card">
                 <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-3">Activity Trend (30 days)</h3>
                 <div className="flex items-end gap-1 h-24">
-                  {charts.activity_trend_30d.slice(-14).map((d, i) => {
-                    const maxH = Math.max(...charts.activity_trend_30d.map((x) => x.total), 1);
+                  {charts.activity_trend_30d.slice(-14).map((day, index) => {
+                    const maxH = Math.max(...charts.activity_trend_30d.map((point) => point.total), 1);
                     return (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
-                        <div className="w-full bg-emerald-500/30 rounded-t" style={{ height: `${(d.completed / maxH) * 100}%` }} />
-                        <div className="w-full bg-[var(--brand-orange)]/30 rounded-t" style={{ height: `${(d.created / maxH) * 100}%` }} />
-                        <span className="text-[10px] text-[var(--text-secondary)] mt-0.5">{d.date?.slice(5)}</span>
+                      <div key={index} className="flex-1 flex flex-col items-center gap-0.5">
+                        <div className="w-full bg-emerald-500/30 rounded-t" style={{ height: `${(day.completed / maxH) * 100}%` }} />
+                        <div className="w-full bg-[var(--brand-orange)]/30 rounded-t" style={{ height: `${(day.created / maxH) * 100}%` }} />
+                        <span className="text-[10px] text-[var(--text-secondary)] mt-0.5">{day.date?.slice(5)}</span>
                       </div>
                     );
                   })}
@@ -271,25 +271,25 @@ export default function VentureReportsPage() {
               <p className="text-sm text-[var(--text-secondary)] text-center py-8">No milestones</p>
             ) : (
               <div className="space-y-3">
-                {milestones.map((m) => (
-                  <div key={m.id} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                {milestones.map((milestone) => (
+                  <div key={milestone.id} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-[var(--text-primary)]">{m.title}</span>
+                        <span className="text-xs font-bold text-[var(--text-primary)]">{milestone.title}</span>
                         <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                          m.status === "completed" ? "bg-emerald-500/10 text-emerald-400" :
-                          m.status === "in_progress" ? "bg-amber-500/10 text-amber-400" :
-                          m.status === "delayed" ? "bg-rose-500/10 text-rose-400" :
+                          milestone.status === "completed" ? "bg-emerald-500/10 text-emerald-400" :
+                          milestone.status === "in_progress" ? "bg-amber-500/10 text-amber-400" :
+                          milestone.status === "delayed" ? "bg-rose-500/10 text-rose-400" :
                           "bg-slate-500/10 text-slate-500"
-                        }`}>{m.status?.replace(/_/g, " ")}</span>
+                        }`}>{milestone.status?.replace(/_/g, " ")}</span>
                       </div>
-                      <span className="text-[9px] font-bold">{m.completion_percentage || 0}%</span>
+                      <span className="text-[9px] font-bold">{milestone.completion_percentage || 0}%</span>
                     </div>
-                    {progressBar(m.completion_percentage || 0)}
+                    {progressBar(milestone.completion_percentage || 0)}
                     <div className="flex gap-4 mt-2 text-[10px] text-[var(--text-secondary)]">
-                      <span>Deliverables: {m.del_done || 0}/{m.del_total || 0}</span>
-                      <span>Tasks: {m.task_done || 0}/{m.task_total || 0}</span>
-                      {m.due_date && <span>Due: {new Date(m.due_date).toLocaleDateString()}</span>}
+                      <span>Deliverables: {milestone.del_done || 0}/{milestone.del_total || 0}</span>
+                      <span>Tasks: {milestone.task_done || 0}/{milestone.task_total || 0}</span>
+                      {milestone.due_date && <span>Due: {new Date(milestone.due_date).toLocaleDateString()}</span>}
                     </div>
                   </div>
                 ))}
@@ -306,22 +306,22 @@ export default function VentureReportsPage() {
               <p className="text-sm text-[var(--text-secondary)] text-center py-8">No tasks</p>
             ) : (
               <div className="space-y-1">
-                {tasks.map((t) => (
-                  <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                {tasks.map((task) => (
+                  <div key={task.id} className="flex items-center gap-3 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                     <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                      t.status === "done" ? "bg-emerald-500" : t.status === "blocked" ? "bg-rose-500" :
-                      t.status === "in_progress" ? "bg-amber-500" : "bg-slate-500"
+                      task.status === "done" ? "bg-emerald-500" : task.status === "blocked" ? "bg-rose-500" :
+                      task.status === "in_progress" ? "bg-amber-500" : "bg-slate-500"
                     }`} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{t.title}</p>
-                      <p className="text-[10px] text-[var(--text-secondary)]">{t.assigned_name || "Unassigned"} {t.milestone_title ? `· ${t.milestone_title}` : ""}</p>
+                      <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{task.title}</p>
+                      <p className="text-[10px] text-[var(--text-secondary)]">{task.assigned_name || "Unassigned"} {task.milestone_title ? `· ${task.milestone_title}` : ""}</p>
                     </div>
                     <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                      t.priority === "critical" ? "bg-rose-500/10 text-rose-400" :
-                      t.priority === "high" ? "bg-amber-500/10 text-amber-400" :
+                      task.priority === "critical" ? "bg-rose-500/10 text-rose-400" :
+                      task.priority === "high" ? "bg-amber-500/10 text-amber-400" :
                       "bg-slate-500/10 text-slate-500"
-                    }`}>{t.priority}</span>
-                    <span className="text-[10px] text-[var(--text-secondary)] capitalize">{t.status?.replace(/_/g, " ")}</span>
+                    }`}>{task.priority}</span>
+                    <span className="text-[10px] text-[var(--text-secondary)] capitalize">{task.status?.replace(/_/g, " ")}</span>
                   </div>
                 ))}
               </div>
@@ -337,42 +337,42 @@ export default function VentureReportsPage() {
               <p className="text-sm text-[var(--text-secondary)] text-center py-8">No team data</p>
             ) : (
               <div className="space-y-4">
-                {team.map((m, i) => (
-                  <div key={i} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                {team.map((teamMember, index) => (
+                  <div key={index} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-black text-[var(--brand-orange)]">
-                          {m.name?.charAt(0) || "?"}
+                          {teamMember.name?.charAt(0) || "?"}
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-[var(--text-primary)]">{m.name || "Unnamed"}</p>
-                          <p className="text-[10px] text-[var(--text-secondary)]">{m.completed}/{m.total_tasks} tasks done</p>
+                          <p className="text-xs font-bold text-[var(--text-primary)]">{teamMember.name || "Unnamed"}</p>
+                          <p className="text-[10px] text-[var(--text-secondary)]">{teamMember.completed}/{teamMember.total_tasks} tasks done</p>
                         </div>
                       </div>
-                      <span className="text-lg font-black text-[var(--brand-orange)]">{m.completion_rate || 0}%</span>
+                      <span className="text-lg font-black text-[var(--brand-orange)]">{teamMember.completion_rate || 0}%</span>
                     </div>
-                    {progressBar(m.completion_rate || 0)}
+                    {progressBar(teamMember.completion_rate || 0)}
                     <div className="flex gap-3 mt-2 text-[10px] text-[var(--text-secondary)]">
-                      <span>📊 {m.total_tasks} tasks</span>
-                      {m.blocked > 0 && <span className="text-rose-400">🚫 {m.blocked} blocked</span>}
-                      {m.overdue > 0 && <span className="text-rose-400">⏰ {m.overdue} overdue</span>}
-                      <span>⏱ {m.total_estimated || 0}h estimated</span>
+                      <span>📊 {teamMember.total_tasks} tasks</span>
+                      {teamMember.blocked > 0 && <span className="text-rose-400">🚫 {teamMember.blocked} blocked</span>}
+                      {teamMember.overdue > 0 && <span className="text-rose-400">⏰ {teamMember.overdue} overdue</span>}
+                      <span>⏱ {teamMember.total_estimated || 0}h estimated</span>
                     </div>
                   </div>
                 ))}
                 {/* Workload distribution bar */}
                 <div className="mt-4">
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">Workload Distribution</p>
-                  {team.map((m, i) => {
-                    const total = team.reduce((s, x) => s + x.total_tasks, 1);
-                    const pct = (m.total_tasks / total) * 100;
+                  {team.map((teamMember, index) => {
+                    const total = team.reduce((sum, member) => sum + member.total_tasks, 1);
+                    const pct = (teamMember.total_tasks / total) * 100;
                     return (
-                      <div key={i} className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-bold text-[var(--text-secondary)] w-24 truncate">{m.name}</span>
+                      <div key={index} className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-bold text-[var(--text-secondary)] w-24 truncate">{teamMember.name}</span>
                         <div className="flex-1 bg-tertiary rounded-full h-3 overflow-hidden">
                           <div className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full" style={{ width: `${pct}%` }} />
                         </div>
-                        <span className="text-[10px] text-[var(--text-secondary)] w-8 text-right">{m.total_tasks}</span>
+                        <span className="text-[10px] text-[var(--text-secondary)] w-8 text-right">{teamMember.total_tasks}</span>
                       </div>
                     );
                   })}
@@ -412,18 +412,18 @@ export default function VentureReportsPage() {
                     {kpiCard(t("vadmin.reports.support"), responsibilities.length, responsibilities.length ? responsibilities.join(", ") : "—")}
                   </div>
                   <div className="space-y-3 mt-6 pt-6 border-t border-[var(--border-primary)]">
-                    {(journeyReport.stages || []).map((st) => (
-                      <div key={st.id} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                    {(journeyReport.stages || []).map((stage) => (
+                      <div key={stage.id} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-bold text-[var(--text-primary)]">{st.name}</span>
-                            <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${journeyStagePill(st.status)}`}>{stageStatusLabel(st.status)}</span>
+                            <span className="text-xs font-bold text-[var(--text-primary)]">{stage.name}</span>
+                            <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${journeyStagePill(stage.status)}`}>{stageStatusLabel(stage.status)}</span>
                           </div>
                           <span className="text-[9px] font-bold text-[var(--text-secondary)] shrink-0">
-                            {t("vadmin.reports.milestonesFraction", { done: st.milestones?.completed || 0, total: st.milestones?.total || 0 })} · {st.milestones?.progress_pct || 0}%
+                            {t("vadmin.reports.milestonesFraction", { done: stage.milestones?.completed || 0, total: stage.milestones?.total || 0 })} · {stage.milestones?.progress_pct || 0}%
                           </span>
                         </div>
-                        {progressBar(st.milestones?.progress_pct || 0)}
+                        {progressBar(stage.milestones?.progress_pct || 0)}
                       </div>
                     ))}
                   </div>

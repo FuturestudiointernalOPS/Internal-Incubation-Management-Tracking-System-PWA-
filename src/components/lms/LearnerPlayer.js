@@ -44,10 +44,10 @@ const EMPTY_COURSE = { payload: null, failure: null };
  * The loader reported both ways of failing as one message — the payload refusing,
  * or a request that never got an answer — and the screen still shows one panel.
  */
-const pickCourse = (d) =>
-  d?.success
-    ? { payload: d, failure: null }
-    : { payload: null, failure: d?.error || "lms.errors.loadFailedCourse" };
+const pickCourse = (data) =>
+  data?.success
+    ? { payload: data, failure: null }
+    : { payload: null, failure: data?.error || "lms.errors.loadFailedCourse" };
 
 export default function LearnerPlayer({ courseId, lessonId }) {
   const { t } = useI18n();
@@ -80,10 +80,10 @@ export default function LearnerPlayer({ courseId, lessonId }) {
   // Ordered lesson list for prev/next navigation (assessments are not lessons).
   const lessons = useMemo(() => {
     if (!data) return [];
-    return data.sections.flatMap((s) => s.lessons || []);
+    return data.sections.flatMap((section) => section.lessons || []);
   }, [data]);
 
-  const currentIndex = lessons.findIndex((l) => String(l.id) === String(lessonId));
+  const currentIndex = lessons.findIndex((lesson) => String(lesson.id) === String(lessonId));
   const lesson = currentIndex >= 0 ? lessons[currentIndex] : null;
   const prevLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
   const nextLesson = currentIndex >= 0 && currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
@@ -105,14 +105,14 @@ export default function LearnerPlayer({ courseId, lessonId }) {
         notify("success", "lms.certificate.courseCompleted");
       }
       completeTimer.current = setTimeout(() => setJustCompleted(false), 2600);
-    } catch (e) {
+    } catch (error) {
       setCompleting(false);
       notify("error", "lms.player.saveProgressFailed");
-      console.error("[LMS] complete error:", e);
+      console.error("[LMS] complete error:", error);
     }
   };
 
-  const go = (targetLesson) =>
+  const goToLesson = (targetLesson) =>
     router.push(`/participant/learning/${courseId}/lessons/${targetLesson.id}`);
 
   const openAssessment = (assessmentId) =>
@@ -147,8 +147,8 @@ export default function LearnerPlayer({ courseId, lessonId }) {
   // section's assessment after its last lesson, else the first course-level
   // assessment after the very last lesson. Surfaced as its own CTA so the
   // learner does not have to find it in the sidebar.
-  const currentSection = data.sections.find((s) =>
-    (s.lessons || []).some((l) => String(l.id) === String(lessonId)),
+  const currentSection = data.sections.find((section) =>
+    (section.lessons || []).some((lesson) => String(lesson.id) === String(lessonId)),
   );
   const isSectionLast =
     !!currentSection &&
@@ -247,7 +247,7 @@ export default function LearnerPlayer({ courseId, lessonId }) {
                 variant="secondary"
                 icon={ChevronLeft}
                 disabled={!prevLesson}
-                onClick={() => prevLesson && go(prevLesson)}
+                onClick={() => prevLesson && goToLesson(prevLesson)}
               >
                 {t("lms.player.previous")}
               </AppButton>
@@ -266,7 +266,7 @@ export default function LearnerPlayer({ courseId, lessonId }) {
                 variant="secondary"
                 icon={ChevronRight}
                 disabled={!nextLesson}
-                onClick={() => nextLesson && go(nextLesson)}
+                onClick={() => nextLesson && goToLesson(nextLesson)}
               >
                 {t("lms.player.next")}
               </AppButton>
@@ -311,19 +311,19 @@ export default function LearnerPlayer({ courseId, lessonId }) {
           {/* Mobile content toggle */}
           <button
             type="button"
-            onClick={() => setContentOpen((o) => !o)}
+            onClick={() => setContentOpen((prev) => !prev)}
             className="lg:hidden w-full flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-[10px] font-black uppercase tracking-widest"
             style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)", color: "var(--text-secondary)" }}
           >
             <ListVideo className="w-4 h-4" />
             {t("lms.player.courseContent")}
           </button>
-          {contentOpen && <CourseContent data={data} courseId={course.id} currentLessonId={lesson.id} onSelect={go} onOpenAssessment={openAssessment} />}
+          {contentOpen && <CourseContent data={data} courseId={course.id} currentLessonId={lesson.id} onSelect={goToLesson} onOpenAssessment={openAssessment} />}
         </div>
 
         {/* Sidebar (desktop) */}
         <div className="hidden lg:block">
-          <CourseContent data={data} courseId={course.id} currentLessonId={lesson.id} onSelect={go} onOpenAssessment={openAssessment} />
+          <CourseContent data={data} courseId={course.id} currentLessonId={lesson.id} onSelect={goToLesson} onOpenAssessment={openAssessment} />
         </div>
       </div>
 
@@ -371,11 +371,11 @@ function CourseContent({ data, currentLessonId, onSelect, onOpenAssessment }) {
         </p>
       </div>
       <div className="p-3 space-y-3 max-h-[70vh] overflow-y-auto">
-        {data.sections.map((section, si) => (
+        {data.sections.map((section, sectionIndex) => (
           <div key={section.id}>
             <div className="flex items-center gap-2 mb-1 px-1">
               <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>
-                {si + 1}
+                {sectionIndex + 1}
               </span>
               <p className="text-[10px] font-black uppercase tracking-wider truncate flex-1" style={{ color: "var(--text-primary)" }}>
                 {section.title}

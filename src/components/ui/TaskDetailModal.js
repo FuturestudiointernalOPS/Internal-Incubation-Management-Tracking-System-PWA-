@@ -13,7 +13,7 @@ export default function TaskDetailModal({ task, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 max-h-[85vh] overflow-y-auto" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
@@ -80,10 +80,10 @@ export default function TaskDetailModal({ task, onClose }) {
             <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1 flex items-center gap-1"><ListTodo className="w-3 h-3" />Subtasks</p>
             {(task.subtasks || []).length > 0 ? (
               <div className="space-y-1">
-                {task.subtasks.map((s) => (
-                  <div key={s.id} className="flex items-center gap-2 p-2 rounded bg-indigo-500/5 text-[10px]">
-                    <span className={s.status === "completed" ? "text-emerald-400 line-through" : "text-indigo-400"}>{s.title}</span>
-                    {s.status === "completed" && <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />}
+                {task.subtasks.map((subtask) => (
+                  <div key={subtask.id} className="flex items-center gap-2 p-2 rounded bg-indigo-500/5 text-[10px]">
+                    <span className={subtask.status === "completed" ? "text-emerald-400 line-through" : "text-indigo-400"}>{subtask.title}</span>
+                    {subtask.status === "completed" && <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />}
                   </div>
                 ))}
               </div>
@@ -93,10 +93,10 @@ export default function TaskDetailModal({ task, onClose }) {
           {/* Blockers */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-rose-500 mb-1 flex items-center gap-1"><Shield className="w-3 h-3" />Blockers</p>
-            {(task.blockers || []).filter(b => b.status === "active").length > 0 ? (
+            {(task.blockers || []).filter(blocker => blocker.status === "active").length > 0 ? (
               <div className="space-y-1">
-                {task.blockers.filter(b => b.status === "active").map((b) => (
-                  <div key={b.id} className="p-2 rounded bg-rose-500/10 text-[10px] text-rose-400 font-bold">{b.title}</div>
+                {task.blockers.filter(blocker => blocker.status === "active").map((blocker) => (
+                  <div key={blocker.id} className="p-2 rounded bg-rose-500/10 text-[10px] text-rose-400 font-bold">{blocker.title}</div>
                 ))}
               </div>
             ) : <p className="text-[var(--text-secondary)]">No blockers</p>}

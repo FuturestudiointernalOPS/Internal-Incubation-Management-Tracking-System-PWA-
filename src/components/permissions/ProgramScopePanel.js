@@ -162,10 +162,10 @@ export default function ProgramScopePanel() {
         );
       }
       setReport(data);
-    } catch (e) {
+    } catch (error) {
       notify(
         "error",
-        e.message || t("engineering.permissions.programScopeFailed"),
+        error.message || t("engineering.permissions.programScopeFailed"),
       );
     } finally {
       setBusy(false);
@@ -232,11 +232,11 @@ export default function ProgramScopePanel() {
       // The programme just left the worklist: re-read it so the counts and the
       // remaining rows are the truth after the repair.
       load();
-    } catch (e) {
+    } catch (error) {
       setAssignError({
         kind: "failed",
         message:
-          e.message || t("engineering.permissions.programScopeAssignFailed"),
+          error.message || t("engineering.permissions.programScopeAssignFailed"),
       });
     } finally {
       setAssignBusy(false);
@@ -251,11 +251,11 @@ export default function ProgramScopePanel() {
   /** Access applied / withdrawn by the reconcile that followed the write. */
   const reconciledRows = assignResult?.reconciled || [];
   const appliedCount = reconciledRows.reduce(
-    (n, r) => n + (r.applied || []).length,
+    (sum, row) => sum + (row.applied || []).length,
     0,
   );
   const withdrawnCount = reconciledRows.reduce(
-    (n, r) => n + (r.revoked || []).length,
+    (sum, row) => sum + (row.revoked || []).length,
     0,
   );
 
@@ -336,22 +336,22 @@ export default function ProgramScopePanel() {
               />
             ) : (
               <div className="space-y-1.5">
-                {unmanaged.map((p) => (
+                {unmanaged.map((profile) => (
                   <div
-                    key={p.id}
+                    key={profile.id}
                     className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2"
                   >
                     <span className="text-xs font-bold text-[var(--text-primary)]">
-                      {p.name || p.id}
+                      {profile.name || profile.id}
                     </span>
-                    {p.status && (
+                    {profile.status && (
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        {statusLabel(p.status)}
+                        {statusLabel(profile.status)}
                       </span>
                     )}
-                    {p.endDate && (
+                    {profile.endDate && (
                       <span className="text-[10px] text-[var(--text-secondary)]">
-                        {t("engineering.permissions.operationsEnds")} {p.endDate}
+                        {t("engineering.permissions.operationsEnds")} {profile.endDate}
                       </span>
                     )}
                     <span className="ml-auto">
@@ -359,7 +359,7 @@ export default function ProgramScopePanel() {
                         variant="secondary"
                         size="sm"
                         icon={UserPlus}
-                        onClick={() => openAssign(p)}
+                        onClick={() => openAssign(profile)}
                       >
                         {t("engineering.permissions.programScopeAssign")}
                       </AppButton>
@@ -388,39 +388,39 @@ export default function ProgramScopePanel() {
               />
             ) : (
               <div className="space-y-1.5">
-                {holders.map((h) => (
+                {holders.map((holder) => (
                   <div
-                    key={h.cid}
+                    key={holder.cid}
                     className={`rounded-lg border px-3 py-2 ${
-                      h.losesEverything
+                      holder.losesEverything
                         ? "border-amber-500/40 bg-amber-500/5"
                         : "border-[var(--border-primary)] bg-surface-2"
                     }`}
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-bold text-[var(--text-primary)]">
-                        {h.name || h.cid}
+                        {holder.name || holder.cid}
                       </span>
-                      {h.role && (
+                      {holder.role && (
                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          {h.role}
+                          {holder.role}
                         </span>
                       )}
                       <span className="text-[10px] text-[var(--text-secondary)]">
-                        {h.viaRole
+                        {holder.viaRole
                           ? t(
                               "engineering.permissions.programScopeProfileDefault",
                               {
-                                profile: h.profile || h.profileId || "—",
-                                role: h.viaRole,
+                                profile: holder.profile || holder.profileId || "—",
+                                role: holder.viaRole,
                               },
                             )
                           : t(
                               "engineering.permissions.programScopeProfileExplicit",
-                              { profile: h.profile || h.profileId || "—" },
+                              { profile: holder.profile || holder.profileId || "—" },
                             )}
                       </span>
-                      {h.losesEverything ? (
+                      {holder.losesEverything ? (
                         <AppBadge variant="warning">
                           {t(
                             "engineering.permissions.programScopeKeepsNone",
@@ -429,17 +429,17 @@ export default function ProgramScopePanel() {
                       ) : (
                         <AppBadge variant="default">
                           {t("engineering.permissions.programScopeKeeps", {
-                            n: h.keptCount ?? 0,
+                            n: holder.keptCount ?? 0,
                           })}
                         </AppBadge>
                       )}
                     </div>
-                    {(h.keptPrograms || []).length > 0 && (
+                    {(holder.keptPrograms || []).length > 0 && (
                       <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-secondary)]">
                         <span className="font-bold">
                           {t("engineering.permissions.programScopeKeptIds")}:
                         </span>{" "}
-                        {h.keptPrograms.join(", ")}
+                        {holder.keptPrograms.join(", ")}
                       </p>
                     )}
                   </div>
@@ -468,26 +468,26 @@ export default function ProgramScopePanel() {
                   <AlertTriangle className="h-3 w-3" />
                   {t("engineering.permissions.programScopeRemovalsTitle")}
                 </p>
-                {removals.map((r) => (
+                {removals.map((removal) => (
                   <div
-                    key={`${r.profileId}:${r.module}.${r.capability}`}
+                    key={`${removal.profileId}:${removal.module}.${removal.capability}`}
                     className="flex flex-wrap items-center gap-2"
                   >
                     <span className="text-[11px] font-bold text-[var(--text-primary)]">
-                      {r.module}.{r.capability}
+                      {removal.module}.{removal.capability}
                     </span>
                     <span className="text-[10px] text-[var(--text-secondary)]">
-                      {whyLabel(r)}
+                      {whyLabel(removal)}
                     </span>
-                    {r.profile && (
+                    {removal.profile && (
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        {r.profile}
+                        {removal.profile}
                       </span>
                     )}
                     <span className="text-[10px] font-bold text-amber-400">
                       {t(
                         "engineering.permissions.programScopeRemovalHolders",
-                        { n: r.holders ?? 0 },
+                        { n: removal.holders ?? 0 },
                       )}
                     </span>
                   </div>
@@ -615,8 +615,8 @@ export default function ProgramScopePanel() {
                     <div className="space-y-0.5">
                       {reconciledRows.map((row) => {
                         const changes = [
-                          ...(row.applied || []).map((k) => `+${k}`),
-                          ...(row.revoked || []).map((k) => `−${k}`),
+                          ...(row.applied || []).map((capability) => `+${capability}`),
+                          ...(row.revoked || []).map((capability) => `−${capability}`),
                         ];
                         return (
                           <p

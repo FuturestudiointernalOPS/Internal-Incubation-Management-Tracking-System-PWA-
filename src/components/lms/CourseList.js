@@ -36,9 +36,9 @@ const EMPTY_COURSES_READ = { list: [], failure: false };
  * answered - were shown as the same panel, so the shaper reports the refusal and
  * the panel stays exactly as it was.
  */
-const pickCourses = (d) =>
-  d?.success
-    ? { list: d.courses || [], failure: false }
+const pickCourses = (data) =>
+  data?.success
+    ? { list: data.courses || [], failure: false }
     : { list: [], failure: true };
 
 /**
@@ -92,8 +92,8 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", successKey);
       refresh();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     } finally {
       setBusyId(null);
     }
@@ -133,14 +133,14 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
           icon={Search}
           placeholder={t("lms.courses.searchPlaceholder")}
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(event) => setSearch(event.target.value)}
         />
         <AppSelect
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          options={STATUS_OPTIONS.map((o) => ({
-            value: o.value,
-            label: o.value === "" ? t("lms.courses.filterAll") : t(`lms.status.${o.label}`),
+          onChange={(event) => setStatus(event.target.value)}
+          options={STATUS_OPTIONS.map((option) => ({
+            value: option.value,
+            label: option.value === "" ? t("lms.courses.filterAll") : t(`lms.status.${option.label}`),
           }))}
         />
       </div>

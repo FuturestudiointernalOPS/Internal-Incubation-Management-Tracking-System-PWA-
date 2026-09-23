@@ -54,7 +54,7 @@ export default function ResourcePreview({ resource }) {
     <div className="mt-2">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
         className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest"
         style={{ color: "var(--brand-blue)" }}

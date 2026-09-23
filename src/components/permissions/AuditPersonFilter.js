@@ -22,9 +22,9 @@ export default function AuditPersonFilter({ value = "", onChange }) {
   const { data } = useApi("/api/contacts");
   const people = (data?.success ? data.contacts || [] : [])
     .slice()
-    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    .sort((first, second) => (first.name || "").localeCompare(second.name || ""));
 
-  const inList = people.some((p) => String(p.cid) === String(value));
+  const inList = people.some((person) => String(person.cid) === String(value));
 
   return (
     <label className="flex min-w-[200px] flex-col gap-1">
@@ -33,7 +33,7 @@ export default function AuditPersonFilter({ value = "", onChange }) {
       </span>
       <select
         value={value || ""}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         className="rounded-xl border border-[var(--border-primary)] bg-secondary px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
       >
         <option value="">
@@ -46,9 +46,9 @@ export default function AuditPersonFilter({ value = "", onChange }) {
             })}
           </option>
         )}
-        {people.map((p) => (
-          <option key={p.cid} value={p.cid}>
-            {p.name || p.email || p.cid}
+        {people.map((person) => (
+          <option key={person.cid} value={person.cid}>
+            {person.name || person.email || person.cid}
           </option>
         ))}
       </select>

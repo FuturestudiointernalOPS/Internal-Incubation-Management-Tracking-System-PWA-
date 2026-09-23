@@ -33,7 +33,7 @@ const ACTION_LABELS = {
 // Module scope on purpose: the hook keys its internal callback on this function,
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop.
-const pickInvestors = (d) => (d?.success ? d.investors || [] : []);
+const pickInvestors = (payload) => (payload?.success ? payload.investors || [] : []);
 
 export default function AdminInvestorsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
@@ -112,18 +112,18 @@ export default function AdminInvestorsPage() {
         {/* FILTERS */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex gap-2">
-            {["all", "pending_review", "approved"].map(s => (
+            {["all", "pending_review", "approved"].map(statusOption => (
               <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
+                key={statusOption}
+                onClick={() => setStatusFilter(statusOption)}
                 className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
-                  statusFilter === s
+                  statusFilter === statusOption
                     ? "bg-[var(--brand-orange)] text-white"
                     : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
-                {s === "all" ? t("investorAdmin.list.all") : t(STATUS_LABELS[s])}
-                <span className="ml-2 opacity-60">{counts[s] || 0}</span>
+                {statusOption === "all" ? t("investorAdmin.list.all") : t(STATUS_LABELS[statusOption])}
+                <span className="ml-2 opacity-60">{counts[statusOption] || 0}</span>
               </button>
             ))}
           </div>
@@ -243,10 +243,10 @@ export default function AdminInvestorsPage() {
                     [t("investorAdmin.list.status"), detail.approval_status], [t("investorAdmin.list.qualification"), detail.qualification_status || "—"],
                     [t("investorAdmin.list.website"), detail.website || "—"], [t("investorAdmin.list.linkedIn"), detail.linkedin || "—"],
                     [t("investorAdmin.list.completion"), `${detail.profile_completion || 0}%`],
-                  ].map(([l, v], i) => (
+                  ].map(([label, value], i) => (
                     <div key={i} className="p-3 rounded-xl bg-[var(--surface-3)]">
-                      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{l}</p>
-                      <p className="text-xs font-bold text-[var(--text-primary)] mt-1">{v}</p>
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{label}</p>
+                      <p className="text-xs font-bold text-[var(--text-primary)] mt-1">{value}</p>
                     </div>
                   ))}
                 </div>

@@ -65,10 +65,10 @@ export default function NewProgram() {
 
   // Today's date (YYYY-MM-DD) to prevent picking a past start date
   const todayStr = (() => {
-    const d = new Date();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${d.getFullYear()}-${mm}-${dd}`;
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${today.getFullYear()}-${month}-${day}`;
   })();
 
   const validateDates = (start, end) => {
@@ -124,8 +124,8 @@ export default function NewProgram() {
       const next = prev.includes(cid)
         ? prev.filter((id) => id !== cid)
         : [...prev, cid];
-      setProgram((p) => ({
-        ...p,
+      setProgram((previous) => ({
+        ...previous,
         assigned_assistant_id: JSON.stringify(next),
       }));
       return next;
@@ -145,15 +145,15 @@ export default function NewProgram() {
         "/api/families",
         "/api/pm/programs/templates",
       ];
-      const apply = (knowData, staffData, segData, tmplData) => {
-        if (knowData?.success) setKnowledgeNodes(knowData.conceptNotes || []);
-        if (segData?.success) setSegments(segData.families || []);
-        if (tmplData?.success) setTemplates(tmplData.templates || []);
+      const apply = (knowledgeData, staffData, segmentsData, templatesData) => {
+        if (knowledgeData?.success) setKnowledgeNodes(knowledgeData.conceptNotes || []);
+        if (segmentsData?.success) setSegments(segmentsData.families || []);
+        if (templatesData?.success) setTemplates(templatesData.templates || []);
         // Filter: Only Future Studio contacts
         if (staffData?.success) {
           const staffOnly = (staffData.contacts || []).filter(
-            (c) =>
-              c.group_name?.toUpperCase() === "FUTURE STUDIO",
+            (contact) =>
+              contact.group_name?.toUpperCase() === "FUTURE STUDIO",
           );
           setStaffList(staffOnly);
         }
@@ -165,27 +165,27 @@ export default function NewProgram() {
         // instantly from fresh snapshots; inline-created groups/KB nodes update
         // local lists directly, so nothing here needs bypassCache.
         if (!bypassCache) {
-          const cached = urls.map((u) => cacheGet(u));
-          if (cached.every((c) => c !== null && c.success)) {
+          const cached = urls.map((url) => cacheGet(url));
+          if (cached.every((cachedEntry) => cachedEntry !== null && cachedEntry.success)) {
             apply(cached[0], cached[1], cached[2], cached[3]);
             setLoadingAssets(false);
             painted = true;
           }
         }
         const responses = await Promise.all(
-          urls.map((u) =>
-            fetch(u)
-              .then((r) => r.json())
+          urls.map((url) =>
+            fetch(url)
+              .then((response) => response.json())
               .catch(() => ({ success: false })),
           ),
         );
-        urls.forEach((u, i) => {
-          if (responses[i]?.success) cacheSet(u, responses[i]);
+        urls.forEach((url, index) => {
+          if (responses[index]?.success) cacheSet(url, responses[index]);
         });
         apply(responses[0], responses[1], responses[2], responses[3]);
-      } catch (e) {
+      } catch (error) {
         if (!painted) {
-          console.error("Asset Load Failure:", e);
+          console.error("Asset Load Failure:", error);
           notify(
             "error",
             t("adminMisc.newProgram.syncFailed"),
@@ -198,15 +198,15 @@ export default function NewProgram() {
     loadAssets();
     // Charger les types personnalisés depuis la DB
     fetch("/api/program-types")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.types) setCustomProgramTypes(data.types);
+      .then((response) => response.json())
+      .then((payload) => {
+        if (payload.types) setCustomProgramTypes(payload.types);
       })
       .catch(() => {});
   }, [t]);
 
-  const handleFileUpload = async (e, type = "program") => {
-    const files = Array.from(e.target.files);
+  const handleFileUpload = async (event, type = "program") => {
+    const files = Array.from(event.target.files);
     if (files.length === 0) return;
 
     setIsUploading(true);
@@ -214,15 +214,15 @@ export default function NewProgram() {
       const uploadedUrls = [];
       for (const file of files) {
         const path = `concept-notes/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
-        const res = await uploadFile("knowledge", path, file);
-        if (res.success) {
+        const result = await uploadFile("knowledge", path, file);
+        if (result.success) {
           uploadedUrls.push({
             name: file.name,
-            url: res.url,
+            url: result.url,
             type: file.type,
           });
         } else {
-          throw new Error(t("adminMisc.newProgram.uploadFailedFor", { name: file.name, error: t(res.error || "") || res.error }));
+          throw new Error(t("adminMisc.newProgram.uploadFailedFor", { name: file.name, error: t(result.error || "") || result.error }));
         }
       }
 
@@ -238,8 +238,8 @@ export default function NewProgram() {
         }));
       }
       notify("success", t("adminMisc.newProgram.attached"));
-    } catch (e) {
-      notify("error", t(e.message || "") || e.message);
+    } catch (error) {
+      notify("error", t(error.message || "") || error.message);
     } finally {
       setIsUploading(false);
     }
@@ -249,27 +249,27 @@ export default function NewProgram() {
     if (!newGroup.name) return notify("error", t("adminMisc.newProgram.groupNameRequired"));
     setIsDeploying(true);
     try {
-      const res = await fetch("/api/families", {
+      const response = await fetch("/api/families", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newGroup),
       });
-      const data = await res.json();
-      if (data.success) {
-        setCreatedGroup(data.group);
-        setProgram((p) => ({ ...p, assigned_segments: [data.group.id] }));
-        setSegments((prev) => [...prev, data.group]);
+      const payload = await response.json();
+      if (payload.success) {
+        setCreatedGroup(payload.group);
+        setProgram((previous) => ({ ...previous, assigned_segments: [payload.group.id] }));
+        setSegments((prev) => [...prev, payload.group]);
         setIsCreatingGroup(false);
         // Only auto-save program if PM is already selected
         if (program.assigned_pm_id) {
           notify("success", t("adminMisc.newProgram.groupCreatedAutoSaving"));
-          setTimeout(() => handleDeploy({ preventDefault: () => {} }, data.group.id), 300);
+          setTimeout(() => handleDeploy({ preventDefault: () => {} }, payload.group.id), 300);
         } else {
           notify("success", t("adminMisc.newProgram.groupCreatedFillIn"));
         }
       }
-    } catch (e) {
-      notify("error", t(e.message || "") || e.message);
+    } catch (error) {
+      notify("error", t(error.message || "") || error.message);
     } finally {
       setIsDeploying(false);
     }
@@ -280,24 +280,24 @@ export default function NewProgram() {
       return notify("error", t("adminMisc.newProgram.kbTitleRequired"));
     setIsDeploying(true);
     try {
-      const res = await fetch("/api/knowledge", {
+      const response = await fetch("/api/knowledge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newKB),
       });
-      const data = await res.json();
-      if (data.success) {
-        setCreatedKB({ id: data.id, ...newKB });
-        setProgram((p) => ({ ...p, note_id: data.id }));
+      const payload = await response.json();
+      if (payload.success) {
+        setCreatedKB({ id: payload.id, ...newKB });
+        setProgram((previous) => ({ ...previous, note_id: payload.id }));
         setKnowledgeNodes((prev) => [
           ...prev,
-          { id: data.id, title: newKB.title },
+          { id: payload.id, title: newKB.title },
         ]);
         setIsCreatingKB(false);
         notify("success", t("adminMisc.newProgram.created"));
       }
-    } catch (e) {
-      notify("error", t(e.message || "") || e.message);
+    } catch (error) {
+      notify("error", t(error.message || "") || error.message);
     } finally {
       setIsDeploying(false);
     }
@@ -306,12 +306,12 @@ export default function NewProgram() {
   const removeMaterial = (index) => {
     setProgram((prev) => ({
       ...prev,
-      materials: prev.materials.filter((_, i) => i !== index),
+      materials: prev.materials.filter((_, materialIndex) => materialIndex !== index),
     }));
   };
 
-  const handleDeploy = async (e, existingGroupId) => {
-    e.preventDefault();
+  const handleDeploy = async (event, existingGroupId) => {
+    event.preventDefault();
     if (!program.name || !program.assigned_pm_id) {
       notify(
         "error",
@@ -340,7 +340,7 @@ export default function NewProgram() {
       let groupId = existingGroupId || program.assigned_segments?.[0];
       let assignedSegments = program.assigned_segments;
       if (!groupId && newGroup.name?.trim()) {
-        const groupRes = await fetch("/api/families", {
+        const groupResponse = await fetch("/api/families", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -350,14 +350,14 @@ export default function NewProgram() {
             program_id: null,
           }),
         });
-        const groupData = await groupRes.json();
-        if (groupData.success) {
-          groupId = groupData.group?.id || groupData.id;
+        const groupPayload = await groupResponse.json();
+        if (groupPayload.success) {
+          groupId = groupPayload.group?.id || groupPayload.id;
           assignedSegments = [groupId];
         }
       }
 
-      const res = await fetch("/api/pm/programs", {
+      const response = await fetch("/api/pm/programs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -385,16 +385,16 @@ export default function NewProgram() {
           kpis: kpisList,
         }),
       });
-      const data = await res.json();
+      const payload = await response.json();
 
-      if (data.success) {
+      if (payload.success) {
         notify("success", t("adminMisc.newProgram.created"));
         setTimeout(() => router.push("/admin/programs"), 1500);
       } else {
-        throw new Error(t((data.error || t("adminMisc.newProgram.failedToSaveProgram")) || "") || (data.error || t("adminMisc.newProgram.failedToSaveProgram")));
+        throw new Error(t((payload.error || t("adminMisc.newProgram.failedToSaveProgram")) || "") || (payload.error || t("adminMisc.newProgram.failedToSaveProgram")));
       }
-    } catch (e) {
-      notify("error", t(e.message || "") || e.message);
+    } catch (error) {
+      notify("error", t(error.message || "") || error.message);
     } finally {
       setIsDeploying(false);
     }
@@ -464,13 +464,13 @@ export default function NewProgram() {
               <div className="flex gap-3">
                 <select
                   value={selectedTemplate}
-                  onChange={(e) => setSelectedTemplate(e.target.value)}
+                  onChange={(event) => setSelectedTemplate(event.target.value)}
                   className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
                 >
                   <option value="">{t("admin.selectTemplate")}</option>
-                  {templates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.program_type || "incubation"})
+                  {templates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name} ({template.program_type || "incubation"})
                     </option>
                   ))}
                 </select>
@@ -481,29 +481,29 @@ export default function NewProgram() {
                     if (!selectedTemplate) return;
                     setApplyingTemplate(true);
                     try {
-                      const t = templates.find(
-                        (x) => x.id === selectedTemplate,
+                      const template = templates.find(
+                        (templateOption) => templateOption.id === selectedTemplate,
                       );
-                      const res = await fetch(
+                      const response = await fetch(
                         "/api/pm/programs/templates?action=apply",
                         {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({
                             template_id: selectedTemplate,
-                            name: program.name || t?.name || "New Program",
+                            name: program.name || template?.name || "New Program",
                           }),
                         },
                       );
-                      const data = await res.json();
-                      if (data.success) {
+                      const payload = await response.json();
+                      if (payload.success) {
                         notify("success", t("adminMisc.newProgram.programCreatedFromTemplate"));
                         setTimeout(() => router.push("/admin/programs"), 1500);
                       } else {
-                        notify("error", t((data.error || t("adminMisc.newProgram.failed")) || "") || (data.error || t("adminMisc.newProgram.failed")));
+                        notify("error", t((payload.error || t("adminMisc.newProgram.failed")) || "") || (payload.error || t("adminMisc.newProgram.failed")));
                       }
-                    } catch (e) {
-                      notify("error", t(e.message || "") || e.message);
+                    } catch (error) {
+                      notify("error", t(error.message || "") || error.message);
                     } finally {
                       setApplyingTemplate(false);
                     }
@@ -525,8 +525,8 @@ export default function NewProgram() {
               <input
                 required
                 value={program.name}
-                onChange={(e) =>
-                  setProgram({ ...program, name: e.target.value })
+                onChange={(event) =>
+                  setProgram({ ...program, name: event.target.value })
                 }
                 placeholder={t("adminMisc.newProgram.namePlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
@@ -541,10 +541,10 @@ export default function NewProgram() {
                 type="date"
                 min={todayStr}
                 value={program.start_date}
-                onChange={(e) => {
-                  const d = e.target.value;
-                  setProgram({ ...program, start_date: d });
-                  validateDates(d, program.end_date);
+                onChange={(event) => {
+                  const startDate = event.target.value;
+                  setProgram({ ...program, start_date: startDate });
+                  validateDates(startDate, program.end_date);
                 }}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
               />
@@ -557,10 +557,10 @@ export default function NewProgram() {
                 required
                 type="date"
                 value={program.end_date}
-                onChange={(e) => {
-                  const d = e.target.value;
-                  setProgram({ ...program, end_date: d });
-                  validateDates(program.start_date, d);
+                onChange={(event) => {
+                  const endDate = event.target.value;
+                  setProgram({ ...program, end_date: endDate });
+                  validateDates(program.start_date, endDate);
                 }}
                 className={`w-full bg-secondary border rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all ${dateError ? "border-rose-500" : "border-[var(--border-primary)]"}`}
               />
@@ -596,8 +596,8 @@ export default function NewProgram() {
               <div className="flex gap-2">
                 <select
                   value={program.program_type || "incubation"}
-                  onChange={(e) =>
-                    setProgram({ ...program, program_type: e.target.value })
+                  onChange={(event) =>
+                    setProgram({ ...program, program_type: event.target.value })
                   }
                   className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
                 >
@@ -616,9 +616,9 @@ export default function NewProgram() {
                   <option value="fellowship">
                     {t("admin.programTypes.fellowship")}
                   </option>
-                  {customProgramTypes.map((ct, i) => (
-                    <option key={i} value={ct}>
-                      {ct.toUpperCase()}
+                  {customProgramTypes.map((customType, index) => (
+                    <option key={index} value={customType}>
+                      {customType.toUpperCase()}
                     </option>
                   ))}
                   <option value="custom">{t("admin.programTypes.custom")}</option>
@@ -637,7 +637,7 @@ export default function NewProgram() {
                   <input
                     type="text"
                     value={newTypeInput}
-                    onChange={(e) => setNewTypeInput(e.target.value)}
+                    onChange={(event) => setNewTypeInput(event.target.value)}
                     placeholder={t("adminMisc.newProgram.newTypePlaceholder")}
                     className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-3 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
                   />
@@ -671,8 +671,8 @@ export default function NewProgram() {
               </label>
               <select
                 value={program.visibility || "private"}
-                onChange={(e) =>
-                  setProgram({ ...program, visibility: e.target.value })
+                onChange={(event) =>
+                  setProgram({ ...program, visibility: event.target.value })
                 }
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
               >
@@ -693,8 +693,8 @@ export default function NewProgram() {
               </label>
               <select
                 value={program.language || "en"}
-                onChange={(e) =>
-                  setProgram({ ...program, language: e.target.value })
+                onChange={(event) =>
+                  setProgram({ ...program, language: event.target.value })
                 }
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
               >
@@ -712,8 +712,8 @@ export default function NewProgram() {
               <textarea
                 rows={3}
                 value={program.vision || ""}
-                onChange={(e) =>
-                  setProgram({ ...program, vision: e.target.value })
+                onChange={(event) =>
+                  setProgram({ ...program, vision: event.target.value })
                 }
                 placeholder={t("adminMisc.newProgram.visionPlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
@@ -726,8 +726,8 @@ export default function NewProgram() {
               <textarea
                 rows={3}
                 value={program.objectives || ""}
-                onChange={(e) =>
-                  setProgram({ ...program, objectives: e.target.value })
+                onChange={(event) =>
+                  setProgram({ ...program, objectives: event.target.value })
                 }
                 placeholder={t("adminMisc.newProgram.objectivesPlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
@@ -744,8 +744,8 @@ export default function NewProgram() {
               <textarea
                 rows={3}
                 value={program.expected_outcomes || ""}
-                onChange={(e) =>
-                  setProgram({ ...program, expected_outcomes: e.target.value })
+                onChange={(event) =>
+                  setProgram({ ...program, expected_outcomes: event.target.value })
                 }
                 placeholder={t("adminMisc.newProgram.expectedOutcomesPlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
@@ -758,8 +758,8 @@ export default function NewProgram() {
               <textarea
                 rows={3}
                 value={program.success_metrics || ""}
-                onChange={(e) =>
-                  setProgram({ ...program, success_metrics: e.target.value })
+                onChange={(event) =>
+                  setProgram({ ...program, success_metrics: event.target.value })
                 }
                 placeholder={t("adminMisc.newProgram.successMetricsPlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
@@ -782,21 +782,21 @@ export default function NewProgram() {
                   label: t("admin.uploadDocument"),
                   icon: Upload,
                 },
-              ].map((opt) => (
+              ].map((inputOption) => (
                 <button
-                  key={opt.id}
+                  key={inputOption.id}
                   type="button"
                   onClick={() =>
-                    setProgram({ ...program, conceptNoteType: opt.id })
+                    setProgram({ ...program, conceptNoteType: inputOption.id })
                   }
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
-                    (program.conceptNoteType || "text") === opt.id
+                    (program.conceptNoteType || "text") === inputOption.id
                       ? "bg-[var(--brand-orange)] text-black"
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
-                  <opt.icon className="w-3.5 h-3.5" />
-                  {opt.label}
+                  <inputOption.icon className="w-3.5 h-3.5" />
+                  {inputOption.label}
                 </button>
               ))}
             </div>
@@ -806,8 +806,8 @@ export default function NewProgram() {
               <textarea
                 rows={4}
                 value={program.description}
-                onChange={(e) =>
-                  setProgram({ ...program, description: e.target.value })
+                onChange={(event) =>
+                  setProgram({ ...program, description: event.target.value })
                 }
                 placeholder={t("adminMisc.newProgram.conceptNotePlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
@@ -819,8 +819,8 @@ export default function NewProgram() {
               <input
                 type="url"
                 value={program.conceptNoteLink || ""}
-                onChange={(e) =>
-                  setProgram({ ...program, conceptNoteLink: e.target.value })
+                onChange={(event) =>
+                  setProgram({ ...program, conceptNoteLink: event.target.value })
                 }
                 placeholder="https://docs.google.com/..."
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
@@ -833,8 +833,8 @@ export default function NewProgram() {
                 <input
                   type="file"
                   accept=".pdf,.doc,.docx"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
                     if (file) {
                       setProgram({
                         ...program,
@@ -898,8 +898,8 @@ export default function NewProgram() {
                   {!isCreatingKB ? (
                     <select
                       value={program.note_id}
-                      onChange={(e) =>
-                        setProgram({ ...program, note_id: e.target.value })
+                      onChange={(event) =>
+                        setProgram({ ...program, note_id: event.target.value })
                       }
                       className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] appearance-none cursor-pointer"
                     >
@@ -914,8 +914,8 @@ export default function NewProgram() {
                     <div className="space-y-4 p-4 bg-primary border border-[var(--brand-orange)]/20 rounded-xl animate-in fade-in zoom-in-95">
                       <input
                         value={newKB.title}
-                        onChange={(e) =>
-                          setNewKB({ ...newKB, title: e.target.value })
+                        onChange={(event) =>
+                          setNewKB({ ...newKB, title: event.target.value })
                         }
                         placeholder={t("adminMisc.newProgram.knowledgeBaseNamePlaceholder")}
                         className="w-full bg-transparent border-b border-[var(--border-primary)] py-2 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
@@ -925,7 +925,7 @@ export default function NewProgram() {
                           type="file"
                           multiple
                           accept=".pdf"
-                          onChange={(e) => handleFileUpload(e, "kb")}
+                          onChange={(event) => handleFileUpload(event, "kb")}
                           className="absolute inset-0 opacity-0 cursor-pointer z-10"
                         />
                         <div className="flex flex-col items-center justify-center h-full border border-dashed border-[var(--border-primary)] rounded-lg group-hover:border-[var(--brand-orange)]">
@@ -977,9 +977,9 @@ export default function NewProgram() {
 
                 {program.materials.length > 0 && (
                   <div className="space-y-2">
-                    {program.materials.map((file, idx) => (
+                    {program.materials.map((file, index) => (
                       <div
-                        key={idx}
+                        key={index}
                         className="flex items-center justify-between p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl"
                       >
                         <div className="flex items-center gap-3 overflow-hidden">
@@ -990,7 +990,7 @@ export default function NewProgram() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => removeMaterial(idx)}
+                          onClick={() => removeMaterial(index)}
                           className="p-1 hover:bg-rose-500/20 rounded text-rose-400 transition-all"
                         >
                           <X className="w-4 h-4" />
@@ -1043,18 +1043,18 @@ export default function NewProgram() {
                 {!isCreatingGroup ? (
                   <select
                     value={program.assigned_segments?.[0] || ""}
-                    onChange={(e) =>
+                    onChange={(event) =>
                       setProgram({
                         ...program,
-                        assigned_segments: [e.target.value],
+                        assigned_segments: [event.target.value],
                       })
                     }
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
                   >
                     <option value="">{t("adminMisc.newProgram.selectExistingGroup")}</option>
-                    {segments.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name.toUpperCase()}
+                    {segments.map((segment) => (
+                      <option key={segment.id} value={segment.id}>
+                        {segment.name.toUpperCase()}
                       </option>
                     ))}
                   </select>
@@ -1062,18 +1062,18 @@ export default function NewProgram() {
                   <div className="space-y-4 p-4 bg-primary border border-blue-500/20 rounded-xl animate-in fade-in zoom-in-95">
                     <input
                       value={newGroup.name}
-                      onChange={(e) =>
-                        setNewGroup({ ...newGroup, name: e.target.value })
+                      onChange={(event) =>
+                        setNewGroup({ ...newGroup, name: event.target.value })
                       }
                       placeholder={t("adminMisc.newProgram.groupNamePlaceholder")}
                       className="w-full bg-transparent border-b border-[var(--border-primary)] py-2 text-xs font-bold text-white outline-none focus:border-blue-400"
                     />
                     <textarea
                       value={newGroup.description}
-                      onChange={(e) =>
+                      onChange={(event) =>
                         setNewGroup({
                           ...newGroup,
-                          description: e.target.value,
+                          description: event.target.value,
                         })
                       }
                       placeholder={t("adminMisc.newProgram.groupDescriptionPlaceholder")}
@@ -1140,8 +1140,8 @@ export default function NewProgram() {
                   <select
                     required
                     value={program.assigned_pm_id}
-                    onChange={(e) =>
-                      setProgram({ ...program, assigned_pm_id: e.target.value })
+                    onChange={(event) =>
+                      setProgram({ ...program, assigned_pm_id: event.target.value })
                     }
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
                   >
@@ -1160,7 +1160,7 @@ export default function NewProgram() {
                   </label>
                   <div className="flex flex-wrap gap-2 mb-3">
                     {selectedAssistants.map((cid) => {
-                      const staff = staffList.find((s) => s.cid === cid);
+                      const staff = staffList.find((staffMember) => staffMember.cid === cid);
                       return (
                         <div
                           key={cid}
@@ -1179,14 +1179,14 @@ export default function NewProgram() {
                   </div>
                   <select
                     value=""
-                    onChange={(e) => {
-                      if (e.target.value) toggleAssistant(e.target.value);
+                    onChange={(event) => {
+                      if (event.target.value) toggleAssistant(event.target.value);
                     }}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
                   >
                     <option value="">{t("adminMisc.newProgram.selectSupport")}</option>
                     {staffList
-                      .filter((s) => !selectedAssistants.includes(s.cid))
+                      .filter((staffMember) => !selectedAssistants.includes(staffMember.cid))
                       .map((staff) => (
                         <option key={staff.cid} value={staff.cid}>
                           {staff.name.toUpperCase()}
@@ -1232,8 +1232,8 @@ export default function NewProgram() {
                     type="text"
                     placeholder={t("adminMisc.newProgram.kpiTitlePlaceholder")}
                     value={kpiInput.title}
-                    onChange={(e) =>
-                      setKpiInput({ ...kpiInput, title: e.target.value })
+                    onChange={(event) =>
+                      setKpiInput({ ...kpiInput, title: event.target.value })
                     }
                     className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
                   />
@@ -1242,8 +1242,8 @@ export default function NewProgram() {
                     min="0"
                     max="100"
                     value={kpiInput.target_value}
-                    onChange={(e) =>
-                      setKpiInput({ ...kpiInput, target_value: parseInt(e.target.value) || 0 })
+                    onChange={(event) =>
+                      setKpiInput({ ...kpiInput, target_value: parseInt(event.target.value) || 0 })
                     }
                     className="w-20 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] text-center"
                     placeholder="%"
@@ -1289,9 +1289,9 @@ export default function NewProgram() {
                   })}
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {kpisList.map((kpi, idx) => (
+                  {kpisList.map((kpi, index) => (
                     <div
-                      key={idx}
+                      key={index}
                       className="flex items-center justify-between p-4 bg-white/[0.02] border border-[var(--border-primary)] rounded-xl group hover:border-[var(--brand-orange)]/30 transition-all text-left"
                     >
                       <div>
@@ -1305,7 +1305,7 @@ export default function NewProgram() {
                       <button
                         type="button"
                         onClick={() =>
-                          setKpisList(kpisList.filter((_, i) => i !== idx))
+                          setKpisList(kpisList.filter((_, itemIndex) => itemIndex !== index))
                         }
                         className="text-slate-500 hover:text-rose-500 transition-colors p-2"
                       >

@@ -43,44 +43,46 @@ export default function ModulesPage() {
         </p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {modules.map((mod) => {
-          const Icon = ICON_MAP[mod.icon] || Blocks;
+        {modules.map((moduleItem) => {
+          const Icon = ICON_MAP[moduleItem.icon] || Blocks;
           return (
             <div
-              key={mod.id}
+              key={moduleItem.id}
               className={`p-5 rounded-2xl bg-secondary border transition-all ${
-                mod.future
+                moduleItem.future
                   ? "border-dashed border-[var(--border-primary)] opacity-60"
                   : "border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50"
               }`}
             >
               <div
                 className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${
-                  mod.future
+                  moduleItem.future
                     ? "bg-amber-500/10"
                     : "bg-[var(--brand-orange)]/10"
                 }`}
               >
                 <Icon
                   className={`w-5 h-5 ${
-                    mod.future ? "text-amber-500" : "text-[var(--brand-orange)]"
+                    moduleItem.future
+                      ? "text-amber-500"
+                      : "text-[var(--brand-orange)]"
                   }`}
                 />
               </div>
               <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                {mod.name}
+                {moduleItem.name}
               </h3>
               <p className="text-[10px] text-[var(--text-secondary)] mt-1 leading-relaxed">
-                {mod.description}
+                {moduleItem.description}
               </p>
-              {mod.future && (
+              {moduleItem.future && (
                 <span className="inline-block mt-3 px-2 py-1 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wide">
                   {t("platformMisc.modules.comingSoon")}
                 </span>
               )}
-              {!mod.future && mod.href && (
+              {!moduleItem.future && moduleItem.href && (
                 <a
-                  href={mod.href}
+                  href={moduleItem.href}
                   className="inline-block mt-3 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:underline"
                 >
                   {t("platformMisc.modules.open")}

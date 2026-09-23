@@ -41,8 +41,8 @@ export default function MyProjects() {
           setLoading(false);
         }
       }
-      const res = await fetch(url);
-      const data = await res.json();
+      const response = await fetch(url);
+      const data = await response.json();
       if (data.success) {
         cacheSet(url, data);
         apply(data);
@@ -67,14 +67,14 @@ export default function MyProjects() {
           apply(cached);
         }
       }
-      const res = await fetch(url);
-      const data = await res.json();
+      const response = await fetch(url);
+      const data = await response.json();
       if (data.success) {
         cacheSet(url, data);
         apply(data);
       }
-    } catch (e) {
-      console.error("Failed to fetch invitations", e);
+    } catch (error) {
+      console.error("Failed to fetch invitations", error);
     }
   };
 
@@ -82,23 +82,23 @@ export default function MyProjects() {
     async function init() {
       try {
         // First try session API (reliable — waits for auth to resolve)
-        const res = await fetch("/api/auth/session");
-        const data = await res.json();
+        const response = await fetch("/api/auth/session");
+        const data = await response.json();
         if (data.authenticated && data.user) {
-          const u = data.user;
-          setUser(u);
-          fetchProjects(u.cid || u.id);
-          fetchInvitations(u.cid || u.id);
+          const sessionUser = data.user;
+          setUser(sessionUser);
+          fetchProjects(sessionUser.cid || sessionUser.id);
+          fetchInvitations(sessionUser.cid || sessionUser.id);
           return;
         }
       } catch (_) {}
 
       // Fallback: read from localStorage
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      if (u.cid || u.id) {
-        setUser(u);
-        fetchProjects(u.cid || u.id);
-        fetchInvitations(u.cid || u.id);
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      if (storedUser.cid || storedUser.id) {
+        setUser(storedUser);
+        fetchProjects(storedUser.cid || storedUser.id);
+        fetchInvitations(storedUser.cid || storedUser.id);
       } else {
         setLoading(false);
       }
@@ -109,14 +109,14 @@ export default function MyProjects() {
   const handleInvitationResponse = async (invitationId, action) => {
     setResponding(invitationId);
     try {
-      const res = await fetch("/api/projects/invitations/respond", {
+      const response = await fetch("/api/projects/invitations/respond", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ invitation_id: invitationId, action }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
-        setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
+        setInvitations((prev) => prev.filter((invitation) => invitation.id !== invitationId));
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || t("staffMisc.projects.failedToRespond")) || "") || (data.error || t("staffMisc.projects.failedToRespond")) } }));
       }
@@ -128,9 +128,9 @@ export default function MyProjects() {
   };
 
   const filtered = projects.filter(
-    (p) =>
-      p.name?.toLowerCase().includes(search.toLowerCase()) ||
-      (p.meta?.description || "").toLowerCase().includes(search.toLowerCase()),
+    (project) =>
+      project.name?.toLowerCase().includes(search.toLowerCase()) ||
+      (project.meta?.description || "").toLowerCase().includes(search.toLowerCase()),
   );
 
   const STATUS_LABELS = {
@@ -140,12 +140,12 @@ export default function MyProjects() {
   };
 
   const statusBadge = (status) => {
-    const map = {
+    const statusStyles = {
       Active: "text-emerald-500 bg-emerald-500/10",
       Completed: "text-purple-500 bg-purple-500/10",
       Paused: "text-amber-500 bg-amber-500/10",
     };
-    return map[status] || "text-slate-500 bg-slate-500/10";
+    return statusStyles[status] || "text-slate-500 bg-slate-500/10";
   };
 
   return (
@@ -172,7 +172,7 @@ export default function MyProjects() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder={t("common.search")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
             />
@@ -187,15 +187,15 @@ export default function MyProjects() {
               {t("staffMisc.projects.invitations", { count: invitations.length })}
             </h2>
             <div className="space-y-2">
-              {invitations.map((inv) => (
+              {invitations.map((invitation) => (
                 <div
-                  key={inv.id}
+                  key={invitation.id}
                   className="card p-4 border-amber-500/20 bg-amber-500/[0.03]"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                        {inv.project_name || t("staffMisc.projects.defaultProject")}
+                        {invitation.project_name || t("staffMisc.projects.defaultProject")}
                       </h3>
                       <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                         {t("staffMisc.projects.invitedYou")}
@@ -204,18 +204,18 @@ export default function MyProjects() {
                     <div className="flex gap-2 shrink-0">
                       <button
                         onClick={() =>
-                          handleInvitationResponse(inv.id, "decline")
+                          handleInvitationResponse(invitation.id, "decline")
                         }
-                        disabled={responding === inv.id}
+                        disabled={responding === invitation.id}
                         className="px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500 hover:text-white transition-all disabled:opacity-40"
                       >
                         {t("staffMisc.projects.decline")}
                       </button>
                       <button
                         onClick={() =>
-                          handleInvitationResponse(inv.id, "accept")
+                          handleInvitationResponse(invitation.id, "accept")
                         }
-                        disabled={responding === inv.id}
+                        disabled={responding === invitation.id}
                         className="px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40"
                       >
                         {t("staffMisc.projects.accept")}
@@ -358,9 +358,9 @@ export default function MyProjects() {
                         <span className="text-[10px] font-medium text-[var(--text-secondary)] flex items-center gap-1">
                           <Users className="w-3 h-3" />
                           {project.members?.some(
-                            (m) =>
-                              m.user_cid === (user?.cid || user?.id) &&
-                              m.role === "lead",
+                            (member) =>
+                              member.user_cid === (user?.cid || user?.id) &&
+                              member.role === "lead",
                           )
                             ? t("staffMisc.projects.youAreLead")
                             : t("staffMisc.projects.member")}

@@ -69,22 +69,22 @@ export default function RegisterVenturePage() {
     setErrors([]);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setLoading(true);
     setErrors([]);
     setSuccess(null);
 
     try {
-      const res = await fetch("/api/ventures/register", {
+      const response = await fetch("/api/ventures/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
-      if (!res.ok) {
+      if (!response.ok) {
         const errorList = [];
         if (data.errors) {
           errorList.push(...data.errors);
@@ -189,9 +189,9 @@ export default function RegisterVenturePage() {
                 {t("vadmin.register.errorsTitle")}
               </span>
             </div>
-            {errors.map((err, i) => (
-              <p key={i} className="text-[11px] text-rose-400 pl-6">
-                • {t(err || "") || err}
+            {errors.map((errorMessage, index) => (
+              <p key={index} className="text-[11px] text-rose-400 pl-6">
+                • {t(errorMessage || "") || errorMessage}
               </p>
             ))}
           </div>
@@ -221,7 +221,7 @@ export default function RegisterVenturePage() {
                 <input
                   type="text"
                   value={form.company_name}
-                  onChange={(e) => handleChange("company_name", e.target.value)}
+                  onChange={(event) => handleChange("company_name", event.target.value)}
                   placeholder={t("vadmin.register.companyNamePlaceholder")}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-600 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                   required
@@ -236,7 +236,7 @@ export default function RegisterVenturePage() {
                 <input
                   type="text"
                   value={form.registration_number}
-                  onChange={(e) => handleChange("registration_number", e.target.value)}
+                  onChange={(event) => handleChange("registration_number", event.target.value)}
                   placeholder={t("vadmin.register.registrationNumberPlaceholder")}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-600 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                 />
@@ -250,7 +250,7 @@ export default function RegisterVenturePage() {
                 <input
                   type="url"
                   value={form.website}
-                  onChange={(e) => handleChange("website", e.target.value)}
+                  onChange={(event) => handleChange("website", event.target.value)}
                   placeholder="https://example.com"
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-600 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                 />
@@ -263,7 +263,7 @@ export default function RegisterVenturePage() {
                 </label>
                 <select
                   value={form.industry}
-                  onChange={(e) => handleChange("industry", e.target.value)}
+                  onChange={(event) => handleChange("industry", event.target.value)}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                   required
                 >
@@ -281,7 +281,7 @@ export default function RegisterVenturePage() {
                 </label>
                 <select
                   value={form.business_stage}
-                  onChange={(e) => handleChange("business_stage", e.target.value)}
+                  onChange={(event) => handleChange("business_stage", event.target.value)}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                   required
                 >
@@ -301,7 +301,7 @@ export default function RegisterVenturePage() {
                 </label>
                 <textarea
                   value={form.description}
-                  onChange={(e) => handleChange("description", e.target.value)}
+                  onChange={(event) => handleChange("description", event.target.value)}
                   placeholder={t("vadmin.register.descriptionPlaceholder")}
                   rows={3}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-600 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all resize-none"
@@ -333,7 +333,7 @@ export default function RegisterVenturePage() {
                 <input
                   type="text"
                   value={form.founder_name}
-                  onChange={(e) => handleChange("founder_name", e.target.value)}
+                  onChange={(event) => handleChange("founder_name", event.target.value)}
                   placeholder={t("vadmin.register.founderNamePlaceholder")}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-600 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                   required
@@ -350,7 +350,7 @@ export default function RegisterVenturePage() {
                   <input
                     type="email"
                     value={form.founder_email}
-                    onChange={(e) => handleChange("founder_email", e.target.value)}
+                    onChange={(event) => handleChange("founder_email", event.target.value)}
                     placeholder="john@example.com"
                     className="w-full pl-10 pr-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-600 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                     required
@@ -368,7 +368,7 @@ export default function RegisterVenturePage() {
                   <input
                     type="tel"
                     value={form.founder_phone}
-                    onChange={(e) => handleChange("founder_phone", e.target.value)}
+                    onChange={(event) => handleChange("founder_phone", event.target.value)}
                     placeholder="+229 00 00 00 00"
                     className="w-full pl-10 pr-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-600 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                   />
@@ -383,7 +383,7 @@ export default function RegisterVenturePage() {
                 <input
                   type="text"
                   value={form.founder_title}
-                  onChange={(e) => handleChange("founder_title", e.target.value)}
+                  onChange={(event) => handleChange("founder_title", event.target.value)}
                   placeholder={t("vadmin.register.founderTitlePlaceholder")}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-600 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                 />

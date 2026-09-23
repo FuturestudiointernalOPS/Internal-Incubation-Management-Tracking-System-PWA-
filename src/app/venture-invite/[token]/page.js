@@ -10,7 +10,7 @@ import { useApi } from "@/lib/hooks/useApi";
 // Module scope: the read hook keys its callback on this identity, so an inline
 // arrow would refetch on every render. The answer is kept raw because the
 // rejection reason and the invitation behind it are read separately below.
-const pickInvite = (d) => d;
+const pickInvite = (payload) => payload;
 
 /**
  * Public acceptance screen for a Venture member invitation.
@@ -46,8 +46,8 @@ export default function VentureMemberInvitePage({ params }) {
   // afterwards; someone who already has an account does not.
   const needsPassword = !invite?.has_account;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     if (needsPassword && (!form.password || form.password.length < 6)) {
       setSubmitError(t("rootMisc.ventureMemberInvite.passwordRequired"));
       return;
@@ -55,7 +55,7 @@ export default function VentureMemberInvitePage({ params }) {
     setSubmitting(true);
     setSubmitError('');
     try {
-      const res = await fetch(`/api/venture-member-invites/${token}`, {
+      const response = await fetch(`/api/venture-member-invites/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -63,11 +63,11 @@ export default function VentureMemberInvitePage({ params }) {
           password: form.password,
         }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         setSuccess(true);
       } else {
-        setSubmitError(data.error || t("rootMisc.ventureMemberInvite.acceptFailed"));
+        setSubmitError(payload.error || t("rootMisc.ventureMemberInvite.acceptFailed"));
       }
     } catch {
       setSubmitError(t("rootMisc.ventureMemberInvite.networkError"));
@@ -156,7 +156,7 @@ export default function VentureMemberInvitePage({ params }) {
             type="text"
             placeholder={t("rootMisc.ventureMemberInvite.fullName")}
             value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all"
           />
           <div>
@@ -165,7 +165,7 @@ export default function VentureMemberInvitePage({ params }) {
               type="password"
               placeholder={t("rootMisc.ventureMemberInvite.createPassword")}
               value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              onChange={(event) => setForm({ ...form, password: event.target.value })}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all"
             />
             <p className="text-[10px] text-slate-500 mt-1.5">

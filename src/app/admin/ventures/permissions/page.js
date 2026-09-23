@@ -14,8 +14,8 @@ import { useDialogs } from "@/components/ui/DialogProvider";
 const RESPONSIBILITIES_URL = "/api/venture-permissions/responsibilities?include_inactive=1";
 const EMPTY_LIST = [];
 
-const pickResponsibilities = (d) => (d?.success ? d.responsibilities || [] : []);
-const pickMatrix = (d) => (d?.success ? d.matrix : null);
+const pickResponsibilities = (payload) => (payload?.success ? payload.responsibilities || [] : []);
+const pickMatrix = (payload) => (payload?.success ? payload.matrix : null);
 
 /**
  * GLOBAL Venture Permissions — Super Admin → Ventures → Permissions.
@@ -89,43 +89,43 @@ export default function GlobalVenturePermissionsPage() {
   const toggleCapability = async (area, action, current) => {
     const next = !current;
     try {
-      const res = await fetch("/api/venture-permissions/matrix", {
+      const response = await fetch("/api/venture-permissions/matrix", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ responsibility: selectedResp, area, action, allowed: next }),
       });
-      const d = await res.json();
-      if (d.success) {
+      const payload = await response.json();
+      if (payload.success) {
         notify(t("vadmin.globalPermissions.toastGlobalUpdated", { responsibility: selectedResp }));
         await refreshMatrix();
       } else {
-        notify(d.error || t("vadmin.globalPermissions.updateFailed"), "error");
+        notify(payload.error || t("vadmin.globalPermissions.updateFailed"), "error");
       }
     } catch {
       notify(t("vadmin.globalPermissions.updateFailed"), "error");
     }
   };
 
-  const createResponsibility = async (e) => {
-    e.preventDefault();
+  const createResponsibility = async (event) => {
+    event.preventDefault();
     if (!newRespName.trim()) return;
     setSavingResp(true);
     try {
-      const res = await fetch("/api/venture-permissions/responsibilities", {
+      const response = await fetch("/api/venture-permissions/responsibilities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newRespName, description: newRespDesc }),
       });
-      const d = await res.json();
-      if (d.success) {
+      const payload = await response.json();
+      if (payload.success) {
         notify(t("vadmin.globalPermissions.responsibilityCreated"));
         setShowNewResp(false);
         setNewRespName("");
         setNewRespDesc("");
-        setChosenResp(d.responsibility.code);
+        setChosenResp(payload.responsibility.code);
         await refreshResponsibilities();
       } else {
-        notify(d.error || t("vadmin.globalPermissions.createFailed"), "error");
+        notify(payload.error || t("vadmin.globalPermissions.createFailed"), "error");
       }
     } catch {
       notify(t("vadmin.globalPermissions.createFailed"), "error");
@@ -233,11 +233,11 @@ export default function GlobalVenturePermissionsPage() {
               <div className="flex items-center gap-3">
                 <select
                   value={selectedResp}
-                  onChange={(e) => setChosenResp(e.target.value)}
+                  onChange={(event) => setChosenResp(event.target.value)}
                   className="px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
                 >
-                  {responsibilities.map((r) => (
-                    <option key={r.code} value={r.code}>{r.name}{r.is_active ? "" : t("vadmin.globalPermissions.inactiveSuffix")}</option>
+                  {responsibilities.map((responsibility) => (
+                    <option key={responsibility.code} value={responsibility.code}>{responsibility.name}{responsibility.is_active ? "" : t("vadmin.globalPermissions.inactiveSuffix")}</option>
                   ))}
                 </select>
                 <button onClick={refreshMatrix} className="px-3 py-2 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)] flex items-center gap-1.5 text-xs">
@@ -297,8 +297,8 @@ export default function GlobalVenturePermissionsPage() {
             </div>
             {showNewResp && (
               <form onSubmit={createResponsibility} className="mt-5 p-4 rounded-xl border border-[var(--border-primary)] bg-tertiary space-y-3">
-                <input value={newRespName} onChange={(e) => setNewRespName(e.target.value)} placeholder={t("vadmin.globalPermissions.newResponsibilityNamePlaceholder")} className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]" required />
-                <textarea value={newRespDesc} onChange={(e) => setNewRespDesc(e.target.value)} rows={2} placeholder={t("vadmin.detail.description")} className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]" />
+                <input value={newRespName} onChange={(event) => setNewRespName(event.target.value)} placeholder={t("vadmin.globalPermissions.newResponsibilityNamePlaceholder")} className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]" required />
+                <textarea value={newRespDesc} onChange={(event) => setNewRespDesc(event.target.value)} rows={2} placeholder={t("vadmin.detail.description")} className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]" />
                 <div className="flex justify-end">
                   <button type="submit" disabled={savingResp} className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
                     {savingResp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} {t("common.create")}
@@ -309,17 +309,17 @@ export default function GlobalVenturePermissionsPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {responsibilities.map((r) => (
-              <div key={r.code} className={`card ${r.is_active ? "" : "opacity-60"}`}>
+            {responsibilities.map((responsibility) => (
+              <div key={responsibility.code} className={`card ${responsibility.is_active ? "" : "opacity-60"}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <button onClick={() => rename(r)} className="text-sm font-black text-[var(--text-primary)] hover:text-[var(--brand-orange)]">{r.name}</button>
-                  <button onClick={() => toggleActive(r.code, r.is_active)} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${r.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-400"}`}>
-                    {r.is_active ? t("vadmin.globalPermissions.active") : t("vadmin.globalPermissions.inactive")}
+                  <button onClick={() => rename(responsibility)} className="text-sm font-black text-[var(--text-primary)] hover:text-[var(--brand-orange)]">{responsibility.name}</button>
+                  <button onClick={() => toggleActive(responsibility.code, responsibility.is_active)} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${responsibility.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-400"}`}>
+                    {responsibility.is_active ? t("vadmin.globalPermissions.active") : t("vadmin.globalPermissions.inactive")}
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-500 font-mono mb-1">{r.code}</p>
-                {r.description && <p className="text-xs text-slate-500 mb-2">{r.description}</p>}
-                <p className="text-[9px] text-slate-400 uppercase tracking-widest font-black">{t("vadmin.globalPermissions.activeAssignments", { count: r.active_assignments || 0 })}</p>
+                <p className="text-[10px] text-slate-500 font-mono mb-1">{responsibility.code}</p>
+                {responsibility.description && <p className="text-xs text-slate-500 mb-2">{responsibility.description}</p>}
+                <p className="text-[9px] text-slate-400 uppercase tracking-widest font-black">{t("vadmin.globalPermissions.activeAssignments", { count: responsibility.active_assignments || 0 })}</p>
               </div>
             ))}
           </div>

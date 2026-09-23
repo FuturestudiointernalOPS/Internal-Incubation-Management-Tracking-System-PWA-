@@ -20,8 +20,8 @@ export const dynamic = "force-dynamic";
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop. An unknown, revoked-invalid or failed lookup all collapse to `null`,
 // which the screen renders as "not found".
-const pickVerifiedCertificate = (d) =>
-  d?.success && d.certificate ? d.certificate : null;
+const pickVerifiedCertificate = (payload) =>
+  payload?.success && payload.certificate ? payload.certificate : null;
 
 export default function VerifyCertificatePage() {
   const params = useParams();
@@ -123,14 +123,14 @@ function Field({ label, value }) {
 
 function formatDate(value, lang) {
   if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) return "";
   try {
     return new Intl.DateTimeFormat(lang || "en", {
       year: "numeric",
       month: "long",
       day: "numeric",
-    }).format(d);
+    }).format(parsedDate);
   } catch {
     return "";
   }

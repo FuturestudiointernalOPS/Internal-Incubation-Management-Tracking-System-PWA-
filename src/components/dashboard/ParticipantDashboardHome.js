@@ -122,9 +122,9 @@ function DashboardSkeleton() {
       </div>
       {/* Metrics skeleton */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        {[...Array(5)].map((_, i) => (
+        {[...Array(5)].map((_, index) => (
           <div
-            key={i}
+            key={index}
             className="bg-[var(--bg-tertiary)] rounded-xl p-5 border border-[var(--border-primary)]"
           >
             <div className="h-10 w-10 bg-white/10 rounded-lg mb-3" />
@@ -138,18 +138,18 @@ function DashboardSkeleton() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
           <div className="h-6 w-32 bg-white/10 rounded" />
-          {[...Array(3)].map((_, i) => (
+          {[...Array(3)].map((_, index) => (
             <div
-              key={i}
+              key={index}
               className="h-16 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]"
             />
           ))}
         </div>
         <div className="space-y-4">
           <div className="h-6 w-32 bg-white/10 rounded" />
-          {[...Array(2)].map((_, i) => (
+          {[...Array(2)].map((_, index) => (
             <div
-              key={i}
+              key={index}
               className="h-20 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]"
             />
           ))}
@@ -165,10 +165,10 @@ function DashboardSkeleton() {
 // folded in so a refused payload still reaches the failure panel.
 const EMPTY_HOME = { payload: null, failure: null };
 
-const pickHome = (d) =>
-  d?.success
-    ? { payload: d, failure: null }
-    : { payload: null, failure: d?.error || null };
+const pickHome = (response) =>
+  response?.success
+    ? { payload: response, failure: null }
+    : { payload: null, failure: response?.error || null };
 
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ParticipantDashboardHome() {
@@ -457,10 +457,10 @@ export default function ParticipantDashboardHome() {
             <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
               {t("participantMisc.dashboardHome.announcements")}
             </h2>
-            {announcements.filter((a) => !a.isRead).length > 0 && (
+            {announcements.filter((announcement) => !announcement.isRead).length > 0 && (
               <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-[var(--brand-orange)] text-black">
                 {t("participantMisc.dashboardHome.newBadge", {
-                  count: announcements.filter((a) => !a.isRead).length,
+                  count: announcements.filter((announcement) => !announcement.isRead).length,
                 })}
               </span>
             )}
@@ -478,8 +478,8 @@ export default function ParticipantDashboardHome() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {announcements.slice(0, 6).map((a) => (
-              <AnnouncementItem key={a.id} announcement={a} />
+            {announcements.slice(0, 6).map((announcement) => (
+              <AnnouncementItem key={announcement.id} announcement={announcement} />
             ))}
           </div>
         )}

@@ -20,8 +20,8 @@ export const Skeleton = ({ className, variant = 'rect' }) => {
 
 export const TableSkeleton = ({ rows = 5 }) => (
   <div className="space-y-4 w-full">
-    {Array.from({ length: rows }).map((_, i) => (
-      <div key={i} className="flex items-center gap-4 p-4 border border-[var(--border-primary)] rounded-xl opacity-50">
+    {Array.from({ length: rows }).map((_, index) => (
+      <div key={index} className="flex items-center gap-4 p-4 border border-[var(--border-primary)] rounded-xl opacity-50">
         <Skeleton className="w-10 h-10" variant="circle" />
         <div className="flex-1 space-y-2">
           <Skeleton className="h-4 w-1/3" />

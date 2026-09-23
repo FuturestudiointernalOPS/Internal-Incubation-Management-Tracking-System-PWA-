@@ -39,67 +39,67 @@ export default function VentureStaffAssignmentsPage() {
   const [picked, setPicked] = useState(null);
   const [form, setForm] = useState({ responsibility_code: "", scope_type: "venture_wide", scope_ref: "" });
 
-  const notify = (msg, type = "success") => {
-    setToast({ msg, type });
+  const notify = (message, type = "success") => {
+    setToast({ msg: message, type });
     setTimeout(() => setToast(null), 4000);
   };
 
   useEffect(() => {
     const loadAll = async () => {
-      const [v, r, s, a] = await Promise.all([
+      const [ventureResponse, responsibilitiesResponse, scopesResponse, assignmentsResponse] = await Promise.all([
         fetch(`/api/ventures/${id}`),
         fetch("/api/venture-permissions/responsibilities?include_inactive=1"),
         fetch("/api/venture-permissions/scopes"),
         fetch(`/api/ventures/${id}/staff-assignments`),
       ]);
-      const vd = await v.json();
-      const rd = await r.json();
-      const sd = await s.json();
-      const ad = await a.json();
-      if (vd.success) setVenture(vd.venture);
-      if (rd.success) setResponsibilities(rd.responsibilities || []);
-      if (sd.success) setScopes(sd.scopes || []);
-      if (ad.success) setAssignments(ad.assignments || []);
+      const ventureData = await ventureResponse.json();
+      const responsibilityData = await responsibilitiesResponse.json();
+      const scopeData = await scopesResponse.json();
+      const assignmentData = await assignmentsResponse.json();
+      if (ventureData.success) setVenture(ventureData.venture);
+      if (responsibilityData.success) setResponsibilities(responsibilityData.responsibilities || []);
+      if (scopeData.success) setScopes(scopeData.scopes || []);
+      if (assignmentData.success) setAssignments(assignmentData.assignments || []);
     };
 
     (async () => {
       try {
         await loadAll();
-      } catch (e) {
-        console.error("Failed to load staff assignments:", e);
+      } catch (error) {
+        console.error("Failed to load staff assignments:", error);
       } finally {
         setLoading(false);
       }
     })();
   }, [id]);
 
-  const searchContacts = async (q) => {
-    if (!q || q.length < 2) { setContactResults([]); return; }
+  const searchContacts = async (query) => {
+    if (!query || query.length < 2) { setContactResults([]); return; }
     setSearching(true);
     try {
-      const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(q)}`);
-      const d = await res.json();
-      if (d.success) {
+      const response = await fetch(`/api/contacts/search?q=${encodeURIComponent(query)}`);
+      const payload = await response.json();
+      if (payload.success) {
         // Only Future Studio staff-type contacts may be assigned to a Venture.
-        const staffResults = (d.contacts || []).filter((c) => STAFF_ROLES.has(c.role));
+        const staffResults = (payload.contacts || []).filter((contact) => STAFF_ROLES.has(contact.role));
         setContactResults(staffResults);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setSearching(false);
     }
   };
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const submit = async (event) => {
+    event.preventDefault();
     if (!picked || !form.responsibility_code) {
       notify("Pick a staff member and a responsibility.", "error");
       return;
     }
     setSaving(true);
     try {
-      const res = await fetch(`/api/ventures/${id}/staff-assignments`, {
+      const response = await fetch(`/api/ventures/${id}/staff-assignments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -110,17 +110,17 @@ export default function VentureStaffAssignmentsPage() {
           scope_ref_id: form.scope_type !== "venture_wide" ? (form.scope_ref || null) : null,
         }),
       });
-      const d = await res.json();
-      if (d.success) {
+      const payload = await response.json();
+      if (payload.success) {
         notify("Staff member assigned.");
         setShowForm(false);
         setPicked(null);
         setContactQ("");
         setContactResults([]);
         setForm({ responsibility_code: "", scope_type: "venture_wide", scope_ref: "" });
-        setAssignments(d.assignments || []);
+        setAssignments(payload.assignments || []);
       } else {
-        notify(d.error || "Assignment failed.", "error");
+        notify(payload.error || "Assignment failed.", "error");
       }
     } catch {
       notify("Assignment failed.", "error");
@@ -130,17 +130,17 @@ export default function VentureStaffAssignmentsPage() {
   };
 
   const remove = async (assignmentId) => {
-    const res = await fetch(`/api/ventures/${id}/staff-assignments`, {
+    const response = await fetch(`/api/ventures/${id}/staff-assignments`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ assignment_id: assignmentId, action: "remove" }),
     });
-    const d = await res.json();
-    if (d.success) {
+    const payload = await response.json();
+    if (payload.success) {
       notify("Assignment removed. Staff member no longer accesses this Venture.");
-      setAssignments(d.assignments || []);
+      setAssignments(payload.assignments || []);
     } else {
-      notify(d.error || "Remove failed.", "error");
+      notify(payload.error || "Remove failed.", "error");
     }
   };
 
@@ -210,18 +210,18 @@ export default function VentureStaffAssignmentsPage() {
                 <>
                   <input
                     value={contactQ}
-                    onChange={(e) => { setContactQ(e.target.value); searchContacts(e.target.value); }}
+                    onChange={(event) => { setContactQ(event.target.value); searchContacts(event.target.value); }}
                     className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
                     placeholder={t("venture.staffAssign.searchPlaceholder")}
                   />
                   {searching && <p className="text-xs text-slate-500 mt-1">Searching…</p>}
                   {contactResults.length > 0 && (
                     <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-[var(--border-primary)] bg-[var(--surface-1)]">
-                      {contactResults.map((c) => (
-                        <button type="button" key={c.cid} onClick={() => { setPicked(c); setContactResults([]); }} className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--surface-2)]">
-                          <span className="font-medium text-[var(--text-primary)]">{c.name}</span>
-                          {c.role && <span className="ml-2 px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400 text-[8px] font-bold uppercase">{c.role}</span>}
-                          {c.email && <span className="ml-2 text-slate-500">{c.email}</span>}
+                      {contactResults.map((contact) => (
+                        <button type="button" key={contact.cid} onClick={() => { setPicked(contact); setContactResults([]); }} className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--surface-2)]">
+                          <span className="font-medium text-[var(--text-primary)]">{contact.name}</span>
+                          {contact.role && <span className="ml-2 px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400 text-[8px] font-bold uppercase">{contact.role}</span>}
+                          {contact.email && <span className="ml-2 text-slate-500">{contact.email}</span>}
                         </button>
                       ))}
                     </div>
@@ -236,25 +236,25 @@ export default function VentureStaffAssignmentsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1.5">Responsibility (global profile)</label>
-                <select value={form.responsibility_code} onChange={(e) => setForm({ ...form, responsibility_code: e.target.value })} className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]">
+                <select value={form.responsibility_code} onChange={(event) => setForm({ ...form, responsibility_code: event.target.value })} className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]">
                   <option value="">Select…</option>
-                  {responsibilities.filter((r) => r.is_active).map((r) => (
-                    <option key={r.code} value={r.code}>{r.name}</option>
+                  {responsibilities.filter((responsibility) => responsibility.is_active).map((responsibility) => (
+                    <option key={responsibility.code} value={responsibility.code}>{responsibility.name}</option>
                   ))}
                 </select>
               </div>
               <div>
                 <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1.5">Scope</label>
-                <select value={form.scope_type} onChange={(e) => setForm({ ...form, scope_type: e.target.value })} className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]">
-                  {scopes.map((s) => (
-                    <option key={s.code} value={s.code}>{s.name}</option>
+                <select value={form.scope_type} onChange={(event) => setForm({ ...form, scope_type: event.target.value })} className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]">
+                  {scopes.map((scope) => (
+                    <option key={scope.code} value={scope.code}>{scope.name}</option>
                   ))}
                 </select>
               </div>
               {form.scope_type !== "venture_wide" && (
                 <div>
                   <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1.5">Scope reference (ID)</label>
-                  <input value={form.scope_ref} onChange={(e) => setForm({ ...form, scope_ref: e.target.value })} className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]" placeholder="e.g. milestone id or section id" />
+                  <input value={form.scope_ref} onChange={(event) => setForm({ ...form, scope_ref: event.target.value })} className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]" placeholder="e.g. milestone id or section id" />
                 </div>
               )}
             </div>
@@ -271,17 +271,17 @@ export default function VentureStaffAssignmentsPage() {
           {assignments.length === 0 ? (
             <p className="text-sm text-slate-500">No staff assigned yet. Staff gain Venture access only through assignments.</p>
           ) : (
-            assignments.map((a) => (
-              <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border border-[var(--border-primary)]">
+            assignments.map((assignment) => (
+              <div key={assignment.id} className="flex items-center justify-between p-3 rounded-lg border border-[var(--border-primary)]">
                 <div>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">{a.staff_name || a.staff_contact_id}</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">{assignment.staff_name || assignment.staff_contact_id}</p>
                   <p className="text-[10px] text-slate-500">
-                    {a.responsibility_name || a.responsibility_code}
-                    {a.scope_type !== "venture_wide" && ` · Scope: ${a.scope_type}${a.scope_ref_id ? ` (${a.scope_ref_id})` : ""}`}
-                    {a.staff_email && ` · ${a.staff_email}`}
+                    {assignment.responsibility_name || assignment.responsibility_code}
+                    {assignment.scope_type !== "venture_wide" && ` · Scope: ${assignment.scope_type}${assignment.scope_ref_id ? ` (${assignment.scope_ref_id})` : ""}`}
+                    {assignment.staff_email && ` · ${assignment.staff_email}`}
                   </p>
                 </div>
-                <button onClick={() => remove(a.id)} className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-rose-400 border border-rose-500/30 hover:bg-rose-500/10">
+                <button onClick={() => remove(assignment.id)} className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-rose-400 border border-rose-500/30 hover:bg-rose-500/10">
                   <Trash2 className="w-3 h-3" /> Remove
                 </button>
               </div>

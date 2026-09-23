@@ -23,20 +23,20 @@ export default function AppSearchSelect({
   const ref = useRef(null);
 
   useEffect(() => {
-    function onDocClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    function onDocClick(event) {
+      if (ref.current && !ref.current.contains(event.target)) setOpen(false);
     }
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  const selected = options.find((o) => o.value === value);
+  const selected = options.find((option) => option.value === value);
 
-  const filtered = options.filter((o) => {
+  const filtered = options.filter((option) => {
     if (!query.trim()) return true;
-    const q = query.trim().toLowerCase();
-    const hay = `${o.label || ""} ${o.search || ""} ${o.value || ""}`.toLowerCase();
-    return hay.includes(q);
+    const normalizedQuery = query.trim().toLowerCase();
+    const haystack = `${option.label || ""} ${option.search || ""} ${option.value || ""}`.toLowerCase();
+    return haystack.includes(normalizedQuery);
   });
 
   return (
@@ -93,7 +93,7 @@ export default function AppSearchSelect({
               <input
                 autoFocus
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search..."
                 className="w-full bg-transparent text-sm font-medium outline-none"
                 style={{ color: "var(--text-primary)" }}
@@ -105,20 +105,20 @@ export default function AppSearchSelect({
                   No results
                 </p>
               ) : (
-                filtered.map((o) => (
+                filtered.map((option) => (
                   <button
-                    key={o.value}
+                    key={option.value}
                     type="button"
                     onClick={() => {
-                      onChange?.(o.value);
+                      onChange?.(option.value);
                       setOpen(false);
                     }}
                     className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-left hover:brightness-110"
                     style={{ color: "var(--text-primary)", background: "transparent" }}
                   >
-                    {o.flag && <span>{o.flag}</span>}
-                    <span className="flex-1 truncate">{o.label}</span>
-                    {o.value === value && (
+                    {option.flag && <span>{option.flag}</span>}
+                    <span className="flex-1 truncate">{option.label}</span>
+                    {option.value === value && (
                       <Check className="w-4 h-4 shrink-0" style={{ color: "var(--brand-orange)" }} />
                     )}
                   </button>

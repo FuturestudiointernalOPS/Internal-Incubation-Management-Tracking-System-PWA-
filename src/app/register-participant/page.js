@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop. This endpoint signals success by the presence of `group` — there is no
 // success flag to read.
-const pickPublicGroup = (d) => (d && d.group ? d.group : null);
+const pickPublicGroup = (payload) => (payload && payload.group ? payload.group : null);
 
 // The registration window is a property of the group, so the check that used to
 // run inside the loader is now a plain reading of it during render.
@@ -64,13 +64,13 @@ function RegisterParticipantContent() {
     (fetchError ? t('rootMisc.registerParticipant.loadFailed') : '') ||
     (!loading && !group ? t('rootMisc.registerParticipant.groupNotFound') : '');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     if (!form.name || !form.email || !form.password) return;
     setSubmitting(true);
 
     try {
-      const res = await fetch('/api/public/register', {
+      const response = await fetch('/api/public/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -78,12 +78,12 @@ function RegisterParticipantContent() {
           group_id: groupId,
         }),
       });
-      const data = await res.json();
+      const payload = await response.json();
 
-      if (data.success) {
+      if (payload.success) {
         setSuccess(true);
       } else {
-        setSubmitError(t((data.error || t('rootMisc.registerParticipant.registrationFailed')) || "") || (data.error || t('rootMisc.registerParticipant.registrationFailed')));
+        setSubmitError(t((payload.error || t('rootMisc.registerParticipant.registrationFailed')) || "") || (payload.error || t('rootMisc.registerParticipant.registrationFailed')));
       }
     } catch {
       // Network/parse failure — the registration may still have been saved.
@@ -138,10 +138,10 @@ function RegisterParticipantContent() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input required type="text" placeholder={t('rootMisc.registerParticipant.fullNamePlaceholder')} name="name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
-          <input required type="email" placeholder={t('rootMisc.registerParticipant.emailPlaceholder')} name="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
-          <input type="text" placeholder={t('rootMisc.registerParticipant.phonePlaceholder')} name="phone" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
-          <input required type="password" placeholder={t('rootMisc.registerParticipant.createPasswordPlaceholder')} name="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input required type="text" placeholder={t('rootMisc.registerParticipant.fullNamePlaceholder')} name="name" value={form.name} onChange={event => setForm({...form, name: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input required type="email" placeholder={t('rootMisc.registerParticipant.emailPlaceholder')} name="email" value={form.email} onChange={event => setForm({...form, email: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input type="text" placeholder={t('rootMisc.registerParticipant.phonePlaceholder')} name="phone" value={form.phone} onChange={event => setForm({...form, phone: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input required type="password" placeholder={t('rootMisc.registerParticipant.createPasswordPlaceholder')} name="password" value={form.password} onChange={event => setForm({...form, password: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
 
           {error && <p className="text-rose-500 text-xs font-bold">{error}</p>}
 

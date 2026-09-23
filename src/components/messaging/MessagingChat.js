@@ -35,13 +35,13 @@ function cn(...classes) {
 
 function formatTime(dateStr) {
   if (!dateStr) return "";
-  const d = new Date(dateStr);
+  const date = new Date(dateStr);
   const now = new Date();
-  const isToday = d.toDateString() === now.toDateString();
-  const hour = d.getHours().toString().padStart(2, "0");
-  const minute = d.getMinutes().toString().padStart(2, "0");
+  const isToday = date.toDateString() === now.toDateString();
+  const hour = date.getHours().toString().padStart(2, "0");
+  const minute = date.getMinutes().toString().padStart(2, "0");
   if (isToday) return `${hour}:${minute}`;
-  return `${d.getDate()}/${d.getMonth() + 1}`;
+  return `${date.getDate()}/${date.getMonth() + 1}`;
 }
 
 // ─── Permission logic ────────────────────────────────────────────────────
@@ -89,8 +89,8 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
       // Contacts whose group_name matches a family linked to PM's programs
       if (contact.group_name) {
         const familyProgramId = allContacts
-          .filter((c) => c.group_name === contact.group_name)
-          .find((c) => c.program_id && userProgramIds.includes(c.program_id));
+          .filter((candidate) => candidate.group_name === contact.group_name)
+          .find((candidate) => candidate.program_id && userProgramIds.includes(candidate.program_id));
         if (familyProgramId) return true;
       }
       return false;
@@ -109,24 +109,24 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
       // Staff/PM assigned to this participant's program
       if (contact.role !== "participant" && userProgramIds.length > 0) {
         // Contact is the assigned PM for participant's program
-        const isAssignedPm = userProgramIds.some((pid) => {
-          const prog = allPrograms.find((p) => p.id === pid);
+        const isAssignedPm = userProgramIds.some((programId) => {
+          const program = allPrograms.find((candidate) => candidate.id === programId);
           return (
-            prog &&
-            String(prog.assigned_pm_id) === String(contact.cid || contact.id)
+            program &&
+            String(program.assigned_pm_id) === String(contact.cid || contact.id)
           );
         });
         if (isAssignedPm) return true;
         // Contact is assigned as assistant for participant's program
-        const isAssistantPm = userProgramIds.some((pid) => {
-          const prog = allPrograms.find((p) => p.id === pid);
-          if (!prog || !prog.assigned_assistant_id) return false;
+        const isAssistantPm = userProgramIds.some((programId) => {
+          const program = allPrograms.find((candidate) => candidate.id === programId);
+          if (!program || !program.assigned_assistant_id) return false;
           try {
-            const assistants = JSON.parse(prog.assigned_assistant_id);
+            const assistants = JSON.parse(program.assigned_assistant_id);
             return (
               Array.isArray(assistants) &&
               assistants.some(
-                (a) => String(a) === String(contact.cid || contact.id),
+                (assistantId) => String(assistantId) === String(contact.cid || contact.id),
               )
             );
           } catch {
@@ -155,13 +155,13 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
         name: "Future Studio Staff",
         type: "staff",
       });
-      allFamilies.forEach((f) => {
-        if (!f.is_archived && f.program_id) {
+      allFamilies.forEach((family) => {
+        if (!family.is_archived && family.program_id) {
           groups.push({
-            id: f.id,
-            name: f.name,
+            id: family.id,
+            name: family.name,
             type: "family",
-            programId: f.program_id,
+            programId: family.program_id,
           });
         }
       });
@@ -180,17 +180,17 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
 
     // PM sees families linked to their programs
     if (isPM && userProgramIds.length > 0) {
-      allFamilies.forEach((f) => {
+      allFamilies.forEach((family) => {
         if (
-          !f.is_archived &&
-          f.program_id &&
-          userProgramIds.includes(f.program_id)
+          !family.is_archived &&
+          family.program_id &&
+          userProgramIds.includes(family.program_id)
         ) {
           groups.push({
-            id: f.id,
-            name: f.name,
+            id: family.id,
+            name: family.name,
             type: "family",
-            programId: f.program_id,
+            programId: family.program_id,
           });
         }
       });
@@ -202,9 +202,9 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
 
   // Programs available for program-wide messaging
   function getAvailablePrograms(allPrograms) {
-    if (isSA) return allPrograms.filter((p) => !p.is_archived);
+    if (isSA) return allPrograms.filter((program) => !program.is_archived);
     if (isPM && userProgramIds.length > 0) {
-      return allPrograms.filter((p) => userProgramIds.includes(p.id));
+      return allPrograms.filter((program) => userProgramIds.includes(program.id));
     }
     return [];
   }
@@ -222,10 +222,10 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
 // Module scope on purpose: the hook mirrors the transformation it is handed, so
 // one built inside the component would be a new identity on every render.
 
-const pickMessages = (d) => (d?.success ? d.messages || [] : []);
-const pickContacts = (d) => (d?.success ? d.contacts || [] : []);
-const pickFamilies = (d) => (d?.success ? d.families || [] : []);
-const pickPrograms = (d) => (d?.success ? d.programs || [] : []);
+const pickMessages = (payload) => (payload?.success ? payload.messages || [] : []);
+const pickContacts = (payload) => (payload?.success ? payload.contacts || [] : []);
+const pickFamilies = (payload) => (payload?.success ? payload.families || [] : []);
+const pickPrograms = (payload) => (payload?.success ? payload.programs || [] : []);
 
 // The identity is absent for the first moment of a cold load. One stable shape
 // for it keeps the memos that read `user` from recomputing on every render.
@@ -358,8 +358,8 @@ export default function MessagingChat({ role = "super_admin" }) {
     if (role === "program_manager") {
       // Find programs where this user is the assigned PM
       return allPrograms
-        .filter((p) => String(p.assigned_pm_id) === String(uid))
-        .map((p) => p.id);
+        .filter((program) => String(program.assigned_pm_id) === String(uid))
+        .map((program) => program.id);
     }
     if (role === "participant") {
       // Participants see their program from their contact record
@@ -379,10 +379,10 @@ export default function MessagingChat({ role = "super_admin" }) {
   // Participants/founders get a server-scoped list from /api/messaging/contacts,
   // so their contacts can be trusted directly (no extra client-side canMessage).
   const contacts = useMemo(() => {
-    return allContacts.filter((c) => {
-      if (String(c.cid || c.id) === String(uid)) return false;
+    return allContacts.filter((contact) => {
+      if (String(contact.cid || contact.id) === String(uid)) return false;
       if (role === "participant" || role === "founder") return true;
-      return permissions.canMessage(c, allContacts);
+      return permissions.canMessage(contact, allContacts);
     });
   }, [allContacts, permissions, uid, role]);
 
@@ -421,38 +421,38 @@ export default function MessagingChat({ role = "super_admin" }) {
     const threads = [];
     const seen = new Set();
 
-    for (const msg of messages) {
-      if (!msg) continue;
+    for (const message of messages) {
+      if (!message) continue;
       let threadId, label, icon, otherId;
 
-      if (msg.target_type === "individual") {
-        otherId = msg.sender_id === uid ? msg.recipient_id : msg.sender_id;
+      if (message.target_type === "individual") {
+        otherId = message.sender_id === uid ? message.recipient_id : message.sender_id;
         if (!otherId) continue;
         threadId = `individual_${otherId}`;
-        const contact = contacts.find((c) => (c.cid || c.id) === otherId);
+        const contact = contacts.find((candidate) => (candidate.cid || candidate.id) === otherId);
         label = contact?.name || otherId;
         icon = "user";
-      } else if (msg.target_type === "all") {
+      } else if (message.target_type === "all") {
         threadId = "broadcast_all";
         label = t("messaging.broadcastAllUsers");
         icon = "broadcast";
-      } else if (msg.target_type === "role") {
-        threadId = `role_${msg.target_id}`;
+      } else if (message.target_type === "role") {
+        threadId = `role_${message.target_id}`;
         // Look up the group name from families (or the internal staff group)
-        const fam = families.find(
-          (f) => String(f.id) === String(msg.target_id),
+        const family = families.find(
+          (candidate) => String(candidate.id) === String(message.target_id),
         );
         label =
-          fam?.name ||
-          (String(msg.target_id) === "__staff__"
+          family?.name ||
+          (String(message.target_id) === "__staff__"
             ? t("messaging.staffGroup")
-            : msg.target_id || t("messaging.groupFallback"));
+            : message.target_id || t("messaging.groupFallback"));
         icon = "group";
-      } else if (msg.target_type === "program") {
-        threadId = `program_${msg.target_id}`;
-        const prog = allPrograms.find((p) => p.id === msg.target_id);
+      } else if (message.target_type === "program") {
+        threadId = `program_${message.target_id}`;
+        const program = allPrograms.find((candidate) => candidate.id === message.target_id);
         label = t("messaging.programLabel", {
-          name: prog?.name || msg.target_id,
+          name: program?.name || message.target_id,
         });
         icon = "program";
       } else {
@@ -464,18 +464,18 @@ export default function MessagingChat({ role = "super_admin" }) {
         threads.push({
           id: threadId,
           label,
-          type: msg.target_type,
-          targetId: msg.target_type === "individual" ? otherId : msg.target_id,
-          lastMessage: msg,
+          type: message.target_type,
+          targetId: message.target_type === "individual" ? otherId : message.target_id,
+          lastMessage: message,
           icon,
         });
       }
     }
 
     threads.sort(
-      (a, b) =>
-        new Date(b.lastMessage?.created_at || 0) -
-        new Date(a.lastMessage?.created_at || 0),
+      (leftThread, rightThread) =>
+        new Date(rightThread.lastMessage?.created_at || 0) -
+        new Date(leftThread.lastMessage?.created_at || 0),
     );
     return threads;
   }, [messages, contacts, families, allPrograms, uid, t]);
@@ -484,22 +484,22 @@ export default function MessagingChat({ role = "super_admin" }) {
   const unreadCounts = useMemo(() => {
     if (!Array.isArray(messages) || !uid) return {};
     const counts = {};
-    for (const msg of messages) {
-      if (!msg) continue;
+    for (const message of messages) {
+      if (!message) continue;
       const isUnread =
-        msg.recipient_id === uid &&
-        (msg.is_read === 0 || msg.is_read === null || msg.is_read === false);
+        message.recipient_id === uid &&
+        (message.is_read === 0 || message.is_read === null || message.is_read === false);
       if (!isUnread) continue;
 
       let threadId;
-      if (msg.target_type === "individual") {
-        threadId = `individual_${msg.sender_id}`;
-      } else if (msg.target_type === "all") {
+      if (message.target_type === "individual") {
+        threadId = `individual_${message.sender_id}`;
+      } else if (message.target_type === "all") {
         threadId = "broadcast_all";
-      } else if (msg.target_type === "role") {
-        threadId = `role_${msg.target_id}`;
-      } else if (msg.target_type === "program") {
-        threadId = `program_${msg.target_id}`;
+      } else if (message.target_type === "role") {
+        threadId = `role_${message.target_id}`;
+      } else if (message.target_type === "program") {
+        threadId = `program_${message.target_id}`;
       }
       if (threadId) counts[threadId] = (counts[threadId] || 0) + 1;
     }
@@ -507,7 +507,7 @@ export default function MessagingChat({ role = "super_admin" }) {
   }, [messages, uid]);
 
   const totalUnread = useMemo(
-    () => Object.values(unreadCounts).reduce((a, b) => a + b, 0),
+    () => Object.values(unreadCounts).reduce((total, count) => total + count, 0),
     [unreadCounts],
   );
 
@@ -516,30 +516,30 @@ export default function MessagingChat({ role = "super_admin" }) {
     if (!activeConversation) return [];
     const seen = new Set();
     return messages
-      .filter((msg) => {
-        if (seen.has(msg.id)) return false;
-        seen.add(msg.id);
+      .filter((message) => {
+        if (seen.has(message.id)) return false;
+        seen.add(message.id);
         if (activeConversation.type === "individual") {
           const otherId =
-            msg.sender_id === uid ? msg.recipient_id : msg.sender_id;
+            message.sender_id === uid ? message.recipient_id : message.sender_id;
           return otherId === activeConversation.targetId;
         }
-        if (activeConversation.type === "all") return msg.target_type === "all";
+        if (activeConversation.type === "all") return message.target_type === "all";
         if (activeConversation.type === "role")
           return (
-            msg.target_type === "role" &&
-            msg.target_id === activeConversation.targetId
+            message.target_type === "role" &&
+            message.target_id === activeConversation.targetId
           );
         if (activeConversation.type === "program")
           return (
-            msg.target_type === "program" &&
-            msg.target_id === activeConversation.targetId
+            message.target_type === "program" &&
+            message.target_id === activeConversation.targetId
           );
         return false;
       })
       .sort(
-        (a, b) =>
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+        (leftMessage, rightMessage) =>
+          new Date(leftMessage.created_at).getTime() - new Date(rightMessage.created_at).getTime(),
       );
   }, [messages, activeConversation, uid]);
 
@@ -550,16 +550,16 @@ export default function MessagingChat({ role = "super_admin" }) {
       setMobileView("chat");
 
       const unreadIds = messages
-        .filter((msg) => {
-          if (msg.is_read) return false;
+        .filter((message) => {
+          if (message.is_read) return false;
           if (thread.type === "individual") {
             const otherId =
-              msg.sender_id === uid ? msg.recipient_id : msg.sender_id;
+              message.sender_id === uid ? message.recipient_id : message.sender_id;
             return otherId === thread.targetId;
           }
           return false;
         })
-        .map((msg) => msg.id);
+        .map((message) => message.id);
 
       if (unreadIds.length > 0) {
         try {
@@ -578,9 +578,9 @@ export default function MessagingChat({ role = "super_admin" }) {
 
   // ── Upload a file attachment (server-validated) and store the returned URL ──
   const uploadAttachment = async (file) => {
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch("/api/upload", { method: "POST", body: formData });
     const data = await res.json();
     if (data.success && data.url) return { url: data.url };
     return { error: data.error || t("messaging.uploadFailed", { error: "" }) };
@@ -594,8 +594,8 @@ export default function MessagingChat({ role = "super_admin" }) {
     );
   };
 
-  const handleReplyFile = async (e) => {
-    const file = e.target.files?.[0];
+  const handleReplyFile = async (event) => {
+    const file = event.target.files?.[0];
     if (!file) return;
     setReplyUploading(true);
     try {
@@ -606,17 +606,17 @@ export default function MessagingChat({ role = "super_admin" }) {
       } else {
         notifyError(result.error || t("messaging.uploadFailed", { error: "" }));
       }
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
       notifyError(t("messaging.uploadFailed", { error: "" }));
     } finally {
       setReplyUploading(false);
-      if (e.target) e.target.value = "";
+      if (event.target) event.target.value = "";
     }
   };
 
-  const handleComposeFile = async (e) => {
-    const file = e.target.files?.[0];
+  const handleComposeFile = async (event) => {
+    const file = event.target.files?.[0];
     if (!file) return;
     setComposeUploading(true);
     try {
@@ -627,12 +627,12 @@ export default function MessagingChat({ role = "super_admin" }) {
       } else {
         notifyError(result.error || t("messaging.uploadFailed", { error: "" }));
       }
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
       notifyError(t("messaging.uploadFailed", { error: "" }));
     } finally {
       setComposeUploading(false);
-      if (e.target) e.target.value = "";
+      if (event.target) event.target.value = "";
     }
   };
 
@@ -642,8 +642,8 @@ export default function MessagingChat({ role = "super_admin" }) {
     setSending(true);
     try {
       let payload;
-      const attUrl = replyAttachmentUrl.trim() || null;
-      const attName = replyAttachmentName.trim() || attUrl || null;
+      const attachmentUrl = replyAttachmentUrl.trim() || null;
+      const attachmentName = replyAttachmentName.trim() || attachmentUrl || null;
       if (activeConversation.type === "individual") {
         payload = {
           sender_id: uid,
@@ -652,8 +652,8 @@ export default function MessagingChat({ role = "super_admin" }) {
           subject: t("messaging.noSubject"),
           body: replyText,
           priority: "normal",
-          attachment_url: attUrl,
-          attachment_name: attName,
+          attachment_url: attachmentUrl,
+          attachment_name: attachmentName,
         };
       } else if (activeConversation.type === "role") {
         payload = {
@@ -663,8 +663,8 @@ export default function MessagingChat({ role = "super_admin" }) {
           subject: t("messaging.replyTo", { label: activeConversation.label }),
           body: replyText,
           priority: "normal",
-          attachment_url: attUrl,
-          attachment_name: attName,
+          attachment_url: attachmentUrl,
+          attachment_name: attachmentName,
         };
       } else if (activeConversation.type === "program") {
         payload = {
@@ -674,8 +674,8 @@ export default function MessagingChat({ role = "super_admin" }) {
           subject: t("messaging.replyTo", { label: activeConversation.label }),
           body: replyText,
           priority: "normal",
-          attachment_url: attUrl,
-          attachment_name: attName,
+          attachment_url: attachmentUrl,
+          attachment_name: attachmentName,
         };
       } else if (activeConversation.type === "all") {
         payload = {
@@ -684,8 +684,8 @@ export default function MessagingChat({ role = "super_admin" }) {
           subject: t("messaging.reply"),
           body: replyText,
           priority: "normal",
-          attachment_url: attUrl,
-          attachment_name: attName,
+          attachment_url: attachmentUrl,
+          attachment_name: attachmentName,
         };
       }
       if (!payload) return;
@@ -701,17 +701,17 @@ export default function MessagingChat({ role = "super_admin" }) {
       // The POST answers with the new id and not with the thread, so the read
       // that shows it is refreshed rather than published into.
       await refreshMessages();
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setSending(false);
     }
   };
 
   // ── Handle keyboard shortcut for reply ──
-  const handleReplyKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
+  const handleReplyKeyDown = (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
       handleReply();
     }
   };
@@ -726,8 +726,8 @@ export default function MessagingChat({ role = "super_admin" }) {
     setSending(true);
     try {
       let payload;
-      const attUrl = composeAttachmentUrl.trim() || null;
-      const attName = composeAttachmentName.trim() || attUrl || null;
+      const attachmentUrl = composeAttachmentUrl.trim() || null;
+      const attachmentName = composeAttachmentName.trim() || attachmentUrl || null;
       if (sendMode === "individual") {
         payload = {
           sender_id: uid,
@@ -736,8 +736,8 @@ export default function MessagingChat({ role = "super_admin" }) {
           subject: t("messaging.noSubject"),
           body: composeBody,
           priority: "normal",
-          attachment_url: attUrl,
-          attachment_name: attName,
+          attachment_url: attachmentUrl,
+          attachment_name: attachmentName,
         };
       } else if (sendMode === "group") {
         payload = {
@@ -747,27 +747,27 @@ export default function MessagingChat({ role = "super_admin" }) {
           subject: t("messaging.messageTo", {
             name:
               availableGroups.find(
-                (g) => String(g.id) === String(composeGroupId),
+                (group) => String(group.id) === String(composeGroupId),
               )?.name || t("messaging.groupFallback"),
           }),
           body: composeBody,
           priority: "normal",
-          attachment_url: attUrl,
-          attachment_name: attName,
+          attachment_url: attachmentUrl,
+          attachment_name: attachmentName,
         };
       } else if (sendMode === "program") {
-        const prog = availablePrograms.find((p) => p.id === composeProgram);
+        const program = availablePrograms.find((candidate) => candidate.id === composeProgram);
         payload = {
           sender_id: uid,
           target_type: "program",
           target_id: composeProgram,
           subject: t("messaging.messageTo", {
-            name: prog?.name || t("messaging.program"),
+            name: program?.name || t("messaging.program"),
           }),
           body: composeBody,
           priority: "normal",
-          attachment_url: attUrl,
-          attachment_name: attName,
+          attachment_url: attachmentUrl,
+          attachment_name: attachmentName,
         };
       } else if (sendMode === "broadcast") {
         payload = {
@@ -776,8 +776,8 @@ export default function MessagingChat({ role = "super_admin" }) {
           subject: t("messaging.broadcast"),
           body: composeBody,
           priority: "normal",
-          attachment_url: attUrl,
-          attachment_name: attName,
+          attachment_url: attachmentUrl,
+          attachment_name: attachmentName,
         };
       }
       if (!payload) return;
@@ -804,32 +804,32 @@ export default function MessagingChat({ role = "super_admin" }) {
       // Same as the quick reply: the write's body carries no thread, so the
       // messages read is refreshed.
       await refreshMessages();
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setSending(false);
     }
   };
 
   // ── Filtered contact list for compose modal ──
-  const filteredContacts = contacts.filter((c) => {
+  const filteredContacts = contacts.filter((contact) => {
     if (!contactSearch) return true;
-    const q = contactSearch.toLowerCase();
+    const normalizedQuery = contactSearch.toLowerCase();
     return (
-      (c.name || "").toLowerCase().includes(q) ||
-      (c.email || "").toLowerCase().includes(q) ||
-      (c.role || "").toLowerCase().includes(q) ||
-      (c.group_name || "").toLowerCase().includes(q)
+      (contact.name || "").toLowerCase().includes(normalizedQuery) ||
+      (contact.email || "").toLowerCase().includes(normalizedQuery) ||
+      (contact.role || "").toLowerCase().includes(normalizedQuery) ||
+      (contact.group_name || "").toLowerCase().includes(normalizedQuery)
     );
   });
 
-  const filteredPrograms = availablePrograms.filter((p) => {
+  const filteredPrograms = availablePrograms.filter((program) => {
     if (!programSearch) return true;
-    return (p.name || "").toLowerCase().includes(programSearch.toLowerCase());
+    return (program.name || "").toLowerCase().includes(programSearch.toLowerCase());
   });
 
   const selectedContact = contacts.find(
-    (c) => (c.cid || c.id) === composeRecipient,
+    (contact) => (contact.cid || contact.id) === composeRecipient,
   );
 
   // ── Conversation icon ──
@@ -847,9 +847,9 @@ export default function MessagingChat({ role = "super_admin" }) {
   };
 
   // ── Filter conversations by search ──
-  const filteredConversations = conversations.filter((t) => {
+  const filteredConversations = conversations.filter((thread) => {
     if (!search) return true;
-    return t.label.toLowerCase().includes(search.toLowerCase());
+    return thread.label.toLowerCase().includes(search.toLowerCase());
   });
 
   // ── Render ──
@@ -910,7 +910,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                 type="text"
                 placeholder={t("messaging.search")}
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(event) => setSearch(event.target.value)}
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)] transition-all"
               />
             </div>
@@ -937,8 +937,8 @@ export default function MessagingChat({ role = "super_admin" }) {
               filteredConversations.map((thread) => {
                 const isActive = activeConversation?.id === thread.id;
                 const unread = unreadCounts[thread.id] || 0;
-                const lastMsg = thread.lastMessage;
-                const isLastFromOther = lastMsg?.sender_id !== uid;
+                const lastMessage = thread.lastMessage;
+                const isLastFromOther = lastMessage?.sender_id !== uid;
                 const Icon = threadIcon(thread);
 
                 return (
@@ -976,13 +976,13 @@ export default function MessagingChat({ role = "super_admin" }) {
                           {thread.label}
                         </p>
                         <span className="text-[10px] font-medium text-[var(--text-secondary)] shrink-0">
-                          {formatTime(lastMsg?.created_at)}
+                          {formatTime(lastMessage?.created_at)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         {thread.type === "individual" &&
                           !isLastFromOther &&
-                          (lastMsg?.is_read === 1 ? (
+                          (lastMessage?.is_read === 1 ? (
                             <span className="flex items-center gap-0.5 shrink-0">
                               <Check className="w-2.5 h-2.5 text-emerald-400" />
                               <Check className="w-2.5 h-2.5 text-emerald-400 -ml-1" />
@@ -998,7 +998,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                               : "text-[var(--text-secondary)]",
                           )}
                         >
-                          {lastMsg?.body || lastMsg?.subject || ""}
+                          {lastMessage?.body || lastMessage?.subject || ""}
                         </p>
                       </div>
                     </div>
@@ -1088,13 +1088,13 @@ export default function MessagingChat({ role = "super_admin" }) {
                     </p>
                   </div>
                 ) : (
-                  activeMessages.map((msg, idx) => {
-                    const isSent = msg.sender_id === uid;
-                    const isLast = idx === activeMessages.length - 1;
-                    const showRead = isSent && isLast && msg.is_read === 1;
+                  activeMessages.map((message, index) => {
+                    const isSent = message.sender_id === uid;
+                    const isLast = index === activeMessages.length - 1;
+                    const showRead = isSent && isLast && message.is_read === 1;
                     return (
                       <div
-                        key={msg.id}
+                        key={message.id}
                         className={cn(
                           "flex items-center gap-1.5 group",
                           isSent ? "justify-end" : "justify-start",
@@ -1109,11 +1109,11 @@ export default function MessagingChat({ role = "super_admin" }) {
                           )}
                         >
                           <p className="text-[11px] leading-relaxed whitespace-pre-wrap break-words">
-                            {msg.body}
+                            {message.body}
                           </p>
-                          {msg.attachment_url && (
+                          {message.attachment_url && (
                             <a
-                              href={msg.attachment_url}
+                              href={message.attachment_url}
                               target="_blank"
                               rel="noopener noreferrer"
                               className={cn(
@@ -1125,7 +1125,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                             >
                               <ExternalLink className="w-3 h-3 shrink-0" />
                               <span className="truncate max-w-[200px]">
-                                {msg.attachment_name || msg.attachment_url}
+                                {message.attachment_name || message.attachment_url}
                               </span>
                             </a>
                           )}
@@ -1136,7 +1136,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                             )}
                           >
                             <span className="text-[10px] font-medium opacity-50">
-                              {formatTime(msg.created_at)}
+                              {formatTime(message.created_at)}
                             </span>
                             {showRead && (
                               <CheckCheck className="w-3 h-3 text-emerald-500 shrink-0" />
@@ -1170,7 +1170,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                         type="text"
                         placeholder={t("messaging.attachmentUrlPlaceholder")}
                         value={replyAttachmentUrl}
-                        onChange={(e) => setReplyAttachmentUrl(e.target.value)}
+                        onChange={(event) => setReplyAttachmentUrl(event.target.value)}
                         className="flex-1 px-3 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-orange)] transition-all"
                       />
                       <button
@@ -1189,7 +1189,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                       type="text"
                       placeholder={t("messaging.attachmentNamePlaceholder")}
                       value={replyAttachmentName}
-                      onChange={(e) => setReplyAttachmentName(e.target.value)}
+                      onChange={(event) => setReplyAttachmentName(event.target.value)}
                       className="w-full px-3 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-orange)] transition-all"
                     />
                   </div>
@@ -1212,7 +1212,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                     type="text"
                     placeholder={t("messaging.typeMessage")}
                     value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
+                    onChange={(event) => setReplyText(event.target.value)}
                     onKeyDown={handleReplyKeyDown}
                     className="flex-1 px-4 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-orange)] transition-all"
                   />
@@ -1244,7 +1244,7 @@ export default function MessagingChat({ role = "super_admin" }) {
         >
           <div
             className="w-full max-w-lg rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] p-6 space-y-4 max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
@@ -1317,8 +1317,8 @@ export default function MessagingChat({ role = "super_admin" }) {
                       type="text"
                       placeholder={t("messaging.searchPerson")}
                       value={contactSearch}
-                      onChange={(e) => {
-                        setContactSearch(e.target.value);
+                      onChange={(event) => {
+                        setContactSearch(event.target.value);
                         setShowContactDropdown(true);
                       }}
                       onFocus={() => setShowContactDropdown(true)}
@@ -1331,21 +1331,21 @@ export default function MessagingChat({ role = "super_admin" }) {
                             {t("messaging.noContactsFound")}
                           </p>
                         ) : (
-                          filteredContacts.map((c) => (
+                          filteredContacts.map((contact) => (
                             <button
-                              key={c.cid || c.id}
+                              key={contact.cid || contact.id}
                               onClick={() => {
-                                setComposeRecipient(c.cid || c.id);
+                                setComposeRecipient(contact.cid || contact.id);
                                 setContactSearch("");
                                 setShowContactDropdown(false);
                               }}
                               className="w-full text-left px-4 py-2.5 hover:bg-tertiary transition-colors border-b border-[var(--border-primary)]/50 last:border-0"
                             >
                               <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                                {c.name}
+                                {contact.name}
                               </p>
                               <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                                {c.email}
+                                {contact.email}
                               </p>
                             </button>
                           ))
@@ -1365,15 +1365,15 @@ export default function MessagingChat({ role = "super_admin" }) {
                 </p>
                 <select
                   value={composeGroupId}
-                  onChange={(e) => setComposeGroupId(e.target.value)}
+                  onChange={(event) => setComposeGroupId(event.target.value)}
                   className="w-full px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none"
                 >
                   <option value="">
                     {t("messaging.selectGroupPlaceholder")}
                   </option>
-                  {availableGroups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.type === "staff" ? t("messaging.staffGroup") : g.name}
+                  {availableGroups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.type === "staff" ? t("messaging.staffGroup") : group.name}
                     </option>
                   ))}
                 </select>
@@ -1389,7 +1389,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                 {composeProgram ? (
                   <div className="flex items-center justify-between px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
                     <span className="text-[11px] font-bold text-[var(--text-primary)]">
-                      {availablePrograms.find((p) => p.id === composeProgram)
+                      {availablePrograms.find((program) => program.id === composeProgram)
                         ?.name || composeProgram}
                     </span>
                     <button
@@ -1408,8 +1408,8 @@ export default function MessagingChat({ role = "super_admin" }) {
                       type="text"
                       placeholder={t("messaging.searchPrograms")}
                       value={programSearch}
-                      onChange={(e) => {
-                        setProgramSearch(e.target.value);
+                      onChange={(event) => {
+                        setProgramSearch(event.target.value);
                         setShowProgramDropdown(true);
                       }}
                       onFocus={() => setShowProgramDropdown(true)}
@@ -1422,18 +1422,18 @@ export default function MessagingChat({ role = "super_admin" }) {
                             {t("messaging.noProgramsFound")}
                           </p>
                         ) : (
-                          filteredPrograms.map((p) => (
+                          filteredPrograms.map((program) => (
                             <button
-                              key={p.id}
+                              key={program.id}
                               onClick={() => {
-                                setComposeProgram(p.id);
+                                setComposeProgram(program.id);
                                 setProgramSearch("");
                                 setShowProgramDropdown(false);
                               }}
                               className="w-full text-left px-4 py-2.5 hover:bg-tertiary transition-colors"
                             >
                               <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                                {p.name}
+                                {program.name}
                               </p>
                             </button>
                           ))
@@ -1480,7 +1480,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                       type="text"
                       placeholder={t("messaging.attachmentUrlPlaceholder")}
                       value={composeAttachmentUrl}
-                      onChange={(e) => setComposeAttachmentUrl(e.target.value)}
+                      onChange={(event) => setComposeAttachmentUrl(event.target.value)}
                       className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-orange)] transition-all"
                     />
                     <button
@@ -1499,7 +1499,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                     type="text"
                     placeholder={t("messaging.attachmentNamePlaceholder")}
                     value={composeAttachmentName}
-                    onChange={(e) => setComposeAttachmentName(e.target.value)}
+                    onChange={(event) => setComposeAttachmentName(event.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-orange)] transition-all"
                   />
                 </div>
@@ -1514,7 +1514,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                   : t("messaging.messagePlaceholder")
               }
               value={composeBody}
-              onChange={(e) => setComposeBody(e.target.value)}
+              onChange={(event) => setComposeBody(event.target.value)}
               rows={4}
               className="w-full px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] resize-none"
             />

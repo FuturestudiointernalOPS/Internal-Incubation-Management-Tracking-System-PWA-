@@ -27,9 +27,9 @@ const EMPTY_MY_LEARNING = { list: [], failure: false };
  * answered - were shown as the same panel, so the shaper reports the refusal and
  * the panel keeps its message.
  */
-const pickMyLearning = (d) =>
-  d?.success
-    ? { list: d.courses || [], failure: false }
+const pickMyLearning = (data) =>
+  data?.success
+    ? { list: data.courses || [], failure: false }
     : { list: [], failure: true };
 
 export default function LearnerLearning() {
@@ -75,9 +75,9 @@ export default function LearnerLearning() {
 
       {loading ? (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[0, 1].map((i) => (
+          {[0, 1].map((index) => (
             <div
-              key={i}
+              key={index}
               className="h-44 rounded-xl animate-pulse"
               style={{ background: "var(--surface-2)" }}
             />

@@ -17,8 +17,8 @@ import { useDialogs } from "@/components/ui/DialogProvider";
 // at module scope: rebuilt each render it would be a new identity and would put
 // both requests back on the wire on every render.
 
-const pickCampaigns = (d) => (d?.success ? d.campaigns || [] : []);
-const pickVentures = (d) => (d?.success ? d.ventures || [] : []);
+const pickCampaigns = (payload) => (payload?.success ? payload.campaigns || [] : []);
+const pickVentures = (payload) => (payload?.success ? payload.ventures || [] : []);
 
 const CAMPAIGN_ENDPOINTS = [
   {
@@ -139,16 +139,16 @@ export default function AdminCampaignsPage() {
     } catch (_) {}
   };
 
-  const progressPct = (c) => {
-    if (!c.target_raise || c.target_raise <= 0) return 0;
-    return Math.min(100, Math.round((parseFloat(c.current_raised || 0) / parseFloat(c.target_raise)) * 100));
+  const progressPct = (campaign) => {
+    if (!campaign.target_raise || campaign.target_raise <= 0) return 0;
+    return Math.min(100, Math.round((parseFloat(campaign.current_raised || 0) / parseFloat(campaign.target_raise)) * 100));
   };
 
   const counts = {
     all: campaigns.length,
-    active: campaigns.filter(c => c.status === "active").length,
-    draft: campaigns.filter(c => c.status === "draft").length,
-    closed: campaigns.filter(c => c.status === "closed").length,
+    active: campaigns.filter(campaign => campaign.status === "active").length,
+    draft: campaigns.filter(campaign => campaign.status === "draft").length,
+    closed: campaigns.filter(campaign => campaign.status === "closed").length,
   };
 
   return (
@@ -185,13 +185,13 @@ export default function AdminCampaignsPage() {
             { label: t("investorAdmin.campaigns.statActive"), value: counts.active, icon: Play, color: "text-emerald-400" },
             { label: t("investorAdmin.campaigns.statDraft"), value: counts.draft, icon: Edit3, color: "text-slate-400" },
             { label: t("investorAdmin.campaigns.statClosed"), value: counts.closed, icon: XCircle, color: "text-rose-400" },
-          ].map((s, i) => (
+          ].map((stat, i) => (
             <AppCard key={i} padding="md">
               <div className="flex items-center gap-3">
-                <s.icon className={`w-5 h-5 ${s.color}`} />
+                <stat.icon className={`w-5 h-5 ${stat.color}`} />
                 <div>
-                  <p className="text-2xl font-black text-[var(--text-primary)]">{s.value}</p>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{s.label}</p>
+                  <p className="text-2xl font-black text-[var(--text-primary)]">{stat.value}</p>
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{stat.label}</p>
                 </div>
               </div>
             </AppCard>
@@ -210,30 +210,30 @@ export default function AdminCampaignsPage() {
               <div className="p-6 space-y-4">
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.ventureLabel")}</label>
-                  <select value={form.venture_id} onChange={e => setForm({ ...form, venture_id: e.target.value })}
+                  <select value={form.venture_id} onChange={event => setForm({ ...form, venture_id: event.target.value })}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60">
                     <option value="">{t("investorAdmin.campaigns.selectVenture")}</option>
-                    {ventures.map(v => (
-                      <option key={v.id} value={v.id}>{v.name} ({v.industry || t("investorAdmin.campaigns.na")})</option>
+                    {ventures.map(venture => (
+                      <option key={venture.id} value={venture.id}>{venture.name} ({venture.industry || t("investorAdmin.campaigns.na")})</option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.campaignNameLabel")}</label>
-                  <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                  <input value={form.name} onChange={event => setForm({ ...form, name: event.target.value })}
                     placeholder={t("investorAdmin.campaigns.campaignNamePlaceholder")}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.targetRaiseLabel")}</label>
-                    <input type="number" value={form.target_raise} onChange={e => setForm({ ...form, target_raise: e.target.value })}
+                    <input type="number" value={form.target_raise} onChange={event => setForm({ ...form, target_raise: event.target.value })}
                       placeholder="250000"
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.minInvestmentLabel")}</label>
-                    <input type="number" value={form.min_investment} onChange={e => setForm({ ...form, min_investment: e.target.value })}
+                    <input type="number" value={form.min_investment} onChange={event => setForm({ ...form, min_investment: event.target.value })}
                       placeholder="25000"
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                   </div>
@@ -241,23 +241,23 @@ export default function AdminCampaignsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.openingDateLabel")}</label>
-                    <input type="date" value={form.opening_date} onChange={e => setForm({ ...form, opening_date: e.target.value })}
+                    <input type="date" value={form.opening_date} onChange={event => setForm({ ...form, opening_date: event.target.value })}
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.closingDateLabel")}</label>
-                    <input type="date" value={form.closing_date} onChange={e => setForm({ ...form, closing_date: e.target.value })}
+                    <input type="date" value={form.closing_date} onChange={event => setForm({ ...form, closing_date: event.target.value })}
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
                   </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.visibilityLabel")}</label>
                   <div className="flex gap-2 mt-1">
-                    {["public", "invite_only", "private"].map(v => (
-                      <button key={v} onClick={() => setForm({ ...form, visibility: v })}
+                    {["public", "invite_only", "private"].map(visibility => (
+                      <button key={visibility} onClick={() => setForm({ ...form, visibility: visibility })}
                         className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${
-                          form.visibility === v ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                        }`}>{t(VIS_LABELS[v])}</button>
+                          form.visibility === visibility ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        }`}>{t(VIS_LABELS[visibility])}</button>
                     ))}
                   </div>
                 </div>
@@ -283,61 +283,61 @@ export default function AdminCampaignsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {campaigns.map(c => {
-              const pct = progressPct(c);
-              const _StatusIcon = STATUS_ICONS[c.status] || Edit3;
+            {campaigns.map(campaign => {
+              const percentage = progressPct(campaign);
+              const _StatusIcon = STATUS_ICONS[campaign.status] || Edit3;
               return (
-                <AppCard key={c.id} padding="md">
+                <AppCard key={campaign.id} padding="md">
                   <div className="space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-black text-[var(--text-primary)]">{c.name}</h4>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[c.status]}`}>
-                            {c.status}
+                          <h4 className="text-sm font-black text-[var(--text-primary)]">{campaign.name}</h4>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[campaign.status]}`}>
+                            {campaign.status}
                           </span>
-                          <span className="text-[10px] text-[var(--text-tertiary)]">{t(VIS_LABELS[c.visibility])}</span>
+                          <span className="text-[10px] text-[var(--text-tertiary)]">{t(VIS_LABELS[campaign.visibility])}</span>
                         </div>
-                        <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{c.venture_name || c.venture_id}{c.industry ? ` · ${c.industry}` : ""}{c.country ? ` · ${c.country}` : ""}</p>
+                        <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{campaign.venture_name || campaign.venture_id}{campaign.industry ? ` · ${campaign.industry}` : ""}{campaign.country ? ` · ${campaign.country}` : ""}</p>
                       </div>
                     </div>
 
                     {/* Progress bar */}
-                    {c.target_raise > 0 && (
+                    {campaign.target_raise > 0 && (
                       <div className="space-y-1">
                         <div className="flex justify-between text-[10px]">
-                          <span className="font-bold text-[var(--text-secondary)]">{t("investorAdmin.campaigns.raisedAmount", { amount: Number(c.current_raised || 0).toLocaleString() })}</span>
-                          <span className="font-black text-[var(--text-primary)]">{t("investorAdmin.campaigns.ofTarget", { pct, amount: Number(c.target_raise).toLocaleString() })}</span>
+                          <span className="font-bold text-[var(--text-secondary)]">{t("investorAdmin.campaigns.raisedAmount", { amount: Number(campaign.current_raised || 0).toLocaleString() })}</span>
+                          <span className="font-black text-[var(--text-primary)]">{t("investorAdmin.campaigns.ofTarget", { pct: percentage, amount: Number(campaign.target_raise).toLocaleString() })}</span>
                         </div>
                         <div className="w-full h-2 bg-[var(--surface-3)] rounded-full overflow-hidden">
-                          <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${percentage}%` }} />
                         </div>
                       </div>
                     )}
 
                     {/* Stats row */}
                     <div className="flex items-center gap-4 text-[10px] text-[var(--text-tertiary)]">
-                      {c.investor_count > 0 && <span className="flex items-center gap-1"><Users className="w-3 h-3"/>{t("investorAdmin.campaigns.investorCount", { count: c.investor_count })}</span>}
-                      {c.active_dd_count > 0 && <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3"/>{t("investorAdmin.campaigns.inDdCount", { count: c.active_dd_count })}</span>}
-                      {c.opening_date && <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/>{new Date(c.opening_date).toLocaleDateString()}</span>}
+                      {campaign.investor_count > 0 && <span className="flex items-center gap-1"><Users className="w-3 h-3"/>{t("investorAdmin.campaigns.investorCount", { count: campaign.investor_count })}</span>}
+                      {campaign.active_dd_count > 0 && <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3"/>{t("investorAdmin.campaigns.inDdCount", { count: campaign.active_dd_count })}</span>}
+                      {campaign.opening_date && <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/>{new Date(campaign.opening_date).toLocaleDateString()}</span>}
                     </div>
 
                     {/* Actions */}
                     <div className="flex gap-2 pt-1">
-                      {c.status === "draft" && (
-                        <AppButton variant="primary" size="sm" icon={Play} onClick={() => handleStatusChange(c.id, "active")}>{t("investorAdmin.campaigns.publish")}</AppButton>
+                      {campaign.status === "draft" && (
+                        <AppButton variant="primary" size="sm" icon={Play} onClick={() => handleStatusChange(campaign.id, "active")}>{t("investorAdmin.campaigns.publish")}</AppButton>
                       )}
-                      {c.status === "active" && (
+                      {campaign.status === "active" && (
                         <>
-                          <AppButton variant="secondary" size="sm" icon={DollarSign} onClick={() => handleUpdateRaised(c.id)}>{t("investorAdmin.campaigns.updateRaised")}</AppButton>
-                          <AppButton variant="secondary" size="sm" icon={Pause} onClick={() => handleStatusChange(c.id, "paused")}>{t("investorAdmin.campaigns.pause")}</AppButton>
-                          <AppButton variant="secondary" size="sm" icon={XCircle} onClick={() => handleStatusChange(c.id, "closed")}>{t("investorAdmin.campaigns.close")}</AppButton>
+                          <AppButton variant="secondary" size="sm" icon={DollarSign} onClick={() => handleUpdateRaised(campaign.id)}>{t("investorAdmin.campaigns.updateRaised")}</AppButton>
+                          <AppButton variant="secondary" size="sm" icon={Pause} onClick={() => handleStatusChange(campaign.id, "paused")}>{t("investorAdmin.campaigns.pause")}</AppButton>
+                          <AppButton variant="secondary" size="sm" icon={XCircle} onClick={() => handleStatusChange(campaign.id, "closed")}>{t("investorAdmin.campaigns.close")}</AppButton>
                         </>
                       )}
-                      {c.status === "paused" && (
+                      {campaign.status === "paused" && (
                         <>
-                          <AppButton variant="primary" size="sm" icon={Play} onClick={() => handleStatusChange(c.id, "active")}>{t("investorAdmin.campaigns.resume")}</AppButton>
-                          <AppButton variant="secondary" size="sm" icon={XCircle} onClick={() => handleStatusChange(c.id, "closed")}>{t("investorAdmin.campaigns.close")}</AppButton>
+                          <AppButton variant="primary" size="sm" icon={Play} onClick={() => handleStatusChange(campaign.id, "active")}>{t("investorAdmin.campaigns.resume")}</AppButton>
+                          <AppButton variant="secondary" size="sm" icon={XCircle} onClick={() => handleStatusChange(campaign.id, "closed")}>{t("investorAdmin.campaigns.close")}</AppButton>
                         </>
                       )}
                     </div>

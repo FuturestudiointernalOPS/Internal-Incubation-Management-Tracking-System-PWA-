@@ -15,7 +15,7 @@ const cn = (...classes) => classes.filter(Boolean).join(" ");
 
 const EMPTY_LIST = [];
 
-const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
+const pickList = (listKey) => (response) => (response?.success ? response[listKey] || [] : []);
 
 /**
  * The rows of the table: every submission of every open run, already carrying the
@@ -25,15 +25,15 @@ const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
  * fetched in sequence just to reach its submissions - with the table on its
  * spinner until the last one answered. The submissions now arrive in one answer.
  */
-const pickResponses = (d) => {
-  if (!d?.success || !Array.isArray(d.submissions)) return EMPTY_LIST;
-  return d.submissions.map((s) => {
-    const scores = s.data?._scores;
+const pickResponses = (response) => {
+  if (!response?.success || !Array.isArray(response.submissions)) return EMPTY_LIST;
+  return response.submissions.map((submission) => {
+    const scores = submission.data?._scores;
     return {
-      ...s,
-      run_name: s.run_name,
-      run_id: s.run_id,
-      form_id: s.form_id,
+      ...submission,
+      run_name: submission.run_name,
+      run_id: submission.run_id,
+      form_id: submission.form_id,
       overall: scores?.overall,
       ranking: scores?.ranking,
     };
@@ -63,17 +63,17 @@ function ResponsesContent() {
     defaultValue: EMPTY_LIST,
     transform: pickList("forms"),
   });
-  const { data: allSubs, loading: subsLoading } = useApi(
+  const { data: allSubmissions, loading: submissionsLoading } = useApi(
     "/api/platform/form-runs?responses=true",
     { defaultValue: EMPTY_LIST, transform: pickResponses },
   );
 
-  const loading = runsLoading || formsLoading || subsLoading;
+  const loading = runsLoading || formsLoading || submissionsLoading;
 
   // The run the address names, when it names one. Its form then decides the form
   // filter, which is what the loader used to do while it fetched that run.
   const selectedRun = runParam
-    ? runs.find((r) => String(r.id) === String(runParam))
+    ? runs.find((run) => String(run.id) === String(runParam))
     : null;
 
   // ── The form on show: what the ADDRESS asks for, or the person's choice ────
@@ -90,9 +90,9 @@ function ResponsesContent() {
   const [formChoice, setFormChoice] = useState({ asked: null, id: null });
   const chosenFormId = formChoice.asked === formAsked ? formChoice.id : null;
   const addressFormId =
-    formAsked && forms.some((f) => String(f.id) === formAsked) ? formAsked : "";
+    formAsked && forms.some((form) => String(form.id) === formAsked) ? formAsked : "";
   const selectedFormId = chosenFormId ?? addressFormId;
-  const selectForm = (id) => setFormChoice({ asked: formAsked, id });
+  const selectForm = (formId) => setFormChoice({ asked: formAsked, id: formId });
 
   // ── The columns of the form on show ─────────────────────────────────────
   const { data: formFields, loading: fieldsLoading } = useApi(
@@ -100,7 +100,7 @@ function ResponsesContent() {
     { defaultValue: EMPTY_LIST, transform: pickList("fields"), deps: [selectedFormId] },
   );
   const shownFields = formFields.filter(
-    (f) => !["hidden"].includes(f.field_type),
+    (formField) => !["hidden"].includes(formField.field_type),
   );
 
   // Which columns are ticked: the person's choice for this form, or the first
@@ -110,74 +110,74 @@ function ResponsesContent() {
   const chosenFieldIds =
     fieldChoices.form === selectedFormId ? fieldChoices.ids : null;
   const visibleFieldIds =
-    chosenFieldIds ?? shownFields.slice(0, 3).map((f) => String(f.id));
+    chosenFieldIds ?? shownFields.slice(0, 3).map((formField) => String(formField.id));
 
   const toggleField = (fieldId) => {
-    const id = String(fieldId);
-    const next = visibleFieldIds.includes(id)
-      ? visibleFieldIds.filter((x) => x !== id)
-      : [...visibleFieldIds, id];
-    setFieldChoices({ form: selectedFormId, ids: next });
+    const normalizedId = String(fieldId);
+    const nextIds = visibleFieldIds.includes(normalizedId)
+      ? visibleFieldIds.filter((visibleId) => visibleId !== normalizedId)
+      : [...visibleFieldIds, normalizedId];
+    setFieldChoices({ form: selectedFormId, ids: nextIds });
   };
 
   // The rows on show. The address can name a single run, in which case only that
   // run's submissions belong here - the answer carries every open run's, so the
   // narrowing is done on the rows rather than by asking differently.
   const formFilteredSubs = useMemo(() => {
-    let subs = allSubs;
+    let submissions = allSubmissions;
     if (runParam) {
-      subs = subs.filter((s) => String(s.run_id) === String(runParam));
+      submissions = submissions.filter((submission) => String(submission.run_id) === String(runParam));
     }
     if (selectedFormId) {
-      subs = subs.filter((s) => String(s.form_id) === String(selectedFormId));
+      submissions = submissions.filter((submission) => String(submission.form_id) === String(selectedFormId));
     }
-    return subs;
-  }, [allSubs, selectedFormId, runParam]);
+    return submissions;
+  }, [allSubmissions, selectedFormId, runParam]);
 
   const filtered = formFilteredSubs
-    .filter(s => {
-      if (statusFilter !== "all" && s.status !== statusFilter) return false;
+    .filter(submission => {
+      if (statusFilter !== "all" && submission.status !== statusFilter) return false;
       if (search) {
-        const q = search.toLowerCase();
-        const name = (s.submitter_name || s.submitter_id || "").toLowerCase();
-        if (name.includes(q)) return true;
-        const dataValues = Object.values(s.data || {}).map(v => typeof v === "string" ? v.toLowerCase() : "").join(" ");
-        return dataValues.includes(q);
+        const query = search.toLowerCase();
+        const name = (submission.submitter_name || submission.submitter_id || "").toLowerCase();
+        if (name.includes(query)) return true;
+        const dataValues = Object.values(submission.data || {}).map(value => typeof value === "string" ? value.toLowerCase() : "").join(" ");
+        return dataValues.includes(query);
       }
       return true;
     })
-    .sort((a, b) => {
-      const ad = a.submitted_at || "";
-      const bd = b.submitted_at || "";
-      return bd > ad ? 1 : bd < ad ? -1 : 0;
+    .sort((first, second) => {
+      const firstDate = first.submitted_at || "";
+      const secondDate = second.submitted_at || "";
+      return secondDate > firstDate ? 1 : secondDate < firstDate ? -1 : 0;
     });
 
-  const subCounts = {
+  const submissionCounts = {
     all: formFilteredSubs.length,
-    submitted: formFilteredSubs.filter(s => s.status === "submitted").length,
-    approved: formFilteredSubs.filter(s => s.status === "approved").length,
-    rejected: formFilteredSubs.filter(s => s.status === "rejected").length,
+    submitted: formFilteredSubs.filter(submission => submission.status === "submitted").length,
+    approved: formFilteredSubs.filter(submission => submission.status === "approved").length,
+    rejected: formFilteredSubs.filter(submission => submission.status === "rejected").length,
   };
 
-  const formName = (formId) => forms.find(f => f.id === formId)?.name || "—";
-  const runName = (runId) => runs.find(r => r.id === runId)?.name || "—";
+  const formName = (formId) => forms.find(form => form.id === formId)?.name || "—";
+  const runName = (runId) => runs.find(run => run.id === runId)?.name || "—";
 
-  const visibleFields = shownFields.filter(f => visibleFieldIds.includes(String(f.id)));
+  const visibleFields = shownFields.filter(formField => visibleFieldIds.includes(String(formField.id)));
 
-  const formatCell = (val) => {
-    if (val === undefined || val === null || val === "") return "—";
-    const s = String(val);
-    if (s.startsWith("{") && s.includes('"code"')) {
-      try { const p = JSON.parse(s); if (p.code && p.number) return `${p.code} ${p.number}`; } catch (_) {}
+  const formatCell = (value) => {
+    if (value === undefined || value === null || value === "") return "—";
+    const text = String(value);
+    if (text.startsWith("{") && text.includes('"code"')) {
+      try { const parsed = JSON.parse(text); if (parsed.code && parsed.number) return `${parsed.code} ${parsed.number}`; } catch (_) {}
     }
-    return s.length > 35 ? s.substring(0, 35) + "..." : s;
+    return text.length > 35 ? text.substring(0, 35) + "..." : text;
   };
 
   const getFieldValue = (submission, field) => {
     return submission.data?.[field.label] ?? submission.data?.[String(field.id)] ?? submission.data?.[field.id];
   };
 
-  const selectedForm = forms.find(f => String(f.id) === String(selectedFormId));
+  const selectedForm = forms.find(form => String(form.id) === String(selectedFormId));
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -196,7 +196,7 @@ function ResponsesContent() {
                   ? t("platformMisc.responses.submissionsForRun", { count: filtered.length, name: runName(Number(runParam)) || "—" })
                   : selectedForm
                     ? t("platformMisc.responses.submissionsForForm", { count: filtered.length, name: selectedForm.name })
-                    : t("platformMisc.responses.submissionsAcrossRuns", { count: allSubs.length, runs: runs.filter(r => !["draft","cancelled"].includes(r.status)).length })}
+                    : t("platformMisc.responses.submissionsAcrossRuns", { count: allSubmissions.length, runs: runs.filter(run => !["draft","cancelled"].includes(run.status)).length })}
               </p>
             </div>
           </div>
@@ -213,12 +213,12 @@ function ResponsesContent() {
               {/* Form selector */}
               <select
                 value={selectedFormId}
-                onChange={e => { selectForm(e.target.value); setStatusFilter("all"); }}
+                onChange={event => { selectForm(event.target.value); setStatusFilter("all"); }}
                 className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
               >
                 <option value="">{t("platformMisc.responses.allForms")}</option>
-                {forms.filter(f => f.status === "published").map(f => (
-                  <option key={f.id} value={f.id}>{f.name}</option>
+                {forms.filter(form => form.status === "published").map(form => (
+                  <option key={form.id} value={form.id}>{form.name}</option>
                 ))}
               </select>
 
@@ -234,21 +234,21 @@ function ResponsesContent() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" />
             <input
               type="text" placeholder={t("platformMisc.responses.searchPlaceholder")} value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={event => setSearch(event.target.value)}
               className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none"
             />
           </div>
 
           {[
-            { id: "all", label: t("platformMisc.responses.filterAll"), count: subCounts.all },
-            { id: "submitted", label: t("platformMisc.responses.filterPending"), count: subCounts.submitted },
-            { id: "approved", label: t("platformMisc.responses.filterApproved"), count: subCounts.approved },
-            { id: "rejected", label: t("platformMisc.responses.filterRejected"), count: subCounts.rejected },
-          ].map(f => (
-            <button key={f.id} onClick={() => setStatusFilter(f.id)}
+            { id: "all", label: t("platformMisc.responses.filterAll"), count: submissionCounts.all },
+            { id: "submitted", label: t("platformMisc.responses.filterPending"), count: submissionCounts.submitted },
+            { id: "approved", label: t("platformMisc.responses.filterApproved"), count: submissionCounts.approved },
+            { id: "rejected", label: t("platformMisc.responses.filterRejected"), count: submissionCounts.rejected },
+          ].map(filterOption => (
+            <button key={filterOption.id} onClick={() => setStatusFilter(filterOption.id)}
               className={cn("px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all",
-                statusFilter === f.id ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>
-              {f.label} ({f.count})
+                statusFilter === filterOption.id ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>
+              {filterOption.label} ({filterOption.count})
             </button>
           ))}
         </div>
@@ -260,28 +260,28 @@ function ResponsesContent() {
               <Filter className="w-3 h-3" /> {t("platformMisc.responses.columns", { visible: visibleFields.length, total: formFields.length })}
             </button>
             {showColumnPicker && (
-              <div className="absolute top-full left-0 mt-1 z-50 w-64 max-h-64 overflow-y-auto rounded-xl bg-secondary border border-[var(--border-primary)] shadow-lg p-2 space-y-1" onClick={e => e.stopPropagation()}>
+              <div className="absolute top-full left-0 mt-1 z-50 w-64 max-h-64 overflow-y-auto rounded-xl bg-secondary border border-[var(--border-primary)] shadow-lg p-2 space-y-1" onClick={event => event.stopPropagation()}>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] px-2 py-1">{t("platformMisc.responses.selectColumns")}</p>
-                {formFields.map(f => (
-                  <label key={f.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-tertiary cursor-pointer">
+                {formFields.map(formField => (
+                  <label key={formField.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-tertiary cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={visibleFieldIds.includes(String(f.id))}
-                      onChange={() => toggleField(f.id)}
+                      checked={visibleFieldIds.includes(String(formField.id))}
+                      onChange={() => toggleField(formField.id)}
                       className="w-3 h-3 rounded accent-[var(--brand-orange)]"
                     />
-                    <span className="text-[10px] font-bold text-[var(--text-primary)] truncate">{f.label}</span>
-                    <span className="text-[10px] font-medium text-[var(--text-secondary)] ml-auto">{f.field_type}</span>
+                    <span className="text-[10px] font-bold text-[var(--text-primary)] truncate">{formField.label}</span>
+                    <span className="text-[10px] font-medium text-[var(--text-secondary)] ml-auto">{formField.field_type}</span>
                   </label>
                 ))}
                 <div className="flex gap-2 px-2 pt-1 border-t border-[var(--border-primary)]">
-                  <button onClick={() => setFieldChoices({ form: selectedFormId, ids: shownFields.slice(0, 3).map(f => String(f.id)) })} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.reset")}</button>
-                  <button onClick={() => setFieldChoices({ form: selectedFormId, ids: shownFields.map(f => String(f.id)) })} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.selectAll")}</button>
+                  <button onClick={() => setFieldChoices({ form: selectedFormId, ids: shownFields.slice(0, 3).map(formField => String(formField.id)) })} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.reset")}</button>
+                  <button onClick={() => setFieldChoices({ form: selectedFormId, ids: shownFields.map(formField => String(formField.id)) })} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.selectAll")}</button>
                   <button onClick={() => setFieldChoices({ form: selectedFormId, ids: [] })} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.clear")}</button>
                 </div>
               </div>
             )}
-            <span>{visibleFields.map(f => f.label).join(" · ") || t("platformMisc.responses.noColumnsSelected")}</span>
+            <span>{visibleFields.map(formField => formField.label).join(" · ") || t("platformMisc.responses.noColumnsSelected")}</span>
           </div>
         )}
         {showColumnPicker && <div className="fixed inset-0 z-40" onClick={() => setShowColumnPicker(false)} />}
@@ -307,9 +307,9 @@ function ResponsesContent() {
                   <th className="px-3 py-3 sticky left-0 bg-secondary z-20">#</th>
                   <th className="px-3 py-3 sticky left-[40px] bg-secondary z-20">{t("platformMisc.responses.applicant")}</th>
                   {/* Dynamic form field columns */}
-                  {selectedFormId && visibleFields.map(f => (
-                    <th key={f.id} className="px-3 py-3 max-w-[130px]" title={f.label}>
-                      <span className="line-clamp-1">{f.label.length > 25 ? f.label.substring(0, 25) + "..." : f.label}</span>
+                  {selectedFormId && visibleFields.map(formField => (
+                    <th key={formField.id} className="px-3 py-3 max-w-[130px]" title={formField.label}>
+                      <span className="line-clamp-1">{formField.label.length > 25 ? formField.label.substring(0, 25) + "..." : formField.label}</span>
                     </th>
                   ))}
                   {!selectedFormId && (
@@ -325,46 +325,46 @@ function ResponsesContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-primary)]">
-                {filtered.map((s, idx) => {
-                  const sc = {
+                {filtered.map((submission, index) => {
+                  const statusClass = {
                     submitted: "text-blue-500 bg-blue-500/10",
                     approved: "text-emerald-500 bg-emerald-500/10",
                     rejected: "text-rose-500 bg-rose-500/10",
                     draft: "text-slate-500 bg-slate-500/10",
                     revision_requested: "text-amber-500 bg-amber-500/10",
-                  }[s.status] || "";
-                  const scoreColor = s.overall >= 80 ? "text-emerald-500" : s.overall >= 60 ? "text-amber-500" : s.overall != null ? "text-rose-500" : "text-[var(--text-secondary)]";
+                  }[submission.status] || "";
+                  const scoreColor = submission.overall >= 80 ? "text-emerald-500" : submission.overall >= 60 ? "text-amber-500" : submission.overall != null ? "text-rose-500" : "text-[var(--text-secondary)]";
                   return (
-                    <tr key={s.id} className="hover:bg-tertiary/30 transition-colors cursor-pointer"
-                      onClick={() => router.push(`/platform/runs/review/${s.id}`)}>
-                      <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] sticky left-0 bg-primary group-hover:bg-tertiary/30">{idx + 1}</td>
+                    <tr key={submission.id} className="hover:bg-tertiary/30 transition-colors cursor-pointer"
+                      onClick={() => router.push(`/platform/runs/review/${submission.id}`)}>
+                      <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] sticky left-0 bg-primary group-hover:bg-tertiary/30">{index + 1}</td>
                       <td className="px-3 py-3 sticky left-[40px] bg-primary group-hover:bg-tertiary/30">
                         <span className="text-xs font-bold text-[var(--text-primary)] whitespace-nowrap">
-                          {s.submitter_name || s.submitter_id || t("platformMisc.responses.anonymous")}
+                          {submission.submitter_name || submission.submitter_id || t("platformMisc.responses.anonymous")}
                         </span>
                       </td>
                       {/* Dynamic cell values */}
-                      {selectedFormId && visibleFields.map(f => (
-                        <td key={f.id} className="px-3 py-3 text-[10px] text-[var(--text-primary)] whitespace-nowrap max-w-[200px] truncate">
-                          {formatCell(getFieldValue(s, f))}
+                      {selectedFormId && visibleFields.map(formField => (
+                        <td key={formField.id} className="px-3 py-3 text-[10px] text-[var(--text-primary)] whitespace-nowrap max-w-[200px] truncate">
+                          {formatCell(getFieldValue(submission, formField))}
                         </td>
                       ))}
                       {!selectedFormId && (
                         <>
-                          <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] hidden md:table-cell">{formName(s.form_id)}</td>
-                          <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] hidden md:table-cell">{runName(s.run_id)}</td>
+                          <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] hidden md:table-cell">{formName(submission.form_id)}</td>
+                          <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] hidden md:table-cell">{runName(submission.run_id)}</td>
                         </>
                       )}
                       <td className="px-3 py-3 text-center">
-                        {s.overall != null ? (
-                          <span className={cn("text-xs font-black", scoreColor)}>{s.overall}%</span>
+                        {submission.overall != null ? (
+                          <span className={cn("text-xs font-black", scoreColor)}>{submission.overall}%</span>
                         ) : <span className="text-[10px] text-[var(--text-secondary)]">—</span>}
                       </td>
                       <td className="px-3 py-3">
-                        <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", sc)}>{s.status}</span>
+                        <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", statusClass)}>{submission.status}</span>
                       </td>
                       <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] hidden lg:table-cell">
-                        {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : "—"}
+                        {submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : "—"}
                       </td>
                       <td className="px-3 py-3">
                         <Eye className="w-3.5 h-3.5 text-[var(--text-secondary)] hover:text-[var(--brand-orange)]" />

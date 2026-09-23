@@ -40,7 +40,7 @@ export default function ContextRolesView() {
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState("");
-  const [msg, setMsg] = useState("");
+  const [message, setMsg] = useState("");
   const [err, setErr] = useState("");
 
   const rowKey = (row) => `${row.context}:${row.role_key}`;
@@ -90,21 +90,21 @@ export default function ContextRolesView() {
   };
 
   const isDirty = (row) => {
-    const d = drafts[rowKey(row)];
-    if (!d) return false;
+    const draft = drafts[rowKey(row)];
+    if (!draft) return false;
     return (
-      d.profile_id !==
+      draft.profile_id !==
         (row.profile_id === null || row.profile_id === undefined
           ? ""
           : String(row.profile_id)) ||
-      d.is_active !== (Number(row.is_active) === 1 || row.is_active === true) ||
-      d.notes !== (row.notes || "")
+      draft.is_active !== (Number(row.is_active) === 1 || row.is_active === true) ||
+      draft.notes !== (row.notes || "")
     );
   };
 
   const save = async (row) => {
-    const d = drafts[rowKey(row)];
-    if (!d) return;
+    const draft = drafts[rowKey(row)];
+    if (!draft) return;
     const key = rowKey(row);
     setBusyKey(key);
     setErr("");
@@ -116,9 +116,9 @@ export default function ContextRolesView() {
         body: JSON.stringify({
           context: row.context,
           role_key: row.role_key,
-          profile_id: d.profile_id === "" ? null : Number(d.profile_id),
-          is_active: d.is_active,
-          notes: d.notes,
+          profile_id: draft.profile_id === "" ? null : Number(draft.profile_id),
+          is_active: draft.is_active,
+          notes: draft.notes,
           reason: reason.trim() || undefined,
         }),
       });
@@ -126,8 +126,8 @@ export default function ContextRolesView() {
       if (!json.success) throw new Error(json.error || "save failed");
       setMsg(t("engineering.permissions.contextRolesSaved"));
       await load();
-    } catch (e) {
-      setErr(e.message || t("engineering.permissions.contextRolesSaveFailed"));
+    } catch (error) {
+      setErr(error.message || t("engineering.permissions.contextRolesSaveFailed"));
     } finally {
       setBusyKey("");
     }
@@ -161,9 +161,9 @@ export default function ContextRolesView() {
           <AlertTriangle className="w-3.5 h-3.5" /> {err}
         </p>
       )}
-      {msg && (
+      {message && (
         <p className="flex items-center gap-2 text-xs font-bold text-green-500">
-          <CheckCircle2 className="w-3.5 h-3.5" /> {msg}
+          <CheckCircle2 className="w-3.5 h-3.5" /> {message}
         </p>
       )}
 
@@ -198,7 +198,7 @@ export default function ContextRolesView() {
           <tbody>
             {roles.map((row) => {
               const key = rowKey(row);
-              const d = drafts[key] || {};
+              const draft = drafts[key] || {};
               const dirty = isDirty(row);
               return (
                 <tr key={key} className="border-b border-[var(--border-primary)]/50 align-top">
@@ -232,18 +232,18 @@ export default function ContextRolesView() {
                   </td>
                   <td className="p-3">
                     <select
-                      value={d.profile_id ?? ""}
-                      onChange={(e) => setDraftField(row, "profile_id", e.target.value)}
+                      value={draft.profile_id ?? ""}
+                      onChange={(event) => setDraftField(row, "profile_id", event.target.value)}
                       className={`w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40 ${
-                        d.profile_id === "" ? "opacity-70" : ""
+                        draft.profile_id === "" ? "opacity-70" : ""
                       }`}
                     >
                       <option value="">
                         {t("engineering.permissions.contextRolesNone")}
                       </option>
-                      {profiles.map((p) => (
-                        <option key={p.id} value={String(p.id)}>
-                          {p.name}
+                      {profiles.map((profile) => (
+                        <option key={profile.id} value={String(profile.id)}>
+                          {profile.name}
                         </option>
                       ))}
                     </select>
@@ -251,15 +251,15 @@ export default function ContextRolesView() {
                   <td className="p-3 text-center">
                     <input
                       type="checkbox"
-                      checked={Boolean(d.is_active)}
-                      onChange={(e) => setDraftField(row, "is_active", e.target.checked)}
+                      checked={Boolean(draft.is_active)}
+                      onChange={(event) => setDraftField(row, "is_active", event.target.checked)}
                       className="accent-[var(--brand-orange)]"
                     />
                   </td>
                   <td className="p-3">
                     <input
-                      value={d.notes || ""}
-                      onChange={(e) => setDraftField(row, "notes", e.target.value)}
+                      value={draft.notes || ""}
+                      onChange={(event) => setDraftField(row, "notes", event.target.value)}
                       className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
                     />
                   </td>
@@ -285,7 +285,7 @@ export default function ContextRolesView() {
       <div className="md:hidden space-y-3">
         {roles.map((row) => {
           const key = rowKey(row);
-          const d = drafts[key] || {};
+          const draft = drafts[key] || {};
           const dirty = isDirty(row);
           return (
             <div
@@ -323,14 +323,14 @@ export default function ContextRolesView() {
                   {t("engineering.permissions.contextRolesProfile")}
                 </span>
                 <select
-                  value={d.profile_id ?? ""}
-                  onChange={(e) => setDraftField(row, "profile_id", e.target.value)}
+                  value={draft.profile_id ?? ""}
+                  onChange={(event) => setDraftField(row, "profile_id", event.target.value)}
                   className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
                 >
                   <option value="">{t("engineering.permissions.contextRolesNone")}</option>
-                  {profiles.map((p) => (
-                    <option key={p.id} value={String(p.id)}>
-                      {p.name}
+                  {profiles.map((profile) => (
+                    <option key={profile.id} value={String(profile.id)}>
+                      {profile.name}
                     </option>
                   ))}
                 </select>
@@ -339,8 +339,8 @@ export default function ContextRolesView() {
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={Boolean(d.is_active)}
-                  onChange={(e) => setDraftField(row, "is_active", e.target.checked)}
+                  checked={Boolean(draft.is_active)}
+                  onChange={(event) => setDraftField(row, "is_active", event.target.checked)}
                   className="accent-[var(--brand-orange)]"
                 />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
@@ -353,8 +353,8 @@ export default function ContextRolesView() {
                   {t("engineering.permissions.contextRolesNotes")}
                 </span>
                 <input
-                  value={d.notes || ""}
-                  onChange={(e) => setDraftField(row, "notes", e.target.value)}
+                  value={draft.notes || ""}
+                  onChange={(event) => setDraftField(row, "notes", event.target.value)}
                   className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
                 />
               </label>
@@ -379,7 +379,7 @@ export default function ContextRolesView() {
 
       <input
         value={reason}
-        onChange={(e) => setReason(e.target.value)}
+        onChange={(event) => setReason(event.target.value)}
         placeholder={t("engineering.permissions.contextRolesReasonPlaceholder")}
         className="w-full max-w-xl rounded-lg border border-[var(--border-primary)] bg-surface-1 px-3 py-2 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] placeholder:opacity-60 focus:outline-none focus:border-[var(--brand-orange)]"
       />

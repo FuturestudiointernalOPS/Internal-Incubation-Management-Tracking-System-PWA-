@@ -55,9 +55,9 @@ const ITEM_STATUS_CONFIG = {
 // Documents are private: prefer the short-lived signed URL minted by the read
 // path, and fall back to the raw value only when it is an external link
 // (pasted links carry no storage path and need no signature).
-const documentHref = (doc) => {
-  if (doc?.file_url_signed) return doc.file_url_signed;
-  const raw = String(doc?.file_url || "").trim();
+const documentHref = (documentEntry) => {
+  if (documentEntry?.file_url_signed) return documentEntry.file_url_signed;
+  const raw = String(documentEntry?.file_url || "").trim();
   return /^https?:\/\//i.test(raw) ? raw : null;
 };
 
@@ -115,8 +115,8 @@ export default function VentureVerificationPage() {
       // fresh snapshots; mutation flows pass bypassCache=true so the data
       // always reflects the last action.
       if (!bypassCache) {
-        const cached = urls.map((u) => cacheGet(u));
-        if (cached.every((c) => c !== null && c.success)) {
+        const cached = urls.map((url) => cacheGet(url));
+        if (cached.every((snapshot) => snapshot !== null && snapshot.success)) {
           apply(cached[0], cached[1]);
           setLoading(false);
           painted = true;
@@ -128,8 +128,8 @@ export default function VentureVerificationPage() {
       if (vData.success) cacheSet(urls[0], vData);
       if (verData.success) cacheSet(urls[1], verData);
       apply(vData, verData);
-    } catch (e) {
-      if (!painted) setError(t(e.message || "") || e.message);
+    } catch (error) {
+      if (!painted) setError(t(error.message || "") || error.message);
     } finally {
       setLoading(false);
     }
@@ -143,23 +143,23 @@ export default function VentureVerificationPage() {
   }, [fetchData]);
 
   const getStatusBadge = (status) => {
-    const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.draft;
+    const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.draft;
     return (
-      <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${cfg.color} flex items-center gap-1.5 w-fit`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-        {t(cfg.label)}
+      <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${statusConfig.color} flex items-center gap-1.5 w-fit`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
+        {t(statusConfig.label)}
       </span>
     );
   };
 
   const getItemStatusBadge = (status) => {
-    const cfg = ITEM_STATUS_CONFIG[status] || ITEM_STATUS_CONFIG.pending;
-    return <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${cfg.color}`}>{t(cfg.label)}</span>;
+    const itemStatusConfig = ITEM_STATUS_CONFIG[status] || ITEM_STATUS_CONFIG.pending;
+    return <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${itemStatusConfig.color}`}>{t(itemStatusConfig.label)}</span>;
   };
 
   const handleUpload = async (category, file) => {
     if (!file) return;
-    setUploading((p) => ({ ...p, [category]: true }));
+    setUploading((previous) => ({ ...previous, [category]: true }));
     try {
       // Documents live in a PRIVATE bucket: the multipart upload returns the
       // storage PATH (never a public URL) for upload_document to record; the
@@ -193,10 +193,10 @@ export default function VentureVerificationPage() {
 
       notify(t("vadmin.verification.documentUploaded"));
       fetchData(true);
-    } catch (e) {
-      notify(e?.message || t("vadmin.verification.uploadFailed"), "error");
+    } catch (error) {
+      notify(error?.message || t("vadmin.verification.uploadFailed"), "error");
     } finally {
-      setUploading((p) => ({ ...p, [category]: false }));
+      setUploading((previous) => ({ ...previous, [category]: false }));
     }
   };
 
@@ -211,11 +211,11 @@ export default function VentureVerificationPage() {
 
   const handleSubmit = async () => {
     try {
-      const res = await fetch(`/api/ventures/${id}/verification`, {
+      const response = await fetch(`/api/ventures/${id}/verification`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "submit" }),
       });
-      const result = await res.json();
+      const result = await response.json();
       if (result.success) { notify(t("vadmin.verification.submittedForReview")); fetchData(true); }
       else { notify(t((result.error || t("vadmin.verification.submissionFailed")) || "") || (result.error || t("vadmin.verification.submissionFailed")), "error"); }
     } catch { notify(t("vadmin.verification.networkError"), "error"); }
@@ -223,11 +223,11 @@ export default function VentureVerificationPage() {
 
   const handleResubmit = async () => {
     try {
-      const res = await fetch(`/api/ventures/${id}/verification`, {
+      const response = await fetch(`/api/ventures/${id}/verification`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "resubmit" }),
       });
-      const result = await res.json();
+      const result = await response.json();
       if (result.success) { notify(t("vadmin.verification.resubmitted")); fetchData(true); }
       else { notify(t((result.error || t("vadmin.verification.resubmissionFailed")) || "") || (result.error || t("vadmin.verification.resubmissionFailed")), "error"); }
     } catch { notify(t("vadmin.verification.networkError"), "error"); }
@@ -236,11 +236,11 @@ export default function VentureVerificationPage() {
   const handleReview = async () => {
     setReviewing(true);
     try {
-      const res = await fetch(`/api/ventures/${id}/verification/status`, {
+      const response = await fetch(`/api/ventures/${id}/verification/status`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: reviewDecision, notes: reviewNotes }),
       });
-      const result = await res.json();
+      const result = await response.json();
       if (result.success) {
         notify(`Verification ${reviewDecision}`);
         setShowReviewModal(false);
@@ -289,8 +289,8 @@ export default function VentureVerificationPage() {
   const history = data?.history || [];
   const comments = data?.comments || [];
 
-  const getDocsForCategory = (cat) => documents.filter((d) => d.category === cat);
-  const getItemForCategory = (cat) => items.find((i) => i.category === cat);
+  const getDocsForCategory = (category) => documents.filter((payload) => payload.category === category);
+  const getItemForCategory = (category) => items.find((item) => item.category === category);
 
   return (
     <>
@@ -359,21 +359,21 @@ export default function VentureVerificationPage() {
                   {/* Uploaded documents */}
                   {stepDocs.length > 0 && (
                     <div className="space-y-1.5 mb-3">
-                      {stepDocs.map((doc) => {
-                        const href = documentHref(doc);
+                      {stepDocs.map((documentEntry) => {
+                        const href = documentHref(documentEntry);
                         return (
-                        <div key={doc.id} className="flex items-center justify-between p-2 bg-primary rounded-lg border border-[var(--border-primary)]">
+                        <div key={documentEntry.id} className="flex items-center justify-between p-2 bg-primary rounded-lg border border-[var(--border-primary)]">
                           <div className="flex items-center gap-2 min-w-0">
                             <FileText className="w-3 h-3 text-[var(--brand-orange)] shrink-0" />
-                            <span className="text-[10px] font-bold text-[var(--text-primary)] truncate">{doc.file_name}</span>
-                            {doc.file_size && <span className="text-[10px] text-[var(--text-secondary)]">({(doc.file_size / 1024).toFixed(0)} KB)</span>}
+                            <span className="text-[10px] font-bold text-[var(--text-primary)] truncate">{documentEntry.file_name}</span>
+                            {documentEntry.file_size && <span className="text-[10px] text-[var(--text-secondary)]">({(documentEntry.file_size / 1024).toFixed(0)} KB)</span>}
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             {href && (
                               <a href={href} target="_blank" rel="noreferrer" title={t("common.view")}
                                 className="p-1 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/10 rounded"><Download className="w-3 h-3" /></a>
                             )}
-                            <button onClick={() => handleDeleteDoc(doc.id)} className="p-1 text-rose-500 hover:bg-rose-500/10 rounded shrink-0"><Trash2 className="w-3 h-3" /></button>
+                            <button onClick={() => handleDeleteDoc(documentEntry.id)} className="p-1 text-rose-500 hover:bg-rose-500/10 rounded shrink-0"><Trash2 className="w-3 h-3" /></button>
                           </div>
                         </div>
                         );
@@ -388,7 +388,7 @@ export default function VentureVerificationPage() {
                       {isUploading ? t("vadmin.verification.uploading") : t("vadmin.verification.upload")}
                       <input type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" className="hidden"
                         disabled={isUploading}
-                        onChange={(e) => { if (e.target.files[0]) handleUpload(step.key, e.target.files[0]); e.target.value = ""; }}
+                        onChange={(event) => { if (event.target.files[0]) handleUpload(step.key, event.target.files[0]); event.target.value = ""; }}
                       />
                     </label>
                   )}
@@ -426,8 +426,8 @@ export default function VentureVerificationPage() {
           <div className="card">
             <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">{t("vadmin.verification.activityTimeline")}</h3>
             <div className="space-y-3">
-              {history.map((entry, i) => (
-                <div key={entry.id || i} className="flex items-start gap-4 p-3 rounded-lg bg-tertiary border border-[var(--border-primary)]">
+              {history.map((entry, index) => (
+                <div key={entry.id || index} className="flex items-start gap-4 p-3 rounded-lg bg-tertiary border border-[var(--border-primary)]">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                     entry.action.includes("APPROVED") || entry.action.includes("VERIFIED") ? "bg-emerald-500/10 text-emerald-500" :
                     entry.action.includes("REJECTED") || entry.action.includes("SUSPENDED") ? "bg-rose-500/10 text-rose-500" :
@@ -459,19 +459,19 @@ export default function VentureVerificationPage() {
           </h3>
           {comments.length === 0 && <p className="text-sm text-[var(--text-secondary)] mb-4">{t("vadmin.verification.noCommentsYet")}</p>}
           <div className="space-y-3 mb-4">
-            {comments.map((c, i) => (
-              <div key={c.id || i} className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+            {comments.map((comment, index) => (
+              <div key={comment.id || index} className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-bold text-[var(--text-primary)]">{c.author_name || c.author_cid}</span>
-                  <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-500">{c.author_type}</span>
-                  <span className="text-[10px] text-[var(--text-secondary)] ml-auto">{new Date(c.created_at).toLocaleString()}</span>
+                  <span className="text-[10px] font-bold text-[var(--text-primary)]">{comment.author_name || comment.author_cid}</span>
+                  <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-500">{comment.author_type}</span>
+                  <span className="text-[10px] text-[var(--text-secondary)] ml-auto">{new Date(comment.created_at).toLocaleString()}</span>
                 </div>
-                <p className="text-[10px] text-[var(--text-secondary)]">{c.message}</p>
+                <p className="text-[10px] text-[var(--text-secondary)]">{comment.message}</p>
               </div>
             ))}
           </div>
           <div className="flex gap-3">
-            <input type="text" value={comment} onChange={(e) => setComment(e.target.value)}
+            <input type="text" value={comment} onChange={(event) => setComment(event.target.value)}
               placeholder={t("vadmin.verification.addCommentPlaceholder")}
               className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
             />
@@ -509,21 +509,21 @@ export default function VentureVerificationPage() {
                     { value: "verified", label: "vadmin.verification.approve", icon: CheckCircle2, color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20" },
                     { value: "rejected", label: "vadmin.verification.reject", icon: X, color: "bg-rose-500/10 text-rose-500 border-rose-500/30 hover:bg-rose-500/20" },
                     { value: "suspended", label: "vadmin.verification.suspend", icon: AlertTriangle, color: "bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20" },
-                  ].map((opt) => (
-                    <button key={opt.value}
-                      onClick={() => setReviewDecision(opt.value)}
+                  ].map((decisionOption) => (
+                    <button key={decisionOption.value}
+                      onClick={() => setReviewDecision(decisionOption.value)}
                       className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-[10px] font-bold uppercase tracking-wider ${
-                        reviewDecision === opt.value ? `${opt.color} ring-2 ring-offset-1` : "bg-primary border-[var(--border-primary)] text-slate-500 hover:border-slate-500/30"
+                        reviewDecision === decisionOption.value ? `${decisionOption.color} ring-2 ring-offset-1` : "bg-primary border-[var(--border-primary)] text-slate-500 hover:border-slate-500/30"
                       }`}>
-                      <opt.icon className="w-5 h-5" />
-                      {t(opt.label)}
+                      <decisionOption.icon className="w-5 h-5" />
+                      {t(decisionOption.label)}
                     </button>
                   ))}
                 </div>
               </div>
               <div>
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">{t("vadmin.verification.notesOptional")}</label>
-                <textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)}
+                <textarea value={reviewNotes} onChange={(event) => setReviewNotes(event.target.value)}
                   rows={3} placeholder={t("vadmin.verification.reviewNotesPlaceholder")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
                 />

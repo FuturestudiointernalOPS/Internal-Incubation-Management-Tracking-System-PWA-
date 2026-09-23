@@ -16,9 +16,9 @@ import { useDialogs } from "@/components/ui/DialogProvider";
 
 const EMPTY_TASKS = { list: [], byStatus: {} };
 
-const pickVenture = (d) => (d?.success ? d.venture || null : null);
-const pickTasks = (d) =>
-  d?.success ? { list: d.tasks || [], byStatus: d.by_status || {} } : EMPTY_TASKS;
+const pickVenture = (payload) => (payload?.success ? payload.venture || null : null);
+const pickTasks = (payload) =>
+  payload?.success ? { list: payload.tasks || [], byStatus: payload.by_status || {} } : EMPTY_TASKS;
 import { useI18n } from "@/lib/i18n";
 
 const STATUS_ORDER = ["backlog", "todo", "in_progress", "review", "done", "blocked", "cancelled"];
@@ -103,9 +103,9 @@ export default function VentureTasksPage() {
     setShowDrawer(true);
     setShowComments(false);
     try {
-      const res = await fetch(`/api/ventures/${id}/tasks?id=${task.id}&action=get_comments`, { method: "PATCH" });
-      const d = await res.json();
-      if (d.success) setComments(d.comments || []);
+      const response = await fetch(`/api/ventures/${id}/tasks?id=${task.id}&action=get_comments`, { method: "PATCH" });
+      const payload = await response.json();
+      if (payload.success) setComments(payload.comments || []);
     } catch {}
   };
 
@@ -124,30 +124,30 @@ export default function VentureTasksPage() {
     if (!(await confirm({ message: t("vadmin.tasks.duplicateConfirm", { name: task.title }) }))) return;
     setDupBusy(task.id);
     try {
-      const res = await fetch(`/api/ventures/${id}/tasks/duplicate`, {
+      const response = await fetch(`/api/ventures/${id}/tasks/duplicate`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ task_id: task.id }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) { notify(t("vadmin.tasks.duplicateSuccess")); reload(); }
       else notify(data.error || t("venture.manager.duplicateStageFailed"), "error");
     } catch { notify(t("venture.manager.duplicateStageFailed"), "error"); }
     setDupBusy(null);
   };
 
-  const handleDragStart = (e, taskId) => {
-    e.dataTransfer.setData("taskId", taskId);
+  const handleDragStart = (event, taskId) => {
+    event.dataTransfer.setData("taskId", taskId);
   };
 
-  const handleDrop = (e, status) => {
-    e.preventDefault();
+  const handleDrop = (event, status) => {
+    event.preventDefault();
     setDragOver(null);
-    const taskId = e.dataTransfer.getData("taskId");
+    const taskId = event.dataTransfer.getData("taskId");
     if (taskId) updateTaskStatus(parseInt(taskId), status);
   };
 
-  const handleDragOver = (e, status) => {
-    e.preventDefault();
+  const handleDragOver = (event, status) => {
+    event.preventDefault();
     setDragOver(status);
   };
 
@@ -183,9 +183,9 @@ export default function VentureTasksPage() {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: commentText.trim() }),
       });
       setCommentText("");
-      const res = await fetch(`/api/ventures/${id}/tasks?id=${selectedTask.id}&action=get_comments`, { method: "PATCH" });
-      const d = await res.json();
-      if (d.success) setComments(d.comments || []);
+      const response = await fetch(`/api/ventures/${id}/tasks?id=${selectedTask.id}&action=get_comments`, { method: "PATCH" });
+      const payload = await response.json();
+      if (payload.success) setComments(payload.comments || []);
     } catch { notify("Failed to add comment", "error"); }
   };
 
@@ -199,20 +199,20 @@ export default function VentureTasksPage() {
     if (!ids.length) return;
     setArchBusy(true);
     try {
-      const res = await fetch(`/api/ventures/${id}/tasks/archive`, {
+      const response = await fetch(`/api/ventures/${id}/tasks/archive`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids, action }),
       });
-      const d = await res.json();
-      if (d.success) {
-        const done = action === "restore" ? d.restored || [] : d.archived || [];
-        const blocked = d.blocked || [];
+      const payload = await response.json();
+      if (payload.success) {
+        const done = action === "restore" ? payload.restored || [] : payload.archived || [];
+        const blocked = payload.blocked || [];
         const parts = [];
         if (done.length) parts.push(action === "restore" ? t("vadmin.tasks.restoredOk", { n: done.length }) : t("vadmin.tasks.archivedOk", { n: done.length }));
         if (blocked.length) parts.push(blocked[0]?.reason || t("vadmin.tasks.blockedMsg", { n: blocked.length }));
         showArchMsg(parts.join(" — ") || t("vadmin.tasks.archivedOk", { n: 0 }), blocked.length && !done.length ? "error" : "success");
       } else {
-        showArchMsg(d.error || t("venture.manager.duplicateStageFailed"), "error");
+        showArchMsg(payload.error || t("venture.manager.duplicateStageFailed"), "error");
       }
     } catch {
       showArchMsg(t("venture.manager.duplicateStageFailed"), "error");
@@ -230,18 +230,18 @@ export default function VentureTasksPage() {
     runArchive([String(task.id)], "restore");
   };
 
-  const activeTasks = tasks.filter((t) => t.is_archived !== true);
-  const archivedTasks = tasks.filter((t) => t.is_archived === true);
+  const activeTasks = tasks.filter((task) => task.is_archived !== true);
+  const archivedTasks = tasks.filter((task) => task.is_archived === true);
 
-  const filteredTasks = (viewArchived ? archivedTasks : activeTasks).filter((t) => {
+  const filteredTasks = (viewArchived ? archivedTasks : activeTasks).filter((task) => {
     if (!search) return true;
-    const q = search.toLowerCase();
-    return t.title?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q) || t.assigned_name?.toLowerCase().includes(q);
+    const query = search.toLowerCase();
+    return task.title?.toLowerCase().includes(query) || task.description?.toLowerCase().includes(query) || task.assigned_name?.toLowerCase().includes(query);
   });
 
   const filteredByStatus = {};
   if (search) {
-    for (const s of STATUS_ORDER) filteredByStatus[s] = filteredTasks.filter((t) => t.status === s);
+    for (const status of STATUS_ORDER) filteredByStatus[status] = filteredTasks.filter((task) => task.status === status);
   }
 
   const displayByStatus = search ? filteredByStatus : byStatus;
@@ -253,7 +253,7 @@ export default function VentureTasksPage() {
   );
 
   const totalTasks = activeTasks.length;
-  const doneTasks = activeTasks.filter((t) => t.status === "done").length;
+  const doneTasks = activeTasks.filter((task) => task.status === "done").length;
 
   return (
     <>
@@ -287,7 +287,7 @@ export default function VentureTasksPage() {
               </button>
             </div>
             <div className="relative">
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks..." className="w-40 bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] placeholder:text-slate-600" />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks..." className="w-40 bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] placeholder:text-slate-600" />
             </div>
             <button onClick={() => { setEditTask(null); setTForm({ title: "", description: "", priority: "medium", status: "todo", due_date: "", estimated_hours: "", assigned_cid: "", assigned_name: "", labels: [], milestone_id: "" }); setShowTaskModal(true); }}
               className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2">
@@ -345,18 +345,18 @@ export default function VentureTasksPage() {
         {view === "kanban" && (
           <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "60vh" }}>
             {STATUS_ORDER.map((status) => {
-              const cfg = STATUS_CFG[status];
+              const statusConfig = STATUS_CFG[status];
               const items = displayByStatus[status] || [];
               return (
                 <div key={status} className="flex-shrink-0 w-64"
-                  onDragOver={(e) => handleDragOver(e, status)}
+                  onDragOver={(event) => handleDragOver(event, status)}
                   onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, status)}>
+                  onDrop={(event) => handleDrop(event, status)}>
                   <div className={`rounded-2xl border ${dragOver === status ? "border-[var(--brand-orange)] bg-[var(--brand-orange)]/5" : "border-[var(--border-primary)] bg-tertiary"}`}>
                     <div className="flex items-center justify-between p-3 border-b border-[var(--border-primary)]">
                       <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">{cfg.label}</span>
+                        <span className={`w-2 h-2 rounded-full ${statusConfig.dot}`} />
+                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">{statusConfig.label}</span>
                       </div>
                       <span className="text-[8px] font-bold text-slate-500 bg-primary px-1.5 py-0.5 rounded">{items.length}</span>
                     </div>
@@ -367,7 +367,7 @@ export default function VentureTasksPage() {
                         </div>
                       )}
                       {items.map((task) => (
-                        <div key={task.id} draggable onDragStart={(e) => handleDragStart(e, task.id)}
+                        <div key={task.id} draggable onDragStart={(event) => handleDragStart(event, task.id)}
                           onClick={() => openTask(task)}
                           className="p-3 rounded-xl bg-primary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all group">
                           <div className="flex items-start justify-between gap-2">
@@ -380,12 +380,12 @@ export default function VentureTasksPage() {
                           <div className="flex items-center gap-2 mt-2 text-[7px] text-slate-600">
                             {task.assigned_name && <span className="flex items-center gap-1"><User className="w-2.5 h-2.5" />{task.assigned_name}</span>}
                             {task.due_date && <span className="flex items-center gap-1"><Calendar className="w-2.5 h-2.5" />{new Date(task.due_date).toLocaleDateString()}</span>}
-                            <button onClick={(e) => { e.stopPropagation(); archiveOne(task); }} disabled={archBusy}
+                            <button onClick={(event) => { event.stopPropagation(); archiveOne(task); }} disabled={archBusy}
                               title={t("vadmin.tasks.archive")}
                               className="p-1 text-slate-500 hover:text-amber-400 rounded disabled:opacity-40">
                               {archBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Archive className="w-3 h-3" />}
                             </button>
-                            <button onClick={(e) => { e.stopPropagation(); duplicateTask(task); }} disabled={dupBusy === task.id}
+                            <button onClick={(event) => { event.stopPropagation(); duplicateTask(task); }} disabled={dupBusy === task.id}
                               title={t("vadmin.tasks.duplicate")}
                               className="ml-auto p-1 text-slate-500 hover:text-sky-300 rounded disabled:opacity-40">
                               {dupBusy === task.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CopyPlus className="w-3 h-3" />}
@@ -394,7 +394,7 @@ export default function VentureTasksPage() {
                           {(task.checklist || []).length > 0 && (
                             <div className="mt-2">
                               <div className="w-full bg-tertiary rounded-full h-1 overflow-hidden">
-                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.round((task.checklist.filter((c) => c.done).length / task.checklist.length) * 100)}%` }} />
+                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.round((task.checklist.filter((checklistItem) => checklistItem.done).length / task.checklist.length) * 100)}%` }} />
                               </div>
                             </div>
                           )}
@@ -415,11 +415,11 @@ export default function VentureTasksPage() {
               <div className="text-center py-16"><CheckCircle2 className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">No tasks found</p></div>
             ) : (
               filteredTasks.map((task) => {
-                const sc = STATUS_CFG[task.status];
+                const statusConfig = STATUS_CFG[task.status];
                 return (
                   <div key={task.id} onClick={() => openTask(task)}
                     className="flex items-center gap-4 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all">
-                    <span className={`w-2 h-2 rounded-full ${sc.dot} shrink-0`} />
+                    <span className={`w-2 h-2 rounded-full ${statusConfig.dot} shrink-0`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-[var(--text-primary)] truncate">{task.title}</p>
                       <div className="flex items-center gap-3 mt-1 text-[8px] text-slate-500">
@@ -429,17 +429,17 @@ export default function VentureTasksPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button onClick={(e) => { e.stopPropagation(); archiveOne(task); }} disabled={archBusy}
+                      <button onClick={(event) => { event.stopPropagation(); archiveOne(task); }} disabled={archBusy}
                         title={t("vadmin.tasks.archive")}
                         className="p-1.5 text-slate-500 hover:text-amber-400 rounded-lg disabled:opacity-40">
                         {archBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Archive className="w-3.5 h-3.5" />}
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); duplicateTask(task); }} disabled={dupBusy === task.id}
+                      <button onClick={(event) => { event.stopPropagation(); duplicateTask(task); }} disabled={dupBusy === task.id}
                         title={t("vadmin.tasks.duplicate")}
                         className="p-1.5 text-slate-500 hover:text-sky-300 rounded-lg disabled:opacity-40">
                         {dupBusy === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CopyPlus className="w-3.5 h-3.5" />}
                       </button>
-                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${sc.color}`}>{sc.label}</span>
+                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${statusConfig.color}`}>{statusConfig.label}</span>
                       {task.due_date && <span className="text-[8px] text-slate-500">{new Date(task.due_date).toLocaleDateString()}</span>}
                     </div>
                   </div>
@@ -465,13 +465,13 @@ export default function VentureTasksPage() {
 
               {/* Status + Priority */}
               <div className="flex gap-3">
-                <select value={selectedTask.status} onChange={(e) => { updateTaskStatus(selectedTask.id, e.target.value); setSelectedTask((p) => ({ ...p, status: e.target.value })); }}
+                <select value={selectedTask.status} onChange={(event) => { updateTaskStatus(selectedTask.id, event.target.value); setSelectedTask((previous) => ({ ...previous, status: event.target.value })); }}
                   className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[9px] font-bold text-[var(--text-primary)] outline-none flex-1">
-                  {STATUS_ORDER.map((s) => <option key={s} value={s}>{(STATUS_CFG[s]?.label || s)}</option>)}
+                  {STATUS_ORDER.map((status) => <option key={status} value={status}>{(STATUS_CFG[status]?.label || status)}</option>)}
                 </select>
-                <select value={selectedTask.priority} onChange={(e) => { setSelectedTask((p) => ({ ...p, priority: e.target.value })); fetch(`/api/ventures/${id}/tasks?id=${selectedTask.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ priority: e.target.value }) }); }}
+                <select value={selectedTask.priority} onChange={(event) => { setSelectedTask((previous) => ({ ...previous, priority: event.target.value })); fetch(`/api/ventures/${id}/tasks?id=${selectedTask.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ priority: event.target.value }) }); }}
                   className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[9px] font-bold text-[var(--text-primary)] outline-none">
-                  {["low", "medium", "high", "critical"].map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                  {["low", "medium", "high", "critical"].map((priority) => <option key={priority} value={priority}>{priority.charAt(0).toUpperCase() + priority.slice(1)}</option>)}
                 </select>
               </div>
 
@@ -501,7 +501,7 @@ export default function VentureTasksPage() {
                   <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">Labels</p>
                   <div className="flex gap-1 mt-0.5 flex-wrap">
                     {(selectedTask.labels || []).length === 0 ? <span className="text-[9px] text-slate-500">—</span> :
-                      selectedTask.labels.map((l, i) => <span key={i} className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">{l}</span>)
+                      selectedTask.labels.map((label, index) => <span key={index} className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">{label}</span>)
                     }
                   </div>
                 </div>
@@ -511,18 +511,18 @@ export default function VentureTasksPage() {
               {(selectedTask.checklist || []).length > 0 && (
                 <div>
                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                    Checklist ({selectedTask.checklist.filter((c) => c.done).length}/{selectedTask.checklist.length})
+                    Checklist ({selectedTask.checklist.filter((checklistItem) => checklistItem.done).length}/{selectedTask.checklist.length})
                   </p>
                   <div className="space-y-1">
-                    {selectedTask.checklist.map((item, i) => (
-                      <label key={i} className="flex items-center gap-2 p-2 rounded-lg hover:bg-primary cursor-pointer">
-                        <input type="checkbox" checked={item.done} onChange={async () => {
+                    {selectedTask.checklist.map((checklistItem, index) => (
+                      <label key={index} className="flex items-center gap-2 p-2 rounded-lg hover:bg-primary cursor-pointer">
+                        <input type="checkbox" checked={checklistItem.done} onChange={async () => {
                           const updated = [...selectedTask.checklist];
-                          updated[i] = { ...updated[i], done: !updated[i].done };
-                          setSelectedTask((p) => ({ ...p, checklist: updated }));
+                          updated[index] = { ...updated[index], done: !updated[index].done };
+                          setSelectedTask((previous) => ({ ...previous, checklist: updated }));
                           await fetch(`/api/ventures/${id}/tasks?id=${selectedTask.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checklist: updated }) });
                         }} className="rounded border-slate-600 text-[var(--brand-orange)]" />
-                        <span className={`text-[10px] font-bold ${item.done ? "text-slate-500 line-through" : "text-[var(--text-primary)]"}`}>{item.text}</span>
+                        <span className={`text-[10px] font-bold ${checklistItem.done ? "text-slate-500 line-through" : "text-[var(--text-primary)]"}`}>{checklistItem.text}</span>
                       </label>
                     ))}
                   </div>
@@ -540,17 +540,17 @@ export default function VentureTasksPage() {
                 {showComments && (
                   <div className="space-y-3">
                     {comments.length === 0 && <p className="text-sm text-[var(--text-secondary)]">No comments</p>}
-                    {comments.map((c) => (
-                      <div key={c.id} className="p-3 bg-primary rounded-xl border border-[var(--border-primary)]">
+                    {comments.map((comment) => (
+                      <div key={comment.id} className="p-3 bg-primary rounded-xl border border-[var(--border-primary)]">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[9px] font-bold text-[var(--text-primary)]">{c.author_name || c.author_cid}</span>
-                          <span className="text-[10px] text-[var(--text-secondary)]">{new Date(c.created_at).toLocaleString()}</span>
+                          <span className="text-[9px] font-bold text-[var(--text-primary)]">{comment.author_name || comment.author_cid}</span>
+                          <span className="text-[10px] text-[var(--text-secondary)]">{new Date(comment.created_at).toLocaleString()}</span>
                         </div>
-                        <p className="text-[10px] text-[var(--text-secondary)]">{c.body}</p>
+                        <p className="text-[10px] text-[var(--text-secondary)]">{comment.body}</p>
                       </div>
                     ))}
                     <div className="flex gap-2">
-                      <input value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Add a comment..."
+                      <input value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder="Add a comment..."
                         className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
                       <button onClick={addComment} disabled={!commentText.trim()}
                         className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 disabled:opacity-30">Send</button>
@@ -579,25 +579,25 @@ export default function VentureTasksPage() {
             <div className="space-y-4">
               <div>
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Title *</label>
-                <input value={tForm.title} onChange={(e) => setTForm((p) => ({ ...p, title: e.target.value }))} placeholder="What needs to be done?"
+                <input value={tForm.title} onChange={(event) => setTForm((previous) => ({ ...previous, title: event.target.value }))} placeholder="What needs to be done?"
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
               </div>
               <div>
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Description</label>
-                <textarea value={tForm.description} onChange={(e) => setTForm((p) => ({ ...p, description: e.target.value }))} rows={2}
+                <textarea value={tForm.description} onChange={(event) => setTForm((previous) => ({ ...previous, description: event.target.value }))} rows={2}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Status</label>
-                  <select value={tForm.status} onChange={(e) => setTForm((p) => ({ ...p, status: e.target.value }))}
+                  <select value={tForm.status} onChange={(event) => setTForm((previous) => ({ ...previous, status: event.target.value }))}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
-                    {STATUS_ORDER.map((s) => <option key={s} value={s}>{STATUS_CFG[s]?.label || s}</option>)}
+                    {STATUS_ORDER.map((status) => <option key={status} value={status}>{STATUS_CFG[status]?.label || status}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Priority</label>
-                  <select value={tForm.priority} onChange={(e) => setTForm((p) => ({ ...p, priority: e.target.value }))}
+                  <select value={tForm.priority} onChange={(event) => setTForm((previous) => ({ ...previous, priority: event.target.value }))}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
                     <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option>
                   </select>
@@ -606,18 +606,18 @@ export default function VentureTasksPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Due Date</label>
-                  <input type="date" value={tForm.due_date} onChange={(e) => setTForm((p) => ({ ...p, due_date: e.target.value }))}
+                  <input type="date" value={tForm.due_date} onChange={(event) => setTForm((previous) => ({ ...previous, due_date: event.target.value }))}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Est. Hours</label>
-                  <input type="number" value={tForm.estimated_hours} onChange={(e) => setTForm((p) => ({ ...p, estimated_hours: e.target.value }))} placeholder="e.g., 4"
+                  <input type="number" value={tForm.estimated_hours} onChange={(event) => setTForm((previous) => ({ ...previous, estimated_hours: event.target.value }))} placeholder="e.g., 4"
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
               </div>
               <div>
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Assignee</label>
-                <input value={tForm.assigned_name} onChange={(e) => setTForm((p) => ({ ...p, assigned_name: e.target.value, assigned_cid: e.target.value }))} placeholder="Team member name"
+                <input value={tForm.assigned_name} onChange={(event) => setTForm((previous) => ({ ...previous, assigned_name: event.target.value, assigned_cid: event.target.value }))} placeholder="Team member name"
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
               </div>
             </div>

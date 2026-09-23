@@ -18,8 +18,8 @@ export default function PermissionCenterLanding() {
   useEffect(() => {
     let target = `${PERMISSION_BASE}/people`;
     try {
-      const cid = new URLSearchParams(window.location.search).get("cid");
-      if (cid) target += `?cid=${encodeURIComponent(cid)}`;
+      const contactId = new URLSearchParams(window.location.search).get("cid");
+      if (contactId) target += `?cid=${encodeURIComponent(contactId)}`;
     } catch {
       /* no deep link — land on People */
     }

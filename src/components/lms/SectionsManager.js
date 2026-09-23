@@ -78,8 +78,8 @@ export default function SectionsManager({ course, onChange, canEdit = true }) {
       await api(url, method, body);
       notify("success", successKey);
       onChange();
-    } catch (e) {
-      notify("error", e.message || "lms.errors.saveFailed");
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
     } finally {
       setSavingId(null);
     }
@@ -90,12 +90,12 @@ export default function SectionsManager({ course, onChange, canEdit = true }) {
   // first seen on later refetches (new sections) are collapsed by the effect
   // below. Ids the user deliberately expanded stay expanded across refetches
   // because they are already in `seenSectionIds`.
-  const initialSectionIds = (course.sections || []).map((s) => String(s.id));
+  const initialSectionIds = (course.sections || []).map((section) => String(section.id));
   const seenSectionIds = useRef(new Set(initialSectionIds));
   const [collapsedIds, setCollapsedIds] = useState(() => new Set(initialSectionIds));
 
   useEffect(() => {
-    const ids = (course.sections || []).map((s) => String(s.id));
+    const ids = (course.sections || []).map((section) => String(section.id));
     const fresh = ids.filter((id) => !seenSectionIds.current.has(id));
     if (fresh.length === 0) return;
     fresh.forEach((id) => seenSectionIds.current.add(id));
@@ -129,7 +129,7 @@ export default function SectionsManager({ course, onChange, canEdit = true }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const sectionIds = (course.sections || []).map((s) => String(s.id));
+  const sectionIds = (course.sections || []).map((section) => String(section.id));
   const activeIndex = activeId ? sectionIds.indexOf(activeId) : -1;
 
   const clearDrag = () => {
@@ -146,7 +146,7 @@ export default function SectionsManager({ course, onChange, canEdit = true }) {
     const toId = over ? String(over.id) : null;
     clearDrag();
     if (!toId || fromId === toId) return;
-    const ids = (course.sections || []).map((s) => String(s.id));
+    const ids = (course.sections || []).map((section) => String(section.id));
     const from = ids.indexOf(fromId);
     const to = ids.indexOf(toId);
     if (from < 0 || to < 0) return;
@@ -341,7 +341,7 @@ export default function SectionsManager({ course, onChange, canEdit = true }) {
             <AppInput
               label={t("lms.sections.name")}
               value={sectionModal.title}
-              onChange={(e) => setSectionModal((p) => ({ ...p, title: e.target.value }))}
+              onChange={(event) => setSectionModal((prev) => ({ ...prev, title: event.target.value }))}
               placeholder={t("lms.sections.namePlaceholder")}
             />
             <div className="space-y-2">
@@ -353,7 +353,7 @@ export default function SectionsManager({ course, onChange, canEdit = true }) {
               </label>
               <RichTextEditor
                 value={sectionModal.description || ""}
-                onChange={(html) => setSectionModal((p) => ({ ...p, description: html }))}
+                onChange={(html) => setSectionModal((prev) => ({ ...prev, description: html }))}
                 minHeight={96}
               />
             </div>
@@ -549,7 +549,7 @@ function SortableSection({
               {t("lms.lessons.emptyHint")}
             </p>
           ) : (
-            section.lessons.map((lesson, li) => (
+            section.lessons.map((lesson, lessonIndex) => (
               <div
                 key={lesson.id}
                 className="flex items-center gap-3 p-3 rounded-lg border"
@@ -558,7 +558,7 @@ function SortableSection({
                 <Film className="w-4 h-4 shrink-0" style={{ color: "var(--text-tertiary)" }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold truncate" style={{ color: "var(--text-primary)" }}>
-                    {li + 1}. {lesson.title}
+                    {lessonIndex + 1}. {lesson.title}
                   </p>
                   <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-tertiary)" }}>
                     {lesson.youtube_video_id ? (
@@ -588,7 +588,7 @@ function SortableSection({
                   <button
                     type="button"
                     onClick={() => onMoveLesson(lesson, "up")}
-                    disabled={li === 0 || savingId === lesson.id}
+                    disabled={lessonIndex === 0 || savingId === lesson.id}
                     className="p-1.5 rounded-lg transition-colors disabled:opacity-30"
                     style={{ color: "var(--text-tertiary)" }}
                     title={t("lms.lessons.moveUp")}
@@ -598,7 +598,7 @@ function SortableSection({
                   <button
                     type="button"
                     onClick={() => onMoveLesson(lesson, "down")}
-                    disabled={li === section.lessons.length - 1 || savingId === lesson.id}
+                    disabled={lessonIndex === section.lessons.length - 1 || savingId === lesson.id}
                     className="p-1.5 rounded-lg transition-colors disabled:opacity-30"
                     style={{ color: "var(--text-tertiary)" }}
                     title={t("lms.lessons.moveDown")}
@@ -666,9 +666,9 @@ function AssessmentCard({ assessment, t, onView, onEdit, onDelete, className = "
       role="button"
       tabIndex={0}
       onClick={onView}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
           onView();
         }
       }}
@@ -686,8 +686,8 @@ function AssessmentCard({ assessment, t, onView, onEdit, onDelete, className = "
         </span>
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={(event) => {
+            event.stopPropagation();
             onEdit();
           }}
           className="p-1.5 rounded-lg transition-colors"
@@ -698,8 +698,8 @@ function AssessmentCard({ assessment, t, onView, onEdit, onDelete, className = "
         </button>
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={(event) => {
+            event.stopPropagation();
             onDelete();
           }}
           className="p-1.5 rounded-lg transition-colors"

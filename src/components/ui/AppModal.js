@@ -7,8 +7,8 @@ import { X } from "lucide-react";
 export default function AppModal({ isOpen, onClose, title, children, size = "md" }) {
   // Close on escape key
   useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === "Escape") onClose?.();
+    const handleEscape = (event) => {
+      if (event.key === "Escape") onClose?.();
     };
     if (isOpen) document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);

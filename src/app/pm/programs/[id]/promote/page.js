@@ -52,8 +52,8 @@ export default function PromoteToVenture() {
   const [website, setWebsite] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
 
-  const notify = (msg, type = "success") => {
-    setToast({ msg, type });
+  const notify = (message, type = "success") => {
+    setToast({ msg: message, type });
     setTimeout(() => setToast(null), 3500);
   };
 
@@ -80,8 +80,8 @@ export default function PromoteToVenture() {
         }
       }
       try {
-        const res = await fetch(url);
-        const data = await res.json();
+        const response = await fetch(url);
+        const data = await response.json();
         if (data.success && data.program) {
           cacheSet(url, data);
           apply(data);
@@ -121,7 +121,7 @@ export default function PromoteToVenture() {
     setPromotionError(null);
 
     try {
-      const res = await fetch("/api/ventures/promote", {
+      const response = await fetch("/api/ventures/promote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -136,7 +136,7 @@ export default function PromoteToVenture() {
         }),
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
       if (data.success) {
         setPromotionResult(data);
@@ -158,9 +158,9 @@ export default function PromoteToVenture() {
           notify(t((data.error || t("pmMisc.promote.promotionFailed")) || "") || (data.error || t("pmMisc.promote.promotionFailed")), "error");
         }
       }
-    } catch (e) {
+    } catch (error) {
       notify(t("pmMisc.promote.networkErrorDuringPromotion"), "error");
-      setPromotionError(t(e.message || "") || e.message);
+      setPromotionError(t(error.message || "") || error.message);
     } finally {
       setSubmitting(false);
       setShowConfirmModal(false);
@@ -317,7 +317,7 @@ export default function PromoteToVenture() {
                     <input
                       type="text"
                       value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
+                      onChange={(event) => setCompanyName(event.target.value)}
                       placeholder={t("pmMisc.promote.companyNamePlaceholder")}
                       className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                       disabled={submitting}
@@ -335,7 +335,7 @@ export default function PromoteToVenture() {
                     <input
                       type="text"
                       value={registrationNumber}
-                      onChange={(e) => setRegistrationNumber(e.target.value)}
+                      onChange={(event) => setRegistrationNumber(event.target.value)}
                       placeholder={t("pmMisc.promote.registrationNumberPlaceholder")}
                       className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                       disabled={submitting}
@@ -351,7 +351,7 @@ export default function PromoteToVenture() {
                       </label>
                       <select
                         value={industry}
-                        onChange={(e) => setIndustry(e.target.value)}
+                        onChange={(event) => setIndustry(event.target.value)}
                         className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                         disabled={submitting}
                       >
@@ -400,7 +400,7 @@ export default function PromoteToVenture() {
                       </label>
                       <select
                         value={businessStage}
-                        onChange={(e) => setBusinessStage(e.target.value)}
+                        onChange={(event) => setBusinessStage(event.target.value)}
                         className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                         disabled={submitting}
                       >
@@ -433,7 +433,7 @@ export default function PromoteToVenture() {
                     </label>
                     <textarea
                       value={description}
-                      onChange={(e) => setDescription(e.target.value)}
+                      onChange={(event) => setDescription(event.target.value)}
                       placeholder={t("pmMisc.promote.descriptionPlaceholder")}
                       rows={3}
                       className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
@@ -450,7 +450,7 @@ export default function PromoteToVenture() {
                       <input
                         type="url"
                         value={website}
-                        onChange={(e) => setWebsite(e.target.value)}
+                        onChange={(event) => setWebsite(event.target.value)}
                         placeholder="https://example.com"
                         className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                         disabled={submitting}
@@ -463,7 +463,7 @@ export default function PromoteToVenture() {
                       <input
                         type="url"
                         value={logoUrl}
-                        onChange={(e) => setLogoUrl(e.target.value)}
+                        onChange={(event) => setLogoUrl(event.target.value)}
                         placeholder="https://example.com/logo.png"
                         className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                         disabled={submitting}

@@ -30,10 +30,10 @@ const DEFAULT_CONTEXT = { context_type: "staff", context_id: null };
 // tell "nothing to show" from "the read did not answer".
 const EMPTY_STANDUP = { tasks: [], failure: null };
 
-const pickStandup = (d) =>
-  d?.success
-    ? { tasks: d.tasks || [], failure: null }
-    : { tasks: [], failure: d?.error || null };
+const pickStandup = (payload) =>
+  payload?.success
+    ? { tasks: payload.tasks || [], failure: null }
+    : { tasks: [], failure: payload?.error || null };
 
 export default function UnifiedOperationsView({
   user,
@@ -51,10 +51,10 @@ export default function UnifiedOperationsView({
   // Hoisted so the address changes only when the id does: `user` is a fresh
   // object on every render of the parent. The address is a STRING, which is what
   // keeps a new object per render from re-issuing the read.
-  const cid = user?.cid;
-  const standupUrl = cid
+  const userCid = user?.cid;
+  const standupUrl = userCid
     ? `/api/standups/current?${new URLSearchParams({
-        user_id: cid,
+        user_id: userCid,
         week: weekInfo.week,
         year: weekInfo.year,
         context_type: context.context_type,
@@ -74,8 +74,8 @@ export default function UnifiedOperationsView({
   });
   const tasks = standup.tasks;
 
-  const handleCreateTask = async (e) => {
-    e.preventDefault();
+  const handleCreateTask = async (event) => {
+    event.preventDefault();
     if (!newTaskTitle.trim()) return;
     setCreating(true);
     try {
@@ -133,10 +133,10 @@ export default function UnifiedOperationsView({
     setExpandTask((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
   };
 
-  const completedCount = tasks.filter((t) => t.status === "completed").length;
-  const blockedCount = tasks.filter((t) => t.status === "blocked").length;
+  const completedCount = tasks.filter((task) => task.status === "completed").length;
+  const blockedCount = tasks.filter((task) => task.status === "blocked").length;
   const activeCount = tasks.filter(
-    (t) => !["completed", "archived"].includes(t.status),
+    (task) => !["completed", "archived"].includes(task.status),
   ).length;
   const progress =
     tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
@@ -219,7 +219,7 @@ export default function UnifiedOperationsView({
           <input
             type="text"
             value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
+            onChange={(event) => setNewTaskTitle(event.target.value)}
             placeholder="Task title..."
             className="w-full bg-transparent text-[var(--text-primary)] text-sm font-bold outline-none placeholder:text-[var(--text-tertiary)]"
             autoFocus
@@ -420,17 +420,17 @@ export default function UnifiedOperationsView({
                           <p className="text-[10px] font-bold uppercase tracking-widest text-red-400 mb-1">
                             Blockers
                           </p>
-                          {task.blockers.map((b) => (
+                          {task.blockers.map((blocker) => (
                             <div
-                              key={b.id}
+                              key={blocker.id}
                               className="flex items-center gap-2 py-1"
                             >
                               <AlertTriangle className="w-3 h-3 text-red-400" />
                               <span className="text-[11px] font-bold text-[var(--text-primary)]">
-                                {b.title}
+                                {blocker.title}
                               </span>
                               <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
-                                {b.severity}
+                                {blocker.severity}
                               </span>
                             </div>
                           ))}
@@ -442,8 +442,8 @@ export default function UnifiedOperationsView({
                         <div className="flex gap-2 pt-1">
                           {task.status !== "completed" && (
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              onClick={(event) => {
+                                event.stopPropagation();
                                 handleStatusChange(task.id, "completed");
                               }}
                               className="flex items-center gap-1 px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all"
@@ -458,8 +458,8 @@ export default function UnifiedOperationsView({
                           {task.status !== "in_progress" &&
                             !isCompleted && (
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
+                                onClick={(event) => {
+                                  event.stopPropagation();
                                   handleStatusChange(task.id, "in_progress");
                                 }}
                                 className="px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider"

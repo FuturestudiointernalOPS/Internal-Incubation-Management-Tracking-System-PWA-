@@ -65,17 +65,17 @@ export default function AppTable({
             className="border-b"
             style={{ borderColor: "var(--border-primary)" }}
           >
-            {columns.map((col, i) => (
+            {columns.map((column, columnIndex) => (
               <th
-                key={col.key || i}
+                key={column.key || columnIndex}
                 className="p-4 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap"
                 style={{
                   color: "var(--text-secondary)",
                   background: "var(--surface-2)",
-                  textAlign: col.align || "left",
+                  textAlign: column.align || "left",
                 }}
               >
-                {col.label || col.key}
+                {column.label || column.key}
               </th>
             ))}
           </tr>
@@ -91,25 +91,25 @@ export default function AppTable({
               style={{
                 borderColor: "var(--border-primary)",
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "var(--surface-2)")
+              onMouseEnter={(event) =>
+                (event.currentTarget.style.background = "var(--surface-2)")
               }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
+              onMouseLeave={(event) =>
+                (event.currentTarget.style.background = "transparent")
               }
             >
-              {columns.map((col, colIndex) => (
+              {columns.map((column, columnIndex) => (
                 <td
-                  key={col.key || colIndex}
+                  key={column.key || columnIndex}
                   className="p-4 text-sm align-middle"
                   style={{
                     color: "var(--text-primary)",
-                    textAlign: col.align || "left",
+                    textAlign: column.align || "left",
                   }}
                 >
-                  {col.render
-                    ? col.render(row[col.key], row)
-                    : row[col.key] ?? "—"}
+                  {column.render
+                    ? column.render(row[column.key], row)
+                    : row[column.key] ?? "—"}
                 </td>
               ))}
             </tr>

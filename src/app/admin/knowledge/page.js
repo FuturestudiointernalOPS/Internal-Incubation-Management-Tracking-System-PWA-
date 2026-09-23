@@ -19,7 +19,7 @@ import { useApi } from "@/lib/hooks/useApi";
 
 // Module scope on purpose: the reading hook keys its internal work on this, so an
 // inline arrow would be a new identity every render and would re-read forever.
-const pickConceptNotes = (d) => (d?.success ? d.conceptNotes || [] : []);
+const pickConceptNotes = (payload) => (payload?.success ? payload.conceptNotes || [] : []);
 
 const KNOWLEDGE_URL = "/api/knowledge";
 
@@ -58,15 +58,15 @@ export default function KnowledgeBank() {
     setTimeout(() => setNotification(null), 5000);
   };
 
-  const handleFileSelection = (e) => {
-    const files = Array.from(e.target.files);
-    const pdfs = files.filter(f => f.type === 'application/pdf');
+  const handleFileSelection = (event) => {
+    const files = Array.from(event.target.files);
+    const pdfs = files.filter(file => file.type === 'application/pdf');
     if (pdfs.length === 0) {
       notify('error', t("adminMisc.knowledge.pdfsOnly"));
       return;
     }
     setNewNote(prev => ({ ...prev, stagedFiles: [...(prev.stagedFiles || []), ...pdfs] }));
-    e.target.value = '';
+    event.target.value = '';
   };
 
   const handleCreateNote = async () => {
@@ -94,13 +94,13 @@ export default function KnowledgeBank() {
       }
 
       // 2. Final Database Commit
-      const res = await fetch('/api/knowledge', {
+      const response = await fetch('/api/knowledge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...newNote, files: uploadedFiles })
       });
       
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify('success', t("adminMisc.knowledge.deployedSuccessfully"));
         refreshNotes();
@@ -109,9 +109,9 @@ export default function KnowledgeBank() {
       } else {
         throw new Error(t((data.error || t("adminMisc.knowledge.systemDatabaseException")) || "") || (data.error || t("adminMisc.knowledge.systemDatabaseException")));
       }
-    } catch (e) {
-      console.error("Deployment Error:", e);
-      notify('error', t(e.message || "") || e.message);
+    } catch (error) {
+      console.error("Deployment Error:", error);
+      notify('error', t(error.message || "") || error.message);
     } finally {
       setIsSaving(false);
     }
@@ -134,7 +134,7 @@ export default function KnowledgeBank() {
       }
 
       // 2. Commit text and file updates
-      const res = await fetch('/api/knowledge', {
+      const response = await fetch('/api/knowledge', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -146,7 +146,7 @@ export default function KnowledgeBank() {
         })
       });
       
-      if (res.ok) {
+      if (response.ok) {
         notify('success', t("adminMisc.knowledge.updatedSuccessfully"));
         setEditingNote(null);
         refreshNotes();
@@ -160,12 +160,12 @@ export default function KnowledgeBank() {
 
   const handleArchiveToggle = async (id, currentArchiveState) => {
     try {
-      const res = await fetch('/api/knowledge', {
+      const response = await fetch('/api/knowledge', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'archive', id, is_archived: !currentArchiveState })
       });
-      if (res.ok) {
+      if (response.ok) {
         notify('success', currentArchiveState ? t("adminMisc.knowledge.restoredFromArchive") : t("adminMisc.knowledge.movedToArchive"));
         if (viewingNote?.id === id) setViewingNote(null);
         refreshNotes();
@@ -177,12 +177,12 @@ export default function KnowledgeBank() {
 
   const handleDeleteNote = async (id) => {
     try {
-      const res = await fetch('/api/knowledge', {
+      const response = await fetch('/api/knowledge', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })
       });
-      if (res.ok) {
+      if (response.ok) {
         notify('success', t("adminMisc.knowledge.decommissioned"));
         if (viewingNote?.id === id) setViewingNote(null);
         refreshNotes();
@@ -192,9 +192,9 @@ export default function KnowledgeBank() {
     }
   };
 
-  const filteredNotes = allNotes.filter(n => {
-    const matchesTab = activeTab === 'archive' ? !!n.is_archived : !n.is_archived;
-    const matchesSearch = n.title.toLowerCase().includes(search.toLowerCase());
+  const filteredNotes = allNotes.filter(note => {
+    const matchesTab = activeTab === 'archive' ? !!note.is_archived : !note.is_archived;
+    const matchesSearch = note.title.toLowerCase().includes(search.toLowerCase());
     return matchesTab && matchesSearch;
   });
 
@@ -278,7 +278,7 @@ export default function KnowledgeBank() {
              <div className="card space-y-4">
                 <div className="relative">
                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                   <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("adminMisc.knowledge.filterLibrary")} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-3 pl-10 text-sm font-bold" />
+                   <input value={search} onChange={event => setSearch(event.target.value)} placeholder={t("adminMisc.knowledge.filterLibrary")} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-3 pl-10 text-sm font-bold" />
                 </div>
                 <div className="space-y-3">
                    {loading ? <TableSkeleton rows={5} /> : filteredNotes.length === 0 ? (
@@ -286,13 +286,13 @@ export default function KnowledgeBank() {
                          <Library className="w-8 h-8 mx-auto mb-2" />
                          <p className="text-sm text-[var(--text-secondary)]">{t("adminMisc.knowledge.libraryEmpty")}</p>
                       </div>
-                   ) : filteredNotes.map(n => (
-                      <div key={n.id} onClick={() => setViewingNote(n)} className={`p-4 rounded-xl border transition-all cursor-pointer ${viewingNote?.id === n.id ? 'border-[var(--brand-orange)] bg-[var(--brand-orange)]/10' : 'border-[var(--border-primary)] bg-primary hover:border-[var(--brand-orange)]'}`}>
+                   ) : filteredNotes.map(note => (
+                      <div key={note.id} onClick={() => setViewingNote(note)} className={`p-4 rounded-xl border transition-all cursor-pointer ${viewingNote?.id === note.id ? 'border-[var(--brand-orange)] bg-[var(--brand-orange)]/10' : 'border-[var(--border-primary)] bg-primary hover:border-[var(--brand-orange)]'}`}>
                          <div className="flex justify-between items-start gap-2">
-                            <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide truncate flex-1">{n.title}</p>
-                            {n.is_archived && <span className="text-[10px] font-bold uppercase text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded">{t("adminMisc.knowledge.archive")}</span>}
+                            <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide truncate flex-1">{note.title}</p>
+                            {note.is_archived && <span className="text-[10px] font-bold uppercase text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded">{t("adminMisc.knowledge.archive")}</span>}
                          </div>
-                         <p className="text-[10px] font-medium text-[var(--text-secondary)] line-clamp-1 mt-1">{n.description}</p>
+                         <p className="text-[10px] font-medium text-[var(--text-secondary)] line-clamp-1 mt-1">{note.description}</p>
                       </div>
                    ))}
                 </div>
@@ -314,19 +314,19 @@ export default function KnowledgeBank() {
             </div>
             
             <div className="space-y-6">
-              <input value={newNote.title} onChange={e => setNewNote({...newNote, title: e.target.value})} placeholder={t("adminMisc.knowledge.nodeTitle")} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
-              <textarea value={newNote.description} onChange={e => setNewNote({...newNote, description: e.target.value})} placeholder={t("adminMisc.knowledge.strategicDescriptionPlaceholder")} rows={3} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none" />
+              <input value={newNote.title} onChange={event => setNewNote({...newNote, title: event.target.value})} placeholder={t("adminMisc.knowledge.nodeTitle")} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
+              <textarea value={newNote.description} onChange={event => setNewNote({...newNote, description: event.target.value})} placeholder={t("adminMisc.knowledge.strategicDescriptionPlaceholder")} rows={3} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none" />
 
               <div className="space-y-4">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">{t("adminMisc.knowledge.assetStagingArea", { count: newNote.stagedFiles.length })}</label>
                 <div className="grid grid-cols-1 gap-3">
-                  {newNote.stagedFiles.map((f, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                  {newNote.stagedFiles.map((file, fileIndex) => (
+                    <div key={fileIndex} className="flex items-center justify-between p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
                       <div className="flex items-center gap-3">
                         <FileCheck className="w-4 h-4 text-emerald-500" />
-                        <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase truncate max-w-[200px]">{f.name}</span>
+                        <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase truncate max-w-[200px]">{file.name}</span>
                       </div>
-                      <button onClick={() => setNewNote(n => ({ ...n, stagedFiles: n.stagedFiles.filter((_, idx) => idx !== i) }))} className="text-rose-500 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
+                      <button onClick={() => setNewNote(previousNote => ({ ...previousNote, stagedFiles: previousNote.stagedFiles.filter((_, index) => index !== fileIndex) }))} className="text-rose-500 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
                     </div>
                   ))}
                   <label className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-[var(--border-primary)] rounded-2xl cursor-pointer hover:border-[var(--brand-orange)] transition-all">
@@ -359,12 +359,12 @@ export default function KnowledgeBank() {
             <div className="space-y-6">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">{t("adminMisc.knowledge.missionTitle")}</label>
-                <input value={editingNote.title} onChange={e => setEditingNote({...editingNote, title: e.target.value})} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
+                <input value={editingNote.title} onChange={event => setEditingNote({...editingNote, title: event.target.value})} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
               </div>
               
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">{t("adminMisc.knowledge.strategicDescription")}</label>
-                <textarea value={editingNote.description} onChange={e => setEditingNote({...editingNote, description: e.target.value})} rows={3} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none" />
+                <textarea value={editingNote.description} onChange={event => setEditingNote({...editingNote, description: event.target.value})} rows={3} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none" />
               </div>
 
               {/* EXISTING FILES */}
@@ -372,11 +372,11 @@ export default function KnowledgeBank() {
                 <div className="space-y-2">
                    <label className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 ml-2">{t("adminMisc.knowledge.existingResources")}</label>
                    <div className="space-y-2">
-                      {editingNote.files.map(f => (
-                        <div key={f.id} className="flex items-center justify-between p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                      {editingNote.files.map(file => (
+                        <div key={file.id} className="flex items-center justify-between p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
                           <div className="flex items-center gap-3">
                             <FileCheck className="w-4 h-4 text-emerald-500" />
-                            <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase truncate max-w-[250px]">{f.name}</span>
+                            <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase truncate max-w-[250px]">{file.name}</span>
                           </div>
                           <span className="text-[10px] font-bold uppercase text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded">{t("adminMisc.knowledge.active")}</span>
                         </div>
@@ -389,13 +389,13 @@ export default function KnowledgeBank() {
               <div className="space-y-4">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)] ml-2">{t("adminMisc.knowledge.stageNewResources", { count: editingNote.stagedFiles?.length || 0 })}</label>
                 <div className="grid grid-cols-1 gap-3">
-                  {(editingNote.stagedFiles || []).map((f, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20 rounded-xl">
+                  {(editingNote.stagedFiles || []).map((file, fileIndex) => (
+                    <div key={fileIndex} className="flex items-center justify-between p-3 bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20 rounded-xl">
                       <div className="flex items-center gap-3">
                         <Upload className="w-4 h-4 text-[var(--brand-orange)]" />
-                        <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase truncate max-w-[250px]">{f.name}</span>
+                        <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase truncate max-w-[250px]">{file.name}</span>
                       </div>
-                      <button onClick={() => setEditingNote(n => ({ ...n, stagedFiles: n.stagedFiles.filter((_, idx) => idx !== i) }))} className="text-rose-500 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
+                      <button onClick={() => setEditingNote(previousNote => ({ ...previousNote, stagedFiles: previousNote.stagedFiles.filter((_, index) => index !== fileIndex) }))} className="text-rose-500 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
                     </div>
                   ))}
                   <label className="flex flex-col items-center justify-center py-8 border-2 border-dashed border-[var(--border-primary)] rounded-2xl cursor-pointer hover:border-[var(--brand-orange)] transition-all">
@@ -404,10 +404,10 @@ export default function KnowledgeBank() {
                       accept=".pdf" 
                       multiple 
                       className="hidden" 
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files).filter(f => f.type === 'application/pdf');
+                      onChange={(event) => {
+                        const files = Array.from(event.target.files).filter(file => file.type === 'application/pdf');
                         setEditingNote(prev => ({ ...prev, stagedFiles: [...(prev.stagedFiles || []), ...files] }));
-                        e.target.value = '';
+                        event.target.value = '';
                       }} 
                       disabled={isSaving} 
                     />

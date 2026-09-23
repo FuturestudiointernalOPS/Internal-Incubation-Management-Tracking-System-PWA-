@@ -67,18 +67,18 @@ export default function PlatformLayout({ children }) {
   useEffect(() => {
     // Server session is authoritative; localStorage is only a legacy fallback.
     fetch("/api/auth/session")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.authenticated && d.user) {
-          setUser(d.user);
+      .then((response) => response.json())
+      .then((sessionData) => {
+        if (sessionData.authenticated && sessionData.user) {
+          setUser(sessionData.user);
           return;
         }
-        const u = JSON.parse(localStorage.getItem("user") || "{}");
-        if (u.role) setUser(u);
+        const cachedUser = JSON.parse(localStorage.getItem("user") || "{}");
+        if (cachedUser.role) setUser(cachedUser);
       })
       .catch(() => {
-        const u = JSON.parse(localStorage.getItem("user") || "{}");
-        if (u.role) setUser(u);
+        const cachedUser = JSON.parse(localStorage.getItem("user") || "{}");
+        if (cachedUser.role) setUser(cachedUser);
       });
   }, []);
 
@@ -88,18 +88,18 @@ export default function PlatformLayout({ children }) {
   // predicate never flashes a module the user cannot open.
   useEffect(() => {
     fetch("/api/me/permissions")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.success) setMePerms(d);
+      .then((response) => response.json())
+      .then((permissionData) => {
+        if (permissionData.success) setMePerms(permissionData);
       })
       .catch(() => {});
   }, []);
 
   const hasCapability = useCallback(
-    ({ module, capability }) => {
+    ({ module: moduleKey, capability }) => {
       if (!mePerms) return false;
       if (mePerms.isSuperAdmin) return true;
-      return Number(mePerms.effective?.[module]?.[capability] ?? 0) > 0;
+      return Number(mePerms.effective?.[moduleKey]?.[capability] ?? 0) > 0;
     },
     [mePerms],
   );
@@ -143,28 +143,28 @@ export default function PlatformLayout({ children }) {
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 overflow-y-auto custom-scrollbar">
-          {navModules.map((mod) => {
-            const Icon = ICON_MAP[mod.icon] || LayoutDashboard;
-            const active = isActive(mod.href);
+          {navModules.map((moduleItem) => {
+            const Icon = ICON_MAP[moduleItem.icon] || LayoutDashboard;
+            const active = isActive(moduleItem.href);
             return (
               <Link
-                key={mod.id}
-                href={mod.href}
+                key={moduleItem.id}
+                href={moduleItem.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-[11px] font-bold tracking-wide",
                   active
                     ? "bg-[var(--brand-orange)] text-black"
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary",
                 )}
-                title={!collapsed ? undefined : mod.name}
+                title={!collapsed ? undefined : moduleItem.name}
               >
                 <Icon className="w-4 h-4 shrink-0" />
                 {!collapsed && (
                   <span className="truncate">
-                    {t(PLATFORM_MODULE_LABELS[mod.id] || "") || mod.name}
+                    {t(PLATFORM_MODULE_LABELS[moduleItem.id] || "") || moduleItem.name}
                   </span>
                 )}
-                {!collapsed && mod.future && (
+                {!collapsed && moduleItem.future && (
                   <span className="ml-auto px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wide">
                     {t("platformMisc.nav.soon")}
                   </span>
@@ -211,18 +211,18 @@ export default function PlatformLayout({ children }) {
               </button>
             </div>
             <nav className="space-y-1">
-              {navModules.map((mod) => {
-                const Icon = ICON_MAP[mod.icon] || LayoutDashboard;
-                const active = isActive(mod.href);
+              {navModules.map((moduleItem) => {
+                const Icon = ICON_MAP[moduleItem.icon] || LayoutDashboard;
+                const active = isActive(moduleItem.href);
                 return (
                   <Link
-                    key={mod.id}
-                    href={mod.href}
+                    key={moduleItem.id}
+                    href={moduleItem.href}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-[11px] font-bold tracking-wide ${active ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
                   >
                     <Icon className="w-4 h-4 shrink-0" />
-                    <span className="truncate">{t(PLATFORM_MODULE_LABELS[mod.id] || "") || mod.name}</span>
+                    <span className="truncate">{t(PLATFORM_MODULE_LABELS[moduleItem.id] || "") || moduleItem.name}</span>
                   </Link>
                 );
               })}

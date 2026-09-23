@@ -36,17 +36,17 @@ const EXECUTE_CHUNK_SIZE = 200;
 
 // Stable string hash (cyrb53) so every chunk of the same file reports the
 // same file_hash — duplicate-batch detection works across re-uploads.
-function simpleHash(str) {
-  let h1 = 0xdeadbeef;
-  let h2 = 0x41c6ce57;
-  for (let i = 0; i < str.length; i++) {
-    const ch = str.charCodeAt(i);
-    h1 = Math.imul(h1 ^ ch, 2654435761);
-    h2 = Math.imul(h2 ^ ch, 1597334677);
+function simpleHash(text) {
+  let hash1 = 0xdeadbeef;
+  let hash2 = 0x41c6ce57;
+  for (let index = 0; index < text.length; index++) {
+    const charCode = text.charCodeAt(index);
+    hash1 = Math.imul(hash1 ^ charCode, 2654435761);
+    hash2 = Math.imul(hash2 ^ charCode, 1597334677);
   }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+  hash1 = Math.imul(hash1 ^ (hash1 >>> 16), 2246822507) ^ Math.imul(hash2 ^ (hash2 >>> 13), 3266489909);
+  hash2 = Math.imul(hash2 ^ (hash2 >>> 16), 2246822507) ^ Math.imul(hash1 ^ (hash1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & hash2) + (hash1 >>> 0)).toString(36);
 }
 
 // ── File parsing: CSV and XLSX both normalize to { headers, rows } ──
@@ -55,14 +55,14 @@ function simpleHash(str) {
 function parseTextToRows(text) {
   const grid = parseCSVRows(text);
   if (grid.length === 0) return { headers: [], rows: [] };
-  const headers = grid[0].map((h) => h.trim());
+  const headers = grid[0].map((header) => header.trim());
   const rows = [];
-  for (let i = 1; i < grid.length; i++) {
-    const cells = grid[i];
+  for (let rowIndex = 1; rowIndex < grid.length; rowIndex++) {
+    const cells = grid[rowIndex];
     if (cells.length === 0 || (cells.length === 1 && cells[0] === "")) continue;
     const row = {};
-    headers.forEach((h, idx) => {
-      row[h] = cells[idx] !== undefined ? cells[idx].trim() : "";
+    headers.forEach((header, index) => {
+      row[header] = cells[index] !== undefined ? cells[index].trim() : "";
     });
     rows.push(row);
   }
@@ -73,15 +73,15 @@ function parseTextToRows(text) {
 async function parseXlsxToRows(file) {
   const grid = gridToRows(await readSheet(file, 1, { trim: false }));
   if (grid.length === 0) return { headers: [], rows: [] };
-  const headers = (grid[0] || []).map((h) => String(h).trim());
+  const headers = (grid[0] || []).map((header) => String(header).trim());
   const rows = [];
-  for (let i = 1; i < grid.length; i++) {
-    const cells = grid[i];
+  for (let rowIndex = 1; rowIndex < grid.length; rowIndex++) {
+    const cells = grid[rowIndex];
     if (!cells || cells.length === 0) continue;
     if (cells.length === 1 && String(cells[0]).trim() === "") continue;
     const row = {};
-    headers.forEach((h, idx) => {
-      row[h] = cells[idx] !== undefined && cells[idx] !== null ? String(cells[idx]).trim() : "";
+    headers.forEach((header, index) => {
+      row[header] = cells[index] !== undefined && cells[index] !== null ? String(cells[index]).trim() : "";
     });
     rows.push(row);
   }
@@ -122,8 +122,8 @@ export default function ImportPage() {
         const cached = cacheGet(url);
         if (cached !== null && cached.success) apply(cached);
       }
-      const res = await fetch(url);
-      const data = await res.json();
+      const response = await fetch(url);
+      const data = await response.json();
       if (data.success) {
         cacheSet(url, data);
         apply(data);
@@ -138,14 +138,14 @@ export default function ImportPage() {
 
   const fetchRuns = async (formId) => {
     try {
-      const res = await fetch(`/api/platform/form-runs?form_id=${formId}`);
-      const data = await res.json();
+      const response = await fetch(`/api/platform/form-runs?form_id=${formId}`);
+      const data = await response.json();
       if (data.success) setRuns(data.runs || []);
     } catch (_) {}
   };
 
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0];
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
     if (!file) return;
     const isCsv = file.name.toLowerCase().endsWith(".csv");
     const isXlsx = file.name.toLowerCase().endsWith(".xlsx");
@@ -188,7 +188,7 @@ export default function ImportPage() {
       // Mapping only needs the headers + a few sample rows — never send the
       // full file to preview (large files would hit Vercel's 4.5 MB limit).
       const sample = parsedData.rows.slice(0, 50);
-      const res = await fetch("/api/platform/import/preview", {
+      const response = await fetch("/api/platform/import/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -199,13 +199,13 @@ export default function ImportPage() {
           total_rows: parsedData.rows.length,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setPreviewData(data);
         // Build initial mapping from suggested
         const initialMapping = {};
-        data.suggested_mapping.forEach((m) => {
-          if (m.field_id) initialMapping[m.csv_column] = m.field_id;
+        data.suggested_mapping.forEach((suggestion) => {
+          if (suggestion.field_id) initialMapping[suggestion.csv_column] = suggestion.field_id;
         });
         setMapping(initialMapping);
         setStep(1);
@@ -255,7 +255,7 @@ export default function ImportPage() {
       const chunk = allRows.slice(start, start + EXECUTE_CHUNK_SIZE);
       let data;
       try {
-        const res = await fetch("/api/platform/import/execute", {
+        const response = await fetch("/api/platform/import/execute", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -267,7 +267,7 @@ export default function ImportPage() {
             file_hash: fullHash,
           }),
         });
-        data = await res.json();
+        data = await response.json();
       } catch {
         setError(
           t("adminMisc.platformImport.errorNetworkDuringImport") +
@@ -343,28 +343,28 @@ export default function ImportPage() {
 
         {/* Step indicators */}
         <div className="flex items-center gap-2">
-          {STEPS.map((s, i) => (
-            <React.Fragment key={s.key}>
+          {STEPS.map((stepItem, index) => (
+            <React.Fragment key={stepItem.key}>
               <button
-                onClick={() => i < step && setStep(i)}
+                onClick={() => index < step && setStep(index)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase transition-all ${
-                  i === step
+                  index === step
                     ? "bg-[var(--brand-orange)] text-white"
-                    : i < step
+                    : index < step
                     ? "bg-emerald-500/10 text-emerald-500 cursor-pointer"
                     : "bg-[var(--border-primary)] text-[var(--text-secondary)]"
                 }`}
               >
-                {i < step ? (
+                {index < step ? (
                   <CheckCircle className="w-3 h-3" />
                 ) : (
                   <span className="w-3 h-3 rounded-full border border-current flex items-center justify-center text-[10px] font-bold">
-                    {i + 1}
+                    {index + 1}
                   </span>
                 )}
-                {t(s.label)}
+                {t(stepItem.label)}
               </button>
-              {i < STEPS.length - 1 && (
+              {index < STEPS.length - 1 && (
                 <ArrowRight className="w-3 h-3 text-[var(--text-secondary)]" />
               )}
             </React.Fragment>
@@ -404,21 +404,21 @@ export default function ImportPage() {
               </label>
               <select
                 value={selectedFormId}
-                onChange={(e) => {
-                  setSelectedFormId(e.target.value);
+                onChange={(event) => {
+                  setSelectedFormId(event.target.value);
                   setSelectedRunId("");
                   // Prevent stale questions from a previous selection
                   setPreviewData(null);
                   setMapping({});
                   setStep(0);
-                  fetchRuns(e.target.value);
+                  fetchRuns(event.target.value);
                 }}
                 className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-sm font-bold outline-none focus:border-[var(--brand-orange)]"
               >
                 <option value="">{t("adminMisc.platformImport.chooseForm")}</option>
-                {forms.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name} {f.status === "archived" ? `(${t("adminMisc.platformImport.archivedSuffix")})` : ""}
+                {forms.map((form) => (
+                  <option key={form.id} value={form.id}>
+                    {form.name} {form.status === "archived" ? `(${t("adminMisc.platformImport.archivedSuffix")})` : ""}
                   </option>
                 ))}
               </select>
@@ -432,8 +432,8 @@ export default function ImportPage() {
                 </label>
                 <select
                   value={selectedRunId}
-                  onChange={(e) => {
-                    setSelectedRunId(e.target.value);
+                  onChange={(event) => {
+                    setSelectedRunId(event.target.value);
                     // Prevent stale questions from a previous selection
                     setPreviewData(null);
                     setMapping({});
@@ -442,9 +442,9 @@ export default function ImportPage() {
                   className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-sm font-bold outline-none focus:border-[var(--brand-orange)]"
                 >
                   <option value="">{t("adminMisc.platformImport.chooseRun")}</option>
-                  {runs.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name || `${t("adminMisc.platformImport.runFallback")} #${r.id}`} ({r.status})
+                  {runs.map((run) => (
+                    <option key={run.id} value={run.id}>
+                      {run.name || `${t("adminMisc.platformImport.runFallback")} #${run.id}`} ({run.status})
                     </option>
                   ))}
                 </select>
@@ -470,8 +470,8 @@ export default function ImportPage() {
                     {csvFileName}
                   </p>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={(event) => {
+                      event.stopPropagation();
                       setCsvFileName("");
                       setParsedData(null);
                       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -591,7 +591,7 @@ export default function ImportPage() {
                       <td className="p-3">
                         <select
                           value={mapping[col] || ""}
-                          onChange={(e) => updateMapping(col, e.target.value)}
+                          onChange={(event) => updateMapping(col, event.target.value)}
                           className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
                         >
                           <option value="">{t("adminMisc.platformImport.skipOption")}</option>
@@ -602,24 +602,24 @@ export default function ImportPage() {
                             <option value="_crm_id">{t("adminMisc.platformImport.fieldCrmId")}</option>
                           </optgroup>
                           <optgroup label={t("adminMisc.platformImport.formFields")}>
-                            {previewData.form_fields.map((f) => (
-                              <option key={f.id} value={f.id}>
-                                {f.label} ({f.field_type})
+                            {previewData.form_fields.map((formField) => (
+                              <option key={formField.id} value={formField.id}>
+                                {formField.label} ({formField.field_type})
                               </option>
                             ))}
                           </optgroup>
                         </select>
                         {(() => {
                           const mappedField = previewData.form_fields.find(
-                            (f) => String(f.id) === String(mapping[col])
+                            (formField) => String(formField.id) === String(mapping[col])
                           );
                           if (
                             mappedField &&
                             Array.isArray(mappedField.options) &&
                             mappedField.options.length > 0
                           ) {
-                            const optionLabels = mappedField.options.map((o) =>
-                              typeof o === "string" ? o : o?.label || o?.value || String(o)
+                            const optionLabels = mappedField.options.map((option) =>
+                              typeof option === "string" ? option : option?.label || option?.value || String(option)
                             );
                             return (
                               <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1 break-words">
@@ -668,9 +668,9 @@ export default function ImportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {previewData.preview_rows.map((row, i) => (
+                    {previewData.preview_rows.map((row, rowIndex) => (
                       <tr
-                        key={i}
+                        key={rowIndex}
                         className="border-b border-[var(--border-primary)]"
                       >
                         {previewData.csv_columns.map((col) => (
@@ -793,9 +793,9 @@ export default function ImportPage() {
                   {t("adminMisc.platformImport.identityReviewHint")}
                 </p>
                 <div className="max-h-40 overflow-y-auto space-y-1">
-                  {importResult.review_rows.slice(0, 20).map((r, i) => (
-                    <p key={i} className="text-[10px] text-[var(--text-secondary)]">
-                      {t("adminMisc.platformImport.rowPrefix")} {r.row}: {r.name} {r.email ? `(${r.email})` : ""} — {r.reason}
+                  {importResult.review_rows.slice(0, 20).map((reviewRow, index) => (
+                    <p key={index} className="text-[10px] text-[var(--text-secondary)]">
+                      {t("adminMisc.platformImport.rowPrefix")} {reviewRow.row}: {reviewRow.name} {reviewRow.email ? `(${reviewRow.email})` : ""} — {reviewRow.reason}
                     </p>
                   ))}
                   {importResult.review_rows.length > 20 && (
@@ -813,12 +813,12 @@ export default function ImportPage() {
                   {t("adminMisc.platformImport.rowErrors")}
                 </p>
                 <div className="max-h-32 overflow-y-auto space-y-1">
-                  {importResult.errors.slice(0, 10).map((err, i) => (
+                  {importResult.errors.slice(0, 10).map((errorRow, index) => (
                     <p
-                      key={i}
+                      key={index}
                       className="text-[10px] text-[var(--text-secondary)] font-mono"
                     >
-                      {t("adminMisc.platformImport.rowPrefix")} {err.row}: {t(err.error || "") || err.error}
+                      {t("adminMisc.platformImport.rowPrefix")} {errorRow.row}: {t(errorRow.error || "") || errorRow.error}
                     </p>
                   ))}
                 </div>

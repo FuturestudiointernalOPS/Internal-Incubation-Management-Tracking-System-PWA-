@@ -20,8 +20,8 @@ export default function BulkUploadPage() {
   const [error, setError] = useState("");
   const fileInputRef = useRef(null);
 
-  const handleFileChange = (e) => {
-    const selected = e.target.files[0];
+  const handleFileChange = (event) => {
+    const selected = event.target.files[0];
     if (selected) {
       if (!selected.name.endsWith(".csv")) {
         setError(t("adminMisc.bulkUpload.onlyCsvAccepted"));
@@ -67,10 +67,10 @@ export default function BulkUploadPage() {
       "name,email,phone,group_name,role\nJohn Doe,john@example.com,+22912345678,UAT Students,participant\nJane Smith,jane@example.com,+22987654321,STAFF,staff";
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "bulk_upload_template.csv";
-    a.click();
+    const downloadLink = document.createElement("a");
+    downloadLink.href = url;
+    downloadLink.download = "bulk_upload_template.csv";
+    downloadLink.click();
     URL.revokeObjectURL(url);
   };
 
@@ -141,8 +141,8 @@ export default function BulkUploadPage() {
                   {(file.size / 1024).toFixed(1)} KB
                 </p>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={(event) => {
+                    event.stopPropagation();
                     setFile(null);
                     setResult(null);
                     if (fileInputRef.current) fileInputRef.current.value = "";

@@ -22,13 +22,13 @@ export default function PublicCoursesPage() {
 
   useEffect(() => {
     fetch("/api/public/courses")
-      .then((r) => r.json())
-      .then((d) => {
-        if (!d.success) throw new Error(d.error || "lms.public.loadFailed");
-        setCourses(d.courses || []);
+      .then((response) => response.json())
+      .then((payload) => {
+        if (!payload.success) throw new Error(payload.error || "lms.public.loadFailed");
+        setCourses(payload.courses || []);
       })
-      .catch((e) => {
-        setError(e.message || "lms.public.loadFailed");
+      .catch((loadError) => {
+        setError(loadError.message || "lms.public.loadFailed");
         setCourses([]);
       });
   }, []);

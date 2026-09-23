@@ -25,7 +25,7 @@ import { useApi } from "@/lib/hooks/useApi";
 // Module scope on purpose: the hook keys its internal callback on this function,
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop.
-const pickReviewFlags = (d) => (d?.success ? d.flags || [] : []);
+const pickReviewFlags = (payload) => (payload?.success ? payload.flags || [] : []);
 
 function ImportReviewContent() {
   const { t } = useI18n();
@@ -34,8 +34,8 @@ function ImportReviewContent() {
   const [resolving, setResolving] = useState(null);
   const [notification, setNotification] = useState(null);
 
-  const notify = (msg) => {
-    setNotification(msg);
+  const notify = (message) => {
+    setNotification(message);
     setTimeout(() => setNotification(null), 3000);
   };
 
@@ -52,12 +52,12 @@ function ImportReviewContent() {
   const resolveFlag = async (id, status) => {
     setResolving(id);
     try {
-      const res = await fetch("/api/platform/import/review-flags", {
+      const response = await fetch("/api/platform/import/review-flags", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(status === "resolved" ? t("adminMisc.platformImportReview.flagResolved") : t("adminMisc.platformImportReview.flagReopened"));
         refresh();
@@ -145,19 +145,19 @@ function ImportReviewContent() {
           </div>
         ) : (
           <div className="space-y-3">
-            {flags.map((f) => (
+            {flags.map((flag) => (
               <div
-                key={f.id}
+                key={flag.id}
                 className={`card p-5 border-l-4 ${
-                  f.status === "resolved" ? "border-emerald-500" : "border-amber-500"
+                  flag.status === "resolved" ? "border-emerald-500" : "border-amber-500"
                 }`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      f.status === "resolved" ? "bg-emerald-500/10" : "bg-amber-500/10"
+                      flag.status === "resolved" ? "bg-emerald-500/10" : "bg-amber-500/10"
                     }`}>
-                      {f.status === "resolved" ? (
+                      {flag.status === "resolved" ? (
                         <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                       ) : (
                         <AlertTriangle className="w-5 h-5 text-amber-500" />
@@ -165,25 +165,25 @@ function ImportReviewContent() {
                     </div>
                     <div>
                       <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                        {f.applicant_name || t("adminMisc.platformImportReview.unknown")}
+                        {flag.applicant_name || t("adminMisc.platformImportReview.unknown")}
                       </p>
                       <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
-                        {f.applicant_email || t("adminMisc.platformImportReview.noEmail")} · {t("adminMisc.platformImportReview.rowPrefix")} {f.row_number} · {t("adminMisc.platformImportReview.methodLabel")} {f.method}
+                        {flag.applicant_email || t("adminMisc.platformImportReview.noEmail")} · {t("adminMisc.platformImportReview.rowPrefix")} {flag.row_number} · {t("adminMisc.platformImportReview.methodLabel")} {flag.method}
                       </p>
                       <p className="text-[10px] text-amber-500 font-bold mt-2">
-                        {f.reason}
+                        {flag.reason}
                       </p>
-                      {f.matched_cid && (
+                      {flag.matched_cid && (
                         <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1 font-mono">
-                          {t("adminMisc.platformImportReview.linkedTo")} {f.matched_name || f.matched_cid} ({f.matched_cid})
+                          {t("adminMisc.platformImportReview.linkedTo")} {flag.matched_name || flag.matched_cid} ({flag.matched_cid})
                         </p>
                       )}
                     </div>
                   </div>
                   <div className="flex flex-col gap-2 shrink-0">
-                    {f.matched_cid && (
+                    {flag.matched_cid && (
                       <Link
-                        href={`/admin/crm/timeline?cid=${f.matched_cid}`}
+                        href={`/admin/crm/timeline?cid=${flag.matched_cid}`}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--brand-orange)]"
                       >
                         <Eye className="w-3 h-3" /> {t("adminMisc.platformImportReview.viewCrm")}
@@ -195,18 +195,18 @@ function ImportReviewContent() {
                     >
                       <User className="w-3 h-3" /> {t("adminMisc.platformImportReview.duplicates")}
                     </Link>
-                    {f.status === "pending" ? (
+                    {flag.status === "pending" ? (
                       <button
-                        onClick={() => resolveFlag(f.id, "resolved")}
-                        disabled={resolving === f.id}
+                        onClick={() => resolveFlag(flag.id, "resolved")}
+                        disabled={resolving === flag.id}
                         className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-40"
                       >
-                        {resolving === f.id ? "..." : t("adminMisc.platformImportReview.markResolved")}
+                        {resolving === flag.id ? "..." : t("adminMisc.platformImportReview.markResolved")}
                       </button>
                     ) : (
                       <button
-                        onClick={() => resolveFlag(f.id, "pending")}
-                        disabled={resolving === f.id}
+                        onClick={() => resolveFlag(flag.id, "pending")}
+                        disabled={resolving === flag.id}
                         className="px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40"
                       >
                         {t("adminMisc.platformImportReview.reopen")}

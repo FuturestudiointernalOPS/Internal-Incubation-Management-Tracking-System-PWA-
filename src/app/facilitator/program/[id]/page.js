@@ -29,8 +29,8 @@ export const dynamic = "force-dynamic";
 const EMPTY_OBJECT = {};
 const EMPTY_LIST = [];
 
-const pickFullState = (d) => (d?.success ? d : null);
-const pickList = (field) => (d) => (d?.success ? d[field] || [] : []);
+const pickFullState = (response) => (response?.success ? response : null);
+const pickList = (listKey) => (response) => (response?.success ? response[listKey] || [] : []);
 
 // Called once, here: `pickList` is a factory, so calling it at the call site would
 // hand the read a new identity on every render and re-issue its request.
@@ -39,11 +39,11 @@ const pickSubmissions = pickList("submissions");
 const pickReviews = pickList("reviews");
 
 /** Saved attendance, keyed the way the sheet addresses it. */
-const pickAttendance = (d) => {
+const pickAttendance = (response) => {
   const bySessionAndParticipant = {};
-  if (!d?.success) return bySessionAndParticipant;
-  for (const a of d.attendance || []) {
-    bySessionAndParticipant[`${a.session_id}:${a.participant_id}`] = a.status;
+  if (!response?.success) return bySessionAndParticipant;
+  for (const record of response.attendance || []) {
+    bySessionAndParticipant[`${record.session_id}:${record.participant_id}`] = record.status;
   }
   return bySessionAndParticipant;
 };
@@ -191,22 +191,22 @@ export default function FacilitatorProgram({ params }) {
       new CustomEvent("impactos:notify", { detail: { type, message } }),
     );
 
-  const reviewRatingLabel = (v) =>
-    FACILITATOR_REVIEW_OPTIONS.ratings.includes(v)
-      ? t(`pmMisc.facilitators.weeklyReview.rating_${v}`)
-      : v || "";
-  const reviewEngagementLabel = (v) =>
-    FACILITATOR_REVIEW_OPTIONS.engagement.includes(v)
-      ? t(`pmMisc.facilitators.weeklyReview.engagement_${v}`)
-      : v || "";
-  const reviewAttentionLabel = (v) =>
-    FACILITATOR_REVIEW_OPTIONS.attention.includes(v)
-      ? t(`pmMisc.facilitators.weeklyReview.attention_${v}`)
-      : v || "";
-  const reviewStatusLabel = (r) => {
-    if (r.pm_decision === "changes_requested")
+  const reviewRatingLabel = (value) =>
+    FACILITATOR_REVIEW_OPTIONS.ratings.includes(value)
+      ? t(`pmMisc.facilitators.weeklyReview.rating_${value}`)
+      : value || "";
+  const reviewEngagementLabel = (value) =>
+    FACILITATOR_REVIEW_OPTIONS.engagement.includes(value)
+      ? t(`pmMisc.facilitators.weeklyReview.engagement_${value}`)
+      : value || "";
+  const reviewAttentionLabel = (value) =>
+    FACILITATOR_REVIEW_OPTIONS.attention.includes(value)
+      ? t(`pmMisc.facilitators.weeklyReview.attention_${value}`)
+      : value || "";
+  const reviewStatusLabel = (reviewItem) => {
+    if (reviewItem.pm_decision === "changes_requested")
       return t("pmMisc.facilitators.weeklyReview.status_changes_requested");
-    if (r.status === "decided")
+    if (reviewItem.status === "decided")
       return t("pmMisc.facilitators.weeklyReview.status_decided");
     return t("pmMisc.facilitators.weeklyReview.status_submitted");
   };
@@ -218,12 +218,12 @@ export default function FacilitatorProgram({ params }) {
     }
     setSavingReview(true);
     try {
-      const res = await fetch("/api/facilitator-reviews", {
+      const response = await fetch("/api/facilitator-reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ program_id: id, week_number: reviewWeek, ...review }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify("success", t("pmMisc.facilitators.weeklyReview.submitSuccess"));
         setReview({
@@ -255,20 +255,20 @@ export default function FacilitatorProgram({ params }) {
       // bulk save can never wipe marks it did not explicitly set — e.g. marks
       // the PM recorded for this team.
       const records = participants
-        .map((p) => ({
+        .map((participant) => ({
           session_id: sessionId,
           program_id: id,
-          participant_id: p.id || p.user_id,
-          status: attendance[`${sessionId}:${p.id || p.user_id}`] || "",
+          participant_id: participant.id || participant.user_id,
+          status: attendance[`${sessionId}:${participant.id || participant.user_id}`] || "",
           date: attendanceDate,
         }))
-        .filter((r) => r.participant_id && r.status);
-      const res = await fetch("/api/attendance", {
+        .filter((record) => record.participant_id && record.status);
+      const response = await fetch("/api/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(records),
       });
-      if ((await res.json()).success) {
+      if ((await response.json()).success) {
         notify("success", "Attendance recorded");
       }
     } catch {
@@ -282,7 +282,7 @@ export default function FacilitatorProgram({ params }) {
     // Always send the record, even with an empty status: empty means the
     // facilitator explicitly cleared this participant's mark for the session.
     try {
-      const res = await fetch("/api/attendance", {
+      const response = await fetch("/api/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify([
@@ -295,7 +295,7 @@ export default function FacilitatorProgram({ params }) {
           },
         ]),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (!data.success) {
         notify("error", data.error || "Failed to record attendance");
       }
@@ -310,12 +310,12 @@ export default function FacilitatorProgram({ params }) {
       body.rejection_reason = feedback || "Rejected";
     }
     try {
-      const res = await fetch("/api/submissions", {
+      const response = await fetch("/api/submissions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify("success", "Submission updated");
         reload();
@@ -363,18 +363,18 @@ export default function FacilitatorProgram({ params }) {
         </header>
 
         <div className="flex gap-2 flex-wrap">
-          {tabs.map((tb) => (
+          {tabs.map((tabItem) => (
             <button
-              key={tb.key}
-              onClick={() => setTab(tb.key)}
+              key={tabItem.key}
+              onClick={() => setTab(tabItem.key)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-[10px] font-bold uppercase tracking-wide transition-all ${
-                tab === tb.key
+                tab === tabItem.key
                   ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]"
                   : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)]"
               }`}
             >
-              <tb.icon className="w-3.5 h-3.5" />
-              {tb.label}
+              <tabItem.icon className="w-3.5 h-3.5" />
+              {tabItem.label}
             </button>
           ))}
         </div>
@@ -431,19 +431,19 @@ export default function FacilitatorProgram({ params }) {
                 No sessions scheduled yet.
               </p>
             )}
-            {sessions.map((s) => (
+            {sessions.map((session) => (
               <div
-                key={s.id}
+                key={session.id}
                 className="flex items-center justify-between gap-3 p-4 rounded-2xl border border-[var(--border-primary)] bg-secondary"
               >
                 <div>
-                  <p className="text-[11px] font-black uppercase">{s.title}</p>
+                  <p className="text-[11px] font-black uppercase">{session.title}</p>
                   <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                    Week {s.week_number} \u00b7 {s.type}
+                    Week {session.week_number} \u00b7 {session.type}
                   </p>
                 </div>
                 <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-500/10 text-blue-500">
-                  {s.status || "scheduled"}
+                  {session.status || "scheduled"}
                 </span>
               </div>
             ))}
@@ -458,27 +458,27 @@ export default function FacilitatorProgram({ params }) {
                 No participants in your assigned scope.
               </p>
             )}
-            {participants.map((p) => (
+            {participants.map((participant) => (
               <div
-                key={p.id}
+                key={participant.id}
                 className="flex items-center justify-between gap-3 p-4 rounded-2xl border border-[var(--border-primary)] bg-secondary"
               >
                 <div className="min-w-0">
                   <p className="text-[11px] font-black uppercase truncate">
-                    {p.name}
+                    {participant.name}
                   </p>
                   <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">
-                    {p.email}
+                    {participant.email}
                   </p>
                 </div>
                 <span
                   className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded shrink-0 ${
-                    p.status === "active"
+                    participant.status === "active"
                       ? "bg-emerald-500/15 text-emerald-400"
                       : "bg-amber-500/15 text-amber-400"
                   }`}
                 >
-                  {p.status || "—"}
+                  {participant.status || "—"}
                 </span>
               </div>
             ))}
@@ -497,7 +497,7 @@ export default function FacilitatorProgram({ params }) {
                 <input
                   type="date"
                   value={attendanceDate}
-                  onChange={(e) => setAttendanceDate(e.target.value)}
+                  onChange={(event) => setAttendanceDate(event.target.value)}
                   max={getLocalToday()}
                   min={getLocalToday()}
                   className="w-full bg-transparent text-sm font-bold text-[var(--text-primary)] outline-none"
@@ -509,38 +509,38 @@ export default function FacilitatorProgram({ params }) {
                 No sessions scheduled yet.
               </p>
             )}
-            {sessions.map((s) => (
+            {sessions.map((session) => (
               <div
-                key={s.id}
+                key={session.id}
                 className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4 space-y-3"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <p className="text-[11px] font-black uppercase">
-                      {s.title}
+                      {session.title}
                     </p>
                     <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                      Week {s.week_number} · {s.type}
+                      Week {session.week_number} · {session.type}
                     </p>
                   </div>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-1.5">
-                  {participants.map((p) => {
-                    const key = `${s.id}:${p.id || p.user_id}`;
+                  {participants.map((participant) => {
+                    const key = `${session.id}:${participant.id || participant.user_id}`;
                     return (
                       <div
                         key={key}
                         className="flex items-center justify-between gap-2 p-2 rounded-lg border border-[var(--border-primary)] bg-primary"
                       >
                         <span className="text-[10px] font-bold uppercase truncate">
-                          {p.name}
+                          {participant.name}
                         </span>
                         <select
                           value={attendance[key] || ""}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setMark(key, v);
-                            saveAttendanceForParticipant(s.id, p.id || p.user_id, v);
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setMark(key, value);
+                            saveAttendanceForParticipant(session.id, participant.id || participant.user_id, value);
                           }}
                           className="bg-secondary border border-[var(--border-primary)] rounded px-1.5 py-1 text-[10px] font-bold uppercase outline-none cursor-pointer"
                         >
@@ -554,7 +554,7 @@ export default function FacilitatorProgram({ params }) {
                 </div>
                 <button
                   disabled={savingAtt}
-                  onClick={() => saveAttendance(s.id)}
+                  onClick={() => saveAttendance(session.id)}
                   className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500/20 transition-all"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" /> Save attendance
@@ -572,8 +572,8 @@ export default function FacilitatorProgram({ params }) {
                 No submissions in your scope yet.
               </p>
             )}
-            {submissions.map((s) => (
-              <SubmissionRow key={s.id} sub={s} onReview={reviewSubmission} t={t} />
+            {submissions.map((submission) => (
+              <SubmissionRow key={submission.id} sub={submission} onReview={reviewSubmission} t={t} />
             ))}
           </div>
         )}
@@ -597,7 +597,7 @@ export default function FacilitatorProgram({ params }) {
                     type="number"
                     min="1"
                     value={reviewWeek}
-                    onChange={(e) => setChosenWeek(parseInt(e.target.value) || 1)}
+                    onChange={(event) => setChosenWeek(parseInt(event.target.value) || 1)}
                     className="w-16 bg-transparent text-center text-[11px] font-black text-[var(--text-primary)] outline-none"
                   />
                 </div>
@@ -606,42 +606,42 @@ export default function FacilitatorProgram({ params }) {
               <ReviewSelect
                 label={t("pmMisc.facilitators.weeklyReview.q1")}
                 value={review.overall_rating}
-                onChange={(v) => setReview({ ...review, overall_rating: v })}
-                options={FACILITATOR_REVIEW_OPTIONS.ratings.map((v) => ({
-                  value: v,
-                  label: t(`pmMisc.facilitators.weeklyReview.rating_${v}`),
+                onChange={(value) => setReview({ ...review, overall_rating: value })}
+                options={FACILITATOR_REVIEW_OPTIONS.ratings.map((option) => ({
+                  value: option,
+                  label: t(`pmMisc.facilitators.weeklyReview.rating_${option}`),
                 }))}
               />
 
               <ReviewField
                 label={t("pmMisc.facilitators.weeklyReview.q2")}
                 value={review.went_well}
-                onChange={(v) => setReview({ ...review, went_well: v })}
+                onChange={(value) => setReview({ ...review, went_well: value })}
               />
 
               <ReviewField
                 label={t("pmMisc.facilitators.weeklyReview.q3")}
                 value={review.struggles}
-                onChange={(v) => setReview({ ...review, struggles: v })}
+                onChange={(value) => setReview({ ...review, struggles: value })}
               />
 
               <ReviewSelect
                 label={t("pmMisc.facilitators.weeklyReview.q4")}
                 value={review.engagement}
-                onChange={(v) => setReview({ ...review, engagement: v })}
-                options={FACILITATOR_REVIEW_OPTIONS.engagement.map((v) => ({
-                  value: v,
-                  label: t(`pmMisc.facilitators.weeklyReview.engagement_${v}`),
+                onChange={(value) => setReview({ ...review, engagement: value })}
+                options={FACILITATOR_REVIEW_OPTIONS.engagement.map((option) => ({
+                  value: option,
+                  label: t(`pmMisc.facilitators.weeklyReview.engagement_${option}`),
                 }))}
               />
 
               <ReviewSelect
                 label={t("pmMisc.facilitators.weeklyReview.q5")}
                 value={review.needs_attention_type}
-                onChange={(v) => setReview({ ...review, needs_attention_type: v })}
-                options={FACILITATOR_REVIEW_OPTIONS.attention.map((v) => ({
-                  value: v,
-                  label: t(`pmMisc.facilitators.weeklyReview.attention_${v}`),
+                onChange={(value) => setReview({ ...review, needs_attention_type: value })}
+                options={FACILITATOR_REVIEW_OPTIONS.attention.map((option) => ({
+                  value: option,
+                  label: t(`pmMisc.facilitators.weeklyReview.attention_${option}`),
                 }))}
               />
 
@@ -650,8 +650,8 @@ export default function FacilitatorProgram({ params }) {
                   <ReviewField
                     label={t("pmMisc.facilitators.weeklyReview.q5note")}
                     value={review.needs_attention_note}
-                    onChange={(v) =>
-                      setReview({ ...review, needs_attention_note: v })
+                    onChange={(value) =>
+                      setReview({ ...review, needs_attention_note: value })
                     }
                   />
                 )}
@@ -659,13 +659,13 @@ export default function FacilitatorProgram({ params }) {
               <ReviewField
                 label={t("pmMisc.facilitators.weeklyReview.q6")}
                 value={review.focus_next_week}
-                onChange={(v) => setReview({ ...review, focus_next_week: v })}
+                onChange={(value) => setReview({ ...review, focus_next_week: value })}
               />
 
               <ReviewField
                 label={t("pmMisc.facilitators.weeklyReview.q7")}
                 value={review.additional_notes}
-                onChange={(v) => setReview({ ...review, additional_notes: v })}
+                onChange={(value) => setReview({ ...review, additional_notes: value })}
               />
 
               <button
@@ -687,78 +687,78 @@ export default function FacilitatorProgram({ params }) {
                 <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("pmMisc.facilitators.weeklyReview.myReviews")}
                 </h2>
-                {myReviews.map((r) => (
+                {myReviews.map((reviewItem) => (
                   <div
-                    key={r.id}
+                    key={reviewItem.id}
                     className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4 space-y-2"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         {t("pmMisc.facilitators.weeklyReview.submittedAt", {
-                          date: new Date(r.created_at).toLocaleDateString(),
+                          date: new Date(reviewItem.created_at).toLocaleDateString(),
                         })}
-                        {r.week_number
-                          ? ` · ${t("pmMisc.facilitators.weeklyReview.week")} ${r.week_number}`
+                        {reviewItem.week_number
+                          ? ` · ${t("pmMisc.facilitators.weeklyReview.week")} ${reviewItem.week_number}`
                           : ""}
                       </span>
                       <span
                         className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                          r.pm_decision === "changes_requested"
+                          reviewItem.pm_decision === "changes_requested"
                             ? "bg-rose-500/15 text-rose-400"
-                            : r.status === "decided"
+                            : reviewItem.status === "decided"
                               ? "bg-emerald-500/15 text-emerald-400"
                               : "bg-amber-500/15 text-amber-400"
                         }`}
                       >
-                        {reviewStatusLabel(r)}
+                        {reviewStatusLabel(reviewItem)}
                       </span>
                     </div>
                     <ReviewSummaryRow
                       label={t("pmMisc.facilitators.weeklyReview.overall")}
                       value={
-                        reviewRatingLabel(r.overall_rating) ||
-                        r.participant_progress
+                        reviewRatingLabel(reviewItem.overall_rating) ||
+                        reviewItem.participant_progress
                       }
                     />
                     <ReviewSummaryRow
                       label={t("pmMisc.facilitators.weeklyReview.engagement")}
-                      value={reviewEngagementLabel(r.engagement)}
+                      value={reviewEngagementLabel(reviewItem.engagement)}
                     />
                     <ReviewSummaryRow
                       label={t("pmMisc.facilitators.weeklyReview.wentWell")}
-                      value={r.went_well}
+                      value={reviewItem.went_well}
                     />
                     <ReviewSummaryRow
                       label={t("pmMisc.facilitators.weeklyReview.struggles")}
-                      value={r.struggles || r.challenges}
+                      value={reviewItem.struggles || reviewItem.challenges}
                     />
                     <ReviewSummaryRow
                       label={t("pmMisc.facilitators.weeklyReview.needsAttention")}
                       value={
-                        reviewAttentionLabel(r.needs_attention_type) ||
-                        r.needs_attention
+                        reviewAttentionLabel(reviewItem.needs_attention_type) ||
+                        reviewItem.needs_attention
                       }
-                      note={r.needs_attention_note}
+                      note={reviewItem.needs_attention_note}
                     />
                     <ReviewSummaryRow
                       label={t("pmMisc.facilitators.weeklyReview.focusNextWeek")}
-                      value={r.focus_next_week || r.recommendations}
+                      value={reviewItem.focus_next_week || reviewItem.recommendations}
                     />
                     <ReviewSummaryRow
                       label={t("pmMisc.facilitators.weeklyReview.additionalNotes")}
-                      value={r.additional_notes}
+                      value={reviewItem.additional_notes}
                     />
-                    {r.pm_decision && (
+                    {reviewItem.pm_decision && (
                       <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
                         <p className="text-[10px] font-bold uppercase text-emerald-400 mb-1">
                           {t("pmMisc.facilitators.weeklyReview.decision")}
                         </p>
                         <p className="text-[10px] font-medium text-[var(--text-primary)]">
-                          {r.pm_decision}
+                          {reviewItem.pm_decision}
                         </p>
-                        {r.pm_decision_note && (
+                        {reviewItem.pm_decision_note && (
                           <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
-                            {r.pm_decision_note}
+                            {reviewItem.pm_decision_note}
                           </p>
                         )}
                       </div>
@@ -782,7 +782,7 @@ function ReviewField({ label, value, onChange }) {
       </label>
       <textarea
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         rows={2}
         placeholder="Optional…"
         className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] resize-none"
@@ -799,13 +799,13 @@ function ReviewSelect({ label, value, onChange, options, placeholder }) {
       </label>
       <select
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] cursor-pointer text-[var(--text-primary)]"
       >
         <option value="">{placeholder || "Select…"}</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
           </option>
         ))}
       </select>
@@ -839,12 +839,12 @@ function SubmissionRow({ sub, onReview, t }) {
   // instead of being trapped behind a fixed 2-row box.
   useEffect(() => {
     if (!expanded) return;
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    const overflows = el.scrollHeight > MAX_FEEDBACK_HEIGHT;
-    el.style.height = `${overflows ? MAX_FEEDBACK_HEIGHT : el.scrollHeight}px`;
-    el.style.overflowY = overflows ? "auto" : "hidden";
+    const element = textareaRef.current;
+    if (!element) return;
+    element.style.height = "auto";
+    const overflows = element.scrollHeight > MAX_FEEDBACK_HEIGHT;
+    element.style.height = `${overflows ? MAX_FEEDBACK_HEIGHT : element.scrollHeight}px`;
+    element.style.overflowY = overflows ? "auto" : "hidden";
   }, [expanded, feedback]);
 
   return (
@@ -903,7 +903,7 @@ function SubmissionRow({ sub, onReview, t }) {
               id={`submission-feedback-${sub.id}`}
               ref={textareaRef}
               value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
+              onChange={(event) => setFeedback(event.target.value)}
               rows={3}
               placeholder={t("pmMisc.submissions.feedbackPlaceholder")}
               className="w-full resize-none overflow-hidden bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-[11px] font-medium leading-relaxed text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] placeholder:font-normal outline-none focus:border-[var(--brand-orange)] transition-colors"

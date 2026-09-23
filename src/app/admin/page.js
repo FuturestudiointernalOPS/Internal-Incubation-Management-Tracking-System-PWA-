@@ -46,8 +46,8 @@ function getCalendarDays(year, month) {
   const lastDay = new Date(year, month + 1, 0);
   const startPad = firstDay.getDay();
   const days = [];
-  for (let i = 0; i < startPad; i++) days.push(null);
-  for (let d = 1; d <= lastDay.getDate(); d++) days.push(d);
+  for (let index = 0; index < startPad; index++) days.push(null);
+  for (let dayOfMonth = 1; dayOfMonth <= lastDay.getDate(); dayOfMonth++) days.push(dayOfMonth);
   return days;
 }
 
@@ -67,12 +67,12 @@ const MONTH_KEYS = [
 ];
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
-function isToday(d) {
+function isToday(date) {
   const today = new Date();
   return (
-    d.getDate() === today.getDate() &&
-    d.getMonth() === today.getMonth() &&
-    d.getFullYear() === today.getFullYear()
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
   );
 }
 
@@ -243,7 +243,7 @@ export default function AdminDashboard() {
     return map[normalized] || key || "";
   };
 
-  const getMonthLabel = (idx) => t(`time.months.` + MONTH_KEYS[idx]);
+  const getMonthLabel = (monthIndex) => t(`time.months.` + MONTH_KEYS[monthIndex]);
 
   // Dashboard widgets state
   const now = new Date();
@@ -287,10 +287,14 @@ export default function AdminDashboard() {
         const reports = opData.reports || [];
 
         // Calculate op stats
-        const standups = reports.filter((r) => r.report_type === "standup");
-        const retros = reports.filter((r) => r.report_type === "retro");
-        const blockers = reports.filter((r) => r.has_blockers);
-        const support = reports.filter((r) => r.needs_support);
+        const standups = reports.filter(
+          (report) => report.report_type === "standup",
+        );
+        const retros = reports.filter(
+          (report) => report.report_type === "retro",
+        );
+        const blockers = reports.filter((report) => report.has_blockers);
+        const support = reports.filter((report) => report.needs_support);
 
         // Count active blockers from dedicated blockers table
         const activeBlockersCount = blockerData.success
@@ -302,17 +306,17 @@ export default function AdminDashboard() {
           retros: retros.length,
           blockers: blockers.length + activeBlockersCount,
           support: support.length,
-          totalUsers: new Set(reports.map((r) => r.user_id)).size,
+          totalUsers: new Set(reports.map((report) => report.user_id)).size,
         });
 
         // Per-staff reporting stats
         const userMap = {};
-        reports.forEach((r) => {
-          if (!userMap[r.user_id]) {
-            userMap[r.user_id] = {
-              id: r.user_id,
-              name: r.user_name,
-              role: r.user_role,
+        reports.forEach((report) => {
+          if (!userMap[report.user_id]) {
+            userMap[report.user_id] = {
+              id: report.user_id,
+              name: report.user_name,
+              role: report.user_role,
               standups: 0,
               retros: 0,
               blockers: 0,
@@ -320,17 +324,17 @@ export default function AdminDashboard() {
               weeks: new Set(),
             };
           }
-          if (r.report_type === "standup") userMap[r.user_id].standups++;
-          else userMap[r.user_id].retros++;
-          if (r.has_blockers) userMap[r.user_id].blockers++;
+          if (report.report_type === "standup") userMap[report.user_id].standups++;
+          else userMap[report.user_id].retros++;
+          if (report.has_blockers) userMap[report.user_id].blockers++;
           if (
-            !userMap[r.user_id].latest ||
-            new Date(r.created_at) > new Date(userMap[r.user_id].latest)
+            !userMap[report.user_id].latest ||
+            new Date(report.created_at) > new Date(userMap[report.user_id].latest)
           ) {
-            userMap[r.user_id].latest = r.created_at;
+            userMap[report.user_id].latest = report.created_at;
           }
-          userMap[r.user_id].weeks.add(
-            `${r.year}-W${String(r.week_number).padStart(2, "0")}`,
+          userMap[report.user_id].weeks.add(
+            `${report.year}-W${String(report.week_number).padStart(2, "0")}`,
           );
         });
         setStaffReports(Object.values(userMap));
@@ -338,15 +342,15 @@ export default function AdminDashboard() {
         // Blocker type aggregation
         const blockerAgg = {};
         standups
-          .filter((r) => r.has_blockers && r.blocker_description)
-          .forEach((r) => {
-            const desc = r.blocker_description || "Other";
+          .filter((report) => report.has_blockers && report.blocker_description)
+          .forEach((report) => {
+            const desc = report.blocker_description || "Other";
             blockerAgg[desc] = (blockerAgg[desc] || 0) + 1;
           });
         retros
-          .filter((r) => r.had_blockers && r.blocker_type)
-          .forEach((r) => {
-            const type = r.blocker_type || "Other";
+          .filter((report) => report.had_blockers && report.blocker_type)
+          .forEach((report) => {
+            const type = report.blocker_type || "Other";
             blockerAgg[formatLabel(type)] =
               (blockerAgg[formatLabel(type)] || 0) + 1;
           });
@@ -360,16 +364,18 @@ export default function AdminDashboard() {
       // Cache-first paint: if a fresh (≤30s) snapshot of all four endpoints is
       // available (e.g. returning to /admin), render it immediately instead of
       // showing skeletons, then let the network refresh below converge.
-      const cached = urls.map((u) => cacheGet(u));
-      if (cached.every((c) => c !== null)) {
+      const cached = urls.map((url) => cacheGet(url));
+      if (cached.every((cachedItem) => cachedItem !== null)) {
         apply(cached[0], cached[1], cached[2], cached[3]);
         setLoading(false);
       }
 
-      const responses = await Promise.all(urls.map((u) => fetch(u)));
-      const jsons = await Promise.all(responses.map((r) => r.json()));
-      urls.forEach((u, i) => cacheSet(u, jsons[i]));
-      apply(jsons[0], jsons[1], jsons[2], jsons[3]);
+      const responses = await Promise.all(urls.map((url) => fetch(url)));
+      const payloads = await Promise.all(
+        responses.map((response) => response.json()),
+      );
+      urls.forEach((url, index) => cacheSet(url, payloads[index]));
+      apply(payloads[0], payloads[1], payloads[2], payloads[3]);
     } catch (err) {
       console.error("Dashboard sync failure:", err);
     } finally {
@@ -406,17 +412,19 @@ export default function AdminDashboard() {
       // Cache-first paint (same 30s SWR window as fetchDashboardData): render
       // the widgets instantly from a fresh snapshot when returning to /admin,
       // then the network refresh below converges to current values.
-      const cached = urls.map((u) => cacheGet(u));
-      if (cached.every((c) => c !== null)) {
+      const cached = urls.map((url) => cacheGet(url));
+      if (cached.every((cachedItem) => cachedItem !== null)) {
         apply(cached[0], cached[1], cached[2]);
       }
 
-      const responses = await Promise.all(urls.map((u) => fetch(u)));
-      const jsons = await Promise.all(responses.map((r) => r.json()));
-      urls.forEach((u, i) => cacheSet(u, jsons[i]));
-      apply(jsons[0], jsons[1], jsons[2]);
-    } catch (e) {
-      console.error("Widget data fetch error:", e);
+      const responses = await Promise.all(urls.map((url) => fetch(url)));
+      const payloads = await Promise.all(
+        responses.map((response) => response.json()),
+      );
+      urls.forEach((url, index) => cacheSet(url, payloads[index]));
+      apply(payloads[0], payloads[1], payloads[2]);
+    } catch (error) {
+      console.error("Widget data fetch error:", error);
     }
   }, []);
 
@@ -456,8 +464,8 @@ export default function AdminDashboard() {
         }),
       });
       fetchWidgetData();
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setResolvingBlocker(null);
     }
@@ -471,9 +479,9 @@ export default function AdminDashboard() {
     const allTasks = [...(tasks || []), ...(assignments || [])];
     // Deduplicate by task id
     const seen = new Set();
-    const unique = allTasks.filter((t) => {
-      if (seen.has(t.id)) return false;
-      seen.add(t.id);
+    const unique = allTasks.filter((task) => {
+      if (seen.has(task.id)) return false;
+      seen.add(task.id);
       return true;
     });
     unique.forEach((task) => {
@@ -544,18 +552,18 @@ export default function AdminDashboard() {
       // /api/auth/session round-trip; the revalidation below still redirects if
       // the session is no longer valid.
       try {
-        const saved = localStorage.getItem("user");
-        if (saved && JSON.parse(saved).role === "super_admin") startData();
+        const storedUser = localStorage.getItem("user");
+        if (storedUser && JSON.parse(storedUser).role === "super_admin") startData();
       } catch (_) {}
 
       try {
-        const res = await fetch("/api/auth/session");
-        const data = await res.json();
+        const response = await fetch("/api/auth/session");
+        const payload = await response.json();
         if (!active) return;
         if (
-          !data.authenticated ||
-          !data.user ||
-          data.user.role !== "super_admin"
+          !payload.authenticated ||
+          !payload.user ||
+          payload.user.role !== "super_admin"
         ) {
           router.replace("/login");
           return;
@@ -634,18 +642,18 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="grid grid-cols-7 gap-px bg-[var(--border-primary)] rounded-lg overflow-hidden">
-                {DAY_KEYS.map((k) => (
-                  <div key={k} className="bg-primary p-2 text-center">
+                {DAY_KEYS.map((dayKey) => (
+                  <div key={dayKey} className="bg-primary p-2 text-center">
                     <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                      {t("time.days." + k)}
+                      {t("time.days." + dayKey)}
                     </span>
                   </div>
                 ))}
-                {calendarDays.map((day, idx) => {
+                {calendarDays.map((day, index) => {
                   if (day === null)
                     return (
                       <div
-                        key={`empty-${idx}`}
+                        key={`empty-${index}`}
                         className="bg-primary p-2 min-h-[90px]"
                       />
                     );
@@ -719,9 +727,9 @@ export default function AdminDashboard() {
                 })}
               </div>
               <div className="flex flex-wrap gap-4 mt-4 pt-3 border-t border-[var(--border-primary)]">
-                {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                {Object.entries(STATUS_CONFIG).map(([key, statusConfig]) => (
                   <div key={key} className="flex items-center gap-1.5">
-                    <div className={`w-2 h-2 rounded-full ${cfg.dot}`} />
+                    <div className={`w-2 h-2 rounded-full ${statusConfig.dot}`} />
                     <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                       {statusLabel(key)}
                     </span>
@@ -817,7 +825,7 @@ export default function AdminDashboard() {
                 <div>
                   <p className="text-2xl font-black text-blue-400 tracking-tight">
                     {
-                      (tasks || []).filter((t) => t.status === "in_progress")
+                      (tasks || []).filter((task) => task.status === "in_progress")
                         .length
                     }
                   </p>
@@ -827,7 +835,7 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <p className="text-2xl font-black text-rose-400 tracking-tight">
-                    {(tasks || []).filter((t) => t.status === "blocked").length}
+                    {(tasks || []).filter((task) => task.status === "blocked").length}
                   </p>
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                     {t("status.blocked")}
@@ -836,7 +844,7 @@ export default function AdminDashboard() {
                 <div>
                   <p className="text-2xl font-black text-emerald-400 tracking-tight">
                     {
-                      (tasks || []).filter((t) => t.status === "completed")
+                      (tasks || []).filter((task) => task.status === "completed")
                         .length
                     }
                   </p>
@@ -871,8 +879,9 @@ export default function AdminDashboard() {
                   <p className="text-2xl font-black text-rose-500 tracking-tight">
                     {
                       activeBlockers.filter(
-                        (b) =>
-                          b.severity === "high" || b.severity === "critical",
+                        (blocker) =>
+                          blocker.severity === "high" ||
+                          blocker.severity === "critical",
                       ).length
                     }
                   </p>
@@ -886,7 +895,8 @@ export default function AdminDashboard() {
         </div>
 
         {/* ═══════ ASSIGNED TO ME ═══════ */}
-        {assignments.filter((a) => a.status !== "completed").length > 0 &&
+        {assignments.filter((assignment) => assignment.status !== "completed")
+          .length > 0 &&
           !assignmentsLoading && (
             <div className="card border-l-4 border-l-amber-500">
               <div className="flex items-center gap-2 mb-3">
@@ -895,13 +905,14 @@ export default function AdminDashboard() {
                   {t("admin.assignedToMe")}
                 </span>
                 <span className="text-[10px] font-bold text-[var(--text-secondary)] ml-auto">
-                  {assignments.filter((a) => a.status === "pending").length}{" "}
+                  {assignments.filter((assignment) => assignment.status === "pending")
+                    .length}{" "}
                   {t("admin.awaitingAction")}
                 </span>
               </div>
               <div className="space-y-1.5">
                 {assignments
-                  .filter((a) => a.status !== "completed")
+                  .filter((assignment) => assignment.status !== "completed")
                   .slice((assignmentsPage - 1) * ASSIGNMENTS_PER_PAGE, assignmentsPage * ASSIGNMENTS_PER_PAGE)
                   .map((task) => {
                     const isPending = task.status === "pending";
@@ -1029,22 +1040,48 @@ export default function AdminDashboard() {
               </div>
               
               {/* Pagination Controls */}
-              {assignments.filter((a) => a.status !== "completed").length > ASSIGNMENTS_PER_PAGE && (
+              {assignments.filter((assignment) => assignment.status !== "completed")
+                .length > ASSIGNMENTS_PER_PAGE && (
                 <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--border-primary)]">
                   <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                    {t("common.page")} {assignmentsPage} {t("common.of")} {Math.ceil(assignments.filter((a) => a.status !== "completed").length / ASSIGNMENTS_PER_PAGE)}
+                    {t("common.page")} {assignmentsPage} {t("common.of")} {
+                      Math.ceil(
+                        assignments.filter(
+                          (assignment) => assignment.status !== "completed",
+                        ).length / ASSIGNMENTS_PER_PAGE,
+                      )
+                    }
                   </span>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setAssignmentsPage(p => Math.max(1, p - 1))}
+                      onClick={() => setAssignmentsPage((page) => Math.max(1, page - 1))}
                       disabled={assignmentsPage === 1}
                       className="p-1.5 rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => setAssignmentsPage(p => Math.min(Math.ceil(assignments.filter((a) => a.status !== "completed").length / ASSIGNMENTS_PER_PAGE), p + 1))}
-                      disabled={assignmentsPage === Math.ceil(assignments.filter((a) => a.status !== "completed").length / ASSIGNMENTS_PER_PAGE)}
+                      onClick={() =>
+                        setAssignmentsPage((page) =>
+                          Math.min(
+                            Math.ceil(
+                              assignments.filter(
+                                (assignment) =>
+                                  assignment.status !== "completed",
+                              ).length / ASSIGNMENTS_PER_PAGE,
+                            ),
+                            page + 1,
+                          ),
+                        )
+                      }
+                      disabled={
+                        assignmentsPage ===
+                        Math.ceil(
+                          assignments.filter(
+                            (assignment) => assignment.status !== "completed",
+                          ).length / ASSIGNMENTS_PER_PAGE,
+                        )
+                      }
                       className="p-1.5 rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <ChevronRight className="w-4 h-4" />
@@ -1125,9 +1162,9 @@ export default function AdminDashboard() {
                 {loading ? (
                   <TableSkeleton rows={4} />
                 ) : activity.length > 0 ? (
-                  activity.slice(0, 6).map((log, i) => (
+                  activity.slice(0, 6).map((log, index) => (
                     <div
-                      key={i}
+                      key={index}
                       className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition-colors group"
                     >
                       <div className="w-10 h-10 rounded-xl bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:border-[var(--brand-orange)]">
@@ -1170,10 +1207,10 @@ export default function AdminDashboard() {
                 {loading ? (
                   <TableSkeleton rows={3} />
                 ) : activePrograms.length > 0 ? (
-                  activePrograms.map((prog, _i) => (
+                  activePrograms.map((program, _i) => (
                     <div
-                      key={prog.id}
-                      onClick={() => router.push(`/admin/programs/${prog.id}`)}
+                      key={program.id}
+                      onClick={() => router.push(`/admin/programs/${program.id}`)}
                       className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition-all cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
                     >
                       <div className="w-8 h-8 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
@@ -1181,14 +1218,14 @@ export default function AdminDashboard() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide truncate">
-                          {prog.name}
+                          {program.name}
                         </p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-[10px] font-bold text-emerald-500 uppercase px-1.5 py-0.5 bg-emerald-500/10 rounded">
-                            {programStatusLabel(prog.status)}
+                            {programStatusLabel(program.status)}
                           </span>
                           <span className="text-[10px] font-medium text-[var(--text-secondary)] uppercase">
-                            {new Date(prog.created_at).toLocaleDateString()}
+                            {new Date(program.created_at).toLocaleDateString()}
                           </span>
                         </div>
                       </div>
@@ -1226,32 +1263,32 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {kpiSummary.map((p) => (
+              {kpiSummary.map((program) => (
                 <div
-                  key={p.id}
-                  onClick={() => router.push(`/admin/programs/${p.id}`)}
+                  key={program.id}
+                  onClick={() => router.push(`/admin/programs/${program.id}`)}
                   className="p-4 rounded-2xl bg-secondary border border-[var(--border-primary)] hover:border-emerald-500/30 cursor-pointer transition-all"
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide truncate">{p.name}</span>
+                    <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide truncate">{program.name}</span>
                     <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded",
-                      p.avg_kpi_rate >= 70 ? "bg-emerald-500/10 text-emerald-400" :
-                      p.avg_kpi_rate >= 40 ? "bg-amber-500/10 text-amber-400" :
+                      program.avg_kpi_rate >= 70 ? "bg-emerald-500/10 text-emerald-400" :
+                      program.avg_kpi_rate >= 40 ? "bg-amber-500/10 text-amber-400" :
                       "bg-rose-500/10 text-rose-400"
-                    )}>{p.avg_kpi_rate}%</span>
+                    )}>{program.avg_kpi_rate}%</span>
                   </div>
                   <div className="flex items-center gap-2 text-[10px] font-medium text-[var(--text-secondary)] mb-2">
-                    <Target className="w-3 h-3" /> {p.kpi_count} KPIs
+                    <Target className="w-3 h-3" /> {program.kpi_count} KPIs
                     <span className={cn("ml-auto px-1.5 py-0.5 rounded text-[10px] font-bold",
-                      p.status === 'Active' ? "bg-emerald-500/10 text-emerald-400" : "bg-secondary text-[var(--text-secondary)]"
-                    )}>{programStatusLabel(p.status)}</span>
+                      program.status === 'Active' ? "bg-emerald-500/10 text-emerald-400" : "bg-secondary text-[var(--text-secondary)]"
+                    )}>{programStatusLabel(program.status)}</span>
                   </div>
                   <div className="h-2 w-full bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
                     <div className={cn("h-full rounded-full transition-all",
-                      p.avg_kpi_rate >= 70 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" :
-                      p.avg_kpi_rate >= 40 ? "bg-gradient-to-r from-amber-500 to-amber-400" :
+                      program.avg_kpi_rate >= 70 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" :
+                      program.avg_kpi_rate >= 40 ? "bg-gradient-to-r from-amber-500 to-amber-400" :
                       "bg-gradient-to-r from-rose-500 to-rose-400"
-                    )} style={{width: `${Math.max(p.avg_kpi_rate, 5)}%`}} />
+                    )} style={{width: `${Math.max(program.avg_kpi_rate, 5)}%`}} />
                   </div>
                 </div>
               ))}
@@ -1438,8 +1475,9 @@ export default function AdminDashboard() {
                 </p>
                 <p className="text-2xl font-black tracking-tight">
                   {
-                    staffReports.filter((s) => s.standups + s.retros >= 4)
-                      .length
+                    staffReports.filter(
+                      (staff) => staff.standups + staff.retros >= 4,
+                    ).length
                   }
                 </p>
               </div>
@@ -1453,8 +1491,9 @@ export default function AdminDashboard() {
                 <p className="text-2xl font-black tracking-tight">
                   {
                     staffReports.filter(
-                      (s) =>
-                        s.standups + s.retros > 0 && s.standups + s.retros < 4,
+                      (staff) =>
+                        staff.standups + staff.retros > 0 &&
+                        staff.standups + staff.retros < 4,
                     ).length
                   }
                 </p>
@@ -1505,11 +1544,13 @@ export default function AdminDashboard() {
                   <tbody>
                     {staffReports
                       .sort(
-                        (a, b) =>
-                          b.standups + b.retros - (a.standups + a.retros),
+                        (staffA, staffB) =>
+                          staffB.standups +
+                          staffB.retros -
+                          (staffA.standups + staffA.retros),
                       )
-                      .map((s) => {
-                        const total = s.standups + s.retros;
+                      .map((staff) => {
+                        const total = staff.standups + staff.retros;
                         const status =
                           total >= 4
                             ? "active"
@@ -1518,35 +1559,35 @@ export default function AdminDashboard() {
                               : "inactive";
                         return (
                           <tr
-                            key={s.id}
+                            key={staff.id}
                             className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors"
                           >
                             <td className="p-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
-                                  {s.name?.charAt(0)}
+                                  {staff.name?.charAt(0)}
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
-                                    {s.name}
+                                    {staff.name}
                                   </p>
                                   <p className="text-[10px] font-medium text-[var(--text-secondary)] uppercase">
-                                    {s.role}
+                                    {staff.role}
                                   </p>
                                 </div>
                               </div>
                             </td>
                             <td className="text-center p-4 text-sm font-bold">
-                              {s.standups}
+                              {staff.standups}
                             </td>
                             <td className="text-center p-4 text-sm font-bold">
-                              {s.retros}
+                              {staff.retros}
                             </td>
                             <td className="text-center p-4">
                               <span
-                                className={`text-sm font-bold ${s.blockers > 0 ? "text-rose-500" : "text-[var(--text-secondary)]"}`}
+                                className={`text-sm font-bold ${staff.blockers > 0 ? "text-rose-500" : "text-[var(--text-secondary)]"}`}
                               >
-                                {s.blockers}
+                                {staff.blockers}
                               </span>
                             </td>
                             <td className="text-center p-4">
@@ -1567,8 +1608,8 @@ export default function AdminDashboard() {
                               </span>
                             </td>
                             <td className="text-right p-4 text-[10px] font-medium text-[var(--text-secondary)]">
-                              {s.latest
-                                ? new Date(s.latest).toLocaleDateString()
+                              {staff.latest
+                                ? new Date(staff.latest).toLocaleDateString()
                                 : "—"}
                             </td>
                           </tr>
@@ -1618,41 +1659,41 @@ export default function AdminDashboard() {
               </h4>
               {activeBlockers.length > 0 ? (
                 <div className="space-y-2">
-                  {activeBlockers.slice(0, 5).map((b) => (
+                  {activeBlockers.slice(0, 5).map((blocker) => (
                     <div
-                      key={b.id}
+                      key={blocker.id}
                       className="flex items-center gap-3 p-2.5 rounded-xl bg-rose-500/[0.03] border border-rose-500/10"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] font-bold text-[var(--text-primary)]">
-                            {b.title}
+                            {blocker.title}
                           </span>
-                          {b.severity && (
+                          {blocker.severity && (
                             <span
-                              className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${b.severity === "critical" || b.severity === "high" ? "bg-rose-500/10 text-rose-500" : "bg-secondary text-[var(--text-secondary)]"}`}
+                              className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${blocker.severity === "critical" || blocker.severity === "high" ? "bg-rose-500/10 text-rose-500" : "bg-secondary text-[var(--text-secondary)]"}`}
                             >
-                              {levelLabel(b.severity)}
+                              {levelLabel(blocker.severity)}
                             </span>
                           )}
                         </div>
-                        {b.task_title && (
+                        {blocker.task_title && (
                           <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
-                            {t("admin.taskLabel")}: {b.task_title}
+                            {t("admin.taskLabel")}: {blocker.task_title}
                           </p>
                         )}
-                        {b.task_owner && (
+                        {blocker.task_owner && (
                           <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
-                            {t("admin.ownerLabel")}: {b.task_owner}
+                            {t("admin.ownerLabel")}: {blocker.task_owner}
                           </p>
                         )}
                       </div>
                       <button
                         disabled={resolvingBlocker !== null}
-                        onClick={() => handleResolveBlocker(b.id)}
+                        onClick={() => handleResolveBlocker(blocker.id)}
                         className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-rose-500/20 transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
                       >
-                        {resolvingBlocker === b.id ? (
+                        {resolvingBlocker === blocker.id ? (
                           <Loader2 className="w-3 h-3 animate-spin" />
                         ) : null}
                         {t("common.resolve")}
@@ -1780,7 +1821,7 @@ export default function AdminDashboard() {
         >
           <div
             className="card w-full max-w-lg space-y-5 border-[var(--brand-orange)]/30 max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex justify-between items-start">
               <div className="space-y-1">
@@ -1862,20 +1903,21 @@ export default function AdminDashboard() {
                 </p>
               </div>
             )}
-            {(selectedTask.blockers || []).filter((b) => b.status === "active")
-              .length > 0 && (
+            {(selectedTask.blockers || []).filter(
+              (blocker) => blocker.status === "active",
+            ).length > 0 && (
               <div className="space-y-1">
                 <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest">
                   {t("adminMisc.dashboard.blockers")}
                 </p>
                 {selectedTask.blockers
-                  .filter((b) => b.status === "active")
-                  .map((b) => (
+                  .filter((blocker) => blocker.status === "active")
+                  .map((blocker) => (
                     <div
-                      key={b.id}
+                      key={blocker.id}
                       className="p-2 rounded bg-rose-500/10 text-[10px] text-rose-400 font-bold"
                     >
-                      {b.title}
+                      {blocker.title}
                     </div>
                   ))}
               </div>
@@ -1887,8 +1929,8 @@ export default function AdminDashboard() {
   );
 }
 
-function formatLabel(val) {
-  if (!val || val === "—") return "—";
-  if (typeof val !== "string") return String(val);
-  return val.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+function formatLabel(value) {
+  if (!value || value === "—") return "—";
+  if (typeof value !== "string") return String(value);
+  return value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }

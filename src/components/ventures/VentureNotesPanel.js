@@ -23,20 +23,20 @@ import AppModal from "@/components/ui/AppModal";
 const EMPTY_LIST = [];
 const EMPTY_NOTES_PANEL = { notes: [], canPost: false };
 
-const pickNotes = (d) =>
-  d?.success ? { notes: d.notes || [], canPost: Boolean(d.can_post) } : EMPTY_NOTES_PANEL;
+const pickNotes = (payload) =>
+  payload?.success ? { notes: payload.notes || [], canPost: Boolean(payload.can_post) } : EMPTY_NOTES_PANEL;
 
 // Milestone choices — the only place an internal note may live. The journey read
 // nests them inside its stages, so they are flattened here.
-const pickMilestones = (d) => {
-  if (!d?.success) return EMPTY_LIST;
-  const flat = [];
-  for (const stage of d.stages || []) {
-    for (const ms of stage.milestones || []) {
-      flat.push({ id: String(ms.id), title: ms.title || "", stage: stage.name || "" });
+const pickMilestones = (payload) => {
+  if (!payload?.success) return EMPTY_LIST;
+  const flatMilestones = [];
+  for (const stage of payload.stages || []) {
+    for (const milestone of stage.milestones || []) {
+      flatMilestones.push({ id: String(milestone.id), title: milestone.title || "", stage: stage.name || "" });
     }
   }
-  return flat;
+  return flatMilestones;
 };
 
 export default function VentureNotesPanel({ ventureId }) {
@@ -66,13 +66,13 @@ export default function VentureNotesPanel({ ventureId }) {
   // in the moment before they land.
   const loading = notesLoading || milestonesLoading;
 
-  const notify = (msg, type = "success") => {
-    setToast({ msg, type });
+  const notify = (message, type = "success") => {
+    setToast({ msg: message, type });
     setTimeout(() => setToast(null), 3500);
   };
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const submit = async (event) => {
+    event.preventDefault();
     if (!form.title.trim() || !form.body.trim() || !form.milestone_id) return;
     setSaving(true);
     try {
@@ -86,14 +86,14 @@ export default function VentureNotesPanel({ ventureId }) {
           scope_ref_id: form.milestone_id,
         }),
       });
-      const d = await res.json();
-      if (d.success) {
+      const payload = await res.json();
+      if (payload.success) {
         notify(t("venture.notesPanel.saved"));
         setShowComposer(false);
         setForm({ title: "", body: "", milestone_id: "" });
         await refreshNotes();
       } else {
-        notify(d.error || t("venture.notesPanel.saveFailed"), "error");
+        notify(payload.error || t("venture.notesPanel.saveFailed"), "error");
       }
     } catch {
       notify(t("venture.notesPanel.saveFailed"), "error");
@@ -110,23 +110,23 @@ export default function VentureNotesPanel({ ventureId }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ note_id: noteId }),
     });
-    const d = await res.json();
-    if (d.success) {
+    const payload = await res.json();
+    if (payload.success) {
       notify(t("venture.notesPanel.deleted"));
       setOpenNote(null);
       setConfirmDelete(null);
       await refreshNotes();
     } else {
-      notify(d.error || t("venture.notesPanel.deleteFailed"), "error");
+      notify(payload.error || t("venture.notesPanel.deleteFailed"), "error");
     }
   };
 
-  const milestoneTitle = (id) => milestones.find((m) => String(m.id) === String(id))?.title || String(id || "");
+  const milestoneTitle = (id) => milestones.find((milestone) => String(milestone.id) === String(id))?.title || String(id || "");
 
-  const scopeLabel = (n) => {
-    if (!n.scope_ref_type && !n.scope_ref_id) return null;
-    if (n.scope_ref_type === "milestone" && n.scope_ref_id) return milestoneTitle(n.scope_ref_id);
-    return `${n.scope_ref_type || "scope"} · ${n.scope_ref_id || ""}`;
+  const scopeLabel = (note) => {
+    if (!note.scope_ref_type && !note.scope_ref_id) return null;
+    if (note.scope_ref_type === "milestone" && note.scope_ref_id) return milestoneTitle(note.scope_ref_id);
+    return `${note.scope_ref_type || "scope"} · ${note.scope_ref_id || ""}`;
   };
 
   return (
@@ -158,14 +158,14 @@ export default function VentureNotesPanel({ ventureId }) {
         <form onSubmit={submit} className="mb-4 p-4 rounded-xl border border-[var(--border-primary)] bg-tertiary space-y-3">
           <input
             value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            onChange={(event) => setForm({ ...form, title: event.target.value })}
             placeholder={t("venture.notesPanel.titlePlaceholder")}
             className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
             required
           />
           <textarea
             value={form.body}
-            onChange={(e) => setForm({ ...form, body: e.target.value })}
+            onChange={(event) => setForm({ ...form, body: event.target.value })}
             rows={4}
             placeholder={t("venture.notesPanel.bodyPlaceholder")}
             className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
@@ -178,13 +178,13 @@ export default function VentureNotesPanel({ ventureId }) {
             ) : (
               <select
                 value={form.milestone_id}
-                onChange={(e) => setForm({ ...form, milestone_id: e.target.value })}
+                onChange={(event) => setForm({ ...form, milestone_id: event.target.value })}
                 required
                 className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
               >
                 <option value="">{t("venture.notesPanel.milestonePlaceholder")}</option>
-                {milestones.map((m) => (
-                  <option key={m.id} value={m.id}>{m.stage ? `${m.stage} — ${m.title}` : m.title}</option>
+                {milestones.map((milestone) => (
+                  <option key={milestone.id} value={milestone.id}>{milestone.stage ? `${milestone.stage} — ${milestone.title}` : milestone.title}</option>
                 ))}
               </select>
             )}
@@ -203,24 +203,24 @@ export default function VentureNotesPanel({ ventureId }) {
         <p className="text-xs text-slate-500">{t("venture.notesPanel.empty")}</p>
       ) : (
         <div className="space-y-2">
-          {notes.map((n) => (
+          {notes.map((note) => (
             <button
-              key={n.id}
-              onClick={() => setOpenNote(n)}
+              key={note.id}
+              onClick={() => setOpenNote(note)}
               className="w-full text-left p-3 rounded-lg border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/40 transition-all"
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-bold text-[var(--text-primary)] truncate">{n.title}</p>
+                <p className="text-sm font-bold text-[var(--text-primary)] truncate">{note.title}</p>
                 <div className="flex items-center gap-2 shrink-0">
-                  {scopeLabel(n) && (
-                    <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 truncate max-w-[160px]">{scopeLabel(n)}</span>
+                  {scopeLabel(note) && (
+                    <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 truncate max-w-[160px]">{scopeLabel(note)}</span>
                   )}
                   <span className="text-[9px] text-slate-400">
-                    {n.author_name || n.author_cid || "Staff"} · {n.created_at ? new Date(n.created_at).toLocaleDateString() : ""}
+                    {note.author_name || note.author_cid || "Staff"} · {note.created_at ? new Date(note.created_at).toLocaleDateString() : ""}
                   </span>
                 </div>
               </div>
-              <p className="text-xs text-[var(--text-secondary)] mt-1 line-clamp-2 whitespace-pre-line">{n.body}</p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1 line-clamp-2 whitespace-pre-line">{note.body}</p>
             </button>
           ))}
         </div>
@@ -229,7 +229,7 @@ export default function VentureNotesPanel({ ventureId }) {
       {/* Reader modal */}
       {openNote && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgb(0 0 0 / 0.6)" }} onClick={() => setOpenNote(null)}>
-          <div className="rounded-2xl w-full max-w-lg border shadow-xl max-h-[80vh] overflow-y-auto" style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border-primary)" }} onClick={(e) => e.stopPropagation()}>
+          <div className="rounded-2xl w-full max-w-lg border shadow-xl max-h-[80vh] overflow-y-auto" style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border-primary)" }} onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "var(--border-primary)" }}>
               <div className="flex items-center gap-2">
                 <StickyNote className="w-4 h-4 text-[var(--brand-orange)]" />

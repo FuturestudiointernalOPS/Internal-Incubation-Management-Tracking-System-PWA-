@@ -23,7 +23,7 @@ import { useApi } from "@/lib/hooks/useApi";
 // Module scope on purpose: the hook keys its internal callback on this function,
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop.
-const pickAnnouncements = (d) => (d?.success ? d.announcements || [] : []);
+const pickAnnouncements = (payload) => (payload?.success ? payload.announcements || [] : []);
 
 const TARGET_TYPES = [
   { value: "all", label: "announcements.targetAll", icon: Globe },
@@ -66,23 +66,23 @@ export default function AnnouncementsPage() {
   useEffect(() => {
     // Server session is authoritative; localStorage is only a legacy fallback.
     fetch("/api/auth/session")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.authenticated && d.user) {
-          setUser(d.user);
+      .then((response) => response.json())
+      .then((session) => {
+        if (session.authenticated && session.user) {
+          setUser(session.user);
           return;
         }
-        const u = JSON.parse(localStorage.getItem("user") || "{}");
-        setUser(u);
+        const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+        setUser(storedUser);
       })
       .catch(() => {
-        const u = JSON.parse(localStorage.getItem("user") || "{}");
-        setUser(u);
+        const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+        setUser(storedUser);
       });
   }, []);
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
+  const handleCreate = async (event) => {
+    event.preventDefault();
     if (!title.trim() || !body.trim()) {
       setError("Title and body are required.");
       return;
@@ -90,7 +90,7 @@ export default function AnnouncementsPage() {
     setSaving(true);
     setError("");
     try {
-      const res = await fetch("/api/announcements", {
+      const response = await fetch("/api/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -101,7 +101,7 @@ export default function AnnouncementsPage() {
           is_pinned: isPinned,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setTitle("");
         setBody("");
@@ -122,22 +122,22 @@ export default function AnnouncementsPage() {
 
   const handleTogglePin = async (ann) => {
     try {
-      const res = await fetch("/api/announcements", {
+      const response = await fetch("/api/announcements", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: ann.id, is_pinned: !ann.is_pinned }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) refresh();
     } catch (_) {}
   };
 
   const handleArchive = async (ann) => {
     try {
-      const res = await fetch(`/api/announcements?id=${ann.id}`, {
+      const response = await fetch(`/api/announcements?id=${ann.id}`, {
         method: "DELETE",
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) refresh();
     } catch (_) {}
   };
@@ -215,7 +215,7 @@ export default function AnnouncementsPage() {
               <input
                 type="text"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(event) => setTitle(event.target.value)}
                 className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]"
                 placeholder={t("announcements.titleLabel")}
               />
@@ -227,7 +227,7 @@ export default function AnnouncementsPage() {
               </label>
               <textarea
                 value={body}
-                onChange={(e) => setBody(e.target.value)}
+                onChange={(event) => setBody(event.target.value)}
                 rows={4}
                 className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)] resize-none"
                 placeholder={t("announcements.bodyLabel")}
@@ -242,15 +242,15 @@ export default function AnnouncementsPage() {
                 <div className="relative">
                   <select
                     value={targetType}
-                    onChange={(e) => {
-                      setTargetType(e.target.value);
+                    onChange={(event) => {
+                      setTargetType(event.target.value);
                       setTargetId("");
                     }}
                     className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)] appearance-none"
                   >
-                    {TARGET_TYPES.map((tt) => (
-                      <option key={tt.value} value={tt.value}>
-                        {t(tt.label)}
+                    {TARGET_TYPES.map((target) => (
+                      <option key={target.value} value={target.value}>
+                        {t(target.label)}
                       </option>
                     ))}
                   </select>
@@ -266,7 +266,7 @@ export default function AnnouncementsPage() {
                   <input
                     type="text"
                     value={targetId}
-                    onChange={(e) => setTargetId(e.target.value)}
+                    onChange={(event) => setTargetId(event.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]"
                     placeholder={
                       targetType === "group"
@@ -285,7 +285,7 @@ export default function AnnouncementsPage() {
                 <input
                   type="checkbox"
                   checked={isPinned}
-                  onChange={(e) => setIsPinned(e.target.checked)}
+                  onChange={(event) => setIsPinned(event.target.checked)}
                   className="w-4 h-4 rounded accent-[var(--brand-orange)]"
                 />
                 <span className="text-sm text-[var(--text-secondary)]">

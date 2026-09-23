@@ -51,7 +51,7 @@ export default function NavigationLoader() {
       if (safetyRef.current) clearTimeout(safetyRef.current);
       if (animRef.current) clearInterval(animRef.current);
       animRef.current = setInterval(() => {
-        setProgress((p) => (p < 85 ? p + 12 : p));
+        setProgress((currentProgress) => (currentProgress < 85 ? currentProgress + 12 : currentProgress));
       }, 180);
       // Safety: never leave the bar stuck if the route never changes.
       safetyRef.current = setTimeout(() => {
@@ -73,16 +73,16 @@ export default function NavigationLoader() {
       }, 250);
     };
 
-    const onClick = (e) => {
-      const link = e.target?.closest?.("a");
+    const onClick = (event) => {
+      const link = event.target?.closest?.("a");
       if (!link) return;
       if (
-        e.defaultPrevented ||
-        e.metaKey ||
-        e.ctrlKey ||
-        e.shiftKey ||
-        e.altKey ||
-        e.button !== 0
+        event.defaultPrevented ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey ||
+        event.button !== 0
       )
         return;
       if (link.target && link.target !== "_self") return;

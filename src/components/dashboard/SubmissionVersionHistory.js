@@ -46,7 +46,7 @@ function StatusBadge({ status }) {
     revision_requested: "bg-blue-500/10 text-blue-400 border-blue-500/20",
     pending_followup: "bg-purple-500/10 text-purple-400 border-purple-500/20",
   };
-  const c =
+  const classes =
     config[status?.toLowerCase()] ||
     "bg-white/5 text-[var(--text-tertiary)] border-white/10";
   const raw = status || "draft";
@@ -59,7 +59,7 @@ function StatusBadge({ status }) {
   }
   return (
     <span
-      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${c}`}
+      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${classes}`}
     >
       {label}
     </span>
@@ -77,18 +77,18 @@ function VersionTimeline({ versions }) {
       {/* Timeline line */}
       <div className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-[var(--border-primary)]" />
 
-      {versions.map((ver, idx) => (
-        <div key={ver.id} className="relative">
+      {versions.map((version, index) => (
+        <div key={version.id} className="relative">
           {/* Timeline dot */}
           <div
             className={`absolute -left-[22px] top-1 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
-              ver.status === "approved"
+              version.status === "approved"
                 ? "bg-emerald-500 border-emerald-400"
-                : ver.status === "rejected"
+                : version.status === "rejected"
                   ? "bg-rose-500 border-rose-400"
-                  : ver.status === "revision_requested"
+                  : version.status === "revision_requested"
                     ? "bg-blue-500 border-blue-400"
-                    : ver.status === "pending_followup"
+                    : version.status === "pending_followup"
                       ? "bg-purple-500 border-purple-400"
                       : "bg-amber-500 border-amber-400"
             }`}
@@ -101,26 +101,26 @@ function VersionTimeline({ versions }) {
             className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg p-3 cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all"
             onClick={() =>
               setExpandedVersion(
-                expandedVersion === ver.id ? null : ver.id,
+                expandedVersion === version.id ? null : version.id,
               )
             }
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="text-[11px] font-bold text-[var(--brand-orange)]">
-                  v{ver.version_number || idx + 1}
+                  v{version.version_number || index + 1}
                 </span>
-                <StatusBadge status={ver.status} />
+                <StatusBadge status={version.status} />
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-[10px] font-medium text-[var(--text-secondary)]">
-                  {ver.created_at
-                    ? new Date(ver.created_at).toLocaleDateString()
+                  {version.created_at
+                    ? new Date(version.created_at).toLocaleDateString()
                     : ""}
-                  {ver.created_at &&
-                    ` ${new Date(ver.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+                  {version.created_at &&
+                    ` ${new Date(version.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
                 </span>
-                {expandedVersion === ver.id ? (
+                {expandedVersion === version.id ? (
                   <ChevronDown className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                 ) : (
                   <ChevronRight className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
@@ -130,7 +130,7 @@ function VersionTimeline({ versions }) {
 
             {/* Expanded details */}
             <AnimatePresence>
-              {expandedVersion === ver.id && (
+              {expandedVersion === version.id && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
@@ -139,9 +139,9 @@ function VersionTimeline({ versions }) {
                 >
                   {/* Files */}
                   <div className="flex flex-wrap gap-2">
-                    {ver.file_url && (
+                    {version.file_url && (
                       <a
-                        href={ver.file_url}
+                        href={version.file_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all"
@@ -153,9 +153,9 @@ function VersionTimeline({ versions }) {
                         <ExternalLink className="w-2.5 h-2.5 text-[var(--text-tertiary)]" />
                       </a>
                     )}
-                    {ver.supporting_url && (
+                    {version.supporting_url && (
                       <a
-                        href={ver.supporting_url}
+                        href={version.supporting_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all"
@@ -169,7 +169,7 @@ function VersionTimeline({ versions }) {
                   </div>
 
                   {/* Feedback */}
-                  {ver.feedback && (
+                  {version.feedback && (
                     <div className="p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/10">
                       <div className="flex items-center gap-1.5 mb-1">
                         <MessageSquare className="w-3 h-3 text-blue-400" />
@@ -178,13 +178,13 @@ function VersionTimeline({ versions }) {
                         </span>
                       </div>
                       <p className="text-sm text-[var(--text-primary)] leading-relaxed">
-                        {ver.feedback}
+                        {version.feedback}
                       </p>
                     </div>
                   )}
 
                   {/* Rejection Reason */}
-                  {ver.rejection_reason && (
+                  {version.rejection_reason && (
                     <div className="p-2.5 rounded-lg bg-rose-500/5 border border-rose-500/10">
                       <div className="flex items-center gap-1.5 mb-1">
                         <XCircle className="w-3 h-3 text-rose-400" />
@@ -193,37 +193,37 @@ function VersionTimeline({ versions }) {
                         </span>
                       </div>
                       <p className="text-sm text-[var(--text-primary)] leading-relaxed">
-                        {ver.rejection_reason}
+                        {version.rejection_reason}
                       </p>
                     </div>
                   )}
 
                   {/* Review Action */}
-                  {ver.review_action && (
+                  {version.review_action && (
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         {t("participant.action")}:
                       </span>
-                      <StatusBadge status={ver.review_action} />
+                      <StatusBadge status={version.review_action} />
                     </div>
                   )}
 
                   {/* Score */}
-                  {ver.evaluation_score > 0 && (
+                  {version.evaluation_score > 0 && (
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         {t("participant.score")}:
                       </span>
                       <span
                         className={`text-[10px] font-bold ${
-                          ver.evaluation_score >= 70
+                          version.evaluation_score >= 70
                             ? "text-emerald-400"
-                            : ver.evaluation_score >= 40
+                            : version.evaluation_score >= 40
                               ? "text-amber-400"
                               : "text-rose-400"
                         }`}
                       >
-                        {ver.evaluation_score}/100
+                        {version.evaluation_score}/100
                       </span>
                     </div>
                   )}
@@ -242,10 +242,10 @@ function VersionTimeline({ versions }) {
 // is kept in the value so the screen can tell "nothing yet" from "the read failed".
 const EMPTY_HISTORY = { grouped: [], failed: false, failure: null };
 
-const pickHistory = (d) =>
-  d?.success
-    ? { grouped: d.grouped || [], failed: false, failure: null }
-    : { grouped: [], failed: true, failure: d?.error || null };
+const pickHistory = (payload) =>
+  payload?.success
+    ? { grouped: payload.grouped || [], failed: false, failure: null }
+    : { grouped: [], failed: true, failure: payload?.error || null };
 
 export default function SubmissionVersionHistory({
   participantId,
@@ -294,9 +294,9 @@ export default function SubmissionVersionHistory({
   if (loading) {
     return (
       <div className="space-y-3 animate-pulse">
-        {[...Array(2)].map((_, i) => (
+        {[...Array(2)].map((_, index) => (
           <div
-            key={i}
+            key={index}
             className="h-16 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-primary)]"
           />
         ))}

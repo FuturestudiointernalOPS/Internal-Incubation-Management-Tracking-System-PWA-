@@ -14,9 +14,9 @@ import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
 
 const EMPTY_LIST = [];
 
-const pickVenture = (d) => (d?.success ? d.venture || null : null);
-const pickOpportunities = (d) => (d?.success ? d.opportunities || [] : []);
-const pickAnalytics = (d) => (d?.success ? d : null);
+const pickVenture = (payload) => (payload?.success ? payload.venture || null : null);
+const pickOpportunities = (payload) => (payload?.success ? payload.opportunities || [] : []);
+const pickAnalytics = (payload) => (payload?.success ? payload : null);
 
 const STAGES = [
   { key: "prospect", label: "Prospect", color: "bg-slate-500/10 text-slate-400" },
@@ -93,8 +93,8 @@ export default function VentureFundraisingPage() {
   // shared cache directly.
   const loadDetail = async (oppId, bypassCache = false) => {
     const url = `/api/ventures/${id}/fundraising?type=detail&opportunity_id=${oppId}`;
-    const apply = (d) => {
-      if (d.success) { setSelectedOpp(d.opportunity); setShowDetail(true); }
+    const apply = (payload) => {
+      if (payload.success) { setSelectedOpp(payload.opportunity); setShowDetail(true); }
     };
     let painted = false;
     try {
@@ -108,12 +108,12 @@ export default function VentureFundraisingPage() {
           painted = true;
         }
       }
-      const res = await fetch(url);
-      const d = await res.json();
-      if (d.success) cacheSet(url, d);
-      apply(d);
-    } catch (e) {
-      if (!painted) console.error("Failed to load opportunity detail:", e);
+      const response = await fetch(url);
+      const payload = await response.json();
+      if (payload.success) cacheSet(url, payload);
+      apply(payload);
+    } catch (error) {
+      if (!painted) console.error("Failed to load opportunity detail:", error);
     }
   };
 
@@ -166,9 +166,9 @@ export default function VentureFundraisingPage() {
   );
 
   const byStage = {};
-  for (const s of STAGES) byStage[s.key] = opportunities.filter((o) => o.stage === s.key);
+  for (const stage of STAGES) byStage[stage.key] = opportunities.filter((opportunity) => opportunity.stage === stage.key);
 
-  const totalValue = opportunities.reduce((s, o) => s + (parseFloat(o.expected_amount) || 0), 0);
+  const totalValue = opportunities.reduce((sum, opportunity) => sum + (parseFloat(opportunity.expected_amount) || 0), 0);
 
   return (
     <>
@@ -218,9 +218,9 @@ export default function VentureFundraisingPage() {
 
         {/* View Toggle */}
         <div className="flex gap-1">
-          {["kanban", "list"].map((v) => (
-            <button key={v} onClick={() => setActiveView(v)}
-              className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider ${activeView===v?"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]":"text-slate-500 hover:bg-tertiary"}`}>{v}</button>
+          {["kanban", "list"].map((viewOption) => (
+            <button key={viewOption} onClick={() => setActiveView(viewOption)}
+              className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider ${activeView===viewOption?"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]":"text-slate-500 hover:bg-tertiary"}`}>{viewOption}</button>
           ))}
         </div>
 
@@ -240,17 +240,17 @@ export default function VentureFundraisingPage() {
                     </div>
                     <div className="p-2 space-y-2 min-h-[120px]">
                       {items.length === 0 && <p className="text-[8px] text-slate-600 text-center py-4">Empty</p>}
-                      {items.map((opp) => (
-                        <div key={opp.id} onClick={() => loadDetail(opp.id)}
+                      {items.map((opportunity) => (
+                        <div key={opportunity.id} onClick={() => loadDetail(opportunity.id)}
                           className="p-3 rounded-xl bg-primary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all">
-                          <p className="text-[10px] font-bold text-[var(--text-primary)]">{opp.investor_name || "Unknown"}</p>
-                          {opp.expected_amount && <p className="text-[9px] font-black text-[var(--brand-orange)] mt-1">${parseFloat(opp.expected_amount).toLocaleString()}</p>}
+                          <p className="text-[10px] font-bold text-[var(--text-primary)]">{opportunity.investor_name || "Unknown"}</p>
+                          {opportunity.expected_amount && <p className="text-[9px] font-black text-[var(--brand-orange)] mt-1">${parseFloat(opportunity.expected_amount).toLocaleString()}</p>}
                           <div className="flex items-center gap-2 mt-1.5 text-[7px] text-slate-500">
-                            <span>{opp.probability||0}%</span>
-                            {opp.expected_close_date && <span>Due {new Date(opp.expected_close_date).toLocaleDateString()}</span>}
+                            <span>{opportunity.probability||0}%</span>
+                            {opportunity.expected_close_date && <span>Due {new Date(opportunity.expected_close_date).toLocaleDateString()}</span>}
                           </div>
-                          {progressBar(opp.probability||0)}
-                          {opp.next_action && <p className="text-[7px] text-amber-400 mt-1">Next: {opp.next_action}</p>}
+                          {progressBar(opportunity.probability||0)}
+                          {opportunity.next_action && <p className="text-[7px] text-amber-400 mt-1">Next: {opportunity.next_action}</p>}
                         </div>
                       ))}
                       {/* Quick stage move */}
@@ -272,24 +272,24 @@ export default function VentureFundraisingPage() {
             {opportunities.length === 0 ? (
               <div className="text-center py-16"><TrendingUp className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">No opportunities</p></div>
             ) : (
-              opportunities.map((opp) => {
-                const sc = STAGES.find((s) => s.key === opp.stage) || STAGES[0];
+              opportunities.map((opportunity) => {
+                const stageConfig = STAGES.find((stage) => stage.key === opportunity.stage) || STAGES[0];
                 return (
-                  <div key={opp.id} onClick={() => loadDetail(opp.id)}
+                  <div key={opportunity.id} onClick={() => loadDetail(opportunity.id)}
                     className="flex items-center gap-4 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all">
-                    <span className={`w-2 h-2 rounded-full ${sc.color.split(" ")[0].replace("text-", "bg-")} shrink-0`} />
+                    <span className={`w-2 h-2 rounded-full ${stageConfig.color.split(" ")[0].replace("text-", "bg-")} shrink-0`} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-[var(--text-primary)]">{opp.investor_name || "Unknown"}</p>
+                      <p className="text-xs font-bold text-[var(--text-primary)]">{opportunity.investor_name || "Unknown"}</p>
                       <div className="flex items-center gap-3 text-[8px] text-slate-500 mt-0.5">
-                        <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${sc.color}`}>{sc.label}</span>
-                        {opp.expected_amount && <span>${parseFloat(opp.expected_amount).toLocaleString()}</span>}
-                        <span>{opp.probability||0}%</span>
+                        <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${stageConfig.color}`}>{stageConfig.label}</span>
+                        {opportunity.expected_amount && <span>${parseFloat(opportunity.expected_amount).toLocaleString()}</span>}
+                        <span>{opportunity.probability||0}%</span>
                       </div>
                     </div>
                     <div className="flex gap-2 shrink-0">
-                      <select value={opp.stage} onChange={(e) => updateStage(opp.id, e.target.value)} onClick={(e) => e.stopPropagation()}
+                      <select value={opportunity.stage} onChange={(event) => updateStage(opportunity.id, event.target.value)} onClick={(event) => event.stopPropagation()}
                         className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[8px] font-bold text-[var(--text-primary)] outline-none">
-                        {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                        {STAGES.map((stage) => <option key={stage.key} value={stage.key}>{stage.label}</option>)}
                       </select>
                     </div>
                   </div>
@@ -312,33 +312,33 @@ export default function VentureFundraisingPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Investor Name *</label>
-                  <input value={oForm.investor_name} onChange={(e) => setOForm((p) => ({ ...p, investor_name: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                  <input value={oForm.investor_name} onChange={(event) => setOForm((previous) => ({ ...previous, investor_name: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Stage</label>
-                  <select value={oForm.stage} onChange={(e) => setOForm((p) => ({ ...p, stage: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
-                    {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                  <select value={oForm.stage} onChange={(event) => setOForm((previous) => ({ ...previous, stage: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
+                    {STAGES.map((stage) => <option key={stage.key} value={stage.key}>{stage.label}</option>)}
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Expected Amount ($)</label>
-                  <input type="number" value={oForm.expected_amount} onChange={(e) => setOForm((p) => ({ ...p, expected_amount: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                  <input type="number" value={oForm.expected_amount} onChange={(event) => setOForm((previous) => ({ ...previous, expected_amount: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Probability (%)</label>
-                  <input type="number" min={0} max={100} value={oForm.probability} onChange={(e) => setOForm((p) => ({ ...p, probability: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                  <input type="number" min={0} max={100} value={oForm.probability} onChange={(event) => setOForm((previous) => ({ ...previous, probability: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Expected Close</label>
-                  <input type="date" value={oForm.expected_close_date} onChange={(e) => setOForm((p) => ({ ...p, expected_close_date: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                  <input type="date" value={oForm.expected_close_date} onChange={(event) => setOForm((previous) => ({ ...previous, expected_close_date: event.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
                 <div>
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Next Action</label>
-                  <input value={oForm.next_action} onChange={(e) => setOForm((p) => ({ ...p, next_action: e.target.value }))} placeholder="e.g., Send follow-up" className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                  <input value={oForm.next_action} onChange={(event) => setOForm((previous) => ({ ...previous, next_action: event.target.value }))} placeholder="e.g., Send follow-up" className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
               </div>
             </div>
@@ -367,9 +367,9 @@ export default function VentureFundraisingPage() {
               </div>
 
               {/* Stage selector */}
-              <select value={selectedOpp.stage} onChange={(e) => { updateStage(selectedOpp.id, e.target.value); setSelectedOpp((p) => ({ ...p, stage: e.target.value })); }}
+              <select value={selectedOpp.stage} onChange={(event) => { updateStage(selectedOpp.id, event.target.value); setSelectedOpp((previous) => ({ ...previous, stage: event.target.value })); }}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
-                {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                {STAGES.map((stage) => <option key={stage.key} value={stage.key}>{stage.label}</option>)}
               </select>
 
               <div className="grid grid-cols-2 gap-3 text-[10px]">
@@ -384,12 +384,12 @@ export default function VentureFundraisingPage() {
                 <div>
                   <p className="text-[9px] font-black text-slate-500 uppercase mb-2">Stage History</p>
                   <div className="space-y-1">
-                    {selectedOpp.stage_history.map((h) => (
-                      <div key={h.id} className="flex items-center gap-2 p-2 bg-primary rounded-lg text-[8px]">
-                        <span className="font-bold">{h.previous_stage||"Start"}</span>
+                    {selectedOpp.stage_history.map((stageChange) => (
+                      <div key={stageChange.id} className="flex items-center gap-2 p-2 bg-primary rounded-lg text-[8px]">
+                        <span className="font-bold">{stageChange.previous_stage||"Start"}</span>
                         <span>→</span>
-                        <span className="font-bold text-[var(--brand-orange)]">{h.new_stage}</span>
-                        <span className="text-slate-500 ml-auto">{new Date(h.created_at).toLocaleDateString()}</span>
+                        <span className="font-bold text-[var(--brand-orange)]">{stageChange.new_stage}</span>
+                        <span className="text-slate-500 ml-auto">{new Date(stageChange.created_at).toLocaleDateString()}</span>
                       </div>
                     ))}
                   </div>
@@ -400,23 +400,23 @@ export default function VentureFundraisingPage() {
               <div>
                 <p className="text-[9px] font-black text-slate-500 uppercase mb-2">Activities</p>
                 <div className="flex gap-2 mb-2">
-                  <select value={activityForm.activity_type} onChange={(e) => setActivityForm((p) => ({ ...p, activity_type: e.target.value }))}
+                  <select value={activityForm.activity_type} onChange={(event) => setActivityForm((previous) => ({ ...previous, activity_type: event.target.value }))}
                     className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[8px] font-bold outline-none">
                     <option value="email">Email</option><option value="call">Call</option><option value="meeting">Meeting</option>
                     <option value="demo">Demo</option><option value="reminder">Reminder</option><option value="follow_up">Follow-up</option><option value="task">Task</option>
                   </select>
-                  <input value={activityForm.title} onChange={(e) => setActivityForm((p) => ({ ...p, title: e.target.value }))} placeholder="Activity..." className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none" />
+                  <input value={activityForm.title} onChange={(event) => setActivityForm((previous) => ({ ...previous, title: event.target.value }))} placeholder="Activity..." className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none" />
                   <button onClick={addActivity} disabled={!activityForm.title.trim()} className="px-2 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase disabled:opacity-30"><Plus className="w-3 h-3" /></button>
                 </div>
                 {(selectedOpp.activities||[]).length === 0 && <p className="text-sm text-[var(--text-secondary)]">No activities</p>}
-                {(selectedOpp.activities||[]).map((a) => {
-                  const Icon = ACTIVITY_ICONS[a.activity_type] || MessageCircle;
+                {(selectedOpp.activities||[]).map((activity) => {
+                  const Icon = ACTIVITY_ICONS[activity.activity_type] || MessageCircle;
                   return (
-                    <div key={a.id} className="flex items-center gap-2 p-2 bg-primary rounded-lg mb-1">
+                    <div key={activity.id} className="flex items-center gap-2 p-2 bg-primary rounded-lg mb-1">
                       <Icon className="w-3.5 h-3.5 text-[var(--brand-orange)] shrink-0" />
-                      <span className="text-[9px] font-bold flex-1">{a.title}</span>
-                      <span className="text-[7px] text-slate-500">{new Date(a.activity_date).toLocaleDateString()}</span>
-                      {a.completed && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
+                      <span className="text-[9px] font-bold flex-1">{activity.title}</span>
+                      <span className="text-[7px] text-slate-500">{new Date(activity.activity_date).toLocaleDateString()}</span>
+                      {activity.completed && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
                     </div>
                   );
                 })}
@@ -425,14 +425,14 @@ export default function VentureFundraisingPage() {
               {/* Notes */}
               <div>
                 <p className="text-[9px] font-black text-slate-500 uppercase mb-2">Notes</p>
-                {(selectedOpp.notes||[]).map((n) => (
-                  <div key={n.id} className="p-3 bg-primary rounded-xl mb-2 border border-[var(--border-primary)]">
-                    <p className="text-[9px] text-[var(--text-secondary)]">{n.content}</p>
-                    <p className="text-[7px] text-slate-500 mt-1">{n.author_name} · {new Date(n.created_at).toLocaleString()}</p>
+                {(selectedOpp.notes||[]).map((note) => (
+                  <div key={note.id} className="p-3 bg-primary rounded-xl mb-2 border border-[var(--border-primary)]">
+                    <p className="text-[9px] text-[var(--text-secondary)]">{note.content}</p>
+                    <p className="text-[7px] text-slate-500 mt-1">{note.author_name} · {new Date(note.created_at).toLocaleString()}</p>
                   </div>
                 ))}
                 <div className="flex gap-2 mt-2">
-                  <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Add a note..." className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none" />
+                  <input value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder="Add a note..." className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none" />
                   <button onClick={addNote} disabled={!noteText.trim()} className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase disabled:opacity-30">Add</button>
                 </div>
               </div>

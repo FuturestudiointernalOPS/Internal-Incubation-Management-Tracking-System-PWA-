@@ -24,23 +24,23 @@ import { useApi } from "@/lib/hooks/useApi";
 
 const EMPTY_LIST = [];
 
-const pickReports = (d) => {
-  if (!d?.success) return EMPTY_REPORTS;
+const pickReports = (payload) => {
+  if (!payload?.success) return EMPTY_REPORTS;
   const kpiNames = {};
-  for (const k of d.kpis || []) kpiNames[String(k.id)] = k.title;
-  return { reports: d.reports || [], kpiNames };
+  for (const kpi of payload.kpis || []) kpiNames[String(kpi.id)] = kpi.title;
+  return { reports: payload.reports || [], kpiNames };
 };
 
-const pickPrograms = (d) => (d?.success ? d.programs || [] : []);
+const pickPrograms = (payload) => (payload?.success ? payload.programs || [] : []);
 
 const EMPTY_OBJECT = {};
 const EMPTY_REPORTS = { reports: [], kpiNames: EMPTY_OBJECT };
 
 // Helper: formats snake_case labels to Title Case
-function formatLabel(val) {
-  if (!val || val === "—") return "—";
-  if (typeof val !== "string") return String(val);
-  return val.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+function formatLabel(value) {
+  if (!value || value === "—") return "—";
+  if (typeof value !== "string") return String(value);
+  return value.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 // Helper: renders a labeled info block (used in detail view)
@@ -92,12 +92,12 @@ export default function ReportResponses() {
   // name is not among them.
   const kpiTitle = (id) => kpiNames[String(id)];
 
-  const filteredReports = reports.filter((r) => {
+  const filteredReports = reports.filter((report) => {
     const matchesSearch =
-      r.teacher_name?.toLowerCase().includes(search.toLowerCase()) ||
-      r.progress_notes?.toLowerCase().includes(search.toLowerCase());
+      report.teacher_name?.toLowerCase().includes(search.toLowerCase()) ||
+      report.progress_notes?.toLowerCase().includes(search.toLowerCase());
     const programName =
-      programs.find((p) => p.id === r.program_id)?.name || "Unknown Program";
+      programs.find((program) => program.id === report.program_id)?.name || "Unknown Program";
     const matchesProgram =
       selectedProgram === "All Programs" || programName === selectedProgram;
     return matchesSearch && matchesProgram;
@@ -147,7 +147,7 @@ export default function ReportResponses() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder={t("adminMisc.reportsResponses.searchPlaceholder")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
             />
@@ -157,14 +157,14 @@ export default function ReportResponses() {
             <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <select
               value={selectedProgram}
-              onChange={(e) => setSelectedProgram(e.target.value)}
+              onChange={(event) => setSelectedProgram(event.target.value)}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="All Programs">
                 {t("adminMisc.reportsResponses.allPrograms")}
               </option>
-              {programs.map((p) => (
-                <option key={p.id}>{p.name}</option>
+              {programs.map((program) => (
+                <option key={program.id}>{program.name}</option>
               ))}
             </select>
           </div>
@@ -184,7 +184,7 @@ export default function ReportResponses() {
           ) : (
             <div className="grid grid-cols-1 gap-4">
               {filteredReports.map((report) => {
-                const prog = programs.find((p) => p.id === report.program_id);
+                const program = programs.find((program) => program.id === report.program_id);
                 return (
                   <div
                     key={report.id}
@@ -203,7 +203,7 @@ export default function ReportResponses() {
                         </div>
                         <div className="space-y-1">
                           <h4 className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)]">
-                            {prog?.name || t("adminMisc.reportsResponses.programAsset")}
+                            {program?.name || t("adminMisc.reportsResponses.programAsset")}
                           </h4>
                           <div className="flex items-center gap-3 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
                             <User className="w-3 h-3" /> {report.teacher_name}
@@ -220,10 +220,10 @@ export default function ReportResponses() {
                             {t("adminMisc.reportsResponses.reception")}
                           </p>
                           <div className="flex gap-1 justify-center">
-                            {[...Array(10)].map((_, i) => (
+                            {[...Array(10)].map((_, receptionIndex) => (
                               <div
-                                key={i}
-                                className={`w-1 h-3 rounded-full ${i < report.reception_score ? "bg-emerald-500" : "bg-tertiary opacity-30"}`}
+                                key={receptionIndex}
+                                className={`w-1 h-3 rounded-full ${receptionIndex < report.reception_score ? "bg-emerald-500" : "bg-tertiary opacity-30"}`}
                               />
                             ))}
                           </div>
@@ -267,7 +267,7 @@ export default function ReportResponses() {
                   })}
                 </span>
                 <h3 className="text-2xl font-bold text-white uppercase tracking-tight mt-1">
-                  {programs.find((p) => p.id === viewingReport.program_id)
+                  {programs.find((program) => program.id === viewingReport.program_id)
                     ?.name || t("adminMisc.reportsResponses.program")}
                 </h3>
               </div>
@@ -297,7 +297,7 @@ export default function ReportResponses() {
             {/* Print-Only Header */}
             <div className="hidden print:!block print:mb-6 print:pb-4 print:border-b print:border-gray-300">
               <h1 className="text-2xl font-bold text-black">
-                {programs.find((p) => p.id === viewingReport.program_id)
+                {programs.find((program) => program.id === viewingReport.program_id)
                   ?.name || t("adminMisc.reportsResponses.program")}
               </h1>
               <p className="text-sm text-gray-600 mt-1">

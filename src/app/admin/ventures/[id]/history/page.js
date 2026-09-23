@@ -51,10 +51,10 @@ export default function VentureHistoryPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`/api/ventures/${id}/venture-history`);
-        const d = await res.json();
-        if (d.success) setData(d);
-        else setError(d.error || "Failed to load history.");
+        const response = await fetch(`/api/ventures/${id}/venture-history`);
+        const payload = await response.json();
+        if (payload.success) setData(payload);
+        else setError(payload.error || "Failed to load history.");
       } catch {
         setError("Failed to load history.");
       } finally {
@@ -63,7 +63,7 @@ export default function VentureHistoryPage() {
     })();
   }, [id]);
 
-  const fmtDate = (v) => (v ? new Date(v).toLocaleString() : "");
+  const fmtDate = (value) => (value ? new Date(value).toLocaleString() : "");
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
@@ -100,12 +100,12 @@ export default function VentureHistoryPage() {
               <Empty />
             ) : (
               <ul className="space-y-2">
-                {(data.timeline.events || []).map((e, i) => (
-                  <li key={i} className="flex items-start gap-3 text-xs py-1.5 border-b border-[var(--border-primary)] last:border-0">
+                {(data.timeline.events || []).map((event, index) => (
+                  <li key={index} className="flex items-start gap-3 text-xs py-1.5 border-b border-[var(--border-primary)] last:border-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)] mt-1.5 shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-[var(--text-primary)] font-medium break-words">{e.description || e.event_type}</p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">{fmtDate(e.created_at)}</p>
+                      <p className="text-[var(--text-primary)] font-medium break-words">{event.description || event.event_type}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{fmtDate(event.created_at)}</p>
                     </div>
                   </li>
                 ))}
@@ -119,18 +119,18 @@ export default function VentureHistoryPage() {
               <Empty />
             ) : (
               <ul className="space-y-2">
-                {(data.timeline.review_decisions || []).map((r, i) => (
-                  <li key={i} className="text-xs py-1.5 border-b border-[var(--border-primary)] last:border-0">
+                {(data.timeline.review_decisions || []).map((decision, index) => (
+                  <li key={index} className="text-xs py-1.5 border-b border-[var(--border-primary)] last:border-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-[var(--text-primary)]">{r.task_title}</span>
-                      {r.review_decision === "approved" ? (
+                      <span className="font-semibold text-[var(--text-primary)]">{decision.task_title}</span>
+                      {decision.review_decision === "approved" ? (
                         <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold">{t("venture.history.decisionApproved")}</span>
                       ) : (
                         <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-bold">{t("venture.history.decisionChanges")}</span>
                       )}
-                      <span className="text-[10px] text-slate-500">v{r.version} · {fmtDate(r.reviewed_at || r.created_at)}</span>
+                      <span className="text-[10px] text-slate-500">v{decision.version} · {fmtDate(decision.reviewed_at || decision.created_at)}</span>
                     </div>
-                    {r.review_comment && <p className="mt-1 text-[var(--text-secondary)] break-words">{r.review_comment}</p>}
+                    {decision.review_comment && <p className="mt-1 text-[var(--text-secondary)] break-words">{decision.review_comment}</p>}
                   </li>
                 ))}
               </ul>
@@ -144,11 +144,11 @@ export default function VentureHistoryPage() {
                 <Empty />
               ) : (
                 <ul className="space-y-2">
-                  {(data.timeline.notes || []).map((n) => (
-                    <li key={n.id} className="text-xs py-1.5 border-b border-[var(--border-primary)] last:border-0">
-                      <p className="font-semibold text-[var(--text-primary)]">{n.title}</p>
-                      <p className="text-[var(--text-secondary)] mt-0.5 break-words whitespace-pre-line">{n.body}</p>
-                      <p className="text-[10px] text-slate-500 mt-1">{n.author_name || ""}{n.author_name && " · "}{fmtDate(n.created_at)}</p>
+                  {(data.timeline.notes || []).map((note) => (
+                    <li key={note.id} className="text-xs py-1.5 border-b border-[var(--border-primary)] last:border-0">
+                      <p className="font-semibold text-[var(--text-primary)]">{note.title}</p>
+                      <p className="text-[var(--text-secondary)] mt-0.5 break-words whitespace-pre-line">{note.body}</p>
+                      <p className="text-[10px] text-slate-500 mt-1">{note.author_name || ""}{note.author_name && " · "}{fmtDate(note.created_at)}</p>
                     </li>
                   ))}
                 </ul>
@@ -163,11 +163,11 @@ export default function VentureHistoryPage() {
                 <Empty />
               ) : (
                 <ul className="space-y-2">
-                  {(data.timeline.session_notes || []).map((s) => (
-                    <li key={s.id} className="text-xs py-1.5 border-b border-[var(--border-primary)] last:border-0">
-                      <p className="font-semibold text-[var(--text-primary)]">{s.session_title}</p>
-                      <p className="text-[var(--text-secondary)] mt-0.5 break-words whitespace-pre-line">{s.content}</p>
-                      <p className="text-[10px] text-slate-500 mt-1">{s.author_name || ""}{s.author_name && " · "}{fmtDate(s.created_at)}</p>
+                  {(data.timeline.session_notes || []).map((session) => (
+                    <li key={session.id} className="text-xs py-1.5 border-b border-[var(--border-primary)] last:border-0">
+                      <p className="font-semibold text-[var(--text-primary)]">{session.session_title}</p>
+                      <p className="text-[var(--text-secondary)] mt-0.5 break-words whitespace-pre-line">{session.content}</p>
+                      <p className="text-[10px] text-slate-500 mt-1">{session.author_name || ""}{session.author_name && " · "}{fmtDate(session.created_at)}</p>
                     </li>
                   ))}
                 </ul>

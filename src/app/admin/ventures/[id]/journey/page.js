@@ -20,11 +20,11 @@ export default function VentureJourneyPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`/api/ventures/${id}`);
-        const d = await res.json();
-        if (d.success) setVenture(d.venture);
-      } catch (e) {
-        console.error("Failed to load venture:", e);
+        const response = await fetch(`/api/ventures/${id}`);
+        const payload = await response.json();
+        if (payload.success) setVenture(payload.venture);
+      } catch (error) {
+        console.error("Failed to load venture:", error);
       } finally {
         setLoading(false);
       }

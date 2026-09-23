@@ -35,23 +35,23 @@ export default function AppEmptyState({
     lg: { padding: "p-16", titleSize: "text-sm", iconSize: "w-12 h-12", gap: "gap-5" },
   };
 
-  const s = sizeStyles[size] || sizeStyles.md;
+  const sizeStyle = sizeStyles[size] || sizeStyles.md;
 
   return (
     <div
-      className={`flex flex-col items-center justify-center text-center ${s.padding} ${s.gap} ${className}`}
+      className={`flex flex-col items-center justify-center text-center ${sizeStyle.padding} ${sizeStyle.gap} ${className}`}
     >
       {Icon && (
         <div
           className="flex items-center justify-center rounded-2xl"
           style={{
             background: "var(--surface-3)",
-            width: `calc(${s.iconSize} + 1.5rem)`,
-            height: `calc(${s.iconSize} + 1.5rem)`,
+            width: `calc(${sizeStyle.iconSize} + 1.5rem)`,
+            height: `calc(${sizeStyle.iconSize} + 1.5rem)`,
           }}
         >
           <Icon
-            className={s.iconSize}
+            className={sizeStyle.iconSize}
             style={{ color: "var(--text-tertiary)" }}
           />
         </div>
@@ -59,7 +59,7 @@ export default function AppEmptyState({
 
       <div className="space-y-1.5">
         <p
-          className={`${s.titleSize} font-bold uppercase tracking-widest`}
+          className={`${sizeStyle.titleSize} font-bold uppercase tracking-widest`}
           style={{ color: "var(--text-tertiary)" }}
         >
           {title}

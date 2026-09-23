@@ -30,9 +30,9 @@ export default function JoinGroupPage() {
           setError(t("rootMisc.join.groupNotFound"));
           return null;
         }
-        const g = data.families[0];
-        setGroup(g);
-        return g;
+        const matchedGroup = data.families[0];
+        setGroup(matchedGroup);
+        return matchedGroup;
       };
       const applyForm = (formData) => {
         if (formData.success && formData.form) {
@@ -48,8 +48,8 @@ export default function JoinGroupPage() {
         if (!bypassCache) {
           const cached = cacheGet(groupUrl);
           if (cached !== null && cached.success && cached.families?.length) {
-            const g = cached.families[0];
-            const formUrl = g.form_id ? `/api/platform/forms?id=${g.form_id}` : null;
+            const matchedGroup = cached.families[0];
+            const formUrl = matchedGroup.form_id ? `/api/platform/forms?id=${matchedGroup.form_id}` : null;
             const formCached = formUrl ? cacheGet(formUrl) : null;
             const formReady =
               !formUrl ||
@@ -66,11 +66,11 @@ export default function JoinGroupPage() {
         const res = await fetch(groupUrl);
         const data = await res.json();
         if (data.success) cacheSet(groupUrl, data);
-        const g = applyGroup(data);
-        if (!g) return;
+        const matchedGroup = applyGroup(data);
+        if (!matchedGroup) return;
 
-        if (g.form_id) {
-          const formUrl = `/api/platform/forms?id=${g.form_id}`;
+        if (matchedGroup.form_id) {
+          const formUrl = `/api/platform/forms?id=${matchedGroup.form_id}`;
           const formRes = await fetch(formUrl);
           const formData = await formRes.json();
           if (formData.success) cacheSet(formUrl, formData);

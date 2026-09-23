@@ -12,12 +12,12 @@ export function DashboardTab() {
 
   // Overview helpers: current/next Journey milestone + upcoming Venture events.
   const journeyList = journeyStages || [];
-  const activeStage = journeyList.find((s) => s.status === "active") || journeyList.find((s) => s.status !== "completed");
-  const nextStage = journeyList.find((s) => s.status === "locked" && s.stage_order > (activeStage?.stage_order || 0));
+  const activeStage = journeyList.find((stage) => stage.status === "active") || journeyList.find((stage) => stage.status !== "completed");
+  const nextStage = journeyList.find((stage) => stage.status === "locked" && stage.stage_order > (activeStage?.stage_order || 0));
   const todayISO = new Date().toISOString().slice(0, 10);
   const upcomingEvents = (calendarEvents || [])
-    .filter((e) => e.date && String(e.date) >= todayISO)
-    .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.start_time || "").localeCompare(String(b.start_time || "")))
+    .filter((event) => event.date && String(event.date) >= todayISO)
+    .sort((eventA, eventB) => String(eventA.date).localeCompare(String(eventB.date)) || String(eventA.start_time || "").localeCompare(String(eventB.start_time || "")))
     .slice(0, 6);
   const EVENT_TYPE_KEYS = {
     milestone: "milestones", task: "tasks", action: "actionPlans",
@@ -36,8 +36,8 @@ export function DashboardTab() {
           { label: t("venture.memberCount"), value: (getFounderMembers(members).length + getTeamMembers(members).length) || 0, icon: Users },
           { label: t("venture.businessStage"), value: t(`venture.stages.${dashboardData.venture?.business_stage || "idea"}`), icon: BarChart3 },
           { label: t("venture.status"), value: t(`venture.statuses.${dashboardData.venture?.status || "active"}`), icon: Clock },
-        ].map((stat, i) => (
-          <div key={i} className="rounded-xl p-4 border" style={cardStyle}>
+        ].map((stat, index) => (
+          <div key={index} className="rounded-xl p-4 border" style={cardStyle}>
             <stat.icon size={18} className="mb-2" style={{ color: "var(--brand-orange)" }} />
             <p className="text-2xl font-bold">{stat.value}</p>
             <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{stat.label}</p>
@@ -72,16 +72,16 @@ export function DashboardTab() {
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noEvents")}</p>
           ) : (
             <div className="space-y-2">
-              {upcomingEvents.map((ev, i) => (
-                <div key={i} className="flex items-center gap-3 text-sm py-1.5 border-b last:border-0" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
+              {upcomingEvents.map((event, index) => (
+                <div key={index} className="flex items-center gap-3 text-sm py-1.5 border-b last:border-0" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
                   <div className="shrink-0 w-14 text-center">
-                    <p className="text-[10px] font-black leading-tight">{ev.date ? new Date(`${ev.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "short" }) : ""}</p>
-                    <p className="text-[10px]" style={{ color: "var(--text-secondary)" }}>{ev.date ? new Date(`${ev.date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : ""}</p>
+                    <p className="text-[10px] font-black leading-tight">{event.date ? new Date(`${event.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "short" }) : ""}</p>
+                    <p className="text-[10px]" style={{ color: "var(--text-secondary)" }}>{event.date ? new Date(`${event.date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : ""}</p>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate">{ev.title}</p>
+                    <p className="font-medium truncate">{event.title}</p>
                     <p className="text-[11px] capitalize" style={{ color: "var(--text-secondary)" }}>
-                      {ev.start_time ? `${ev.start_time} · ` : ""}{t(`venture.${EVENT_TYPE_KEYS[ev.type] || "calendar"}`)}
+                      {event.start_time ? `${event.start_time} · ` : ""}{t(`venture.${EVENT_TYPE_KEYS[event.type] || "calendar"}`)}
                     </p>
                   </div>
                 </div>
@@ -99,11 +99,11 @@ export function DashboardTab() {
         </h3>
         {dashboardData.recent_activity?.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noRecentActivity")}</p>
-        ) : dashboardData.recent_activity?.map((a, i) => (
-          <div key={a.id || i} className="flex items-center gap-3 py-2 border-b last:border-0 text-sm" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
+        ) : dashboardData.recent_activity?.map((activity, index) => (
+          <div key={activity.id || index} className="flex items-center gap-3 py-2 border-b last:border-0 text-sm" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
             <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "var(--brand-orange)" }} />
-            <span className="font-medium">{t(`venture.activity.${a.action}`)}</span>
-            <span style={{ color: "var(--text-secondary)" }}>• {new Date(a.created_at).toLocaleDateString()}</span>
+            <span className="font-medium">{t(`venture.activity.${activity.action}`)}</span>
+            <span style={{ color: "var(--text-secondary)" }}>• {new Date(activity.created_at).toLocaleDateString()}</span>
           </div>
         ))}
       </div>
@@ -116,14 +116,14 @@ export function DashboardTab() {
         </h3>
         {!dashboardData.notifications?.recent?.length ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noNotifications")}</p>
-        ) : dashboardData.notifications.recent.map((n, i) => (
-          <div key={n.id || i} className="py-2 border-b last:border-0" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
+        ) : dashboardData.notifications.recent.map((notification, index) => (
+          <div key={notification.id || index} className="py-2 border-b last:border-0" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
             <div className="flex items-center gap-2">
-              {!n.is_read && <span className="w-2 h-2 rounded-full bg-blue-400" />}
-              <p className="text-sm font-medium">{n.title}</p>
+              {!notification.is_read && <span className="w-2 h-2 rounded-full bg-blue-400" />}
+              <p className="text-sm font-medium">{notification.title}</p>
             </div>
-            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{n.message}</p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{new Date(n.created_at).toLocaleDateString()}</p>
+            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{notification.message}</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{new Date(notification.created_at).toLocaleDateString()}</p>
           </div>
         ))}
       </div>
@@ -160,8 +160,8 @@ export function HistoryTab() {
             <div className="mt-2">
               <p className="text-xs font-medium mb-1" style={{ color: "var(--text-secondary)" }}>{t("venture.deliverables")}:</p>
               <div className="flex flex-wrap gap-1">
-                {historyData.previous_program.deliverables.map((d, i) => (
-                  <span key={i} className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: "rgb(255 255 255 / 0.1)" }}>{d}</span>
+                {historyData.previous_program.deliverables.map((deliverable, index) => (
+                  <span key={index} className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: "rgb(255 255 255 / 0.1)" }}>{deliverable}</span>
                 ))}
               </div>
             </div>
@@ -188,18 +188,18 @@ export function HistoryTab() {
         <h3 className="font-semibold mb-3">{t("venture.founderHistory")}</h3>
         {historyData.founder_history?.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noFoundersYet")}</p>
-        ) : historyData.founder_history?.map((fh, i) => (
-          <div key={i} className="mb-4 pb-4 border-b last:border-0 last:mb-0 last:pb-0" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
-            <p className="font-medium">{fh.contact_name || fh.contact_id}</p>
+        ) : historyData.founder_history?.map((founderHistory, index) => (
+          <div key={index} className="mb-4 pb-4 border-b last:border-0 last:mb-0 last:pb-0" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
+            <p className="font-medium">{founderHistory.contact_name || founderHistory.contact_id}</p>
             <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-              {t("venture.founders")} {fh.removed_at ? `(removed ${new Date(fh.removed_at).toLocaleDateString()})` : `(${t("venture.statuses.active")})`}
+              {t("venture.founders")} {founderHistory.removed_at ? `(removed ${new Date(founderHistory.removed_at).toLocaleDateString()})` : `(${t("venture.statuses.active")})`}
             </p>
-            {fh.programs?.length > 0 && (
+            {founderHistory.programs?.length > 0 && (
               <div className="mt-2 space-y-1">
                 <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{t("venture.programs")}:</p>
-                {fh.programs.map((p, j) => (
-                  <p key={j} className="text-xs pl-3" style={{ color: "var(--text-secondary)" }}>
-                    • {p.program_name || `Program ${p.program_id}`} {p.joined_at && `(${new Date(p.joined_at).toLocaleDateString()})`}
+                {founderHistory.programs.map((program, programIndex) => (
+                  <p key={programIndex} className="text-xs pl-3" style={{ color: "var(--text-secondary)" }}>
+                    • {program.program_name || `Program ${program.program_id}`} {program.joined_at && `(${new Date(program.joined_at).toLocaleDateString()})`}
                   </p>
                 ))}
               </div>
@@ -227,8 +227,8 @@ export function ProgressTab() {
             { label: t('venture.avgMilestoneProgress'), value: `${progressData.avg_milestone_progress || 0}%`, icon: CheckSquare },
             { label: t('venture.standupsCount'), value: progressData.standups_count || 0, icon: MessageCircle },
             { label: t('venture.retrosCount'), value: progressData.retros_count || 0, icon: RotateCcw },
-          ].map((stat, i) => (
-            <div key={i} className="rounded-xl p-4 border" style={cardStyle}>
+          ].map((stat, index) => (
+            <div key={index} className="rounded-xl p-4 border" style={cardStyle}>
               <stat.icon size={18} className="mb-2" style={{ color: "var(--brand-orange)" }} />
               <p className="text-2xl font-bold">{stat.value}</p>
               <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{stat.label}</p>

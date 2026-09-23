@@ -30,13 +30,13 @@ export default function PermissionGovernanceRedirectPage() {
   const router = useRouter();
 
   useEffect(() => {
-    let sub = "catalog";
+    let subTab = "catalog";
     try {
-      sub = new URLSearchParams(window.location.search).get("sub") || "catalog";
+      subTab = new URLSearchParams(window.location.search).get("sub") || "catalog";
     } catch {
       /* malformed URL — fall through to the catalog */
     }
-    router.replace(TARGET_BY_SUB[sub] || TARGET_BY_SUB.catalog);
+    router.replace(TARGET_BY_SUB[subTab] || TARGET_BY_SUB.catalog);
   }, [router]);
 
   return null;

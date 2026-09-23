@@ -21,8 +21,8 @@ import { useSessionUser } from "@/lib/hooks/useSessionUser";
 // Module scope on purpose: the hook keys its internal callback on these functions,
 // so inline arrows would give them a new identity on every render and refetch in
 // a loop.
-const pickBlockers = (d) => (d?.success ? d.blockers || [] : []);
-const pickBlockerTasks = (d) => (d?.success ? d.tasks || [] : []);
+const pickBlockers = (payload) => (payload?.success ? payload.blockers || [] : []);
+const pickBlockerTasks = (payload) => (payload?.success ? payload.tasks || [] : []);
 
 /**
  * SUPER ADMIN BLOCKERS DASHBOARD
@@ -98,8 +98,8 @@ export default function AdminBlockers() {
   // Build task lookup
   const taskMap = useMemo(() => {
     const map = {};
-    tasks.forEach((t) => {
-      map[t.id] = t;
+    tasks.forEach((task) => {
+      map[task.id] = task;
     });
     return map;
   }, [tasks]);
@@ -107,9 +107,9 @@ export default function AdminBlockers() {
   // Build user list from blockers
   const users = useMemo(() => {
     const userMap = {};
-    blockers.forEach((b) => {
-      if (b.user_id && !userMap[b.user_id]) {
-        userMap[b.user_id] = { id: b.user_id, name: b.user_name };
+    blockers.forEach((blocker) => {
+      if (blocker.user_id && !userMap[blocker.user_id]) {
+        userMap[blocker.user_id] = { id: blocker.user_id, name: blocker.user_name };
       }
     });
     return Object.values(userMap);
@@ -118,29 +118,29 @@ export default function AdminBlockers() {
   // Filtered + sorted: active first, then resolved
   const filteredBlockers = useMemo(() => {
     return blockers
-      .filter((b) => {
+      .filter((blocker) => {
         const matchesSearch =
-          b.title?.toLowerCase().includes(search.toLowerCase()) ||
-          b.user_name?.toLowerCase().includes(search.toLowerCase());
+          blocker.title?.toLowerCase().includes(search.toLowerCase()) ||
+          blocker.user_name?.toLowerCase().includes(search.toLowerCase());
         const matchesStatus =
-          filterStatus === "all" || b.status === filterStatus;
+          filterStatus === "all" || blocker.status === filterStatus;
         const matchesUser =
-          filterUser === "All Users" || b.user_id === filterUser;
+          filterUser === "All Users" || blocker.user_id === filterUser;
         return matchesSearch && matchesStatus && matchesUser;
       })
-      .sort((a, b) => {
+      .sort((first, second) => {
         // Active first, then resolved
-        if (a.status === "active" && b.status !== "active") return -1;
-        if (a.status !== "active" && b.status === "active") return 1;
+        if (first.status === "active" && second.status !== "active") return -1;
+        if (first.status !== "active" && second.status === "active") return 1;
         // Within same status, newest first
-        return new Date(b.created_at) - new Date(a.created_at);
+        return new Date(second.created_at) - new Date(first.created_at);
       });
   }, [blockers, search, filterStatus, filterUser]);
 
   const stats = useMemo(() => {
     return {
-      active: blockers.filter((b) => b.status === "active").length,
-      resolved: blockers.filter((b) => b.status === "resolved").length,
+      active: blockers.filter((blocker) => blocker.status === "active").length,
+      resolved: blockers.filter((blocker) => blocker.status === "resolved").length,
       total: blockers.length,
     };
   }, [blockers]);
@@ -247,7 +247,7 @@ export default function AdminBlockers() {
             />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder={t("common.search")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
               style={{ color: "var(--text-primary)" }}
@@ -261,13 +261,13 @@ export default function AdminBlockers() {
             />
             <select
               value={filterUser}
-              onChange={(e) => setFilterUser(e.target.value)}
+              onChange={(event) => setFilterUser(event.target.value)}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="All Users">{t("adminMisc.blockers.allUsers")}</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
                 </option>
               ))}
             </select>
@@ -280,7 +280,7 @@ export default function AdminBlockers() {
             />
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(event) => setFilterStatus(event.target.value)}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="all">{t("adminMisc.blockers.allStatuses")}</option>

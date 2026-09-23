@@ -14,6 +14,7 @@ import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
 import AppPdfPreview from "@/components/ui/AppPdfPreview";
 import { useDialogs } from "@/components/ui/DialogProvider";
+import { findUnknownTemplateVariables, TEMPLATE_VARIABLES } from "@/lib/constants";
 
 /**
  * PLATFORM FORM RUNS — Launch, assign, collect, review
@@ -117,43 +118,43 @@ const REPORT_FILE_ACCEPT = ".pdf,.docx,.txt,.md,.markdown";
  * document can be produced (not evaluated yet, no usable recipient…).
  */
 async function fetchResultPdf(submissionId) {
-  const res = await fetch("/api/platform/form-runs?action=preview_result", {
+  const response = await fetch("/api/platform/form-runs?action=preview_result", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ submission_id: submissionId }),
   });
-  if (!res.ok) {
+  if (!response.ok) {
     let message = "";
     try {
-      const data = await res.json();
+      const data = await response.json();
       message = data?.error || "";
     } catch (_) {}
     throw new Error(message);
   }
-  return res.blob();
+  return response.blob();
 }
 
 // ─── Optimized Runs Table (memoized for performance) ───
 const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, sortField, sortDir, page, perPage, total, onSort, onPage, openRun, groups, onArchive, onRestore }) {
   const { t } = useI18n();
   const filtered = useMemo(() => {
-    return runs.filter((r) => {
-      if (search && !r.name.toLowerCase().includes(search.toLowerCase())) return false;
+    return runs.filter((run) => {
+      if (search && !run.name.toLowerCase().includes(search.toLowerCase())) return false;
       // When "all" is selected, exclude archived
-      if (statusFilter === "all" && r.status === "archived") return false;
-      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (statusFilter === "all" && run.status === "archived") return false;
+      if (statusFilter !== "all" && run.status !== statusFilter) return false;
       return true;
     });
   }, [runs, search, statusFilter]);
 
   const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-      const aVal = a[sortField] ?? "";
-      const bVal = b[sortField] ?? "";
+    return [...filtered].sort((firstRun, secondRun) => {
+      const firstValue = firstRun[sortField] ?? "";
+      const secondValue = secondRun[sortField] ?? "";
       if (sortField === "created_at" || sortField === "opens_at" || sortField === "closes_at") {
-        return sortDir === "asc" ? new Date(aVal) - new Date(bVal) : new Date(bVal) - new Date(aVal);
+        return sortDir === "asc" ? new Date(firstValue) - new Date(secondValue) : new Date(secondValue) - new Date(firstValue);
       }
-      return sortDir === "asc" ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
+      return sortDir === "asc" ? String(firstValue).localeCompare(String(secondValue)) : String(secondValue).localeCompare(String(firstValue));
     });
   }, [filtered, sortField, sortDir]);
 
@@ -176,14 +177,14 @@ const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, so
               { key: "opens_at", label: t("platformMisc.runs.opens"), w: "w-28" },
               { key: "closes_at", label: t("platformMisc.runs.closes"), w: "w-28" },
               { key: "created_at", label: t("platformMisc.runs.created"), w: "w-28" },
-            ].map((col) => (
-              <th key={col.key} className={`px-3 py-3 cursor-pointer hover:text-[var(--brand-orange)] transition-colors ${col.w}`} onClick={() => {
-                if (sortField === col.key) onSort(col.key, sortDir === "asc" ? "desc" : "asc");
-                else onSort(col.key, "asc");
+            ].map((column) => (
+              <th key={column.key} className={`px-3 py-3 cursor-pointer hover:text-[var(--brand-orange)] transition-colors ${column.w}`} onClick={() => {
+                if (sortField === column.key) onSort(column.key, sortDir === "asc" ? "desc" : "asc");
+                else onSort(column.key, "asc");
               }}>
                 <span className="flex items-center gap-1">
-                  {col.label}
-                  {sortField === col.key && (sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                  {column.label}
+                  {sortField === column.key && (sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
                 </span>
               </th>
             ))}
@@ -191,38 +192,38 @@ const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, so
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--border-primary)]">
-          {paginated.map((r, i) => {
-            const cfg = STATUS_CONFIG[r.status] || STATUS_CONFIG.draft;
-            const sn = (page - 1) * perPage + i + 1;
+          {paginated.map((run, index) => {
+            const statusConfig = STATUS_CONFIG[run.status] || STATUS_CONFIG.draft;
+            const rowNumber = (page - 1) * perPage + index + 1;
             return (
-              <tr key={r.id} onClick={() => openRun(r)} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50 cursor-pointer">
-                <td className="px-3 py-3 text-[var(--text-secondary)] text-center">{sn}</td>
+              <tr key={run.id} onClick={() => openRun(run)} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50 cursor-pointer">
+                <td className="px-3 py-3 text-[var(--text-secondary)] text-center">{rowNumber}</td>
                 <td className="px-3 py-3 font-black uppercase truncate max-w-[250px]">
                   <div className="flex items-center gap-2">
                     <Play className="w-3.5 h-3.5 text-[var(--brand-orange)] shrink-0" />
-                    <span className="truncate">{r.name}</span>
+                    <span className="truncate">{run.name}</span>
                   </div>
                 </td>
-                <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] truncate max-w-[160px]">{r.form_name || "—"}</td>
+                <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] truncate max-w-[160px]">{run.form_name || "—"}</td>
                 <td className="px-3 py-3 text-[10px] font-bold truncate max-w-[120px]">
                   {(() => {
-                    const g = groups.find((x) => (x.registration_id || x.id) === r.group_target_id);
-                    return g ? (
-                      <span className="text-[var(--brand-orange)]">{g.name}</span>
+                    const group = groups.find((candidate) => (candidate.registration_id || candidate.id) === run.group_target_id);
+                    return group ? (
+                      <span className="text-[var(--brand-orange)]">{group.name}</span>
                     ) : (
                       <span className="text-[var(--text-secondary)]">—</span>
                     );
                   })()}
                 </td>
-                <td className="px-3 py-3"><span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap", cfg.color, cfg.bg)}>{t(cfg.label)}</span></td>
-                <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] whitespace-nowrap">{r.opens_at ? new Date(r.opens_at).toLocaleDateString() : "—"}</td>
-                <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] whitespace-nowrap">{r.closes_at ? new Date(r.closes_at).toLocaleDateString() : "—"}</td>
-                <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] whitespace-nowrap">{new Date(r.created_at).toLocaleDateString()}</td>
-                <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                  {r.status === "archived" ? (
-                    <button onClick={() => onRestore(r.id)} title={t("platformMisc.runs.restore")} className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-colors"><RotateCcw className="w-3.5 h-3.5" /></button>
-                  ) : r.status !== "active" ? (
-                    <button onClick={() => onArchive(r.id)} title={t("platformMisc.runs.archive")} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-500/10 transition-colors"><Archive className="w-3.5 h-3.5" /></button>
+                <td className="px-3 py-3"><span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap", statusConfig.color, statusConfig.bg)}>{t(statusConfig.label)}</span></td>
+                <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] whitespace-nowrap">{run.opens_at ? new Date(run.opens_at).toLocaleDateString() : "—"}</td>
+                <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] whitespace-nowrap">{run.closes_at ? new Date(run.closes_at).toLocaleDateString() : "—"}</td>
+                <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] whitespace-nowrap">{new Date(run.created_at).toLocaleDateString()}</td>
+                <td className="px-3 py-3 text-right" onClick={(event) => event.stopPropagation()}>
+                  {run.status === "archived" ? (
+                    <button onClick={() => onRestore(run.id)} title={t("platformMisc.runs.restore")} className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-colors"><RotateCcw className="w-3.5 h-3.5" /></button>
+                  ) : run.status !== "active" ? (
+                    <button onClick={() => onArchive(run.id)} title={t("platformMisc.runs.archive")} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-500/10 transition-colors"><Archive className="w-3.5 h-3.5" /></button>
                   ) : null}
                 </td>
               </tr>
@@ -236,13 +237,13 @@ const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, so
         <p className="text-[10px] text-[var(--text-secondary)]">{t("platformMisc.runs.showingRange", { start: ((page - 1) * perPage) + 1, end: Math.min(page * perPage, total), total })}</p>
         <div className="flex items-center gap-1">
           <button onClick={() => onPage(Math.max(1, page - 1))} disabled={page === 1} className="px-2 py-1 rounded-lg bg-tertiary text-[10px] font-bold text-[var(--text-secondary)] disabled:opacity-30 hover:text-[var(--text-primary)]">{t("platformMisc.runs.prev")}</button>
-          {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-            let pn;
-            if (totalPages <= 7) pn = i + 1;
-            else if (page <= 4) pn = i + 1;
-            else if (page >= totalPages - 3) pn = totalPages - 6 + i;
-            else pn = page - 3 + i;
-            return <button key={pn} onClick={() => onPage(pn)} className={cn("w-7 h-7 rounded-lg text-[10px] font-bold", page === pn ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>{pn}</button>;
+          {Array.from({ length: Math.min(totalPages, 7) }, (_, index) => {
+            let pageNumber;
+            if (totalPages <= 7) pageNumber = index + 1;
+            else if (page <= 4) pageNumber = index + 1;
+            else if (page >= totalPages - 3) pageNumber = totalPages - 6 + index;
+            else pageNumber = page - 3 + index;
+            return <button key={pageNumber} onClick={() => onPage(pageNumber)} className={cn("w-7 h-7 rounded-lg text-[10px] font-bold", page === pageNumber ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>{pageNumber}</button>;
           })}
           <button onClick={() => onPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="px-2 py-1 rounded-lg bg-tertiary text-[10px] font-bold text-[var(--text-secondary)] disabled:opacity-30 hover:text-[var(--text-primary)]">{t("platformMisc.runs.next")}</button>
         </div>
@@ -258,8 +259,8 @@ function MiniCalendar({ value, onChange, onClose }) {
   const [viewDate, setViewDate] = React.useState(() => value ? new Date(value) : new Date());
   const [timeStr, setTimeStr] = React.useState(() => {
     if (!value) return "09:00";
-    const d = new Date(value);
-    return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+    const date = new Date(value);
+    return String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
   });
 
   const year = viewDate.getFullYear();
@@ -273,37 +274,37 @@ function MiniCalendar({ value, onChange, onClose }) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const days = [];
-  for (let i = 0; i < firstDay; i++) days.push(null);
-  for (let i = 1; i <= daysInMonth; i++) days.push(i);
+  for (let padIndex = 0; padIndex < firstDay; padIndex++) days.push(null);
+  for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber++) days.push(dayNumber);
 
   const selectDay = (day) => {
-    const d = new Date(year, month, day);
-    const [h, m] = timeStr.split(":").map(Number);
-    d.setHours(h, m, 0, 0);
-    onChange(d.toISOString().slice(0, 16));
+    const date = new Date(year, month, day);
+    const [hours, minutes] = timeStr.split(":").map(Number);
+    date.setHours(hours, minutes, 0, 0);
+    onChange(date.toISOString().slice(0, 16));
     // Do NOT auto-close — let user confirm via the Done button
   };
 
-  const handleTimeChange = (e) => {
-    setTimeStr(e.target.value);
+  const handleTimeChange = (event) => {
+    setTimeStr(event.target.value);
     if (value) {
-      const d = new Date(value);
-      const [h, m] = e.target.value.split(":").map(Number);
-      d.setHours(h, m, 0, 0);
-      onChange(d.toISOString().slice(0, 16));
+      const date = new Date(value);
+      const [hours, minutes] = event.target.value.split(":").map(Number);
+      date.setHours(hours, minutes, 0, 0);
+      onChange(date.toISOString().slice(0, 16));
     }
   };
 
   const isSelected = (day) => {
     if (!value || !day) return false;
-    const d = new Date(value);
-    return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+    const date = new Date(value);
+    return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day;
   };
 
   return (
     <div
       className="p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] shadow-2xl w-96 z-[500]"
-      onClick={(e) => e.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
       style={{ background: "var(--bg-secondary, #1a1a2e)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}
     >
       {/* Month Nav */}
@@ -325,27 +326,27 @@ function MiniCalendar({ value, onChange, onClose }) {
 
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-1 mb-2">
-        {DAYS.map((d) => (
-          <div key={d} className="text-center text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] py-1">{d}</div>
+        {DAYS.map((dayLabel) => (
+          <div key={dayLabel} className="text-center text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] py-1">{dayLabel}</div>
         ))}
       </div>
 
       {/* Day grid */}
       <div className="grid grid-cols-7 gap-1">
-        {days.map((day, i) => {
+        {days.map((day, index) => {
           const past = day && new Date(year, month, day, 23, 59, 59) < today;
-          const sel = isSelected(day);
+          const isDaySelected = isSelected(day);
           return (
             <button
-              key={i}
+              key={index}
               type="button"
               disabled={!day || past}
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (day && !past) selectDay(day); }}
+              onClick={(event) => { event.preventDefault(); event.stopPropagation(); if (day && !past) selectDay(day); }}
               className={
                 "h-12 w-full rounded-xl text-[12px] font-bold transition-all " +
                 (!day
                   ? "invisible"
-                  : sel
+                  : isDaySelected
                   ? "bg-[var(--brand-orange)] text-black shadow-md"
                   : past
                   ? "text-[var(--text-secondary)] opacity-25 cursor-not-allowed"
@@ -403,49 +404,49 @@ const EMPTY_SELECTION = [];
  * request that never answered is reported by the hook's error, which the
  * notification beside the read folds back in.
  */
-const pickRunList = (d) =>
-  d?.success
-    ? { runs: d.runs || [], total: d.total || 0, failure: null }
-    : { runs: [], total: 0, failure: d?.error || null };
+const pickRunList = (response) =>
+  response?.success
+    ? { runs: response.runs || [], total: response.total || 0, failure: null }
+    : { runs: [], total: 0, failure: response?.error || null };
 
 /**
  * A stored answer, shown as text. Pure, so it lives at module scope: the answer
  * helpers below memoise their own identity, and a formatter captured from the
  * component body would change on every render and defeat that memoisation.
  */
-function fmtAnswer(v) {
-  if (v === undefined || v === null) return "";
-  if (Array.isArray(v)) {
-    return v.map((item) => {
+function fmtAnswer(answer) {
+  if (answer === undefined || answer === null) return "";
+  if (Array.isArray(answer)) {
+    return answer.map((item) => {
       if (item === undefined || item === null) return "";
       if (typeof item === "object") return item.label || item.value || JSON.stringify(item);
       return String(item);
     }).filter(Boolean).join(", ");
   }
-  if (typeof v === "string") {
+  if (typeof answer === "string") {
     try {
-      if (v.startsWith("{") && v.includes('"code"')) {
-        const p = JSON.parse(v);
-        if (p.code != null) return `${p.code} ${p.number || ""}`.trim();
+      if (answer.startsWith("{") && answer.includes('"code"')) {
+        const parsedPhone = JSON.parse(answer);
+        if (parsedPhone.code != null) return `${parsedPhone.code} ${parsedPhone.number || ""}`.trim();
       }
     } catch (_) {}
-    return v;
+    return answer;
   }
-  if (typeof v === "object") {
-    if (v.label) return String(v.label);
-    if (v.value) return String(v.value);
-    return JSON.stringify(v);
+  if (typeof answer === "object") {
+    if (answer.label) return String(answer.label);
+    if (answer.value) return String(answer.value);
+    return JSON.stringify(answer);
   }
-  return String(v);
+  return String(answer);
 }
 
 /** A submitter's account state, derived from the flags the row carries. Pure. */
-function accountStatusOf(s) {
+function accountStatusOf(submission) {
   return (
-    s.account_status ||
-    (s.account_activated
+    submission.account_status ||
+    (submission.account_activated
       ? "active"
-      : s.account_created
+      : submission.account_created
         ? "activation_pending"
         : "not_created")
   );
@@ -543,8 +544,8 @@ export default function FormRunsPage() {
   // Run-scoped respondent search + filters (operate only on THIS run's submissions)
   const [respSearch, setRespSearch] = useState("");
   const [scoreOp, setScoreOp] = useState(""); // "" | "eq" | "gte" | "gt" | "lte" | "lt" | "between"
-  const [scoreVal, setScoreVal] = useState("");
-  const [scoreVal2, setScoreVal2] = useState("");
+  const [scoreValue, setScoreValue] = useState("");
+  const [scoreValue2, setScoreValue2] = useState("");
   const [fieldFilters, setFieldFilters] = useState({}); // field label → option value
   const [approvalEmailFilter, setApprovalEmailFilter] = useState("");
   const [activationEmailFilter, setActivationEmailFilter] = useState("");
@@ -564,7 +565,7 @@ export default function FormRunsPage() {
   // not written). Each setter takes its identity from the combination in force,
   // because the record it writes is keyed on that combination.
   const respFilterKey = JSON.stringify([
-    respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, subFilter,
+    respSearch, scoreOp, scoreValue, scoreValue2, fieldFilters, subFilter,
     approvalEmailFilter, activationEmailFilter, reviewFilter, accountStatusFilter,
   ]);
   const [respPageState, setRespPageState] = useState({ key: respFilterKey, page: 1 });
@@ -653,7 +654,7 @@ export default function FormRunsPage() {
   const [exportFormat, setExportFormat] = useState("csv"); // csv | xlsx
   const [exportScope, setExportScope] = useState("filtered"); // selected | filtered
 
-  const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
+  const notify = (message) => { setNotification(message); setTimeout(() => setNotification(null), 3000); };
 
   // The run list follows the status filter and the page; the reference lists
   // beside it (forms, contacts, groups, programs, stats) do not. Splitting them
@@ -713,8 +714,8 @@ export default function FormRunsPage() {
         const cached = cacheGet(url);
         if (cached !== null && cached.success) apply(cached);
       }
-      const res = await fetch(url);
-      const data = await res.json();
+      const response = await fetch(url);
+      const data = await response.json();
       if (data.success) {
         cacheSet(url, data);
         apply(data);
@@ -734,8 +735,8 @@ export default function FormRunsPage() {
         const cached = cacheGet(url);
         if (cached !== null && cached.success) apply(cached);
       }
-      const res = await fetch(url);
-      const data = await res.json();
+      const response = await fetch(url);
+      const data = await response.json();
       if (data.success) {
         cacheSet(url, data);
         apply(data);
@@ -756,8 +757,8 @@ export default function FormRunsPage() {
         const cached = cacheGet(url);
         if (cached !== null && cached.success) apply(cached);
       }
-      const res = await fetch(url);
-      const data = await res.json();
+      const response = await fetch(url);
+      const data = await response.json();
       if (data.success) {
         cacheSet(url, data);
         apply(data);
@@ -777,8 +778,8 @@ export default function FormRunsPage() {
         const cached = cacheGet(url);
         if (cached !== null && cached.success) apply(cached);
       }
-      const res = await fetch(url);
-      const data = await res.json();
+      const response = await fetch(url);
+      const data = await response.json();
       if (data.success) {
         cacheSet(url, data);
         apply(data);
@@ -791,12 +792,12 @@ export default function FormRunsPage() {
     if (!name) return;
     setCreatingGroup(true);
     try {
-      const res = await fetch("/api/groups", {
+      const response = await fetch("/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success && data.group) {
         notify(t("platformMisc.runs.groupCreated"));
         setShowInlineGroup(false);
@@ -825,8 +826,8 @@ export default function FormRunsPage() {
         const cached = cacheGet(url);
         if (cached !== null && cached.success) apply(cached);
       }
-      const res = await fetch(url);
-      const data = await res.json();
+      const response = await fetch(url);
+      const data = await response.json();
       if (data.success) {
         cacheSet(url, data);
         apply(data);
@@ -842,16 +843,16 @@ export default function FormRunsPage() {
     fetchDashboardStats();
   }, [fetchForms, fetchContacts, fetchGroups, fetchPrograms, fetchDashboardStats]);
 
-  const openRun = useCallback(async (run, opts = {}) => {
-    if (!opts.keepTab) {
+  const openRun = useCallback(async (run, options = {}) => {
+    if (!options.keepTab) {
       setDetailTab("overview");
       setSubFilter("all");
     }
     setSelectedRun(run);
     setSubLoading(true);
     try {
-      const res = await fetch(`/api/platform/form-runs?id=${run.id}`);
-      const data = await res.json();
+      const response = await fetch(`/api/platform/form-runs?id=${run.id}`);
+      const data = await response.json();
       if (data.success) {
         setSubmissions(data.submissions || []);
         setReviews(data.reviews || []);
@@ -864,12 +865,12 @@ export default function FormRunsPage() {
         setRunTemplates(data.run?.settings?.templates || {});
         setFieldLabels(data.field_labels || {});
         setFilterableFields(data.filterable_fields || []);
-        if (!opts.keepTab) {
+        if (!options.keepTab) {
           // Fresh run → reset search/filters so nothing leaks across runs
           setRespSearch("");
           setScoreOp("");
-          setScoreVal("");
-          setScoreVal2("");
+          setScoreValue("");
+          setScoreValue2("");
           setFieldFilters({});
           setApprovalEmailFilter("");
           setActivationEmailFilter("");
@@ -895,10 +896,10 @@ export default function FormRunsPage() {
 
       // Fetch form fields for spreadsheet column view
       try {
-        const formRes = await fetch(`/api/platform/forms?id=${run.form_id}`);
-        const formData = await formRes.json();
+        const formResponse = await fetch(`/api/platform/forms?id=${run.form_id}`);
+        const formData = await formResponse.json();
         if (formData.success) {
-          setRunFormFields((formData.fields || []).filter(f => !["hidden"].includes(f.field_type)));
+          setRunFormFields((formData.fields || []).filter(field => !["hidden"].includes(field.field_type)));
           setRunFormSettings(formData.form?.settings || {});
         }
       } catch (_) {}
@@ -919,12 +920,12 @@ export default function FormRunsPage() {
         body.assignments = [{ target_type: "group", target_id: createData.group_id }];
       }
       delete body.group_id; // not a DB column
-      const res = await fetch("/api/platform/form-runs", {
+      const response = await fetch("/api/platform/form-runs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("platformMisc.runs.formRunCreated"));
         setShowCreate(false);
@@ -937,12 +938,12 @@ export default function FormRunsPage() {
 
   const handleLaunch = async (id) => {
     try {
-      const res = await fetch("/api/platform/form-runs?action=launch", {
+      const response = await fetch("/api/platform/form-runs?action=launch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("platformMisc.runs.runLaunched"));
         refreshRuns();
@@ -953,12 +954,12 @@ export default function FormRunsPage() {
 
   const handleStatusChange = async (id, newStatus) => {
     try {
-      const res = await fetch("/api/platform/form-runs?action=status", {
+      const response = await fetch("/api/platform/form-runs?action=status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status: newStatus }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("platformMisc.runs.runStatusChanged", { status: newStatus }));
         setSelectedRun(data.run);
@@ -970,8 +971,8 @@ export default function FormRunsPage() {
   const handleDeleteRun = async (id) => {
     if (!(await confirm({ message: t("platformMisc.runs.deleteRunConfirm"), tone: "danger" }))) return;
     try {
-      const res = await fetch(`/api/platform/form-runs?id=${id}`, { method: "DELETE" });
-      const data = await res.json();
+      const response = await fetch(`/api/platform/form-runs?id=${id}`, { method: "DELETE" });
+      const data = await response.json();
       if (data.success) {
         notify(t("platformMisc.runs.runDeleted"));
         setSelectedRun(null);
@@ -983,12 +984,12 @@ export default function FormRunsPage() {
   const handleArchiveRun = async (id) => {
     if (!(await confirm({ message: t("platformMisc.runs.archiveRunConfirm"), tone: "danger" }))) return;
     try {
-      const res = await fetch("/api/platform/form-runs?action=status", {
+      const response = await fetch("/api/platform/form-runs?action=status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status: "archived" }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("platformMisc.runs.runStatusChanged", { status: "archived" }));
         refreshRuns();
@@ -999,12 +1000,12 @@ export default function FormRunsPage() {
   const handleRestoreRun = async (id) => {
     if (!(await confirm({ message: t("platformMisc.runs.restoreRunConfirm") }))) return;
     try {
-      const res = await fetch("/api/platform/form-runs?action=status", {
+      const response = await fetch("/api/platform/form-runs?action=status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status: "draft" }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("platformMisc.runs.runStatusChanged", { status: "draft" }));
         refreshRuns();
@@ -1023,7 +1024,7 @@ export default function FormRunsPage() {
     if (!reviewing) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/platform/form-runs?action=review", {
+      const response = await fetch("/api/platform/form-runs?action=review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1032,7 +1033,7 @@ export default function FormRunsPage() {
           ...(reviewIncludeResultPdf && reviewData.decision === "approved" ? { include_result_pdf: true } : {}),
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         // The decision went through; only the document could not follow. A 409
         // refusal falls into the error branch below and shows data.error as-is.
@@ -1057,12 +1058,12 @@ export default function FormRunsPage() {
     if (!reviewing) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/platform/ai/evaluate-submission", {
+      const response = await fetch("/api/platform/ai/evaluate-submission", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ submission_id: reviewing.id, force: true }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("platformMisc.runs.reevaluationComplete"));
         setEvaluation(data.evaluation);
@@ -1085,23 +1086,23 @@ export default function FormRunsPage() {
     setEvaluation(null);
     // Load timeline
     try {
-      const res = await fetch(`/api/platform/form-runs?timeline=${submission.id}`);
-      const data = await res.json();
+      const response = await fetch(`/api/platform/form-runs?timeline=${submission.id}`);
+      const data = await response.json();
       if (data.success) setReviewTimeline(data.timeline || []);
     } catch (_) {}
     // Load AI evaluation from separate table
     try {
-      const evalRes = await fetch(`/api/platform/ai/evaluate-submission?submission_id=${submission.id}`);
-      const evalData = await evalRes.json();
-      if (evalData.success && evalData.evaluation) setEvaluation(evalData.evaluation);
+      const evaluationResponse = await fetch(`/api/platform/ai/evaluate-submission?submission_id=${submission.id}`);
+      const evaluationData = await evaluationResponse.json();
+      if (evaluationData.success && evaluationData.evaluation) setEvaluation(evaluationData.evaluation);
     } catch (_) {}
     // Fetch form fields to map IDs to labels
     if (selectedRun?.form_id) {
       try {
-        const formRes = await fetch(`/api/platform/forms?id=${selectedRun.form_id}`);
-        const formData = await formRes.json();
+        const formResponse = await fetch(`/api/platform/forms?id=${selectedRun.form_id}`);
+        const formData = await formResponse.json();
         if (formData.success) {
-          setRunFormFields((formData.fields || []).filter(f => !["hidden"].includes(f.field_type)));
+          setRunFormFields((formData.fields || []).filter(field => !["hidden"].includes(field.field_type)));
         }
       } catch (_) {}
     }
@@ -1118,8 +1119,8 @@ export default function FormRunsPage() {
 
   const toggleAssignType = (type) => setAssignTypes((prev) => ({ ...prev, [type]: !prev[type] }));
 
-  const handleAssignWithGroup = (grp) => {
-    setAssignGroupId(grp.registration_id || grp.id);
+  const handleAssignWithGroup = (group) => {
+    setAssignGroupId(group.registration_id || group.id);
     setAssignTypes((prev) => ({ ...prev, group: true }));
     handleAssign();
   };
@@ -1133,13 +1134,13 @@ export default function FormRunsPage() {
     if (assignTypes.program && assignProgramId) targets.push({ target_type: "program", target_id: assignProgramId });
     if (assignTypes.other && assignOtherId.trim()) targets.push({ target_type: assignOtherType, target_id: assignOtherId.trim() });
 
-    const checkedTypes = Object.keys(assignTypes).filter((k) => assignTypes[k]);
+    const checkedTypes = Object.keys(assignTypes).filter((typeKey) => assignTypes[typeKey]);
     if (checkedTypes.length === 0) {
       notify(t("platformMisc.runs.assignErrorNoTargets"));
       return;
     }
-    const missing = checkedTypes.find((k) =>
-      k === "user" ? !assignUserId : k === "group" ? !assignGroupId : k === "program" ? !assignProgramId : !assignOtherId.trim(),
+    const missing = checkedTypes.find((typeKey) =>
+      typeKey === "user" ? !assignUserId : typeKey === "group" ? !assignGroupId : typeKey === "program" ? !assignProgramId : !assignOtherId.trim(),
     );
     if (missing) {
       const typeLabel =
@@ -1153,13 +1154,13 @@ export default function FormRunsPage() {
 
     setSaving(true);
     try {
-      const res = await fetch("/api/platform/form-runs?action=assign", {
+      const response = await fetch("/api/platform/form-runs?action=assign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ run_id: selectedRun.id, targets }),
       });
       let data = null;
-      try { data = await res.json(); } catch (_) { data = null; }
+      try { data = await response.json(); } catch (_) { data = null; }
       if (data && data.success) {
         setAssignments(data.assignments || []);
         const added = data.added ?? targets.length;
@@ -1182,12 +1183,12 @@ export default function FormRunsPage() {
 
   const handleUnassign = async (assignmentId) => {
     try {
-      const res = await fetch("/api/platform/form-runs?action=unassign", {
+      const response = await fetch("/api/platform/form-runs?action=unassign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assignment_id: assignmentId }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setAssignments(data.assignments || []);
         notify(t("platformMisc.runs.assignmentRemoved"));
@@ -1198,12 +1199,12 @@ export default function FormRunsPage() {
   const handleDeleteSubmission = async (submissionId) => {
     if (!(await confirm({ message: t("platformMisc.runs.deleteSubmissionConfirm"), tone: "danger" }))) return;
     try {
-      const res = await fetch(`/api/platform/form-runs?action=delete_submission`, {
+      const response = await fetch(`/api/platform/form-runs?action=delete_submission`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ submission_id: submissionId }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("platformMisc.runs.submissionDeleted"));
         // Reload run data
@@ -1218,12 +1219,12 @@ export default function FormRunsPage() {
     if (!selectedRun) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/platform/form-runs", {
+      const response = await fetch("/api/platform/form-runs", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: selectedRun.id, settings: runSettings }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setSelectedRun(data.run);
         setRunSettings(data.run.settings || {});
@@ -1247,17 +1248,17 @@ export default function FormRunsPage() {
     if (reportRegenerating) return;
     setReportRegenerating(submissionId);
     try {
-      const res = await fetch("/api/platform/form-runs?action=regenerate_report", {
+      const response = await fetch("/api/platform/form-runs?action=regenerate_report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ submission_id: submissionId }),
       });
-      if (res.ok) {
+      if (response.ok) {
         notify(t("platformMisc.runs.regenerateReportDone"));
-        setPreviewNonce((n) => n + 1); // reload the preview with the new document
+        setPreviewNonce((previousNonce) => previousNonce + 1); // reload the preview with the new document
       } else {
         let message = "";
-        try { const data = await res.json(); message = data?.error || ""; } catch (_) {}
+        try { const data = await response.json(); message = data?.error || ""; } catch (_) {}
         notify(message ? t(message) : t("platformMisc.runs.regenerateReportFailed"));
       }
     } catch (_) {
@@ -1279,14 +1280,14 @@ export default function FormRunsPage() {
       const body = new FormData();
       body.append("run_id", String(selectedRun.id));
       body.append("file", file);
-      const res = await fetch("/api/platform/form-runs/report-file", { method: "POST", body });
-      const data = await res.json();
+      const response = await fetch("/api/platform/form-runs/report-file", { method: "POST", body });
+      const data = await response.json();
       if (data.success) {
         setReportFile(data.file || null);
         setReportFileText(null);
         setReportFileTextOpen(false);
         // Any report already generated was written from the PREVIOUS document.
-        setPreviewNonce((n) => n + 1);
+        setPreviewNonce((previousNonce) => previousNonce + 1);
         notify(t("platformMisc.runs.reportFileUploaded"));
       } else {
         notify(data.error ? t(data.error) : t("platformMisc.runs.reportFileUploadFailed"));
@@ -1307,8 +1308,8 @@ export default function FormRunsPage() {
       try { tab.opener = null; } catch (_) {}
     }
     try {
-      const res = await fetch(`/api/platform/form-runs/report-file?run_id=${selectedRun.id}`);
-      const data = await res.json();
+      const response = await fetch(`/api/platform/form-runs/report-file?run_id=${selectedRun.id}`);
+      const data = await response.json();
       if (data.success && data.file?.url) {
         if (tab) tab.location.href = data.file.url;
         else window.open(data.file.url, "_blank", "noopener,noreferrer");
@@ -1335,8 +1336,8 @@ export default function FormRunsPage() {
     if (reportFileText && !reportFileText.error) return; // already read once
     setReportFileText({ loading: true });
     try {
-      const res = await fetch(`/api/platform/form-runs/report-file?run_id=${selectedRun.id}&text=1`);
-      const data = await res.json();
+      const response = await fetch(`/api/platform/form-runs/report-file?run_id=${selectedRun.id}&text=1`);
+      const data = await response.json();
       if (data.success) {
         setReportFileText({ text: data.text || "", prompt_limit: data.prompt_limit || null });
       } else {
@@ -1352,13 +1353,13 @@ export default function FormRunsPage() {
     if (!(await confirm({ message: t("platformMisc.runs.reportFileRemoveConfirm"), tone: "danger" }))) return;
     setReportFileBusy(true);
     try {
-      const res = await fetch(`/api/platform/form-runs/report-file?run_id=${selectedRun.id}`, { method: "DELETE" });
-      const data = await res.json();
+      const response = await fetch(`/api/platform/form-runs/report-file?run_id=${selectedRun.id}`, { method: "DELETE" });
+      const data = await response.json();
       if (data.success) {
         setReportFile(null);
         setReportFileText(null);
         setReportFileTextOpen(false);
-        setPreviewNonce((n) => n + 1);
+        setPreviewNonce((previousNonce) => previousNonce + 1);
         notify(t("platformMisc.runs.reportFileRemoved"));
       } else {
         notify(data.error ? t(data.error) : t("platformMisc.runs.reportFileRemoveFailed"));
@@ -1372,10 +1373,10 @@ export default function FormRunsPage() {
   // Run automation switches — same resolution order as the server (run → form →
   // on), computed locally so this screen never imports server code.
   const runAutomationValue = (section, flag) => {
-    const runVal = runSettings?.automation?.[section]?.[flag];
-    if (typeof runVal === "boolean") return runVal;
-    const formVal = runFormSettings?.automation?.[section]?.[flag];
-    if (typeof formVal === "boolean") return formVal;
+    const runSettingValue = runSettings?.automation?.[section]?.[flag];
+    if (typeof runSettingValue === "boolean") return runSettingValue;
+    const formSettingValue = runFormSettings?.automation?.[section]?.[flag];
+    if (typeof formSettingValue === "boolean") return formSettingValue;
     return true;
   };
 
@@ -1394,12 +1395,12 @@ export default function FormRunsPage() {
 
   const fetchEvalProgress = async (formId) => {
     try {
-      const res = await fetch("/api/platform/ai/evaluate-submission", {
+      const response = await fetch("/api/platform/ai/evaluate-submission", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ form_id: formId, action: "progress" }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setEvalStats({ approvals: data.approvals || { approved: 0, rejected: 0 }, emails: data.emails || { sent: 0, failed: 0, pending: 0, activation_sent: 0, approval_sent: 0 } });
         return data.progress;
@@ -1423,7 +1424,7 @@ export default function FormRunsPage() {
       setEvalProgress({ ...initial, running: true, batch: 0, stopped: false });
       if (initial.remaining === 0) {
         notify(initial.failed > 0 ? t("platformMisc.runs.evalCompleteRetry", { failed: initial.failed }) : t("platformMisc.runs.allEvaluated"));
-        setEvalProgress((p) => p && { ...p, running: false, stopped: true });
+        setEvalProgress((previousProgress) => previousProgress && { ...previousProgress, running: false, stopped: true });
         return;
       }
     } else {
@@ -1436,10 +1437,10 @@ export default function FormRunsPage() {
     let stopped = false;
     while (true) {
       batchNo++;
-      setEvalProgress((p) => p && { ...p, batch: batchNo });
+      setEvalProgress((previousProgress) => previousProgress && { ...previousProgress, batch: batchNo });
       let data;
       try {
-        const res = await fetch("/api/platform/ai/evaluate-submission", {
+        const response = await fetch("/api/platform/ai/evaluate-submission", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1448,29 +1449,29 @@ export default function FormRunsPage() {
             batch_size: 20,
           }),
         });
-        data = await res.json();
+        data = await response.json();
       } catch (_) {
         stopped = true;
-        setEvalProgress((p) => p && { ...p, running: false, stopped: true });
+        setEvalProgress((previousProgress) => previousProgress && { ...previousProgress, running: false, stopped: true });
         notify(t("platformMisc.runs.networkErrorPaused"));
         break;
       }
 
       if (!data.success) {
         stopped = true;
-        setEvalProgress((p) => p && { ...p, running: false, stopped: true });
+        setEvalProgress((previousProgress) => previousProgress && { ...previousProgress, running: false, stopped: true });
         notify(t((data.error || t("platformMisc.runs.evalStopped")) || "") || (data.error || t("platformMisc.runs.evalStopped")));
         break;
       }
 
-      const prog = data.progress;
-      setEvalProgress({ ...prog, running: true, batch: batchNo, stopped: false });
+      const progress = data.progress;
+      setEvalProgress({ ...progress, running: true, batch: batchNo, stopped: false });
 
-      if (prog.remaining === 0) {
-        setEvalProgress({ ...prog, running: false, batch: batchNo, stopped: true });
+      if (progress.remaining === 0) {
+        setEvalProgress({ ...progress, running: false, batch: batchNo, stopped: true });
         notify(
-          t("platformMisc.runs.evalCompleteCount", { evaluated: prog.evaluated, total: prog.total }) +
-            (prog.failed > 0 ? t("platformMisc.runs.evalFailedCount", { failed: prog.failed }) : "")
+          t("platformMisc.runs.evalCompleteCount", { evaluated: progress.evaluated, total: progress.total }) +
+            (progress.failed > 0 ? t("platformMisc.runs.evalFailedCount", { failed: progress.failed }) : "")
         );
         await fetchEvalProgress(formId); // refresh approval + email stats
         break;
@@ -1478,7 +1479,7 @@ export default function FormRunsPage() {
 
       if (data.processed === 0 && data.evaluated === 0) {
         // Nothing processed this round (all claimed/failed) — avoid infinite loop
-        setEvalProgress({ ...prog, running: false, batch: batchNo, stopped: true });
+        setEvalProgress({ ...progress, running: false, batch: batchNo, stopped: true });
         notify(t("platformMisc.runs.noProgressBatch"));
         break;
       }
@@ -1490,10 +1491,10 @@ export default function FormRunsPage() {
 
   // ─── RUN-SCOPED FILTERING (Overview) ───
   // Runs against ONLY this run's submissions + their AI evaluations.
-  const submissionAnswers = useCallback((s) => {
-    const d = s.data || {};
+  const submissionAnswers = useCallback((submission) => {
+    const submissionData = submission.data || {};
     const answers = {};
-    for (const [key, value] of Object.entries(d)) {
+    for (const [key, value] of Object.entries(submissionData)) {
       if (key.startsWith("_")) continue;
       answers[fieldLabels[key] || key] = fmtAnswer(value);
     }
@@ -1501,75 +1502,75 @@ export default function FormRunsPage() {
   }, [fieldLabels]);
 
   const latestEmailOf = useCallback(
-    (s, type) =>
+    (submission, type) =>
       emailLog
-        .filter((e) => e.submission_id === s.id && e.email_type === type)
+        .filter((email) => email.submission_id === submission.id && email.email_type === type)
         .slice(-1)[0] || null,
     [emailLog],
   );
-  const latestReviewOf = useCallback((s) => {
-    const rs = reviews.filter((r) => r.submission_id === s.id);
-    return rs[rs.length - 1] || null;
+  const latestReviewOf = useCallback((submission) => {
+    const submissionReviews = reviews.filter((review) => review.submission_id === submission.id);
+    return submissionReviews[submissionReviews.length - 1] || null;
   }, [reviews]);
-  const emailStatusOf = useCallback((s, type) => {
-    const e = latestEmailOf(s, type);
-    return e ? e.status : "not_sent";
+  const emailStatusOf = useCallback((submission, type) => {
+    const email = latestEmailOf(submission, type);
+    return email ? email.status : "not_sent";
   }, [latestEmailOf]);
 
   const filteredSubmissions = useMemo(() => {
     if (!selectedRun) return [];
-    const q = respSearch.trim().toLowerCase();
-    const v1 = parseFloat(scoreVal);
-    const v2 = parseFloat(scoreVal2);
-    const hasScore = !!scoreOp && !isNaN(v1);
+    const searchQuery = respSearch.trim().toLowerCase();
+    const firstScoreValue = parseFloat(scoreValue);
+    const secondScoreValue = parseFloat(scoreValue2);
+    const hasScore = !!scoreOp && !isNaN(firstScoreValue);
     const scorePass = (score) => {
       if (!hasScore) return true;
       switch (scoreOp) {
-        case "eq": return score === v1;
-        case "gte": return score >= v1;
-        case "gt": return score > v1;
-        case "lte": return score <= v1;
-        case "lt": return score < v1;
-        case "between": return !isNaN(v2) ? score >= v1 && score <= v2 : score >= v1;
+        case "eq": return score === firstScoreValue;
+        case "gte": return score >= firstScoreValue;
+        case "gt": return score > firstScoreValue;
+        case "lte": return score <= firstScoreValue;
+        case "lt": return score < firstScoreValue;
+        case "between": return !isNaN(secondScoreValue) ? score >= firstScoreValue && score <= secondScoreValue : score >= firstScoreValue;
         default: return true;
       }
     };
-    const activeFieldFilters = Object.entries(fieldFilters).filter(([, v]) => v);
+    const activeFieldFilters = Object.entries(fieldFilters).filter(([, filterValue]) => filterValue);
 
-    return submissions.filter((s) => {
-      if (subFilter !== "all" && s.status !== subFilter) return false;
+    return submissions.filter((submission) => {
+      if (subFilter !== "all" && submission.status !== subFilter) return false;
 
-      if (approvalEmailFilter && emailStatusOf(s, "approval") !== approvalEmailFilter) return false;
-      if (activationEmailFilter && emailStatusOf(s, "activation") !== activationEmailFilter) return false;
+      if (approvalEmailFilter && emailStatusOf(submission, "approval") !== approvalEmailFilter) return false;
+      if (activationEmailFilter && emailStatusOf(submission, "activation") !== activationEmailFilter) return false;
       if (reviewFilter) {
-        const r = latestReviewOf(s);
-        const decision = r ? r.decision : "none";
+        const review = latestReviewOf(submission);
+        const decision = review ? review.decision : "none";
         if (decision !== reviewFilter) return false;
       }
-      if (accountStatusFilter && accountStatusOf(s) !== accountStatusFilter) return false;
+      if (accountStatusFilter && accountStatusOf(submission) !== accountStatusFilter) return false;
 
-      if (q) {
-        const hay = [
-          s.submitter_name || "",
-          s.email || "",
-          ...Object.values(submissionAnswers(s)),
+      if (searchQuery) {
+        const haystack = [
+          submission.submitter_name || "",
+          submission.email || "",
+          ...Object.values(submissionAnswers(submission)),
         ]
           .join(" ")
           .toLowerCase();
-        if (!hay.includes(q)) return false;
+        if (!haystack.includes(searchQuery)) return false;
       }
 
       if (hasScore) {
-        const evalRow = evaluations.find((e) => e.submission_id === s.id);
+        const evalRow = evaluations.find((evaluationRow) => evaluationRow.submission_id === submission.id);
         const score = evalRow != null ? Number(evalRow.overall_score) : null;
         if (score == null || isNaN(score) || !scorePass(score)) return false;
       }
 
       if (activeFieldFilters.length > 0) {
-        const answers = submissionAnswers(s);
-        for (const [label, val] of activeFieldFilters) {
+        const answers = submissionAnswers(submission);
+        for (const [label, filterValue] of activeFieldFilters) {
           const actual = String(answers[label] ?? "").trim().toLowerCase();
-          if (actual !== String(val).trim().toLowerCase()) return false;
+          if (actual !== String(filterValue).trim().toLowerCase()) return false;
         }
       }
       return true;
@@ -1577,11 +1578,11 @@ export default function FormRunsPage() {
   // The three helpers above carry the reactivity of `fieldLabels`, `reviews` and
   // `emailLog`: the memo depends on their identity, so those raw values are no
   // longer dependencies of their own.
-  }, [selectedRun, submissions, evaluations, subFilter, respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, submissionAnswers, latestReviewOf, emailStatusOf, approvalEmailFilter, activationEmailFilter, reviewFilter, accountStatusFilter]);
+  }, [selectedRun, submissions, evaluations, subFilter, respSearch, scoreOp, scoreValue, scoreValue2, fieldFilters, submissionAnswers, latestReviewOf, emailStatusOf, approvalEmailFilter, activationEmailFilter, reviewFilter, accountStatusFilter]);
 
   const hasRunFilters = !!(
     respSearch.trim() ||
-    (scoreOp && scoreVal !== "") ||
+    (scoreOp && scoreValue !== "") ||
     Object.values(fieldFilters).some(Boolean) ||
     approvalEmailFilter ||
     activationEmailFilter ||
@@ -1592,8 +1593,8 @@ export default function FormRunsPage() {
   const clearRunFilters = () => {
     setRespSearch("");
     setScoreOp("");
-    setScoreVal("");
-    setScoreVal2("");
+    setScoreValue("");
+    setScoreValue2("");
     setFieldFilters({});
     setApprovalEmailFilter("");
     setActivationEmailFilter("");
@@ -1606,15 +1607,15 @@ export default function FormRunsPage() {
   };
 
   // ─── Filter chips (presentation only — the underlying filter state is the
-  // same scoreOp/scoreVal/fieldFilters the filtering logic already uses) ───
+  // same scoreOp/scoreValue/fieldFilters the filtering logic already uses) ───
   const SCORE_OPS = { eq: "=", gt: ">", gte: "≥", lt: "<", lte: "≤" };
-  const scoreChipActive = !!scoreOp && scoreVal !== "";
+  const scoreChipActive = !!scoreOp && scoreValue !== "";
   const scoreChipLabel = scoreChipActive
     ? scoreOp === "between"
-      ? `${t("platformMisc.runs.colAiScore")}: ${scoreVal}–${scoreVal2 || "?"}%`
-      : `${t("platformMisc.runs.colAiScore")}: ${SCORE_OPS[scoreOp] || ""} ${scoreVal}%`
+      ? `${t("platformMisc.runs.colAiScore")}: ${scoreValue}–${scoreValue2 || "?"}%`
+      : `${t("platformMisc.runs.colAiScore")}: ${SCORE_OPS[scoreOp] || ""} ${scoreValue}%`
     : "";
-  const activeFieldFilters = Object.entries(fieldFilters).filter(([, v]) => v);
+  const activeFieldFilters = Object.entries(fieldFilters).filter(([, filterValue]) => filterValue);
 
   // Tracking filters (Approval Email / Review / Status / Activation Email /
   // Account Status) — same pattern as field filters, but backed by fixed
@@ -1648,31 +1649,31 @@ export default function FormRunsPage() {
     if (key === "account_status") return ACCOUNT_STATUS_OPTIONS;
     return [];
   };
-  const trackingFilterOptionLabel = (key, val) => {
+  const trackingFilterOptionLabel = (key, optionValue) => {
     if (key === "account_status") {
-      const cfg = ACCOUNT_STATUS_STYLES[val];
-      return cfg ? t(cfg.label) : val;
+      const statusStyle = ACCOUNT_STATUS_STYLES[optionValue];
+      return statusStyle ? t(statusStyle.label) : optionValue;
     }
     if (key === "approval_email" || key === "activation_email") {
-      if (val === "not_sent") return t("platformMisc.runs.emailNotSent");
-      return EMAIL_STATUS_CONFIG[val] ? t(EMAIL_STATUS_CONFIG[val].label) : val;
+      if (optionValue === "not_sent") return t("platformMisc.runs.emailNotSent");
+      return EMAIL_STATUS_CONFIG[optionValue] ? t(EMAIL_STATUS_CONFIG[optionValue].label) : optionValue;
     }
-    return SUB_STATUS[val] ? t(SUB_STATUS[val].label) : val;
+    return SUB_STATUS[optionValue] ? t(SUB_STATUS[optionValue].label) : optionValue;
   };
   const activeTrackingFilters = TRACKING_FILTERS
-    .map((f) => ({ key: f.key, label: f.label, value: trackingFilterValue(f.key) }))
-    .filter((f) => f.value);
+    .map((filter) => ({ key: filter.key, label: filter.label, value: trackingFilterValue(filter.key) }))
+    .filter((filter) => filter.value);
 
   const availableParams = [
     ...(scoreChipActive ? [] : [{ key: "score", label: t("platformMisc.runs.colAiScore") }]),
     ...TRACKING_FILTERS
-      .filter((f) => !trackingFilterValue(f.key))
-      .map((f) => ({ key: f.key, label: f.label })),
+      .filter((filter) => !trackingFilterValue(filter.key))
+      .map((filter) => ({ key: filter.key, label: filter.label })),
     ...filterableFields
-      .filter((f) => !fieldFilters[f.label])
-      .map((f) => ({ key: `field:${f.label}`, label: f.label })),
+      .filter((field) => !fieldFilters[field.label])
+      .map((field) => ({ key: `field:${field.label}`, label: field.label })),
   ];
-  const fieldOptionsOf = (label) => filterableFields.find((f) => f.label === label)?.options || [];
+  const fieldOptionsOf = (label) => filterableFields.find((field) => field.label === label)?.options || [];
 
   const removeFieldFilter = (label) =>
     setFieldFilters((prev) => {
@@ -1683,16 +1684,16 @@ export default function FormRunsPage() {
 
   const clearScoreFilter = () => {
     setScoreOp("");
-    setScoreVal("");
-    setScoreVal2("");
+    setScoreValue("");
+    setScoreValue2("");
   };
 
   // Clicking anywhere outside the filter row closes the Add Filter dropdown
   // and any open inline editor automatically.
   useEffect(() => {
     if (!filterPickerOpen && !filterPickerMode) return;
-    const onDown = (e) => {
-      if (filterRowRef.current && !filterRowRef.current.contains(e.target)) {
+    const onDown = (event) => {
+      if (filterRowRef.current && !filterRowRef.current.contains(event.target)) {
         setFilterPickerOpen(false);
         setFilterPickerMode(null);
       }
@@ -1701,11 +1702,11 @@ export default function FormRunsPage() {
     return () => document.removeEventListener("mousedown", onDown);
   }, [filterPickerOpen, filterPickerMode]);
 
-  const pickFilterParam = (p) => {
+  const pickFilterParam = (param) => {
     setFilterPickerOpen(false);
-    if (p.key === "score") setFilterPickerMode("score");
-    else if (p.key.startsWith("field:")) setFilterPickerMode({ type: "field", label: p.label });
-    else setFilterPickerMode({ type: "status", key: p.key });
+    if (param.key === "score") setFilterPickerMode("score");
+    else if (param.key.startsWith("field:")) setFilterPickerMode({ type: "field", label: param.label });
+    else setFilterPickerMode({ type: "status", key: param.key });
   };
 
   // ─── Duplicate detection: same resolved email appearing multiple times ───
@@ -1713,35 +1714,35 @@ export default function FormRunsPage() {
   // evaluation, only the keeper should receive approval/activation emails.
   const duplicateGroups = useMemo(() => {
     const byEmail = new Map();
-    for (const s of submissions) {
-      const key = (s.email || "").trim().toLowerCase();
+    for (const submission of submissions) {
+      const key = (submission.email || "").trim().toLowerCase();
       if (!key || !key.includes("@")) continue;
       if (!byEmail.has(key)) byEmail.set(key, []);
-      byEmail.get(key).push(s);
+      byEmail.get(key).push(submission);
     }
-    const groups = [...byEmail.values()].filter((g) => g.length > 1);
+    const groups = [...byEmail.values()].filter((group) => group.length > 1);
     const keeperIds = new Set();
-    for (const g of groups) {
+    for (const group of groups) {
       let best = null;
       let bestScore = NaN;
-      for (const s of g) {
-        const ev = evaluations.find((e) => e.submission_id === s.id);
-        const sc = ev != null ? Number(ev.overall_score) : NaN;
-        if (!isNaN(sc) && (isNaN(bestScore) || sc > bestScore)) {
-          best = s;
-          bestScore = sc;
+      for (const submission of group) {
+        const evaluationRow = evaluations.find((candidateEvaluation) => candidateEvaluation.submission_id === submission.id);
+        const score = evaluationRow != null ? Number(evaluationRow.overall_score) : NaN;
+        if (!isNaN(score) && (isNaN(bestScore) || score > bestScore)) {
+          best = submission;
+          bestScore = score;
         }
       }
       if (best) keeperIds.add(best.id);
     }
-    const extra = groups.reduce((n, g) => n + g.length - 1, 0);
+    const extra = groups.reduce((accumulated, group) => accumulated + group.length - 1, 0);
     return { groups, keeperIds, extra };
   }, [submissions, evaluations]);
 
   const duplicateEmailSet = useMemo(() => {
     const set = new Set();
-    for (const g of duplicateGroups.groups) {
-      for (const s of g) set.add((s.email || "").trim().toLowerCase());
+    for (const group of duplicateGroups.groups) {
+      for (const submission of group) set.add((submission.email || "").trim().toLowerCase());
     }
     return set;
   }, [duplicateGroups]);
@@ -1751,7 +1752,7 @@ export default function FormRunsPage() {
   const visibleSubmissions = useMemo(
     () =>
       showDuplicates
-        ? filteredSubmissions.filter((s) => duplicateEmailSet.has((s.email || "").trim().toLowerCase()))
+        ? filteredSubmissions.filter((submission) => duplicateEmailSet.has((submission.email || "").trim().toLowerCase()))
         : filteredSubmissions,
     [filteredSubmissions, showDuplicates, duplicateEmailSet]
   );
@@ -1767,16 +1768,16 @@ export default function FormRunsPage() {
   // ─── Bulk selection (respects the CURRENT filters; Select All = all filtered, across pages) ───
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allFilteredSelected =
-    visibleSubmissions.length > 0 && visibleSubmissions.every((s) => selectedSet.has(s.id));
+    visibleSubmissions.length > 0 && visibleSubmissions.every((submission) => selectedSet.has(submission.id));
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((selectedId) => selectedId !== id) : [...prev, id]
     );
   };
 
   const toggleSelectAllFiltered = () => {
-    setSelectedIds(allFilteredSelected ? [] : visibleSubmissions.map((s) => s.id));
+    setSelectedIds(allFilteredSelected ? [] : visibleSubmissions.map((submission) => submission.id));
   };
 
   // Bulk approve: batches of 10 through the SAME review workflow as a single
@@ -1784,7 +1785,7 @@ export default function FormRunsPage() {
   const BULK_BATCH = 10;
   // The PDF opt-in needs an evaluation on EVERY selected submission — the server
   // refuses an approval whose document cannot follow.
-  const allSelectedEvaluated = selectedIds.every((id) => evaluations.some((e) => e.submission_id === id));
+  const allSelectedEvaluated = selectedIds.every((id) => evaluations.some((evaluation) => evaluation.submission_id === id));
   const runBulkApprove = async () => {
     if (!selectedRun || selectedIds.length === 0 || bulkProcessing) return;
     setBulkProcessing(true);
@@ -1793,16 +1794,16 @@ export default function FormRunsPage() {
     bulkAbortRef.current = false;
     const ids = [...selectedIds];
     const includeResultPdf = bulkIncludeResultPdf;
-    const agg = { approved: 0, already_approved: 0, failed: [], cancelled: 0 };
+    const summary = { approved: 0, already_approved: 0, failed: [], cancelled: 0 };
     let pdfFailed = 0;
     setBulkProgress({ done: 0, total: ids.length });
     let aborted = false;
     let processed = 0;
-    for (let i = 0; i < ids.length && !aborted && !bulkAbortRef.current; i += BULK_BATCH) {
-      const chunk = ids.slice(i, i + BULK_BATCH);
+    for (let batchStart = 0; batchStart < ids.length && !aborted && !bulkAbortRef.current; batchStart += BULK_BATCH) {
+      const chunk = ids.slice(batchStart, batchStart + BULK_BATCH);
       let data;
       try {
-        const res = await fetch("/api/platform/form-runs?action=bulk_review", {
+        const response = await fetch("/api/platform/form-runs?action=bulk_review", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1812,30 +1813,30 @@ export default function FormRunsPage() {
             ...(includeResultPdf ? { include_result_pdf: true } : {}),
           }),
         });
-        data = await res.json();
+        data = await response.json();
       } catch (_) {
         aborted = true;
-        agg.failed.push({ name: t("platformMisc.runs.batchLabel", { count: Math.floor(i / BULK_BATCH) + 1 }), error: t("platformMisc.runs.bulkNetworkError") });
+        summary.failed.push({ name: t("platformMisc.runs.batchLabel", { count: Math.floor(batchStart / BULK_BATCH) + 1 }), error: t("platformMisc.runs.bulkNetworkError") });
         break;
       }
       if (!data.success) {
         aborted = true;
-        agg.failed.push({ name: t("platformMisc.runs.batchFallback"), error: data.error || t("platformMisc.runs.bulkFailedError") });
+        summary.failed.push({ name: t("platformMisc.runs.batchFallback"), error: data.error || t("platformMisc.runs.bulkFailedError") });
         break;
       }
-      for (const r of data.results || []) {
-        if (r.status === "approved") agg.approved++;
-        else if (r.status === "already_approved") agg.already_approved++;
-        else agg.failed.push({ name: r.name || `#${r.submission_id}`, error: r.error || t("platformMisc.runs.failedFallback") });
-        if (r.result_pdf === "failed") pdfFailed++;
+      for (const result of data.results || []) {
+        if (result.status === "approved") summary.approved++;
+        else if (result.status === "already_approved") summary.already_approved++;
+        else summary.failed.push({ name: result.name || `#${result.submission_id}`, error: result.error || t("platformMisc.runs.failedFallback") });
+        if (result.result_pdf === "failed") pdfFailed++;
       }
-      processed = Math.min(i + BULK_BATCH, ids.length);
+      processed = Math.min(batchStart + BULK_BATCH, ids.length);
       setBulkProgress({ done: processed, total: ids.length });
     }
     // Anything not yet processed when the user cancels (or a batch fails) is
     // reported as cancelled — nothing was sent for those rows, and they stay
     // in their previous state so they can be selected again later.
-    agg.cancelled = ids.length - processed;
+    summary.cancelled = ids.length - processed;
     // Record the unprocessed remainder as CANCELLED so history keeps
     // sent / failed / cancelled distinct and those rows stay retryable later.
     const unprocessedIds = ids.slice(processed);
@@ -1846,7 +1847,7 @@ export default function FormRunsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             run_id: selectedRun.id,
-            items: unprocessedIds.map((sid) => ({ submission_id: sid, email_type: "approval" })),
+            items: unprocessedIds.map((submissionId) => ({ submission_id: submissionId, email_type: "approval" })),
           }),
         });
       } catch (_) {}
@@ -1854,27 +1855,30 @@ export default function FormRunsPage() {
     setBulkProcessing(false);
     setSelectedIds([]);
     if (selectedRun) await openRun(selectedRun);
-    setBulkSummary(agg);
+    setBulkSummary(summary);
     if (pdfFailed > 0) notify(t("platformMisc.runs.bulkResultPdfSendFailed", { count: pdfFailed }));
   };
 
   // ─── Email delivery summary: latest row per (submission, email_type) ───
   const emailSummary = useMemo(() => {
     const latest = new Map();
-    for (const e of emailLog) latest.set(`${e.submission_id}:${e.email_type}`, e);
+    for (const email of emailLog) latest.set(`${email.submission_id}:${email.email_type}`, email);
     const empty = () => ({ sent: 0, delivered: 0, opened: 0, clicked: 0, delayed: 0, complained: 0, failed: 0, bounced: 0, cancelled: 0, skipped: 0, pending: 0 });
-    const stats = { approval: empty(), activation: empty() };
+    const stats = { approval: empty(), activation: empty(), acknowledgement: empty() };
     const notDelivered = [];
-    for (const e of latest.values()) {
-      const bucket = e.email_type === "activation" ? stats.activation : stats.approval;
-      const status = e.status;
+    for (const email of latest.values()) {
+      const bucket =
+        email.email_type === "activation" ? stats.activation
+        : email.email_type === "acknowledgement" ? stats.acknowledgement
+        : stats.approval;
+      const status = email.status;
       if (status === "sent") bucket.sent++;
       else if (["delivered", "opened", "clicked"].includes(status)) bucket[status]++;
       else if (status === "delayed") bucket.delayed++;
       else if (status === "complained") bucket.complained++;
       else if (["failed", "bounced", "cancelled", "pending"].includes(status)) {
         bucket[status]++;
-        notDelivered.push(e);
+        notDelivered.push(email);
       } else if (status === "skipped") bucket.skipped++;
     }
     return { stats, notDelivered };
@@ -1884,13 +1888,13 @@ export default function FormRunsPage() {
   // respondent's resolved name + recipient.
   const allEmailRows = useMemo(() => {
     const latest = new Map();
-    for (const e of emailLog) latest.set(`${e.submission_id}:${e.email_type}`, e);
-    return [...latest.values()].map((e) => {
-      const sub = submissions.find((s) => s.id === e.submission_id);
+    for (const email of emailLog) latest.set(`${email.submission_id}:${email.email_type}`, email);
+    return [...latest.values()].map((emailRow) => {
+      const submission = submissions.find((candidate) => candidate.id === emailRow.submission_id);
       return {
-        ...e,
-        name: sub?.display_name || sub?.submitter_name || `#${e.submission_id}`,
-        email: e.recipient || sub?.email || "",
+        ...emailRow,
+        name: submission?.display_name || submission?.submitter_name || `#${emailRow.submission_id}`,
+        email: emailRow.recipient || submission?.email || "",
       };
     });
   }, [emailLog, submissions]);
@@ -1903,26 +1907,26 @@ export default function FormRunsPage() {
   const [emailPage, setEmailPage] = useState(1);
 
   const visibleEmailRows = useMemo(() => {
-    return allEmailRows.filter((r) => {
-      if (emailTypeFilter !== "all" && r.email_type !== emailTypeFilter) return false;
-      if (emailStatusFilter !== "all" && r.status !== emailStatusFilter) return false;
+    return allEmailRows.filter((emailRow) => {
+      if (emailTypeFilter !== "all" && emailRow.email_type !== emailTypeFilter) return false;
+      if (emailStatusFilter !== "all" && emailRow.status !== emailStatusFilter) return false;
       if (emailSearch) {
-        const q = emailSearch.toLowerCase();
-        const hay = `${r.name || ""} ${r.email || ""}`.toLowerCase();
-        if (!hay.includes(q)) return false;
+        const searchQuery = emailSearch.toLowerCase();
+        const haystack = `${emailRow.name || ""} ${emailRow.email || ""}`.toLowerCase();
+        if (!haystack.includes(searchQuery)) return false;
       }
-      const ts = r.sent_at || r.created_at;
-      if (ts) {
-        const d = new Date(ts);
-        if (emailDateFrom && d < new Date(emailDateFrom + "T00:00:00")) return false;
-        if (emailDateTo && d > new Date(emailDateTo + "T23:59:59")) return false;
+      const timestamp = emailRow.sent_at || emailRow.created_at;
+      if (timestamp) {
+        const date = new Date(timestamp);
+        if (emailDateFrom && date < new Date(emailDateFrom + "T00:00:00")) return false;
+        if (emailDateTo && date > new Date(emailDateTo + "T23:59:59")) return false;
       }
       return true;
     });
   }, [allEmailRows, emailTypeFilter, emailStatusFilter, emailSearch, emailDateFrom, emailDateTo]);
 
   const retryableVisible = useMemo(
-    () => visibleEmailRows.filter((f) => RETRYABLE_EMAIL_STATUSES.includes(f.status)),
+    () => visibleEmailRows.filter((emailRow) => RETRYABLE_EMAIL_STATUSES.includes(emailRow.status)),
     [visibleEmailRows]
   );
 
@@ -1931,10 +1935,10 @@ export default function FormRunsPage() {
   // email from the appended Resend event rows.
   const emailStatusSets = useMemo(() => {
     const map = new Map();
-    for (const e of emailLog) {
-      const key = `${e.submission_id}:${e.email_type}`;
+    for (const email of emailLog) {
+      const key = `${email.submission_id}:${email.email_type}`;
       if (!map.has(key)) map.set(key, new Set());
-      map.get(key).add(e.status);
+      map.get(key).add(email.status);
     }
     return map;
   }, [emailLog]);
@@ -1945,24 +1949,24 @@ export default function FormRunsPage() {
 
   const retrySelectedSet = useMemo(() => new Set(retrySelected), [retrySelected]);
   const toggleRetrySelect = (key) =>
-    setRetrySelected((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+    setRetrySelected((prev) => (prev.includes(key) ? prev.filter((retryKey) => retryKey !== key) : [...prev, key]));
 
   // ─── Export (shared dataset: Overview = Messaging = Export) ───
   // Always one row per participant. Each form question becomes a COLUMN;
   // answers stay in the participant's row. No joins/arrays/events may ever
   // duplicate a participant.
-  const buildExportRows = (subs) => {
+  const buildExportRows = (submissionList) => {
     const seen = new Set();
-    const unique = subs.filter((s) => {
-      if (seen.has(s.id)) return false;
-      seen.add(s.id);
+    const unique = submissionList.filter((submission) => {
+      if (seen.has(submission.id)) return false;
+      seen.add(submission.id);
       return true;
     });
 
     // Form questions as ordered columns (hidden fields already excluded).
     // Fall back to fieldLabels when the field list has not loaded yet.
     const questionFields = runFormFields.length > 0
-      ? runFormFields.map((f) => ({ id: String(f.id), label: f.label }))
+      ? runFormFields.map((field) => ({ id: String(field.id), label: field.label }))
       : Object.entries(fieldLabels)
           .filter(([, label]) => label)
           .map(([id, label]) => ({ id, label }));
@@ -1971,35 +1975,35 @@ export default function FormRunsPage() {
       t("platformMisc.runs.colSn"),
       t("platformMisc.runs.colName"),
       t("platformMisc.runs.colEmail"),
-      ...questionFields.map((q) => q.label),
+      ...questionFields.map((questionField) => questionField.label),
       t("platformMisc.runs.colAiScore"),
       t("platformMisc.runs.colApprovalEmail"),
       t("platformMisc.runs.colActivationEmail"),
       t("platformMisc.runs.colAccountStatus"),
     ];
 
-    const rows = unique.map((s, i) => {
-      const evalRow = evaluations.find((e) => e.submission_id === s.id);
+    const rows = unique.map((submission, index) => {
+      const evalRow = evaluations.find((evaluation) => evaluation.submission_id === submission.id);
       const activationEmail = emailLog
-        .filter((e) => e.submission_id === s.id && e.email_type === "activation")
+        .filter((email) => email.submission_id === submission.id && email.email_type === "activation")
         .slice(-1)[0];
       const approvalEmail = emailLog
-        .filter((e) => e.submission_id === s.id && e.email_type === "approval")
+        .filter((email) => email.submission_id === submission.id && email.email_type === "approval")
         .slice(-1)[0];
-      const accountStatus = s.account_status || (s.account_activated
+      const accountStatus = submission.account_status || (submission.account_activated
         ? "active"
-        : s.account_created
+        : submission.account_created
           ? "activation_pending"
           : "not_created");
-      const answers = submissionAnswers(s);
+      const answers = submissionAnswers(submission);
       const cells = [
-        i + 1,
-        s.display_name || s.submitter_name || s.submitter_id,
-        s.email || "",
+        index + 1,
+        submission.display_name || submission.submitter_name || submission.submitter_id,
+        submission.email || "",
       ];
-      for (const q of questionFields) cells.push(answers[q.label] ?? "");
+      for (const questionField of questionFields) cells.push(answers[questionField.label] ?? "");
       cells.push(
-        evalRow != null ? evalRow.overall_score : (s.data?._scores?.overall ?? ""),
+        evalRow != null ? evalRow.overall_score : (submission.data?._scores?.overall ?? ""),
         approvalEmail ? approvalEmail.status : "",
         activationEmail ? activationEmail.status : "",
         accountStatus,
@@ -2011,7 +2015,7 @@ export default function FormRunsPage() {
 
   const exportParticipants = async (format, scope) => {
     const source = scope === "selected"
-      ? visibleSubmissions.filter((s) => selectedSet.has(s.id))
+      ? visibleSubmissions.filter((submission) => selectedSet.has(submission.id))
       : visibleSubmissions;
     if (!source.length) return;
 
@@ -2026,17 +2030,17 @@ export default function FormRunsPage() {
         notify(t("platformMisc.runs.excelExportFailed"));
       }
     } else {
-      const esc = (v) => {
-        const s = v == null ? "" : String(v);
-        return `"${s.replace(/"/g, '""')}"`;
+      const escapeCsv = (value) => {
+        const text = value == null ? "" : String(value);
+        return `"${text.replace(/"/g, '""')}"`;
       };
-      const csv = "\uFEFF" + [headers.map(esc).join(","), ...rows.map((r) => r.map(esc).join(","))].join("\n");
+      const csv = "\uFEFF" + [headers.map(escapeCsv).join(","), ...rows.map((row) => row.map(escapeCsv).join(","))].join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${baseName}.csv`;
-      a.click();
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${baseName}.csv`;
+      link.click();
       URL.revokeObjectURL(url);
     }
     setShowExportOptions(false);
@@ -2067,7 +2071,7 @@ export default function FormRunsPage() {
     }
     setManualAdding(true);
     try {
-      const res = await fetch("/api/platform/form-runs?action=manual_add", {
+      const response = await fetch("/api/platform/form-runs?action=manual_add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2076,7 +2080,7 @@ export default function FormRunsPage() {
           email: manualAddEmail.trim(),
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         notify(t("platformMisc.runs.manualAddSuccess"));
         setShowManualAdd(false);
@@ -2095,7 +2099,7 @@ export default function FormRunsPage() {
   const personalizeMessage = async () => {
     setAiPersonalizing(true);
     try {
-      const res = await fetch("/api/platform/ai/personalize-template", {
+      const response = await fetch("/api/platform/ai/personalize-template", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2104,7 +2108,7 @@ export default function FormRunsPage() {
           existing_body: messageBody,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         if (data.subject) setMessageSubject(data.subject);
         if (data.body) setMessageBody(data.body);
@@ -2131,11 +2135,11 @@ export default function FormRunsPage() {
    * Colour classes stay full literals — never interpolated — so Tailwind's
    * scanner keeps them in the build.
    */
-  const renderMessageResult = (r) => {
-    if (!r) return null;
-    const sent = r.sent || 0;
-    const failed = r.failed || 0;
-    const failures = (r.results || []).filter((x) => x.status !== "sent");
+  const renderMessageResult = (result) => {
+    if (!result) return null;
+    const sent = result.sent || 0;
+    const failed = result.failed || 0;
+    const failures = (result.results || []).filter((resultRow) => resultRow.status !== "sent");
     const box =
       sent === 0
         ? "bg-rose-500/10 border-rose-500/20"
@@ -2155,17 +2159,17 @@ export default function FormRunsPage() {
       <div className="space-y-3">
         <div className={`p-4 rounded-xl border ${box}`}>
           <p className={`text-sm font-black ${text}`}>{title}</p>
-          <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.messageRecipientsCount", { count: r.recipients })}</p>
+          <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.messageRecipientsCount", { count: result.recipients })}</p>
           <p className={`text-[10px] font-bold mt-1 ${sent > 0 ? "text-emerald-400" : "text-[var(--text-secondary)]"}`}>{t("platformMisc.runs.messageSentCount", { count: sent })}</p>
           {failed > 0 && <p className="text-[10px] font-bold text-rose-400 mt-1">{t("platformMisc.runs.messageFailedCount", { count: failed })}</p>}
         </div>
         {failures.length > 0 && (
           <div className="p-4 rounded-xl bg-secondary/40 border border-[var(--border-primary)] space-y-2">
             <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.messageFailureReasons")}</p>
-            {failures.map((f) => (
-              <div key={f.submission_id} className="text-[10px] leading-relaxed">
-                <span className="font-bold text-[var(--text-primary)]">{f.name || f.to || `#${f.submission_id}`}</span>
-                <span className="block text-rose-400">{f.error || t("platformMisc.runs.messageFailureUnknown")}</span>
+            {failures.map((failure) => (
+              <div key={failure.submission_id} className="text-[10px] leading-relaxed">
+                <span className="font-bold text-[var(--text-primary)]">{failure.name || failure.to || `#${failure.submission_id}`}</span>
+                <span className="block text-rose-400">{failure.error || t("platformMisc.runs.messageFailureUnknown")}</span>
               </div>
             ))}
           </div>
@@ -2184,7 +2188,7 @@ export default function FormRunsPage() {
     setMessageSending(true);
     setMessageResult(null);
     try {
-      const res = await fetch("/api/platform/form-runs?action=send_manual_message", {
+      const response = await fetch("/api/platform/form-runs?action=send_manual_message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2194,7 +2198,7 @@ export default function FormRunsPage() {
           body: messageBody,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setMessageResult(data);
       } else {
@@ -2210,10 +2214,10 @@ export default function FormRunsPage() {
   // for "was the activation email ever sent?" — never derived from account status).
   const activationLogBySubmission = useMemo(() => {
     const map = new Map();
-    for (const e of emailLog) {
-      if (e.email_type !== "activation") continue;
-      if (!map.has(e.submission_id)) map.set(e.submission_id, []);
-      map.get(e.submission_id).push(e);
+    for (const email of emailLog) {
+      if (email.email_type !== "activation") continue;
+      if (!map.has(email.submission_id)) map.set(email.submission_id, []);
+      map.get(email.submission_id).push(email);
     }
     return map;
   }, [emailLog]);
@@ -2221,17 +2225,17 @@ export default function FormRunsPage() {
   const hasActivationEmailSent = useCallback((id) => {
     // Full-history truth from the API enrichment (sent rows only) takes
     // priority; the client email log carries only the latest row per type.
-    const s = submissions.find((x) => x.id === id);
-    if (s?.activation_history?.first_sent_at) return true;
-    const rows = activationLogBySubmission.get(id) || [];
-    return rows.some((r) => r.status === "sent");
+    const submission = submissions.find((candidate) => candidate.id === id);
+    if (submission?.activation_history?.first_sent_at) return true;
+    const activationRows = activationLogBySubmission.get(id) || [];
+    return activationRows.some((emailRow) => emailRow.status === "sent");
   }, [submissions, activationLogBySubmission]);
 
   // FIRST send: approved + activation email never sent yet
   const eligibleSendActivationIds = useMemo(() => {
     return selectedIds.filter((id) => {
-      const s = submissions.find((x) => x.id === id);
-      if (!s || String(s.status || "").toLowerCase() !== "approved") return false;
+      const submission = submissions.find((candidate) => candidate.id === id);
+      if (!submission || String(submission.status || "").toLowerCase() !== "approved") return false;
       return !hasActivationEmailSent(id);
     });
   }, [selectedIds, submissions, hasActivationEmailSent]);
@@ -2239,8 +2243,8 @@ export default function FormRunsPage() {
   // RESEND: approved + activation email already sent at least once
   const eligibleResendActivationIds = useMemo(() => {
     return selectedIds.filter((id) => {
-      const s = submissions.find((x) => x.id === id);
-      if (!s || String(s.status || "").toLowerCase() !== "approved") return false;
+      const submission = submissions.find((candidate) => candidate.id === id);
+      if (!submission || String(submission.status || "").toLowerCase() !== "approved") return false;
       return hasActivationEmailSent(id);
     });
   }, [selectedIds, submissions, hasActivationEmailSent]);
@@ -2273,35 +2277,35 @@ export default function FormRunsPage() {
     const forceResend = activationForceResend;
     const CHUNK = 30;
     const ids = [...targetIds];
-    const agg = { sent: 0, already_sent: 0, skipped: 0, failed: 0, total: ids.length };
+    const summary = { sent: 0, already_sent: 0, skipped: 0, failed: 0, total: ids.length };
     setActivationProgress({ done: 0, total: ids.length });
     try {
-      for (let i = 0; i < ids.length; i += CHUNK) {
-        const chunk = ids.slice(i, i + CHUNK);
-        const res = await fetch("/api/platform/form-runs?action=send_activation_messages", {
+      for (let chunkStart = 0; chunkStart < ids.length; chunkStart += CHUNK) {
+        const chunk = ids.slice(chunkStart, chunkStart + CHUNK);
+        const response = await fetch("/api/platform/form-runs?action=send_activation_messages", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ run_id: selectedRun.id, submission_ids: chunk, force: forceResend }),
         });
-        const data = await res.json();
+        const data = await response.json();
         if (!data.success) {
           notify(data.error || t("platformMisc.runs.messageSendFailed"));
           break;
         }
-        for (const r of data.results || []) {
-          if (r.status === "sent") agg.sent++;
-          else if (r.status === "already_sent") agg.already_sent++;
-          else if (r.status === "failed" || r.status === "not_found") agg.failed++;
-          else agg.skipped++;
+        for (const result of data.results || []) {
+          if (result.status === "sent") summary.sent++;
+          else if (result.status === "already_sent") summary.already_sent++;
+          else if (result.status === "failed" || result.status === "not_found") summary.failed++;
+          else summary.skipped++;
         }
-        setActivationProgress({ done: Math.min(i + CHUNK, ids.length), total: ids.length });
+        setActivationProgress({ done: Math.min(chunkStart + CHUNK, ids.length), total: ids.length });
       }
       setMessageSummary({
         title: t(forceResend ? "platformMisc.runs.sendActivationResendMessage" : "platformMisc.runs.sendActivationMessage"),
-        sent: agg.sent,
-        already_sent: agg.already_sent,
-        skipped: agg.skipped,
-        failed: agg.failed,
+        sent: summary.sent,
+        already_sent: summary.already_sent,
+        skipped: summary.skipped,
+        failed: summary.failed,
       });
       setSelectedIds([]);
       if (selectedRun) await openRun(selectedRun);
@@ -2318,14 +2322,14 @@ export default function FormRunsPage() {
   // evaluation row. Failed/never-sent results are re-attempted server-side;
   // already-sent ones are reported and skipped.
   const evaluatedSubmissionIds = useMemo(
-    () => new Set(evaluations.map((e) => e.submission_id)),
+    () => new Set(evaluations.map((evaluationRow) => evaluationRow.submission_id)),
     [evaluations],
   );
 
   const eligibleSendResultIds = useMemo(() => {
     return selectedIds.filter((id) => {
-      const s = submissions.find((x) => x.id === id);
-      if (!s || String(s.status || "") === "draft") return false;
+      const submission = submissions.find((candidate) => candidate.id === id);
+      if (!submission || String(submission.status || "") === "draft") return false;
       return evaluatedSubmissionIds.has(id);
     });
   }, [selectedIds, submissions, evaluatedSubmissionIds]);
@@ -2353,36 +2357,36 @@ export default function FormRunsPage() {
     setResultProcessing(true);
     const CHUNK = 30;
     const ids = [...eligibleSendResultIds];
-    const agg = { sent: 0, already_sent: 0, skipped: 0, failed: 0, total: ids.length };
+    const summary = { sent: 0, already_sent: 0, skipped: 0, failed: 0, total: ids.length };
     setResultProgress({ done: 0, total: ids.length });
     try {
       setResultPreviewId(null);
-      for (let i = 0; i < ids.length; i += CHUNK) {
-        const chunk = ids.slice(i, i + CHUNK);
-        const res = await fetch("/api/platform/form-runs?action=send_result_emails", {
+      for (let chunkStart = 0; chunkStart < ids.length; chunkStart += CHUNK) {
+        const chunk = ids.slice(chunkStart, chunkStart + CHUNK);
+        const response = await fetch("/api/platform/form-runs?action=send_result_emails", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ run_id: selectedRun.id, submission_ids: chunk }),
         });
-        const data = await res.json();
+        const data = await response.json();
         if (!data.success) {
           notify(data.error || t("platformMisc.runs.sendResultFailed"));
           break;
         }
-        for (const r of data.results || []) {
-          if (r.status === "sent") agg.sent++;
-          else if (r.status === "already_sent") agg.already_sent++;
-          else if (r.status === "failed" || r.status === "not_found") agg.failed++;
-          else agg.skipped++;
+        for (const result of data.results || []) {
+          if (result.status === "sent") summary.sent++;
+          else if (result.status === "already_sent") summary.already_sent++;
+          else if (result.status === "failed" || result.status === "not_found") summary.failed++;
+          else summary.skipped++;
         }
-        setResultProgress({ done: Math.min(i + CHUNK, ids.length), total: ids.length });
+        setResultProgress({ done: Math.min(chunkStart + CHUNK, ids.length), total: ids.length });
       }
       setMessageSummary({
         title: t("platformMisc.runs.sendResponseComplete"),
-        sent: agg.sent,
-        already_sent: agg.already_sent,
-        skipped: agg.skipped,
-        failed: agg.failed,
+        sent: summary.sent,
+        already_sent: summary.already_sent,
+        skipped: summary.skipped,
+        failed: summary.failed,
       });
       setSelectedIds([]);
       if (selectedRun) await openRun(selectedRun);
@@ -2398,44 +2402,44 @@ export default function FormRunsPage() {
     if (!selectedRun || retrySelected.length === 0 || retryProcessing) return;
     setRetryProcessing(true);
     retryAbortRef.current = false;
-    const items = retrySelected.map((k) => {
-      const [sid, type] = k.split(":");
-      return { submission_id: parseInt(sid), email_type: type };
+    const items = retrySelected.map((retryKey) => {
+      const [submissionId, type] = retryKey.split(":");
+      return { submission_id: parseInt(submissionId), email_type: type };
     });
-    const agg = { sent: 0, already_sent: 0, failed: [], cancelled: 0 };
+    const summary = { sent: 0, already_sent: 0, failed: [], cancelled: 0 };
     setRetryProgress({ done: 0, total: items.length });
     let aborted = false;
     let processed = 0;
-    for (let i = 0; i < items.length && !aborted && !retryAbortRef.current; i += 10) {
-      const chunk = items.slice(i, i + 10);
+    for (let chunkStart = 0; chunkStart < items.length && !aborted && !retryAbortRef.current; chunkStart += 10) {
+      const chunk = items.slice(chunkStart, chunkStart + 10);
       let data;
       try {
-        const res = await fetch("/api/platform/form-runs?action=retry_emails", {
+        const response = await fetch("/api/platform/form-runs?action=retry_emails", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ run_id: selectedRun.id, retries: chunk }),
         });
-        data = await res.json();
+        data = await response.json();
       } catch (_) {
         aborted = true;
-        agg.failed.push({ name: t("platformMisc.runs.batchLabel", { count: Math.floor(i / 10) + 1 }), error: t("platformMisc.runs.retryNetworkError") });
+        summary.failed.push({ name: t("platformMisc.runs.batchLabel", { count: Math.floor(chunkStart / 10) + 1 }), error: t("platformMisc.runs.retryNetworkError") });
         break;
       }
       if (!data.success) {
         aborted = true;
-        agg.failed.push({ name: t("platformMisc.runs.batchFallback"), error: data.error || t("platformMisc.runs.retryFailedError") });
+        summary.failed.push({ name: t("platformMisc.runs.batchFallback"), error: data.error || t("platformMisc.runs.retryFailedError") });
         break;
       }
-      for (const r of data.results || []) {
-        if (r.status === "sent") agg.sent++;
-        else if (r.status === "already_sent") agg.already_sent++;
-        else agg.failed.push({ name: r.name || `#${r.submission_id} (${r.email_type})`, error: r.error || t("platformMisc.runs.failedFallback") });
+      for (const result of data.results || []) {
+        if (result.status === "sent") summary.sent++;
+        else if (result.status === "already_sent") summary.already_sent++;
+        else summary.failed.push({ name: result.name || `#${result.submission_id} (${result.email_type})`, error: result.error || t("platformMisc.runs.failedFallback") });
       }
-      processed = Math.min(i + 10, items.length);
+      processed = Math.min(chunkStart + 10, items.length);
       setRetryProgress({ done: processed, total: items.length });
     }
-    agg.retried = items.length;
-    agg.cancelled = items.length - processed;
+    summary.retried = items.length;
+    summary.cancelled = items.length - processed;
     // Record the unprocessed remainder as CANCELLED so history keeps
     // sent / failed / bounced / cancelled distinct and those rows stay
     // retryable later.
@@ -2455,24 +2459,24 @@ export default function FormRunsPage() {
     // lives there, and the Failed list must update in place: successful
     // retries disappear from it, failures keep their latest reason.
     if (selectedRun) await openRun(selectedRun, { keepTab: true });
-    setRetrySummary(agg);
+    setRetrySummary(summary);
     notify(
-      agg.failed.length > 0
-        ? t("platformMisc.runs.emailRetryPartial", { sent: agg.sent, failed: agg.failed.length })
-        : t("platformMisc.runs.emailRetrySuccess", { sent: agg.sent })
+      summary.failed.length > 0
+        ? t("platformMisc.runs.emailRetryPartial", { sent: summary.sent, failed: summary.failed.length })
+        : t("platformMisc.runs.emailRetrySuccess", { sent: summary.sent })
     );
   };
 
   // ─── RUN DETAIL VIEW ───
   if (selectedRun) {
-    const cfg = STATUS_CONFIG[selectedRun.status] || STATUS_CONFIG.draft;
+    const statusConfig = STATUS_CONFIG[selectedRun.status] || STATUS_CONFIG.draft;
     const subtotal = submissions.length;
-    const submitted = submissions.filter((s) => s.status === "submitted").length;
-    const approved = submissions.filter((s) => s.status === "approved").length;
-    const rejected = submissions.filter((s) => s.status === "rejected").length;
-    const revision = submissions.filter((s) => s.status === "revision_requested").length;
-    const drafts = submissions.filter((s) => s.status === "draft").length;
-    const overdue = submissions.filter((s) => s.status === "submitted" && selectedRun.closes_at && new Date(s.submitted_at) > new Date(selectedRun.closes_at)).length;
+    const submitted = submissions.filter((submission) => submission.status === "submitted").length;
+    const approved = submissions.filter((submission) => submission.status === "approved").length;
+    const rejected = submissions.filter((submission) => submission.status === "rejected").length;
+    const revision = submissions.filter((submission) => submission.status === "revision_requested").length;
+    const drafts = submissions.filter((submission) => submission.status === "draft").length;
+    const overdue = submissions.filter((submission) => submission.status === "submitted" && selectedRun.closes_at && new Date(submission.submitted_at) > new Date(selectedRun.closes_at)).length;
 
     const tabs = [
       { id: "overview", label: t("platformMisc.runs.tabOverview"), icon: BarChart3 },
@@ -2493,11 +2497,11 @@ export default function FormRunsPage() {
           <span className="text-[var(--text-secondary)] opacity-30">|</span>
           <Play className="w-4 h-4 text-[var(--brand-orange)]" />
           <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{selectedRun.name}</h2>
-          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", cfg.color, cfg.bg)}>{t(cfg.label)}</span>
+          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", statusConfig.color, statusConfig.bg)}>{t(statusConfig.label)}</span>
           {(() => {
-            const g = groups.find((x) => (x.registration_id || x.id) === selectedRun.group_target_id);
-            return g ? (
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap text-[var(--brand-orange)] bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30">{t("platformMisc.runs.assignedGroup", { name: g.name })}</span>
+            const group = groups.find((candidate) => (candidate.registration_id || candidate.id) === selectedRun.group_target_id);
+            return group ? (
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap text-[var(--brand-orange)] bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30">{t("platformMisc.runs.assignedGroup", { name: group.name })}</span>
             ) : null;
           })()}
           {/* Status action buttons */}
@@ -2639,14 +2643,14 @@ export default function FormRunsPage() {
 
         {/* Tabs */}
         <div className="flex items-center gap-0 px-6 border-b border-[var(--border-primary)] shrink-0 bg-secondary">
-          {tabs.map((t) => (
-            t.href ? (
-              <a key={t.id} href={t.href} className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wide border-b-2 transition-colors border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                <t.icon className="w-3 h-3" /> {t.label}
+          {tabs.map((tab) => (
+            tab.href ? (
+              <a key={tab.id} href={tab.href} className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wide border-b-2 transition-colors border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                <tab.icon className="w-3 h-3" /> {tab.label}
               </a>
             ) : (
-              <button key={t.id} onClick={() => setDetailTab(t.id)} className={cn("flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wide border-b-2 transition-colors", detailTab === t.id ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>
-                <t.icon className="w-3 h-3" /> {t.label}
+              <button key={tab.id} onClick={() => setDetailTab(tab.id)} className={cn("flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wide border-b-2 transition-colors", detailTab === tab.id ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>
+                <tab.icon className="w-3 h-3" /> {tab.label}
               </button>
             )
           ))}
@@ -2667,19 +2671,19 @@ export default function FormRunsPage() {
                   { label: t("platformMisc.runs.statusRevision"), value: revision, filter: "revision_requested", icon: RotateCcw, color: "text-amber-500" },
                   { label: t("platformMisc.runs.drafts"), value: drafts, filter: "draft", icon: FileText, color: "text-slate-500" },
                   ...(overdue > 0 ? [{ label: t("platformMisc.runs.overdue"), value: overdue, filter: "submitted", icon: AlertTriangle, color: "text-rose-500" }] : []),
-                ].map((s) => (
+                ].map((statCard) => (
                   <button
-                    key={s.label}
-                    onClick={() => setSubFilter(subFilter === s.filter ? "all" : s.filter)}
+                    key={statCard.label}
+                    onClick={() => setSubFilter(subFilter === statCard.filter ? "all" : statCard.filter)}
                     className={cn(
                       "p-4 rounded-2xl border text-center transition-all",
-                      subFilter === s.filter
+                      subFilter === statCard.filter
                         ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]"
                         : "bg-secondary border-[var(--border-primary)] hover:border-[var(--text-secondary)]"
                     )}
                   >
-                    <p className={cn("text-2xl font-black", s.color)}>{s.value}</p>
-                    <div className="flex items-center justify-center gap-1 mt-0.5"><s.icon className={cn("w-2.5 h-2.5", s.color)} /><p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{s.label}</p></div>
+                    <p className={cn("text-2xl font-black", statCard.color)}>{statCard.value}</p>
+                    <div className="flex items-center justify-center gap-1 mt-0.5"><statCard.icon className={cn("w-2.5 h-2.5", statCard.color)} /><p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{statCard.label}</p></div>
                   </button>
                 ))}
               </div>
@@ -2691,7 +2695,7 @@ export default function FormRunsPage() {
                   <input
                     type="text"
                     value={respSearch}
-                    onChange={(e) => setRespSearch(e.target.value)}
+                    onChange={(event) => setRespSearch(event.target.value)}
                     placeholder="Search this run's respondents (name, email, answers)..."
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                   />
@@ -2713,25 +2717,25 @@ export default function FormRunsPage() {
                     </button>
                   )}
 
-                  {activeFieldFilters.map(([label, val]) => (
+                  {activeFieldFilters.map(([label, filterValue]) => (
                     <button
                       key={label}
                       onClick={() => removeFieldFilter(label)}
                       title="Remove this filter"
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[10px] font-bold text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20"
                     >
-                      {label}: {val} <X className="w-3 h-3" />
+                      {label}: {filterValue} <X className="w-3 h-3" />
                     </button>
                   ))}
 
-                  {activeTrackingFilters.map((f) => (
+                  {activeTrackingFilters.map((filter) => (
                     <button
-                      key={f.key}
-                      onClick={() => setTrackingFilter(f.key, "")}
+                      key={filter.key}
+                      onClick={() => setTrackingFilter(filter.key, "")}
                       title="Remove this filter"
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[10px] font-bold text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20"
                     >
-                      {f.label}: {trackingFilterOptionLabel(f.key, f.value)} <X className="w-3 h-3" />
+                      {filter.label}: {trackingFilterOptionLabel(filter.key, filter.value)} <X className="w-3 h-3" />
                     </button>
                   ))}
 
@@ -2740,7 +2744,7 @@ export default function FormRunsPage() {
                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary border border-[var(--brand-orange)]/30">
                       <select
                         value={scoreOp}
-                        onChange={(e) => setScoreOp(e.target.value)}
+                        onChange={(event) => setScoreOp(event.target.value)}
                         className="bg-primary border border-[var(--border-primary)] rounded-md px-1.5 py-1 text-sm font-bold outline-none"
                       >
                         <option value="gte">≥</option>
@@ -2754,8 +2758,8 @@ export default function FormRunsPage() {
                         type="number"
                         min="0"
                         max="100"
-                        value={scoreVal}
-                        onChange={(e) => setScoreVal(e.target.value)}
+                        value={scoreValue}
+                        onChange={(event) => setScoreValue(event.target.value)}
                         placeholder="80"
                         className="w-14 px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)] text-sm font-bold outline-none focus:border-[var(--brand-orange)]"
                       />
@@ -2764,8 +2768,8 @@ export default function FormRunsPage() {
                           type="number"
                           min="0"
                           max="100"
-                          value={scoreVal2}
-                          onChange={(e) => setScoreVal2(e.target.value)}
+                          value={scoreValue2}
+                          onChange={(event) => setScoreValue2(event.target.value)}
                           placeholder="90"
                           className="w-14 px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)] text-sm font-bold outline-none focus:border-[var(--brand-orange)]"
                         />
@@ -2773,7 +2777,7 @@ export default function FormRunsPage() {
                       <span className="text-[10px] font-medium text-[var(--text-secondary)]">%</span>
                       <button
                         onClick={() => setFilterPickerMode(null)}
-                        disabled={scoreVal === ""}
+                        disabled={scoreValue === ""}
                         className="px-2 py-1 rounded-md bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide disabled:opacity-40"
                       >
                         Apply
@@ -2790,18 +2794,18 @@ export default function FormRunsPage() {
                       <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{filterPickerMode.label}:</span>
                       <select
                         value=""
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            setFieldFilters((prev) => ({ ...prev, [filterPickerMode.label]: e.target.value }));
+                        onChange={(event) => {
+                          if (event.target.value) {
+                            setFieldFilters((prev) => ({ ...prev, [filterPickerMode.label]: event.target.value }));
                             setFilterPickerMode(null);
                           }
                         }}
                         className="bg-primary border border-[var(--border-primary)] rounded-md px-1.5 py-1 text-sm font-bold outline-none focus:border-[var(--brand-orange)]"
                       >
                         <option value="">Select…</option>
-                        {fieldOptionsOf(filterPickerMode.label).map((o, idx) => (
-                          <option key={`${filterPickerMode.label}-${idx}`} value={String(o)}>
-                            {String(o)}
+                        {fieldOptionsOf(filterPickerMode.label).map((option, index) => (
+                          <option key={`${filterPickerMode.label}-${index}`} value={String(option)}>
+                            {String(option)}
                           </option>
                         ))}
                       </select>
@@ -2815,21 +2819,21 @@ export default function FormRunsPage() {
                   {filterPickerMode && filterPickerMode.type === "status" && (
                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary border border-[var(--brand-orange)]/30">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                        {TRACKING_FILTERS.find((f) => f.key === filterPickerMode.key)?.label || filterPickerMode.key}:
+                        {TRACKING_FILTERS.find((filter) => filter.key === filterPickerMode.key)?.label || filterPickerMode.key}:
                       </span>
                       <select
                         value=""
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            setTrackingFilter(filterPickerMode.key, e.target.value);
+                        onChange={(event) => {
+                          if (event.target.value) {
+                            setTrackingFilter(filterPickerMode.key, event.target.value);
                             setFilterPickerMode(null);
                           }
                         }}
                         className="bg-primary border border-[var(--border-primary)] rounded-md px-1.5 py-1 text-sm font-bold outline-none focus:border-[var(--brand-orange)]"
                       >
                         <option value="">Select…</option>
-                        {trackingFilterOptions(filterPickerMode.key).map((v) => (
-                          <option key={v} value={v}>{trackingFilterOptionLabel(filterPickerMode.key, v)}</option>
+                        {trackingFilterOptions(filterPickerMode.key).map((optionValue) => (
+                          <option key={optionValue} value={optionValue}>{trackingFilterOptionLabel(filterPickerMode.key, optionValue)}</option>
                         ))}
                       </select>
                       <button onClick={() => setFilterPickerMode(null)} className="text-[var(--text-secondary)] hover:text-rose-500">
@@ -2849,13 +2853,13 @@ export default function FormRunsPage() {
                       </button>
                       {filterPickerOpen && (
                         <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-[var(--border-primary)] bg-secondary shadow-xl z-30 max-h-64 overflow-y-auto">
-                          {availableParams.map((p) => (
+                          {availableParams.map((param) => (
                             <button
-                              key={p.key}
-                              onClick={() => pickFilterParam(p)}
+                              key={param.key}
+                              onClick={() => pickFilterParam(param)}
                               className="w-full px-3 py-2 text-left text-[10px] font-bold text-[var(--text-primary)] hover:bg-tertiary"
                             >
-                              {p.label}
+                              {param.label}
                             </button>
                           ))}
                         </div>
@@ -3000,9 +3004,9 @@ export default function FormRunsPage() {
                         </th>
                         <th className="px-4 py-3 w-10">{t("platformMisc.runs.colSn")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.colEmail")}</th>
-                        {runFormFields.slice(0, 2).map(f => (
-                          <th key={f.id} className="px-3 py-3 max-w-[120px]" title={f.label}>
-                            <span className="line-clamp-1">{f.label.length > 25 ? f.label.substring(0, 25) + "..." : f.label}</span>
+                        {runFormFields.slice(0, 2).map(field => (
+                          <th key={field.id} className="px-3 py-3 max-w-[120px]" title={field.label}>
+                            <span className="line-clamp-1">{field.label.length > 25 ? field.label.substring(0, 25) + "..." : field.label}</span>
                           </th>
                         ))}
                         <th className="px-4 py-3">{t("platformMisc.runs.statusSubmitted")}</th>
@@ -3016,41 +3020,41 @@ export default function FormRunsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-primary)]">
-                      {pagedSubmissions.map((s, i) => {
-                        const sc = SUB_STATUS[s.status] || SUB_STATUS.draft;
-                        const subReviews = reviews.filter((r) => r.submission_id === s.id);
-                        const lastReview = subReviews[subReviews.length - 1];
-                        const subData = s.data || {};
-                        const scores = subData._scores;
+                      {pagedSubmissions.map((submission, rowIndex) => {
+                        const statusConfig = SUB_STATUS[submission.status] || SUB_STATUS.draft;
+                        const submissionReviews = reviews.filter((review) => review.submission_id === submission.id);
+                        const lastReview = submissionReviews[submissionReviews.length - 1];
+                        const submissionData = submission.data || {};
+                        const scores = submissionData._scores;
                         // AI evaluation table is the source of truth; fall back
                         // to legacy inline _scores for pre-evaluation data.
-                        const evalRow = evaluations.find((e) => e.submission_id === s.id);
+                        const evalRow = evaluations.find((evaluationRow) => evaluationRow.submission_id === submission.id);
                         const overall = evalRow != null ? evalRow.overall_score : scores?.overall;
                         const ranking = evalRow != null ? evalRow.ranking : scores?.ranking;
                         const activationEmail = emailLog
-                          .filter((e) => e.submission_id === s.id && e.email_type === "activation")
+                          .filter((emailRow) => emailRow.submission_id === submission.id && emailRow.email_type === "activation")
                           .slice(-1)[0];
                         // "Actually sent" must come from sent rows in the full
                         // history (activation_history.first_sent_at) — never
                         // inferred from a queued/pending row or account status.
                         const activationEverSent =
-                          !!s.activation_history?.first_sent_at ||
+                          !!submission.activation_history?.first_sent_at ||
                           (activationEmail && ["sent", "delivered", "opened", "clicked"].includes(activationEmail.status));
                         const approvalEmail = emailLog
-                          .filter((e) => e.submission_id === s.id && e.email_type === "approval")
+                          .filter((emailRow) => emailRow.submission_id === submission.id && emailRow.email_type === "approval")
                           .slice(-1)[0];
-                        const accountStatus = s.account_status || (s.account_activated
+                        const accountStatus = submission.account_status || (submission.account_activated
                           ? "active"
-                          : s.account_created
+                          : submission.account_created
                             ? "activation_pending"
                             : "not_created");
                         // The address the system actually sent to (from the
                         // delivery log) — falls back to the resolved respondent
                         // email when nothing has been sent yet.
                         const sentLog = [...emailLog]
-                          .filter((e) => e.submission_id === s.id && (e.status === "sent" || e.status === "failed"))
+                          .filter((emailRow) => emailRow.submission_id === submission.id && (emailRow.status === "sent" || emailRow.status === "failed"))
                           .slice(-1)[0];
-                        const sentEmail = sentLog?.recipient || s.email || "";
+                        const sentEmail = sentLog?.recipient || submission.email || "";
                         const scoreColor = overall != null
                           ? overall >= 80 ? "text-emerald-500"
                           : overall >= 60 ? "text-amber-500"
@@ -3063,29 +3067,29 @@ export default function FormRunsPage() {
                           : "";
                         
                         // Helper to get field value from submission data
-                        const fv = (field) => {
-                          const val = subData[field.label] ?? subData[String(field.id)] ?? subData[field.id];
-                          if (val === undefined || val === null || val === "") return "—";
-                          const s = String(val);
-                          if (s.startsWith("{") && s.includes('"code"')) {
-                            try { const p = JSON.parse(s); if (p.code && p.number) return `${p.code} ${p.number}`; } catch (_) {}
+                        const fieldValueText = (field) => {
+                          const rawValue = submissionData[field.label] ?? submissionData[String(field.id)] ?? submissionData[field.id];
+                          if (rawValue === undefined || rawValue === null || rawValue === "") return "—";
+                          const text = String(rawValue);
+                          if (text.startsWith("{") && text.includes('"code"')) {
+                            try { const parsedPhone = JSON.parse(text); if (parsedPhone.code && parsedPhone.number) return `${parsedPhone.code} ${parsedPhone.number}`; } catch (_) {}
                           }
-                          return s.length > 30 ? s.substring(0, 30) + "..." : s;
+                          return text.length > 30 ? text.substring(0, 30) + "..." : text;
                         };
                         
                         return (
-                          <tr key={s.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
+                          <tr key={submission.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
                             <td className="px-4 py-3 w-10">
                               <input
                                 type="checkbox"
-                                checked={selectedSet.has(s.id)}
-                                onChange={() => toggleSelect(s.id)}
+                                checked={selectedSet.has(submission.id)}
+                                onChange={() => toggleSelect(submission.id)}
                                 className="accent-[var(--brand-orange)] w-3.5 h-3.5 align-middle"
                               />
                             </td>
                             {/* S/N — presentation-level row number, continuous across pages and respecting filters */}
                             <td className="px-4 py-3 w-10 text-center text-sm font-bold text-[var(--text-primary)]">
-                              {(respSafePage - 1) * perPage + i + 1}
+                              {(respSafePage - 1) * perPage + rowIndex + 1}
                             </td>
                             {/* Email — the address the system actually sent to (from the delivery log), falling back to the resolved respondent email */}
                             <td className="px-4 py-3">
@@ -3094,21 +3098,21 @@ export default function FormRunsPage() {
                                   className="text-[10px] font-medium text-[var(--text-secondary)] truncate max-w-[160px] block"
                                   title={sentLog
                                     ? t("platformMisc.runs.emailSentToTooltip", { recipient: sentLog.recipient || "n/a", type: sentLog.email_type, provider: sentLog.provider || "email", status: sentLog.status, date: sentLog.sent_at ? ", " + new Date(sentLog.sent_at).toLocaleString() : "" })
-                                    : s.email || t("platformMisc.runs.noEmailProvided")}
+                                    : submission.email || t("platformMisc.runs.noEmailProvided")}
                                 >
                                   {sentEmail || t("platformMisc.runs.noEmailProvided")}
                                 </span>
-                                {s.email && duplicateEmailSet.has(String(s.email).trim().toLowerCase()) && (
-                                  <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap", duplicateGroups.keeperIds.has(s.id) ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
-                                    {duplicateGroups.keeperIds.has(s.id) ? t("platformMisc.runs.emailKeeper") : t("platformMisc.runs.emailDuplicate")}
+                                {submission.email && duplicateEmailSet.has(String(submission.email).trim().toLowerCase()) && (
+                                  <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap", duplicateGroups.keeperIds.has(submission.id) ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
+                                    {duplicateGroups.keeperIds.has(submission.id) ? t("platformMisc.runs.emailKeeper") : t("platformMisc.runs.emailDuplicate")}
                                   </span>
                                 )}
                               </div>
                             </td>
-                            {runFormFields.slice(0, 2).map(f => (
-                              <td key={f.id} className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] max-w-[150px] truncate" title={fv(f)}>{fv(f)}</td>
+                            {runFormFields.slice(0, 2).map(field => (
+                              <td key={field.id} className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] max-w-[150px] truncate" title={fieldValueText(field)}>{fieldValueText(field)}</td>
                             ))}
-                            <td className="px-4 py-3 text-[10px] font-medium text-[var(--text-secondary)]">{s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : "—"}</td>
+                            <td className="px-4 py-3 text-[10px] font-medium text-[var(--text-secondary)]">{submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : "—"}</td>
                             <td className="px-4 py-3">
                               {overall != null ? (
                                 <div className="flex flex-col">
@@ -3122,10 +3126,10 @@ export default function FormRunsPage() {
                             <td className="px-4 py-3">
                               {approvalEmail ? (
                                 (() => {
-                                  const cfg = EMAIL_STATUS_CONFIG[approvalEmail.status] || { color: "text-slate-500", bg: "bg-slate-500/10", label: "platformMisc.runs.emailPending" };
+                                  const approvalStatusConfig = EMAIL_STATUS_CONFIG[approvalEmail.status] || { color: "text-slate-500", bg: "bg-slate-500/10", label: "platformMisc.runs.emailPending" };
                                   return (
-                                    <span title={approvalEmail.error || t(cfg.label)} className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", cfg.bg, cfg.color)}>
-                                      {t(cfg.label)}
+                                    <span title={approvalEmail.error || t(approvalStatusConfig.label)} className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", approvalStatusConfig.bg, approvalStatusConfig.color)}>
+                                      {t(approvalStatusConfig.label)}
                                     </span>
                                   );
                                 })()
@@ -3136,14 +3140,14 @@ export default function FormRunsPage() {
                             <td className="px-4 py-3 text-[10px] font-medium text-[var(--text-secondary)]">
                               {lastReview ? <span>{lastReview.decision} {t("platformMisc.runs.by")} {lastReview.reviewer_name || lastReview.reviewer_id}</span> : "—"}
                             </td>
-                            <td className="px-4 py-3"><span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", sc.color, sc.bg)}>{t(sc.label)}</span></td>
+                            <td className="px-4 py-3"><span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", statusConfig.color, statusConfig.bg)}>{t(statusConfig.label)}</span></td>
                             <td className="px-4 py-3">
                               {activationEverSent || activationEmail?.status === "failed" ? (
                                 (() => {
-                                  const cfg = EMAIL_STATUS_CONFIG[activationEmail.status] || { color: "text-amber-500", bg: "bg-amber-500/10", label: "platformMisc.runs.emailPending" };
+                                  const activationStatusConfig = EMAIL_STATUS_CONFIG[activationEmail.status] || { color: "text-amber-500", bg: "bg-amber-500/10", label: "platformMisc.runs.emailPending" };
                                   return (
-                                    <span title={activationEmail.error || t(cfg.label)} className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", cfg.bg, cfg.color)}>
-                                      {t(cfg.label)}
+                                    <span title={activationEmail.error || t(activationStatusConfig.label)} className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", activationStatusConfig.bg, activationStatusConfig.color)}>
+                                      {t(activationStatusConfig.label)}
                                     </span>
                                   );
                                 })()
@@ -3158,46 +3162,46 @@ export default function FormRunsPage() {
                             </td>
                             <td className="px-4 py-3">
                               {(() => {
-                                const cfg = ACCOUNT_STATUS_STYLES[accountStatus] || ACCOUNT_STATUS_STYLES.not_created;
-                                const hist = s.activation_history;
+                                const accountStatusConfig = ACCOUNT_STATUS_STYLES[accountStatus] || ACCOUNT_STATUS_STYLES.not_created;
+                                const activationHistory = submission.activation_history;
                                 // A queued/pending row is NOT "sent" — show it as
                                 // not-sent-yet so the column never implies an
                                 // activation email went out when it did not.
                                 const emailStatusShown =
-                                  hist?.email_status && !["pending", "skipped", "cancelled"].includes(hist.email_status)
-                                    ? t("platformMisc.runs.activationEmailStatus", { status: t(EMAIL_STATUS_CONFIG[hist.email_status]?.label || "platformMisc.runs.emailPending") })
+                                  activationHistory?.email_status && !["pending", "skipped", "cancelled"].includes(activationHistory.email_status)
+                                    ? t("platformMisc.runs.activationEmailStatus", { status: t(EMAIL_STATUS_CONFIG[activationHistory.email_status]?.label || "platformMisc.runs.emailPending") })
                                     : null;
-                                const histTitle = [
-                                  t(cfg.title),
+                                const historyTitle = [
+                                  t(accountStatusConfig.title),
                                   emailStatusShown || t("platformMisc.runs.activationNotSentYet"),
-                                  hist?.first_sent_at ? t("platformMisc.runs.activationFirstSent", { date: new Date(hist.first_sent_at).toLocaleString() }) : null,
-                                  hist?.last_sent_at ? t("platformMisc.runs.activationLastSent", { date: new Date(hist.last_sent_at).toLocaleString() }) : null,
-                                  hist?.token_valid ? t("platformMisc.runs.activationLinkValid", { date: hist.token_expires_at ? new Date(hist.token_expires_at).toLocaleString() : "" }) : (hist?.token_expires_at ? t("platformMisc.runs.activationLinkExpired") : null),
+                                  activationHistory?.first_sent_at ? t("platformMisc.runs.activationFirstSent", { date: new Date(activationHistory.first_sent_at).toLocaleString() }) : null,
+                                  activationHistory?.last_sent_at ? t("platformMisc.runs.activationLastSent", { date: new Date(activationHistory.last_sent_at).toLocaleString() }) : null,
+                                  activationHistory?.token_valid ? t("platformMisc.runs.activationLinkValid", { date: activationHistory.token_expires_at ? new Date(activationHistory.token_expires_at).toLocaleString() : "" }) : (activationHistory?.token_expires_at ? t("platformMisc.runs.activationLinkExpired") : null),
                                 ].filter(Boolean).join(" | ");
                                 return (
-                                  <span title={histTitle} className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", cfg.cls)}>
-                                    {t(cfg.label)}
+                                  <span title={historyTitle} className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", accountStatusConfig.cls)}>
+                                    {t(accountStatusConfig.label)}
                                   </span>
                                 );
                               })()}
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1">
-                                <button onClick={() => setSelectedSubmission(selectedSubmission?.id === s.id ? null : s)} className="px-2 py-1 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wide hover:bg-[var(--brand-orange)]/10 hover:text-[var(--brand-orange)] flex items-center gap-1">
+                                <button onClick={() => setSelectedSubmission(selectedSubmission?.id === submission.id ? null : submission)} className="px-2 py-1 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wide hover:bg-[var(--brand-orange)]/10 hover:text-[var(--brand-orange)] flex items-center gap-1">
                                   <History className="w-3 h-3" /> {t("platformMisc.runs.history")}
                                 </button>
-                                <a href={`/platform/runs/review/${s.id}`} className="px-2 py-1 rounded-lg bg-purple-500/10 text-purple-400 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 flex items-center gap-1">
+                                <a href={`/platform/runs/review/${submission.id}`} className="px-2 py-1 rounded-lg bg-purple-500/10 text-purple-400 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 flex items-center gap-1">
                                   <Eye className="w-3 h-3" /> {t("platformMisc.runs.full")}
                                 </a>
-                                {s.status !== "draft" && evaluatedSubmissionIds.has(s.id) && (
-                                  <button onClick={() => setPreviewSubmission(s)} className="px-2 py-1 rounded-lg bg-sky-500/10 text-sky-400 text-[10px] font-bold uppercase tracking-wide hover:bg-sky-500/20 flex items-center gap-1">
+                                {submission.status !== "draft" && evaluatedSubmissionIds.has(submission.id) && (
+                                  <button onClick={() => setPreviewSubmission(submission)} className="px-2 py-1 rounded-lg bg-sky-500/10 text-sky-400 text-[10px] font-bold uppercase tracking-wide hover:bg-sky-500/20 flex items-center gap-1">
                                     <FileText className="w-3 h-3" /> {t("platformMisc.runs.previewResult")}
                                   </button>
                                 )}
-                                {s.status === "submitted" && (
-                                  <button onClick={() => openReview(s)} className="px-2 py-1 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:bg-[var(--brand-orange)]/20">{t("platformMisc.runs.review")}</button>
+                                {submission.status === "submitted" && (
+                                  <button onClick={() => openReview(submission)} className="px-2 py-1 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:bg-[var(--brand-orange)]/20">{t("platformMisc.runs.review")}</button>
                                 )}
-                                <button onClick={() => handleDeleteSubmission(s.id)} className="px-2 py-1 rounded-lg bg-rose-500/10 text-rose-500 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20">{t("platformMisc.runs.delete")}</button>
+                                <button onClick={() => handleDeleteSubmission(submission.id)} className="px-2 py-1 rounded-lg bg-rose-500/10 text-rose-500 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20">{t("platformMisc.runs.delete")}</button>
                               </div>
                             </td>
                           </tr>
@@ -3211,13 +3215,13 @@ export default function FormRunsPage() {
                     <p className="text-[10px] font-medium text-[var(--text-secondary)]">Page {respSafePage} of {respTotalPages}</p>
                     <div className="flex items-center gap-1">
                       <button onClick={() => setRespPage(Math.max(1, respSafePage - 1))} disabled={respSafePage === 1} className="px-2 py-1 rounded-lg bg-tertiary text-[10px] font-bold text-[var(--text-secondary)] disabled:opacity-30 hover:text-[var(--text-primary)]">Prev</button>
-                      {Array.from({ length: Math.min(respTotalPages, 7) }, (_, i) => {
-                        let pn;
-                        if (respTotalPages <= 7) pn = i + 1;
-                        else if (respSafePage <= 4) pn = i + 1;
-                        else if (respSafePage >= respTotalPages - 3) pn = respTotalPages - 6 + i;
-                        else pn = respSafePage - 3 + i;
-                        return <button key={pn} onClick={() => setRespPage(pn)} className={cn("w-7 h-7 rounded-lg text-[10px] font-bold", respSafePage === pn ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>{pn}</button>;
+                      {Array.from({ length: Math.min(respTotalPages, 7) }, (_, pageOffset) => {
+                        let pageNumber;
+                        if (respTotalPages <= 7) pageNumber = pageOffset + 1;
+                        else if (respSafePage <= 4) pageNumber = pageOffset + 1;
+                        else if (respSafePage >= respTotalPages - 3) pageNumber = respTotalPages - 6 + pageOffset;
+                        else pageNumber = respSafePage - 3 + pageOffset;
+                        return <button key={pageNumber} onClick={() => setRespPage(pageNumber)} className={cn("w-7 h-7 rounded-lg text-[10px] font-bold", respSafePage === pageNumber ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>{pageNumber}</button>;
                       })}
                       <button onClick={() => setRespPage(Math.min(respTotalPages, respSafePage + 1))} disabled={respSafePage === respTotalPages} className="px-2 py-1 rounded-lg bg-tertiary text-[10px] font-bold text-[var(--text-secondary)] disabled:opacity-30 hover:text-[var(--text-primary)]">Next</button>
                     </div>
@@ -3247,7 +3251,7 @@ export default function FormRunsPage() {
                           type="checkbox"
                           checked={bulkIncludeResultPdf}
                           disabled={!allSelectedEvaluated}
-                          onChange={(e) => setBulkIncludeResultPdf(e.target.checked)}
+                          onChange={(event) => setBulkIncludeResultPdf(event.target.checked)}
                           className="mt-0.5 w-3.5 h-3.5 accent-[var(--brand-orange)]"
                         />
                         <span>
@@ -3279,16 +3283,16 @@ export default function FormRunsPage() {
                       {t(activationForceResend ? "platformMisc.runs.activationResendConfirmDesc" : "platformMisc.runs.activationConfirmDesc", { count: (activationForceResend ? eligibleResendActivationIds : eligibleSendActivationIds).length })}
                     </p>
                     {activationForceResend && eligibleResendActivationIds.slice(0, 5).map((id) => {
-                      const s = submissions.find((x) => x.id === id);
-                      const h = s?.activation_history;
+                      const submission = submissions.find((candidate) => candidate.id === id);
+                      const activationHistory = submission?.activation_history;
                       return (
                         <div key={id} className="rounded-lg bg-primary/50 border border-[var(--border-primary)] px-3 py-2 text-[10px] font-medium text-[var(--text-secondary)] space-y-0.5">
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)] truncate">{s?.display_name || s?.submitter_name || `#${id}`}</p>
-                          {h?.first_sent_at && <p>{t("platformMisc.runs.activationFirstSent", { date: new Date(h.first_sent_at).toLocaleString() })}</p>}
-                          {h?.last_sent_at && <p>{t("platformMisc.runs.activationLastSent", { date: new Date(h.last_sent_at).toLocaleString() })}</p>}
-                          <p className={h?.token_valid ? "text-emerald-500" : "text-rose-500"}>
-                            {h?.token_valid
-                              ? t("platformMisc.runs.activationLinkValid", { date: h.token_expires_at ? new Date(h.token_expires_at).toLocaleString() : "" })
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)] truncate">{submission?.display_name || submission?.submitter_name || `#${id}`}</p>
+                          {activationHistory?.first_sent_at && <p>{t("platformMisc.runs.activationFirstSent", { date: new Date(activationHistory.first_sent_at).toLocaleString() })}</p>}
+                          {activationHistory?.last_sent_at && <p>{t("platformMisc.runs.activationLastSent", { date: new Date(activationHistory.last_sent_at).toLocaleString() })}</p>}
+                          <p className={activationHistory?.token_valid ? "text-emerald-500" : "text-rose-500"}>
+                            {activationHistory?.token_valid
+                              ? t("platformMisc.runs.activationLinkValid", { date: activationHistory.token_expires_at ? new Date(activationHistory.token_expires_at).toLocaleString() : "" })
                               : t("platformMisc.runs.activationLinkExpired")}
                           </p>
                         </div>
@@ -3350,14 +3354,14 @@ export default function FormRunsPage() {
                       {eligibleSendResultIds.length > 1 ? (
                         <select
                           value={resultPreviewId ?? ""}
-                          onChange={(e) => setResultPreviewId(parseInt(e.target.value))}
+                          onChange={(event) => setResultPreviewId(parseInt(event.target.value))}
                           className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                         >
                           {eligibleSendResultIds.map((id) => {
-                            const s = submissions.find((x) => x.id === id);
+                            const submission = submissions.find((candidate) => candidate.id === id);
                             return (
                               <option key={id} value={id}>
-                                {s?.display_name || s?.submitter_name || `#${id}`}
+                                {submission?.display_name || submission?.submitter_name || `#${id}`}
                               </option>
                             );
                           })}
@@ -3365,8 +3369,8 @@ export default function FormRunsPage() {
                       ) : (
                         <span className="text-[10px] font-bold text-[var(--text-primary)]">
                           {(() => {
-                            const s = submissions.find((x) => x.id === resultPreviewId);
-                            return s?.display_name || s?.submitter_name || `#${resultPreviewId}`;
+                            const submission = submissions.find((candidate) => candidate.id === resultPreviewId);
+                            return submission?.display_name || submission?.submitter_name || `#${resultPreviewId}`;
                           })()}
                         </span>
                       )}
@@ -3501,8 +3505,8 @@ export default function FormRunsPage() {
                       <div className="space-y-1">
                         <p className="text-[10px] font-bold text-rose-500">{t("platformMisc.runs.bulkFailedCount", { count: bulkSummary.failed.length })}</p>
                         <div className="max-h-32 overflow-y-auto space-y-1">
-                          {bulkSummary.failed.map((f, i) => (
-                            <p key={i} className="text-[10px] font-medium text-[var(--text-secondary)]">• {f.name || t("platformMisc.runs.bulkFailedFallback")} — {f.error}</p>
+                          {bulkSummary.failed.map((failure, index) => (
+                            <p key={index} className="text-[10px] font-medium text-[var(--text-secondary)]">• {failure.name || t("platformMisc.runs.bulkFailedFallback")} — {failure.error}</p>
                           ))}
                         </div>
                       </div>
@@ -3536,7 +3540,7 @@ export default function FormRunsPage() {
 
           {/* ─── EMAILS TAB ─── */}
           {detailTab === "emails" && (() => {
-const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.every((f) => retrySelectedSet.has(`${f.submission_id}:${f.email_type}`));
+const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.every((emailRow) => retrySelectedSet.has(`${emailRow.submission_id}:${emailRow.email_type}`));
             const STATUS_BADGE = {
               sent: "bg-emerald-500/10 text-emerald-500",
               delivered: "bg-emerald-400/10 text-emerald-400",
@@ -3553,38 +3557,39 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
             return (
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                                 {/* Email stats — clickable status filters per category */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {[
+                    { key: "acknowledgement", label: t("platformMisc.runs.emailSummaryConfirmation") },
                     { key: "approval", label: t("platformMisc.runs.emailSummaryApproval") },
                     { key: "activation", label: t("platformMisc.runs.emailSummaryActivation") },
-                  ].map((cat) => {
-                    const catTotal = allEmailRows.filter((r) => r.email_type === cat.key).length;
+                  ].map((category) => {
+                    const categoryTotal = allEmailRows.filter((emailRow) => emailRow.email_type === category.key).length;
                     return (
-                      <div key={cat.key} className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-4 space-y-2">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{cat.label}</p>
+                      <div key={category.key} className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-4 space-y-2">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{category.label}</p>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <button
-                            onClick={() => { setEmailTypeFilter(cat.key); setEmailStatusFilter("all"); setEmailPage(1); }}
+                            onClick={() => { setEmailTypeFilter(category.key); setEmailStatusFilter("all"); setEmailPage(1); }}
                             className={cn("px-2 py-1 rounded-lg text-[10px] font-bold uppercase border transition-all",
-                              emailTypeFilter === cat.key && emailStatusFilter === "all"
+                              emailTypeFilter === category.key && emailStatusFilter === "all"
                                 ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
                                 : "bg-secondary text-[var(--text-secondary)] border-[var(--border-primary)] hover:text-[var(--text-primary)]")}
                           >
-                            {t("platformMisc.runs.emailStatusAll")} ({catTotal})
+                            {t("platformMisc.runs.emailStatusAll")} ({categoryTotal})
                           </button>
-                          {EMAIL_STATUS_ORDER.map((k) => {
-                            const cfg = EMAIL_STATUS_CONFIG[k];
-                            const count = emailSummary.stats[cat.key][k];
-                            const active = emailTypeFilter === cat.key && emailStatusFilter === k;
+                          {EMAIL_STATUS_ORDER.map((statusKey) => {
+                            const statusConfig = EMAIL_STATUS_CONFIG[statusKey];
+                            const count = emailSummary.stats[category.key][statusKey];
+                            const active = emailTypeFilter === category.key && emailStatusFilter === statusKey;
                             return (
                               <button
-                                key={k}
-                                onClick={() => { setEmailTypeFilter(cat.key); setEmailStatusFilter(k); setEmailPage(1); }}
+                                key={statusKey}
+                                onClick={() => { setEmailTypeFilter(category.key); setEmailStatusFilter(statusKey); setEmailPage(1); }}
                                 className={cn("px-2 py-1 rounded-lg text-[10px] font-bold uppercase border transition-all",
                                   active ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
                                          : "bg-secondary text-[var(--text-secondary)] border-[var(--border-primary)] hover:text-[var(--text-primary)]")}
                               >
-                                <span className={active ? "text-black" : cfg.color}>{count}</span> {t(cfg.label)}
+                                <span className={active ? "text-black" : statusConfig.color}>{count}</span> {t(statusConfig.label)}
                               </button>
                             );
                           })}
@@ -3601,6 +3606,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                       {/* Category tabs */}
                                       {[
                                         { key: "all", label: t("platformMisc.runs.emailTypeAll") },
+                                        { key: "acknowledgement", label: t("platformMisc.runs.emailTypeConfirmation") },
                                         { key: "approval", label: t("platformMisc.runs.emailTypeApproval") },
                                         { key: "activation", label: t("platformMisc.runs.emailTypeActivation") },
                                       ].map((tab) => (
@@ -3622,7 +3628,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                         <input
                                           type="text"
                                           value={emailSearch}
-                                          onChange={(e) => { setEmailSearch(e.target.value); setEmailPage(1); }}
+                                          onChange={(event) => { setEmailSearch(event.target.value); setEmailPage(1); }}
                                           placeholder={t("platformMisc.runs.emailSearchPlaceholder")}
                                           className="w-56 pl-9 pr-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)]"
                                         />
@@ -3630,24 +3636,24 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                       <input
                                         type="date"
                                         value={emailDateFrom}
-                                        onChange={(e) => { setEmailDateFrom(e.target.value); setEmailPage(1); }}
+                                        onChange={(event) => { setEmailDateFrom(event.target.value); setEmailPage(1); }}
                                         className="px-2 py-1 rounded-lg bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                                       />
                                       <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runs.emailDateTo")}</span>
                                       <input
                                         type="date"
                                         value={emailDateTo}
-                                        onChange={(e) => { setEmailDateTo(e.target.value); setEmailPage(1); }}
+                                        onChange={(event) => { setEmailDateTo(event.target.value); setEmailPage(1); }}
                                         className="px-2 py-1 rounded-lg bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                                       />
                                       <select
                                         value={emailStatusFilter}
-                                        onChange={(e) => { setEmailStatusFilter(e.target.value); setEmailPage(1); }}
+                                        onChange={(event) => { setEmailStatusFilter(event.target.value); setEmailPage(1); }}
                                         className="px-2 py-1 rounded-lg bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                                       >
                                         <option value="all">{t("platformMisc.runs.emailAllStatuses")}</option>
-                                        {EMAIL_STATUS_ORDER.map((k) => (
-                                          <option key={k} value={k}>{t(EMAIL_STATUS_CONFIG[k].label)}</option>
+                                        {EMAIL_STATUS_ORDER.map((statusKey) => (
+                                          <option key={statusKey} value={statusKey}>{t(EMAIL_STATUS_CONFIG[statusKey].label)}</option>
                                         ))}
                                       </select>
                                       {(emailDateFrom || emailDateTo || emailStatusFilter !== "all" || emailSearch || emailTypeFilter !== "all") && (
@@ -3703,7 +3709,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                                 type="checkbox"
                                                 checked={allRetryableSelected}
                                                 onChange={() =>
-                                                  setRetrySelected(allRetryableSelected ? [] : retryableVisible.map((f) => `${f.submission_id}:${f.email_type}`))
+                                                  setRetrySelected(allRetryableSelected ? [] : retryableVisible.map((emailRow) => `${emailRow.submission_id}:${emailRow.email_type}`))
                                                 }
                                                 className="accent-[var(--brand-orange)] w-3.5 h-3.5"
                                               />
@@ -3721,11 +3727,11 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                           </tr>
                                         </thead>
                                         <tbody className="divide-y divide-[var(--border-primary)]">
-                                          {pagedEmailRows.map((f) => {
-                                            const key = `${f.submission_id}:${f.email_type}`;
-                                            const isRetryable = RETRYABLE_EMAIL_STATUSES.includes(f.status);
+                                          {pagedEmailRows.map((emailRow) => {
+                                            const key = `${emailRow.submission_id}:${emailRow.email_type}`;
+                                            const isRetryable = RETRYABLE_EMAIL_STATUSES.includes(emailRow.status);
                                             const statusSet = emailStatusSets.get(key) || new Set();
-                                            const had = (st) => statusSet.has(st);
+                                            const had = (status) => statusSet.has(status);
                                             const milestoneSent = had("sent") || ["delivered", "opened", "clicked", "delayed", "bounced", "failed", "complained"].some(had);
                                             const milestoneDelivered = had("delivered") || had("opened") || had("clicked");
                                             const milestoneOpened = had("opened") || had("clicked");
@@ -3742,29 +3748,29 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                                     />
                                                   )}
                                                 </td>
-                                                <td className="px-3 py-3 whitespace-nowrap">{f.name}</td>
+                                                <td className="px-3 py-3 whitespace-nowrap">{emailRow.name}</td>
                                                 <td className="px-3 py-3">
-                                                  <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", f.email_type === "activation" ? "bg-purple-500/10 text-purple-400" : "bg-cyan-500/10 text-cyan-400")}>
-                                                    {f.email_type}
+                                                  <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", emailRow.email_type === "activation" ? "bg-purple-500/10 text-purple-400" : "bg-cyan-500/10 text-cyan-400")}>
+                                                    {emailRow.email_type}
                                                   </span>
                                                 </td>
                                                 <td className="px-3 py-3">
-                                                  <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", STATUS_BADGE[f.status] || STATUS_BADGE.failed)}>
-                                                    {t(EMAIL_STATUS_CONFIG[f.status]?.label || "platformMisc.runs.emailPending")}
+                                                  <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", STATUS_BADGE[emailRow.status] || STATUS_BADGE.failed)}>
+                                                    {t(EMAIL_STATUS_CONFIG[emailRow.status]?.label || "platformMisc.runs.emailPending")}
                                                   </span>
                                                 </td>
-                                                <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] truncate max-w-[180px]" title={f.email}>
-                                                  {f.email || "—"}
+                                                <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] truncate max-w-[180px]" title={emailRow.email}>
+                                                  {emailRow.email || "—"}
                                                 </td>
                                                 <td className="px-3 py-3 text-center">{milestoneSent ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 inline" /> : <span className="text-[var(--text-secondary)] opacity-40">—</span>}</td>
                                                 <td className="px-3 py-3 text-center">{milestoneDelivered ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 inline" /> : <span className="text-[var(--text-secondary)] opacity-40">—</span>}</td>
                                                 <td className="px-3 py-3 text-center">{milestoneOpened ? <CheckCircle2 className="w-3.5 h-3.5 text-sky-500 inline" /> : <span className="text-[var(--text-secondary)] opacity-40">—</span>}</td>
                                                 <td className="px-3 py-3 text-center">{milestoneClicked ? <CheckCircle2 className="w-3.5 h-3.5 text-indigo-500 inline" /> : <span className="text-[var(--text-secondary)] opacity-40">—</span>}</td>
-                                                <td className="px-3 py-3 text-[10px] text-rose-400 max-w-[260px] truncate" title={f.error || "Unknown reason"}>
-                                                  {f.error || "Unknown reason"}
+                                                <td className="px-3 py-3 text-[10px] text-rose-400 max-w-[260px] truncate" title={emailRow.error || "Unknown reason"}>
+                                                  {emailRow.error || "Unknown reason"}
                                                 </td>
                                                 <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] whitespace-nowrap">
-                                                  {f.sent_at ? new Date(f.sent_at).toLocaleDateString() : (f.created_at ? new Date(f.created_at).toLocaleDateString() : "—")}
+                                                  {emailRow.sent_at ? new Date(emailRow.sent_at).toLocaleDateString() : (emailRow.created_at ? new Date(emailRow.created_at).toLocaleDateString() : "—")}
                                                 </td>
                                               </tr>
                                             );
@@ -3837,8 +3843,8 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                         <div className="space-y-1">
                           <p className="text-[10px] font-bold text-rose-500">{t("platformMisc.runs.emailRetryFailedCount", { count: retrySummary.failed.length })}</p>
                           <div className="max-h-32 overflow-y-auto space-y-1">
-                            {retrySummary.failed.map((f, i) => (
-                              <p key={i} className="text-[10px] font-medium text-[var(--text-secondary)]">• {f.name || t("platformMisc.runs.emailFallback")} — {f.error}</p>
+                            {retrySummary.failed.map((failure, index) => (
+                              <p key={index} className="text-[10px] font-medium text-[var(--text-secondary)]">• {failure.name || t("platformMisc.runs.emailFallback")} — {failure.error}</p>
                             ))}
                           </div>
                         </div>
@@ -3977,16 +3983,16 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-primary)]">
-                      {assignments.map((a) => {
-                        const g = a.target_type === "group" ? groups.find((x) => (x.registration_id || x.id) === a.target_id) : null;
-                        const c = a.target_type === "user" ? contacts.find((x) => x.cid === a.target_id) : null;
-                        const targetName = a.target_name || (g ? g.name : c ? (c.name || c.email) : a.target_id);
+                      {assignments.map((assignment) => {
+                        const group = assignment.target_type === "group" ? groups.find((candidate) => (candidate.registration_id || candidate.id) === assignment.target_id) : null;
+                        const contact = assignment.target_type === "user" ? contacts.find((candidate) => candidate.cid === assignment.target_id) : null;
+                        const targetName = assignment.target_name || (group ? group.name : contact ? (contact.name || contact.email) : assignment.target_id);
                         return (
-                          <tr key={a.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
-                            <td className="px-4 py-3"><span className="px-2 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase">{t(TARGET_LABELS[a.target_type]) || a.target_type}</span></td>
+                          <tr key={assignment.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
+                            <td className="px-4 py-3"><span className="px-2 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase">{t(TARGET_LABELS[assignment.target_type]) || assignment.target_type}</span></td>
                             <td className="px-4 py-3 text-[10px] font-medium text-[var(--text-secondary)]">{targetName}</td>
-                            <td className="px-4 py-3 text-[10px] font-medium text-[var(--text-secondary)]">{new Date(a.assigned_at).toLocaleDateString()}</td>
-                            <td className="px-4 py-3"><button onClick={() => handleUnassign(a.id)} className="text-rose-500 hover:text-rose-400"><Trash2 className="w-3.5 h-3.5" /></button></td>
+                            <td className="px-4 py-3 text-[10px] font-medium text-[var(--text-secondary)]">{new Date(assignment.assigned_at).toLocaleDateString()}</td>
+                            <td className="px-4 py-3"><button onClick={() => handleUnassign(assignment.id)} className="text-rose-500 hover:text-rose-400"><Trash2 className="w-3.5 h-3.5" /></button></td>
                           </tr>
                         );
                       })}
@@ -3998,7 +4004,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
               {/* Add assignment modal */}
               {showAssign && (
                 <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => setShowAssign(false)}>
-                  <div className="card w-full max-w-sm space-y-4" onClick={(e) => e.stopPropagation()}>
+                  <div className="card w-full max-w-sm space-y-4" onClick={(event) => event.stopPropagation()}>
                     <div className="flex justify-between items-center"><h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.addAssignment")}</h3><button onClick={() => setShowAssign(false)}><X className="w-5 h-5" /></button></div>
                     <div className="space-y-3">
                       <div className="space-y-1">
@@ -4011,9 +4017,9 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                             <span className="text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runs.targetUser")}</span>
                           </label>
                           {assignTypes.user && (
-                            <select value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] max-h-40">
+                            <select value={assignUserId} onChange={(event) => setAssignUserId(event.target.value)} className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] max-h-40">
                               <option value="">{t("platformMisc.runs.selectUser")}</option>
-                              {contacts.map((c) => <option key={c.cid} value={c.cid}>{c.name || c.email || c.cid}</option>)}
+                              {contacts.map((contact) => <option key={contact.cid} value={contact.cid}>{contact.name || contact.email || contact.cid}</option>)}
                             </select>
                           )}
 
@@ -4024,9 +4030,9 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                           </label>
                           {assignTypes.group && (
                             <div className="space-y-1">
-                              <select value={assignGroupId} onChange={(e) => setAssignGroupId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+                              <select value={assignGroupId} onChange={(event) => setAssignGroupId(event.target.value)} className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
                                 <option value="">{t("platformMisc.runs.selectGroup")}</option>
-                                {groups.map((g) => <option key={g.registration_id || g.id} value={g.registration_id || g.id}>{g.name}</option>)}
+                                {groups.map((group) => <option key={group.registration_id || group.id} value={group.registration_id || group.id}>{group.name}</option>)}
                               </select>
                               {!showInlineGroup ? (
                                 <button
@@ -4041,8 +4047,8 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                   <input
                                     autoFocus
                                     value={inlineGroupName}
-                                    onChange={(e) => setInlineGroupName(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === "Enter") handleCreateGroupInline(handleAssignWithGroup); }}
+                                    onChange={(event) => setInlineGroupName(event.target.value)}
+                                    onKeyDown={(event) => { if (event.key === "Enter") handleCreateGroupInline(handleAssignWithGroup); }}
                                     placeholder={t("platformMisc.runs.groupNamePlaceholder")}
                                     className="flex-1 rounded-xl px-3 py-2 text-sm font-bold outline-none bg-primary border border-[var(--brand-orange)] text-[var(--text-primary)]"
                                   />
@@ -4066,9 +4072,9 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                             <span className="text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runs.targetProgram")}</span>
                           </label>
                           {assignTypes.program && (
-                            <select value={assignProgramId} onChange={(e) => setAssignProgramId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+                            <select value={assignProgramId} onChange={(event) => setAssignProgramId(event.target.value)} className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
                               <option value="">{t("platformMisc.runs.selectProgram")}</option>
-                              {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                              {programs.map((program) => <option key={program.id} value={program.id}>{program.name}</option>)}
                             </select>
                           )}
 
@@ -4079,10 +4085,10 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                           </label>
                           {assignTypes.other && (
                             <div className="flex gap-2 items-center">
-                              <select value={assignOtherType} onChange={(e) => setAssignOtherType(e.target.value)} className="w-2/5 rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
-                                {["cohort", "team", "organization", "all"].map((k) => <option key={k} value={k}>{t(TARGET_LABELS[k])}</option>)}
+                              <select value={assignOtherType} onChange={(event) => setAssignOtherType(event.target.value)} className="w-2/5 rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+                                {["cohort", "team", "organization", "all"].map((targetType) => <option key={targetType} value={targetType}>{t(TARGET_LABELS[targetType])}</option>)}
                               </select>
-                              <input value={assignOtherId} onChange={(e) => setAssignOtherId(e.target.value)} className="flex-1 rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder={t("platformMisc.runs.targetIdPlaceholder")} />
+                              <input value={assignOtherId} onChange={(event) => setAssignOtherId(event.target.value)} className="flex-1 rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder={t("platformMisc.runs.targetIdPlaceholder")} />
                             </div>
                           )}
                         </div>
@@ -4117,7 +4123,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 {/* Submission Limits */}
                 <SettingRow label={t("platformMisc.runs.settingSubmissionLimit")} icon={Hash} desc={t("platformMisc.runs.settingSubmissionLimitDesc")}>
                   {editingSettings ? (
-                    <input type="number" min="0" value={runSettings.submission_limit ?? 0} onChange={(e) => setRunSettings({ ...runSettings, submission_limit: parseInt(e.target.value) || 0 })} className="w-24 rounded-xl px-3 py-2 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" />
+                    <input type="number" min="0" value={runSettings.submission_limit ?? 0} onChange={(event) => setRunSettings({ ...runSettings, submission_limit: parseInt(event.target.value) || 0 })} className="w-24 rounded-xl px-3 py-2 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" />
                   ) : (
                     <span className="text-[11px] font-bold text-[var(--text-primary)]">{(runSettings.submission_limit || 0) === 0 ? t("platformMisc.runs.unlimited") : runSettings.submission_limit}</span>
                   )}
@@ -4126,7 +4132,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 {/* Multiple Submissions */}
                 <SettingRow label={t("platformMisc.runs.settingMultipleSubmissions")} icon={Send} desc={t("platformMisc.runs.settingMultipleSubmissionsDesc")}>
                   {editingSettings ? (
-                    <Toggle checked={!!runSettings.allow_multiple} onChange={(v) => setRunSettings({ ...runSettings, allow_multiple: v })} />
+                    <Toggle checked={!!runSettings.allow_multiple} onChange={(enabled) => setRunSettings({ ...runSettings, allow_multiple: enabled })} />
                   ) : (
                     <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded", runSettings.allow_multiple ? "text-emerald-500 bg-emerald-500/10" : "text-slate-500 bg-slate-500/10")}>{runSettings.allow_multiple ? t("platformMisc.runs.yes") : t("platformMisc.runs.no")}</span>
                   )}
@@ -4135,7 +4141,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 {/* Anonymous Submissions */}
                 <SettingRow label={t("platformMisc.runs.settingAnonymousSubmissions")} icon={EyeOff} desc={t("platformMisc.runs.settingAnonymousSubmissionsDesc")}>
                   {editingSettings ? (
-                    <Toggle checked={!!runSettings.anonymous} onChange={(v) => setRunSettings({ ...runSettings, anonymous: v })} />
+                    <Toggle checked={!!runSettings.anonymous} onChange={(enabled) => setRunSettings({ ...runSettings, anonymous: enabled })} />
                   ) : (
                     <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded", runSettings.anonymous ? "text-emerald-500 bg-emerald-500/10" : "text-slate-500 bg-slate-500/10")}>{runSettings.anonymous ? t("platformMisc.runs.yes") : t("platformMisc.runs.no")}</span>
                   )}
@@ -4144,7 +4150,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 {/* Auto-close */}
                 <SettingRow label={t("platformMisc.runs.settingAutoClose")} icon={StopCircle} desc={t("platformMisc.runs.settingAutoCloseDesc")}>
                   {editingSettings ? (
-                    <Toggle checked={!!runSettings.auto_close} onChange={(v) => setRunSettings({ ...runSettings, auto_close: v })} />
+                    <Toggle checked={!!runSettings.auto_close} onChange={(enabled) => setRunSettings({ ...runSettings, auto_close: enabled })} />
                   ) : (
                     <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded", runSettings.auto_close ? "text-emerald-500 bg-emerald-500/10" : "text-slate-500 bg-slate-500/10")}>{runSettings.auto_close ? t("platformMisc.runs.yes") : t("platformMisc.runs.no")}</span>
                   )}
@@ -4153,7 +4159,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 {/* Confirmation Message */}
                 <SettingRow label={t("platformMisc.runs.settingConfirmationMessage")} icon={MessageSquare} desc={t("platformMisc.runs.settingConfirmationMessageDesc")}>
                   {editingSettings ? (
-                    <textarea value={runSettings.confirmation_message || ""} onChange={(e) => setRunSettings({ ...runSettings, confirmation_message: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.confirmationMessagePlaceholder")} />
+                    <textarea value={runSettings.confirmation_message || ""} onChange={(event) => setRunSettings({ ...runSettings, confirmation_message: event.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.confirmationMessagePlaceholder")} />
                   ) : (
                     <span className="text-[10px] font-medium text-[var(--text-secondary)]">{runSettings.confirmation_message || "—"}</span>
                   )}
@@ -4162,7 +4168,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 {/* Instructions */}
                 <SettingRow label={t("platformMisc.runs.settingSubmissionInstructions")} icon={Info} desc={t("platformMisc.runs.settingSubmissionInstructionsDesc")}>
                   {editingSettings ? (
-                    <textarea value={runSettings.instructions || ""} onChange={(e) => setRunSettings({ ...runSettings, instructions: e.target.value })} rows={3} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.instructionsPlaceholder")} />
+                    <textarea value={runSettings.instructions || ""} onChange={(event) => setRunSettings({ ...runSettings, instructions: event.target.value })} rows={3} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.instructionsPlaceholder")} />
                   ) : (
                     <span className="text-[10px] font-medium text-[var(--text-secondary)] whitespace-pre-wrap">{runSettings.instructions || "—"}</span>
                   )}
@@ -4174,7 +4180,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     <div className="space-y-1 w-full">
                       <textarea
                         value={runSettings.output_instruction || ""}
-                        onChange={(e) => setRunSettings({ ...runSettings, output_instruction: e.target.value })}
+                        onChange={(event) => setRunSettings({ ...runSettings, output_instruction: event.target.value })}
                         rows={6}
                         maxLength={4000}
                         className="w-full rounded-xl px-4 py-3 text-sm font-medium outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-y"
@@ -4271,7 +4277,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                           accept={REPORT_FILE_ACCEPT}
                           className="hidden"
                           disabled={reportFileBusy}
-                          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadReportFile(f); }}
+                          onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) uploadReportFile(file); }}
                         />
                       </label>
                     )}
@@ -4293,7 +4299,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                       <div className="flex items-center gap-2">
                         {fromForm && <span className="text-[9px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runs.automationFromForm")}</span>}
                         {editingSettings ? (
-                          <Toggle checked={effective} onChange={(v) => setRunAutomationFlag(section, flag, v)} />
+                          <Toggle checked={effective} onChange={(enabled) => setRunAutomationFlag(section, flag, enabled)} />
                         ) : (
                           <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded", effective ? "text-emerald-500 bg-emerald-500/10" : "text-slate-500 bg-slate-500/10")}>{effective ? t("platformMisc.runs.yes") : t("platformMisc.runs.no")}</span>
                         )}
@@ -4307,11 +4313,11 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
 
           {/* ─── TEMPLATES TAB (run-level email overrides) ─── */}
           {detailTab === "templates" && (() => {
-            const updateRunTemplate = (key, field, val) => {
+            const updateRunTemplate = (key, field, value) => {
               setRunTemplates((prev) => {
                 const next = JSON.parse(JSON.stringify(prev || {}));
                 if (!next[key]) next[key] = {};
-                next[key][field] = val;
+                next[key][field] = value;
                 return next;
               });
             };
@@ -4324,18 +4330,18 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 // body are both blank must fall through to the form template, not
                 // shadow it at send time.
                 const cleanedTemplates = Object.fromEntries(
-                  Object.entries(runTemplates || {}).filter(([, t]) => {
-                    const s = (t?.subject || "").trim();
-                    const b = (t?.body || "").trim();
-                    return s || b;
+                  Object.entries(runTemplates || {}).filter(([, template]) => {
+                    const subject = (template?.subject || "").trim();
+                    const body = (template?.body || "").trim();
+                    return subject || body;
                   })
                 );
-                const res = await fetch("/api/platform/form-runs", {
+                const response = await fetch("/api/platform/form-runs", {
                   method: "PUT",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ id: selectedRun.id, settings: { ...(runSettings || {}), templates: cleanedTemplates } }),
                 });
-                const data = await res.json();
+                const data = await response.json();
                 if (data.success) {
                   setRunSettings(data.run.settings || {});
                   setSelectedRun({ ...selectedRun, settings: data.run.settings });
@@ -4349,31 +4355,31 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
               setRunTplSaving(false);
             };
 
-            const personalizeRunTemplate = async (tKey, label) => {
+            const personalizeRunTemplate = async (templateKey, label) => {
               if (runPersonalizing) return;
-              setRunPersonalizing(tKey);
+              setRunPersonalizing(templateKey);
               try {
                 // Draft base: run-level draft first; when the run draft is empty,
                 // personalize the form-level template (never the platform default
                 // alone) so a designed template is improved, not replaced.
-                const formTpl = runFormSettings?.automation?.templates?.[tKey] || {};
-                const baseSubject = (runTemplates[tKey]?.subject || "").trim() || (formTpl.subject || "").trim();
-                const baseBody = (runTemplates[tKey]?.body || "").trim() || (formTpl.body || "").trim();
-                const res = await fetch("/api/platform/ai/personalize-template", {
+                const formTemplate = runFormSettings?.automation?.templates?.[templateKey] || {};
+                const baseSubject = (runTemplates[templateKey]?.subject || "").trim() || (formTemplate.subject || "").trim();
+                const baseBody = (runTemplates[templateKey]?.body || "").trim() || (formTemplate.body || "").trim();
+                const response = await fetch("/api/platform/ai/personalize-template", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    template_key: tKey,
+                    template_key: templateKey,
                     form_name: selectedRun?.name || "",
                     organization: "Future Studio",
                     existing_subject: baseSubject,
                     existing_body: baseBody,
                   }),
                 });
-                const data = await res.json();
+                const data = await response.json();
                 if (data.success) {
-                  updateRunTemplate(tKey, "subject", data.subject);
-                  updateRunTemplate(tKey, "body", data.body);
+                  updateRunTemplate(templateKey, "subject", data.subject);
+                  updateRunTemplate(templateKey, "body", data.body);
                   notify(t("platformMisc.forms.templatePersonalized", { label }));
                 } else {
                   notify(data.error || t("platformMisc.forms.templatePersonalizeFailed"));
@@ -4384,7 +4390,14 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
               setRunPersonalizing(null);
             };
 
-            const RunTemplateEditor = ({ tKey, label, icon: Icon, desc, vars, current }) => (
+            const RunTemplateEditor = ({ tKey, label, icon: Icon, desc, vars, current }) => {
+              // Names the sender will not fill in — it removes them, so the author
+              // is told before sending rather than discovering it in the sent mail.
+              const unknownVariables = findUnknownTemplateVariables(
+                `${current?.subject || ""} ${current?.body || ""}`,
+                vars || [],
+              );
+              return (
               <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                 <div className="flex items-center gap-2 mb-1">
                   <Icon className="w-3.5 h-3.5 text-cyan-400" />
@@ -4404,7 +4417,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.templateSubject")}</label>
                   <input
                     value={current.subject || ""}
-                    onChange={(e) => updateRunTemplate(tKey, "subject", e.target.value)}
+                    onChange={(event) => updateRunTemplate(tKey, "subject", event.target.value)}
                     placeholder={t("platformMisc.runs.runTemplateEmptyHint")}
                     className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
                   />
@@ -4413,7 +4426,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.templateBody")}</label>
                   <textarea
                     value={current.body || ""}
-                    onChange={(e) => updateRunTemplate(tKey, "body", e.target.value)}
+                    onChange={(event) => updateRunTemplate(tKey, "body", event.target.value)}
                     rows={4}
                     placeholder={t("platformMisc.runs.runTemplateEmptyHint")}
                     className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500 resize-y font-mono"
@@ -4422,8 +4435,14 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 {vars && (
                   <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.forms.templateVariables", { vars: vars.join(", ") })}</p>
                 )}
+                {unknownVariables.length > 0 && (
+                  <p className="text-[10px] font-bold text-amber-500">
+                    {t("platformMisc.forms.templateUnknownVariables", { vars: unknownVariables.join(", ") })}
+                  </p>
+                )}
               </div>
-            );
+              );
+            };
 
             return (
               <div className="space-y-6 max-w-2xl">
@@ -4439,11 +4458,19 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
 
                 <div className="space-y-3">
                   <RunTemplateEditor
+                    tKey="acknowledgement"
+                    label={t("platformMisc.forms.templateSubmissionLabel")}
+                    icon={Send}
+                    desc={t("platformMisc.runs.runTemplateAcknowledgementDesc")}
+                    vars={TEMPLATE_VARIABLES.acknowledgement}
+                    current={runTemplates.acknowledgement || {}}
+                  />
+                  <RunTemplateEditor
                     tKey="approval"
                     label={t("platformMisc.forms.templateApprovalLabel")}
                     icon={CheckCircle2}
                     desc={t("platformMisc.runs.runTemplateApprovalDesc")}
-                    vars={["name", "form_name", "score", "group_name", "organization"]}
+                    vars={TEMPLATE_VARIABLES.approval}
                     current={runTemplates.approval || {}}
                   />
                   <RunTemplateEditor
@@ -4451,7 +4478,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     label={t("platformMisc.forms.templateActivationLabel")}
                     icon={Key}
                     desc={t("platformMisc.runs.runTemplateActivationDesc")}
-                    vars={["name", "organization", "activation_link"]}
+                    vars={TEMPLATE_VARIABLES.activation}
                     current={runTemplates.activation || {}}
                   />
                   <RunTemplateEditor
@@ -4459,7 +4486,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     label={t("platformMisc.forms.templateExistingUserLabel")}
                     icon={LogIn}
                     desc={t("platformMisc.runs.runTemplateExistingUserDesc")}
-                    vars={["name", "organization", "login_url"]}
+                    vars={TEMPLATE_VARIABLES.existing_user}
                     current={runTemplates.existing_user || {}}
                   />
                   <RunTemplateEditor
@@ -4467,7 +4494,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     label={t("platformMisc.forms.templateRejectionLabel")}
                     icon={XCircle}
                     desc={t("platformMisc.runs.runTemplateRejectionDesc")}
-                    vars={["name", "form_name", "organization"]}
+                    vars={TEMPLATE_VARIABLES.rejection}
                     current={runTemplates.rejection || {}}
                   />
                 </div>
@@ -4479,7 +4506,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
         {/* Review Modal */}
         {showReview && reviewing && (
           <div className="fixed inset-0 z-[400] bg-black/60 flex items-center justify-center p-4" onClick={closeReview}>
-            <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl bg-secondary border border-[var(--border-primary)] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl bg-secondary border border-[var(--border-primary)] shadow-2xl overflow-hidden" onClick={(event) => event.stopPropagation()}>
 
               {/* Modal Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)] shrink-0">
@@ -4497,31 +4524,31 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
 
                 {/* Submitted Answers */}
                 {reviewing.data && Object.keys(reviewing.data).length > 0 && (() => {
-                  const subData = reviewing.data || {};
+                  const submissionData = reviewing.data || {};
                   const entries = runFormFields
-                    .filter(f => {
-                      const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
-                      return val !== undefined && val !== null && val !== "";
+                    .filter(field => {
+                      const rawValue = submissionData[field.label] ?? submissionData[String(field.id)] ?? submissionData[field.id];
+                      return rawValue !== undefined && rawValue !== null && rawValue !== "";
                     })
-                    .map(f => {
-                      const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
-                      let display = String(val);
-                      if (typeof val === "string" && val.startsWith("{") && val.includes('"code"')) {
+                    .map(field => {
+                      const rawValue = submissionData[field.label] ?? submissionData[String(field.id)] ?? submissionData[field.id];
+                      let display = String(rawValue);
+                      if (typeof rawValue === "string" && rawValue.startsWith("{") && rawValue.includes('"code"')) {
                         try {
-                          const p = JSON.parse(val);
-                          if (p.code && p.number) {
-                            const cnt = [{ code: "+234", flag: "🇳🇬" }, { code: "+229", flag: "🇧🇯" }, { code: "+233", flag: "🇬🇭" }, { code: "+254", flag: "🇰🇪" }, { code: "+27", flag: "🇿🇦" }, { code: "+20", flag: "🇪🇬" }, { code: "+33", flag: "🇫🇷" }, { code: "+44", flag: "🇬🇧" }, { code: "+1", flag: "🇺🇸" }, { code: "+49", flag: "🇩🇪" }, { code: "+91", flag: "🇮🇳" }, { code: "+971", flag: "🇦🇪" }].find(c => c.code === p.code);
-                            display = `${cnt?.flag || ""} ${p.code} ${p.number}`;
+                          const parsedPhone = JSON.parse(rawValue);
+                          if (parsedPhone.code && parsedPhone.number) {
+                            const phoneCode = [{ code: "+234", flag: "🇳🇬" }, { code: "+229", flag: "🇧🇯" }, { code: "+233", flag: "🇬🇭" }, { code: "+254", flag: "🇰🇪" }, { code: "+27", flag: "🇿🇦" }, { code: "+20", flag: "🇪🇬" }, { code: "+33", flag: "🇫🇷" }, { code: "+44", flag: "🇬🇧" }, { code: "+1", flag: "🇺🇸" }, { code: "+49", flag: "🇩🇪" }, { code: "+91", flag: "🇮🇳" }, { code: "+971", flag: "🇦🇪" }].find((countryCode) => countryCode.code === parsedPhone.code);
+                            display = `${phoneCode?.flag || ""} ${parsedPhone.code} ${parsedPhone.number}`;
                           }
                         } catch (_) {}
                       }
-                      return { label: f.label, value: display, type: f.field_type };
+                      return { label: field.label, value: display, type: field.field_type };
                     });
 
                   // Fallback unmatched keys
-                  const unmatched = Object.entries(subData)
-                    .filter(([k]) => k !== "_scores" && k !== "_evaluation")
-                    .filter(([k]) => !runFormFields.some(f => String(f.id) === k || f.label === k));
+                  const unmatched = Object.entries(submissionData)
+                    .filter(([key]) => key !== "_scores" && key !== "_evaluation")
+                    .filter(([key]) => !runFormFields.some(field => String(field.id) === key || field.label === key));
 
                   const allEntries = [
                     ...entries,
@@ -4576,38 +4603,38 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--border-primary)]">
-                          {evaluation.dimensions.map((dim, di) => (
-                            <tr key={di} className="text-[10px]">
+                          {evaluation.dimensions.map((dimension, dimensionIndex) => (
+                            <tr key={dimensionIndex} className="text-[10px]">
                               <td className="px-3 py-2">
-                                <span className="font-bold text-[var(--text-primary)]">{dim.name}</span>
-                                {dim.reasoning && (
-                                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5 leading-relaxed">{dim.reasoning.substring(0, 120)}{dim.reasoning.length > 120 ? "..." : ""}</p>
+                                <span className="font-bold text-[var(--text-primary)]">{dimension.name}</span>
+                                {dimension.reasoning && (
+                                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5 leading-relaxed">{dimension.reasoning.substring(0, 120)}{dimension.reasoning.length > 120 ? "..." : ""}</p>
                                 )}
-                                {dim.confidence != null && (
-                                  <span className="text-[10px] font-medium text-[var(--text-secondary)] opacity-50">{t("platformMisc.runs.confidence", { percent: (dim.confidence * 100).toFixed(0) })}</span>
+                                {dimension.confidence != null && (
+                                  <span className="text-[10px] font-medium text-[var(--text-secondary)] opacity-50">{t("platformMisc.runs.confidence", { percent: (dimension.confidence * 100).toFixed(0) })}</span>
                                 )}
                               </td>
                               <td className="px-3 py-2 text-center">
-                                <span className="font-black text-purple-400">{dim.score}</span>
+                                <span className="font-black text-purple-400">{dimension.score}</span>
                               </td>
                               <td className="px-3 py-2 text-center">
                                 <input
                                   type="number" min={0} max={10} step={0.5}
-                                  value={dim.human_score ?? ""}
-                                  placeholder={String(dim.score)}
-                                  onChange={(e) => {
-                                    const val = e.target.value === "" ? null : parseFloat(e.target.value);
+                                  value={dimension.human_score ?? ""}
+                                  placeholder={String(dimension.score)}
+                                  onChange={(event) => {
+                                    const humanScore = event.target.value === "" ? null : parseFloat(event.target.value);
                                     const updated = { ...evaluation };
-                                    updated.dimensions[di].human_score = val;
-                                    updated.dimensions[di].final_score = val ?? dim.score;
+                                    updated.dimensions[dimensionIndex].human_score = humanScore;
+                                    updated.dimensions[dimensionIndex].final_score = humanScore ?? dimension.score;
                                     setEvaluation(updated);
                                   }}
                                   className="w-14 px-1 py-0.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none text-center"
                                 />
                               </td>
                               <td className="px-3 py-2 text-center">
-                                <span className={cn("font-black", (dim.final_score ?? dim.score) >= 7 ? "text-emerald-400" : (dim.final_score ?? dim.score) >= 5 ? "text-amber-400" : "text-rose-400")}>
-                                  {dim.final_score ?? dim.score}
+                                <span className={cn("font-black", (dimension.final_score ?? dimension.score) >= 7 ? "text-emerald-400" : (dimension.final_score ?? dimension.score) >= 5 ? "text-amber-400" : "text-rose-400")}>
+                                  {dimension.final_score ?? dimension.score}
                                 </span>
                               </td>
                             </tr>
@@ -4634,10 +4661,10 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                         {reviewing.data._scores.ranking && <span className="ml-2 text-[10px] font-bold text-[var(--text-secondary)]">({reviewing.data._scores.ranking})</span>}
                       </span>
                     </div>
-                    {reviewing.data._scores.sections && Object.entries(reviewing.data._scores.sections).map(([name, sec]) => (
+                    {reviewing.data._scores.sections && Object.entries(reviewing.data._scores.sections).map(([name, section]) => (
                       <div key={name} className="flex items-center justify-between text-[10px] py-1 border-t border-[var(--border-primary)]">
-                        <span className="text-[var(--text-secondary)]">{name} <span className="text-[10px] opacity-60">{t("platformMisc.runs.weight", { weight: sec.weight })}</span></span>
-                        <span className={cn("font-black", sec.score >= 80 ? "text-emerald-500" : sec.score >= 60 ? "text-amber-500" : "text-rose-500")}>{sec.score}%</span>
+                        <span className="text-[var(--text-secondary)]">{name} <span className="text-[10px] opacity-60">{t("platformMisc.runs.weight", { weight: section.weight })}</span></span>
+                        <span className={cn("font-black", section.score >= 80 ? "text-emerald-500" : section.score >= 60 ? "text-amber-500" : "text-rose-500")}>{section.score}%</span>
                       </div>
                     ))}
                   </div>
@@ -4648,8 +4675,8 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-3">{t("platformMisc.runs.activityTimeline")}</p>
                     <div className="space-y-2">
-                      {reviewTimeline.map((entry, idx) => (
-                        <div key={idx} className="flex items-start gap-3 text-[10px]">
+                      {reviewTimeline.map((entry, index) => (
+                        <div key={index} className="flex items-start gap-3 text-[10px]">
                           <div className={cn("w-2 h-2 mt-1 rounded-full shrink-0",
                             entry.action === "submitted" ? "bg-blue-500" :
                             entry.action === "approved" ? "bg-emerald-500" :
@@ -4673,7 +4700,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.yourDecision")}</p>
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5 block">{t("platformMisc.runs.decision")}</label>
-                    <select value={reviewData.decision} onChange={(e) => setReviewData({ ...reviewData, decision: e.target.value })} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+                    <select value={reviewData.decision} onChange={(event) => setReviewData({ ...reviewData, decision: event.target.value })} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
                       <option value="approved">{t("platformMisc.runs.decisionApprove")}</option>
                       <option value="rejected">{t("platformMisc.runs.decisionReject")}</option>
                       <option value="revision_requested">{t("platformMisc.runs.decisionRequestRevision")}</option>
@@ -4683,11 +4710,11 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   </div>
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5 block">{t("platformMisc.runs.publicComment")} <span className="normal-case font-bold opacity-60">{t("platformMisc.runs.visibleToSubmitter")}</span></label>
-                    <textarea value={reviewData.comment} onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.commentPlaceholder")} />
+                    <textarea value={reviewData.comment} onChange={(event) => setReviewData({ ...reviewData, comment: event.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.commentPlaceholder")} />
                   </div>
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5 block">{t("platformMisc.runs.internalNote")} <span className="text-amber-500 font-bold">{t("platformMisc.runs.privateNote")}</span></label>
-                    <textarea value={reviewData.internal_note} onChange={(e) => setReviewData({ ...reviewData, internal_note: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-amber-500/5 border border-amber-500/20 text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.internalNotePlaceholder")} />
+                    <textarea value={reviewData.internal_note} onChange={(event) => setReviewData({ ...reviewData, internal_note: event.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-amber-500/5 border border-amber-500/20 text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.internalNotePlaceholder")} />
                   </div>
                   {/* The server only honours the PDF on an approval — a rejection
                       ignores it, so the opt-in must not even appear there. */}
@@ -4698,7 +4725,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                           type="checkbox"
                           checked={reviewIncludeResultPdf}
                           disabled={!evaluation}
-                          onChange={(e) => setReviewIncludeResultPdf(e.target.checked)}
+                          onChange={(event) => setReviewIncludeResultPdf(event.target.checked)}
                           className="mt-0.5 w-3.5 h-3.5 accent-[var(--brand-orange)]"
                         />
                         <span>
@@ -4736,7 +4763,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
         {/* ─── MANUAL ADD RESPONDENT MODAL ─── */}
         {showManualAdd && (
           <div className="fixed inset-0 z-[500] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowManualAdd(false)}>
-            <div className="w-full max-w-sm rounded-2xl bg-secondary border border-[var(--border-primary)] p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full max-w-sm rounded-2xl bg-secondary border border-[var(--border-primary)] p-6 space-y-4" onClick={(event) => event.stopPropagation()}>
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.addRespondent")}</h3>
                 <button onClick={() => setShowManualAdd(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary text-[var(--text-secondary)]"><X className="w-4 h-4" /></button>
@@ -4744,11 +4771,11 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
               <p className="text-[10px] font-medium text-[var(--text-secondary)] leading-relaxed">{t("platformMisc.runs.addRespondentDesc")}</p>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.manualAddName")}</label>
-                <input value={manualAddName} onChange={(e) => setManualAddName(e.target.value)} placeholder={t("platformMisc.runs.manualAddNamePlaceholder")} className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
+                <input value={manualAddName} onChange={(event) => setManualAddName(event.target.value)} placeholder={t("platformMisc.runs.manualAddNamePlaceholder")} className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.manualAddEmail")}</label>
-                <input type="email" value={manualAddEmail} onChange={(e) => setManualAddEmail(e.target.value)} placeholder={t("platformMisc.runs.manualAddEmailPlaceholder")} className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
+                <input type="email" value={manualAddEmail} onChange={(event) => setManualAddEmail(event.target.value)} placeholder={t("platformMisc.runs.manualAddEmailPlaceholder")} className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
               </div>
               <div className="flex gap-3 pt-1">
                 <button onClick={() => setShowManualAdd(false)} disabled={manualAdding} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button>
@@ -4761,7 +4788,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
         {/* ─── MESSAGE COMPOSER MODAL ─── */}
         {showMessageComposer && (
           <div className="fixed inset-0 z-[500] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowMessageComposer(false)}>
-            <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl bg-secondary border border-[var(--border-primary)] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl bg-secondary border border-[var(--border-primary)] shadow-2xl overflow-hidden" onClick={(event) => event.stopPropagation()}>
               <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)] shrink-0">
                 <div>
                   <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.messageSend")}</h3>
@@ -4777,11 +4804,11 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   <>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.messageSubject")}</label>
-                      <input value={messageSubject} onChange={(e) => setMessageSubject(e.target.value)} placeholder="Enter subject..." className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
+                      <input value={messageSubject} onChange={(event) => setMessageSubject(event.target.value)} placeholder="Enter subject..." className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.messageBody")}</label>
-                      <textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} rows={6} placeholder="Enter message..." className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-y" />
+                      <textarea value={messageBody} onChange={(event) => setMessageBody(event.target.value)} rows={6} placeholder="Enter message..." className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-y" />
                     </div>
                     <button
                       onClick={personalizeMessage}
@@ -4807,7 +4834,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
         {/* ─── EXPORT OPTIONS MODAL ─── */}
         {showExportOptions && (
           <div className="fixed inset-0 z-[500] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowExportOptions(false)}>
-            <div className="w-full max-w-sm rounded-2xl bg-secondary border border-[var(--border-primary)] p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full max-w-sm rounded-2xl bg-secondary border border-[var(--border-primary)] p-6 space-y-4" onClick={(event) => event.stopPropagation()}>
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.exportTitle")}</h3>
                 <button onClick={() => setShowExportOptions(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary text-[var(--text-secondary)]"><X className="w-4 h-4" /></button>
@@ -4866,12 +4893,12 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
             { label: t("platformMisc.runs.pendingReview"), value: dashboardStats.pending_reviews ?? 0, icon: Eye, color: "text-amber-500" },
             { label: t("platformMisc.runs.approvalRate"), value: (dashboardStats.approval_rate != null ? Math.round(dashboardStats.approval_rate) + "%" : "—"), icon: CheckCircle2, color: dashboardStats.approval_rate > 50 ? "text-emerald-500" : "text-rose-500" },
             { label: t("platformMisc.runs.overdue"), value: dashboardStats.overdue ?? 0, icon: AlertTriangle, color: (dashboardStats.overdue ?? 0) > 0 ? "text-rose-500" : "text-slate-500" },
-          ].map((s) => (
-            <div key={s.label} className="p-3.5 rounded-2xl bg-secondary border border-[var(--border-primary)] text-center">
-              <p className={cn("text-xl font-black", s.color)}>{s.value}</p>
+          ].map((statCard) => (
+            <div key={statCard.label} className="p-3.5 rounded-2xl bg-secondary border border-[var(--border-primary)] text-center">
+              <p className={cn("text-xl font-black", statCard.color)}>{statCard.value}</p>
               <div className="flex items-center justify-center gap-1 mt-0.5">
-                <s.icon className={cn("w-2.5 h-2.5", s.color)} />
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{s.label}</p>
+                <statCard.icon className={cn("w-2.5 h-2.5", statCard.color)} />
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{statCard.label}</p>
               </div>
             </div>
           ))}
@@ -4886,30 +4913,30 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
         <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110"><Plus className="w-3.5 h-3.5" /> {t("platformMisc.runs.newRun")}</button>
       </div>
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-sm"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" /><input type="text" placeholder={t("platformMisc.runs.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" /></div>
+        <div className="relative flex-1 max-w-sm"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" /><input type="text" placeholder={t("platformMisc.runs.searchPlaceholder")} value={search} onChange={(event) => setSearch(event.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" /></div>
         {/* Changing the filter resets the page here, in the event that causes it:
             an effect would first fire the fetch with the new filter and the old
             page, then fire it again after the reset. */}
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]">
+        <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }} className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]">
           <option value="all">{t("platformMisc.runs.allStatus")}</option><option value="draft">{t("platformMisc.runs.statusDraft")}</option><option value="scheduled">{t("platformMisc.runs.statusScheduled")}</option><option value="active">{t("platformMisc.runs.statusActive")}</option><option value="closed">{t("platformMisc.runs.statusClosed")}</option><option value="cancelled">{t("platformMisc.runs.statusCancelled")}</option><option value="archived">{t("platformMisc.runs.statusArchived")}</option>
         </select>
       </div>
       {loading ? <div className="flex justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" /></div> : (
-        <RunsTable runs={runs} search={search} statusFilter={statusFilter} sortField={sortField} sortDir={sortDir} page={page} perPage={perPage} total={totalRuns} onSort={(f, d) => { setSortField(f); setSortDir(d); setPage(1); }} onPage={setPage} openRun={openRun} groups={groups} onArchive={handleArchiveRun} onRestore={handleRestoreRun} />
+        <RunsTable runs={runs} search={search} statusFilter={statusFilter} sortField={sortField} sortDir={sortDir} page={page} perPage={perPage} total={totalRuns} onSort={(field, direction) => { setSortField(field); setSortDir(direction); setPage(1); }} onPage={setPage} openRun={openRun} groups={groups} onArchive={handleArchiveRun} onRestore={handleRestoreRun} />
       )}
 
       {/* Create modal */}
       {/* ─── Date Picker Modal (completely outside create modal, no clipping) ─── */}
       {showDatePicker && (
         <div className="fixed inset-0 z-[600] bg-black/70 flex items-center justify-center p-6" onClick={() => setShowDatePicker(null)}>
-          <div onClick={(e) => e.stopPropagation()}>
+          <div onClick={(event) => event.stopPropagation()}>
             <div className="mb-3 flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">{t("platformMisc.runs.selecting")} {showDatePicker === 'opens' ? t("platformMisc.runs.opensDate") : t("platformMisc.runs.closesDate")}</span>
               <button onClick={() => setShowDatePicker(null)} className="text-white/60 hover:text-white"><X className="w-4 h-4" /></button>
             </div>
             <MiniCalendar
               value={showDatePicker === 'opens' ? createData.opens_at : createData.closes_at}
-              onChange={(d) => setCreateData({ ...createData, [showDatePicker === 'opens' ? 'opens_at' : 'closes_at']: d })}
+              onChange={(date) => setCreateData({ ...createData, [showDatePicker === 'opens' ? 'opens_at' : 'closes_at']: date })}
               onClose={() => setShowDatePicker(null)}
             />
           </div>
@@ -4918,17 +4945,17 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
 
       {showCreate && (
         <div className="fixed inset-0 z-[400] bg-black/60 flex items-center justify-center p-6" onClick={() => { setShowCreate(false); setShowDatePicker(null); }}>
-          <div className="card w-full max-w-md space-y-5" onClick={(e) => e.stopPropagation()}>
+          <div className="card w-full max-w-md space-y-5" onClick={(event) => event.stopPropagation()}>
             <div className="flex justify-between items-center"><h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.newFormRun")}</h3><button onClick={() => setShowCreate(false)}><X className="w-5 h-5" /></button></div>
             <div className="space-y-4">
               <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.form")}</label>
-                <select value={createData.form_id} onChange={(e) => setCreateData({ ...createData, form_id: e.target.value })} className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+                <select value={createData.form_id} onChange={(event) => setCreateData({ ...createData, form_id: event.target.value })} className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
                   <option value="">{t("platformMisc.runs.selectPublishedForm")}</option>
-                  {forms.map((f) => <option key={f.id} value={f.id}>{f.name} (v{f.version})</option>)}
+                  {forms.map((form) => <option key={form.id} value={form.id}>{form.name} (v{form.version})</option>)}
                 </select>
               </div>
-              <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.runName")}</label><input value={createData.name} onChange={(e) => setCreateData({ ...createData, name: e.target.value })} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder={t("platformMisc.runs.runNamePlaceholder")} /></div>
-              <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.description")}</label><textarea value={createData.description} onChange={(e) => setCreateData({ ...createData, description: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" /></div>
+              <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.runName")}</label><input value={createData.name} onChange={(event) => setCreateData({ ...createData, name: event.target.value })} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder={t("platformMisc.runs.runNamePlaceholder")} /></div>
+              <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.description")}</label><textarea value={createData.description} onChange={(event) => setCreateData({ ...createData, description: event.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.opens")}</label>
@@ -4949,13 +4976,13 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.assignToGroupOptional")}</label>
                 <select
                   value={createData.group_id}
-                  onChange={(e) => setCreateData({ ...createData, group_id: e.target.value })}
+                  onChange={(event) => setCreateData({ ...createData, group_id: event.target.value })}
                   className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
                 >
                   <option value="">{t("platformMisc.runs.noGroupAssignLater")}</option>
-                  {groups.map((g) => (
-                    <option key={g.registration_id || g.id} value={g.registration_id || g.id}>
-                      {g.name} {g.program_id ? t("platformMisc.runs.programLabel", { id: g.program_id }) : ""}
+                  {groups.map((group) => (
+                    <option key={group.registration_id || group.id} value={group.registration_id || group.id}>
+                      {group.name} {group.program_id ? t("platformMisc.runs.programLabel", { id: group.program_id }) : ""}
                     </option>
                   ))}
                 </select>
@@ -4972,14 +4999,14 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     <input
                       autoFocus
                       value={inlineGroupName}
-                      onChange={(e) => setInlineGroupName(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") handleCreateGroupInline((grp) => setCreateData({ ...createData, group_id: grp.registration_id || grp.id })); }}
+                      onChange={(event) => setInlineGroupName(event.target.value)}
+                      onKeyDown={(event) => { if (event.key === "Enter") handleCreateGroupInline((group) => setCreateData({ ...createData, group_id: group.registration_id || group.id })); }}
                       placeholder={t("platformMisc.runs.groupNamePlaceholder")}
                       className="flex-1 rounded-xl px-3 py-2 text-sm font-bold outline-none bg-primary border border-[var(--brand-orange)] text-[var(--text-primary)]"
                     />
                     <button
                       type="button"
-                      onClick={() => handleCreateGroupInline((grp) => setCreateData({ ...createData, group_id: grp.registration_id || grp.id }))}
+                      onClick={() => handleCreateGroupInline((group) => setCreateData({ ...createData, group_id: group.registration_id || group.id }))}
                       disabled={creatingGroup || !inlineGroupName.trim()}
                       className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide disabled:opacity-40"
                     >
@@ -5030,8 +5057,8 @@ function SubmissionTimeline({ submission, onClose }) {
   const [loading, setLoading] = useState(true);
   const [, setScoringData] = useState(null);
 
-  const subData = submission.data || {};
-  const scores = subData._scores;
+  const submissionData = submission.data || {};
+  const scores = submissionData._scores;
   // Narrowed to a primitive so the effect below depends on "has inline scores"
   // rather than on the (re-created) object itself.
   const hasScores = Boolean(scores);
@@ -5039,8 +5066,8 @@ function SubmissionTimeline({ submission, onClose }) {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`/api/platform/form-runs?timeline=${submission.id}`);
-        const data = await res.json();
+        const response = await fetch(`/api/platform/form-runs?timeline=${submission.id}`);
+        const data = await response.json();
         if (data.success) setTimeline(data.timeline || []);
       } catch (_) {}
 
@@ -5057,9 +5084,9 @@ function SubmissionTimeline({ submission, onClose }) {
     load();
   }, [submission.id, hasScores]);
 
-  const getScoreColor = (val) =>
-    val >= 80 ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/30" :
-    val >= 60 ? "text-amber-500 bg-amber-500/10 border-amber-500/30" :
+  const getScoreColor = (score) =>
+    score >= 80 ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/30" :
+    score >= 60 ? "text-amber-500 bg-amber-500/10 border-amber-500/30" :
     "text-rose-500 bg-rose-500/10 border-rose-500/30";
 
   return (
@@ -5085,18 +5112,18 @@ function SubmissionTimeline({ submission, onClose }) {
             {/* Section breakdown */}
             {scores.sections && Object.keys(scores.sections).length > 0 && (
               <div className="space-y-1.5">
-                {Object.entries(scores.sections).map(([name, sec]) => (
+                {Object.entries(scores.sections).map(([name, section]) => (
                   <div key={name} className="flex items-center justify-between text-[10px]">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="text-[var(--text-primary)] font-bold truncate">{name}</span>
-                      <span className="text-[var(--text-secondary)] text-[10px] font-medium">{t("platformMisc.runs.sectionRated", { count: sec.count, weight: sec.weight })}</span>
+                      <span className="text-[var(--text-secondary)] text-[10px] font-medium">{t("platformMisc.runs.sectionRated", { count: section.count, weight: section.weight })}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {/* Score bar */}
                       <div className="w-16 h-1.5 rounded-full bg-[var(--border-primary)] overflow-hidden">
-                        <div className={cn("h-full rounded-full transition-all", sec.score >= 80 ? "bg-emerald-500" : sec.score >= 60 ? "bg-amber-500" : "bg-rose-500")} style={{ width: `${Math.min(sec.score, 100)}%` }} />
+                        <div className={cn("h-full rounded-full transition-all", section.score >= 80 ? "bg-emerald-500" : section.score >= 60 ? "bg-amber-500" : "bg-rose-500")} style={{ width: `${Math.min(section.score, 100)}%` }} />
                       </div>
-                      <span className={cn("text-[10px] font-black w-10 text-right", sec.score >= 80 ? "text-emerald-500" : sec.score >= 60 ? "text-amber-500" : "text-rose-500")}>{sec.score}%</span>
+                      <span className={cn("text-[10px] font-black w-10 text-right", section.score >= 80 ? "text-emerald-500" : section.score >= 60 ? "text-amber-500" : "text-rose-500")}>{section.score}%</span>
                     </div>
                   </div>
                 ))}
@@ -5109,7 +5136,7 @@ function SubmissionTimeline({ submission, onClose }) {
           <p className="text-[10px] font-medium text-[var(--text-secondary)] text-center py-4">{t("platformMisc.runs.noTimelineEntries")}</p>
         ) : (
           <div className="space-y-2">
-            {timeline.map((entry, idx) => {
+            {timeline.map((entry, index) => {
               const dotColor =
                 entry.action === "submitted" ? "bg-blue-500" :
                 entry.action === "approved" ? "bg-emerald-500" :
@@ -5120,7 +5147,7 @@ function SubmissionTimeline({ submission, onClose }) {
                 entry.action === "draft_saved" || entry.action === "started" ? "bg-slate-500" :
                 "bg-[var(--brand-orange)]";
               return (
-                <div key={idx} className="flex items-start gap-2 text-[10px]">
+                <div key={index} className="flex items-start gap-2 text-[10px]">
                   <div className={cn("w-1.5 h-1.5 mt-1 rounded-full shrink-0", dotColor)} />
                   <div className="flex-1">
                     <span className="font-bold uppercase tracking-wide">{entry.action}</span>
@@ -5128,7 +5155,7 @@ function SubmissionTimeline({ submission, onClose }) {
                     <span className="text-[var(--text-secondary)] ml-1">{new Date(entry.created_at).toLocaleString()}</span>
                     {entry.metadata && Object.keys(entry.metadata).length > 0 && (
                       <div className="mt-0.5 text-[var(--text-secondary)]">
-                        {typeof entry.metadata === "string" ? entry.metadata : Object.entries(entry.metadata).filter(([,v]) => v).map(([k, v]) => <span key={k} className="mr-2">{k}: {String(v).substring(0, 50)}</span>)}
+                        {typeof entry.metadata === "string" ? entry.metadata : Object.entries(entry.metadata).filter(([,value]) => value).map(([key, value]) => <span key={key} className="mr-2">{key}: {String(value).substring(0, 50)}</span>)}
                       </div>
                     )}
                   </div>

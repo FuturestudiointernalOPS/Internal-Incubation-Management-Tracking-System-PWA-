@@ -195,7 +195,7 @@ function ToolbarButton({ icon: Icon, label, pressed, disabled, onClick }) {
       type="button"
       // Keep the caret in the editor: without this the click blurs it first and
       // some commands run against a lost selection.
-      onMouseDown={(e) => e.preventDefault()}
+      onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
       disabled={disabled}
       title={label}

@@ -20,14 +20,14 @@ export default function GlobalToast() {
   const nextId = useRef(0);
 
   useEffect(() => {
-    const handleNotify = (e) => {
-      const { type = "info", message, duration = 4000 } = e.detail;
+    const handleNotify = (event) => {
+      const { type = "info", message, duration = 4000 } = event.detail;
       const id = ++nextId.current;
 
       setNotifications((prev) => [...prev, { id, type, message }]);
 
       setTimeout(() => {
-        setNotifications((prev) => prev.filter((n) => n.id !== id));
+        setNotifications((prev) => prev.filter((notification) => notification.id !== id));
       }, duration);
     };
 
@@ -75,11 +75,11 @@ export default function GlobalToast() {
   return (
     <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[2000] flex flex-col gap-4 pointer-events-none w-full max-w-sm">
       <AnimatePresence>
-        {notifications.map((n) => {
-          const style = getTypeStyle(n.type);
+        {notifications.map((notification) => {
+          const style = getTypeStyle(notification.type);
           return (
             <motion.div
-              key={n.id}
+              key={notification.id}
               initial={{ opacity: 0, y: 50, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{
@@ -109,22 +109,22 @@ export default function GlobalToast() {
                   className="text-xs font-black tracking-tight leading-tight uppercase truncate"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  {t(n.message || "") || n.message}
+                  {t(notification.message || "") || notification.message}
                 </p>
               </div>
               <button
                 onClick={() =>
                   setNotifications((prev) =>
-                    prev.filter((nt) => nt.id !== n.id),
+                    prev.filter((otherNotification) => otherNotification.id !== notification.id),
                   )
                 }
                 className="transition-colors p-2"
                 style={{ color: "var(--text-tertiary)" }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.color = "var(--text-primary)")
+                onMouseEnter={(event) =>
+                  (event.currentTarget.style.color = "var(--text-primary)")
                 }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.color = "var(--text-tertiary)")
+                onMouseLeave={(event) =>
+                  (event.currentTarget.style.color = "var(--text-tertiary)")
                 }
               >
                 <X className="w-4 h-4" />

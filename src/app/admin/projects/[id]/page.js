@@ -60,26 +60,26 @@ const STATUS_BG = {
 // The project read keeps the server's refusal with it: the screen answers a
 // failed read with the server's own message, or the loader's own when the
 // payload carried none. The message is translated where it is shown.
-const pickProject = (d) =>
-  d?.success
-    ? { project: d.project, failure: null }
+const pickProject = (payload) =>
+  payload?.success
+    ? { project: payload.project, failure: null }
     : {
         project: null,
-        failure: d?.error || "adminMisc.projectDetail.loadProjectFailed",
+        failure: payload?.error || "adminMisc.projectDetail.loadProjectFailed",
       };
 
-const pickStaff = (d) =>
-  d?.success
-    ? (d.contacts || []).filter(
-        (c) => c.status === "active" && c.role !== "participant",
+const pickStaff = (payload) =>
+  payload?.success
+    ? (payload.contacts || []).filter(
+        (contact) => contact.status === "active" && contact.role !== "participant",
       )
     : [];
 
-const pickApprovals = (d) => (d?.success ? d.requests || [] : []);
+const pickApprovals = (payload) => (payload?.success ? payload.requests || [] : []);
 
-const pickUpdates = (d) => (d?.success ? d.updates || [] : []);
+const pickUpdates = (payload) => (payload?.success ? payload.updates || [] : []);
 
-const pickDiscussions = (d) => (d?.success ? d.messages || [] : []);
+const pickDiscussions = (payload) => (payload?.success ? payload.messages || [] : []);
 
 const EMPTY_PROJECT = { project: null, failure: null };
 const EMPTY_LIST = [];
@@ -158,7 +158,7 @@ export default function ProjectDetail() {
 
   const handleApprovalAction = async (requestId, action, rejectionReason) => {
     try {
-      const res = await fetch(`/api/admin/projects/${projectId}/approvals`, {
+      const response = await fetch(`/api/admin/projects/${projectId}/approvals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -169,10 +169,10 @@ export default function ProjectDetail() {
           rejection_reason: rejectionReason || null,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) refreshApprovals();
-    } catch (e) {
-      console.error("Approval action error:", e);
+    } catch (error) {
+      console.error("Approval action error:", error);
     }
   };
 
@@ -224,7 +224,7 @@ export default function ProjectDetail() {
     if (!newDiscussion.trim()) return;
     setPostingDiscussion(true);
     try {
-      const res = await fetch("/api/projects/discuss", {
+      const response = await fetch("/api/projects/discuss", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -234,7 +234,7 @@ export default function ProjectDetail() {
           body: newDiscussion.trim(),
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setNewDiscussion("");
         refreshDiscussions();
@@ -246,7 +246,7 @@ export default function ProjectDetail() {
   const handleSubmitUpdate = async () => {
     setSavingUpdate(true);
     try {
-      const res = await fetch(`/api/admin/projects/${projectId}/updates`, {
+      const response = await fetch(`/api/admin/projects/${projectId}/updates`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -256,7 +256,7 @@ export default function ProjectDetail() {
           status: "submitted",
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         refreshUpdates();
         setUpdateForm({
@@ -268,8 +268,8 @@ export default function ProjectDetail() {
           notes: "",
         });
       }
-    } catch (e) {
-      console.error("Failed to save update:", e);
+    } catch (error) {
+      console.error("Failed to save update:", error);
     } finally {
       setSavingUpdate(false);
     }
@@ -279,11 +279,11 @@ export default function ProjectDetail() {
   const filteredBlockers = React.useMemo(() => {
     if (!projectBlockers) return [];
     if (blockerFilter === "all") return projectBlockers;
-    return projectBlockers.filter((b) => b.status === blockerFilter);
+    return projectBlockers.filter((blocker) => blocker.status === blockerFilter);
   }, [projectBlockers, blockerFilter]);
 
   const activeBlockersCount = React.useMemo(() => {
-    return (project?.blockers || []).filter((b) => b.status === "active")
+    return (project?.blockers || []).filter((blocker) => blocker.status === "active")
       .length;
   }, [project?.blockers]);
 
@@ -297,9 +297,9 @@ export default function ProjectDetail() {
             <div className="h-4 w-24 bg-[var(--bg-tertiary)] rounded" />
             <div className="h-10 w-64 bg-[var(--bg-tertiary)] rounded" />
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
-              {[1, 2, 3, 4].map((i) => (
+              {[1, 2, 3, 4].map((skeletonIndex) => (
                 <div
-                  key={i}
+                  key={skeletonIndex}
                   className="h-20 bg-[var(--bg-tertiary)] rounded-xl"
                 />
               ))}
@@ -550,9 +550,9 @@ export default function ProjectDetail() {
                   id: "approvals",
                   label:
                     t("adminMisc.projectDetail.tabApprovals") +
-                    (approvalRequests.filter((r) => r.status === "pending")
+                    (approvalRequests.filter((request) => request.status === "pending")
                       .length > 0
-                      ? ` (${approvalRequests.filter((r) => r.status === "pending").length})`
+                      ? ` (${approvalRequests.filter((request) => request.status === "pending").length})`
                       : ""),
                   icon: UserPlus,
                 },
@@ -637,18 +637,18 @@ export default function ProjectDetail() {
                   color: "text-slate-500",
                   bg: "bg-slate-500/10",
                 },
-              ].map((item) => (
+              ].map((breakdownItem) => (
                 <div
-                  key={item.label}
-                  className={`card p-3 text-center ${item.bg}`}
+                  key={breakdownItem.label}
+                  className={`card p-3 text-center ${breakdownItem.bg}`}
                 >
-                  <p className={`text-lg font-black ${item.color}`}>
-                    {item.count}
+                  <p className={`text-lg font-black ${breakdownItem.color}`}>
+                    {breakdownItem.count}
                   </p>
                   <p
-                    className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${item.color}`}
+                    className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${breakdownItem.color}`}
                   >
-                    {item.label}
+                    {breakdownItem.label}
                   </p>
                 </div>
               ))}
@@ -710,28 +710,28 @@ export default function ProjectDetail() {
                 {
                   id: "active",
                   label: t("adminMisc.projectDetail.blockerFilterActive", {
-                    count: blockers.filter((b) => b.status === "active")
+                    count: blockers.filter((blocker) => blocker.status === "active")
                       .length,
                   }),
                 },
                 {
                   id: "resolved",
                   label: t("adminMisc.projectDetail.blockerFilterResolved", {
-                    count: blockers.filter((b) => b.status === "resolved")
+                    count: blockers.filter((blocker) => blocker.status === "resolved")
                       .length,
                   }),
                 },
-              ].map((f) => (
+              ].map((filterOption) => (
                 <button
-                  key={f.id}
-                  onClick={() => setBlockerFilter(f.id)}
+                  key={filterOption.id}
+                  onClick={() => setBlockerFilter(filterOption.id)}
                   className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
-                    blockerFilter === f.id
+                    blockerFilter === filterOption.id
                       ? "bg-[var(--brand-orange)] text-black"
                       : "bg-tertiary text-slate-500 hover:text-[var(--text-primary)]"
                   }`}
                 >
-                  {f.label}
+                  {filterOption.label}
                 </button>
               ))}
             </div>
@@ -921,8 +921,8 @@ export default function ProjectDetail() {
                               { method: "DELETE" },
                             );
                             refreshProject();
-                          } catch (e) {
-                            console.error(e);
+                          } catch (error) {
+                            console.error(error);
                           }
                         }}
                         className="text-[10px] font-bold uppercase text-rose-400 hover:text-rose-300 px-2 py-1 rounded-lg hover:bg-rose-500/10 transition-all"
@@ -947,23 +947,23 @@ export default function ProjectDetail() {
                     <option value="">{t("adminMisc.projectDetail.selectStaff")}</option>
                     {allStaff
                       .filter(
-                        (s) =>
-                          s.cid !== (project.owner_id || "") &&
+                        (staffMember) =>
+                          staffMember.cid !== (project.owner_id || "") &&
                           !members.find(
-                            (m) =>
-                              String(m.member_id) === String(s.cid || s.id),
+                            (member) =>
+                              String(member.member_id) === String(staffMember.cid || staffMember.id),
                           ),
                       )
-                      .map((s) => (
-                        <option key={s.cid || s.id} value={s.cid || s.id}>
-                          {s.name} ({s.role})
+                      .map((staffMember) => (
+                        <option key={staffMember.cid || staffMember.id} value={staffMember.cid || staffMember.id}>
+                          {staffMember.name} ({staffMember.role})
                         </option>
                       ))}
                   </select>
                   <button
                     onClick={async () => {
-                      const sel = document.getElementById("add-collab-team");
-                      if (sel?.value) {
+                      const selectElement = document.getElementById("add-collab-team");
+                      if (selectElement?.value) {
                         try {
                           await fetch("/api/projects/members", {
                             method: "POST",
@@ -972,14 +972,14 @@ export default function ProjectDetail() {
                             },
                             body: JSON.stringify({
                               project_id: project.id,
-                              user_cid: sel.value,
+                              user_cid: selectElement.value,
                               role: "member",
                             }),
                           });
-                          sel.value = "";
+                          selectElement.value = "";
                           refreshProject();
-                        } catch (e) {
-                          console.error(e);
+                        } catch (error) {
+                          console.error(error);
                         }
                       }
                     }}
@@ -1006,11 +1006,11 @@ export default function ProjectDetail() {
                 <button
                   onClick={async () => {
                     try {
-                      const res = await fetch(
+                      const response = await fetch(
                         `/api/admin/projects/${projectId}/reports/generate`,
                         { method: "POST" },
                       );
-                      const data = await res.json();
+                      const data = await response.json();
                       if (data.success) {
                         refreshUpdates();
                         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: t("adminMisc.projectDetail.reportGenerated", { week: data.week }) } }));
@@ -1029,10 +1029,10 @@ export default function ProjectDetail() {
                   </label>
                   <select
                     value={updateForm.overall_status}
-                    onChange={(e) =>
-                      setUpdateForm((f) => ({
-                        ...f,
-                        overall_status: e.target.value,
+                    onChange={(event) =>
+                      setUpdateForm((previous) => ({
+                        ...previous,
+                        overall_status: event.target.value,
                       }))
                     }
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
@@ -1057,10 +1057,10 @@ export default function ProjectDetail() {
                   </label>
                   <textarea
                     value={updateForm.accomplishments}
-                    onChange={(e) =>
-                      setUpdateForm((f) => ({
-                        ...f,
-                        accomplishments: e.target.value,
+                    onChange={(event) =>
+                      setUpdateForm((previous) => ({
+                        ...previous,
+                        accomplishments: event.target.value,
                       }))
                     }
                     placeholder={t("adminMisc.projectDetail.accomplishmentsPlaceholder")}
@@ -1074,10 +1074,10 @@ export default function ProjectDetail() {
                   </label>
                   <textarea
                     value={updateForm.current_focus}
-                    onChange={(e) =>
-                      setUpdateForm((f) => ({
-                        ...f,
-                        current_focus: e.target.value,
+                    onChange={(event) =>
+                      setUpdateForm((previous) => ({
+                        ...previous,
+                        current_focus: event.target.value,
                       }))
                     }
                     placeholder={t("adminMisc.projectDetail.currentFocusPlaceholder")}
@@ -1091,10 +1091,10 @@ export default function ProjectDetail() {
                   </label>
                   <textarea
                     value={updateForm.blockers}
-                    onChange={(e) =>
-                      setUpdateForm((f) => ({
-                        ...f,
-                        blockers: e.target.value,
+                    onChange={(event) =>
+                      setUpdateForm((previous) => ({
+                        ...previous,
+                        blockers: event.target.value,
                       }))
                     }
                     placeholder={t("adminMisc.projectDetail.blockersPlaceholder")}
@@ -1108,10 +1108,10 @@ export default function ProjectDetail() {
                   </label>
                   <textarea
                     value={updateForm.next_steps}
-                    onChange={(e) =>
-                      setUpdateForm((f) => ({
-                        ...f,
-                        next_steps: e.target.value,
+                    onChange={(event) =>
+                      setUpdateForm((previous) => ({
+                        ...previous,
+                        next_steps: event.target.value,
                       }))
                     }
                     placeholder={t("adminMisc.projectDetail.nextStepsPlaceholder")}
@@ -1261,10 +1261,10 @@ export default function ProjectDetail() {
               <div className="text-center py-8 text-[10px] font-medium text-[var(--text-secondary)]">
                 {t("adminMisc.projectDetail.loadingRequests")}
               </div>
-            ) : approvalRequests.filter((r) => r.status === "pending")
+            ) : approvalRequests.filter((request) => request.status === "pending")
                 .length === 0 &&
-              approvalRequests.filter((r) => r.status !== "pending").length ===
-                0 ? (
+              approvalRequests.filter((request) => request.status !== "pending")
+                .length === 0 ? (
               <div className="card py-16 flex flex-col items-center justify-center text-center opacity-50 border-dashed">
                 <UserPlus className="w-12 h-12 mb-3" />
                 <p className="text-sm text-[var(--text-secondary)]">
@@ -1277,46 +1277,46 @@ export default function ProjectDetail() {
             ) : (
               <>
                 {/* Pending Requests */}
-                {approvalRequests.filter((r) => r.status === "pending").length >
-                  0 && (
+                {approvalRequests.filter((request) => request.status === "pending")
+                  .length > 0 && (
                   <div className="space-y-2">
                     <h3 className="text-[10px] font-bold text-amber-500 uppercase tracking-widest flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5" />
                       {t("adminMisc.projectDetail.pendingReview", {
                         count: approvalRequests.filter(
-                          (r) => r.status === "pending",
+                          (request) => request.status === "pending",
                         ).length,
                       })}
                     </h3>
                     {approvalRequests
-                      .filter((r) => r.status === "pending")
-                      .map((req) => (
+                      .filter((request) => request.status === "pending")
+                      .map((pendingRequest) => (
                         <div
-                          key={req.id}
+                          key={pendingRequest.id}
                           className="card border-l-4 border-l-amber-500 p-4 space-y-3"
                         >
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-xs font-bold text-[var(--text-primary)]">
-                                {req.task_title ||
+                                {pendingRequest.task_title ||
                                   t("adminMisc.projectDetail.taskFallback", {
-                                    id: req.task_id,
+                                    id: pendingRequest.task_id,
                                   })}
                               </p>
                               <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                                 {t("adminMisc.projectDetail.by")}{" "}
-                                {req.requester_name ||
-                                  req.requester_name_lookup ||
-                                  req.requester_id}{" "}
+                                {pendingRequest.requester_name ||
+                                  pendingRequest.requester_name_lookup ||
+                                  pendingRequest.requester_id}{" "}
                                 ·{" "}
-                                {new Date(req.created_at).toLocaleDateString()}
+                                {new Date(pendingRequest.created_at).toLocaleDateString()}
                               </p>
                             </div>
                           </div>
                           <div className="flex gap-2">
                             <button
                               onClick={() =>
-                                handleApprovalAction(req.id, "approved")
+                                handleApprovalAction(pendingRequest.id, "approved")
                               }
                               className="px-4 py-2 bg-emerald-500 text-black rounded-lg text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                             >
@@ -1329,7 +1329,7 @@ export default function ProjectDetail() {
                                 });
                                 if (reason)
                                   handleApprovalAction(
-                                    req.id,
+                                    pendingRequest.id,
                                     "rejected",
                                     reason,
                                   );
@@ -1345,19 +1345,19 @@ export default function ProjectDetail() {
                 )}
 
                 {/* History */}
-                {approvalRequests.filter((r) => r.status !== "pending").length >
-                  0 && (
+                {approvalRequests.filter((request) => request.status !== "pending")
+                  .length > 0 && (
                   <div className="space-y-2">
                     <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.projectDetail.history")}
                     </h3>
                     {approvalRequests
-                      .filter((r) => r.status !== "pending")
-                      .map((req) => (
+                      .filter((request) => request.status !== "pending")
+                      .map((decidedRequest) => (
                         <div
-                          key={req.id}
+                          key={decidedRequest.id}
                           className={`card p-3 border-l-4 ${
-                            req.status === "approved"
+                            decidedRequest.status === "approved"
                               ? "border-l-emerald-500"
                               : "border-l-rose-500"
                           }`}
@@ -1365,29 +1365,29 @@ export default function ProjectDetail() {
                           <div className="flex items-center gap-2">
                             <span
                               className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${
-                                req.status === "approved"
+                                decidedRequest.status === "approved"
                                   ? "bg-emerald-500/10 text-emerald-500"
                                   : "bg-rose-500/10 text-rose-500"
                               }`}
                             >
-                              {approvalStatusLabels[req.status] || req.status}
+                              {approvalStatusLabels[decidedRequest.status] || decidedRequest.status}
                             </span>
                             <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                              {req.task_title ||
+                              {decidedRequest.task_title ||
                                 t("adminMisc.projectDetail.taskFallback", {
-                                  id: req.task_id,
+                                  id: decidedRequest.task_id,
                                 })}
                             </span>
                           </div>
                           <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
-                            {req.requester_name || req.requester_id} ·{" "}
-                            {new Date(req.created_at).toLocaleDateString()}
-                            {req.rejection_reason && (
+                            {decidedRequest.requester_name || decidedRequest.requester_id} ·{" "}
+                            {new Date(decidedRequest.created_at).toLocaleDateString()}
+                            {decidedRequest.rejection_reason && (
                               <>
                                 {" "}
                                 · {t("adminMisc.projectDetail.reasonLabel")}{" "}
                                 <span className="text-rose-400">
-                                  {req.rejection_reason}
+                                  {decidedRequest.rejection_reason}
                                 </span>
                               </>
                             )}
@@ -1412,13 +1412,13 @@ export default function ProjectDetail() {
               <div className="flex gap-2">
                 <textarea
                   value={newDiscussion}
-                  onChange={(e) => setNewDiscussion(e.target.value)}
+                  onChange={(event) => setNewDiscussion(event.target.value)}
                   placeholder={t("messaging.typeDiscussion")}
                   rows={2}
                   className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none resize-none"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
                       handlePostDiscussion();
                     }
                   }}
@@ -1451,17 +1451,17 @@ export default function ProjectDetail() {
               </div>
             ) : (
               <div className="space-y-2">
-                {discussions.map((msg) => (
-                  <div key={msg.id} className="card p-4 space-y-1.5">
+                {discussions.map((message) => (
+                  <div key={message.id} className="card p-4 space-y-1.5">
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold text-[var(--text-primary)]">
-                        {(msg.sender_name || "?").charAt(0).toUpperCase()}
+                        {(message.sender_name || "?").charAt(0).toUpperCase()}
                       </div>
                       <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                        {msg.sender_name || t("adminMisc.projectDetail.unknown")}
+                        {message.sender_name || t("adminMisc.projectDetail.unknown")}
                       </span>
                       <span className="text-[10px] font-medium text-[var(--text-secondary)] ml-auto">
-                        {new Date(msg.created_at).toLocaleDateString(
+                        {new Date(message.created_at).toLocaleDateString(
                           undefined,
                           {
                             month: "short",
@@ -1473,7 +1473,7 @@ export default function ProjectDetail() {
                       </span>
                     </div>
                     <p className="text-[11px] text-[var(--text-secondary)] whitespace-pre-wrap">
-                      {msg.body}
+                      {message.body}
                     </p>
                   </div>
                 ))}
@@ -1497,8 +1497,8 @@ export default function ProjectDetail() {
               </div>
             ) : (
               <div className="space-y-1">
-                {timeline.map((entry, idx) => (
-                  <div key={entry.id || idx} className="flex items-start gap-3">
+                {timeline.map((entry, index) => (
+                  <div key={entry.id || index} className="flex items-start gap-3">
                     {/* Timeline dot + line */}
                     <div className="flex flex-col items-center">
                       <div
@@ -1514,7 +1514,7 @@ export default function ProjectDetail() {
                                   : "border-slate-500 bg-slate-500/20"
                         }`}
                       />
-                      {idx < timeline.length - 1 && (
+                      {index < timeline.length - 1 && (
                         <div className="w-px flex-1 bg-[var(--border-primary)] min-h-[24px]" />
                       )}
                     </div>

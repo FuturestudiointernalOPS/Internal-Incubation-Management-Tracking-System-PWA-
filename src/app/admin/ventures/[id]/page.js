@@ -42,7 +42,7 @@ import VentureDashboard from "@/components/ventures/VentureDashboard";
 // The reading hook keys its internal work on these, so they are made once here
 // rather than rebuilt on every render.
 
-const pickVenture = (d) => (d?.success ? d.venture || null : null);
+const pickVenture = (payload) => (payload?.success ? payload.venture || null : null);
 
 /**
  * Who the Venture is made of — counted from the MEMBERSHIP list ONLY.
@@ -55,13 +55,13 @@ const pickVenture = (d) => (d?.success ? d.venture || null : null);
 const summarizeMembers = (venture) => {
   if (venture?.member_summary) return venture.member_summary;
   const members = venture?.members || [];
-  const isFounder = (m) => Boolean(m.is_founder) || m.member_type === "founder";
+  const isFounder = (member) => Boolean(member.is_founder) || member.member_type === "founder";
   return {
     total: members.length,
     founders: members.filter(isFounder).length,
-    team: members.filter((m) => !isFounder(m)).length,
-    suspended: members.filter((m) => m.status === "suspended").length,
-    owner: members.find((m) => m.is_owner) || null,
+    team: members.filter((member) => !isFounder(member)).length,
+    suspended: members.filter((member) => member.status === "suspended").length,
+    owner: members.find((member) => member.is_owner) || null,
     members,
   };
 };
@@ -423,7 +423,7 @@ export default function VentureDetailPage({ params }) {
                 <div className="space-y-3">
                   {WIZARD_STEPS.map((ws) => {
                     const completed = (venture.history || []).some(
-                      (h) => h.event_type === "PROFILE_WIZARD_INIT" && h.metadata?.step === ws.step && h.metadata?.completed
+                      (historyEntry) => historyEntry.event_type === "PROFILE_WIZARD_INIT" && historyEntry.metadata?.step === ws.step && historyEntry.metadata?.completed
                     );
                     const Icon = ws.icon;
                     return (
@@ -492,7 +492,7 @@ export default function VentureDetailPage({ params }) {
                       <span className="text-[10px] font-bold text-slate-500">{t("vadmin.detail.wizardProgress")}</span>
                     </div>
                     <span className="text-sm font-black">
-                      {(venture.history || []).filter(h => h.event_type === "PROFILE_WIZARD_INIT" && h.metadata?.completed).length}/{WIZARD_STEPS.length}
+                      {(venture.history || []).filter((historyEntry) => historyEntry.event_type === "PROFILE_WIZARD_INIT" && historyEntry.metadata?.completed).length}/{WIZARD_STEPS.length}
                     </span>
                   </div>
                 </div>
@@ -502,19 +502,19 @@ export default function VentureDetailPage({ params }) {
               <div className="card">
                 <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">{t("vadmin.detail.recentActivity")}</h3>
                 <div className="space-y-2">
-                  {(venture.activity || []).slice(0, 5).map((act, i) => {
-                    const Icon = getActivityIcon(act.action);
-                    const color = getActivityColor(act.action);
-                    const details = activityDetails(act.details, t);
+                  {(venture.activity || []).slice(0, 5).map((activityEntry, index) => {
+                    const Icon = getActivityIcon(activityEntry.action);
+                    const color = getActivityColor(activityEntry.action);
+                    const details = activityDetails(activityEntry.details, t);
                     return (
-                      <div key={act.id || i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-tertiary transition-all">
+                      <div key={activityEntry.id || index} className="flex items-start gap-3 p-2 rounded-lg hover:bg-tertiary transition-all">
                         <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
                           <Icon className="w-3.5 h-3.5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[9px] font-bold text-[var(--text-primary)]">{activityLabel(act.action, t)}</p>
+                          <p className="text-[9px] font-bold text-[var(--text-primary)]">{activityLabel(activityEntry.action, t)}</p>
                           <p className="text-[8px] text-slate-500">
-                            {actorText(act.actor_name)} · {new Date(act.created_at).toLocaleDateString(lang)}
+                            {actorText(activityEntry.actor_name)} · {new Date(activityEntry.created_at).toLocaleDateString(lang)}
                           </p>
                           {details.length > 0 && (
                             <p className="text-[8px] text-[var(--text-secondary)] mt-0.5">{details[0]}</p>
@@ -589,9 +589,9 @@ export default function VentureDetailPage({ params }) {
                 <p className="text-sm text-[var(--text-secondary)] py-6 text-center">{t("vadmin.detail.noMembers")}</p>
               ) : (
                 <div className="space-y-3">
-                  {members.map((member, i) => (
+                  {members.map((member, index) => (
                     <div
-                      key={member.id || i}
+                      key={member.id || index}
                       className="flex flex-wrap items-center justify-between gap-3 p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]"
                     >
                       <div className="flex items-center gap-4 min-w-0">
@@ -659,28 +659,28 @@ export default function VentureDetailPage({ params }) {
               <p className="text-sm text-[var(--text-secondary)] py-6 text-center">{t("vadmin.detail.noActivityRecorded")}</p>
             ) : (
               <div className="space-y-1">
-                {(venture.activity || []).map((act, i) => {
-                  const Icon = getActivityIcon(act.action);
-                  const color = getActivityColor(act.action);
-                  const details = activityDetails(act.details, t);
+                {(venture.activity || []).map((activityEntry, index) => {
+                  const Icon = getActivityIcon(activityEntry.action);
+                  const color = getActivityColor(activityEntry.action);
+                  const details = activityDetails(activityEntry.details, t);
                   return (
-                    <div key={act.id || i} className="flex items-start gap-4 p-3 rounded-lg hover:bg-tertiary transition-all">
+                    <div key={activityEntry.id || index} className="flex items-start gap-4 p-3 rounded-lg hover:bg-tertiary transition-all">
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
                         <Icon className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-[11px] font-bold text-[var(--text-primary)]">{activityLabel(act.action, t)}</p>
-                          <span className="text-[8px] text-slate-500">{actorText(act.actor_name)}</span>
+                          <p className="text-[11px] font-bold text-[var(--text-primary)]">{activityLabel(activityEntry.action, t)}</p>
+                          <span className="text-[8px] text-slate-500">{actorText(activityEntry.actor_name)}</span>
                         </div>
                         <p className="text-[9px] text-slate-500 mt-0.5">
-                          {new Date(act.created_at).toLocaleString(lang)}
+                          {new Date(activityEntry.created_at).toLocaleString(lang)}
                         </p>
                         {/* What actually changed — in words, never a raw payload. */}
                         {details.length > 0 && (
                           <ul className="mt-1 space-y-0.5">
-                            {details.map((line, li) => (
-                              <li key={li} className="text-[10px] text-[var(--text-secondary)]">
+                            {details.map((line, detailIndex) => (
+                              <li key={detailIndex} className="text-[10px] text-[var(--text-secondary)]">
                                 {line}
                               </li>
                             ))}
@@ -729,7 +729,7 @@ export default function VentureDetailPage({ params }) {
               <div className="space-y-3">
                 {WIZARD_STEPS.map((ws) => {
                   const completed = (venture.history || []).some(
-                    (h) => h.event_type === "PROFILE_WIZARD_INIT" && h.metadata?.step === ws.step && h.metadata?.completed
+                    (historyEntry) => historyEntry.event_type === "PROFILE_WIZARD_INIT" && historyEntry.metadata?.step === ws.step && historyEntry.metadata?.completed
                   );
                   const Icon = ws.icon;
                   return (
@@ -774,8 +774,8 @@ export default function VentureDetailPage({ params }) {
                 <p className="text-sm text-[var(--text-secondary)] py-6 text-center">{t("vadmin.detail.noWizardHistory")}</p>
               ) : (
                 <div className="space-y-2">
-                  {(venture.history || []).map((entry, i) => (
-                    <div key={entry.id || i} className="flex items-start gap-4 p-3 rounded-lg bg-tertiary border border-[var(--border-primary)]">
+                  {(venture.history || []).map((entry, index) => (
+                    <div key={entry.id || index} className="flex items-start gap-4 p-3 rounded-lg bg-tertiary border border-[var(--border-primary)]">
                       <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0">
                         <FileText className="w-4 h-4 text-purple-500" />
                       </div>

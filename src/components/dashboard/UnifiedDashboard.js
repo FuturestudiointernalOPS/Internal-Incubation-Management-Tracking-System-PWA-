@@ -79,16 +79,16 @@ const PRIORITY_COLORS = {
   low: "bg-secondary text-[var(--text-secondary)]",
 };
 
-const getEventStyle = (ev) => {
+const getEventStyle = (event) => {
   // Completed tasks: muted green
-  if (ev.status === "completed")
+  if (event.status === "completed")
     return "bg-emerald-500/10 text-emerald-400/70 line-through";
-  if (ev.status === "blocked") return "bg-rose-500/15 text-rose-400";
+  if (event.status === "blocked") return "bg-rose-500/15 text-rose-400";
   // Tasks: color by priority
-  if (ev.source === "task" && ev.priority && ev.priority !== "medium") {
-    return PRIORITY_COLORS[ev.priority] || EVENT_BASE.task;
+  if (event.source === "task" && event.priority && event.priority !== "medium") {
+    return PRIORITY_COLORS[event.priority] || EVENT_BASE.task;
   }
-  return EVENT_BASE[ev.source] || "bg-secondary text-[var(--text-secondary)]";
+  return EVENT_BASE[event.source] || "bg-secondary text-[var(--text-secondary)]";
 };
 
 const EVENT_DOTS = {
@@ -135,17 +135,17 @@ function getCalendarDays(year, month) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const days = [];
-  for (let i = 0; i < firstDay.getDay(); i++) days.push(null);
-  for (let d = 1; d <= lastDay.getDate(); d++) days.push(d);
+  for (let index = 0; index < firstDay.getDay(); index++) days.push(null);
+  for (let day = 1; day <= lastDay.getDate(); day++) days.push(day);
   return days;
 }
 
-function isToday(d) {
+function isToday(date) {
   const today = new Date();
   return (
-    d.getDate() === today.getDate() &&
-    d.getMonth() === today.getMonth() &&
-    d.getFullYear() === today.getFullYear()
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
   );
 }
 
@@ -171,7 +171,7 @@ function hasMinRole(userRole, minRole) {
 // rather than on every render.
 
 /** The dashboard payload, or nothing when the server refused the read. */
-const pickDashboard = (d) => (d?.success ? d : null);
+const pickDashboard = (payload) => (payload?.success ? payload : null);
 
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 
@@ -253,17 +253,17 @@ export default function UnifiedDashboard({ role: propRole }) {
     if (!user?.cid) return;
     let active = true;
     const url = "/api/pm/programs?my_facilitator=1";
-    const apply = (d) => {
-      if (active && d.success) setFacilitatorPrograms(d.programs || []);
+    const apply = (payload) => {
+      if (active && payload.success) setFacilitatorPrograms(payload.programs || []);
     };
     const cached = cacheGet(url);
     if (cached !== null && cached.success) apply(cached);
     fetch(url)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.success) {
-          cacheSet(url, d);
-          apply(d);
+      .then((response) => response.json())
+      .then((payload) => {
+        if (payload.success) {
+          cacheSet(url, payload);
+          apply(payload);
         }
       })
       .catch(() => {});
@@ -275,12 +275,12 @@ export default function UnifiedDashboard({ role: propRole }) {
   // Program completion index by id, taken from the programs endpoint already
   // fetched above. Used as the progress fallback for a program that has no KPI.
   const completionIndexById = useMemo(() => {
-    const map = new Map();
-    (facilitatorPrograms || []).forEach((p) => {
-      if (p?.id === undefined || p?.id === null) return;
-      map.set(String(p.id), Number(p.completion_index) || 0);
+    const completionByProgramId = new Map();
+    (facilitatorPrograms || []).forEach((program) => {
+      if (program?.id === undefined || program?.id === null) return;
+      completionByProgramId.set(String(program.id), Number(program.completion_index) || 0);
     });
-    return map;
+    return completionByProgramId;
   }, [facilitatorPrograms]);
 
   // Determine effective role
@@ -404,8 +404,8 @@ export default function UnifiedDashboard({ role: propRole }) {
         }),
       });
       refreshDashboard();
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setActionLoading(null);
     }
@@ -425,8 +425,8 @@ export default function UnifiedDashboard({ role: propRole }) {
         }),
       });
       refreshDashboard();
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     } finally {
       setResolvingBlocker(null);
     }
@@ -518,18 +518,18 @@ export default function UnifiedDashboard({ role: propRole }) {
             <div className="flex items-center gap-2">
               {/* View toggles */}
               <div className="flex gap-0.5 mr-2 border-r border-[var(--border-primary)] pr-2">
-                {["month", "week", "day"].map((v) => (
+                {["month", "week", "day"].map((viewOption) => (
                   <button
-                    key={v}
-                    onClick={() => setCalView(v)}
+                    key={viewOption}
+                    onClick={() => setCalView(viewOption)}
                     className={cn(
                       "text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded transition-all",
-                      calView === v
+                      calView === viewOption
                         ? "bg-[var(--brand-orange)] text-black"
                         : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
                     )}
                   >
-                    {t("time.calendar." + v)}
+                    {t("time.calendar." + viewOption)}
                   </button>
                 ))}
               </div>
@@ -557,23 +557,23 @@ export default function UnifiedDashboard({ role: propRole }) {
           {/* Month View */}
           {calView === "month" && (
             <div className="grid grid-cols-7 gap-px bg-[var(--border-primary)] rounded-lg overflow-hidden">
-              {DAY_KEYS.map((k) => (
-                <div key={k} className="bg-primary p-1 text-center">
+              {DAY_KEYS.map((dayKey) => (
+                <div key={dayKey} className="bg-primary p-1 text-center">
                   <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                    {t("time.days." + k)}
+                    {t("time.days." + dayKey)}
                   </span>
                 </div>
               ))}
-              {calendarDays.map((day, idx) => {
+              {calendarDays.map((day, index) => {
                 if (day === null)
                   return (
                     <div
-                      key={`empty-${idx}`}
+                      key={`empty-${index}`}
                       className="bg-primary p-1 min-h-[55px]"
                     />
                   );
                 const dateStr = formatDate(calYear, calMonth, day);
-                const dayEvents = events.filter((e) => e.date === dateStr);
+                const dayEvents = events.filter((event) => event.date === dateStr);
                 const current = isToday(new Date(calYear, calMonth, day));
                 const past =
                   new Date(calYear, calMonth, day) <
@@ -605,30 +605,30 @@ export default function UnifiedDashboard({ role: propRole }) {
                       )}
                     </div>
                     <div className="space-y-0.5 mt-0.5 max-h-[90px] overflow-y-auto custom-scrollbar">
-                      {dayEvents.map((ev) => (
+                      {dayEvents.map((event) => (
                         <button
-                          key={ev.id}
+                          key={event.id}
                           onClick={() => {
-                            if (ev.source === "task" && ev.id) {
-                              const taskId = String(ev.id).startsWith("task-")
-                                ? String(ev.id).split("-")[1]
-                                : ev.id;
+                            if (event.source === "task" && event.id) {
+                              const taskId = String(event.id).startsWith("task-")
+                                ? String(event.id).split("-")[1]
+                                : event.id;
                               fetch(`/api/tasks?id=${taskId}`)
-                                .then((r) => r.json())
-                                .then((d) => {
-                                  if (d.success && d.tasks?.[0])
-                                    setSelectedTask(d.tasks[0]);
+                                .then((response) => response.json())
+                                .then((payload) => {
+                                  if (payload.success && payload.tasks?.[0])
+                                    setSelectedTask(payload.tasks[0]);
                                 });
                             } else {
-                              setSelectedEvent(ev);
+                              setSelectedEvent(event);
                             }
                           }}
                           className={cn(
                             "w-full text-left px-1 py-0.5 rounded text-[10px] font-bold truncate leading-tight hover:brightness-110 transition-all",
-                            getEventStyle(ev),
+                            getEventStyle(event),
                           )}
                         >
-                          {ev.title}
+                          {event.title}
                         </button>
                       ))}
                     </div>
@@ -646,16 +646,16 @@ export default function UnifiedDashboard({ role: propRole }) {
                 startOfWeek.setDate(
                   startOfWeek.getDate() - startOfWeek.getDay(),
                 );
-                return Array.from({ length: 7 }, (_, i) => {
-                  const d = new Date(startOfWeek);
-                  d.setDate(d.getDate() + i);
+                return Array.from({ length: 7 }, (_, index) => {
+                  const date = new Date(startOfWeek);
+                  date.setDate(date.getDate() + index);
                   const dateStr = formatDate(
-                    d.getFullYear(),
-                    d.getMonth(),
-                    d.getDate(),
+                    date.getFullYear(),
+                    date.getMonth(),
+                    date.getDate(),
                   );
-                  const dayEvents = events.filter((e) => e.date === dateStr);
-                  const current = isToday(d);
+                  const dayEvents = events.filter((event) => event.date === dateStr);
+                  const current = isToday(date);
                   return (
                     <div
                       key={dateStr}
@@ -675,10 +675,10 @@ export default function UnifiedDashboard({ role: propRole }) {
                               : "text-[var(--text-secondary)]",
                           )}
                         >
-                          {d.getDate()}
+                          {date.getDate()}
                         </p>
                         <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
-                          {t("time.days." + DAY_KEYS[d.getDay()])}
+                          {t("time.days." + DAY_KEYS[date.getDay()])}
                         </p>
                       </div>
                       <div className="flex-1 space-y-1">
@@ -687,13 +687,13 @@ export default function UnifiedDashboard({ role: propRole }) {
                             {t("common.noEvents")}
                           </p>
                         )}
-                        {dayEvents.map((ev) => (
+                        {dayEvents.map((event) => (
                           <button
-                            key={ev.id}
-                            onClick={() => setSelectedEvent(ev)}
+                            key={event.id}
+                            onClick={() => setSelectedEvent(event)}
                             className="block w-full text-left text-[11px] font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] truncate"
                           >
-                            • {ev.title}
+                            • {event.title}
                           </button>
                         ))}
                       </div>
@@ -714,7 +714,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                   today.getMonth(),
                   today.getDate(),
                 );
-                const dayEvents = events.filter((e) => e.date === dateStr);
+                const dayEvents = events.filter((event) => event.date === dateStr);
                 return (
                   <>
                     <p className="text-[11px] font-bold text-[var(--text-primary)] mb-2">
@@ -729,23 +729,23 @@ export default function UnifiedDashboard({ role: propRole }) {
                         {t("common.noEvents")}
                       </p>
                     )}
-                    {dayEvents.map((ev) => (
+                    {dayEvents.map((event) => (
                       <div
-                        key={ev.id}
-                        onClick={() => setSelectedEvent(ev)}
+                        key={event.id}
+                        onClick={() => setSelectedEvent(event)}
                         className="flex items-center gap-2 p-2 rounded-lg hover:bg-tertiary transition-all cursor-pointer border border-[var(--border-primary)]"
                       >
                         <div
                           className={cn(
                             "w-1.5 h-1.5 rounded-full shrink-0",
-                            EVENT_DOTS[ev.source] || "bg-slate-400",
+                            EVENT_DOTS[event.source] || "bg-slate-400",
                           )}
                         />
                         <span className="text-[11px] font-bold text-[var(--text-primary)] flex-1 truncate">
-                          {ev.title}
+                          {event.title}
                         </span>
                         <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                          {ev.source}
+                          {event.source}
                         </span>
                       </div>
                     ))}
@@ -777,7 +777,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                 {t("dashboard.assignedToMe", "ASSIGNÉES À MOI")}
               </span>
               <span className="text-[10px] font-bold text-[var(--text-secondary)] ml-auto">
-                {assignments.filter((a) => a.status === "pending").length}{" "}
+                {assignments.filter((assignment) => assignment.status === "pending").length}{" "}
                 {t("dashboard.awaitingAction", "en attente d'action")}
               </span>
             </div>
@@ -897,34 +897,34 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </span>
                 </div>
                 <div className="space-y-1">
-                  {attention.overdueTasks.slice(0, 5).map((t) => (
+                  {attention.overdueTasks.slice(0, 5).map((task) => (
                     <div
-                      key={t.id}
+                      key={task.id}
                       onClick={() => {
-                        const r =
+                        const roleSegment =
                           user?.role === "super_admin" ? "admin" : "staff";
-                        router.push("/" + r + "/op-report");
+                        router.push("/" + roleSegment + "/op-report");
                       }}
                       className="flex items-center gap-2 p-2 rounded-lg bg-rose-500/5 border border-rose-500/10 cursor-pointer hover:brightness-110 transition-all"
                     >
                       <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
-                        {t.title}
+                        {task.title}
                       </span>
-                      {t.priority && (
+                      {task.priority && (
                         <span
                           className={cn(
                             "text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded",
-                            t.priority === "high" || t.priority === "critical"
+                            task.priority === "high" || task.priority === "critical"
                               ? "bg-rose-500/10 text-rose-500"
                               : "bg-secondary text-[var(--text-secondary)]",
                           )}
                         >
-                          {t.priority}
+                          {task.priority}
                         </span>
                       )}
                       <span className="text-[10px] font-medium text-[var(--text-secondary)] shrink-0">
-                        {t.due_date
-                          ? new Date(t.due_date).toLocaleDateString()
+                        {task.due_date
+                          ? new Date(task.due_date).toLocaleDateString()
                           : ""}
                       </span>
                     </div>
@@ -942,32 +942,32 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </span>
                 </div>
                 <div className="space-y-1">
-                  {attention.criticalBlockers.slice(0, 5).map((b) => (
+                  {attention.criticalBlockers.slice(0, 5).map((blocker) => (
                     <div
-                      key={b.id}
+                      key={blocker.id}
                       className="flex items-center gap-3 p-2 rounded-xl bg-rose-500/[0.03] border border-rose-500/10"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                            {b.title}
+                            {blocker.title}
                           </span>
                           <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500">
-                            {b.severity}
+                            {blocker.severity}
                           </span>
                         </div>
-                        {b.project_id && (
+                        {blocker.project_id && (
                           <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
-                            {t("common.project", "Projet:")} #{b.project_id}
+                            {t("common.project", "Projet:")} #{blocker.project_id}
                           </p>
                         )}
                       </div>
                       <button
-                        onClick={() => handleResolveBlocker(b.id)}
-                        disabled={resolvingBlocker === b.id}
+                        onClick={() => handleResolveBlocker(blocker.id)}
+                        disabled={resolvingBlocker === blocker.id}
                         className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
                       >
-                        {resolvingBlocker === b.id ? "..." : t("common.resolve", "Résoudre")}
+                        {resolvingBlocker === blocker.id ? "..." : t("common.resolve", "Résoudre")}
                       </button>
                     </div>
                   ))}
@@ -984,19 +984,19 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </span>
                 </div>
                 <div className="space-y-1">
-                  {attention.dueToday.map((t) => (
+                  {attention.dueToday.map((task) => (
                     <div
-                      key={t.id}
+                      key={task.id}
                       onClick={() => {
                         router.push("/staff/op-report");
                       }}
                       className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/10 cursor-pointer hover:brightness-110 transition-all"
                     >
                       <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
-                        {t.title}
+                        {task.title}
                       </span>
                       <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
-                        {t.type}
+                        {task.type}
                       </span>
                     </div>
                   ))}
@@ -1037,29 +1037,29 @@ export default function UnifiedDashboard({ role: propRole }) {
                 </div>
                 <div className="space-y-3">
                   {Object.entries(grouped).slice(0, 3).map(([programId, kpis]) => {
-                    const prog = (data?.quickAccess?.programs || []).find(p => String(p.id) === String(programId));
+                    const program = (data?.quickAccess?.programs || []).find(candidate => String(candidate.id) === String(programId));
                     return (
                       <div key={programId} className="space-y-2">
-                        {prog && (
+                        {program && (
                           <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                            {prog.name}
+                            {program.name}
                           </span>
                         )}
                         <div className="grid grid-cols-2 gap-1.5">
                           {kpis.slice(0, 6).map((kpi) => {
                             const total = parseInt(kpi.participant_count) || 1;
                             const approved = parseInt(kpi.approved_count) || 0;
-                            const pct = total > 0 ? Math.round((approved / total) * 100) : 0;
+                            const percent = total > 0 ? Math.round((approved / total) * 100) : 0;
                             return (
                               <div key={kpi.kpi_id} className="p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
                                 <div className="flex items-center justify-between mb-1">
                                   <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase truncate max-w-[80px]">
                                     {kpi.title || kpi.name}
                                   </span>
-                                  <span className="text-[10px] font-bold text-[var(--brand-orange)]">{Math.round(pct)}%</span>
+                                  <span className="text-[10px] font-bold text-[var(--brand-orange)]">{Math.round(percent)}%</span>
                                 </div>
                                 <div className="h-1 w-full bg-[var(--bg-primary)] rounded-full overflow-hidden">
-                                  <div className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-amber-400 rounded-full transition-all" style={{width: `${pct}%`}} />
+                                  <div className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-amber-400 rounded-full transition-all" style={{width: `${percent}%`}} />
                                 </div>
                               </div>
                             );
@@ -1109,31 +1109,31 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {quickAccess.programs?.slice(0, 4).map((p) => {
+                    {quickAccess.programs?.slice(0, 4).map((program) => {
                       const fallbackProgress =
-                        Number(p.completion_index) ||
-                        completionIndexById.get(String(p.id)) ||
+                        Number(program.completion_index) ||
+                        completionIndexById.get(String(program.id)) ||
                         0;
                       // Get this program's KPIs from dashboard data.
-                      const progKpis = (data?.kpis || []).filter(k => String(k.program_id) === String(p.id));
+                      const programKpis = (data?.kpis || []).filter(kpi => String(kpi.program_id) === String(program.id));
                       // Each KPI's achievement is the share of active participants
                       // whose work was approved; weightedKpiProgress then mixes them
                       // by weight (equal weights when none is set), so a program is
                       // never dragged to 0 just because a weight is missing.
-                      const kpiProgress = progKpis.length > 0
-                        ? weightedKpiProgress(progKpis.map((k) => {
-                            const total = parseInt(k.participant_count) || 0;
-                            const approved = parseInt(k.approved_count) || 0;
+                      const kpiProgress = programKpis.length > 0
+                        ? weightedKpiProgress(programKpis.map((kpi) => {
+                            const total = parseInt(kpi.participant_count) || 0;
+                            const approved = parseInt(kpi.approved_count) || 0;
                             return {
-                              weight: k.weight,
+                              weight: kpi.weight,
                               progress: total > 0 ? (approved / total) * 100 : 0,
                             };
                           }))
                         : fallbackProgress;
                       return (
                         <div
-                          key={p.id}
-                          onClick={() => router.push(`/pm/programs/${p.id}`)}
+                          key={program.id}
+                          onClick={() => router.push(`/pm/programs/${program.id}`)}
                           className="p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-emerald-500/30 transition-all cursor-pointer group"
                         >
                           <div className="flex items-center gap-2 mb-3">
@@ -1141,15 +1141,15 @@ export default function UnifiedDashboard({ role: propRole }) {
                               <Briefcase className="w-3.5 h-3.5 text-emerald-400" />
                             </div>
                             <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-500">
-                              {p.status || "Active"}
+                              {program.status || "Active"}
                             </span>
                           </div>
                           <p className="text-[11px] font-bold text-[var(--text-primary)] truncate group-hover:text-emerald-400 transition-colors">
-                            {p.name}
+                            {program.name}
                           </p>
-                          {p.description && (
+                          {program.description && (
                             <p className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-2">
-                              {p.description}
+                              {program.description}
                             </p>
                           )}
                           <div className="mt-3 space-y-1">
@@ -1191,10 +1191,10 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {facilitatorPrograms.map((p) => (
+                  {facilitatorPrograms.map((program) => (
                     <div
-                      key={p.id}
-                      onClick={() => router.push(`/facilitator/program/${p.id}`)}
+                      key={program.id}
+                      onClick={() => router.push(`/facilitator/program/${program.id}`)}
                       className="p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/40 transition-all cursor-pointer group"
                     >
                       <div className="flex items-center gap-2 mb-2">
@@ -1202,15 +1202,15 @@ export default function UnifiedDashboard({ role: propRole }) {
                           <Users className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
                         </div>
                         <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)]">
-                          {p.status || "Active"}
+                          {program.status || "Active"}
                         </span>
                       </div>
                       <p className="text-[11px] font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--brand-orange)] transition-colors">
-                        {p.name}
+                        {program.name}
                       </p>
-                      {p.description && (
+                      {program.description && (
                         <p className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-2">
-                          {p.description}
+                          {program.description}
                         </p>
                       )}
                     </div>
@@ -1255,46 +1255,46 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </p>
                 ) : (
                   <div className="space-y-1.5">
-                    {quickAccess.tasks?.slice(0, 6).map((t) => (
+                    {quickAccess.tasks?.slice(0, 6).map((task) => (
                       <div
-                        key={t.id}
+                        key={task.id}
                         onClick={() => {
-                          const r =
+                          const roleSegment =
                             user?.role === "super_admin" ? "admin" : "staff";
-                          router.push("/" + r + "/op-report");
+                          router.push("/" + roleSegment + "/op-report");
                         }}
                         className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
                       >
                         <div
                           className={cn(
                             "w-2 h-2 rounded-full shrink-0",
-                            STATUS_CONFIG[t.status]?.dot || "bg-slate-400",
+                            STATUS_CONFIG[task.status]?.dot || "bg-slate-400",
                           )}
                         />
                         <span className="text-[11px] font-bold text-[var(--text-primary)] flex-1 truncate">
-                          {t.title}
+                          {task.title}
                         </span>
-                        {t.end_date && (
+                        {task.end_date && (
                           <span
                             className={cn(
                               "text-[10px] font-bold shrink-0",
-                              new Date(t.end_date) < new Date() &&
-                                t.status !== "completed"
+                              new Date(task.end_date) < new Date() &&
+                                task.status !== "completed"
                                 ? "text-rose-500"
                                 : "text-[var(--text-secondary)]",
                             )}
                           >
-                            {formatLocaleDate(t.end_date, { month: "short", day: "numeric" }, lang)}
+                            {formatLocaleDate(task.end_date, { month: "short", day: "numeric" }, lang)}
                           </span>
                         )}
                         <span
                           className={cn(
                             "text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0",
-                            STATUS_CONFIG[t.status]?.bg || "bg-secondary",
-                            STATUS_CONFIG[t.status]?.color || "text-[var(--text-secondary)]",
+                            STATUS_CONFIG[task.status]?.bg || "bg-secondary",
+                            STATUS_CONFIG[task.status]?.color || "text-[var(--text-secondary)]",
                           )}
                         >
-                          {STATUS_CONFIG[t.status]?.label || t.status}
+                          {STATUS_CONFIG[task.status]?.label || task.status}
                         </span>
                       </div>
                     ))}
@@ -1321,16 +1321,16 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </button>
                 </div>
                 <div className="space-y-1.5">
-                  {activity.slice(0, 5).map((act, i) => (
+                  {activity.slice(0, 5).map((activityEntry, index) => (
                     <div
-                      key={i}
+                      key={index}
                       className="flex items-center gap-3 p-2 rounded-lg hover:bg-tertiary transition-all border border-transparent hover:border-[var(--border-primary)]"
                     >
                       <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
-                        {act.action?.includes("completed") ||
-                          act.action?.includes("resolved") ? (
+                        {activityEntry.action?.includes("completed") ||
+                          activityEntry.action?.includes("resolved") ? (
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                        ) : act.action?.includes("blocker") ? (
+                        ) : activityEntry.action?.includes("blocker") ? (
                           <Shield className="w-3.5 h-3.5 text-rose-400" />
                         ) : (
                           <Zap className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
@@ -1338,15 +1338,15 @@ export default function UnifiedDashboard({ role: propRole }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[11px] font-bold text-[var(--text-primary)] capitalize truncate">
-                          {t(ACTIVITY_LABELS[act.action] || "") || act.action?.replace(/_/g, " ")}
+                          {t(ACTIVITY_LABELS[activityEntry.action] || "") || activityEntry.action?.replace(/_/g, " ")}
                         </p>
                         <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">
-                          {act.description}
+                          {activityEntry.description}
                         </p>
                       </div>
                       <span className="text-[10px] font-medium text-[var(--text-secondary)] shrink-0">
-                        {act.timestamp
-                          ? new Date(act.timestamp).toLocaleDateString()
+                        {activityEntry.timestamp
+                          ? new Date(activityEntry.timestamp).toLocaleDateString()
                           : ""}
                       </span>
                     </div>
@@ -1415,10 +1415,10 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </span>
                 </div>
                 <div className="space-y-2">
-                  {quickAccess.projects?.slice(0, 5).map((p) => (
+                  {quickAccess.projects?.slice(0, 5).map((project) => (
                     <div
-                      key={p.id}
-                      onClick={() => router.push(`/admin/projects/${p.id}`)}
+                      key={project.id}
+                      onClick={() => router.push(`/admin/projects/${project.id}`)}
                       className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
                     >
                       <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
@@ -1426,14 +1426,14 @@ export default function UnifiedDashboard({ role: propRole }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                          {p.name}
+                          {project.name}
                         </p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500">
-                            {p.status || "Active"}
+                            {project.status || "Active"}
                           </span>
                           <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
-                            {p.role === "owner" ? t("roles.owner", "Propriétaire") : t("roles.collaborator", "Collaborateur")}
+                            {project.role === "owner" ? t("roles.owner", "Propriétaire") : t("roles.collaborator", "Collaborateur")}
                           </span>
                         </div>
                       </div>
@@ -1477,28 +1477,28 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </p>
                 ) : (
                   <div className="space-y-1.5">
-                    {quickAccess.blockers?.slice(0, 5).map((b) => (
+                    {quickAccess.blockers?.slice(0, 5).map((blocker) => (
                       <div
-                        key={b.id}
+                        key={blocker.id}
                         className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-500/[0.02] border border-rose-500/5"
                       >
                         <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
-                            {b.title}
+                            {blocker.title}
                           </p>
-                          {b.severity && (
+                          {blocker.severity && (
                             <span className="text-[10px] font-bold uppercase tracking-widest text-rose-500">
-                              {b.severity}
+                              {blocker.severity}
                             </span>
                           )}
                         </div>
                         <button
-                          onClick={() => handleResolveBlocker(b.id)}
-                          disabled={resolvingBlocker === b.id}
+                          onClick={() => handleResolveBlocker(blocker.id)}
+                          disabled={resolvingBlocker === blocker.id}
                           className="px-2 py-1 bg-emerald-500 text-black rounded-lg text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
                         >
-                          {resolvingBlocker === b.id ? "..." : t("common.resolve", "Résoudre")}
+                          {resolvingBlocker === blocker.id ? "..." : t("common.resolve", "Résoudre")}
                         </button>
                       </div>
                     ))}
@@ -1518,29 +1518,29 @@ export default function UnifiedDashboard({ role: propRole }) {
                 </div>
                 <div className="space-y-1.5">
                   {events
-                    .filter((e) => {
-                      const d = new Date(e.date);
-                      return d >= weekDateRange.start && d <= weekDateRange.end;
+                    .filter((event) => {
+                      const date = new Date(event.date);
+                      return date >= weekDateRange.start && date <= weekDateRange.end;
                     })
                     .slice(0, 5)
-                    .map((ev) => (
+                    .map((event) => (
                       <button
-                        key={ev.id}
-                        onClick={() => setSelectedEvent(ev)}
+                        key={event.id}
+                        onClick={() => setSelectedEvent(event)}
                         className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-tertiary transition-all border border-transparent hover:border-[var(--border-primary)] text-left"
                       >
                         <div
                           className={cn(
                             "w-1.5 h-1.5 rounded-full shrink-0",
-                            EVENT_DOTS[ev.source] || "bg-slate-400",
+                            EVENT_DOTS[event.source] || "bg-slate-400",
                           )}
                         />
                         <div className="flex-1 min-w-0">
                           <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
-                            {ev.title}
+                            {event.title}
                           </p>
                           <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                            {formatLocaleDate(ev.date, { weekday: "short", month: "short", day: "numeric" }, lang)}
+                            {formatLocaleDate(event.date, { weekday: "short", month: "short", day: "numeric" }, lang)}
                           </p>
                         </div>
                       </button>
@@ -1603,7 +1603,7 @@ export default function UnifiedDashboard({ role: propRole }) {
         >
           <div
             className="card w-full max-w-sm space-y-4 max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1678,8 +1678,8 @@ export default function UnifiedDashboard({ role: propRole }) {
 // Restored weekly operations panel for staff/super_admin dashboards.
 // All values are fetched live from the API — no hard-coded numbers.
 
-function getWeekNumber(d) {
-  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+function getWeekNumber(sourceDate) {
+  const date = new Date(Date.UTC(sourceDate.getFullYear(), sourceDate.getMonth(), sourceDate.getDate()));
   const dayNum = date.getUTCDay() || 7;
   date.setUTCDate(date.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
@@ -1701,20 +1701,20 @@ function OperationsSection({ userId, summary }) {
       fetch(
         `/api/op-reports?user_id=${encodeURIComponent(userId)}&type=standup&week=${week}&year=${year}`,
       )
-        .then((r) => r.json())
+        .then((response) => response.json())
         .catch(() => ({ success: false })),
       fetch(
         `/api/op-reports?user_id=${encodeURIComponent(userId)}&type=retro&week=${week}&year=${year}`,
       )
-        .then((r) => r.json())
+        .then((response) => response.json())
         .catch(() => ({ success: false })),
-    ]).then(([s, r]) => {
+    ]).then(([standupData, retroData]) => {
       if (cancelled) return;
       setOps({
         week,
         year,
-        standup: s.success ? s.reports?.[0] || null : null,
-        retro: r.success ? r.reports?.[0] || null : null,
+        standup: standupData.success ? standupData.reports?.[0] || null : null,
+        retro: retroData.success ? retroData.reports?.[0] || null : null,
       });
     });
     return () => {

@@ -15,9 +15,9 @@ import { useApi } from "@/lib/hooks/useApi";
 // which is what the old code's catch did.
 const EMPTY_VALIDATION = { state: "loading", userInfo: null };
 
-const pickValidation = (d) => ({
-  state: d?.success ? "valid" : d?.expired ? "expired" : "invalid",
-  userInfo: d?.success ? d : null,
+const pickValidation = (payload) => ({
+  state: payload?.success ? "valid" : payload?.expired ? "expired" : "invalid",
+  userInfo: payload?.success ? payload : null,
 });
 
 /** What the page shows while the link is being read. */
@@ -74,8 +74,8 @@ function ActivateContent() {
         : validation.state;
   const userInfo = validation.userInfo;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError("");
 
     if (password.length < 6) {
@@ -89,16 +89,16 @@ function ActivateContent() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/auth/activate", {
+      const response = await fetch("/api/auth/activate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const payload = await response.json();
+      if (payload.success) {
         setResult("success");
       } else {
-        setError(t((data.error || t("rootMisc.activate.activationFailed")) || "") || (data.error || t("rootMisc.activate.activationFailed")));
+        setError(t((payload.error || t("rootMisc.activate.activationFailed")) || "") || (payload.error || t("rootMisc.activate.activationFailed")));
       }
     } catch {
       setError(t("rootMisc.activate.networkError"));
@@ -233,7 +233,7 @@ function ActivateContent() {
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(event) => setPassword(event.target.value)}
                   placeholder={t("rootMisc.activate.passwordMinHint")}
                   className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl px-4 py-3 pr-12 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                   minLength={6}
@@ -255,7 +255,7 @@ function ActivateContent() {
               <input
                 type={showPassword ? "text" : "password"}
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(event) => setConfirmPassword(event.target.value)}
                 placeholder={t("rootMisc.activate.repeatPasswordPlaceholder")}
                 className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
               />

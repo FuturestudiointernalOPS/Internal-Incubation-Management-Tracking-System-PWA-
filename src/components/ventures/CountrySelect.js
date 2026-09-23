@@ -24,10 +24,10 @@ export default function CountrySelect({ value, onSelect, inputStyle, id }) {
     : "";
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return countries;
+    const searchTerm = query.trim().toLowerCase();
+    if (!searchTerm) return countries;
     return countries.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q),
+      (country) => country.name.toLowerCase().includes(searchTerm) || country.code.toLowerCase().includes(searchTerm),
     );
   }, [countries, query]);
 
@@ -65,7 +65,7 @@ export default function CountrySelect({ value, onSelect, inputStyle, id }) {
             <input
               autoFocus
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(event) => setQuery(event.target.value)}
               placeholder="Type to search a country…"
               className="flex-1 bg-transparent outline-none text-sm"
               style={{ color: "var(--text-primary)" }}
@@ -75,19 +75,19 @@ export default function CountrySelect({ value, onSelect, inputStyle, id }) {
             {filtered.length === 0 ? (
               <p className="px-3 py-3 text-xs" style={{ color: "var(--text-secondary)" }}>No country found.</p>
             ) : (
-              filtered.slice(0, 60).map((c) => (
+              filtered.slice(0, 60).map((country) => (
                 <button
                   type="button"
-                  key={c.code}
-                  onClick={() => pick(c.code, c.name)}
+                  key={country.code}
+                  onClick={() => pick(country.code, country.name)}
                   className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm hover:opacity-80"
                   style={{ color: "var(--text-primary)", background: "transparent" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgb(255 255 255 / 0.06)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  onMouseEnter={(event) => { event.currentTarget.style.background = "rgb(255 255 255 / 0.06)"; }}
+                  onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
                 >
-                  <span className="text-base">{c.flag}</span>
-                  <span className="flex-1 truncate">{c.name}</span>
-                  <span className="text-[9px] font-mono" style={{ color: "var(--text-tertiary)" }}>{c.code}</span>
+                  <span className="text-base">{country.flag}</span>
+                  <span className="flex-1 truncate">{country.name}</span>
+                  <span className="text-[9px] font-mono" style={{ color: "var(--text-tertiary)" }}>{country.code}</span>
                 </button>
               ))
             )}

@@ -94,11 +94,11 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
     try {
       const url = "/api/engineering/permissions";
       const cached = cacheGet(url);
-      const d = cached?.success ? await settled(cached) : await (await fetch(url)).json();
-      if (d?.success) {
-        cacheSet(url, d);
-        setCatalog(d.catalog || {});
-        setModuleToFeature(d.moduleToFeature || {});
+      const data = cached?.success ? await settled(cached) : await (await fetch(url)).json();
+      if (data?.success) {
+        cacheSet(url, data);
+        setCatalog(data.catalog || {});
+        setModuleToFeature(data.moduleToFeature || {});
       }
     } catch {
       /* catalog optional */
@@ -132,17 +132,17 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
    */
   const readScope = useCallback(async (cid) => {
     const implemented = SCOPE_POLICY_KEYS.filter(
-      (k) => SCOPE_POLICIES[k]?.implemented,
+      (policyKey) => SCOPE_POLICIES[policyKey]?.implemented,
     );
     return Promise.all(
       implemented.map(async (policy) => {
         try {
-          const r = await fetch(
+          const response = await fetch(
             `/api/engineering/permissions/scope-check?policy=${policy}&cid=${encodeURIComponent(cid)}`,
           );
-          const sd = await r.json();
-          return sd.success
-            ? { policy, count: sd.resolved_count ?? 0, ids: sd.resolved_ids || [] }
+          const scopeData = await response.json();
+          return scopeData.success
+            ? { policy, count: scopeData.resolved_count ?? 0, ids: scopeData.resolved_ids || [] }
             : { policy, count: null, ids: [] };
         } catch {
           return { policy, count: null, ids: [] };
@@ -152,7 +152,7 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
   }, []);
 
   const pick = useCallback(
-    async (u) => {
+    async (user) => {
       setCtx(null);
       setScope([]);
       setErr("");
@@ -161,21 +161,21 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
       const scopeToken = scopeLoad.current.begin();
       try {
         const res = await fetch(
-          `/api/engineering/permissions/user-context?cid=${encodeURIComponent(u.cid)}`,
+          `/api/engineering/permissions/user-context?cid=${encodeURIComponent(user.cid)}`,
         );
-        const d = await res.json();
+        const data = await res.json();
         if (!ctxLoad.current.isCurrent(token)) return; // a newer person won
-        if (!d.success) throw new Error(d.error || "load failed");
-        setCtx(d);
+        if (!data.success) throw new Error(data.error || "load failed");
+        setCtx(data);
 
         // Scope panel — read-only: what each implemented policy resolves for
         // this person right now (no record id ⇒ nothing is decided).
-        const resolved = await readScope(u.cid);
+        const resolved = await readScope(user.cid);
         if (!scopeLoad.current.isCurrent(scopeToken)) return; // a newer person won
         setScope(resolved);
-      } catch (e) {
+      } catch (error) {
         if (!ctxLoad.current.isCurrent(token)) return;
-        setErr(e.message);
+        setErr(error.message);
       } finally {
         if (ctxLoad.current.isCurrent(token)) setLoadingCtx(false);
       }
@@ -209,8 +209,8 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
       const res = await fetch(
         `/api/engineering/permissions/scope-check?${params.toString()}`,
       );
-      const d = await res.json();
-      return d?.success ? d : null;
+      const data = await res.json();
+      return data?.success ? data : null;
     },
     [selected],
   );
@@ -235,8 +235,8 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
     const res = await fetch(
       `/api/engineering/permissions/user-context?cid=${encodeURIComponent(cid)}`,
     );
-    const d = await res.json();
-    if (d?.success) setCtx(d);
+    const data = await res.json();
+    if (data?.success) setCtx(data);
   }, []);
 
   /**
@@ -262,17 +262,17 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
             access_level: accessLevel,
           }),
         });
-        const d = await res.json().catch(() => ({}));
-        if (!res.ok || d?.success === false) {
-          throw new Error(d?.error || t("engineering.permissions.saveFailed"));
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.error || t("engineering.permissions.saveFailed"));
         }
         await refreshCtx(selected.cid);
         // The "Change access" panel below holds its own copy of the same data;
         // tell the screen so it remounts with this write included rather than
         // showing a stale matrix next to a fresh one.
         if (onAccessChanged) onAccessChanged();
-      } catch (e) {
-        setActionErr(e.message || t("engineering.permissions.saveFailed"));
+      } catch (error) {
+        setActionErr(error.message || t("engineering.permissions.saveFailed"));
       } finally {
         setBusyKey(null);
       }
@@ -316,14 +316,14 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
     }));
   }, [ctx, catalog, moduleToFeature]);
 
-  const capsFor = (m) =>
-    m.caps.length
-      ? m.caps
+  const capsFor = (module) =>
+    module.caps.length
+      ? module.caps
       : [
           ...new Set([
-            ...Object.keys(ctx.sources.profile?.[m.module] || {}),
-            ...Object.keys(ctx.sources.groups?.[m.module] || {}),
-            ...Object.keys(ctx.sources.grants?.[m.module] || {}),
+            ...Object.keys(ctx.sources.profile?.[module.module] || {}),
+            ...Object.keys(ctx.sources.groups?.[module.module] || {}),
+            ...Object.keys(ctx.sources.grants?.[module.module] || {}),
           ]),
         ].sort();
 
@@ -348,30 +348,30 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
   const visibleModules = !ctx
     ? []
     : modules
-        .map((m) => {
-          const allCaps = capsFor(m);
+        .map((module) => {
+          const allCaps = capsFor(module);
           return {
-            ...m,
+            ...module,
             // The section's own right set, kept whole: the header summary must
             // describe the section, not the current filter.
             allCaps,
             caps: allCaps.filter((cap) => {
               const state = deriveUserCapState(
                 ctx.sources,
-                m.module,
+                module.module,
                 cap,
-                eligibleFor(m.module),
+                eligibleFor(module.module),
               );
               if (onlyGranted && !state.effective) return false;
               if (!needle) return true;
               return (
-                `${m.module}.${cap}`.toLowerCase().includes(needle) ||
-                (m.feature || "").toLowerCase().includes(needle)
+                `${module.module}.${cap}`.toLowerCase().includes(needle) ||
+                (module.feature || "").toLowerCase().includes(needle)
               );
             }),
           };
         })
-        .filter((m) => m.caps.length > 0);
+        .filter((module) => module.caps.length > 0);
 
   /** Origin labels of one capability, as a readable sentence. */
   const originText = (state) =>
@@ -384,16 +384,16 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
       .join(" · ");
 
   /** One section header summary: which of the four rights are held. */
-  const rightStates = (m) =>
+  const rightStates = (module) =>
     CRUD_RIGHTS.map((cap) => {
-      const offered = (m.allCaps || m.caps).includes(cap);
+      const offered = (module.allCaps || module.caps).includes(cap);
       const held =
         offered &&
         deriveUserCapState(
           ctx.sources,
-          m.module,
+          module.module,
           cap,
-          eligibleFor(m.module),
+          eligibleFor(module.module),
         ).effective;
       return { cap, offered, held };
     });
@@ -427,8 +427,8 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
               type="button"
               aria-pressed={held}
               disabled={held || busy}
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={(event) => {
+                event.stopPropagation();
                 requestAccess("grant", module, capability, lvl);
               }}
               title={t("engineering.permissions.titleSetTo", {
@@ -446,8 +446,8 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
           <button
             type="button"
             disabled={busy}
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={(event) => {
+              event.stopPropagation();
               requestAccess("revoke", module, capability);
             }}
             title={t("engineering.permissions.titleRevokeGrant")}
@@ -510,9 +510,9 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
                 {ctx.profile.profileName} ({ctx.profile.profileSource})
               </Badge>
             )}
-            {(ctx.groups || []).map((g) => (
-              <Badge key={g} variant="neutral">
-                {g}
+            {(ctx.groups || []).map((group) => (
+              <Badge key={group} variant="neutral">
+                {group}
               </Badge>
             ))}
           </div>
@@ -529,24 +529,24 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
                 {t("engineering.permissions.peopleContextsTitle")}
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {(ctx.contexts || []).map((c) => (
+                {(ctx.contexts || []).map((context) => (
                   <span
-                    key={`${c.type}:${c.id}`}
+                    key={`${context.type}:${context.id}`}
                     className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)]"
                   >
                     <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t(`engineering.permissions.contextKind_${c.type}`)}
+                      {t(`engineering.permissions.contextKind_${context.type}`)}
                     </span>
                     <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                      {c.label}
+                      {context.label}
                     </span>
                     <span className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
-                      {String(c.role).replace(/_/g, " ")}
+                      {String(context.role).replace(/_/g, " ")}
                     </span>
                     <span className="text-[9px] font-mono text-[var(--text-secondary)] opacity-70">
-                      {c.scopePolicy}
+                      {context.scopePolicy}
                     </span>
-                    {!c.scopeImplemented && (
+                    {!context.scopeImplemented && (
                       <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
                         {t("engineering.permissions.contextPending")}
                       </span>
@@ -597,7 +597,7 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" />
                   <input
                     value={query}
-                    onChange={(e) => setQuery(e.target.value)}
+                    onChange={(event) => setQuery(event.target.value)}
                     aria-label={t("engineering.permissions.peopleMatrixFilterPlaceholder")}
                     placeholder={t(
                       "engineering.permissions.peopleMatrixFilterPlaceholder",
@@ -608,7 +608,7 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
                 <button
                   type="button"
                   aria-pressed={onlyGranted}
-                  onClick={() => setOnlyGranted((v) => !v)}
+                  onClick={() => setOnlyGranted((prev) => !prev)}
                   className={`px-3 py-2 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 ${
                     onlyGranted
                       ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
@@ -653,13 +653,13 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleModules.map((m) => (
-                    <React.Fragment key={m.module}>
+                  {visibleModules.map((module) => (
+                    <React.Fragment key={module.module}>
                       <tr className="bg-secondary/60 border-b border-[var(--border-primary)]">
                         <td className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                          {m.module.replace(/_/g, " ")}
+                          {module.module.replace(/_/g, " ")}
                           <span className="ml-2 text-[9px] font-bold normal-case tracking-normal text-[var(--text-secondary)] opacity-70">
-                            {m.feature.replace(/_/g, " ")}
+                            {module.feature.replace(/_/g, " ")}
                           </span>
                         </td>
                         <td colSpan={5} className="px-3 py-2">
@@ -667,76 +667,76 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
                             <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-70">
                               {t("engineering.permissions.peopleMatrixRightsTitle")}
                             </span>
-                            {rightStates(m).map((r) => (
+                            {rightStates(module).map((right) => (
                               <span
-                                key={r.cap}
+                                key={right.cap}
                                 title={
-                                  r.held
+                                  right.held
                                     ? t("engineering.permissions.peopleMatrixRightHeld")
-                                    : r.offered
+                                    : right.offered
                                       ? t("engineering.permissions.peopleMatrixRightNotHeld")
                                       : t("engineering.permissions.peopleMatrixRightNotOffered")
                                 }
                                 className={`px-1.5 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest ${
-                                  r.held
+                                  right.held
                                     ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
-                                    : r.offered
+                                    : right.offered
                                       ? "border-[var(--border-primary)] text-[var(--text-secondary)] opacity-60"
                                       : "border-[var(--border-primary)] text-[var(--text-secondary)] opacity-25"
                                 }`}
                               >
-                                {t(RIGHT_LABEL_KEYS[r.cap])}
+                                {t(RIGHT_LABEL_KEYS[right.cap])}
                               </span>
                             ))}
                           </span>
                         </td>
                       </tr>
-                      {m.caps.map((cap) => {
-                        const s = deriveUserCapState(ctx.sources, m.module, cap, eligibleFor(m.module));
-                        const reason = reasonFor(s);
+                      {module.caps.map((cap) => {
+                        const state = deriveUserCapState(ctx.sources, module.module, cap, eligibleFor(module.module));
+                        const reason = reasonFor(state);
                         return (
                           <tr
-                            key={`${m.module}.${cap}`}
-                            onClick={() => setWhy({ module: m.module, cap, state: s, reason })}
-                            onKeyDown={(e) => {
+                            key={`${module.module}.${cap}`}
+                            onClick={() => setWhy({ module: module.module, cap, state: state, reason })}
+                            onKeyDown={(event) => {
                               // The row acts as a button itself; a keydown from a
                               // Grant chip must not be hijacked into opening the
                               // drawer (and must not lose its default click).
-                              if (e.target !== e.currentTarget) return;
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                setWhy({ module: m.module, cap, state: s, reason });
+                              if (event.target !== event.currentTarget) return;
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                setWhy({ module: module.module, cap, state: state, reason });
                               }
                             }}
                             tabIndex={0}
                             aria-label={t("engineering.permissions.peopleRowAria", {
-                              capability: `${m.module}.${cap}`,
+                              capability: `${module.module}.${cap}`,
                             })}
                             className="border-b border-[var(--border-primary)]/40 cursor-pointer hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-orange)]/60"
                           >
                             <td className="px-3 py-1.5 text-xs font-bold text-[var(--text-primary)]">
-                              {m.module}.{cap}
+                              {module.module}.{cap}
                               <span className="block text-[9px] font-bold text-[var(--text-secondary)] opacity-80">
-                                {originText(s)}
+                                {originText(state)}
                               </span>
                             </td>
                             <td className="text-center">
-                              <SourceGlyph on={s.profile} kind="profile" />
+                              <SourceGlyph on={state.profile} kind="profile" />
                             </td>
                             <td className="text-center">
-                              <SourceGlyph on={s.group} kind="groups" />
+                              <SourceGlyph on={state.group} kind="groups" />
                             </td>
                             <td
                               className="px-2 py-1 text-center"
-                              onClick={(e) => e.stopPropagation()}
+                              onClick={(event) => event.stopPropagation()}
                             >
-                              {grantControl(m.module, cap, eligibleFor(m.module))}
+                              {grantControl(module.module, cap, eligibleFor(module.module))}
                             </td>
                             <td className="text-center">
-                              <SourceGlyph on={s.restricted} kind="restrictions" />
+                              <SourceGlyph on={state.restricted} kind="restrictions" />
                             </td>
                             <td className="p-1.5 text-center">
-                              <EffectiveBadge effective={s.effective} reason={reason} />
+                              <EffectiveBadge effective={state.effective} reason={reason} />
                             </td>
                           </tr>
                         );
@@ -758,64 +758,64 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
 
             {/* Small screens: the same rows as cards (no data hidden) */}
             <div className="md:hidden space-y-3 p-3">
-              {visibleModules.map((m) => (
-                <div key={m.module} className="space-y-1.5">
+              {visibleModules.map((module) => (
+                <div key={module.module} className="space-y-1.5">
                   <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                    {m.module.replace(/_/g, " ")}
+                    {module.module.replace(/_/g, " ")}
                     <span className="ml-2 font-bold normal-case tracking-normal text-[var(--text-secondary)] opacity-70">
-                      {m.feature.replace(/_/g, " ")}
+                      {module.feature.replace(/_/g, " ")}
                     </span>
                   </p>
                   <span className="flex flex-wrap items-center gap-1.5 pb-1">
-                    {rightStates(m).map((r) => (
+                    {rightStates(module).map((right) => (
                       <span
-                        key={r.cap}
+                        key={right.cap}
                         className={`px-1.5 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest ${
-                          r.held
+                          right.held
                             ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
-                            : r.offered
+                            : right.offered
                               ? "border-[var(--border-primary)] text-[var(--text-secondary)] opacity-60"
                               : "border-[var(--border-primary)] text-[var(--text-secondary)] opacity-25"
                         }`}
                       >
-                        {t(RIGHT_LABEL_KEYS[r.cap])}
+                        {t(RIGHT_LABEL_KEYS[right.cap])}
                       </span>
                     ))}
                   </span>
-                  {m.caps.map((cap) => {
-                    const s = deriveUserCapState(ctx.sources, m.module, cap, eligibleFor(m.module));
-                    const reason = reasonFor(s);
+                  {module.caps.map((cap) => {
+                    const state = deriveUserCapState(ctx.sources, module.module, cap, eligibleFor(module.module));
+                    const reason = reasonFor(state);
                     return (
                       <div
-                        key={`${m.module}.${cap}`}
+                        key={`${module.module}.${cap}`}
                         role="button"
                         tabIndex={0}
                         aria-label={t("engineering.permissions.peopleRowAria", {
-                          capability: `${m.module}.${cap}`,
+                          capability: `${module.module}.${cap}`,
                         })}
-                        onClick={() => setWhy({ module: m.module, cap, state: s, reason })}
-                        onKeyDown={(e) => {
+                        onClick={() => setWhy({ module: module.module, cap, state: state, reason })}
+                        onKeyDown={(event) => {
                           // Same guard as the table row: the Grant chips inside
                           // keep their own keyboard behaviour.
-                          if (e.target !== e.currentTarget) return;
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setWhy({ module: m.module, cap, state: s, reason });
+                          if (event.target !== event.currentTarget) return;
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setWhy({ module: module.module, cap, state: state, reason });
                           }
                         }}
                         className="w-full text-left rounded-xl border border-[var(--border-primary)] bg-secondary/30 p-3 space-y-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
                       >
                         <span className="flex items-center justify-between gap-2">
                           <span className="text-xs font-bold text-[var(--text-primary)]">
-                            {m.module}.{cap}
+                            {module.module}.{cap}
                           </span>
-                          <EffectiveBadge effective={s.effective} reason={reason} />
+                          <EffectiveBadge effective={state.effective} reason={reason} />
                         </span>
                         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-bold text-[var(--text-secondary)]">
                           {[
-                            { label: t("engineering.permissions.userMatrixProfile"), on: s.profile, kind: "profile" },
-                            { label: t("engineering.permissions.userMatrixGroup"), on: s.group, kind: "groups" },
-                            { label: t("engineering.permissions.userMatrixRestriction"), on: s.restricted, kind: "restrictions" },
+                            { label: t("engineering.permissions.userMatrixProfile"), on: state.profile, kind: "profile" },
+                            { label: t("engineering.permissions.userMatrixGroup"), on: state.group, kind: "groups" },
+                            { label: t("engineering.permissions.userMatrixRestriction"), on: state.restricted, kind: "restrictions" },
                           ].map((src) => (
                             <span key={src.label} className="inline-flex items-center gap-1">
                               {src.label}
@@ -824,16 +824,16 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
                           ))}
                         </span>
                         <span className="block text-[10px] font-bold text-[var(--text-secondary)] opacity-80">
-                          {originText(s)}
+                          {originText(state)}
                         </span>
                         <span
                           className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--border-primary)]/50"
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(event) => event.stopPropagation()}
                         >
                           <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                             {t("engineering.permissions.userMatrixGrant")}
                           </span>
-                          {grantControl(m.module, cap, eligibleFor(m.module))}
+                          {grantControl(module.module, cap, eligibleFor(module.module))}
                         </span>
                       </div>
                     );
