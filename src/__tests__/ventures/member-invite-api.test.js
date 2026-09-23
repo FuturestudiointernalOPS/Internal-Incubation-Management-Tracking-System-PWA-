@@ -47,6 +47,10 @@ jest.mock("@/models/ventureMemberAccess", () => ({
   checkVentureMemberMutateAccess: jest.fn().mockResolvedValue(true),
 }));
 
+jest.mock("@/models/workspace", () => ({
+  createLinkedNotification: jest.fn().mockResolvedValue({}),
+}));
+
 const db = require("@/lib/db").default;
 const { getSession } = require("@/lib/auth");
 const { sendVentureMemberInvitationEmail } = require("@/lib/email");
@@ -58,6 +62,7 @@ const {
   checkVentureMemberViewAccess,
   checkVentureMemberMutateAccess,
 } = require("@/models/ventureMemberAccess");
+const { createLinkedNotification } = require("@/models/workspace");
 
 const { POST } = require("@/app/api/ventures/[id]/members/route");
 
@@ -88,6 +93,7 @@ beforeEach(() => {
   });
   sendVentureMemberInvitationEmail.mockResolvedValue({ success: true });
   recordVentureMemberInvitationDelivery.mockResolvedValue({ ok: true });
+  createLinkedNotification.mockResolvedValue({});
   primeDatabase();
 });
 
@@ -194,5 +200,59 @@ describe("POST /api/ventures/[id]/members", () => {
     expect(recordVentureMemberInvitationDelivery).toHaveBeenCalledWith(
       expect.objectContaining({ id: 5, sent: true }),
     );
+  });
+
+  it("notifies an existing account holder in the app, with the accept link", async () => {
+    createVentureMemberInvitation.mockResolvedValueOnce({
+      id: 5,
+      token: "linktoken",
+      email: "member@venture.io",
+      expires_at: new Date(Date.now() + 3600e3).toISOString(),
+      resent: false,
+      contact_id: "USR_MEMBER",
+      contact_has_account: true,
+    });
+
+    await POST(jsonReq({ email: "member@venture.io", member_type: "team_member" }), ctx);
+
+    expect(createLinkedNotification).toHaveBeenCalledWith(
+      "USR_MEMBER",
+      expect.stringContaining("ABC Ventures"),
+      expect.stringContaining("ABC Ventures"),
+      "venture_invite",
+      "/venture-invite/linktoken",
+    );
+  });
+
+  it("does not notify someone the platform has never seen", async () => {
+    createVentureMemberInvitation.mockResolvedValueOnce({
+      id: 5,
+      token: "linktoken",
+      email: "guest@outside.io",
+      expires_at: new Date(Date.now() + 3600e3).toISOString(),
+      resent: false,
+      contact_id: null,
+      contact_has_account: false,
+    });
+
+    await POST(jsonReq({ email: "guest@outside.io" }), ctx);
+
+    expect(createLinkedNotification).not.toHaveBeenCalled();
+  });
+
+  it("does not pile up a second notice when the invitation is sent again", async () => {
+    createVentureMemberInvitation.mockResolvedValueOnce({
+      id: 5,
+      token: "linktoken",
+      email: "member@venture.io",
+      expires_at: new Date(Date.now() + 3600e3).toISOString(),
+      resent: true,
+      contact_id: "USR_MEMBER",
+      contact_has_account: true,
+    });
+
+    await POST(jsonReq({ email: "member@venture.io" }), ctx);
+
+    expect(createLinkedNotification).not.toHaveBeenCalled();
   });
 });

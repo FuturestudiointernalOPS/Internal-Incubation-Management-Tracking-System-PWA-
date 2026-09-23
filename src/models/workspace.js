@@ -329,6 +329,35 @@ export async function createNotification(recipientId, title, message, type) {
   });
 }
 
+let notificationLinkColumnPromise = null;
+
+/** v2_notifications.link — the base schema predates it, so add it on first use. */
+export function ensureNotificationLinkColumn() {
+  if (!notificationLinkColumnPromise) {
+    notificationLinkColumnPromise = db
+      .execute("ALTER TABLE v2_notifications ADD COLUMN IF NOT EXISTS link TEXT")
+      .catch(() => {
+        notificationLinkColumnPromise = null; // allow a retry on the next call
+      });
+  }
+  return notificationLinkColumnPromise;
+}
+
+/**
+ * Create a notification that carries a destination. The inbox turns it into
+ * navigation for the types that know what to do with it (investor,
+ * venture_invite). Kept separate from createNotification so the many existing
+ * producers never depend on the link column.
+ */
+export async function createLinkedNotification(recipientId, title, message, type, link) {
+  await ensureNotificationLinkColumn();
+  return db.execute({
+    sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at, link)
+            VALUES (?, ?, ?, ?, 0, NOW(), ?)`,
+    args: [recipientId, title, message, type, link],
+  });
+}
+
 /** A recipient's 50 most recent notification rows. */
 export async function getRecentNotifications(recipientId) {
   return db.execute({

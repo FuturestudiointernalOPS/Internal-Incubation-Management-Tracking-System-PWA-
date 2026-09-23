@@ -1713,6 +1713,13 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                                 router.push(notification.link);
                                 setShowNotifications(false);
                               }
+                              if (
+                                notification.type === "venture_invite" &&
+                                notification.link
+                              ) {
+                                router.push(notification.link);
+                                setShowNotifications(false);
+                              }
                             }}
                             className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!notification.is_read ? "bg-[var(--brand-orange)]/5" : ""}`}
                           >

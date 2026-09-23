@@ -8,6 +8,7 @@ import {
   createVentureMemberInvitation,
   recordVentureMemberInvitationDelivery,
 } from "@/models/ventureMemberInvitations";
+import { createLinkedNotification } from "@/models/workspace";
 import {
   resolveVentureCode,
   getVentureFounderCount,
@@ -161,6 +162,35 @@ export async function POST(req, { params }) {
       invitedByCid: userCid || null,
     });
 
+    // The Venture's display name is needed by both the in-app notification and
+    // the email below — ask for it once.
+    let ventureName = "the Venture";
+    try {
+      const ventureResult = await db.execute({
+        sql: "SELECT COALESCE(NULLIF(name, ''), company_name) AS venture_name FROM ventures WHERE venture_id = ? LIMIT 1",
+        args: [code],
+      });
+      ventureName = ventureResult.rows?.[0]?.venture_name || ventureName;
+    } catch (_) {}
+
+    // Someone already on the platform is told IN THE APP too: they accept from
+    // their notifications, without waiting on (or hunting for) the email. Only
+    // on a first send — a re-send must not pile up duplicate notices.
+    if (invitation.contact_id && invitation.contact_has_account && !invitation.resent) {
+      try {
+        const seat = memberType === "founder" ? "a founder" : "a team member";
+        await createLinkedNotification(
+          invitation.contact_id,
+          `Invitation to join ${ventureName}`,
+          `${session?.name || "A founder of the Venture"} invited you to join ${ventureName} as ${seat}. Open this notification to accept.`,
+          "venture_invite",
+          `/venture-invite/${invitation.token}`,
+        );
+      } catch (error) {
+        console.warn("Venture invitation notification failed:", error.message);
+      }
+    }
+
     // Never block the answer on the mailer: a failed send is logged and the
     // invitation stays pending, so the founder can send it again. The delivery
     // outcome IS reported back, so the founder is told when no email actually
@@ -168,11 +198,6 @@ export async function POST(req, { params }) {
     let emailSent = false;
     let emailError = null;
     try {
-      const ventureResult = await db.execute({
-        sql: "SELECT COALESCE(NULLIF(name, ''), company_name) AS venture_name FROM ventures WHERE venture_id = ? LIMIT 1",
-        args: [code],
-      });
-      const ventureName = ventureResult.rows?.[0]?.venture_name || "the Venture";
       const link = `${resolveAppUrl()}/venture-invite/${invitation.token}`;
       // Same transport as every other Venture email (Google Workspace first,
       // Resend fallback) — not a separate weaker sender.

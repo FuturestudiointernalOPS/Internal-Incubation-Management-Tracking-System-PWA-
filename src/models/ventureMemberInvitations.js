@@ -188,7 +188,15 @@ export async function createVentureMemberInvitation({
         id,
       ],
     });
-    return { id, token, email: emailNorm, expires_at: expiresAt, resent: true };
+    return {
+      id,
+      token,
+      email: emailNorm,
+      expires_at: expiresAt,
+      resent: true,
+      contact_id: contactId,
+      contact_has_account: !!contact?.has_account,
+    };
   }
 
   const inserted = await db.execute({
@@ -216,6 +224,10 @@ export async function createVentureMemberInvitation({
     email: emailNorm,
     expires_at: expiresAt,
     resent: false,
+    // Who the invitation already matches on the platform, if anyone: an
+    // existing account holder accepts without creating anything.
+    contact_id: contactId,
+    contact_has_account: !!contact?.has_account,
   };
 }
 
