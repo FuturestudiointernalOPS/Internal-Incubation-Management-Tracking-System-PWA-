@@ -165,6 +165,7 @@ export async function POST(req) {
           name: analysis.name || "",
           role: "facilitator",
           programName: programName,
+          contact_cid: contactCid,
         });
       } else {
         await sendInviteEmail({
@@ -173,6 +174,7 @@ export async function POST(req) {
           role: "facilitator",
           token,
           programName: programName,
+          contact_cid: contactCid,
         });
       }
 

@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { sendEmail } from "@/lib/mailer";
+import { sendStandaloneEmail } from "@/lib/email";
 import {
   requireAuth,
   getSession,
@@ -158,7 +158,7 @@ export async function POST(req) {
         if (!is_management_group) {
           for (const member of allMembers) {
             try {
-              await sendEmail({
+              await sendStandaloneEmail({
                 to: member.email,
                 subject: `Unit Credentials Secured: ${name}`,
                 body: `
@@ -175,6 +175,7 @@ export async function POST(req) {
                 </div>
               `,
                 isHtml: true,
+                email_type: "team_credentials",
               });
             } catch (error) {
               console.error(`Email delivery failed for ${member.email}:`, error);
@@ -270,7 +271,7 @@ export async function PATCH(req) {
     if (!is_management_group) {
       for (const member of allMembers) {
         try {
-          await sendEmail({
+          await sendStandaloneEmail({
             to: member.email,
             subject: `Unit Assignment Confirmed: ${team.name}`,
             body: `
@@ -287,6 +288,7 @@ export async function PATCH(req) {
             </div>
           `,
             isHtml: true,
+            email_type: "team_credentials",
           });
         } catch {}
       }

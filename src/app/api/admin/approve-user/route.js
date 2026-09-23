@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import { requireAuthorization } from "@/lib/authorization";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { sendEmail } from "@/lib/mailer";
+import { sendStandaloneEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import {
   approveContact,
@@ -121,12 +121,14 @@ export async function POST(req) {
       </div>
     `;
 
-    const emailResult = await sendEmail({
+    const emailResult = await sendStandaloneEmail({
       to: user.email,
       subject: "Set Your Password — Future Studio Account Approved",
       body: emailBody,
       isHtml: true,
       fromName: "Future Studio Admin",
+      email_type: "approval_setup",
+      contact_cid: user_cid,
     });
 
     // 5. Log to audit_log

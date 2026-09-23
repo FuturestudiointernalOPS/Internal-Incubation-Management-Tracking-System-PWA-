@@ -101,7 +101,7 @@ jest.mock("@/lib/db", () => ({
 }));
 
 jest.mock("@/lib/email", () => ({
-  sendEmail: jest.fn().mockResolvedValue({ success: true }),
+  sendStandaloneEmail: jest.fn().mockResolvedValue({ success: true }),
   sendInviteEmail: jest.fn().mockResolvedValue({ success: true }),
   sendLoginEmail: jest.fn().mockResolvedValue({ success: true }),
 }));
@@ -116,7 +116,7 @@ const mockAuth = require("@/lib/auth");
 const { resolveCoachContact, inviteCoachByEmail } = require("@/lib/ventureCoach");
 const { notifyVentureCoach, notifyVentureLeadManagers } = require("@/lib/ventureNotify");
 const { GET: calendarGET } = require("@/app/api/calendar/route");
-const { sendEmail, sendInviteEmail, sendLoginEmail } = require("@/lib/email");
+const { sendStandaloneEmail, sendInviteEmail, sendLoginEmail } = require("@/lib/email");
 const readJson = async (res) => res.json();
 
 beforeEach(() => {
@@ -179,7 +179,7 @@ describe("notifyVentureCoach — automatic coach delivery (in-app + email)", () 
     expect(notifInsert).toBeDefined();
     expect(notifInsert.args).toEqual(expect.arrayContaining(["c-sarah", "venture.notif.sessionScheduled", "session-scheduled:9:coach"]));
 
-    expect(sendEmail).toHaveBeenCalledWith(
+    expect(sendStandaloneEmail).toHaveBeenCalledWith(
       expect.objectContaining({ to: "sarah@future.studio", subject: "You have been added to a Venture session" }),
     );
   });
@@ -188,7 +188,7 @@ describe("notifyVentureCoach — automatic coach delivery (in-app + email)", () 
     mockDb.flags.contactByCid = false;
     const out = await notifyVentureCoach(mockDb, { dbId: "x", coachContactId: "ghost", title: "t", message: "m", emailSubject: "s" });
     expect(out.skipped).toBe(true);
-    expect(sendEmail).not.toHaveBeenCalled();
+    expect(sendStandaloneEmail).not.toHaveBeenCalled();
     const notifInsert = executed.find((query) => query.sql.includes("INSERT INTO v2_notifications"));
     expect(notifInsert).toBeUndefined();
   });
@@ -227,7 +227,7 @@ describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)",
     expect(notifInsert).toBeDefined();
     expect(notifInsert.args).toEqual(expect.arrayContaining(["lm-1", "venture.notif.sessionScheduled", "session-scheduled:9:lm"]));
 
-    expect(sendEmail).toHaveBeenCalledWith(
+    expect(sendStandaloneEmail).toHaveBeenCalledWith(
       expect.objectContaining({ to: "lena@future.studio", subject: "You have been added to a Venture session" }),
     );
   });
@@ -240,7 +240,7 @@ describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)",
     });
     expect(out.sent).toBe(0);
     expect(executed.find((query) => query.sql.includes("INSERT INTO v2_notifications"))).toBeUndefined();
-    expect(sendEmail).not.toHaveBeenCalled();
+    expect(sendStandaloneEmail).not.toHaveBeenCalled();
   });
 
   test("no active lead-manager assignment → nothing written, no throw", async () => {
@@ -249,7 +249,7 @@ describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)",
     });
     expect(out.sent).toBe(0);
     expect(executed.find((query) => query.sql.includes("INSERT INTO v2_notifications"))).toBeUndefined();
-    expect(sendEmail).not.toHaveBeenCalled();
+    expect(sendStandaloneEmail).not.toHaveBeenCalled();
   });
 
   test("lead manager without an email still gets the in-app notification", async () => {
@@ -261,7 +261,7 @@ describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)",
     const notifInsert = executed.find((query) => query.sql.includes("INSERT INTO v2_notifications"));
     expect(notifInsert).toBeDefined();
     expect(notifInsert.args).toContain("lm-1");
-    expect(sendEmail).not.toHaveBeenCalled();
+    expect(sendStandaloneEmail).not.toHaveBeenCalled();
   });
 
   test("missing venture code is resolved from the internal id", async () => {

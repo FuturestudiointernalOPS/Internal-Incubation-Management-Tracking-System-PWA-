@@ -256,7 +256,7 @@ function resolveGreetingName(name) {
   return cleanedName;
 }
 
-export async function sendInviteEmail({ to, name, role, token, template, templateVars, programName }) {
+export async function sendInviteEmail({ to, name, role, token, template, templateVars, programName, contact_cid }) {
   const activationUrl = `${APP_URL}/activate?token=${token}`;
   const roleLabel = role?.replace(/_/g, " ") || "User";
   const org = templateVars?.organization || "Impact OS";
@@ -329,14 +329,14 @@ export async function sendInviteEmail({ to, name, role, token, template, templat
     </html>
   `;
 
-  return sendEmail({ to, subject, html });
+  return sendAndRecord({ to, subject, html, contact_cid, email_type: "activation" });
 }
 
 /**
  * Send an access email to someone who ALREADY has a platform account.
  * No password-setup token — the recipient logs in with existing credentials.
  */
-export async function sendLoginEmail({ to, name, role, template, templateVars, programName }) {
+export async function sendLoginEmail({ to, name, role, template, templateVars, programName, contact_cid }) {
   const loginUrl = `${APP_URL}/login`;
   const org = templateVars?.organization || "Impact OS";
   const greetingName = resolveGreetingName(name);
@@ -404,13 +404,13 @@ export async function sendLoginEmail({ to, name, role, template, templateVars, p
     </html>
   `;
 
-  return sendEmail({ to, subject, html });
+  return sendAndRecord({ to, subject, html, contact_cid, email_type: "access" });
 }
 
 /**
  * Send a welcome email after activation
  */
-export async function sendWelcomeEmail({ to, name, language }) {
+export async function sendWelcomeEmail({ to, name, language, contact_cid }) {
   // Never render placeholder identities (UNKNOWN / Anonymous / empty) when a
   // resolved name is unavailable — use a neutral greeting instead.
   const displayName = isGenericName(name) ? "there" : (name || "there").trim();
@@ -474,13 +474,13 @@ export async function sendWelcomeEmail({ to, name, language }) {
     </html>
   `;
 
-  return sendEmail({ to, subject: copy.subject, html, provider: "gmail" });
+  return sendAndRecord({ to, subject: copy.subject, html, provider: "gmail", contact_cid, email_type: "welcome" });
 }
 
 /**
  * Send a password reset email
  */
-export async function sendPasswordResetEmail({ to, name, resetUrl }) {
+export async function sendPasswordResetEmail({ to, name, resetUrl, contact_cid }) {
   const html = `
     <!DOCTYPE html>
     <html>
@@ -531,14 +531,14 @@ export async function sendPasswordResetEmail({ to, name, resetUrl }) {
     </html>
   `;
 
-  return sendEmail({ to, subject: "Reset your ImpactOS password", html });
+  return sendAndRecord({ to, subject: "Reset your ImpactOS password", html, contact_cid, email_type: "password_reset" });
 }
 
 /**
  * Send a venture approval email (venture created via invite link has been approved).
  * Includes a setup link so the founder can set their password and access the dashboard.
  */
-export async function sendVentureApprovalEmail({ to, name, ventureName, setupUrl }) {
+export async function sendVentureApprovalEmail({ to, name, ventureName, setupUrl, contact_cid }) {
   const ctaUrl = setupUrl || `${APP_URL}/login`;
   const ctaLabel = setupUrl ? "SET YOUR PASSWORD" : "LOG IN";
   const html = `
@@ -599,14 +599,14 @@ export async function sendVentureApprovalEmail({ to, name, ventureName, setupUrl
     </html>
   `;
 
-  return sendEmail({ to, subject: `Your venture ${ventureName} has been approved`, html });
+  return sendAndRecord({ to, subject: `Your venture ${ventureName} has been approved`, html, contact_cid, email_type: "venture_approval" });
 }
 
 /**
  * Send a Venture Run invitation email (Invite ≠ create — the recipient
  * completes the Venture Application form; only approval creates the Venture).
  */
-export async function sendVentureInvitationEmail({ to, name, runUrl, runName }) {
+export async function sendVentureInvitationEmail({ to, name, runUrl, runName, contact_cid }) {
   const ctaUrl = runUrl || `${APP_URL}/login`;
   const ctaLabel = runUrl ? "COMPLETE YOUR VENTURE APPLICATION" : "LOG IN";
   const html = `
@@ -663,7 +663,7 @@ export async function sendVentureInvitationEmail({ to, name, runUrl, runName }) 
     </html>
   `;
 
-  return sendEmail({ to, subject: "You're invited to register a Venture", html });
+  return sendAndRecord({ to, subject: "You're invited to register a Venture", html, contact_cid, email_type: "venture_invitation" });
 }
 
 /**
@@ -682,6 +682,7 @@ export async function sendVentureMemberInvitationEmail({
   memberType,
   inviteUrl,
   expiresAt,
+  contact_cid,
 }) {
   const ctaUrl = inviteUrl || `${APP_URL}/login`;
   const venue = ventureName || "the Venture";
@@ -743,7 +744,7 @@ export async function sendVentureMemberInvitationEmail({
     </html>
   `;
 
-  return sendEmail({ to, subject: `You're invited to join ${venue}`, html });
+  return sendAndRecord({ to, subject: `You're invited to join ${venue}`, html, contact_cid, email_type: "venture_member_invitation" });
 }
 
 /**
@@ -823,6 +824,86 @@ export async function sendEmail({ to, subject, html, provider, attachments, from
     note: "Primary provider (" + chosen + ") and fallback (" + fallback + ") both failed",
   };
 }
+
+// ─── STANDALONE SENDERS (no submission behind the email) ─────────────
+// Invitations, password setup, approvals, credentials, campaigns. They use the
+// SAME transport and the SAME delivery log as the workflow emails, so "sent"
+// means sent and a failure is visible instead of silently successful.
+
+/** HTML-escape plain text so a body sent without markup cannot inject tags. */
+function textToHtml(text) {
+  const escaped = String(text || "").replace(/[&<>]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[character]));
+  return `<pre style="font-family:inherit;white-space:pre-wrap;word-break:break-word;margin:0;">${escaped}</pre>`;
+}
+
+/**
+ * Append ONE row per standalone attempt (sent OR failed) to the shared log.
+ * Never deduped: every attempt is history and the LATEST row is the status.
+ */
+async function recordStandaloneSend({ result, to, contact_cid, email_type, note, provider }) {
+  try {
+    await ensureEmailLogTable();
+    const { default: db } = await import("@/lib/db");
+    const recipient = to ? String(to).trim().substring(0, 300) : null;
+    if (result?.success) {
+      await db.execute({
+        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient, email_id, sent_at)
+              VALUES (NULL, ?, ?, 'sent', ?, ?, ?, ?, NOW())`,
+        args: [contact_cid || null, email_type, result?.provider || provider || null, note || null, recipient, result?.data?.id || null],
+      });
+    } else {
+      const reason = result?.provider === "blocked"
+        ? "Refused — the address is a placeholder, not a real recipient"
+        : String(typeof result?.error === "string" ? result.error : result?.error ? JSON.stringify(result.error) : "Send failed");
+      await db.execute({
+        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient)
+              VALUES (NULL, ?, ?, 'failed', ?, ?, ?)`,
+        args: [contact_cid || null, email_type, result?.provider || provider || null, reason.substring(0, 500), recipient],
+      });
+    }
+  } catch (error) {
+    console.warn("[EmailLog] Could not record standalone send:", error.message);
+  }
+}
+
+/** Send + record one standalone email. Used by the in-module senders below. */
+async function sendAndRecord({ to, subject, html, fromName, provider, contact_cid, email_type, note, attachments }) {
+  const result = await sendEmail({ to, subject, html, fromName, provider, attachments });
+  await recordStandaloneSend({ result, to, contact_cid, email_type, note, provider });
+  return result;
+}
+
+/**
+ * Public entry point for a STANDALONE transactional email — anything that is
+ * not tied to a form submission: invitations, password setup, account
+ * approvals, team credentials, campaign sends.
+ *
+ * Same transport as every workflow email (professional mailbox first, fallback
+ * to the transactional service, placeholder addresses refused, attachments
+ * supported) and same delivery log, so it can be supervised and its failure
+ * seen. The argument shape matches the historical standalone sender
+ * ({ to, subject, body, isHtml, fromName }) — `body` may be plain text or, with
+ * isHtml, markup — plus `contact_cid` and `email_type` for the log.
+ *
+ * Returns the transport result: { success, provider, error?, data? }.
+ */
+export async function sendStandaloneEmail({
+  to,
+  subject,
+  body,
+  html,
+  isHtml = false,
+  fromName,
+  contact_cid,
+  email_type = "notification",
+  note,
+  provider,
+  attachments,
+}) {
+  const content = html != null ? html : isHtml ? (body || "") : textToHtml(body);
+  return sendAndRecord({ to, subject, html: content, fromName, provider, contact_cid, email_type, note, attachments });
+}
+
 // Every workflow email is tracked in platform_email_log so the system
 // never sends the same email type twice for the same submission, and
 // failed sends are distinguishable from successful ones.

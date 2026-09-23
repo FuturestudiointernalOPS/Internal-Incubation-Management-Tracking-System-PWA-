@@ -50,6 +50,7 @@ export const POST = createHandler(
       name: contact.name,
       role: contact.role,
       token,
+      contact_cid: cid,
     }).catch((emailError) =>
       console.error("Resend invite email failed:", emailError),
     );

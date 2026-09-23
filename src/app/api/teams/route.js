@@ -7,7 +7,7 @@ import {
   requireAssignmentAccess,
 } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
-import { sendEmail } from "@/lib/mailer";
+import { sendStandaloneEmail } from "@/lib/email";
 import {
   getOrgTeams,
   getOrgTeamMembers,
@@ -139,10 +139,11 @@ export async function POST(req) {
         // Send welcome emails with team credentials
         for (const email of emails) {
           try {
-            await sendEmail({
+            await sendStandaloneEmail({
               to: email,
               subject: `Team Credentials: ${name}`,
               body: `<p>You've been added to <b>${name}</b>. Use username <b>${generatedUsername}</b> and password <b>${generatedPassword}</b> to log in.</p>`,
+              email_type: "team_credentials",
             });
           } catch (_) {}
         }

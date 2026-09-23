@@ -14,8 +14,9 @@ jest.mock("@/lib/auth", () => ({
   requireAuth: jest.fn(async () => null),
 }));
 
-jest.mock("@/lib/mailer", () => ({
-  sendEmail: jest.fn(),
+jest.mock("@/lib/email", () => ({
+  ...jest.requireActual("@/lib/email"),
+  sendStandaloneEmail: jest.fn(),
 }));
 
 jest.mock("@/models/workspace", () => ({
@@ -23,7 +24,7 @@ jest.mock("@/models/workspace", () => ({
   completeCampaignContact: jest.fn(),
 }));
 
-const { sendEmail } = require("@/lib/mailer");
+const { sendStandaloneEmail } = require("@/lib/email");
 const {
   getPendingCampaignContacts,
   completeCampaignContact,
@@ -51,7 +52,7 @@ it("closes and counts a recipient only when the email actually went out", async 
   getPendingCampaignContacts.mockResolvedValue({
     rows: [contact({ cc_id: 1, email: "ok@b.co" }), contact({ cc_id: 2, email: "bad@b.co" })],
   });
-  sendEmail
+  sendStandaloneEmail
     .mockResolvedValueOnce({ success: true })
     .mockResolvedValueOnce({ success: false, error: "quota" });
 
@@ -65,7 +66,7 @@ it("closes and counts a recipient only when the email actually went out", async 
 
 it("does not mark anything done when every send fails", async () => {
   getPendingCampaignContacts.mockResolvedValue({ rows: [contact({ cc_id: 7 })] });
-  sendEmail.mockResolvedValueOnce({ success: false, error: "no provider configured" });
+  sendStandaloneEmail.mockResolvedValueOnce({ success: false, error: "no provider configured" });
 
   const body = await (await GET()).json();
 

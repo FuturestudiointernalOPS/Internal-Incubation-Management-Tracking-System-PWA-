@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { sendEmail } from "@/lib/mailer";
+import { sendStandaloneEmail } from "@/lib/email";
 import { requireAuth } from "@/lib/auth";
 import {
   getPendingCampaignContacts,
@@ -71,11 +71,13 @@ export async function GET() {
         `;
 
       try {
-        const delivery = await sendEmail({
+        const delivery = await sendStandaloneEmail({
           to: row.email,
           subject,
           body: htmlContent,
           isHtml: true,
+          email_type: "campaign",
+          contact_cid: row.contact_cid,
         });
 
         if (delivery?.success) {

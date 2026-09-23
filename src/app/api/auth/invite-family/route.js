@@ -135,6 +135,7 @@ export async function POST(req) {
           name: memberName,
           role: "participant",
           token,
+          contact_cid: cid,
         }).catch((emailError) => console.error("Family invite email failed:", emailError));
 
         results.push({

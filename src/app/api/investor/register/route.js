@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { sendEmail } from "@/lib/mailer";
+import { sendStandaloneEmail } from "@/lib/email";
 import {
   findContactByEmail,
   getExistingInvestorProfileId,
@@ -104,9 +104,11 @@ export async function POST(req) {
 
     // Send confirmation email
     try {
-      await sendEmail({
+      await sendStandaloneEmail({
         to: email,
         subject: "Investor Registration Received — Future Studio",
+        email_type: "investor_registration",
+        contact_cid: cid,
         body: `Hello ${name},\n\nYour investor registration has been received and is pending review.\n\nOrganization: ${organization_name || "Individual Investor"}\n\nWe'll notify you once your account is approved. You'll then be able to access Investor OS and discover investment opportunities.\n\n— Future Studio Team`,
       });
     } catch (_) {}

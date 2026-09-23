@@ -4,7 +4,7 @@ import { requireAuth, getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
 import { v4 as uuidv4 } from "uuid";
-import { sendInviteEmail, sendLoginEmail, recordEmailSent } from "@/lib/email";
+import { sendInviteEmail, sendLoginEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { addContactToGroup } from "@/lib/contact-groups";
@@ -84,14 +84,21 @@ export async function POST(req) {
       const token = uuidv4();
       const tokenHash = hashToken(token);
       await createStaffInviteSetupTokenForResend(token, tokenHash, contact.cid);
-      const sendResult = await sendInviteEmail({ to: contact.email, name: contact.name || "", role: contact.role || "participant", token });
-      if (sendResult?.success) {
-        await recordEmailSent({ contact_cid: contact.cid, email_type: "activation", provider: "resend", to: contact.email, note: "Manual activation email resent" });
-      }
+      const sendResult = await sendInviteEmail({ to: contact.email, name: contact.name || "", role: contact.role || "participant", token, contact_cid: contact.cid });
       try {
         await logInvitationResent(contact.cid, actor);
       } catch (_) {}
-      return NextResponse.json({ success: true, message: "Invitation resent", email: contact.email, token, action: "resent" });
+      // The caller is told what the SENDER did, not only that the token was
+      // created — a failed send must never read as "invitation sent".
+      return NextResponse.json({
+        success: true,
+        message: "Invitation resent",
+        email: contact.email,
+        token,
+        action: "resent",
+        email_sent: !!sendResult?.success,
+        ...(sendResult?.success ? {} : { email_error: sendResult?.error || "Send failed" }),
+      });
     }
 
     // NEW INVITE — name is optional (email alone is sufficient).
@@ -157,14 +164,9 @@ export async function POST(req) {
 
     // Existing activated account → login email (no new password setup).
     // New / not-yet-activated account → activation/setup email.
-    if (accountActivated) {
-      await sendLoginEmail({ to: cleanEmail, name: displayName, role: role || "participant", programName: program_name });
-    } else {
-      const sendResult = await sendInviteEmail({ to: cleanEmail, name: displayName, role: role || "participant", token, programName: program_name });
-      if (sendResult?.success) {
-        await recordEmailSent({ contact_cid: contactCid, email_type: "activation", provider: "resend", to: cleanEmail, note: "Manual activation email sent" });
-      }
-    }
+    const sendResult = accountActivated
+      ? await sendLoginEmail({ to: cleanEmail, name: displayName, role: role || "participant", programName: program_name, contact_cid: contactCid })
+      : await sendInviteEmail({ to: cleanEmail, name: displayName, role: role || "participant", token, programName: program_name, contact_cid: contactCid });
 
     return NextResponse.json({
       success: true,
@@ -174,6 +176,8 @@ export async function POST(req) {
       token,
       action: existingContact.rows.length > 0 ? "reused_contact" : "new_contact",
       account_activated: accountActivated,
+      email_sent: !!sendResult?.success,
+      ...(sendResult?.success ? {} : { email_error: sendResult?.error || "Send failed" }),
     });
   } catch (error) {
     console.error("Invite error:", error);

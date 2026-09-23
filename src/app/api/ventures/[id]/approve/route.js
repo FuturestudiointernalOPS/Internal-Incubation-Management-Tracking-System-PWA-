@@ -69,9 +69,11 @@ export async function POST(req, { params }) {
           // Create a password-setup token so the founder can set their password
           // and access their dashboard (reuses the /activate flow).
           let setupUrl = null;
+          let founderCid = null;
           try {
             const contact = await getContactCidByLowerEmail(founder.email);
             if (contact.rows?.[0]?.cid) {
+              founderCid = contact.rows[0].cid;
               const token = uuidv4();
               const tokenHash = hashToken(token);
               await createApprovalPasswordSetupToken(token, tokenHash, contact.rows[0].cid, founder.email);
@@ -85,6 +87,7 @@ export async function POST(req, { params }) {
             name: founder.name || "there",
             ventureName: venture.company_name || venture.name || id,
             setupUrl,
+            contact_cid: founderCid,
           });
           if (emailResult?.success) {
             emailed++;

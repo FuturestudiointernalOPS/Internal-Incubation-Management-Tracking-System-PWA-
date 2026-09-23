@@ -156,9 +156,9 @@ export async function inviteCoachByEmail(db, { code, ventureName, email, name = 
       args: [token, hashToken(token), cid],
     });
     if (accountActivated) {
-      await sendLoginEmail({ to: cleanEmail, name: row?.name || name || "", role: "facilitator", programName: ventureName || code });
+      await sendLoginEmail({ to: cleanEmail, name: row?.name || name || "", role: "facilitator", programName: ventureName || code, contact_cid: cid });
     } else {
-      await sendInviteEmail({ to: cleanEmail, name: row?.name || name || "", role: "facilitator", token, programName: ventureName || code });
+      await sendInviteEmail({ to: cleanEmail, name: row?.name || name || "", role: "facilitator", token, programName: ventureName || code, contact_cid: cid });
     }
   } catch (_) {}
 

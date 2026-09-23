@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { sendEmail } from "@/lib/mailer";
+import { sendStandaloneEmail } from "@/lib/email";
 import {
   getInvestorWithContactByProfileId,
   listInvestorsByApprovalStatus,
@@ -64,9 +64,11 @@ export async function POST(req) {
     if (investorRow && investorRow.email) {
       const statusLabels = { approved: "approved", rejected: "rejected", suspended: "suspended" };
       try {
-        await sendEmail({
+        await sendStandaloneEmail({
           to: investorRow.email,
           subject: `Investor Account ${statusLabels[newStatus]}`,
+          email_type: "investor_decision",
+          contact_cid: investorRow.user_id,
           body: `Hello ${investorRow.name || ""},\n\nYour investor account has been ${statusLabels[newStatus]}${reason ? `.\n\nReason: ${reason}` : "."}\n\n${newStatus === "approved" ? "You can now access Investor OS at " + (await import("@/lib/appUrl")).resolveAppUrl() + "/login" : "Please contact Future Studio for more information."}\n\n— Future Studio Team`,
         });
       } catch (_) {}

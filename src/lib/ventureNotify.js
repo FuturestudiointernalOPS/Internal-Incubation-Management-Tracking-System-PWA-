@@ -11,7 +11,7 @@
  * Internal staff events must NOT be routed through this helper — it is only
  * for events explicitly designated Venture-facing.
  */
-import { sendEmail } from "@/lib/email";
+import { sendStandaloneEmail } from "@/lib/email";
 
 /**
  * @param {object} db   db handle
@@ -41,7 +41,7 @@ export async function notifyAndEmailVentureFounders(db, { dbId, title, message, 
     if (!code) return { sent: 0 };
 
     const foundersResult = await db.execute({
-      sql: `SELECT DISTINCT c.email, c.name
+      sql: `SELECT DISTINCT c.cid, c.email, c.name
             FROM venture_members vm
             JOIN contacts c ON (c.cid = vm.contact_id OR c.cid = vm.user_cid)
             WHERE vm.venture_id = ? AND vm.member_type = 'founder'
@@ -56,7 +56,7 @@ export async function notifyAndEmailVentureFounders(db, { dbId, title, message, 
 
     for (const founder of foundersResult.rows || []) {
       try {
-        const sendResult = await sendEmail({ to: founder.email, subject: emailSubject, html });
+        const sendResult = await sendStandaloneEmail({ to: founder.email, subject: emailSubject, html, contact_cid: founder.cid, email_type: "venture_notification" });
         if (sendResult && sendResult.success !== false) sent += 1;
       } catch (_) {}
     }
@@ -96,7 +96,7 @@ export async function notifyVentureCoach(db, { dbId, coachContactId, title, mess
       ${(emailLines || []).map((line) => `<p style="margin:8px 0;color:#334155;font-size:15px;line-height:1.5">${line}</p>`).join("")}
       <p style="margin:22px 0 0;color:#94a3b8;font-size:12px">ImpactOS · Future Studio</p>
     </div>`;
-    const sendResult = await sendEmail({ to: contact.email, subject: emailSubject, html });
+    const sendResult = await sendStandaloneEmail({ to: contact.email, subject: emailSubject, html, contact_cid: contact.cid, email_type: "venture_notification" });
     return { sent: sendResult && sendResult.success !== false ? 1 : 0 };
   } catch (_) {
     return { sent: 0 };
@@ -169,7 +169,7 @@ export async function notifyVentureLeadManagers(db, { dbId, ventureCode, title, 
         });
 
         if (!contact.email) continue;
-        const sendResult = await sendEmail({ to: contact.email, subject: emailSubject, html });
+        const sendResult = await sendStandaloneEmail({ to: contact.email, subject: emailSubject, html, contact_cid: contact.cid, email_type: "venture_notification" });
         if (sendResult && sendResult.success !== false) sent += 1;
       } catch (_) {}
     }

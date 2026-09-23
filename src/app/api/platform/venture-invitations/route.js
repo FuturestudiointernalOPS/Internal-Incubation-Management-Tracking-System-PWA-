@@ -151,7 +151,7 @@ export async function POST(req) {
     const url = `${ventureRunUrl(run)}?invitation=${invitation.token}`;
     try {
       const { sendVentureInvitationEmail } = await import("@/lib/email");
-      await sendVentureInvitationEmail({ to: inviteEmail, name: null, runUrl: url, runName: run.name });
+      await sendVentureInvitationEmail({ to: inviteEmail, name: null, runUrl: url, runName: run.name, contact_cid: inviteContactCid });
     } catch (error) {
       console.error("[Venture Invitations] email send failed:", error.message);
     }

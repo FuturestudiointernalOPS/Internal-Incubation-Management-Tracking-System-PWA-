@@ -141,7 +141,7 @@ export async function POST(req) {
     } catch (_) {}
 
     // Send welcome email (non-blocking)
-    sendWelcomeEmail({ to: record.email, name: record.name, role: record.role, language: record.language }).catch((emailError) =>
+    sendWelcomeEmail({ to: record.email, name: record.name, role: record.role, language: record.language, contact_cid: record.contact_cid }).catch((emailError) =>
       console.error("Welcome email failed:", emailError),
     );
 

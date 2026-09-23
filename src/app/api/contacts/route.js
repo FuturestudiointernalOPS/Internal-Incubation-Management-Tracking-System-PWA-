@@ -50,7 +50,7 @@ async function fireInvite(cid, name, email, role, _groupId) {
     await markContactInvited(cid).catch(() => {}); // Column may not exist yet — non-critical
     // Send email synchronously so Vercel doesn't kill the worker
     const { sendInviteEmail } = await import("@/lib/email");
-    await sendInviteEmail({ to: email, name, role, token });
+    await sendInviteEmail({ to: email, name, role, token, contact_cid: cid });
   } catch (error) {
     console.error("Invite fire failed:", error.message || error);
   }
