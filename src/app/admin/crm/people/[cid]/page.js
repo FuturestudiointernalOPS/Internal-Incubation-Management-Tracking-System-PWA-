@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { User, Clock, FileText, Briefcase, Rocket, Upload, Plus, ArrowLeft, Send, Mail, GraduationCap, Building2 } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
-import { formatLocaleDate } from "@/lib/constants";
+import { formatLabel, formatLocaleDate } from "@/lib/constants";
 import { useSafeBack } from "@/lib/useSafeBack";
 import MembershipSection from "@/components/membership/MembershipSection";
 import { useApi } from "@/lib/hooks/useApi";
@@ -22,6 +22,7 @@ const pickTimeline = (payload) => (payload?.success ? payload.events || [] : [])
 const pickRoles = (payload) => (payload?.success ? payload.roles || [] : []);
 const pickProgramHistory = (payload) => (payload?.success ? payload.history || [] : []);
 const pickLearning = (payload) => (payload?.success ? payload.learning || null : null);
+const pickEmails = (payload) => (payload?.success ? payload.emails || [] : []);
 
 const MODULE_COLORS = {
   forms: "bg-purple-500/10 text-purple-400 border-purple-500/20",
@@ -68,6 +69,45 @@ const MODULE_LABELS = {
   system: "crm.modules.system",
 };
 
+// Every email type the SHARED delivery log can hold, so a person's history is
+// labelled in the reader's language. An unknown type falls back to a humanized
+// code rather than a raw key.
+const EMAIL_TYPE_KEYS = [
+  "activation", "access", "welcome", "password_reset", "approval_setup",
+  "team_credentials", "campaign", "investor_registration", "investor_decision",
+  "venture_approval", "venture_invitation", "venture_member_invitation",
+  "venture_notification", "notification",
+  "acknowledgement", "approval", "rejection", "manual", "result",
+];
+
+// Delivery statuses — the same vocabulary and colours the run email log uses.
+const EMAIL_STATUS_STYLES = {
+  sent: "bg-emerald-500/10 text-emerald-500",
+  delivered: "bg-emerald-400/10 text-emerald-400",
+  opened: "bg-sky-500/10 text-sky-500",
+  clicked: "bg-indigo-500/10 text-indigo-500",
+  delayed: "bg-amber-500/10 text-amber-500",
+  complained: "bg-rose-500/10 text-rose-500",
+  failed: "bg-rose-500/10 text-rose-500",
+  bounced: "bg-amber-500/10 text-amber-500",
+  cancelled: "bg-slate-500/10 text-slate-400",
+  skipped: "bg-slate-500/10 text-slate-400",
+  pending: "bg-amber-500/10 text-amber-400",
+};
+const EMAIL_STATUS_LABEL_KEYS = {
+  sent: "platformMisc.runs.emailSent",
+  delivered: "platformMisc.runs.emailDelivered",
+  opened: "platformMisc.runs.emailOpened",
+  clicked: "platformMisc.runs.emailClicked",
+  delayed: "platformMisc.runs.emailDelayed",
+  complained: "platformMisc.runs.emailComplained",
+  failed: "platformMisc.runs.emailFailed",
+  bounced: "platformMisc.runs.emailBounced",
+  cancelled: "platformMisc.runs.emailCancelled",
+  skipped: "platformMisc.runs.emailSkipped",
+  pending: "platformMisc.runs.emailPending",
+};
+
 export default function CrmDetailPage({ params }) {
   const { cid } = use(params);
   const _router = useRouter();
@@ -96,7 +136,7 @@ export default function CrmDetailPage({ params }) {
   const [inviting, setInviting] = useState(false);
   const [inviteMessage, setInviteMessage] = useState(null);
 
-  // Five reads of the same person, each through the shared hook: it owns the
+  // Reads of the same person, each through the shared hook: it owns the
   // cache, the cache-first paint and the discarding of a stale answer, so the
   // page keeps no copy of its own and reads its data during render.
   const { data: contact, loading: contactLoading, refresh: refreshContact } = useApi(
@@ -121,13 +161,18 @@ export default function CrmDetailPage({ params }) {
     cid ? `/api/contacts/${cid}/learning` : null,
     { defaultValue: null, transform: pickLearning, deps: [cid] },
   );
+  const { data: emails, loading: emailsLoading } = useApi(
+    cid ? `/api/contacts/${cid}/emails?limit=100` : null,
+    { defaultValue: [], transform: pickEmails, deps: [cid] },
+  );
 
   const loading =
     contactLoading ||
     eventsLoading ||
     rolesLoading ||
     programsLoading ||
-    learningLoading;
+    learningLoading ||
+    emailsLoading;
 
   const currentRoles = roles.filter(roleAssignment => roleAssignment.is_current);
   const pastRoles = roles.filter(roleAssignment => !roleAssignment.is_current);
@@ -208,7 +253,13 @@ export default function CrmDetailPage({ params }) {
       });
       const data = await response.json();
       if (data.success) {
-        setInviteMessage({ type: "success", text: t("crm.contacts.invitationSent") || "Invitation sent" });
+        // The person was invited either way — but "sent" is only claimed when
+        // the sender really sent it.
+        setInviteMessage(
+          data.email_sent === false
+            ? { type: "error", text: t("crm.contacts.inviteEmailFailed", { error: data.email_error || t("crm.contacts.inviteFailed") }) }
+            : { type: "success", text: t("crm.contacts.invitationSent") || "Invitation sent" },
+        );
         // Re-read the person so the invitation state on screen is the server's.
         refreshContact();
       } else {
@@ -358,6 +409,7 @@ export default function CrmDetailPage({ params }) {
         <div className="flex gap-1 border-b border-[var(--border-primary)] pb-0">
           {[
             { key: "timeline", label: t("crm.people.tabTimeline"), icon: Clock },
+            { key: "emails", label: t("crm.people.tabEmails"), icon: Mail },
             { key: "programs", label: t("crm.people.tabPrograms"), icon: Rocket },
             { key: "learning", label: t("crm.people.tabLearning"), icon: GraduationCap },
             { key: "membership", label: t("crm.people.tabMembership"), icon: Building2 },
@@ -459,6 +511,44 @@ export default function CrmDetailPage({ params }) {
                         </div>
                       ))}
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Emails Tab — the person's history from the SHARED delivery log */}
+        {tab === "emails" && (
+          <div className="space-y-4">
+            <p className="text-[11px] text-[var(--text-secondary)]">{t("crm.people.emailsDesc")}</p>
+            {emails.length === 0 ? (
+              <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-8 text-center">
+                <Mail className="w-8 h-8 mx-auto mb-2 text-[var(--text-secondary)]" />
+                <p className="text-sm font-bold">{t("crm.people.emailsEmpty")}</p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {emails.map((email) => (
+                  <div key={email.id} className="bg-primary border border-[var(--border-primary)] rounded-xl p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-bold">
+                        {EMAIL_TYPE_KEYS.includes(email.email_type)
+                          ? t(`crm.emailTypes.${email.email_type}`)
+                          : formatLabel(email.email_type)}
+                      </p>
+                      <span className={`shrink-0 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${EMAIL_STATUS_STYLES[email.status] || "bg-white/5 text-[var(--text-secondary)]"}`}>
+                        {EMAIL_STATUS_LABEL_KEYS[email.status] ? t(EMAIL_STATUS_LABEL_KEYS[email.status]) : formatLabel(email.status)}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-[var(--text-secondary)] mt-1">
+                      {email.recipient || t("crm.people.emailsNoRecipient")}
+                      {email.provider ? ` · ${email.provider}` : ""}
+                      {` · ${formatLocaleDate(email.sent_at || email.created_at, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }, lang)}`}
+                    </p>
+                    {email.error && (
+                      <p className="text-[10px] text-rose-400 mt-1">{email.error}</p>
+                    )}
                   </div>
                 ))}
               </div>

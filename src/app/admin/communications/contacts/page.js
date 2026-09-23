@@ -254,7 +254,13 @@ function ContactsPageContent() {
       });
       const payload = await response.json();
       if (payload.success) {
-        setNotification({ type: "success", text: t("crm.contacts.invitationSent") || "Invitation sent" });
+        // The invitation exists either way; only say it was SENT when the
+        // sender actually sent it.
+        setNotification(
+          payload.email_sent === false
+            ? { type: "error", text: t("crm.contacts.inviteEmailFailed", { error: payload.email_error || t("crm.contacts.inviteFailed") }) }
+            : { type: "success", text: t("crm.contacts.invitationSent") || "Invitation sent" },
+        );
         refreshAll();
       } else {
         setNotification({ type: "error", text: payload.error || "Failed to send invitation" });
@@ -333,7 +339,11 @@ function ContactsPageContent() {
       });
       const payload = await response.json();
       if (payload.success) {
-        setNotification({ type: "success", message: t("crm.contacts.inviteSent") });
+        setNotification(
+          payload.email_sent === false
+            ? { type: "error", message: t("crm.contacts.inviteEmailFailed", { error: payload.email_error || t("crm.contacts.inviteFailed") }) }
+            : { type: "success", message: t("crm.contacts.inviteSent") },
+        );
         setShowInviteModal(null);
         setInviteForm({ name: "", email: "", phone: "", role: "member" });
         refreshAll();

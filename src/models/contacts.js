@@ -410,6 +410,24 @@ export async function getActivationEmailLogForContacts(cids) {
   });
 }
 
+/**
+ * Every email recorded for ONE person in the shared delivery log: the standalone
+ * sends (invitations, password setup, approvals, credentials, campaigns) as well
+ * as the workflow emails. Matched on the contact id OR the recipient address, so
+ * a send that could not be attached to an identity still appears here.
+ */
+export async function getEmailLogForContact(cid, limit = 100) {
+  return db.execute({
+    sql: `SELECT id, submission_id, contact_cid, email_type, status, provider, error, recipient, sent_at, created_at
+          FROM platform_email_log
+          WHERE contact_cid = ?
+             OR LOWER(recipient) = (SELECT LOWER(email) FROM contacts WHERE cid = ? AND email IS NOT NULL AND email <> '')
+          ORDER BY id DESC
+          LIMIT ?`,
+    args: [cid, cid, Math.max(1, Math.min(500, parseInt(limit) || 100))],
+  });
+}
+
 // ── GET /api/contacts/search ──────────────────────────────────────────────────
 
 /** True if the contact holds a participant_programs row in the program. */
