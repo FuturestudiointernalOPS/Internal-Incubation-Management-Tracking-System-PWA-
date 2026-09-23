@@ -282,6 +282,30 @@ export function getDesignedTemplate(formSettings, templateKey, runSettings) {
 }
 
 /**
+ * How long, in hours, a submission waits after it is sent before its result is
+ * emailed automatically. The delay lives with the template it belongs to:
+ *   • run  → settings.templates.result.delay_hours (an override)
+ *   • form → settings.automation.templates.result.delay_hours (the default)
+ *
+ * An ABSENT run value falls through to the form; an explicit 0 stops the
+ * automatic send for that run (the operator sends by hand). That is the one
+ * place this resolver differs from the text one: there, blank means "not set";
+ * here, an explicit 0 must be obeyed. 0 (or nothing to send) is the default.
+ */
+export function resolveResultDelayHours(formSettings, runSettings) {
+  const parse = (value) => {
+    if (value === undefined || value === null || value === "") return null;
+    const hours = Number(value);
+    if (!Number.isFinite(hours) || hours < 0) return null;
+    return Math.floor(hours);
+  };
+  const fromRun = parse(runSettings?.templates?.result?.delay_hours);
+  if (fromRun !== null) return fromRun;
+  const fromForm = parse(formSettings?.automation?.templates?.result?.delay_hours);
+  return fromForm !== null ? fromForm : 0;
+}
+
+/**
  * Send an invite email with activation link
  */
 function resolveGreetingName(name) {
@@ -945,7 +969,7 @@ export async function sendStandaloneEmail({
 
 let emailLogTablePromise = null;
 
-async function ensureEmailLogTable() {
+export async function ensureEmailLogTable() {
   if (emailLogTablePromise) return emailLogTablePromise;
   emailLogTablePromise = (async () => {
     try {
