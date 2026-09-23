@@ -282,26 +282,35 @@ export function getDesignedTemplate(formSettings, templateKey, runSettings) {
 }
 
 /**
- * How long, in hours, a submission waits after it is sent before its result is
+ * How long, in MINUTES, a submission waits after it is sent before its result is
  * emailed automatically. The delay lives with the template it belongs to:
- *   • run  → settings.templates.result.delay_hours (an override)
- *   • form → settings.automation.templates.result.delay_hours (the default)
+ *   • run  → settings.templates.result.{delay_minutes|delay_hours}
+ *   • form → settings.automation.templates.result.{delay_minutes|delay_hours}
+ *
+ * Minutes are the canonical unit; a `delay_hours` written by an earlier version
+ * is still read (×60) so no saved setting is lost.
  *
  * An ABSENT run value falls through to the form; an explicit 0 stops the
  * automatic send for that run (the operator sends by hand). That is the one
  * place this resolver differs from the text one: there, blank means "not set";
  * here, an explicit 0 must be obeyed. 0 (or nothing to send) is the default.
  */
-export function resolveResultDelayHours(formSettings, runSettings) {
+export function resolveResultDelayMinutes(formSettings, runSettings) {
   const parse = (value) => {
     if (value === undefined || value === null || value === "") return null;
-    const hours = Number(value);
-    if (!Number.isFinite(hours) || hours < 0) return null;
-    return Math.floor(hours);
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount < 0) return null;
+    return Math.floor(amount);
   };
-  const fromRun = parse(runSettings?.templates?.result?.delay_hours);
+  const readEntry = (entry) => {
+    const minutes = parse(entry?.delay_minutes);
+    if (minutes !== null) return minutes;
+    const hours = parse(entry?.delay_hours);
+    return hours !== null ? hours * 60 : null;
+  };
+  const fromRun = readEntry(runSettings?.templates?.result);
   if (fromRun !== null) return fromRun;
-  const fromForm = parse(formSettings?.automation?.templates?.result?.delay_hours);
+  const fromForm = readEntry(formSettings?.automation?.templates?.result);
   return fromForm !== null ? fromForm : 0;
 }
 

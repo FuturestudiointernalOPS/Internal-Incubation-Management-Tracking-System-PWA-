@@ -153,6 +153,7 @@ import AppEmptyState from "@/components/ui/AppEmptyState";
 import AppPagination from "@/components/ui/AppPagination";
 import AppPdfPreview from "@/components/ui/AppPdfPreview";
 import AppImage from "@/components/ui/AppImage";     // EVERY image — the one place a plain <img> is allowed
+import ResultDelayEditor from "@/components/ui/ResultDelayEditor"; // Scheduled send: a switch + hours and minutes
 
 // Feedback
 import GlobalToast from "@/components/ui/GlobalToast";      // the toast host, mounted by the section layouts
@@ -238,6 +239,20 @@ import { Skeleton, TableSkeleton, CardSkeleton } from "@/components/ui/Skeleton"
   title="Result preview"
   loadingLabel="Building the preview…"
   errorLabel="Preview unavailable"
+/>
+
+// Scheduled send — "send the report X hours Y minutes after the submission".
+// The value is ONE number of MINUTES (0 = manual); the two inputs only split
+// it for display. All wording comes from the caller, so each screen keeps its
+// own translation keys.
+<ResultDelayEditor
+  title={t("…resultDelayTitle")}
+  description={t("…resultDelayDesc")}
+  hoursLabel={t("…resultDelayUnitHours")}
+  minutesLabel={t("…resultDelayUnitMinutes")}
+  footnote={t("…resultDelayManual")}
+  value={delayMinutes}          // undefined/0 = not scheduled
+  onChange={setDelayMinutes}    // → total minutes
 />
 
 // In-app dialogs (confirm / prompt / notice) — the ONLY way to ask the user to
@@ -336,6 +351,7 @@ src/
 │       ├── AppStatusBadge.js    ← Status badge using shared STATUS_CONFIG
 │       ├── AppTable.js
 │       ├── AppTabs.js           ← Tab navigation (underline/pills variants)
+│       ├── ResultDelayEditor.js ← Scheduled-send delay (switch + hours & minutes), one canonical minute count
 │       ├── DialogProvider.js    ← In-app confirm / prompt / notice (useDialogs)
 │       ├── GlobalToast.js
 │       └── Skeleton.js

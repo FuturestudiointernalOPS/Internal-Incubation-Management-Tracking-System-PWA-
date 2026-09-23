@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
-import { sendDecisionEmail, getTemplate, getDesignedTemplate, resolveResultDelayHours, ensureEmailLogTable, resolvePersonName, resolveSubmissionEmail, resolveProjectName, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun, detectLanguage, getEmailLogRow } from "@/lib/email";
+import { sendDecisionEmail, getTemplate, getDesignedTemplate, resolveResultDelayMinutes, ensureEmailLogTable, resolvePersonName, resolveSubmissionEmail, resolveProjectName, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun, detectLanguage, getEmailLogRow } from "@/lib/email";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded, sendAcknowledgementForSubmission } from "@/lib/platform/automation";
 import { resolveAutomationFlag } from "@/lib/platform/automationSettings";
 import { syncApprovedSubmissionToProgramGroup } from "@/lib/contact-group-sync";
@@ -1323,7 +1323,7 @@ async function sendResultEmailForSubmission({ submission_id }) {
 /**
  * Deliver every result email whose scheduled time has passed.
  *
- * The delay is the RUN's own setting (see resolveResultDelayHours): the clock
+ * The delay is the RUN's own setting (see resolveResultDelayMinutes): the clock
  * starts at the submission, so a result is "due" once `submitted_at + delay`
  * is in the past. Only approved, evaluated submissions are candidates — the
  * report cannot exist before that, and the query already excludes any
@@ -1345,13 +1345,13 @@ async function dispatchScheduledResultEmails({ run_id = null } = {}) {
     const now = Date.now();
     for (const candidate of candidatesResult.rows || []) {
       if (run_id != null && String(candidate.run_id) !== String(run_id)) continue;
-      const delayHours = resolveResultDelayHours(candidate.form_settings || {}, candidate.run_settings || {});
+      const delayMinutes = resolveResultDelayMinutes(candidate.form_settings || {}, candidate.run_settings || {});
       // No delay = no automatic send: the operator sends the result by hand.
-      if (delayHours <= 0) continue;
+      if (delayMinutes <= 0) continue;
       const submittedAt = candidate.submitted_at ? new Date(candidate.submitted_at).getTime() : NaN;
       if (!Number.isFinite(submittedAt)) continue;
       summary.checked += 1;
-      if (submittedAt + delayHours * 3600 * 1000 > now) {
+      if (submittedAt + delayMinutes * 60 * 1000 > now) {
         summary.not_due += 1;
         continue;
       }

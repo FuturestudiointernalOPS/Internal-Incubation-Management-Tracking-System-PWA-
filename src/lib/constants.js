@@ -293,6 +293,27 @@ export function findUnknownTemplateVariables(text, accepted = []) {
 }
 
 /**
+ * A result template's scheduled delay in MINUTES, or null when the entry sets
+ * none. One definition, so the two editors that write it and the sender that
+ * reads it agree on what "set" means: an explicit 0 is a value (send by hand),
+ * not an absence to fall through. `delay_hours` written by an earlier version
+ * is still honoured (×60) so no saved setting is lost.
+ */
+export function readResultDelayMinutes(entry) {
+  if (!entry) return null;
+  const read = (value) => {
+    if (value === undefined || value === null || value === "") return null;
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount < 0) return null;
+    return Math.floor(amount);
+  };
+  const minutes = read(entry.delay_minutes);
+  if (minutes !== null) return minutes;
+  const hours = read(entry.delay_hours);
+  return hours !== null ? hours * 60 : null;
+}
+
+/**
  * The names each message template can use — exactly the names its sender fills
  * in. ONE definition, so the editor's hint, its unknown-name warning and the
  * sender cannot drift apart. Anything outside this list is deleted before the
