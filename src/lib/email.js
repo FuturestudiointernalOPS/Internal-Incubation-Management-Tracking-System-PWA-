@@ -221,7 +221,12 @@ export function applyTemplate(text, vars = {}) {
     // extra spaces ({{ name }}), so a hand-typed placeholder is not a trap.
     result = result.replace(new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g"), val != null ? String(val) : "");
   }
-  return result.replace(TEMPLATE_VARIABLE_PATTERN, "");
+  const swept = result.replace(TEMPLATE_VARIABLE_PATTERN, "");
+  // An empty value must not strand the punctuation that followed it: with no
+  // known name, "Bonjour {{name}}," would read "Bonjour ," — never "Bonjour".
+  // Only the comma and the full stop are tidied, because in French typography a
+  // space before ! ? ; or : is correct and must be left alone.
+  return swept.replace(/\s+([,.])/g, "$1");
 }
 
 /**
@@ -1912,7 +1917,11 @@ export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en
   // What a designed text may use. Every name here is one THIS sender fills in,
   // so the list the editors show and the values substituted cannot drift.
   const tv = {
-    name: greetingName || "there",
+    // A missing name must read as a greeting, not as an English filler word in a
+    // French message: no known name means an EMPTY name, which the substitution
+    // turns back into "Bonjour," — never "Bonjour there,". English keeps its
+    // idiomatic "Hello there,".
+    name: greetingName || (isFr ? "" : "there"),
     // The result message speaks in the platform's own voice (its built-in copies
     // say "Future Studio" and close with the Future Studio team).
     organization: "Future Studio",

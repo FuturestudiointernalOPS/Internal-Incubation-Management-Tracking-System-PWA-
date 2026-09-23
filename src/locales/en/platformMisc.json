@@ -373,7 +373,7 @@
       "templateRejectionLabel": "Rejection Message",
       "templateRejectionSubject": "Update on your {{form_name}} application",
       "templateResultBody": "<p>Hello {{name}},</p><p>The result of your submission is ready. The document contains your responses, the evaluation of your submission and your final score.</p><p>Thank you for participating.</p>",
-      "templateResultDesc": "Sent with the candidate's result document (PDF). What the document contains is shaped by the run's output instructions and reference document. The line that tells the recipient how to reach the document is inserted where you place {{document_access}} — without that variable, it is added at the end.",
+      "templateResultDesc": "Sent with the candidate's result document (PDF). What the document contains is shaped by the run's output instructions and reference document. The line that tells the recipient how to reach the document is inserted where you place {{document_access}} — without that variable, it is added at the end. You never attach the document yourself: the platform attaches the report generated for each candidate when you send their result.",
       "templateResultLabel": "Result report",
       "templateResultSubject": "Your submission result",
       "templateSubject": "Subject",
