@@ -1163,6 +1163,21 @@ function buildEditableModules(permissionModules) {
   return out;
 }
 
+/**
+ * The capability rows a profile carries, keyed by module then capability. Pure,
+ * so it lives at module scope: `selectProfile` memoises its own identity, and a
+ * helper captured from the component body would change on every render and
+ * defeat that memoisation.
+ */
+function capsToObject(rows) {
+  const o = {};
+  for (const r of rows || []) {
+    o[r.module] ??= {};
+    o[r.module][r.capability] = Number(r.access_level);
+  }
+  return o;
+}
+
 function AccessProfilesView({ initialProfileId = null }) {
   const { t } = useI18n();
   const [profiles, setProfiles] = useState([]);
@@ -1268,16 +1283,10 @@ function AccessProfilesView({ initialProfileId = null }) {
     defer(() => fetchProfiles());
   }, [fetchProfiles]);
 
-  const capsToObject = (rows) => {
-    const o = {};
-    for (const r of rows || []) {
-      o[r.module] ??= {};
-      o[r.module][r.capability] = Number(r.access_level);
-    }
-    return o;
-  };
-
-  const selectProfile = async (profile) => {
+  // Identity is fixed, so the deep-link effect below can list it as a dependency
+  // without re-running on every render: it writes state only through the stable
+  // setters and reads the module-scope helper above.
+  const selectProfile = useCallback(async (profile) => {
     setSelectedProfile(profile);
     setSafetyAck(false);
     setPendingSaveConfirm(null);
@@ -1297,7 +1306,7 @@ function AccessProfilesView({ initialProfileId = null }) {
     } catch (e) {
       console.error("Failed to load profile capabilities", e);
     }
-  };
+  }, []);
 
   // Picker → selection + deep link. `replaceState` keeps the URL shareable
   // (?profile=<id>) without importing next/navigation into this file.
@@ -1343,8 +1352,7 @@ function AccessProfilesView({ initialProfileId = null }) {
     const hit = profiles.find((p) => String(p.id) === String(initialProfileId));
     // Deferred: the mount effect must not perform a synchronous state update.
     if (hit) defer(() => selectProfile(hit));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialProfileId, profiles, selectedProfile]);
+  }, [initialProfileId, profiles, selectedProfile, selectProfile]);
 
   // UI-2c — impact preview for the selected profile (how many users resolve to
   // it today). Read-only, fail-soft: no number is better than a wrong number.

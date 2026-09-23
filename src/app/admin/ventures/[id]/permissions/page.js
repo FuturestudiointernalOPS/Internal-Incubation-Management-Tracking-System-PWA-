@@ -44,24 +44,24 @@ export default function VentureStaffAssignmentsPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const loadAll = async () => {
-    const [v, r, s, a] = await Promise.all([
-      fetch(`/api/ventures/${id}`),
-      fetch("/api/venture-permissions/responsibilities?include_inactive=1"),
-      fetch("/api/venture-permissions/scopes"),
-      fetch(`/api/ventures/${id}/staff-assignments`),
-    ]);
-    const vd = await v.json();
-    const rd = await r.json();
-    const sd = await s.json();
-    const ad = await a.json();
-    if (vd.success) setVenture(vd.venture);
-    if (rd.success) setResponsibilities(rd.responsibilities || []);
-    if (sd.success) setScopes(sd.scopes || []);
-    if (ad.success) setAssignments(ad.assignments || []);
-  };
-
   useEffect(() => {
+    const loadAll = async () => {
+      const [v, r, s, a] = await Promise.all([
+        fetch(`/api/ventures/${id}`),
+        fetch("/api/venture-permissions/responsibilities?include_inactive=1"),
+        fetch("/api/venture-permissions/scopes"),
+        fetch(`/api/ventures/${id}/staff-assignments`),
+      ]);
+      const vd = await v.json();
+      const rd = await r.json();
+      const sd = await s.json();
+      const ad = await a.json();
+      if (vd.success) setVenture(vd.venture);
+      if (rd.success) setResponsibilities(rd.responsibilities || []);
+      if (sd.success) setScopes(sd.scopes || []);
+      if (ad.success) setAssignments(ad.assignments || []);
+    };
+
     (async () => {
       try {
         await loadAll();
@@ -71,7 +71,7 @@ export default function VentureStaffAssignmentsPage() {
         setLoading(false);
       }
     })();
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const searchContacts = async (q) => {
     if (!q || q.length < 2) { setContactResults([]); return; }

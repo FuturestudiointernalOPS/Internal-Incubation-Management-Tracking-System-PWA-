@@ -198,6 +198,58 @@ describe("how many times it reads", () => {
   });
 });
 
+describe("the caller's deps", () => {
+  const pickThings = (d) => (d?.success ? d.things || [] : []);
+
+  // `deps` is spread into the read's dependency list, so the read is re-issued
+  // exactly when one of the values changes. Both halves of that contract matter:
+  // a value that changes must re-read, and a fresh array carrying the SAME values
+  // - the natural thing to write inline - must not. Pinning them here is what
+  // keeps a future change to the spread (a JSON key, a memoised list) honest.
+  it("reads again when a dependency's value changes", async () => {
+    global.fetch.mockImplementation(() =>
+      jsonResponse({ success: true, things: [1] }),
+    );
+
+    const { result, rerender } = renderHook(
+      ({ dep }) =>
+        useApi("/api/deps-change", { deps: [dep], transform: pickThings }),
+      { initialProps: { dep: "a" } },
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const before = global.fetch.mock.calls.length;
+
+    rerender({ dep: "b" });
+
+    await waitFor(() =>
+      expect(global.fetch.mock.calls.length).toBeGreaterThan(before),
+    );
+  });
+
+  it("does not read again when a new array carries the same values", async () => {
+    global.fetch.mockImplementation(() =>
+      jsonResponse({ success: true, things: [1] }),
+    );
+
+    const { result, rerender } = renderHook(
+      ({ dep }) =>
+        useApi("/api/deps-stable", { deps: [dep], transform: pickThings }),
+      { initialProps: { dep: "a" } },
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const before = global.fetch.mock.calls.length;
+
+    // A NEW array, same contents: React compares the contents of the spread
+    // list, so this must not put another request on the wire.
+    rerender({ dep: "a" });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    expect(global.fetch.mock.calls.length).toBe(before);
+  });
+});
+
 describe("the shared GET, in its two forms", () => {
   it("returns the body from fetchJsonShared and the status from fetchJsonEnvelope", async () => {
     global.fetch.mockImplementation(() =>

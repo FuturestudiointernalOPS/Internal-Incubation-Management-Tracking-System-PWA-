@@ -408,6 +408,49 @@ const pickRunList = (d) =>
     ? { runs: d.runs || [], total: d.total || 0, failure: null }
     : { runs: [], total: 0, failure: d?.error || null };
 
+/**
+ * A stored answer, shown as text. Pure, so it lives at module scope: the answer
+ * helpers below memoise their own identity, and a formatter captured from the
+ * component body would change on every render and defeat that memoisation.
+ */
+function fmtAnswer(v) {
+  if (v === undefined || v === null) return "";
+  if (Array.isArray(v)) {
+    return v.map((item) => {
+      if (item === undefined || item === null) return "";
+      if (typeof item === "object") return item.label || item.value || JSON.stringify(item);
+      return String(item);
+    }).filter(Boolean).join(", ");
+  }
+  if (typeof v === "string") {
+    try {
+      if (v.startsWith("{") && v.includes('"code"')) {
+        const p = JSON.parse(v);
+        if (p.code != null) return `${p.code} ${p.number || ""}`.trim();
+      }
+    } catch (_) {}
+    return v;
+  }
+  if (typeof v === "object") {
+    if (v.label) return String(v.label);
+    if (v.value) return String(v.value);
+    return JSON.stringify(v);
+  }
+  return String(v);
+}
+
+/** A submitter's account state, derived from the flags the row carries. Pure. */
+function accountStatusOf(s) {
+  return (
+    s.account_status ||
+    (s.account_activated
+      ? "active"
+      : s.account_created
+        ? "activation_pending"
+        : "not_created")
+  );
+}
+
 export default function FormRunsPage() {
   const { t } = useI18n();
   // The AI evaluation controls follow `runs.review` — the same capability the
@@ -1447,33 +1490,7 @@ export default function FormRunsPage() {
 
   // ─── RUN-SCOPED FILTERING (Overview) ───
   // Runs against ONLY this run's submissions + their AI evaluations.
-  const fmtAnswer = (v) => {
-    if (v === undefined || v === null) return "";
-    if (Array.isArray(v)) {
-      return v.map((item) => {
-        if (item === undefined || item === null) return "";
-        if (typeof item === "object") return item.label || item.value || JSON.stringify(item);
-        return String(item);
-      }).filter(Boolean).join(", ");
-    }
-    if (typeof v === "string") {
-      try {
-        if (v.startsWith("{") && v.includes('"code"')) {
-          const p = JSON.parse(v);
-          if (p.code != null) return `${p.code} ${p.number || ""}`.trim();
-        }
-      } catch (_) {}
-      return v;
-    }
-    if (typeof v === "object") {
-      if (v.label) return String(v.label);
-      if (v.value) return String(v.value);
-      return JSON.stringify(v);
-    }
-    return String(v);
-  };
-
-  const submissionAnswers = (s) => {
+  const submissionAnswers = useCallback((s) => {
     const d = s.data || {};
     const answers = {};
     for (const [key, value] of Object.entries(d)) {
@@ -1481,22 +1498,23 @@ export default function FormRunsPage() {
       answers[fieldLabels[key] || key] = fmtAnswer(value);
     }
     return answers;
-  };
+  }, [fieldLabels]);
 
-  const latestEmailOf = (s, type) =>
-    emailLog
-      .filter((e) => e.submission_id === s.id && e.email_type === type)
-      .slice(-1)[0] || null;
-  const latestReviewOf = (s) => {
+  const latestEmailOf = useCallback(
+    (s, type) =>
+      emailLog
+        .filter((e) => e.submission_id === s.id && e.email_type === type)
+        .slice(-1)[0] || null,
+    [emailLog],
+  );
+  const latestReviewOf = useCallback((s) => {
     const rs = reviews.filter((r) => r.submission_id === s.id);
     return rs[rs.length - 1] || null;
-  };
-  const emailStatusOf = (s, type) => {
+  }, [reviews]);
+  const emailStatusOf = useCallback((s, type) => {
     const e = latestEmailOf(s, type);
     return e ? e.status : "not_sent";
-  };
-  const accountStatusOf = (s) =>
-    s.account_status || (s.account_activated ? "active" : s.account_created ? "activation_pending" : "not_created");
+  }, [latestEmailOf]);
 
   const filteredSubmissions = useMemo(() => {
     if (!selectedRun) return [];
@@ -1556,8 +1574,10 @@ export default function FormRunsPage() {
       }
       return true;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRun, submissions, evaluations, emailLog, reviews, subFilter, respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, fieldLabels, approvalEmailFilter, activationEmailFilter, reviewFilter, accountStatusFilter]);
+  // The three helpers above carry the reactivity of `fieldLabels`, `reviews` and
+  // `emailLog`: the memo depends on their identity, so those raw values are no
+  // longer dependencies of their own.
+  }, [selectedRun, submissions, evaluations, subFilter, respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, submissionAnswers, latestReviewOf, emailStatusOf, approvalEmailFilter, activationEmailFilter, reviewFilter, accountStatusFilter]);
 
   const hasRunFilters = !!(
     respSearch.trim() ||
